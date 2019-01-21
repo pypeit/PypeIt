@@ -22,11 +22,6 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-@pytest.fixture
-@dev_suite_required
-def master_dir():  # THIS SHOULD NOT BE COOKED.  EVER
-    return data_path('MF_shane_kast_blue')
-
 
 # TODO: Not used
 @pytest.fixture
@@ -47,7 +42,7 @@ def kast_blue_files():
 
 
 @dev_suite_required
-def test_gen_sensfunc(kast_blue_files, master_dir):
+def test_gen_sensfunc(kast_blue_files):
     # Get it started
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
@@ -65,11 +60,11 @@ def test_gen_sensfunc(kast_blue_files, master_dir):
     assert 'FEIGE66' in sens_dict['std_name']
     assert FxSpec.steps[-1] == 'generate_sensfunc'
     # Master
-    FxSpec.save_master(FxSpec.sens_dict, outfile=data_path('sensfunc.fits'))
+    FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=data_path('sensfunc.fits'))
 
 
 @dev_suite_required
-def test_from_sens_func(kast_blue_files, master_dir):
+def test_from_sens_func(kast_blue_files ):
     """ This test will fail if the previous one does as it need its output
     """
     spectrograph = load_spectrograph('shane_kast_blue')

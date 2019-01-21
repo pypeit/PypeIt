@@ -26,31 +26,18 @@ from pypeit.par.pypeitpar import TelescopePar
 
 from pypeit import debugger
 
-class FluxSpec(masterframe.MasterFrame):
+class FluxSpec():
     """Class to guide fluxing
 
     Parameters
     ----------
-    std_spec1d_file : str
-      Filename of the spec1d file containing the standard star spectrum
-      One or more of these are used to generate the sensitivity function
-    std_specobjs : list
-      List of SpecObj objects for the standard star spectrum/spectra
-      May be input instead of std_spec1d_file to generate the sensitivity function
-    sci_spec1d_file : str
-      Filename of a spec1d file to be fluxed
     spectrograph : Spectrograph or str
       Name of the spectrograph, e.g. shane_kast_blue
       Used only to set settings for calls to the Class outside of PypeIt
       This includes extinction data..
-    sens_file : str
+    par: FluxCalib parset
+    sens_file : str, optional
       Filename of a sensitivity function file to be input
-    master_key : str
-      Setup code (for MasterFrame)
-    settings : dict-like
-      Settings to guide the fluxing
-      Key ones are ['mosaic']['longitude', 'latitude', 'elevation']
-
 
     Attributes
     ----------
@@ -79,16 +66,12 @@ class FluxSpec(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
-    def __init__(self, spectrograph, par, sens_file=None, master_key=None, master_dir=None,
-                 reuse_masters=False, debug=False):
+    def __init__(self, spectrograph, par, sens_file=None, debug=False):
 
         # Init
         self.spectrograph = spectrograph
         self.par = par
 
-        # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, reuse_masters=reuse_masters)
         # Get the extinction data
         self.extinction_data = flux.load_extinction_data(
                 self.spectrograph.telescope['longitude'], self.spectrograph.telescope['latitude'])
@@ -105,8 +88,7 @@ class FluxSpec(masterframe.MasterFrame):
 
         # Main outputs
         self.sens_dict = None if self.sens_file is None \
-                            else self.load_master(self.sens_file)
-
+                            else self.load_sens_dict(self.sens_file)
         # Attributes
         self.steps = []
 
@@ -117,6 +99,18 @@ class FluxSpec(masterframe.MasterFrame):
         self.debug = debug
 
     def load_objs(self, spec1d_file, std=True):
+        """
+
+        Args:
+            spec1d_file: str
+            std: bool, optional
+              If True, load up standard star file and header
+              If False, load up science file and header
+
+        Returns:
+            Loads up self.std_specobjs or self.sci_specobjs
+
+        """
         specobjs, header = load.load_specobjs(spec1d_file)
         if std:
             self.std_specobjs, self.std_header = specobjs, header
@@ -199,16 +193,6 @@ class FluxSpec(masterframe.MasterFrame):
                       'AIRMASS, EXPTIME.')
             return None
 
-        # Get extinction correction
-        #extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
-                                                       #self.std_header['AIRMASS'],
-                                                       #self.extinction_data)
-        #self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
-                                                 #self.std_header['DEC'],
-                                                 #self.std_header['EXPTIME'], extinction_corr)
-        # extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
-        #                                              self.std_header['AIRMASS'],
-        #                                              self.extinction_data)
         self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
                                                self.std.boxcar['COUNTS'],
                                                self.std.boxcar['COUNTS_IVAR'],
@@ -352,14 +336,20 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.sens_dict
 
-    def load_master(self, filename, force=False):
+    def load_sens_dict(self, filename):
+        """
+
+        Args:
+            filename:
+
+        Returns:
+
+        """
 
 
         # Does the master file exist?
         if not os.path.isfile(filename):
-            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            msgs.warn("No sens_file found of type {:s}: {:s}".format(self.frametype, filename))
             return None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
@@ -377,7 +367,7 @@ class FluxSpec(masterframe.MasterFrame):
                     pass
             return sens_dict
 
-    def save_master(self, sens_dict, outfile=None):
+    def save_sens_dict(self, sens_dict, outfile=None):
         """
         Over-load the save_master() method in MasterFrame to write a FITS file
 
@@ -424,44 +414,6 @@ class FluxSpec(masterframe.MasterFrame):
         hdulist.writeto(outfile, overwrite=True)
 
         # Finish
-        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
-
-
-    def save_master_old(self, outfile=None):
-        """
-        Over-load the save_master() method in MasterFrame to write a JSON file
-
-        Parameters
-        ----------
-        outfile : str, optional
-          Use this input instead of the 'proper' (or unattainable) MasterFrame name
-
-        Returns
-        -------
-
-        """
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Allow one to over-ride output name
-        if outfile is None:
-            outfile = self.ms_name
-        # Add steps
-        self.sens_dict['steps'] = self.steps
-        # # yamlify
-        # ysens = utils.yamlify(self.sensfunc)
-        # with open(outfile, 'w') as yamlf:
-        #     yamlf.write(yaml.dump(ysens))
-        #  #
-        # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
-
-        # jsonify
-        self.sensfunc['mag_set'] = self.sensfunc['mag_set'].to_dict()
-        jsensfunc = self.sensfunc.copy()
-        jsensfunc['bspline'] = jsensfunc['bspline'].to_dict()
-        jsensfunc = linetools.utils.jsonify(jsensfunc)
-        with open(outfile, 'w') as jsonf:
-            linetools.utils.savejson(outfile, jsensfunc, overwrite=True, indent=4, easy_to_read=True)
-
         msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
     def show_sensfunc(self):
@@ -657,7 +609,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.nresln = nresln
         self.debug = debug
 
-    def load_master(self, filename, force=False):
+    def load_sens_dict(self, filename, force=False):
 
         # Does the master file exist?
         if not os.path.isfile(filename):

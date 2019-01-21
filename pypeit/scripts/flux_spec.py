@@ -88,7 +88,7 @@ def main(args, unit_test=False):
         # Sensitivity
         _ = FxSpec.generate_sensfunc()
         # Output
-        _ = FxSpec.save_master(FxSpec.sens_dict, outfile=par['fluxcalib']['sensfunc'])
+        _ = FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=par['fluxcalib']['sensfunc'])
         # Show
         if args.plot:
             FxSpec.show_sensfunc()
