@@ -199,8 +199,6 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs) / float(nimgs)
 
-#    from IPython import embed
-#    embed()
     # Create the slit_cen_stack and determine the minimum and maximum spatial offsets that we need to cover to determine
     # the spatial bins
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
