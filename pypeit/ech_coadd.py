@@ -1,6 +1,7 @@
 """ Routine for Echelle coaddition
 """
 import numpy as np
+from astropy import stats
 from astropy.io import fits
 from astropy import units
 import matplotlib.pyplot as plt
@@ -14,6 +15,19 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from pkg_resources import resource_filename
 
 ## ToDo: change it to a CLASS and modify coadd_1dspec.py
+
+# setting plot parameters
+plt.rcdefaults()
+plt.rcParams['font.family'] = 'times new roman'
+plt.rcParams["xtick.top"] = True
+plt.rcParams["ytick.right"] = True
+plt.rcParams["xtick.minor.visible"] = True
+plt.rcParams["ytick.minor.visible"] = True
+plt.rcParams["ytick.direction"] = 'in'
+plt.rcParams["xtick.direction"] = 'in'
+plt.rcParams["xtick.labelsize"] = 17
+plt.rcParams["ytick.labelsize"] = 17
+plt.rcParams["axes.labelsize"] = 17
 
 def spec_from_array(wave,flux,sig,**kwargs):
     """
@@ -34,6 +48,57 @@ def spec_from_array(wave,flux,sig,**kwargs):
         spectrum.data['sig'][spectrum.select][bad_flux] = 0.
     return spectrum
 
+
+def median_echelle_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5, overlapfrac=0.03, debug=False):
+    '''
+    Scale different orders.
+    ToDo: clean up the docs
+    :param spectra:
+    :param smask:
+    :param sn2:
+    :param nsig:
+    :param niter:
+    :param SN_MIN_MEDSCALE:
+    :param overlapfrac:
+    :param debug:
+    :return:
+    '''
+    norder = spectra.nspec
+    rms_sn = np.sqrt(np.mean(sn2))  # Root Mean S/N**2 value for all spectra
+    fluxes, sigs, wave = coadd.unpack_spec(spectra, all_wave=False)
+    fluxes_raw = fluxes.copy()
+
+    # scaling spectrum order by order. We use the reddest order as the reference since slit loss in redder is smaller
+    for i in range(norder - 1):
+        iord = norder - i - 1
+        sn_iord_iref = fluxes[iord] * (1. / sigs[iord])
+        sn_iord_scale = fluxes[iord - 1] * (1. / sigs[iord - 1])
+        allok = (sigs[iord - 1, :] > 0) & (sigs[iord, :] > 0) & (sn_iord_iref > SN_MIN_MEDSCALE) & (
+        sn_iord_scale > SN_MIN_MEDSCALE)
+        if sum(allok) > np.maximum(50., len(wave) * overlapfrac):
+            # Ratio
+            med_flux = spectra.data['flux'][iord, allok] / spectra.data['flux'][iord - 1, allok]
+            # Clip
+            mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
+            med_scale = np.minimum(med_scale, 5.0)
+            spectra.data['flux'][iord - 1, :] *= med_scale
+            spectra.data['sig'][iord - 1, :] *= med_scale
+            msgs.info('Scaled %s order by a factor of %s'%(iord,str(med_scale)))
+
+            if debug:
+                plt.plot(wave, spectra.data['flux'][iord], 'r-', label='reference spectrum')
+                plt.plot(wave, fluxes_raw[iord - 1], 'k-', label='raw spectrum')
+                plt.plot(spectra.data['wave'][iord - 1, :], spectra.data['flux'][iord - 1, :], 'b-',
+                         label='scaled spectrum')
+                mny, medy, stdy = stats.sigma_clipped_stats(fluxes[iord, allok], sigma=nsig, iters=niter)
+                plt.ylim([0.1 * medy, 4.0 * medy])
+                plt.xlim([np.min(wave[sigs[iord - 1, :] > 0]), np.max(wave[sigs[iord, :] > 0])])
+                plt.legend()
+                plt.xlabel('wavelength')
+                plt.ylabel('Flux')
+                plt.show()
+        else:
+            msgs.warn('Not enough overlap region for sticking different orders.')
 
 def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
               wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
@@ -136,6 +201,17 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
         spectra_coadd_rebin = collate(spectra_list_new)
         fluxes, sigs, wave = coadd.unpack_spec(spectra_coadd_rebin,all_wave=False)
 
+        ## scaling different orders
+        rmask = spectra_coadd_rebin.data['sig'].filled(0.) <= 0.
+        sn2, weights = coadd.sn_weight(spectra_coadd_rebin, rmask)
+        ## ToDo pasing parameters
+        SN_MIN_MEDSCALE = 0.5
+        overlapfrac=0.03
+        median_echelle_scale(spectra_coadd_rebin, rmask, sn2, nsig=sigrej_final, niter=niter,
+                             SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, overlapfrac=overlapfrac, debug=debug)
+
+        ## Mergering orders
+        ## ToDo: Joe claimed not to use pixel depedent weighting.
         weights = 1.0 / sigs**2
         weights[~np.isfinite(weights)] = 0.0
         weight_combine = np.sum(weights, axis=0)
@@ -145,21 +221,8 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
         sig_final = np.sqrt(np.sum((weight_norm * sigs) ** 2, axis=0))
         spec1d_final = spec_from_array(wave_final * units.AA,flux_final,sig_final,**rsp_kwargs)
 
-
         # plot and save qa
         plt.figure(figsize=(12, 6))
-        plt.rcdefaults()
-        plt.rcParams['font.family'] = 'times new roman'
-        plt.rcParams["xtick.top"] = True
-        plt.rcParams["ytick.right"] = True
-        plt.rcParams["xtick.minor.visible"] = True
-        plt.rcParams["ytick.minor.visible"] = True
-        plt.rcParams["ytick.direction"] = 'in'
-        plt.rcParams["xtick.direction"] = 'in'
-        plt.rcParams["xtick.labelsize"] = 17
-        plt.rcParams["ytick.labelsize"] = 17
-        plt.rcParams["axes.labelsize"] = 17
-
         ax1 = plt.axes([0.07, 0.13, 0.9, 0.4])
         ax2 = plt.axes([0.07, 0.55, 0.9, 0.4])
         plt.setp(ax2.get_xticklabels(), visible=False)
