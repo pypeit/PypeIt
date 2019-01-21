@@ -675,7 +675,7 @@ class FluxCalibrationPar(ParSet):
                         ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
 
         dtypes['sensfunc'] = str
-        descr['sensfunc'] = 'YAML file with an existing calibration function'
+        descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
 
         defaults['telluric'] = False
         dtypes['telluric'] = bool

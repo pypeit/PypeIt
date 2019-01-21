@@ -994,11 +994,15 @@ def read_fluxfile(ifile):
     s, e = util._find_pypeit_block(lines, 'flux')
     if s >= 0 and e < 0:
         msgs.error("Missing 'flux end' in {0}".format(ifile))
-    elif s < 0:
+    elif (s < 0) or (s==e):
         msgs.warn("No flux block, you must be making the sensfunc only..")
     else:
-        for line in lines[s:e]: flux_dict['std_file'] = lines[s:e][0]
-        flux_dict['sensfunc_file'] = lines[s:e][0]
+        flux_dict['spec1d_files'] = []
+        flux_dict['flux_files'] = []
+        for line in lines[s:e]:
+            prs = line.split(' ')
+            flux_dict['spec1d_files'].append(prs[0])
+            flux_dict['flux_files'].append(prs[1])
         is_config[s-1:e+1] = False
 
     # Construct config to get spectrograph

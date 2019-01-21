@@ -128,7 +128,7 @@ class FluxSpec(masterframe.MasterFrame):
                 len(self.sci_specobjs), spec1d_file))
         # Check instrument
         spectro = header['INSTRUME']
-        assert spectro == self.spectrograph.camera
+        assert spectro == self.spectrograph.spectrograph
 
     def find_standard(self):
         """
@@ -248,7 +248,7 @@ class FluxSpec(masterframe.MasterFrame):
                 flux.apply_sensfunc(sci_obj, self.sens_dict, airmass, exptime,
                                     self.spectrograph)
 
-    def flux_science(self):
+    def flux_science(self, sci_file):
         """
         Flux the internal list of sci_specobjs
 
@@ -258,6 +258,9 @@ class FluxSpec(masterframe.MasterFrame):
         -------
 
         """
+        # Load
+        self.load_objs(sci_file, std=False)
+        # Run
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sens_dict, self.sci_header['AIRMASS'],
                                   self.sci_header['EXPTIME'], self.spectrograph)
@@ -373,7 +376,7 @@ class FluxSpec(masterframe.MasterFrame):
 
     def save_master(self, sens_dict, outfile=None):
         """
-        Over-load the save_master() method in MasterFrame to write a JSON file
+        Over-load the save_master() method in MasterFrame to write a FITS file
 
         Parameters
         ----------

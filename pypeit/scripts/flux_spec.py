@@ -31,6 +31,7 @@ def parser(options=None):
     parser.add_argument("flux_file", type=str, help="File to guide fluxing process")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
+    parser.add_argument("--par_outfile", default='fluxing.par', action="store_true", help="Output to save the parameters")
 
     if options is None:
         args = parser.parse_args()
@@ -56,6 +57,10 @@ def main(args, unit_test=False):
     par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                              merge_with=config_lines)
 
+    # Write the par to disk
+    print("Writing the parameters to {}".format(args.par_outfile))
+    par.to_config(args.par_outfile)
+
     # Instantiate
     if spectrograph.pypeline == 'Echelle':
         # THIS MAY BE BROKEN
@@ -70,10 +75,7 @@ def main(args, unit_test=False):
         # For echelle, the code will deal with the standard star in the ech_fluxspec.py
         if not spectrograph.pypeline == 'Echelle':
             # Find the star
-            if par['fluxcalib']['std_obj_id'] is not None:
-                _ = FxSpec._set_std_obj(par['fluxcalib']['std_obj_id'])
-            else:
-                _ = FxSpec.find_standard()
+            _ = FxSpec.find_standard()
         # Sensitivity
         _ = FxSpec.generate_sensfunc()
         # Output
