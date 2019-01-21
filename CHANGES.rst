@@ -80,6 +80,9 @@ takes the sampling set by the wavelength tilts into account.
 - Introduced routines into core.procimg that will be used in 2-d co-adding.
 - Tweaks to VLT X-SHOOTER spectrograph class to improve reductions.
 - Moved methods for imaging processing from scienceimage class to processimages class.
+- Introduce mask_frac_thresh and smash_range parameters for slit tracing; modified LRISb 300 defaults
+- Updated slit tracing docs
+- Introduced --show command in pypeit_chk_edges
 
 0.9.0
 -----

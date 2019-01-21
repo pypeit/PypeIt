@@ -34,13 +34,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
-        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always sky subtract, starting with default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
@@ -387,6 +382,30 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return par
 
+    def config_specific_par(self, par, scifile):
+        """
+        Set par values according to the specific frame
+
+        Here, we only fuss with parameters related to CR rejection
+
+        Args:
+            par:  ParSet
+            scifile: str
+              Name of the science file to use
+
+        Returns:
+            par
+
+        """
+        # Slit tracing
+        # Reduce the slit parameters because the flux does not span the full detector
+        #   It is primarily on the upper half of the detector (usually)
+        if self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['slits']['mask_frac_thresh'] = 0.45
+            par['calibrations']['slits']['smash_range'] = [0.5, 1.]
+        # Return
+        return par
+
     '''
     def check_headers(self, headers):
         """
@@ -560,8 +579,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par
 
         """
-        # Lacosmic CR settings
-        #   Grab the defaults for LRISr
         binning = self.get_meta_value(scifile, 'binning')
         # Unbinned LRISr needs very aggressive LACosmics parameters for 1x1 binning
         if binning == '1,1':

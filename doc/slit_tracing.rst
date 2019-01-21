@@ -11,7 +11,7 @@ to the wide variety in:
 
   - the number of slits/orders,
   - the separation between slits/orders (if any)
-  - the brightness of the flats being used
+  - the varying brightness of flats across the detector
 
 Developing a single algorithm to handle all of these
 edge cases (pun intended) is challenging if not impossible.
@@ -20,67 +20,38 @@ that one may need to consider when running PypeIt (see below).
 
 Underlying the effort is the TraceSlits class which can be
 used to load the Master frame output for tracing (a FITS and
-a JSON file). See the
-`TraceSlits.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/TraceSlits.ipynb>`_
-Notebook on GitHub in doc/nb/ for some usage examples.
+a JSON file).
 
 Algorithm
 =========
 
 Here is the flow of the algorithms.
 
-#. edge detection: The edge tracing algorithm artrace.trace_slits()
-   uses a combination of a
-   median and sobel filters to identify significant
-   gradients in the image along the spatial dimension.
+#. A Sobolev S/N image is generated from the trace flat image
+#. edge detection: An initial set of edges are derived from the Sobolev
+   according to the :ref:`trace-slit-threshold`.
 #. match edges:  An algorithm is performed to match edges into slits
    for the first time.
-#. trace (cruedly) the slits: Each slit edge is traced with the trace_crude
+#. trace (crudely) the slits: Each slit edge is traced with the trace_crude
    algorithm and snippets of edges are (hopefully) merged
-#. if longslit (i.e. 1 slit), we are done
-#. if not longslit, the slit edges are analyzed with a PCA algorithm,
-   and slits/orders are identified from a rectified, smash of the Sobolev image
+#. PCA: A PCA analysis is performed of the well-traced edges found thus far.
+   This is then used to rectify the Sobolev images and search for additional edges.
 #. synchronize: Slit edges are synchronized primarily to pick up missing edges
 #. trim: Trimming of small slits is performed
 
 Open Issues
 ===========
 
-#.  Bad columns yield fake edges.  Ideally these are masked out by the pipeline using the
-    instrument-specific bad pixel mask.
-#.  Bad match at amplifier (e.g. LRISr) yields a fake slit (or worse)
-
-Tips on Trace Flat Frames
-=========================
-
-The slit edges are traced using a "trace" frame.
-If neighboring slits are very close together, you
-can use a "pinhole" frame to trace the slit centroid.
-
-In the current version of PypeIt, pinhole frames are
-only used for echelle data reduction. Pinhole frames
-are usually an exposure of a quartz lamp through a
-very short (pinhole) slit. Thus, neighboring slit
-edges of a pinhole frame should be well separated.
-
-Trace frames, on the other hand, usually have the
-same slit length as the science frame. In cases
-where neighboring slits are very close together,
-it is necessary to first define the slit centroid
-using a pinhole frame, and the slit edges are
-defined using a trace frame by "expanding" the
-slits, by giving the following keyword argument::
-
-    trace slits expand True
-
-This has been developed for the APF primarily.
+#.  Bad columns yield fake edges.  These should be masked out by the pipeline
+    using the instrument-specific bad pixel mask.
+#.  Overlapping slits are notoriously difficult to detect.  One may need to
+    add/subtract individual slits on occasion.
 
 
 .. _trace-slit-longslit:
 
 Reduction Mode
 ==============
-
 
 Longslit
 --------
@@ -99,13 +70,66 @@ is thus far recovering ~95% of the slits.
 It is highly recommended that you inspect the warning
 messages during slit tracing and then pause the code
 to inspect the MasterTrace output using the :ref:`trace-slit-script`
-script.  The most obvious parameter to vary first
-is the :ref:`trace-slit-threshold`.
+script.
 
-Future versions of the code will allow one to add
-individual slits.  For now you can only specify
-a single slit on each detector with the
-:ref:`trace-slit-user-defined` approach.
+We now summarize the PypeIt parameters that are occasionally
+varied to improve slit tracing.
+
+One parameter to consider first
+is the :ref:`trace-slit-threshold` which sets the minimum
+S/N ratio in the Sobolev filter image for an edge to be
+detected.  You may inspect these edges with the
+:ref:`trace-slit-script` and --show=edgearr.
+The left edges in the Sobolev are the white regions in this image and the
+black regions (negative values)
+are the right edges.
+The green/red traces show the left/right edges detected
+from this image;  these are *not* the final traces.
+Inspect the positive/negative values
+of the edges in the Sobolev image
+and lower/raise :ref:`trace-slit-threshold` accordingly.
+
+If your spectra span only a modest fraction (~50%) of the
+detector in the spectral direction, you may need to:
+(1) Reduce the value of :ref:`trace-slit-mask_frac_thresh`
+and maybe also:
+(2) Modify the range for smashing the Sobolev image
+with :ref:`trace-slit-smash_range`.
+
+Add User Slits
+++++++++++++++
+
+The code may be instructed to add slits at user-input
+locations.  The syntax is is a list of lists, with
+each sub-list having syntax (all integers):  det:x0:x1:yrow
+For example::
+
+    [calibrations]
+      [[slits]]
+        add_slits = 2:2121:2322:2000,3:1201:1500:2000
+
+The above will add one slit on detector 2 with left/right edge at
+2121/2322 at row 2000.  The shapes of the slit will be taken from
+the ones nearest.
+
+.. _trace-slit-rm:
+
+Remove Slits
+++++++++++++
+
+The code may be instructed to remove slits at user-input
+locations. The syntax is a list of lists,
+with each sub-list having syntax (all integers):  det:xcen:yrow
+For example::
+
+    [calibrations]
+      [[slits]]
+        rm_slits = 2:2121:2000,3:1500:2000
+
+This will remove any slit on det=2 that contains xcen=2121
+at yrow=2000 and similarly for the slit on det=3.
+
+.. _trace-slit-threshold:
 
 Echelle
 -------
@@ -126,8 +150,16 @@ pypeit_chk_edges
 PypeIt includes a simple script to show the processed
 Trace image and the slit/order edges defined by the
 algorithm.  These are displayed in a Ginga viewer.
-Here is the call::
+Here is an example call::
 
+    pypeit_chk_edges MF_keck_lris_blue/MasterTrace_A_1_01
+
+If debugging poor performance, you can show other outputs
+from intermediate steps in the process with the --show command::
+
+    --show=edgeearr  # Shows the edges derived early on from the Sobolev image
+    --show=xset      # Shows the edges derived after the mslit_tcrude() method
+    --show=siglev    # Shows the Sobolev S/N image
 
 
 Trace Slit Settings
@@ -154,7 +186,9 @@ idea to explicitly tell PypeIt that there is only
 1 slit to be identified. You can set this using
 the keyword::
 
-    trace slits number 1
+    [calibrations]
+      [[slits]]
+        number=1
 
 You can also use this variable to specify the
 number of slits that should be detected.
@@ -163,35 +197,8 @@ well-defined and uniformly illuminated slits
 (usually the case with cross-dispersed data,
 for example).
 
-Add User Slits
---------------
+.. _trace-slit-add:
 
-See the
-`TraceSlits.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/TraceSlits.ipynb>`_
-Notebook on GitHub in doc/nb/
-
-Single user slit
-----------------
-
-This option is likely to be deprecated while add_user_slits
-will be maintained.
-
-If necessary, the user may define the edges of the slit
-on each detector.  Currently this is only implemented for
-single slit (i.e. longslit) mode.  The syntax is to add a
-line to the PypeIt file indicating the start and end of each
-slit on each detector in detector column units (as binned).
-
-For example, for the LRISr longslit with 2x2 binning, the
-following line will force the slit to be generated from
-columns 7-295 on the second detector::
-
-    trace slits single [0,0,7,295]   # [left_det01, right_det01, left_det02, right_det02]
-
-The code will be required to
-automatically set a slit on the second detector.
-
-.. _trace-slit-threshold:
 
 Detection Threshold
 -------------------
@@ -202,7 +209,9 @@ The algorithm can be fooled by scattered light and detector
 defects.  One can increase the threshold with the *sigdetect*
 parameter::
 
-    trace slits sigdetect 30.
+    [calibrations]
+      [[slits]]
+        sigdetect = 30.
 
 Then monitor the number of slits detected by the algorithm.
 
@@ -214,34 +223,50 @@ On the flip side, if slit defects (common) are being
 mistaken as slit edges then *increase* sigdetect
 and hope for the best.
 
-Slit Gaps
----------
+.. _trace-slit-mask_frac_thresh
 
-THIS METHOD IS NOT WELL TESTED NOR RECOMMENDED
-AT THIS STAGE (JXP).
+Fraction Threshold
+------------------
 
-In cases where the trace frame contains slits that
-are uniformly illuminated in the spectral direction,
-and there is at least 5-10 pixels between the slits,
-the slit tracing algorithm generally works well.
+In an interemediate step, the mslit_tcrude() method,
+the edges defined thus far are traced across the detector
+with the trace_crude method.  A PCA analysis of these is
+then performed on those edges which spanned at least
+mask_frac_thresh of the detector in the spectral direction.
+The default value is 0.6 which may be too large for some
+instruments (e.g. LRISb with the 300 grism).  Consider
+lowering the value, especially if the code raised a warning
+on too few edges for the PCA::
 
-In the event
-that the slits are not uniformly illuminated, or if
-neighbouring slits are a little close (perhaps with
-some crosstalk), you may need to specify the slit gap
-using the argument::
+    [calibrations]
+      [[slits]]
+        mask_frac_thresh = 0.45
 
-    trace slits maxgap 10
+You may also need to adjust the :ref:`trace-slit-smash_range`
+parameter.
 
-in the event that the gap between all neighbouring slits is
-less than 10 pixels. This variable should not be used unless
-there is some crosstalk between slits, or in the event
-of close slits with a non-uniform illumination pattern.
+.. _trace-slit-smash_range
 
-.. _trace-slit-user-defined:
+Smash Range
+-----------
+
+One of the final steps in slit/order definition is to identify
+edges by smashing a rectified version of the Sobolev image.
+The default is to smash the entire image, but if the spectra
+are primariliy in a subset of the image one should consider
+modifying the default parameter.  This is frequently the
+case for low-dispersion data, e.g. LRISb 300 grism spectra
+(which has a different default value).  Modify it as such::
+
+    [calibrations]
+      [[slits]]
+        smash_range = 0.5,1.
+
 
 Slit Profile
 ============
+
+DEPRECATED
 
 With relatively short slits (often the case with
 multiobject or echelle data), the sky background
@@ -282,6 +307,31 @@ If the spatial slit profile is not calculated, the
 blaze function will still be calculated using the
 'reduce flatfield' settings listed above.
 
+Tips on Trace Flat Frames
+=========================
+
+The slit edges are traced using a "trace" frame.
+If neighboring slits are very close together, you
+can use a "pinhole" frame to trace the slit centroid.
+
+In the current version of PypeIt, pinhole frames are
+only used for echelle data reduction. Pinhole frames
+are usually an exposure of a quartz lamp through a
+very short (pinhole) slit. Thus, neighboring slit
+edges of a pinhole frame should be well separated.
+
+Trace frames, on the other hand, usually have the
+same slit length as the science frame. In cases
+where neighboring slits are very close together,
+it is necessary to first define the slit centroid
+using a pinhole frame, and the slit edges are
+defined using a trace frame by "expanding" the
+slits, by giving the following keyword argument::
+
+    trace slits expand True
+
+This has been developed for the APF primarily.
+
 
 For Developers
 ==============
@@ -291,3 +341,5 @@ via chip defects, e.g. bad columns.  It is therefore
 valuable to mask any such known features with the
 bad pixel mask when one introduces a new instrument
 (or detector).
+
+
