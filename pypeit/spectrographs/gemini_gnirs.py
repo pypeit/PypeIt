@@ -281,6 +281,18 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return slitmask
 
 
+    def wavegrid(self, binning=None):
+
+        # Define the new wavelength grid for GNIRS
+        ngrid = 5000
+        dloglam = 0.000127888 # this is the average of the median dispersions
+        logmin = 3.777
+        osamp = 1.0
+        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+
+        return np.power(10.0,loglam_grid)
+
+
     def get_match_criteria(self):
 
         """Set the general matching criteria for GNIRS. Copied from NIRES"""

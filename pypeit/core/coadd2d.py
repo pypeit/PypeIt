@@ -15,14 +15,14 @@ from pypeit import traceslits
 from pypeit.spectrographs import util
 
 
-def load_coadd2d_files(redux_path, objprefix):
+def load_coadd2d_stacks(spec2d_files):
 
     # Grab the files
-    spec2d_files = glob.glob(redux_path + 'Science/spec2d_' + objprefix + '*')
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
     # Get the master dir
     head0 = fits.getheader(spec2d_files[0])
     mdir = os.path.basename(head0['PYPMFDIR'])+'/'
+    redux_path =  os.path.dirname(os.path.dirname(spec2d_files[0])) + '/'
     master_path = redux_path + mdir
     tiltfiles = []
     waveimgfiles = []
@@ -181,8 +181,9 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     nimgs, nspec, nspat = sciimg_stack.shape
 
     # Determine the wavelength grid that we will use for the current slit/order
-    wave_min = waveimg_stack[thismask_stack].min()
-    wave_max = waveimg_stack[thismask_stack].max()
+    wavemask = thismask_stack & (waveimg_stack > 1.0) # TODO This cut on waveimg_stack should not be necessary
+    wave_min = waveimg_stack[wavemask].min()
+    wave_max = waveimg_stack[wavemask].max()
     if loglam_grid is not None:
         ind_lower, ind_upper = get_wave_ind(loglam_grid, np.log10(wave_min), np.log10(wave_max))
         loglam_bins = loglam_grid[ind_lower:ind_upper + 1]
@@ -198,6 +199,8 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs) / float(nimgs)
 
+#    from IPython import embed
+#    embed()
     # Create the slit_cen_stack and determine the minimum and maximum spatial offsets that we need to cover to determine
     # the spatial bins
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
