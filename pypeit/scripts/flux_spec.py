@@ -42,6 +42,7 @@ def parser(options=None):
     parser.add_argument("--star_type", type=str, help="Which type of yur telluric/standard star?")
     parser.add_argument("--star_mag", type=float, help="What's the V-band magnitude of your telluric/standard star?")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+    parser.add_argument("--param_file", type=str, help="Parameter file for fluxing.. (config)")
 
     if options is None:
         args = parser.parse_args()
@@ -56,10 +57,23 @@ def main(args, unit_test=False):
     import pdb
 
     from pypeit import fluxspec
-    #from pypeit import ech_fluxspec
+    from pypeit.spectrographs.util import load_spectrograph
+    from pypeit.par import pypeitpar
+    from pypeit.par import util
 
     # Parse the steps
     steps = args.steps.split(',')
+
+    spectrograph = load_spectrograph(args.spectrograph)
+    spectrograph_def_par = spectrograph.default_pypeit_par()
+
+    # Extra parameters?
+    if args.param_file is not None:
+        lines = util._read_pypeit_file_lines(args.param_file)
+        par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), merge_with=list(lines))
+    else:
+        par = spectrograph_def_par
+
 
     # Multi detector?
     if args.multi_det is not None:
@@ -91,18 +105,18 @@ def main(args, unit_test=False):
         sfile = args.sensfunc_file
 
     if args.echelle:
-        FxSpec = fluxspec.EchFluxSpec(std_spec1d_file=args.std_file,
+        FxSpec = fluxspec.EchFluxSpec(spectrograph,
+                                      std_spec1d_file=args.std_file,
                                    sci_spec1d_file=args.sci_file,
-                                   spectrograph=args.spectrograph,
                                    telluric=args.telluric,
                                    sens_file=sfile,
                                    star_type=args.star_type,
                                    star_mag=args.star_mag,
                                    debug = args.debug)
     else:
-        FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
+        FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'],
+                                   std_spec1d_file=args.std_file,
                                    sci_spec1d_file=args.sci_file,
-                                   spectrograph=args.spectrograph,
                                    telluric=args.telluric,
                                    sens_file=sfile,
                                    multi_det=multi_det,

@@ -83,9 +83,13 @@ class FluxSpec(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
-    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
-                 std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
+    def __init__(self, spectrograph, par, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
+                 std_specobjs=None, std_header=None, multi_det=None,
                  telluric=False, master_key=None, master_dir=None, reuse_masters=False,debug=False):
+
+        # Init
+        self.spectrograph = spectrograph
+        self.par = par
 
         # Load standard files
         std_spectro = None
@@ -128,6 +132,7 @@ class FluxSpec(masterframe.MasterFrame):
             msgs.error('Standard spectra are not the same instrument as science!!')
 
         # Instantiate the spectrograph
+        '''
         _spectrograph = spectrograph
         if _spectrograph is None:
             _spectrograph = std_spectro
@@ -138,6 +143,7 @@ class FluxSpec(masterframe.MasterFrame):
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
         self.spectrograph = load_spectrograph(_spectrograph)
+        '''
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
@@ -254,6 +260,7 @@ class FluxSpec(masterframe.MasterFrame):
                                                self.std_header['AIRMASS'],
                                                self.std_header['EXPTIME'],
                                                self.spectrograph,
+                                               BALM_MASK_WID=self.par['balm_mask_wid'],
                                                telluric=self.telluric,
                                                ra=self.std_ra,
                                                dec=self.std_dec,
@@ -610,10 +617,10 @@ class EchFluxSpec(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
-    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
-                 std_specobjs=None, std_header=None, spectrograph=None,
+    def __init__(self, spectrograph, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
+                 std_specobjs=None, std_header=None, BALM_MASK_WID=5.,
                  telluric=False, setup=None, master_dir=None, reuse_masters=False,
-                 star_type=None, star_mag=None, BALM_MASK_WID=5.0, nresln=None, debug=False):
+                 star_type=None, star_mag=None, nresln=None, debug=False):
 
         # Load standard files
         std_spectro = None
@@ -656,6 +663,7 @@ class EchFluxSpec(masterframe.MasterFrame):
             msgs.error('Standard spectra are not the same instrument as science!!')
 
         # Instantiate the spectrograph
+        '''
         _spectrograph = spectrograph
         if _spectrograph is None:
             _spectrograph = std_spectro
@@ -665,6 +673,7 @@ class EchFluxSpec(masterframe.MasterFrame):
             _spectrograph = sci_spectro
             if _spectrograph is not None:
                 msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
+        '''
         self.spectrograph = load_spectrograph(_spectrograph)
 
         # MasterFrame

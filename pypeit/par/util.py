@@ -340,36 +340,6 @@ def _read_data_file_names(lines, file_check=True):
     return read_inp
 
 
-def _read_pypeit_file_lines(ifile):
-    """
-    General parser for a pypeit file.
-
-    - Checks that the file exists.
-    - Reads all the lines in the file
-    - Removes comments, empty lines, and replaces special characters.
-    
-    Applies to settings, setup, and user-level reduction files.
-
-    Args:
-        ifile (str): Name of the file to parse.
-
-    Returns:
-        :obj:`numpy.ndarray`: Returns a list of the valid lines in the
-        files.
-    """
-    # Check the files
-    if not os.path.isfile(ifile):
-        msgs.error('The filename does not exist -' + msgs.newline() + ifile)
-
-    # Read the input lines and replace special characters
-    with open(ifile, 'r') as f:
-        lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                for l in f.readlines()])
-    # Remove empty or fully commented lines
-    lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
-    # Remove appended comments and return
-    return np.array([ l.split('#')[0] for l in lines ])
-
 
 def _determine_data_format(lines):
     """

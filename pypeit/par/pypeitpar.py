@@ -644,7 +644,7 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, nonlinear=None, sensfunc=None):
+    def __init__(self, balm_mask_wid=None, sensfunc=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -657,14 +657,9 @@ class FluxCalibrationPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        # TODO: I don't think this is used anywhere
-        defaults['nonlinear'] = False
-        dtypes['nonlinear'] = bool
-        descr['nonlinear'] = 'Perform a non-linear correction.  Requires a series of ' \
-                             'pixelflats of the same lamp and setup and with a variety of ' \
-                             'exposure times and count rates in every pixel.'
+        defaults['balm_mask_wid'] = 5.
+        dtypes['balm_mask_wid'] = float
+        descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
 
         dtypes['sensfunc'] = str
         descr['sensfunc'] = 'YAML file with an existing calibration function'
@@ -680,7 +675,7 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'nonlinear', 'sensfunc' ]
+        parkeys = ['balm_mask_wid',  'sensfunc']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
