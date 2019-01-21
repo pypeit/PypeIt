@@ -3040,7 +3040,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         maxrej: int, optional
           Rejection parameter for PCA.  1 makes the rejection go slowly (preferred)
         smash_range: tuple, optional
-          Rows to smash (in fraction of nspec) when finding slit edges, e.g. (0.5, 1.0)
+          Spectral range to smash (in fraction of nspec) when finding slit edges, e.g. (0.5, 1.0)
           If not provided, all rows are smashed
 
     Returns:
@@ -3097,9 +3097,9 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     # Smash the filtered image
     #   For instruments where light runs on only a portion of the detector,
     #   one is recommended to smash only that portion
-    smash_rows = (int(smash_range[0]*nspec), int(smash_range[1]*nspec))
+    smash_spec = (int(smash_range[0]*nspec), int(smash_range[1]*nspec))
     filt_smash_mean, filt_smash_median, filt_smash_sig = sigma_clipped_stats(
-        filt_extract[smash_rows[0]:smash_rows[1],:], axis=0, sigma=4.0)
+        filt_extract[smash_spec[0]:smash_spec[1],:], axis=0, sigma=4.0)
 
     # Perform initial finding with a very liberal threshold
     # Put in Gaussian smoothing here?

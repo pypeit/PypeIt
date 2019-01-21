@@ -1331,7 +1331,7 @@ class TraceSlitsPar(ParSet):
 
         defaults['smash_range'] = [0., 1.]
         dtypes['smash_range'] = list
-        descr['smash_range'] = 'Range of the slit (in fractional units) to smash when searching for slit edges. ' \
+        descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges. ' \
                              'If the spectrum covers only a portion of the image, use that range.'
 
         defaults['min_slit_width'] = 6.0  # arcseconds!
