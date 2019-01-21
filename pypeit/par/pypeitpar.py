@@ -644,7 +644,8 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, balm_mask_wid=None, sensfunc=None):
+    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None,
+                 star_type=None, star_mag=None, multi_det=None, telluric=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -661,8 +662,31 @@ class FluxCalibrationPar(ParSet):
         dtypes['balm_mask_wid'] = float
         descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
 
+        dtypes['std_file'] = str
+        descr['std_file'] = 'Standard star file to generate sensfunc'
+
+        dtypes['std_obj_id'] = [str, int]
+        descr['std_obj_id'] = 'Specifies object in spec1d file to use as standard.' \
+            ' The brightest object found is used otherwise.'
+
+        dtypes['multi_det'] = list
+        descr['multi_det'] = 'List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)' \
+                        ' They are assumed to be in order of increasing wavelength' \
+                        ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
+
         dtypes['sensfunc'] = str
         descr['sensfunc'] = 'YAML file with an existing calibration function'
+
+        defaults['telluric'] = False
+        dtypes['telluric'] = bool
+        descr['telluric'] = 'If telluric=True the code creates a sintetic standard star spectrum using the Kurucz models, ' \
+            'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
+
+        dtypes['star_type'] = float
+        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
+
+        dtypes['star_mag'] = float
+        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
 
         # Instantiate the parameter set
         super(FluxCalibrationPar, self).__init__(list(pars.keys()),
@@ -675,7 +699,8 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['balm_mask_wid',  'sensfunc']
+        parkeys = ['balm_mask_wid',  'sensfunc', 'std_file', 'std_obj_id',
+                   'star_type', 'star_mag', 'multi_det', 'telluric']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -685,7 +710,7 @@ class FluxCalibrationPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        if self.data['sensfunc'] is not None and not os.path.isfile(self.data['sensfunc']):
+        if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 

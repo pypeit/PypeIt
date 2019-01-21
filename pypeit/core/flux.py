@@ -24,11 +24,14 @@ try:
 except ImportError:
     pass
 
+from configobj import ConfigObj
+
 from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
-from pypeit.core import qa
+from pypeit.par import util
+from pypeit.spectrographs.util import load_spectrograph
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
@@ -104,11 +107,12 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
 
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., norder=4, nresln=None,debug=False):
+                      star_mag=None, ra=None, dec=None, std_file = None, BALM_MASK_WID=5., norder=4, nresln=None,
+                      debug=False, skip_tell=False):
     """ Function to generate the sensitivity function.
     This can work in different regimes:
     - If telluric=False and RA=None and Dec=None
-      the code creates a sintetic standard star spectrum using the Kurucz models,
+      the code creates a synthetic standard star spectrum using the Kurucz models,
       and from this it generates a sens func using nresln=20.0 and masking out
       telluric regions.
     - If telluric=False and RA and Dec are assigned
@@ -157,6 +161,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
       If assigned, overwrites the settings imposed by the code.
     norder: int
       Order number of polynomial fit.
+    skip_tell: bool, optional
+      Skip telluric nonsense.  Recommended for multislit
 
     Returns:
     -------
@@ -346,7 +352,6 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     # Fit in magnitudes
     kwargs_bspline = {'bkspace': resln.value * nresln}
     kwargs_reject = {'maxrej': 5}
-    debug=True
     sensfunc = bspline_magfit(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,
                               kwargs_bspline=kwargs_bspline, kwargs_reject=kwargs_reject,debug=debug)
 
@@ -381,8 +386,11 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     msk_all[msk_crazy] = False
     msk_sens[msk_crazy] = False
 
-    if (len(wave_star.value[msk_all]) < norder+1) or (len(wave_star.value[msk_all]) < 0.1*len(wave_star.value)):
+    if (len(wave_star.value[msk_all]) < norder+1) or (
+            len(wave_star.value[msk_all]) < 0.1*len(wave_star.value)):
         msgs.warn('It seems this order/spectrum well within the telluric region. No polynomial fit will be performed.')
+    elif skip_tell:
+        pass
     else:
         #polyfit the sensfunc
         msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_star.value[msk_all],np.log10(sensfunc[msk_all]), norder, function='polynomial',
@@ -404,18 +412,19 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             plt.show()
             plt.close()
 
-            plt.figure(figsize=(10, 6))
-            plt.clf()
-            plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
-            plt.plot(wave_star.value,flux_true, label='Model')
-            plt.plot(wave_star.value,np.sqrt(1/ivar_star))
-            plt.legend()
-            plt.xlabel('Wavelength [ang]')
-            plt.ylabel('Flux [erg/s/cm2/Ang.]')
-            plt.ylim(0,np.median(flux_true)*2.5)
-            plt.title('Final corrected spectrum')
-            plt.show()
-            plt.close()
+    if debug:
+        plt.figure(figsize=(10, 6))
+        plt.clf()
+        plt.plot(wave_star.value,flux_star*sensfunc, label='Calibrated Spectrum')
+        plt.plot(wave_star.value,flux_true, label='Model')
+        plt.plot(wave_star.value,np.sqrt(1/ivar_star))
+        plt.legend()
+        plt.xlabel('Wavelength [ang]')
+        plt.ylabel('Flux [erg/s/cm2/Ang.]')
+        plt.ylim(0,np.median(flux_true)*2.5)
+        plt.title('Final corrected spectrum')
+        plt.show()
+        plt.close()
 
 
     # JFH Left off here.
@@ -972,6 +981,34 @@ def find_standard(specobj_list):
     # Return
     return mxix
 
+
+def read_fluxfile(ifile):
+    # Read in the pypeit reduction file
+    msgs.info('Loading the fluxcalib file')
+    lines = util._read_pypeit_file_lines(ifile)
+    is_config = np.ones(len(lines), dtype=bool)
+
+
+    # Parse the fluxing block
+    flux_dict = {}
+    s, e = util._find_pypeit_block(lines, 'flux')
+    if s >= 0 and e < 0:
+        msgs.error("Missing 'flux end' in {0}".format(ifile))
+    elif s < 0:
+        msgs.warn("No flux block, you must be making the sensfunc only..")
+    else:
+        for line in lines[s:e]: flux_dict['std_file'] = lines[s:e][0]
+        flux_dict['sensfunc_file'] = lines[s:e][0]
+        is_config[s-1:e+1] = False
+
+    # Construct config to get spectrograph
+    cfg_lines = list(lines[is_config])
+    cfg = ConfigObj(cfg_lines)
+    spectrograph_name = cfg['rdx']['spectrograph']
+    spectrograph = load_spectrograph(spectrograph_name)
+
+    # Return
+    return spectrograph, cfg_lines, flux_dict
 
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.
