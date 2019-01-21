@@ -324,10 +324,10 @@ class ProcessImages(object):
                 datasec, one_indexed, include_end, transpose \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='datasec')
-            self.datasec[i] = [ parse.sec2slice(sec, one_indexed=one_indexed,
+            self.datasec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
                                                 include_end=include_end, require_dim=2,
                                                 transpose=transpose, binning=self.binning[i])
-                                    for sec in datasec ]
+                                    for sec in datasec]
             # Get the overscan sections, one section per amplifier
             try:
                 oscansec, one_indexed, include_end, transpose \
@@ -337,10 +337,11 @@ class ProcessImages(object):
                 oscansec, one_indexed, include_end, transpose \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='oscansec')
-            self.oscansec[i] = [ parse.sec2slice(sec, one_indexed=one_indexed,
+            # Parse, including handling binning
+            self.oscansec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
                                                  include_end=include_end, require_dim=2,
                                                  transpose=transpose, binning=self.binning[i])
-                                    for sec in oscansec ]
+                                    for sec in oscansec]
         # Include step
         self.steps.append(inspect.stack()[0][3])
 
