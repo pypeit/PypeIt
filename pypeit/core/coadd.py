@@ -223,9 +223,6 @@ def sn_weight(fluxes, sigs, wave, smask, debug=False):
     fluxes = np.ma.array(fluxes, mask=np.invert(smask))
     sigs = np.ma.array(sigs, mask=np.invert(smask))
 
-    from IPython import embed
-    embed()
-
     # Calculate
     sn_val = fluxes*(1./sigs)  # Taking flux**2 biases negative values
     sn_sigclip = astropy.stats.sigma_clip(sn_val, sigma=3, iters=5)
