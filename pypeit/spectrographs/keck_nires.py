@@ -335,8 +335,16 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #binspatial, binspectral = parse.parse_binning(binning)
         return np.full(5, 0.15)
 
-
+    # JFH This function should probably take a disperser name or something for other instruments??
     def wavegrid(self, binning=None):
+        """
+        For fixed format echelle spectrographs return the wavelength grid used for 2D coadds
+        Args:
+            binning:
+
+        Returns:
+
+        """
 
         # Define the grid for NIRES
         R = 2700.0 * 2.7
