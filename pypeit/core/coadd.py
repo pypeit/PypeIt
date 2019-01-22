@@ -787,14 +787,14 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     msgs.work("We should restrict this to high S/N regions in the spectrum")
     # Mask on S/N_min
     bad_s2n = np.where(mfluxes/msigs < s2n_min)
-    cmask[bad_s2n] = True
+    cmask[bad_s2n] = False
     # Limit by wavelength?
     if wvmnx is not None:
         msgs.info("Restricting std_dev calculation to wavelengths {}".format(wvmnx))
         bad_wv = np.any([(wave < wvmnx[0]), (wave > wvmnx[1])], axis=0)
-        cmask[bad_wv] = True
+        cmask[bad_wv] = False
     # Only calculate on regions with 2 or more spectra
-    sum_msk = np.sum(~cmask, axis=0)
+    sum_msk = np.sum(cmask, axis=0)
     gdp = (sum_msk > 1) & (isig > 0.)
     if not np.any(gdp):
         msgs.warn("No pixels satisfying s2n_min in std_dev")
@@ -846,7 +846,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     # Define mask -- THIS IS THE ONLY ONE TO USE
     rmask = rspec.data['sig'].filled(0.) > 0.0
 
-    fluxes, sigs, wave = unpack_spec(spectra)
+    fluxes, sigs, wave = unpack_spec(rspec)
 
 
     # S/N**2, weights

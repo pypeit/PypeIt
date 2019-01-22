@@ -202,8 +202,8 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
         fluxes, sigs, wave = coadd.unpack_spec(spectra_coadd_rebin,all_wave=False)
 
         ## scaling different orders
-        rmask = spectra_coadd_rebin.data['sig'].filled(0.) <= 0.
-        sn2, weights = coadd.sn_weight(spectra_coadd_rebin, rmask)
+        rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
+        sn2, weights = coadd.sn_weight(fluxes, sigs, wave, rmask)
         ## ToDo pasing parameters
         SN_MIN_MEDSCALE = 0.5
         overlapfrac=0.03
