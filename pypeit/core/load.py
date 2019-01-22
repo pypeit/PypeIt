@@ -86,7 +86,7 @@ def load_specobjs(fname):
     head0
     """
     sobjs = specobjs.SpecObjs()
-    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
+    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
     # sobjs_keys gives correspondence between header cards and sobjs attribute name
     sobjs_key = specobjs.SpecObj.sobjs_key()
     hdulist = fits.open(fname)

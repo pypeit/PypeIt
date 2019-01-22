@@ -10,10 +10,31 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
-from pypeit.core import load
+from pypeit.core import load, coadd
 from pypeit import traceslits
 from pypeit.spectrographs import util
 
+def optimal_weights(specobjs_list, slitid, objid):
+
+    nexp = len(specobjs_list)
+    nspec = specobjs_list[0][0].trace_spat.shape[0]
+    # Grab the traces, flux, wavelength and noise for this slit and objid.
+    trace_stack = np.zeros((nexp, nspec), dtype=float)
+    flux_stack = np.zeros((nexp, nspec), dtype=float)
+    sig_stack = np.zeros((nexp, nspec), dtype=float)
+    wave_stack = np.zeros((nexp, nspec), dtype=float)
+    mask_stack = np.zeros((nexp, nspec), dtype=bool)
+    for iexp, sobjs in enumerate(specobjs_list):
+        ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
+        trace_stack[iexp, :] = sobjs[ithis].trace_spat
+        flux_stack[iexp,:] = sobjs[ithis][0].optimal['COUNTS']
+        sig_stack[iexp,:] = sobjs[ithis][0].optimal['COUNTS_SIG']
+        wave_stack[iexp,:] = sobjs[ithis][0].optimal['WAVE']
+        mask_stack[iexp,:] = sobjs[ithis][0].optimal['MASK']
+
+    sn2, weights = coadd.sn_weight(flux_stack, sig_stack, wave_stack, mask_stack)
+
+    return sn2, weights, trace_stack
 
 def load_coadd2d_stacks(spec2d_files):
 
