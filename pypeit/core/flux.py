@@ -196,18 +196,34 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             msgs.error('No spectrum found in our database for your standard star. Please use another standard star \
                        or consider add it into out database.')
     elif (star_mag is not None) and (star_type is not None):
-        # Create star spectral model
-        msgs.info("Creating standard model")
-        # Create star model
-        star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
-        star_lam = 10 ** star_loglam
-        # Generate a dict matching the output of find_standard_file
-        std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
-                        std_ra=None, std_dec=None)
-        std_dict['wave'] = star_lam * units.AA
-        std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
-        # ToDO If the Kuruck model is used, rebin create weird features
-        # I using scipy interpolate to avoid this
+        ## using vega spectrum
+        if 'A0' in star_type:
+            msgs.info('Using vega spectrum to correct telluric')
+            std_dict={'stellar_type':star_type , 'Vmag': star_mag}
+            vega_file = resource_filename('pypeit', '/data/standards/vega_04_to_06.dat')
+            vega_data = Table.read(vega_file, comment='#', format='ascii')
+            # Generate a dict matching the output of find_standard_file
+            std_dict = dict(cal_file='Vega_04_to_06', name=star_type, fmt=1,
+                            std_ra=None, std_dec=None)
+            std_dict['wave'] = vega_data['col1'] * units.AA
+            std_dict['flux'] = 1e17 * vega_data['col2'] / 10**(0.4*star_mag) * \
+                               units.erg / units.s / units.cm ** 2 / units.AA
+            from IPython import embed
+            embed()
+        ## using Kurucz stellar model
+        else:
+            # Create star spectral model
+            msgs.info("Creating standard model")
+            # Create star model
+            star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
+            star_lam = 10 ** star_loglam
+            # Generate a dict matching the output of find_standard_file
+            std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
+                            std_ra=None, std_dec=None)
+            std_dict['wave'] = star_lam * units.AA
+            std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
+            # ToDO If the Kuruck model is used, rebin create weird features
+            # I using scipy interpolate to avoid this
         flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],
                                                bounds_error=False,
                                                fill_value='extrapolate')(wave_star)
