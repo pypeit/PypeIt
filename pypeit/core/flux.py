@@ -104,10 +104,24 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
         extract['FLAM_IVAR'] = flam_var
 
 
-def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=False, star_type=None,
-                      star_mag=None, ra=None, dec=None, std_file = None, norder=4,resolution=3000.,watervp=1.0,
-                      trans_thresh=0.9,BALM_MASK_WID=5., polycorrect=True, polysens=False, debug=False):
+def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=True, star_type=None,
+                      star_mag=None, ra=None, dec=None, std_file = None, norder=4, BALM_MASK_WID=5., nresln=20.,
+                      resolution=3000.,watervp=1.0, trans_thresh=0.9,polycorrect=True, polysens=False, debug=False):
+
     """ Function to generate the sensitivity function.
+        This can work in different regimes:
+    - If telluric=False and RA=None and Dec=None
+      the code creates a synthetic standard star spectrum (or VEGA spectrum if type=A0) using the Kurucz models,
+      and from this it generates a sens func using nresln=20.0 and masking out telluric regions.
+    - If telluric=False and RA and Dec are assigned
+      the standard star spectrum is extracted from the archive, and a sens func
+      is generated using nresln=20.0 and masking out telluric regions.
+    - If telluric=True
+      the code creates a sintetic standard star spectrum  (or VEGA spectrum if type=A0) using the Kurucz models,
+      the sens func is a pixelized sensfunc (not smooth) for correcting both throughput and telluric lines.
+      if you set polycorrect=True, the sensfunc in the Hydrogen recombination line region (often seen in star spectra)
+      will be replaced by a smoothed polynomial function.
+
     Parameters:
     ----------
     wave : array
@@ -208,8 +222,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             std_dict['wave'] = vega_data['col1'] * units.AA
             std_dict['flux'] = 1e17 * vega_data['col2'] / 10**(0.4*star_mag) * \
                                units.erg / units.s / units.cm ** 2 / units.AA
-            from IPython import embed
-            embed()
+
         ## using Kurucz stellar model
         else:
             # Create star spectral model
@@ -319,8 +332,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     ## do not apply it now, since we will use ivar_star to distinguish bad pixel and hydrogen line region
     #ivar_star[~msk_star] = 0.0
     sensfunc = get_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, inmask=msk_star,maxiter=35,
-                            upper=3.0, lower=3.0, norder=norder, resolution=resolution, watervp=watervp,
-                            trans_thresh=trans_thresh,BALM_MASK_WID=BALM_MASK_WID,
+                            upper=3.0, lower=3.0, norder=norder, BALM_MASK_WID=BALM_MASK_WID,nresln=nresln,
+                            telluric=telluric, resolution=resolution, watervp=watervp,trans_thresh=trans_thresh,
                             polycorrect= polycorrect, polysens=polysens,debug=debug, show_QA=False)
 
     if debug:
@@ -354,8 +367,9 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     return sens_dict
 
 def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, lower=2,
-                 norder=7,resolution=2700., watervp = 1.0, trans_thresh=0.9,
-                 BALM_MASK_WID=50.,polycorrect=True, polysens=False,debug=False, show_QA=False):
+                 norder=7, BALM_MASK_WID=50., nresln=20., telluric=True,
+                 resolution=2700., watervp=1.0, trans_thresh=0.9,
+                 polycorrect=True, polysens=False,debug=False, show_QA=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
 
@@ -431,14 +445,15 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
                   np.isfinite(logflux_std) & magfunc_mask
     logivar_obs[~masktot] = 0.
 
-    ## Using telluric free region to derive a polynomial fitting and correct the masked region.
-    msk_poly_sens = masktot.copy()
+    ## define a mask for fitting (both polynomial and bspline), True is good and False is masked pixel
+    msk_fit_sens = masktot.copy()
+    ## Telluric region in the optical
     tell_opt = np.any([((wave_obs >= 6270.00) & (wave_obs <= 6290.00)), # H2O
                    ((wave_obs >= 6850.00) & (wave_obs <= 6960.00)), #O2 telluric band
                    ((wave_obs >= 7580.00) & (wave_obs <= 7750.00)), #O2 telluric band
                    ((wave_obs >= 7160.00) & (wave_obs <= 7340.00)), #H2O
                    ((wave_obs >= 8110.00) & (wave_obs <= 8350.00))],axis=0) #H2O
-    msk_poly_sens[tell_opt] = False
+    msk_fit_sens[tell_opt] = False
 
     ## Find telluric free region.
     if np.max(wave_obs)>9100.0:
@@ -460,37 +475,115 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
         trans_final = scipy.interpolate.interp1d(wave_trans[trans_use], trans_convolved,bounds_error=False,
                                                  fill_value='extrapolate')(wave_obs)
         tell_nir = (trans_final<trans_thresh) & (wave_obs>9100.0)
-        msk_poly_sens[tell_nir] = False
+        msk_fit_sens[tell_nir] = False
     else:
         msgs.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
 
-    if (((sum(msk_poly_sens) > 0.5 * len(msk_poly_sens)) & polycorrect) | (polysens)):
-        # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
-        msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_poly_sens], magfunc[msk_poly_sens], norder,\
-                                                        function='polynomial',invvar=None, guesses=None, maxiter=maxiter, \
-                                                        inmask=None, sigma=None, lower=lower, upper=upper, maxdev=None, \
-                                                        maxrej=None, groupdim=None,groupsize=None,groupbadpix=False, \
-                                                        grow=0, sticky=True, use_mad=True)
-        magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
-        if polysens:
-            magfunc = magfunc_poly.copy()
-        else:
-            ## Only correct Hydrogen Recombination lines in the telluric free region
-            balmer_clean = np.zeros_like(wave_obs,dtype=bool)
-            lines_hydrogen = np.array([836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6,\
-                                       8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4,\
-                                       8752.9, 8865.2, 9017.4, 9229.0, 10049.4,10938.1,12818.1, 21655.0])
-            for line_hydrogen in lines_hydrogen:
-                ihydrogen = np.abs(wave_obs - line_hydrogen) <= BALM_MASK_WID
-                balmer_clean[ihydrogen] = True
-            msk_clean = ((balmer_clean) | (magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
-                        (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
-            magfunc[msk_clean] = magfunc_poly[msk_clean]
-            msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
-            magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
+    ## ToDo: Should conlve the magfunc with a kernel to smooth it a little bit before fitting.
+    # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
+    msk_poly, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], norder, \
+                                                    function='polynomial', invvar=None, guesses=None, maxiter=maxiter, \
+                                                    inmask=None, sigma=None, lower=lower, upper=upper, maxdev=None, \
+                                                    maxrej=None, groupdim=None, groupsize=None, groupbadpix=False, \
+                                                    grow=0, sticky=True, use_mad=True)
+    magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
+
+    if polysens:
+        ## If you just want a polynomial fit then just return the valuated polynomial
+        magfunc = magfunc_poly.copy()
     else:
-        magfunc_poly = magfunc.copy()
-        msgs.warn('It seems your spectrum is well within the telluric region, no corrections will be made on masked regions.')
+        if telluric:
+            ## Using telluric free region to derive a polynomial fitting and correct the masked region.
+            if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):
+                ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
+                balmer_clean = np.zeros_like(wave_obs,dtype=bool)
+                lines_hydrogen = np.array([836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6,\
+                                           8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4,\
+                                           8752.9, 8865.2, 9017.4, 9229.0, 10049.4,10938.1,12818.1, 21655.0])
+                for line_hydrogen in lines_hydrogen:
+                    ihydrogen = np.abs(wave_obs - line_hydrogen) <= BALM_MASK_WID
+                    balmer_clean[ihydrogen] = True
+                msk_clean = ((balmer_clean) | (magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
+                            (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
+                magfunc[msk_clean] = magfunc_poly[msk_clean]
+                msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
+                magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
+            else:
+                ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
+                msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
+        else:
+            # Apply mask to ivar
+            logivar_obs[~msk_fit_sens] = 0.
+
+            # ToDo
+            # Compute an effective resolution for the standard. This could be improved
+            # to setup an array of breakpoints based on the resolution. At the
+            # moment we are using only one number
+            msgs.work("Should pull resolution from arc line analysis")
+            msgs.work("At the moment the resolution is taken as the PixelScale")
+            msgs.work("This needs to be changed!")
+            std_pix = np.median(np.abs(wave_obs - np.roll(wave_obs, 1)))
+            std_res = np.median(wave_obs/resolution) # median resolution in units of Angstrom.
+            #std_res = std_pix
+            #resln = std_res
+            if (nresln * std_res) < std_pix:
+                msgs.warn("Bspline breakpoints spacing shoud be larger than 1pixel")
+                msgs.warn("Changing input nresln to fix this")
+                nresln = std_res / std_pix
+
+            # Fit magfunc with bspline
+            kwargs_bspline = {'bkspace': std_res * nresln}
+            kwargs_reject = {'maxrej': 5}
+            msgs.info("Initialize bspline for flux calibration")
+            init_bspline = pydl.bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
+            fullbkpt = init_bspline.breakpoints
+
+            # TESTING turning off masking for now
+            # remove masked regions from breakpoints
+            msk_obs = np.ones_like(wave_obs).astype(bool)
+            msk_obs[~masktot] = False
+            msk_bkpt = scipy.interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
+            init_breakpoints = fullbkpt[msk_bkpt > 0.999]
+
+            # init_breakpoints = fullbkpt
+            msgs.info("Bspline fit on magfunc. ")
+            bset1, bmask = pydl.iterfit(wave_obs, magfunc, invvar=logivar_obs, inmask=msk_fit_sens, upper=upper, lower=lower,
+                                        fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
+                                        kwargs_reject=kwargs_reject)
+            logfit1, _ = bset1.value(wave_obs)
+            logfit_bkpt, _ = bset1.value(init_breakpoints)
+
+            if debug:
+                # Check for calibration
+                plt.figure(1)
+                plt.plot(wave_obs, magfunc, drawstyle='steps-mid', color='black', label='magfunc')
+                plt.plot(wave_obs, logfit1, color='cornflowerblue', label='logfit1')
+                plt.plot(wave_obs[~msk_fit_sens], magfunc[~msk_fit_sens], '+', color='red', markersize=5.0,
+                         label='masked magfunc')
+                plt.plot(wave_obs[~msk_fit_sens], logfit1[~msk_fit_sens], '+', color='red', markersize=5.0,
+                         label='masked logfit1')
+                plt.plot(init_breakpoints, logfit_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
+                plt.plot(init_breakpoints, np.interp(init_breakpoints, wave_obs, magfunc), '.', color='green',
+                         markersize=4.0,
+                         label='breakpoints')
+                plt.plot(wave_obs, 1.0 / np.sqrt(logivar_obs), color='orange', label='sigma')
+                plt.legend()
+                plt.xlabel('Wavelength [ang]')
+                plt.ylim(0.0, 1.2 * MAGFUNC_MAX)
+                plt.title('1st Bspline fit')
+                plt.show()
+            # Create sensitivity function
+            magfunc = np.maximum(np.minimum(logfit1, MAGFUNC_MAX), MAGFUNC_MIN)
+            if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):
+                msk_clean = ((magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
+                            (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
+                magfunc[msk_clean] = magfunc_poly[msk_clean]
+                msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
+                magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
+                magfunc[~magfunc_mask] = magfunc_poly[~magfunc_mask]
+            else:
+                ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
+                msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
 
     # Calculate sensfunc
     sensfunc = 10.0 ** (0.4 * magfunc)
@@ -499,7 +592,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
         plt.figure()
         magfunc_raw = logflux_std - logflux_obs
         plt.plot(wave_obs,magfunc_raw , 'k-',lw=3,label='Raw Magfunc')
-        plt.plot(wave_obs[~msk_poly_sens], magfunc_raw[~msk_poly_sens], 'r+',label='Masked Magfunc')
+        plt.plot(wave_obs[~msk_fit_sens], magfunc_raw[~msk_fit_sens], 'r+',label='Masked Magfunc')
         plt.plot(wave_obs, magfunc,'b-',label='Final Magfunc')
         plt.legend(fancybox=True, shadow=True)
         #plt.ylim([0.,1.2*np.max(magfunc)])
