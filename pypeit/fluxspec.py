@@ -614,7 +614,8 @@ class EchFluxSpec(masterframe.MasterFrame):
     def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
                  std_specobjs=None, std_header=None, spectrograph=None,
                  telluric=False, setup=None, master_dir=None, reuse_masters=False,
-                 star_type=None, star_mag=None, BALM_MASK_WID=5.0, nresln=None, debug=False):
+                 star_type=None, star_mag=None, BALM_MASK_WID=1.0, norder=5.0,
+                 resolution=3000.0,polycorrect=True,polysens=False,debug=False):
 
         # Load standard files
         std_spectro = None
@@ -705,7 +706,10 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.star_type = star_type
         self.star_mag = star_mag
         self.BALM_MASK_WID = BALM_MASK_WID
-        self.nresln = nresln
+        self.resolution = resolution
+        self.norder = norder
+        self.polycorrect = polycorrect
+        self.polysens = polysens
         self.debug = debug
 
     def load_master(self, filename, force=False):
@@ -829,21 +833,24 @@ class EchFluxSpec(masterframe.MasterFrame):
                       'AIRMASS, EXPTIME.')
             return None
         ext_final = fits.getheader(self.std_spec1d_file, -1)
-        norder = ext_final['ORDER'] + 1
+        norder = ext_final['ECHORDER'] + 1
 
         self.sens_dict = {}
+        #std_specobjs_all, std_header = load.load_specobjs(self.std_spec1d_file)
         for iord in range(norder):
+            # std_specobjs = specobjs.SpecObjs()
+            # std_specobjs.add_sobj(std_specobjs_all[iord])
             std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
             wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
             wave, counts, ivar = std.boxcar['WAVE'][wavemask], std.boxcar['COUNTS'][wavemask], \
                                  std.boxcar['COUNTS_IVAR'][wavemask]
-            sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, std_header['AIRMASS'], std_header['EXPTIME'],
+            sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, float(std_header['AIRMASS']), std_header['EXPTIME'],
                                                     self.spectrograph, star_type=self.star_type, star_mag=self.star_mag,
-                                                    telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
-                                                    BALM_MASK_WID=self.BALM_MASK_WID,
-                                                    nresln=self.nresln, std_file=self.std_file, debug=self.debug)
+                                                    telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,resolution=self.resolution,
+                                                    BALM_MASK_WID=self.BALM_MASK_WID,std_file=self.std_file,norder=self.norder,
+                                                    polycorrect=self.polycorrect,polysens=self.polysens, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
             self.sens_dict[str(iord)] = sens_dict_iord
         self.sens_dict['norder'] = norder
@@ -868,7 +875,7 @@ class EchFluxSpec(masterframe.MasterFrame):
             sens_dict_iord = self.sens_dict[str(iord)]
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
-                    flux.apply_sensfunc(sci_obj, sens_dict_iord, self.sci_header['AIRMASS'],
+                    flux.apply_sensfunc(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
                                         self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
@@ -930,7 +937,7 @@ class EchFluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, outfile,
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline, self.spectrograph.spectrograph, outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
         # Step
