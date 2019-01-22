@@ -235,6 +235,7 @@ def sn_weight(fluxes, sigs, wave, smask, debug=False):
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
         weights = np.ma.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
     else:
+        # TODO make this a velocity smoothing. This code below is nonsense. 
         msgs.info("Using wavelength dependent weights for coadding")
         msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
         sn_med1 = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
@@ -259,6 +260,8 @@ def sn_weight(fluxes, sigs, wave, smask, debug=False):
     # and then fill with zeros
     weights = weights.filled(0.)
 
+    from IPython import embed
+    embed()
     # Finish
     return sn2, weights
 
