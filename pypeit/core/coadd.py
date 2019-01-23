@@ -228,7 +228,6 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
     weights : ndarray
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
-
     nstack = flux_stack.shape[0]
     nspec = flux_stack.shape[1]
     ivar_stack = utils.calc_ivar(sig_stack)
