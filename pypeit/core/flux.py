@@ -446,6 +446,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
     logivar_obs[~masktot] = 0.
 
     ## define a mask for fitting (both polynomial and bspline), True is good and False is masked pixel
+    # TODO make this a separate function that returns the mask.
     msk_fit_sens = masktot.copy()
     ## Telluric region in the optical
     tell_opt = np.any([((wave_obs >= 6270.00) & (wave_obs <= 6290.00)), # H2O
