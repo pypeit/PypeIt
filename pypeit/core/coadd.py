@@ -237,7 +237,7 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
     sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
     sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, iters=5)
     sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
-    rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
+    rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
 
     # if the wavel
     if wave.ndim == 1:
@@ -254,7 +254,7 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
         # TODO make this a velocity smoothing. This code below is nonsense.
         msgs.info("Using wavelength dependent weights for coadding")
         #msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
-        weights = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
+        weights = np.ones_like(flux_stack) #((fluxes.shape[0], fluxes.shape[1]))
 
         for ispec in range(nstack):
             imask = mask_stack[ispec,:]
