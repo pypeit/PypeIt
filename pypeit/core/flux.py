@@ -513,7 +513,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
                 msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
         else:
             # Apply mask to ivar
-            logivar_obs[~msk_fit_sens] = 0.
+            #logivar_obs[~msk_fit_sens] = 0.
 
             # ToDo
             # Compute an effective resolution for the standard. This could be improved
