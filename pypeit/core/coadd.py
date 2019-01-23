@@ -238,6 +238,7 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
     sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, iters=5)
     sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
+    rms_sn_stack = np.sqrt(np.mean(sn2))
 
     # if the wavel
     if wave.ndim == 1:
@@ -247,7 +248,7 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
     else:
         msgs.error('wavelength array has an invalid size')
 
-    if rms_sn <= 3.0:
+    if rms_sn_stack <= 3.0:
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
         weights = np.outer(sn2, np.ones(nspec))
     else:
@@ -424,6 +425,9 @@ def scale_spectra(spectra, smask, rms_sn, iref=0, scale_method='auto', hand_scal
     #if not np.isclose(spectra.data['wave'][0,gidx[0]],spectra.data['wave'][1,gidx[0]]):
     #    msgs.error("Input spectra are not registered!")
     # Loop on exposures
+
+    rms_sn_stack = np.sqrt(np.mean(rms_sn**2))
+
     scales = []
     for qq in range(spectra.nspec):
         if scale_method == 'hand':
@@ -436,7 +440,7 @@ def scale_spectra(spectra, smask, rms_sn, iref=0, scale_method='auto', hand_scal
             #arrsky[*, j] = HAND_SCALE[j]*sclsky[*, j]
             scales.append(hand_scale[qq])
             #
-        elif ((rms_sn <= SN_MAX_MEDSCALE) and (rms_sn > SN_MIN_MEDSCALE)) or scale_method=='median':
+        elif ((rms_sn_stack <= SN_MAX_MEDSCALE) and (rms_sn_stack > SN_MIN_MEDSCALE)) or scale_method=='median':
             omethod = 'median_flux'
             if qq == iref:
                 scales.append(1.)
@@ -449,9 +453,9 @@ def scale_spectra(spectra, smask, rms_sn, iref=0, scale_method='auto', hand_scal
             spectra.data['sig'][qq,:] *= med_scale
             #
             scales.append(med_scale)
-        elif rms_sn <= SN_MIN_MEDSCALE:
+        elif rms_sn_stack <= SN_MIN_MEDSCALE:
             omethod = 'none_SN'
-        elif (rms_sn > SN_MAX_MEDSCALE) or scale_method=='poly':
+        elif (rms_sn_stack > SN_MAX_MEDSCALE) or scale_method=='poly':
             msgs.work("Should be using poly here, not median")
             omethod = 'median_flux'
             if qq == iref:
