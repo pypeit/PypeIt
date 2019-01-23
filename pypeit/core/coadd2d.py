@@ -14,7 +14,7 @@ from pypeit.core import load, coadd
 from pypeit import traceslits
 from pypeit.spectrographs import util
 
-def optimal_weights(specobjs_list, slitid, objid):
+def optimal_weights(specobjs_list, slitid, objid=None, echelle=True):
 
     nexp = len(specobjs_list)
     nspec = specobjs_list[0][0].trace_spat.shape[0]
@@ -24,6 +24,31 @@ def optimal_weights(specobjs_list, slitid, objid):
     sig_stack = np.zeros((nexp, nspec), dtype=float)
     wave_stack = np.zeros((nexp, nspec), dtype=float)
     mask_stack = np.zeros((nexp, nspec), dtype=bool)
+
+    # If objid is not specified, find the brightest object on each exposure and use that
+    if objid is None:
+        objid = np.zeros(nexp,dtype=int)
+        if echelle:
+            norders = specobjs_list[0].ech_orderindx.max() + 1
+            for iexp, sobjs in enumerate(specobjs_list):
+                uni_objid = np.unique(sobjs.ech_objid)
+                nobjs = len(uni_objid)
+                order_snr = np.zeros((norders, nobjs))
+                for iord in range(norders):
+                    for iobj in range(nobjs):
+                        ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
+                        flux = sobjs[ind][0].optimal['COUNTS']
+                        sig = sobjs[ind][0].optimal['COUNTS_SIG']
+                        wave = sobjs[ind][0].optimal['WAVE']
+                        mask = sobjs[ind][0].optimal['MASK']
+                        rms_sn, weights = coadd.sn_weights(flux, sig, mask, wave, const_weights=True)
+                        order_snr[iord,iobj] = rms_sn
+
+                # Compute the average SNR and find the brightest object
+                snr_bar = np.mean(order_snr,axis=0)
+                objid[iexp] = uni_objid[snr_bar.argmax()]
+
+
     for iexp, sobjs in enumerate(specobjs_list):
         ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
         trace_stack[iexp, :] = sobjs[ithis].trace_spat

@@ -103,9 +103,9 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
 
     if ycen is None:
         if ndim == 1:
-            ycen_out = np.arange(npix, dtype='int')
+            ycen_out = np.arange(npix, dtype=int)
         elif ndim == 2:
-            ycen_out = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
+            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
         else:
             raise ValueError('trace is not 1 or 2 dimensional')
     else:
@@ -209,7 +209,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
     # Checks on radius
     if (isinstance(radius_in,int) or isinstance(radius_in,float)):
         radius = radius_in
-    elif ((np.size(radius)==np.size(trace_in)) & (np.shape(radius) == np.shape(trace_in))):
+    elif ((np.size(radius_in)==np.size(trace_in)) & (np.shape(radius_in) == np.shape(trace_in))):
         radius = radius_in.T
     else:
         raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
@@ -230,7 +230,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
         if ndim == 1:
             ycen_out = np.arange(npix, dtype='int')
         elif ndim == 2:
-            ycen_out = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
+            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
         else:
             raise ValueError('trace is not 1 or 2 dimensional')
     else:

@@ -198,7 +198,7 @@ def unpack_spec(spectra, all_wave=False):
     return fluxes, sigs, wave
 
 
-def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug=False):
+def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, debug=False):
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
     for coadding.
 
@@ -228,18 +228,23 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
     weights : ndarray
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
-    nstack = flux_stack.shape[0]
-    nspec = flux_stack.shape[1]
-    ivar_stack = utils.calc_ivar(sig_stack)
-    # Calculate S/N
-    sn_val = flux_stack*np.sqrt(ivar_stack)
-    sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
-    sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, iters=5)
-    sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
-    rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
-    rms_sn_stack = np.sqrt(np.mean(sn2))
 
-    # if the wavel
+    if flux.ndim == 1:
+        nstack = 1
+        nspec = flux.shape[0]
+        flux_stack = flux.reshape((nstack, nspec))
+        sig_stack = sig.reshape((nstack,nspec))
+        mask_stack = mask.reshape((nstack, nspec))
+    elif flux.ndim == 2:
+        nstack = flux.shape[0]
+        nspec = flux.shape[1]
+        flux_stack = flux
+        sig_stack = sig
+        mask_stack = mask
+    else:
+        msgs.error('Unrecognized dimensionality for flux')
+
+    # if the wave
     if wave.ndim == 1:
         wave_stack = np.outer(np.ones(nstack), wave)
     elif wave.ndim == 2:
@@ -247,9 +252,21 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
     else:
         msgs.error('wavelength array has an invalid size')
 
-    if rms_sn_stack <= 3.0:
+    ivar_stack = utils.calc_ivar(sig_stack**2)
+    # Calculate S/N
+    sn_val = flux_stack*np.sqrt(ivar_stack)
+    sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
+    sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, iters=5)
+    sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
+    rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
+    rms_sn_stack = np.sqrt(np.mean(sn2))
+    from IPython import embed
+    embed()
+
+    if rms_sn_stack <= 3.0 or const_weights:
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
         weights = np.outer(sn2, np.ones(nspec))
+        return rms_sn, weights
     else:
         # TODO make this a velocity smoothing. This code below is nonsense.
         msgs.info("Using wavelength dependent weights for coadding")
@@ -270,8 +287,8 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
             sn_conv = astropy.convolution.convolve(sn_med2, gauss_kernel)
             weights[ispec,:] = sn_conv
 
-    # Finish
-    return rms_sn, weights
+        # Finish
+        return rms_sn, weights
 
 
 def grow_mask(initial_mask, n_grow=1):
