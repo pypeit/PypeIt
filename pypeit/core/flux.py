@@ -926,7 +926,7 @@ def load_standard_file(std_dict):
     -------
     wave, flux: Quantity, Quantity filled in place in std_dict
       Wavelengths of standard star array
-      Flux of standard star
+      Flux of standard star in flambda, cgs with scaling of 1e-17
     """
     root = resource_filename('pypeit', std_dict['cal_file'] + '*')
     fil = glob.glob(root)
@@ -946,7 +946,7 @@ def load_standard_file(std_dict):
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
-        std_dict['flux'] = std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
+        std_dict['flux'] = 10*std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
     else:
         msgs.error("Bad Standard Star Format")
     return
