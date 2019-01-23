@@ -4,15 +4,14 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from numpy.ma.core import MaskedArray
-import scipy.stats
-from  scipy.signal import medfilt
+import scipy
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 
-import astropy.stats
-from astropy import units
+import astropy
+c_kms = astropy.constants.c.to('km/s').value
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
@@ -22,6 +21,7 @@ from pypeit.core import load
 from pypeit import utils
 from pypeit import debugger
 from pkg_resources import resource_filename
+
 
 
 # TODO
@@ -198,72 +198,80 @@ def unpack_spec(spectra, all_wave=False):
     return fluxes, sigs, wave
 
 
-def sn_weight(fluxes, sigs, wave, smask, debug=False):
-    """ Calculate the S/N of each input spectrum and
-    create an array of weights by which to weight the
-    spectra by in coadding.
+def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug=False):
+    """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
+    for coadding.
 
     Parameters
     ----------
-    spectra : XSpectrum1D
+    fluxes: float ndarray, shape = (nexp, nspec)
+        Stack of (nexp, nspec) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
+    sigs: float ndarray, shape = (nexp, nspec)
+        1-sigam noise vectors for the spectra
+    mask_stack: bool ndarray, shape = (nexp, nspec)
+        Mask for stack of spectra. True=Good, False=Bad.
+    wave: flota ndarray, shape = (nspec,) or (nexp, nspec)
+        Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
+        that all spectra are on the same wavelength grid. If wave is a 2-d array, it will use the individual
+
+    Optional Parameters:
+    --------------------
+
         New wavelength grid
     smask : ndarray
         Bool mask of spectra. True = Good, False = Bad.
 
     Returns
     -------
-    sn2 : array
-        Mean S/N^2 value for each input spectra
+    rms_sn : array
+        Root mean square S/N value for each input spectra
     weights : ndarray
-        Weights to be applied to the spectra
+        Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
-    # Setup
-    #fluxes, sigs, wave = unpack_spec(spectra)
-    # Mask locally
-    fluxes = np.ma.array(fluxes, mask=np.invert(smask))
-    sigs = np.ma.array(sigs, mask=np.invert(smask))
 
-    # Calculate
-    sn_val = fluxes*(1./sigs)  # Taking flux**2 biases negative values
-    sn_sigclip = astropy.stats.sigma_clip(sn_val, sigma=3, iters=5)
-    sn = np.mean(sn_sigclip, axis=1).compressed()
-    sn2 = sn**2 #S/N^2 value for each spectrum
-
+    nstack = flux_stack.shape[0]
+    nspec = flux_stack.shape[1]
+    ivar_stack = utils.calc_ivar(sig_stack)
+    # Calculate S/N
+    sn_val = flux_stack*np.sqrt(ivar_stack)
+    sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
+    sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, iters=5)
+    sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
     rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
+
+    # if the wavel
+    if wave.ndim == 1:
+        wave_stack = np.outer(np.ones(nstack), wave)
+    elif wave.ndim == 2:
+        wave_stack = wave
+    else:
+        msgs.error('wavelength array has an invalid size')
 
     if rms_sn <= 3.0:
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
-        weights = np.ma.outer(np.asarray(sn2), np.ones(fluxes.shape[1]))
+        weights = np.outer(sn2, np.ones(nspec))
     else:
         # TODO make this a velocity smoothing. This code below is nonsense.
         msgs.info("Using wavelength dependent weights for coadding")
-        msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
-        sn_med1 = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
+        #msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
         weights = np.ones_like(fluxes) #((fluxes.shape[0], fluxes.shape[1]))
 
-        bkspace = (10000.0/3.0e5) / (np.log(10.0))
-        med_width = wave.shape[0] / ((np.max(wave) - np.min(wave)) / bkspace)
-        sig_res = max(med_width, 3)
-        nhalf = int(sig_res) * 4
-        xkern = np.arange(0, 2*nhalf+2, dtype='float64')-nhalf
+        for ispec in range(nstack):
+            imask = mask_stack[ispec,:]
+            wave_now = wave_stack[ispec, imask]
+            dwave = (wave_now - np.roll(wave_now,1))[1:]
+            dv = (dwave/wave_now[1:])*c_kms
+            dv_pix = np.median(dv)
+            med_width = int(np.round(dv_smooth/dv_pix))
+            sn_med1 = scipy.ndimage.filters.median_filter(sn_val[ispec,imask]**2, size=med_width, mode='reflect')
+            sn_med2 = np.interp(wave_stack[ispec,:], wave_now,sn_med1)
+            sig_res = np.fmax(med_width/10.0, 3.0)
+            gauss_kernel = astropy.convolution.Gaussian1DKernel(sig_res)
+            sn_conv = astropy.convolution.convolve(sn_med2, gauss_kernel)
+            weights[ispec,:] = sn_conv
 
-        for spec in range(fluxes.shape[0]):
-            sn_med1[spec] = medfilt(sn_val[spec], kernel_size = 3)
-        
-        yvals = gauss1(xkern, [0.0, sig_res, 1, 0])
-
-        for spec in range(fluxes.shape[0]):
-            weights[spec] = scipy.ndimage.filters.convolve(sn_med1[spec], yvals)**2
-
-    # Give weights the same mask
-    weights.mask = np.invert(smask)
-    # and then fill with zeros
-    weights = weights.filled(0.)
-
-    from IPython import embed
-    embed()
     # Finish
-    return sn2, weights
+    return rms_sn, weights
 
 
 def grow_mask(initial_mask, n_grow=1):
@@ -373,7 +381,8 @@ def median_flux(spec, smask, nsig=3., niter=5, **kwargs):
 
 '''
 
-def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=None,
+# TODO Rewrite this routine to take flux, wave, sig and not an Xspectrum object
+def scale_spectra(spectra, smask, rms_sn, iref=0, scale_method='auto', hand_scale=None,
                   SN_MAX_MEDSCALE=2., SN_MIN_MEDSCALE=0.5, **kwargs):
     """
     Parameters
@@ -383,8 +392,8 @@ def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=N
       These should be registered, i.e. pixel 0 has the same wavelength for all
     smask:
        True = Good, False = Bad.
-    sn2 : ndarray
-      S/N**2 estimates for each spectrum
+    rms_sn : ndarray
+      Root mean square signal-to-noise estimate for each spectrum. Computed by sn_weights routine.
     iref : int, optional
       Index of reference spectrum
     scale_method : str, optional
@@ -409,7 +418,6 @@ def scale_spectra(spectra, smask, sn2, iref=0, scale_method='auto', hand_scale=N
     """
     # Init
     med_ref = None
-    rms_sn = np.sqrt(np.mean(sn2)) # Root Mean S/N**2 value for all spectra
     # Check for wavelength registration
     #gdp = np.all(~spectra.data['flux'].mask, axis=0)
     #gidx = np.where(gdp)[0]
@@ -843,7 +851,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
     # Rebin
-    rspec = spectra.rebin(new_wave*units.AA, all=True, do_sig=True, grow_bad_sig=True,
+    rspec = spectra.rebin(new_wave*astropy.units.AA, all=True, do_sig=True, grow_bad_sig=True,
                           masking='none')
 
     # Define mask -- THIS IS THE ONLY ONE TO USE
@@ -853,7 +861,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
 
     # S/N**2, weights
-    sn2, weights = sn_weight(fluxes, sigs, wave, rmask)
+    rms_sn, weights = sn_weights(fluxes, sigs, rmask, wave)
 
     # Scale (modifies rspec in place)
     if echelle:
@@ -863,7 +871,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             msgs.work('Need add a function to scale Echelle spectra.')
             #scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method='median', **kwargs)
     else:
-        scales, omethod = scale_spectra(rspec, rmask, sn2, scale_method=scale_method, **kwargs)
+        scales, omethod = scale_spectra(rspec, rmask, rms_sn, scale_method=scale_method, **kwargs)
 
     # Clean bad CR :: Should be run *after* scaling
     if do_cr:
@@ -910,8 +918,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             var_tot = newvar + utils.calc_ivar(ivar)
             ivar_real = utils.calc_ivar(var_tot)
             # smooth out possible outliers in noise
-            var_med = medfilt(var_tot, 5)
-            var_smooth = medfilt(var_tot, 99)#, boundary = 'reflect')
+            #var_med = medfilt(var_tot, 5)
+            #var_smooth = medfilt(var_tot, 99)#, boundary = 'reflect')
+            var_med = scipy.ndimage.filters.median_filter(var_tot, size=5, mode='reflect')
+            var_smooth = scipy.ndimage.filters.median_filter(var_tot, size=99, mode='reflect')
             # conservatively always take the largest variance
             var_final = np.maximum(var_med, var_smooth)
             ivar_final = utils.calc_ivar(var_final)
@@ -929,17 +939,16 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                 diff1 = flux-newflux_now
                 #idum = np.where(arrmask[*, j] EQ 0, nnotmask)
                 debugger.set_trace() # GET THE MASK RIGHT!
-                nnotmask = np.sum(~mask)
+                nnotmask = np.sum(rmask)
                 nmed_diff = np.maximum(nnotmask//20, 10)
                 #; take out the smoothly varying piece
                 #; JXP -- This isnt going to work well if the data has a bunch of
                 #; null values in it
                 w = np.ones(5, 'd')
-                diff_sm = np.convolve(w/w.sum(),
-                                      medfilt(diff1*(~mask), nmed_diff), mode='same')
+                diff_med = scipy.ndimage.filters.median_filter(diff1*(rmask), size = nmed_diff, mode='reflect')
+                diff_sm = np.convolve(diff_med, w/w.sum(),mode='same')
                 chi2 = (diff1-diff_sm)**2*ivar_real
-#                debugger.set_trace()
-                goodchi = (~mask) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
+                goodchi = (rmask) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
                 if np.sum(goodchi) == 0:
                     goodchi = np.array([True]*flux.size)
 #                debugger.set_trace()  # Port next line to Python to use this
@@ -1101,7 +1110,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
         ax1.scatter(rspec.wavelength[ind_mask], rspec.flux[ind_mask],
                     marker='s',facecolor='None',edgecolor='k')
 
-    if (np.max(spec1d.wavelength)>(9000.0*units.AA)):
+    if (np.max(spec1d.wavelength)>(9000.0*astropy.units.AA)):
         skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ylim[1]
