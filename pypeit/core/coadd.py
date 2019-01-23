@@ -249,7 +249,7 @@ def sn_weights(flux_stack, sig_stack, mask_stack, wave, dv_smooth=10000.0, debug
         msgs.error('wavelength array has an invalid size')
 
     if rms_sn_stack <= 3.0:
-        msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn))
+        msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
         weights = np.outer(sn2, np.ones(nspec))
     else:
         # TODO make this a velocity smoothing. This code below is nonsense.
