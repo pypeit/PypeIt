@@ -848,7 +848,7 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
     #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
     #        & amplitude not nonlinear
     good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
-           (tampl_true < nonlinear_counts)
+           (tampl_true < nonlinear_counts) & (np.abs(tcent-pixt) < fwhm*0.75)
     ww = np.where(good)
     # Compute the significance of each line, set the significance of bad lines to be -1
     nsig = (tampl - med)/stddev

@@ -966,7 +966,7 @@ class WavelengthSolutionPar(ParSet):
                  sigdetect=None, fwhm=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
                  nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
                  sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
-                 IDwaves=None, medium=None, frame=None):
+                 IDwaves=None, medium=None, frame=None, nsnippet=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1073,6 +1073,10 @@ class WavelengthSolutionPar(ParSet):
                              'echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will ' \
                              'depend on the number of solutions in the arxiv.'
 
+        defaults['nsnippet'] = 2
+        dtypes['nsnippet'] = int
+        descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when using the full_template method'
+
         defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = [float, list, numpy.ndarray]
         descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between an input spectrum and member ' \
@@ -1177,13 +1181,6 @@ class WavelengthSolutionPar(ParSet):
         descr['frame'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['frame']))
 
-        # This is now defunct
-        #defaults['min_nsig'] = 10.
-        #dtypes['min_nsig'] = float
-        #descr['min_nsig'] = 'Detection threshold for arc lines for "standard" lines'
-
-
-
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
                                                     values=list(pars.values()),
@@ -1201,7 +1198,8 @@ class WavelengthSolutionPar(ParSet):
                     'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm',
                     'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
                     'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
-                    'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame']
+                    'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame',
+                    'nsnippet']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1219,7 +1217,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        return [ 'simple', 'semi-brute', 'basic','holy-grail', 'reidentify']
+        return [ 'simple', 'semi-brute', 'basic','holy-grail', 'reidentify', 'full_template']
 
     @staticmethod
     def valid_lamps():
