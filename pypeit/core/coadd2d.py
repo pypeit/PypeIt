@@ -10,7 +10,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
-from pypeit.core import load, coadd
+from pypeit.core import load, coadd, pixels
 from pypeit import traceslits
 from pypeit.spectrographs import util
 
@@ -148,7 +148,7 @@ def load_coadd2d_stacks(spec2d_files):
     # Right now we assume there is a single tslits_dict for all images and read in the first one
     tslits_dict = traceslits.load_tslits_dict(tracefiles[0])
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
-    slitmask = spectrograph.slitmask(tslits_dict)
+    slitmask = pixels.tslits2mask(tslits_dict)
     slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
 
     return specobjs_list, tslits_dict, slitmask_stack, sciimg_stack, sciivar_stack, skymodel_stack, mask_stack, tilts_stack, waveimg_stack

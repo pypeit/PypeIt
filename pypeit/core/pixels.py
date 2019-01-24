@@ -85,7 +85,7 @@ def phys_to_pix(array, pixlocn, axis):
     pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
     return pix.ravel() if doravel else pix
 
-
+# This routine is now deprecated and should not be used.
 def slit_pixels(slit_left_in, slit_righ_in, nspat, pad = 0.0):
     """ Generate an image indicating the slit/order associated with each pixel.
 

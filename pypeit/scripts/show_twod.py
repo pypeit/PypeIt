@@ -18,6 +18,7 @@ from astropy.table import Table
 from pypeit import ginga
 from pypeit.spectrographs import util
 from pypeit.processimages import ProcessImagesBitMask as bitmask
+from pypeit.core import pixels
 
 def parser(options=None):
 
@@ -129,7 +130,7 @@ def main(args):
     trc_file = masterframe.master_name('trace', master_key, mdir)
     tslits_dict = traceslits.load_tslits_dict(trc_file)
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
-    slitmask = spectrograph.slitmask(tslits_dict)
+    slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
     slit_ids = [trace_slits.get_slitid(shape, tslits_dict['lcen'], tslits_dict['rcen'], ii)[0]
                 for ii in range(tslits_dict['lcen'].shape[1])]

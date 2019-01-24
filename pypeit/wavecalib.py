@@ -14,9 +14,7 @@ from astropy.table import vstack
 import copy
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit.core import arc
-from pypeit.core import wavecal
-from pypeit.core import qa
+from pypeit.core import arc, wavecal, qa, pixels
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 import linetools.utils
@@ -109,7 +107,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict)
+            self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.shape
