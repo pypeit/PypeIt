@@ -415,30 +415,13 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
 
-        # Return
-        return par
-
-    def config_specific_par(self, par, scifile):
-        """
-        Set par values according to the specific frame
-
-        Here, we only fuss with parameters related to CR rejection
-
-        Args:
-            par:  ParSet
-            scifile: str
-              Name of the science file to use
-
-        Returns:
-            par
-
-        """
         # Slit tracing
         # Reduce the slit parameters because the flux does not span the full detector
         #   It is primarily on the upper half of the detector (usually)
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['slits']['mask_frac_thresh'] = 0.45
             par['calibrations']['slits']['smash_range'] = [0.5, 1.]
+
         # Return
         return par
 
@@ -872,7 +855,7 @@ def read_lris(raw_file, det=None, TRIM=False):
             xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
             xe = xs + nxdata
             #section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
-            section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)  # Eliminate lines
+            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)  # Eliminate lines
             dsec.append(section)
             #print('data',xs,xe)
             array[xs:xe, :] = data   # Include postlines
