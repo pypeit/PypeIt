@@ -518,7 +518,7 @@ class PypeIt(object):
             msgs.warn(msgs_string)
             # set to first pass global sky
             self.skymodel = self.initial_sky
-            self.objmodel = np.zeros_like(sciimg)
+            self.objmodel = np.zeros_like(self.sciimg)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciivar)
             # Set to inmask in case on objects were found
