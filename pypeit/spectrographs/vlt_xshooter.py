@@ -226,10 +226,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 2.12,
                             ronoise         = 8.0, # ?? more precise value?
-                    # JFH TODO these are slightly off. There should actually be 4 pixels shaved off in the spectral
-                    # direction but I don't want to break the wavelength solutions.
-                            datasec         = '[20:,4:2044]',
-                            oscansec        = '[4:20,4:2044]',
+                            datasec         = '[4:,4:2044]',
+                            # EMA: No real overscan for XSHOOTER-NIR: 
+                            # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
+                            # The overscan region below contains only zeros
+                            # ToDo should we just set it as empty?
+                            oscansec        = '[1:3,4:2044]',
                             suffix          = '_NIR'
                             )]
         self.numhead = 1
@@ -370,13 +372,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
-                y_shift = 14
+                y_shift = -2
                 x_shift = 18
                 bpm_data = np.flipud(bpm_fits[0].data)
                 y_len = len(bpm_data[:,0])
                 x_len = len(bpm_data[0,:])
-                bpm_data_pypeit = np.full( ((y_len+y_shift),(x_len+x_shift)) , 0)
-                bpm_data_pypeit[:-y_shift,:-x_shift] = bpm_data_pypeit[:-y_shift,:-x_shift] + bpm_data
+                bpm_data_pypeit = np.full( ((y_len+abs(y_shift)),(x_len+abs(x_shift))) , 0)
+                bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] = bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] + bpm_data
                 bpm_data_pypeit = np.roll(bpm_data_pypeit,-y_shift,axis=0)
                 bpm_data_pypeit = np.roll(bpm_data_pypeit,x_shift,axis=1)
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
@@ -757,12 +759,21 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
+        # ToDo Ema: This is just a workaround to deal with
+        # different binning. I guess binspatial and binspectral
+        # should be passed in.
+        if shape[0]<3000.:
+            binspectral_bpm=2
+        else:
+            binspectral_bpm=1
+        if shape[1]<1500.:
+            binspatial_bpm=2
+        else:
+            binspatial_bpm=1
+
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            # TODO: This is for the 1x1 binning it should
-            # change for other binning
-            self.bpm_img[2912:,824:826] = 1.
-
+            self.bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return self.bpm_img
 
 
@@ -793,7 +804,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[49:,1:]', # '[49:2000,1:2999]',
+                            datasec         = '[49:2096,1:]', # '[49:2000,1:2999]',
                             oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             )]
