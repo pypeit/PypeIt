@@ -14,7 +14,59 @@ from pypeit.core import load, coadd
 from pypeit import traceslits
 from pypeit.spectrographs import util
 
-def optimal_weights(specobjs_list, slitid, objid=None, echelle=True):
+
+def get_brightest_obj(specobjs_list, echelle=True):
+    """
+    Utility routine to find the brightest object in each exposure given a specobjs_list. This currently only works
+    for echelle.
+
+    Parameters:
+        specobjs_list: list
+           List of SpecObjs objects.
+    Optional Parameters:
+        echelle: bool, default=True
+
+    Returns:
+    (objid, snr_bar), tuple
+
+        objid: ndarray, int, shape (len(list),)
+            Array of object ids representing the brightest object in each exposure
+        snr_bar: ndarray, float, shape (len(list),)
+            Average S/N over all the orders for this object
+
+    """
+    nexp = len(specobjs_list)
+    objid = np.zeros(nexp, dtype=int)
+    snr_bar = np.zeros(nexp)
+    if echelle:
+        norders = specobjs_list[0].ech_orderindx.max() + 1
+        for iexp, sobjs in enumerate(specobjs_list):
+            uni_objid = np.unique(sobjs.ech_objid)
+            nobjs = len(uni_objid)
+            order_snr = np.zeros((norders, nobjs))
+            for iord in range(norders):
+                for iobj in range(nobjs):
+                    ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
+                    flux = sobjs[ind][0].optimal['COUNTS']
+                    sig = sobjs[ind][0].optimal['COUNTS_SIG']
+                    wave = sobjs[ind][0].optimal['WAVE']
+                    mask = sobjs[ind][0].optimal['MASK']
+                    rms_sn, weights = coadd.sn_weights(flux, sig, mask, wave, const_weights=True)
+                    order_snr[iord, iobj] = rms_sn
+
+            # Compute the average SNR and find the brightest object
+            snr_bar_vec = np.mean(order_snr, axis=0)
+            objid[iexp] = uni_objid[snr_bar_vec.argmax()]
+            snr_bar[iexp] = snr_bar_vec[snr_bar_vec.argmax()]
+    else:
+        msgs.error('Automated objid selection is not yet implemented for multislit')
+        # -- for multislit this routine will:
+        #  Determine which object on the slitmask is brightest and attempt to match them up somehow.  The problem is
+        #  how to associate the objects together on the slits if they have moved.
+
+    return objid, snr_bar
+
+def optimal_weights(specobjs_list, slitid, objid, echelle=True):
 
     nexp = len(specobjs_list)
     nspec = specobjs_list[0][0].trace_spat.shape[0]
@@ -24,30 +76,6 @@ def optimal_weights(specobjs_list, slitid, objid=None, echelle=True):
     sig_stack = np.zeros((nexp, nspec), dtype=float)
     wave_stack = np.zeros((nexp, nspec), dtype=float)
     mask_stack = np.zeros((nexp, nspec), dtype=bool)
-
-    # If objid is not specified, find the brightest object on each exposure and use that
-    if objid is None:
-        objid = np.zeros(nexp,dtype=int)
-        if echelle:
-            norders = specobjs_list[0].ech_orderindx.max() + 1
-            for iexp, sobjs in enumerate(specobjs_list):
-                uni_objid = np.unique(sobjs.ech_objid)
-                nobjs = len(uni_objid)
-                order_snr = np.zeros((norders, nobjs))
-                for iord in range(norders):
-                    for iobj in range(nobjs):
-                        ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
-                        flux = sobjs[ind][0].optimal['COUNTS']
-                        sig = sobjs[ind][0].optimal['COUNTS_SIG']
-                        wave = sobjs[ind][0].optimal['WAVE']
-                        mask = sobjs[ind][0].optimal['MASK']
-                        rms_sn, weights = coadd.sn_weights(flux, sig, mask, wave, const_weights=True)
-                        order_snr[iord,iobj] = rms_sn
-
-                # Compute the average SNR and find the brightest object
-                snr_bar = np.mean(order_snr,axis=0)
-                objid[iexp] = uni_objid[snr_bar.argmax()]
-
 
     for iexp, sobjs in enumerate(specobjs_list):
         ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
@@ -60,7 +88,7 @@ def optimal_weights(specobjs_list, slitid, objid=None, echelle=True):
     # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
     rms_sn, weights = coadd.sn_weights(flux_stack, sig_stack, mask_stack, wave_stack)
 
-    return rms_sn, weights, wave_stack, trace_stack
+    return rms_sn, weights, trace_stack, wave_stack
 
 def load_coadd2d_stacks(spec2d_files):
 
@@ -154,6 +182,38 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
 
     return ind_lower, ind_upper
 
+def broadcast_weights(weights, shape):
+    """
+    Utility routine to broadcast weights to be the size of image stacks specified by shape
+    Args:
+        weights: float ndarray of weights.
+            Options for the shape of weights are:
+                (nimgs,)              -- a single weight per image
+                (nimgs, nspec)        -- wavelength dependent weights per image
+                (nimgs, nspec, nspat) -- weights already have the shape of the image stack and are simply returned
+        shape: tuple of integers
+            Shape of the image stacks for weighted coadding (nimgs, nspec, nspat)
+
+    Returns:
+
+    """
+    # Create the weights stack images from the wavelength dependent weights, i.e. propagate these
+    # weights to the spatial direction
+    if weights.ndim == 1:
+        # One float per image
+        weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
+    elif weights.ndim == 2:
+        # Wavelength dependent weights per image
+        weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
+    elif weights.ndim == 3:
+        # Full image stack of weights
+        if weights.shape != shape:
+            msgs.error('The shape of weights does not match the shape of the image stack')
+        weights_stack = weights
+    else:
+        msgs.error('Unrecognized dimensionality for weights')
+
+    return weights_stack
 
 def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack, waveimg_stack,
             thismask_stack, weights=None, loglam_grid=None, wave_grid=None):
@@ -188,9 +248,10 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
 
     Optional Args:
     --------------
-        weights: float ndarray, shape = (nimgs,), default = None
-            Set of weights used for the weighted combined of the rectified images using weighted_combine. If the
-            weights are not provided then a uniform weighting will be adopted.
+        weights: float ndarray, shape = (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat), default = None
+            Set of weights used for the weighted combined of the rectified images using weighted_combine.
+            If the weights are not provided then a uniform weighting will be adopted. Weights will be broadast
+            to the correct size of the image stacks using the broadcast_weights utility function.
         loglam_grid: float ndarray, shape = any, default = None
             Wavelength grid in log10(wave) onto which the image stacks will be rectified. The code will automatically
             choose the subset of this grid encompassing the wavelength coverage of the image stacks proviced
@@ -244,7 +305,9 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
 
     if weights is None:
         msgs.info('No weights were provided. Using uniform weights.')
-        weights = np.ones(nimgs) / float(nimgs)
+        weights = np.ones(nimgs)/float(nimgs)
+
+    weights_stack = broadcast_weights(weights, sciimg_stack.shape)
 
     # Create the slit_cen_stack and determine the minimum and maximum spatial offsets that we need to cover to determine
     # the spatial bins
@@ -265,7 +328,7 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     spat_max_int = int(np.ceil(spat_max))
     dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1)
 
-    sci_list = [sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack, waveimg_stack, dspat_stack]
+    sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack, waveimg_stack, dspat_stack]
     var_list = [utils.calc_ivar(sciivar_stack)]
 
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = rebin2d(
@@ -274,23 +337,17 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     # Now compute the final stack with sigma clipping
     sigrej = 3.0
     maxiters = 10
+    # sci_list_rebin[0] = rebinned weights image stack
+    # sci_list_rebin[1:] = stacks of images that we want to weighted combine
+    # sci_list_rebin[2] = rebinned sciimg-sky_model images that we used for the sigma clipping
     sci_list_out, var_list_out, outmask, nused = weighted_combine(
-        weights, sci_list_rebin, var_list_rebin, (norm_rebin_stack != 0),
-        sigma_clip=True, sigma_clip_stack=sci_list_rebin[1], sigrej=sigrej, maxiters=maxiters)
+        sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin, (norm_rebin_stack != 0),
+        sigma_clip=True, sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej, maxiters=maxiters)
     sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
     sciivar = utils.calc_ivar(var_list_out[0])
 
-    nspec_coadd, nspat_coadd = imgminsky.shape
 
-    # Now let's try to do an extraction
-    thismask = np.ones_like(imgminsky, dtype=bool)
-    slit_left = np.full(nspec_coadd, 0.0)
-    slit_righ = np.full(nspec_coadd, nspat_coadd - 1)
-    tslits_dict = dict(lcen=slit_left, rcen=slit_righ,
-                             nspec=nspec_coadd, nspat=nspat_coadd,
-                             pad=0, binning=None, spectrograph=None)
-
-    return wave_bins, dspat_bins, sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat, thismask, tslits_dict
+    return wave_bins, dspat_bins, sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat
 
 
 def img_list_error_check(sci_list, var_list):
@@ -520,14 +577,16 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         mask_stack = inmask_stack  # mask_stack = True are good values
 
     nused = np.sum(mask_stack, axis=0)
-    weights_stack = np.einsum('i,ijk->ijk', weights, mask_stack)
-    weights_sum = np.sum(weights_stack, axis=0)
+    weights_stack = broadcast_weights(weights, shape)
+    weights_mask_stack = weights_stack*mask_stack
+
+    weights_sum = np.sum(weights_mask_stack, axis=0)
     sci_list_out = []
     for sci_stack in sci_list:
-        sci_list_out.append(np.sum(sci_stack*weights_stack, axis=0)/(weights_sum + (weights_sum == 0.0)))
+        sci_list_out.append(np.sum(sci_stack*weights_mask_stack, axis=0)/(weights_sum + (weights_sum == 0.0)))
     var_list_out = []
     for var_stack in var_list:
-        var_list_out.append(np.sum(var_stack * weights_stack**2, axis=0) / (weights_sum + (weights_sum == 0.0))**2)
+        var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) / (weights_sum + (weights_sum == 0.0))**2)
     # Was it masked everywhere?
     outmask = np.any(mask_stack, axis=0)
 

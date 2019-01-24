@@ -260,8 +260,6 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
     sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
-    from IPython import embed
-    embed()
 
     if rms_sn_stack <= 3.0 or const_weights:
         msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
@@ -272,16 +270,18 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
         msgs.info("Using wavelength dependent weights for coadding")
         #msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
         weights = np.ones_like(flux_stack) #((fluxes.shape[0], fluxes.shape[1]))
-
+        spec_vec = np.arange(nspec)
         for ispec in range(nstack):
             imask = mask_stack[ispec,:]
             wave_now = wave_stack[ispec, imask]
+            spec_now = spec_vec[imask]
             dwave = (wave_now - np.roll(wave_now,1))[1:]
             dv = (dwave/wave_now[1:])*c_kms
             dv_pix = np.median(dv)
             med_width = int(np.round(dv_smooth/dv_pix))
             sn_med1 = scipy.ndimage.filters.median_filter(sn_val[ispec,imask]**2, size=med_width, mode='reflect')
-            sn_med2 = np.interp(wave_stack[ispec,:], wave_now,sn_med1)
+            sn_med2 = np.interp(spec_vec, spec_now, sn_med1)
+            #sn_med2 = np.interp(wave_stack[ispec,:], wave_now,sn_med1)
             sig_res = np.fmax(med_width/10.0, 3.0)
             gauss_kernel = astropy.convolution.Gaussian1DKernel(sig_res)
             sn_conv = astropy.convolution.convolve(sn_med2, gauss_kernel)
