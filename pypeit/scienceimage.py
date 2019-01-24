@@ -14,11 +14,8 @@ from pypeit import processimages
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import ginga
-from pypeit.core import skysub
-from pypeit.core import extract
-from pypeit.core import trace_slits
+from pypeit.core import skysub, extract, trace_slits, pixels, coadd2d
 from pypeit.par import pypeitpar
-from pypeit.core import coadd2d
 from matplotlib import pyplot as plt
 
 #
@@ -167,7 +164,7 @@ class ScienceImage(processimages.ProcessImages):
 
         # Other attributes that will be set later during object finding,
         # sky-subtraction, and extraction
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        self.slitmask = pixels.tslits2mask(self.tslits_dict)
         self.tilts = None # used by extract
         self.mswave = None # used by extract
         self.maskslits = None # used in find_object and extract
@@ -277,7 +274,7 @@ class ScienceImage(processimages.ProcessImages):
             # is. This will be a png file(s) per slit.
             sig_thresh = 30.0 if std else self.par['sig_thresh']
             sobjs_slit, skymask[thismask] = \
-                extract.objfind(image, thismask, self.tslits_dict['lcen'][:,slit],self.tslits_dict['rcen'][:,slit],
+                extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit],
                 inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.par['manual'],specobj_dict=specobj_dict,
                 show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,qa_title=qa_title,
                 nperslit=self.par['maxnumber'])
@@ -316,7 +313,7 @@ class ScienceImage(processimages.ProcessImages):
         # ToDO implement parsets here!
         sig_thresh = 30.0 if std else self.par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
-            extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+            extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                 inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
@@ -379,8 +376,8 @@ class ScienceImage(processimages.ProcessImages):
             # Find sky
             self.global_sky[thismask] = skysub.global_skysub(self.sciimg, self.sciivar,
                                                              self.tilts, thismask,
-                                                             self.tslits_dict['lcen'][:,slit],
-                                                             self.tslits_dict['rcen'][:,slit],
+                                                             self.tslits_dict['slit_left'][:,slit],
+                                                             self.tslits_dict['slit_righ'][:,slit],
                                                              inmask=inmask,
                                                              sigrej=sigrej,
                                                              bsp=self.par['bspline_spacing'],
@@ -494,8 +491,8 @@ class ScienceImage(processimages.ProcessImages):
                     self.extractmask[thismask] \
                         = skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,
                                                       self.waveimg, self.global_sky, self.rn2img,
-                                                      thismask, self.tslits_dict['lcen'][:,slit],
-                                                      self.tslits_dict['rcen'][:, slit],
+                                                      thismask, self.tslits_dict['slit_left'][:,slit],
+                                                      self.tslits_dict['slit_righ'][:, slit],
                                                       self.sobjs[thisobj], model_full_slit=self.par['model_full_slit'],
                                                       model_noise=model_noise,
                                                       std = std, bsp=self.par['bspline_spacing'],
@@ -677,8 +674,8 @@ class ScienceImage(processimages.ProcessImages):
             # Local sky subtraction and extraction
             self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] = \
                 skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts, self.waveimg, self.global_sky,
-                                            self.rn2img, thismask, self.tslits_dict['lcen'][:,iord],
-                                            self.tslits_dict['rcen'][:, iord], self.sobjs[thisobj], inmask=inmask,
+                                            self.rn2img, thismask, self.tslits_dict['slit_left'][:,iord],
+                                            self.tslits_dict['slit_righ'][:, iord], self.sobjs[thisobj], inmask=inmask,
                                             model_full_slit=self.par['model_full_slit'], model_noise=model_noise, std = std,
                                             bsp=self.par['bspline_spacing'], sn_gauss=self.par['sn_gauss'],
                                             show_profile=show_profile, show_resids=show_resids)
@@ -725,7 +722,7 @@ class ScienceImage(processimages.ProcessImages):
             self.maskslits = maskslits
         elif (self.maskslits is None):
             # If maskslits was not passed, and it does not exist in self, reduce all slits
-            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+            self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
         else: # Otherwise, if self.maskslits exists, use the previously set maskslits
             pass
         return self.maskslits
@@ -938,11 +935,11 @@ class ScienceImage(processimages.ProcessImages):
 
         if slits:
             if self.tslits_dict is not None:
-                slit_ids = [trace_slits.get_slitid(self.sciimg.shape, self.tslits_dict['lcen'],
-                                                   self.tslits_dict['rcen'], ii)[0]
-                                for ii in range(self.tslits_dict['lcen'].shape[1])]
+                slit_ids = [trace_slits.get_slitid(self.sciimg.shape, self.tslits_dict['slit_left'],
+                                                   self.tslits_dict['slit_righ'], ii)[0]
+                                for ii in range(self.tslits_dict['slit_left'].shape[1])]
 
-                ginga.show_slits(viewer, ch, self.tslits_dict['lcen'], self.tslits_dict['rcen'],
+                ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                  slit_ids)  # , args.det)
 
     def __repr__(self):

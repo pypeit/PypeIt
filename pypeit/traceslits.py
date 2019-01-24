@@ -447,6 +447,7 @@ class TraceSlits(masterframe.MasterFrame):
         #for key in ['slitcen', 'pixwid', 'lordpix','rordpix', 'extrapord']:
         #    self.tslits_dict[key] = getattr(self, key)
         # add in the image size and some stuff to create the slitmask
+        self.tslits_dict['slitcen'] = self.slitcen
         self.tslits_dict['nspec'] = self.mstrace.shape[0]
         self.tslits_dict['nspat'] = self.mstrace.shape[1]
         self.tslits_dict['nslits'] = self.lcen.shape[1]
