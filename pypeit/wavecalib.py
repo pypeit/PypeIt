@@ -113,9 +113,9 @@ class WaveCalib(masterframe.MasterFrame):
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.shape
-            self.nslits = self.tslits_dict['lcen'].shape[1]
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['lcen'])
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['rcen'])
+            self.nslits = self.tslits_dict['slit_left'].shape[1]
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_left'])
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_righ'])
             self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.inmask = arc.resize_mask2arc(self.shape_arc,inmask)

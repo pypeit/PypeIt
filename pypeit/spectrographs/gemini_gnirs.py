@@ -238,6 +238,15 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def order_vec(self):
         return self.slit2order(np.arange(self.norders))
 
+
+    def slit_minmax(self, nslits, binspectral=1):
+
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        spec_max = np.asarray([1022,1022,1022,1022,1022,1022])
+        spec_min = np.asarray([512,280, 0, 0, 0, 0])
+
+        return spec_min, spec_max
+
     def slitmask(self, tslits_dict, pad=None, binning=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can

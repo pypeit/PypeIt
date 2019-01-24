@@ -173,8 +173,8 @@ def tslits2mask(tslits_dict, pad=None):
     nslits = tslits_dict['nslits']
     nspec = tslits_dict['nspec']
     nspat = tslits_dict['nspat']
-    spec_max = tslits_dict['spec_max']
     spec_min = tslits_dict['spec_min']
+    spec_max = tslits_dict['spec_max']
     if pad is None:
         pad = tslits_dict['pad']
 
@@ -185,7 +185,7 @@ def tslits2mask(tslits_dict, pad=None):
         left_trace_img = np.outer(slit_left[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
         righ_trace_img = np.outer(slit_righ[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
         thismask = (spat_img > (left_trace_img - pad)) & (spat_img < (righ_trace_img + pad)) & \
-                   (spec_img >= slit_min[islit]) & (spec_img <= slit_max[islit])
+                   (spec_img >= spec_min[islit]) & (spec_img <= spec_max[islit])
         if not np.any(thismask):
             msgs.warn("There are no pixels in slit {:d}".format(islit))
             continue

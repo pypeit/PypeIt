@@ -246,6 +246,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
+    def slit_minmax(self, nslits, binspectral=1):
+
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        spec_max = np.asarray([np.inf, np.inf, np.inf, np.inf, np.inf, np.inf])
+        spec_min = np.asarray([1024, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf])
+
+        return spec_min, spec_max
+
     def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
