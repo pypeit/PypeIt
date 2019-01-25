@@ -30,10 +30,6 @@ from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
-from pypeit.par import util
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import qa
-from pypeit import wavemodel
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
@@ -884,57 +880,6 @@ def find_standard(specobj_list):
     # Return
     return mxix
 
-
-def read_fluxfile(ifile):
-    """
-    Read a PypeIt flux file, akin to a standard PypeIt file
-
-    The top is a config block that sets ParSet parameters
-      The spectrograph is required
-
-    Args:
-        ifile: str
-          Name of the flux file
-
-    Returns:
-        spectrograph: Spectrograph
-        cfg_lines: list
-          Config lines to modify ParSet values
-        flux_dict: dict
-          Contains spec1d_files and flux_files
-          Empty if no flux block is specified
-
-    """
-    # Read in the pypeit reduction file
-    msgs.info('Loading the fluxcalib file')
-    lines = util._read_pypeit_file_lines(ifile)
-    is_config = np.ones(len(lines), dtype=bool)
-
-
-    # Parse the fluxing block
-    flux_dict = {}
-    s, e = util._find_pypeit_block(lines, 'flux')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'flux end' in {0}".format(ifile))
-    elif (s < 0) or (s==e):
-        msgs.warn("No flux block, you must be making the sensfunc only..")
-    else:
-        flux_dict['spec1d_files'] = []
-        flux_dict['flux_files'] = []
-        for line in lines[s:e]:
-            prs = line.split(' ')
-            flux_dict['spec1d_files'].append(prs[0])
-            flux_dict['flux_files'].append(prs[1])
-        is_config[s-1:e+1] = False
-
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-    cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name)
-
-    # Return
-    return spectrograph, cfg_lines, flux_dict
 
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.

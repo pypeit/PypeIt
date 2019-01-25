@@ -1039,7 +1039,11 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     # of the object profiles. If the profile slope is never actually one, then just find the maximum value in the interval between
     # (l_limit, -1.0) or (1.0, r_limit)
     l_lim_vec = np.arange(l_limit+0.1,-1.0, 0.1)
-    l_fit1, _ = bset.value(l_lim_vec)
+    try:
+        l_fit1, _ = bset.value(l_lim_vec)
+    except:
+        from IPython import embed
+        embed()
     l_fit2, _ = bset.value(l_lim_vec*0.9)
     l_deriv_vec = (np.log(l_fit2) - np.log(l_fit1))/(0.1*l_lim_vec)
     l_deriv_max = np.fmax(l_deriv_vec.min(), -1.0)

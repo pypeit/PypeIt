@@ -86,6 +86,12 @@ takes the sampling set by the wavelength tilts into account.
 - Introduce mask_frac_thresh and smash_range parameters for slit tracing; modified LRISb 300 defaults
 - Updated slit tracing docs
 - Introduced --show command in pypeit_chk_edges
+- Refactored PypeIt and ScienceImage classes and introduced Reduce class. ScienceImage now only does proc-ing whereas
+reduction operations are done by Reduce. Reduce is now subclassed in an instrument specific way using instantiate_me
+ instead of PypeIt.
+- Added and improved routines for upcoming coadd2d functionality.
+- Fixed bug in weight determination for 1d spectral coadds.
+- 
 
 0.9.0
 -----

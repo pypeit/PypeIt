@@ -8,6 +8,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from configobj import ConfigObj
+import numpy as np
+from pypeit import par, msgs
+from pypeit.spectrographs.util import load_spectrograph
 import argparse
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20,6 +24,57 @@ import argparse
 #         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml
 #         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
 
+
+def read_fluxfile(ifile):
+    """
+    Read a PypeIt flux file, akin to a standard PypeIt file
+
+    The top is a config block that sets ParSet parameters
+      The spectrograph is required
+
+    Args:
+        ifile: str
+          Name of the flux file
+
+    Returns:
+        spectrograph: Spectrograph
+        cfg_lines: list
+          Config lines to modify ParSet values
+        flux_dict: dict
+          Contains spec1d_files and flux_files
+          Empty if no flux block is specified
+
+    """
+    # Read in the pypeit reduction file
+    msgs.info('Loading the fluxcalib file')
+    lines = par.util._read_pypeit_file_lines(ifile)
+    is_config = np.ones(len(lines), dtype=bool)
+
+
+    # Parse the fluxing block
+    flux_dict = {}
+    s, e = par.util._find_pypeit_block(lines, 'flux')
+    if s >= 0 and e < 0:
+        msgs.error("Missing 'flux end' in {0}".format(ifile))
+    elif (s < 0) or (s==e):
+        msgs.warn("No flux block, you must be making the sensfunc only..")
+    else:
+        flux_dict['spec1d_files'] = []
+        flux_dict['flux_files'] = []
+        for line in lines[s:e]:
+            prs = line.split(' ')
+            flux_dict['spec1d_files'].append(prs[0])
+            flux_dict['flux_files'].append(prs[1])
+        is_config[s-1:e+1] = False
+
+    # Construct config to get spectrograph
+    cfg_lines = list(lines[is_config])
+    cfg = ConfigObj(cfg_lines)
+    spectrograph_name = cfg['rdx']['spectrograph']
+    spectrograph = load_spectrograph(spectrograph_name)
+
+    # Return
+    return spectrograph, cfg_lines, flux_dict
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
@@ -47,7 +102,7 @@ def main(args, unit_test=False):
     from pypeit.par import pypeitpar
 
     # Load the file
-    spectrograph, config_lines, flux_dict = flux.read_fluxfile(args.flux_file)
+    spectrograph, config_lines, flux_dict = read_fluxfile(args.flux_file)
 
     # Parameters
     spectrograph_def_par = spectrograph.default_pypeit_par()
@@ -93,6 +148,8 @@ def main(args, unit_test=False):
         for spec1d_file, flux_file in zip(flux_dict['spec1d_files'], flux_dict['flux_files']):
             FxSpec.flux_science(spec1d_file)
             FxSpec.write_science(flux_file)
+
+
 
 
 
