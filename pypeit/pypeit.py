@@ -518,14 +518,14 @@ class PypeIt(object):
                 msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
             msgs.warn(msgs_string)
             # set to first pass global sky
-            skymodel = self.initial_sky
-            objmodel = np.zeros_like(sciimg)
+            self.skymodel = self.initial_sky
+            self.objmodel = np.zeros_like(self.sciimg)
             # Set to sciivar. Could create a model but what is the point?
-            ivarmodel = np.copy(self.sciivar)
+            self.ivarmodel = np.copy(self.sciivar)
             # Set to inmask in case on objects were found
-            outmask = self.mask
+            self.outmask = self.mask
             # empty specobjs object from object finding
-            sobjs = self.sobjs_obj
+            self.sobjs = self.sobjs_obj
             vel_corr = None
 
         return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, vel_corr

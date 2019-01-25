@@ -532,7 +532,7 @@ class Spectrograph(object):
             # Grab from the header, if we can
             try:
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
-            except KeyError:
+            except (KeyError, TypeError):
                 value = None
 
         if value is None:

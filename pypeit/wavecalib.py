@@ -37,8 +37,9 @@ class WaveCalib(masterframe.MasterFrame):
 
     Optional Parameters
     --------------------
-    settings : dict, optional
-      Settings for trace slits
+    binspectral: int, optional
+      Binning of the Arc in the spectral dimension
+
     det : int, optional
       Detector number
     master_key : str, optional
@@ -70,7 +71,7 @@ class WaveCalib(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, tslits_dict, binning=None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
+    def __init__(self, msarc, tslits_dict, binspectral=None, spectrograph=None, par=None, det=1, master_key=None, master_dir=None,
                  reuse_masters=False, redux_path=None, bpm=None):
 
         # Instantiate the spectograph
@@ -87,7 +88,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Optional parameters
         self.bpm = bpm
         self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
-        self.binning = binning
+        self.binspectral = binspectral
         self.redux_path = redux_path
         self.det = det
         self.master_key = master_key
@@ -117,7 +118,10 @@ class WaveCalib(masterframe.MasterFrame):
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['rcen'])
             self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.inmask = (arc.resize_mask2arc(self.shape_arc,inmask)) & (self.msarc < self.nonlinear_counts)
+            self.inmask = arc.resize_mask2arc(self.shape_arc,inmask)
+            # TODO -- Remove the following two lines if deemed ok
+            if self.par['method'] != 'full_template':
+                self.inmask &= self.msarc < self.nonlinear_counts
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -206,7 +210,13 @@ class WaveCalib(masterframe.MasterFrame):
             # Now preferred
             arcfitter = wavecal.autoid.ArchiveReid(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
-
+        elif method == 'full_template':
+            # Now preferred
+            if self.binspectral is None:
+                msgs.error("You must specify binspectral for the full_template method!")
+            final_fit = wavecal.autoid.full_template(arccen, self.par, ok_mask, self.det,
+                                                     self.binspectral,
+                                                     nsnippet=self.par['nsnippet'])
 
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
@@ -299,7 +309,14 @@ class WaveCalib(masterframe.MasterFrame):
               boolean array containing a mask indicating which slits are good
 
         """
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask = inmask, nonlinear_counts=self.nonlinear_counts)
+        # Full template kludge
+        if self.par['method'] == 'full_template':
+            nonlinear = 1e10
+        else:
+            nonlinear = self.nonlinear_counts
+        # Do it
+        # TODO -- Consider *not* passing in nonlinear_counts;  Probably should not mask saturated lines at this stage
+        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask=inmask, nonlinear_counts=nonlinear)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
@@ -382,7 +399,7 @@ class WaveCalib(masterframe.MasterFrame):
         for key in self.wv_calib.keys():
             if key in ['steps', 'par', 'fit2d']:
                 continue
-            if self.wv_calib[key] is not None:
+            if (self.wv_calib[key] is not None) and (len(self.wv_calib[key]) > 0):
                 mask[int(key)] = False
         self.maskslits = mask
         return self.maskslits
