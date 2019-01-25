@@ -24,12 +24,16 @@ try:
 except ImportError:
     pass
 
+from configobj import ConfigObj
+
 from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
+from pypeit.par import util
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import qa
-from ..wavemodel import conv2res
+from pypeit import wavemodel
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
@@ -165,7 +169,6 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     sens_dict : dict
       sensitivity function described by a dict
     """
-
     # Create copy of the arrays to avoid modification and convert to
     # electrons / s
     wave_star = wave.copy()
@@ -176,22 +179,14 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     if not isinstance(wave_star, units.Quantity):
         wave_star = wave_star * units.AA
 
-    # ToDo
-    # This should be changed. At the moment the extinction correction procedure
-    # requires the spectra to be in the optical. For the NIR is probably enough
-    # to extend the tables to longer wavelength setting the extinction to 0.0mag.
-    msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-    # Apply Extinction if optical bands
-    if np.max(wave_star) < 10000. * units.AA:
-        msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                       spectrograph.telescope['latitude'])
-        ext_corr = extinction_correction(wave_star, airmass, extinct)
-        # Correct for extinction
-        flux_star = flux_star * ext_corr
-        ivar_star = ivar_star / ext_corr ** 2
-    else:
-        msgs.info("Extinction correction not applied")
+    # Extinction correction
+    msgs.info("Applying extinction correction")
+    extinct = load_extinction_data(spectrograph.telescope['longitude'],
+                                   spectrograph.telescope['latitude'])
+    ext_corr = extinction_correction(wave_star, airmass, extinct)
+    # Correct for extinction
+    flux_star = flux_star * ext_corr
+    ivar_star = ivar_star / ext_corr ** 2
 
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
@@ -203,9 +198,12 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             # Load standard
             load_standard_file(std_dict)
             # Interpolate onto observed wavelengths
-            std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-            xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-            flux_true = xspec.flux.value
+            #std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+            #xspec = std_xspec.rebin(wave_star)  # Conserves flambda
+            #flux_true = xspec.flux.value
+            flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],
+                                               bounds_error=False,
+                                               fill_value='extrapolate')(wave_star)
         else:
             msgs.error('No spectrum found in our database for your standard star. Please use another standard star \
                        or consider add it into out database.')
@@ -249,7 +247,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         # ToDo: should we extrapolate it using graybody model?
-        mask_model = flux_true<=0
+        mask_model = flux_true <= 0
         msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
                                                     lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
@@ -680,8 +678,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             - 'dec': str -- DEC(J2000)
     """
     # Priority
-    std_sets = [load_calspec]
-    std_file_fmt = [1]  # 1=Calspec style FITS binary table
+    std_sets = [load_calspec, load_esofil]
+    std_file_fmt = [1, 2]  # 1=Calspec style FITS binary table; 2=ESO ASCII format
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
@@ -750,6 +748,26 @@ def load_calspec():
     # Return
     return calspec_path, calspec_stds
 
+def load_esofil():
+    """
+    Load the list of ESO standards
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    esofil_path : str
+      Path from pypeitdir to calspec standard star files
+    esofil_stds : Table
+      astropy Table of the calspec standard stars (file, Name, RA, DEC)
+    """
+    # Read
+    esofil_path = '/data/standards/ESOFIL/'
+    esofil_file = resource_filename('pypeit', esofil_path + 'esofil_info.txt')
+    esofil_stds = Table.read(esofil_file, comment='#', format='ascii')
+    # Return
+    return esofil_path, esofil_stds
 
 def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     """
@@ -802,12 +820,14 @@ def load_standard_file(std_dict):
       Info on standard star indcluding filename in 'file'
       May be compressed
 
+      fmt==1  Calsepec
+      fmt==2  ESO files
+
     Returns
     -------
-    std_wave : Quantity array
+    wave, flux: Quantity, Quantity filled in place in std_dict
       Wavelengths of standard star array
-    std_flux : Quantity array
-      Flux of standard star
+      Flux of standard star in flambda, cgs with scaling of 1e-17
     """
     root = resource_filename('pypeit', std_dict['cal_file'] + '*')
     fil = glob.glob(root)
@@ -818,11 +838,16 @@ def load_standard_file(std_dict):
         msgs.info("Loading standard star file: {:s}".format(fil))
         msgs.info("Fluxes are flambda, normalized to 1e-17")
 
-    if std_dict['fmt'] == 1:
+    if std_dict['fmt'] == 1: # Calspec
         std_spec = fits.open(fil)[1].data
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
         std_dict['flux'] = 1e17 * std_spec['FLUX'] * units.erg / units.s / units.cm ** 2 / units.AA
+    elif std_dict['fmt'] == 2: # ESO files
+        std_spec = Table.read(fil, format='ascii')
+        # Load
+        std_dict['wave'] = std_spec['col1'] * units.AA
+        std_dict['flux'] = 10*std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
     else:
         msgs.error("Bad Standard Star Format")
     return
@@ -859,6 +884,57 @@ def find_standard(specobj_list):
     # Return
     return mxix
 
+
+def read_fluxfile(ifile):
+    """
+    Read a PypeIt flux file, akin to a standard PypeIt file
+
+    The top is a config block that sets ParSet parameters
+      The spectrograph is required
+
+    Args:
+        ifile: str
+          Name of the flux file
+
+    Returns:
+        spectrograph: Spectrograph
+        cfg_lines: list
+          Config lines to modify ParSet values
+        flux_dict: dict
+          Contains spec1d_files and flux_files
+          Empty if no flux block is specified
+
+    """
+    # Read in the pypeit reduction file
+    msgs.info('Loading the fluxcalib file')
+    lines = util._read_pypeit_file_lines(ifile)
+    is_config = np.ones(len(lines), dtype=bool)
+
+
+    # Parse the fluxing block
+    flux_dict = {}
+    s, e = util._find_pypeit_block(lines, 'flux')
+    if s >= 0 and e < 0:
+        msgs.error("Missing 'flux end' in {0}".format(ifile))
+    elif (s < 0) or (s==e):
+        msgs.warn("No flux block, you must be making the sensfunc only..")
+    else:
+        flux_dict['spec1d_files'] = []
+        flux_dict['flux_files'] = []
+        for line in lines[s:e]:
+            prs = line.split(' ')
+            flux_dict['spec1d_files'].append(prs[0])
+            flux_dict['flux_files'].append(prs[1])
+        is_config[s-1:e+1] = False
+
+    # Construct config to get spectrograph
+    cfg_lines = list(lines[is_config])
+    cfg = ConfigObj(cfg_lines)
+    spectrograph_name = cfg['rdx']['spectrograph']
+    spectrograph = load_spectrograph(spectrograph_name)
+
+    # Return
+    return spectrograph, cfg_lines, flux_dict
 
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.

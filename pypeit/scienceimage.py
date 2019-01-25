@@ -18,6 +18,8 @@ from pypeit.core import skysub, extract, trace_slits, pixels, coadd2d
 from pypeit.par import pypeitpar
 from matplotlib import pyplot as plt
 
+from pypeit import debugger
+
 #
 # from pypeit.bitmask import BitMask
 #
@@ -328,7 +330,7 @@ class ScienceImage(processimages.ProcessImages):
         return sobjs_ech, len(sobjs_ech), skymask
 
 
-    def global_skysub(self, tilts, std = False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
+    def global_skysub(self, tilts, std=False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
                       show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -381,6 +383,7 @@ class ScienceImage(processimages.ProcessImages):
                                                              inmask=inmask,
                                                              sigrej=sigrej,
                                                              bsp=self.par['bspline_spacing'],
+                                                             no_poly=self.par['no_poly'],
                                                              pos_mask = (not self.ir_redux),
                                                              show_fit=show_fit)
             # Mask if something went wrong

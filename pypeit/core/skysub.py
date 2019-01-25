@@ -22,7 +22,7 @@ import scipy
 
 
 def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3.0, maxiter=35,
-                  trim_edg = (3,3), pos_mask=True, show_fit=False, no_poly=False, npoly = None):
+                  trim_edg=(3,3), pos_mask=True, show_fit=False, no_poly=False, npoly=None):
     """
     Perform global sky subtraction on an input slit
 
@@ -58,6 +58,9 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
     sigrej : float, default sigrej = 3.0
       sigma rejection threshold
+
+    no_poly: bool, optional
+      Do not incldue polynomial basis
 
     trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
       indicates how many pixels to trim from left and right slit edges for creating the edgemask. These pixels are
@@ -130,8 +133,9 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
             inmask_fit[pos_sky]=(sky_ivar[pos_sky] > 0.0) & lmask
 
+    # Include a polynomial basis?
     if no_poly:
-        poly_basis= np.ones_like(sky)
+        poly_basis = np.ones_like(sky)
         npoly = 1
     else:
         npercol = np.fmax(np.floor(np.sum(thismask) / nspec), 1.0)
@@ -156,7 +160,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
     # Perform the full fit now
     skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar,poly_basis,inmask = inmask_fit,
-                                                                  nord = 4,upper=sigrej, lower=sigrej,
+                                                                  nord=4,upper=sigrej, lower=sigrej,
                                                                   maxiter=maxiter,
                                                                   kwargs_bspline = {'bkspace':bsp},
                                                                   kwargs_reject={'groupbadpix':True, 'maxrej': 10})
@@ -199,7 +203,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
         plt.clf()
         ax = plt.gca()
         was_fit_and_masked = inmask_fit & ~outmask
-        ax.plot(pix, sky, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
+        ax.plot(pix[inmask_fit], sky[inmask_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
         ax.plot(pix[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
         ax.plot(pix, yfit, color='cornflowerblue')
         ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=4.0, mfc='lawngreen', fillstyle='full', linestyle='None')
@@ -517,7 +521,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         for spec in sobjs:
             spec.maskwidth = max_slit_width/2.0
 
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
     nspat = sciimg.shape[1]
     nspec = sciimg.shape[0]

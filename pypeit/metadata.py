@@ -186,6 +186,7 @@ class PypeItMetaData:
         additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
         additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
         additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
+        additional_meta['detector'] = dict(dtype=str, comment='Name of detector')
 
         # Calibration lamps
         for kk in range(20):
@@ -479,6 +480,7 @@ class PypeItMetaData:
             KeyError:
                 Raised if `filename` is not a key in the provided table.
         """
+        meta_data_model = self.get_meta_data_model()
         # Check the input
         if not isinstance(usrdata, table.Table):
             raise TypeError('Must provide an astropy.io.table.Table instance.')
@@ -494,42 +496,21 @@ class PypeItMetaData:
             for key in existing_keys:
                 if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
                     debugger.set_trace()
-                elif self.table[key].dtype.type != usrdata[key].dtype.type:
-                    try:
-                        usrdata[key] = usrdata[key].astype(self.table[key].dtype)
-                    except:
-                        debugger.set_trace()
-                        pass
-        
+                elif key in meta_data_model.keys(): # Is this meta data??
+                    dtype = meta_data_model[key]['dtype']
+                else:
+                    dtype = self.table[key].dtype
+                # Deal with None's properly
+                nones = usrdata[key] == 'None'
+                usrdata[key][nones] = None
+                # Rest
+                usrdata[key][~nones] = usrdata[key][~nones].astype(dtype)
+
         # Include the user data in the table
         for key in usrdata.keys():
             self.table[key] = usrdata[key][srt]
 
-#    @staticmethod
-#    def get_utc(headarr):
-#        """
-#        Find and return the UTC for a file based on the headers read from
-#        all extensions.
-#    
-#        The value returned is the first UT or UTC keyword found any in any
-#        header object.
-#    
-#        Args:
-#            headarr (list):
-#                List of :obj:`astropy.io.fits.Header` objects to search
-#                through for a UTC of the observation.
-#        Returns:
-#            object: The value of the header keyword.
-#        """
-#        for h in headarr:
-#            if h == 'None':
-#                continue
-#            if 'UTC' in h.keys():
-#                return h['UTC']
-#            elif 'UT' in h.keys():
-#                return h['UT']
-#        return None
-
+    '''
     def convert_time(self, in_time, date=None):
         """
         Convert the time read from a file header to MJD for all spectrographs.
@@ -566,6 +547,7 @@ class PypeItMetaData:
             return tval.mjd
         
         msgs.error('Bad time unit')
+    '''
 
     def get_configuration(self, indx, cfg_keys=None):
         """
@@ -1958,7 +1940,9 @@ def row_match_config(row, config, spectrograph):
     for k in config.keys():
         # Deal with floating configs (e.g. grating angle)
         if isinstance(config[k], float):
-            if np.abs(config[k]-row[k])/config[k] < spectrograph.meta[k]['rtol']:
+            if row[k] is None:
+                match.append(False)
+            elif np.abs(config[k]-row[k])/config[k] < spectrograph.meta[k]['rtol']:
                 match.append(True)
             else:
                 match.append(False)

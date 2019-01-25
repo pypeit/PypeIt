@@ -26,31 +26,18 @@ from pypeit.par.pypeitpar import TelescopePar
 
 from pypeit import debugger
 
-class FluxSpec(masterframe.MasterFrame):
+class FluxSpec():
     """Class to guide fluxing
 
     Parameters
     ----------
-    std_spec1d_file : str
-      Filename of the spec1d file containing the standard star spectrum
-      One or more of these are used to generate the sensitivity function
-    std_specobjs : list
-      List of SpecObj objects for the standard star spectrum/spectra
-      May be input instead of std_spec1d_file to generate the sensitivity function
-    sci_spec1d_file : str
-      Filename of a spec1d file to be fluxed
-    spectrograph : str
+    spectrograph : Spectrograph or str
       Name of the spectrograph, e.g. shane_kast_blue
       Used only to set settings for calls to the Class outside of PypeIt
       This includes extinction data..
-    sens_file : str
+    par: FluxCalib parset
+    sens_file : str, optional
       Filename of a sensitivity function file to be input
-    master_key : str
-      Setup code (for MasterFrame)
-    settings : dict-like
-      Settings to guide the fluxing
-      Key ones are ['mosaic']['longitude', 'latitude', 'elevation']
-
 
     Attributes
     ----------
@@ -62,10 +49,6 @@ class FluxSpec(masterframe.MasterFrame):
     frametype : str
       Set to 'sensfunc'
 
-    multi_det : tuple, optional
-      List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)
-      They are assumed to be in order of increasing wavelength
-      And that there is *no* overlap in wavelength across detectors (might be ok if there is)
     std : SpecObj
       The chosen one for generating the sensitivity function
     std_header : dict-like
@@ -83,88 +66,29 @@ class FluxSpec(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
-    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
-                 std_specobjs=None, std_header=None, spectrograph=None, multi_det=None,
-                 telluric=False, master_key=None, master_dir=None, reuse_masters=False,debug=False):
+    def __init__(self, spectrograph, par, sens_file=None, debug=False):
 
-        # Load standard files
-        std_spectro = None
-        self.std_spec1d_file = std_spec1d_file
-        # Need to unwrap these (sometimes)..
-        self.std_specobjs = std_specobjs
-        self.std_header = std_header
-        if self.std_spec1d_file is not None:
-            self.std_specobjs, self.std_header = load.load_specobjs(self.std_spec1d_file)
-            msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
-                                len(self.std_specobjs), self.std_spec1d_file))
-            std_spectro = self.std_header['INSTRUME']
+        # Init
+        self.spectrograph = spectrograph
+        self.par = par
 
-        try:
-            self.std_ra = self.std_header['RA']
-        except:
-            self.std_ra = None
-        try:
-            self.std_dec = self.std_header['DEC']
-        except:
-            self.std_dec = None
-        try:
-            self.std_file = self.std_header['FILENAME']
-        except:
-            self.std_file = None
-
-        # Load the science files
-        sci_spectro = None
-        self.sci_spec1d_file = sci_spec1d_file
-        self.sci_specobjs = []
-        self.sci_header = None
-        if self.sci_spec1d_file is not None:
-            self.sci_specobjs, self.sci_header = load.load_specobjs(self.sci_spec1d_file)
-            msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
-                                len(self.sci_specobjs), self.sci_spec1d_file))
-            sci_spectro = self.sci_header['INSTRUME']
-
-        # Compare instruments if they exist
-        if std_spectro is not None and sci_spectro is not None and std_spectro != sci_spectro:
-            msgs.error('Standard spectra are not the same instrument as science!!')
-
-        # Instantiate the spectrograph
-        _spectrograph = spectrograph
-        if _spectrograph is None:
-            _spectrograph = std_spectro
-            if _spectrograph is not None:
-                msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
-        if _spectrograph is None:
-            _spectrograph = sci_spectro
-            if _spectrograph is not None:
-                msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
-        self.spectrograph = load_spectrograph(_spectrograph)
-
-        # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, reuse_masters=reuse_masters)
         # Get the extinction data
-        self.extinction_data = None
-        if self.spectrograph is not None:
-            self.extinction_data = flux.load_extinction_data(
+        self.extinction_data = flux.load_extinction_data(
                 self.spectrograph.telescope['longitude'], self.spectrograph.telescope['latitude'])
-        elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
-            self.extinction_data \
-                    = flux.load_extinction_data(self.sci_header['LON-OBS'],
-                                                self.sci_header['LAT-OBS'])
 
-        # Once the spectrograph is instantiated, can also set the
-        # extinction data
         # Parameters
-        self.sens_file = sens_file
-        self.multi_det = multi_det
+        if sens_file is None:
+            self.sens_file = par['sensfunc']
+        else:
+            self.sens_file = sens_file
+        self.multi_det = par['multi_det']
 
         # Set telluric option
-        self.telluric = telluric
+        self.telluric = par['telluric']
 
         # Main outputs
         self.sens_dict = None if self.sens_file is None \
-                            else self.load_master(self.sens_file)
-
+                            else self.load_sens_dict(self.sens_file)
         # Attributes
         self.steps = []
 
@@ -174,6 +98,35 @@ class FluxSpec(masterframe.MasterFrame):
                                 # to the star!
         self.debug = debug
 
+    def load_objs(self, spec1d_file, std=True):
+        """
+        Load specobjs and heade from an input spec1d_file
+
+        Args:
+            spec1d_file: str
+            std: bool, optional
+              If True, load up standard star file and header
+              If False, load up science file and header
+
+        Returns:
+            Loads up self.std_specobjs or self.sci_specobjs
+
+        """
+        specobjs, header = load.load_specobjs(spec1d_file)
+        if std:
+            self.std_specobjs, self.std_header = specobjs, header
+            msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
+                len(self.std_specobjs), spec1d_file))
+            self.std_ra = self.std_header['RA']
+            self.std_dec = self.std_header['DEC']
+            self.std_file = self.std_header['FILENAME']
+        else:
+            self.sci_specobjs, self.sci_header = specobjs, header
+            msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
+                len(self.sci_specobjs), spec1d_file))
+        # Check instrument
+        spectro = header['INSTRUME']
+        assert spectro == self.spectrograph.spectrograph
 
     def find_standard(self):
         """
@@ -186,6 +139,9 @@ class FluxSpec(masterframe.MasterFrame):
         self.std : SpecObj
           Corresponds to the chosen spectrum
         """
+        if self.par['std_obj_id'] is not None:
+            _ = self._set_std_obj()
+            return
         if self.multi_det is not None:
             sv_stds = []
             # Find the standard in each detector
@@ -238,23 +194,13 @@ class FluxSpec(masterframe.MasterFrame):
                       'AIRMASS, EXPTIME.')
             return None
 
-        # Get extinction correction
-        #extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
-                                                       #self.std_header['AIRMASS'],
-                                                       #self.extinction_data)
-        #self.sensfunc = flux.generate_sensfunc(self.std, self.std_header['RA'],
-                                                 #self.std_header['DEC'],
-                                                 #self.std_header['EXPTIME'], extinction_corr)
-        # extinction_corr = flux.extinction_correction(self.std.boxcar['WAVE'],
-        #                                              self.std_header['AIRMASS'],
-        #                                              self.extinction_data)
-
         self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
                                                self.std.boxcar['COUNTS'],
                                                self.std.boxcar['COUNTS_IVAR'],
                                                self.std_header['AIRMASS'],
                                                self.std_header['EXPTIME'],
                                                self.spectrograph,
+                                               BALM_MASK_WID=self.par['balm_mask_wid'],
                                                telluric=self.telluric,
                                                ra=self.std_ra,
                                                dec=self.std_dec,
@@ -289,7 +235,7 @@ class FluxSpec(masterframe.MasterFrame):
                 flux.apply_sensfunc(sci_obj, self.sens_dict, airmass, exptime,
                                     self.spectrograph)
 
-    def flux_science(self):
+    def flux_science(self, sci_file):
         """
         Flux the internal list of sci_specobjs
 
@@ -299,12 +245,15 @@ class FluxSpec(masterframe.MasterFrame):
         -------
 
         """
+        # Load
+        self.load_objs(sci_file, std=False)
+        # Run
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sens_dict, self.sci_header['AIRMASS'],
                                   self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
-    def _set_std_obj(self, obj_id):
+    def _set_std_obj(self, obj_id=None):
         """
         Method which allows the user to identify the standard star
           with an input
@@ -320,6 +269,10 @@ class FluxSpec(masterframe.MasterFrame):
         self.std : SpecObj
 
         """
+        # From parameters?
+        if obj_id is None:
+            obj_id = self.par['std_obj_id']
+        #
         if self.std_specobjs is None:
             msgs.warn("You need to load in the Standard spectra first!")
             return None
@@ -383,14 +336,22 @@ class FluxSpec(masterframe.MasterFrame):
         # Return
         return self.sens_dict
 
-    def load_master(self, filename, force=False):
+    def load_sens_dict(self, filename):
+        """
+        Load the sens_dict from input file
+
+        Args:
+            filename: str
+
+        Returns:
+            sens_dict: dict
+              Sensitivity function
+        """
 
 
         # Does the master file exist?
         if not os.path.isfile(filename):
-            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            if force:
-                msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
+            msgs.warn("No sens_file found of type {:s}: {:s}".format(self.frametype, filename))
             return None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
@@ -408,9 +369,9 @@ class FluxSpec(masterframe.MasterFrame):
                     pass
             return sens_dict
 
-    def save_master(self, sens_dict, outfile=None):
+    def save_sens_dict(self, sens_dict, outfile=None):
         """
-        Over-load the save_master() method in MasterFrame to write a JSON file
+        Over-load the save_master() method in MasterFrame to write a FITS file
 
         Parameters
         ----------
@@ -457,57 +418,19 @@ class FluxSpec(masterframe.MasterFrame):
         # Finish
         msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
 
-
-    def save_master_old(self, outfile=None):
-        """
-        Over-load the save_master() method in MasterFrame to write a JSON file
-
-        Parameters
-        ----------
-        outfile : str, optional
-          Use this input instead of the 'proper' (or unattainable) MasterFrame name
-
-        Returns
-        -------
-
-        """
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Allow one to over-ride output name
-        if outfile is None:
-            outfile = self.ms_name
-        # Add steps
-        self.sens_dict['steps'] = self.steps
-        # # yamlify
-        # ysens = utils.yamlify(self.sensfunc)
-        # with open(outfile, 'w') as yamlf:
-        #     yamlf.write(yaml.dump(ysens))
-        #  #
-        # msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
-
-        # jsonify
-        self.sensfunc['mag_set'] = self.sensfunc['mag_set'].to_dict()
-        jsensfunc = self.sensfunc.copy()
-        jsensfunc['bspline'] = jsensfunc['bspline'].to_dict()
-        jsensfunc = linetools.utils.jsonify(jsensfunc)
-        with open(outfile, 'w') as jsonf:
-            linetools.utils.savejson(outfile, jsensfunc, overwrite=True, indent=4, easy_to_read=True)
-
-        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
-
     def show_sensfunc(self):
         """
         Plot the sensitivity function
         """
-        if self.sensfunc is None:
-            msgs.warn("You need to generate the sensfunc first!")
+        if self.sens_dict is None:
+            msgs.warn("You need to generate the sens_dict first!")
             return None
         # Generate from model
-        wave = np.linspace(self.sensfunc['wave_min'], self.sensfunc['wave_max'], 1000)
-        mag_func = utils.func_val(self.sensfunc['c'], wave, self.sensfunc['func'])
-        sens = 10.0**(0.4*mag_func)
+        #wave = np.linspace(self.sens_dict['wave_min'], self.sens_dict['wave_max'], 1000)
+        #mag_func = utils.func_val(self.sens_dict['c'], wave, self.sens_dict['func'])
+        #sens = 10.0**(0.4*mag_func)
         # Plot
-        debugger.plot1d(wave, sens, xlbl='Wavelength', ylbl='Sensitivity Function')
+        debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):
         """
@@ -541,8 +464,8 @@ class FluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.camera,
-                                  outfile,
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline,
+                                  self.spectrograph.spectrograph, outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
         # Step
@@ -611,11 +534,9 @@ class EchFluxSpec(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
-    def __init__(self, std_spec1d_file=None, sci_spec1d_file=None, sens_file=None,
-                 std_specobjs=None, std_header=None, spectrograph=None,
-                 telluric=False, setup=None, master_dir=None, reuse_masters=False,
-                 star_type=None, star_mag=None, BALM_MASK_WID=1.0, norder=5.0,
-                 resolution=3000.0,polycorrect=True,polysens=False,debug=False):
+    def __init__(self, spectrograph, par,
+                 std_header=None, master_dir=None, reuse_masters=False,
+                 nresln=None, debug=False):
 
         # Load standard files
         std_spectro = None
@@ -658,38 +579,19 @@ class EchFluxSpec(masterframe.MasterFrame):
             msgs.error('Standard spectra are not the same instrument as science!!')
 
         # Instantiate the spectrograph
-        _spectrograph = spectrograph
-        if _spectrograph is None:
-            _spectrograph = std_spectro
-            if _spectrograph is not None:
-                msgs.info("Spectrograph set to {0} from standard file".format(_spectrograph))
-        if _spectrograph is None:
-            _spectrograph = sci_spectro
-            if _spectrograph is not None:
-                msgs.info("Spectrograph set to {0} from science file".format(_spectrograph))
-        self.spectrograph = load_spectrograph(_spectrograph)
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, setup,
                                          master_dir=master_dir, reuse_masters=reuse_masters)
         # Get the extinction data
-        self.extinction_data = None
-        if self.spectrograph is not None:
-            self.extinction_data \
-                = flux.load_extinction_data(self.spectrograph.telescope['longitude'],
+        self.extinction_data = flux.load_extinction_data(self.spectrograph.telescope['longitude'],
                                             self.spectrograph.telescope['latitude'])
-        elif self.sci_header is not None and 'LON-OBS' in self.sci_header.keys():
-            self.extinction_data \
-                = flux.load_extinction_data(self.sci_header['LON-OBS'],
-                                            self.sci_header['LAT-OBS'])
-
-        # Once the spectrograph is instantiated, can also set the
-        # extinction data
         # Parameters
-        self.sens_file = sens_file
+        self.sens_file = par['sensfunc']
 
         # Set telluric option
-        self.telluric = telluric
+        self.telluric = par['telluric']
 
         # Main outputs
         self.sens_dict = None if self.sens_file is None \
@@ -703,16 +605,17 @@ class EchFluxSpec(masterframe.MasterFrame):
         self.std_idx = None  # Nested indices for the std_specobjs list that corresponds
         # to the star!
         # Echelle key
-        self.star_type = star_type
-        self.star_mag = star_mag
-        self.BALM_MASK_WID = BALM_MASK_WID
-        self.resolution = resolution
-        self.norder = norder
-        self.polycorrect = polycorrect
-        self.polysens = polysens
+        self.star_type = par['star_type']
+        self.star_mag = par['star_mag']
+        self.BALM_MASK_WID = par['balm_mask_wid']
+        # TODO add these to the parameters to the parset
+        self.resolution = par['resolution']
+        self.nresln = par['nresln']
+        self.poly_order = par['poly_norder']
+        self.polycorrect = par['polycorrect']
         self.debug = debug
 
-    def load_master(self, filename, force=False):
+    def load_sens_dict(self, filename, force=False):
 
         # Does the master file exist?
         if not os.path.isfile(filename):
@@ -836,10 +739,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         norder = ext_final['ECHORDER'] + 1
 
         self.sens_dict = {}
-        #std_specobjs_all, std_header = load.load_specobjs(self.std_spec1d_file)
         for iord in range(norder):
-            # std_specobjs = specobjs.SpecObjs()
-            # std_specobjs.add_sobj(std_specobjs_all[iord])
             std_specobjs, std_header = load.load_specobjs(self.std_spec1d_file, order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
@@ -848,9 +748,10 @@ class EchFluxSpec(masterframe.MasterFrame):
                                  std.optimal['COUNTS_IVAR'][wavemask]
             sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, float(std_header['AIRMASS']), std_header['EXPTIME'],
                                                     self.spectrograph, star_type=self.star_type, star_mag=self.star_mag,
-                                                    telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,resolution=self.resolution,
-                                                    BALM_MASK_WID=self.BALM_MASK_WID,std_file=self.std_file,norder=self.norder,
-                                                    polycorrect=self.polycorrect,polysens=self.polysens, debug=self.debug)
+                                                    telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
+                                                    resolution=self.resolution,
+                                                    BALM_MASK_WID=self.BALM_MASK_WID,std_file=self.std_file,norder=self.poly_order,
+                                                    polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
             self.sens_dict[str(iord)] = sens_dict_iord
         self.sens_dict['norder'] = norder
@@ -940,6 +841,7 @@ class EchFluxSpec(masterframe.MasterFrame):
         save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline, self.spectrograph.spectrograph, outfile,
                                   helio_dict=helio_dict,
                                   telescope=telescope, overwrite=True)
+        msgs.info("Wrote spectrum to {}".format(outfile))
         # Step
         self.steps.append(inspect.stack()[0][3])
 

@@ -350,15 +350,23 @@ class PypeIt(object):
         return sci_dict
 
     def flexure_correct(self,sobjs,maskslits):
-        """ Correct for flexure """
+        """ Correct for flexure
+
+        Args:
+            sobjs: SpecObjs object
+            maskslits: ndarray
+
+        Returns:
+            Spectra are modified in place (wavelengths are shifted)
+        """
 
         if self.par['flexure']['method'] != 'skip':
-            sky_file, sky_spectrum = self.spectrograph.archive_sky_spectrum()
             flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
-                                         sky_spectrum, sky_file=sky_file,
+                                         self.par['flexure']['spectrum'],
                                          mxshft=self.par['flexure']['maxshift'])
             # QA
-            wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+            wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
+                            out_dir=self.par['rdx']['redux_path'])
         else:
             msgs.info('Skipping flexure correction.')
 
