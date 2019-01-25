@@ -91,7 +91,8 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
  instead of PypeIt.
 - Added and improved routines for upcoming coadd2d functionality.
 - Fixed bug in weight determination for 1d spectral coadds.
-- 
+- Major fixes and improvements to Telluric corrections and fluxing routines.
+- Fluxing now implemented via a script. 
 
 0.9.0
 -----
