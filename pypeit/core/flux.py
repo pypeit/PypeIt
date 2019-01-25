@@ -24,8 +24,6 @@ try:
 except ImportError:
     pass
 
-from configobj import ConfigObj
-
 from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils

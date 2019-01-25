@@ -94,6 +94,8 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Fixed bug in weight determination for 1d spectral coadds.
 - Major fixes and improvements to Telluric corrections and fluxing routines.
 - Fluxing now implemented via a script.
+- Turned flexure back on for several instruments
+- Introduced VLT/FORS2 spectrograph
 
 0.9.0
 -----

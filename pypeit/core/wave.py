@@ -5,6 +5,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import inspect
 
 import numpy as np
+import copy
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -52,8 +53,10 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
 
     Returns
     -------
-    flex_dict
+    flex_dict: dict
+      Contains flexure info
     """
+    flex_dict = {}
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
     arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arc.detect_lines(arx_skyspec.flux.value)
@@ -84,8 +87,9 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     #    obj_disp*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
 
     if not np.all(np.isfinite(obj_res)):
-        msgs.error('Failed to measure the resolution of the object spectrum, likely due to error '
+        msgs.warn('Failed to measure the resolution of the object spectrum, likely due to error '
                    'in the wavelength image.')
+        return None
     msgs.info("Resolution of Archive={0} and Observation={1}".format(np.median(arx_res),
                                                                      np.median(obj_res)))
 
@@ -126,8 +130,8 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
 
     #Rebin both spectra onto overlapped wavelength range
     if len(keep_idx) <= 50:
-        #TODO JFH the code needs to exit gracefully here for bad apertures.
-        msgs.error("Not enough overlap between sky spectra")
+        msgs.warn("Not enough overlap between sky spectra")
+        return None
     else: #rebin onto object ALWAYS
         keep_wave = obj_skyspec.wavelength[keep_idx]
         arx_skyspec = arx_skyspec.rebin(keep_wave)
@@ -148,10 +152,12 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
         msgs.warn("Will try the median")
         norm = np.median(obj_skyspec.flux.value)
         if (norm < 0.):
-            msgs.error("Improper sky spectrum for flexure.  Is it too faint??")
+            msgs.warn("Improper sky spectrum for flexure.  Is it too faint??")
+            return None
     if (norm2 < 0.):
-        msgs.error('Bad normalization of archive in flexure. You are probably using wavelengths '
+        msgs.warn('Bad normalization of archive in flexure. You are probably using wavelengths '
                    'well beyond the archive.')
+        return None
 
     # Deal with bad pixels
     msgs.work("Need to mask bad pixels")
@@ -268,6 +274,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
         Filled with a basically empty dict if the slit is skipped or there is no object
 
     """
+    sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
     # Load Archive
     sky_spectrum = load_sky_spectrum(sky_file)
@@ -306,6 +313,16 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
             # Calculate the shift
             fdict = flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
+            if fdict is None:
+                msgs.warn("Flexure shift calculation failed for this spectrum.")
+                if sv_fdict is not None:
+                    msgs.warn("Will used saved estimate from a previous slit/object")
+                    fdict = copy.deepcopy(sv_fdict)
+                else:
+                    msgs.warn("No previous good solution.  Punting on this object")
+                    continue
+            else:
+                sv_fdict = copy.deepcopy(fdict)
 
             # Simple interpolation to apply
             npix = len(sky_wave)
