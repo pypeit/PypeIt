@@ -822,3 +822,178 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
 
+#def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
+#                         bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
+#                         niter=4, box_rad = 7, sigrej = 3.5, bkpts_optimal=True, sn_gauss = 4.0,
+#                         model_full_slit=False, model_noise = True,
+#                         debug_bkpts = False, show_profile=False, show_resids=False):
+
+def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2_img, slitmask, tslits_dict, sobjs,
+                             order_vec, model_noise=True, min_snr=2.0, std = False, fit_fwhm=False, show_profile=False,
+                             show_resids=False, show_fwhm=True, show=False):
+        """
+        Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
+
+        Wrapper to skysub.local_skysub_extract
+
+        Parameters
+        ----------
+        sobjs: object
+           Specobjs object containing Specobj objects containing information about objects found.
+        waveimg: ndarray, shape (nspec, nspat)
+           Wavelength map
+
+        Optional Parameters
+        -------------------
+
+
+        Returns:
+            global_sky: (numpy.ndarray) image of the the global sky model
+        """
+
+        # Allocate the images that are needed
+        # Initialize to mask in case no objects were found
+        outmask = np.copy(mask)
+        extractmask = (mask == 0)
+        # TODO case of no objects found should be properly dealt with by local_skysub_extract
+        # Initialize to zero in case no objects were found
+        objmodel = np.zeros_like(sciimg)
+        # Set initially to global sky in case no objects were found
+        skymodel  = np.copy(global_sky)
+        # Set initially to sciivar in case no obects were found.
+        ivarmodel = np.copy(sciivar)
+        sobjs = sobjs.copy()
+
+        norders = tslits_dict['nslits']
+        slit_vec = np.arange(norders)
+
+        if (np.sum(sobjs.sign > 0) % norders) == 0:
+            nobjs = int((np.sum(self.sobjs.sign > 0)/norders))
+        else:
+            msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
+
+        order_snr = np.zeros((norders, nobjs))
+        uni_objid = np.unique(sobjs[sobjs.sign > 0].ech_objid)
+        for iord in range(norders):
+            for iobj in range(nobjs):
+                ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
+                order_snr[iord,iobj] = sobjs[ind].ech_snr
+
+        # Compute the average SNR and find the brightest object
+        snr_bar = np.mean(order_snr,axis=0)
+        srt_obj = snr_bar.argsort()[::-1]
+        ibright = srt_obj[0] # index of the brightest object
+        # Now extract the orders in descending order of S/N for the brightest object
+        srt_order_snr = order_snr[:,ibright].argsort()[::-1]
+        fwhm_here = np.zeros(norders)
+        fwhm_was_fit = np.zeros(norders,dtype=bool)
+        # Print out a status message
+        str_out = ''
+        for iord in srt_order_snr:
+            str_out += '{:<8d}{:<8d}{:>10.2f}'.format(slit_vec[iord], order_vec[iord], order_snr[iord,ibright]) + msgs.newline()
+        dash = '-'*27
+        dash_big = '-'*40
+        msgs.info(msgs.newline() + 'Reducing orders in order of S/N of brightest object:' + msgs.newline() + dash +
+                  msgs.newline() + '{:<8s}{:<8s}{:>10s}'.format('slit','order','S/N') + msgs.newline() + dash +
+                  msgs.newline() + str_out)
+        # Loop over orders in order of S/N ratio (from highest to lowest) for the brightest object
+        for iord in srt_order_snr:
+            order = order_vec[iord]
+            msgs.info("Local sky subtraction and extraction for slit/order: {:d}/{:d}".format(iord,order))
+            other_orders = (fwhm_here > 0) & np.invert(fwhm_was_fit)
+            other_fit    = (fwhm_here > 0) & fwhm_was_fit
+            # Loop over objects in order of S/N ratio (from highest to lowest)
+            for iobj in srt_obj:
+                if (order_snr[iord, iobj] <= min_snr) & (np.sum(other_orders) >= 3):
+                    if iobj == ibright:
+                        # If this is the brightest object then we extrapolate the FWHM from a fit
+                        #fwhm_coeffs = np.polyfit(order_vec[other_orders], fwhm_here[other_orders], 1)
+                        #fwhm_fit_eval = np.poly1d(fwhm_coeffs)
+                        #fwhm_fit = fwhm_fit_eval(order_vec[iord])
+                        fwhm_was_fit[iord] = True
+                        # Either perform a linear fit to the FWHM or simply take the median
+                        if fit_fwhm:
+                            minx = 0.0
+                            maxx = fwhm_here[other_orders].max()
+                            # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
+                            fit_mask, fwhm_coeffs = utils.robust_polyfit_djs(order_vec[other_orders], fwhm_here[other_orders],1,
+                                                                            function='polynomial',maxiter=25,lower=2.0, upper=2.0,
+                                                                            maxrej=1,sticky=False, minx=minx, maxx=maxx)
+                            fwhm_this_ord = utils.func_val(fwhm_coeffs, order_vec[iord], 'polynomial', minx=minx, maxx=maxx)
+                            fwhm_all = utils.func_val(fwhm_coeffs, order_vec, 'polynomial', minx=minx, maxx=maxx)
+                            fwhm_str = 'LIN FIT'
+                        else:
+                            fit_mask = np.ones_like(order_vec[other_orders],dtype=bool)
+                            fwhm_this_ord = np.median(fwhm_here[other_orders])
+                            fwhm_all = np.full(norders,fwhm_this_ord)
+                            fwhm_str = 'MEDIAN '
+                        indx = (sobjs.ech_objid == uni_objid[iobj]) & (sobjs.ech_orderindx == iord)
+                        for spec in sobjs[indx]:
+                            spec.fwhm = fwhm_this_ord
+
+                        str_out = ''
+                        for slit_now, order_now, snr_now, fwhm_now in zip(slit_vec[other_orders], order_vec[other_orders],order_snr[other_orders,ibright], fwhm_here[other_orders]):
+                            str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
+                        msgs.info(msgs.newline() + 'Performing linear fit for FWHM of object={:d}'.format(uni_objid[iobj]) +
+                                  ' on slit/order: {:d}/{:d}'.format(iord,order) + msgs.newline() + dash_big +
+                                  msgs.newline() + '{:<8s}{:<8s}{:>10s}{:>10s}'.format('slit', 'order','SNR','FWHM') +
+                                  msgs.newline() + dash_big +
+                                  msgs.newline() + str_out[:-8] +
+                                  fwhm_str +  ':{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(iord, order, order_snr[iord,ibright], fwhm_this_ord) +
+                                  msgs.newline() + dash_big)
+                        if show_fwhm:
+                            plt.plot(order_vec[other_orders][fit_mask], fwhm_here[other_orders][fit_mask], marker='o', linestyle=' ',
+                            color='k', mfc='k', markersize=4.0, label='orders informing fit')
+                            if np.any(np.invert(fit_mask)):
+                                plt.plot(order_vec[other_orders][np.invert(fit_mask)],
+                                         fwhm_here[other_orders][np.invert(fit_mask)], marker='o', linestyle=' ',
+                                         color='magenta', mfc='magenta', markersize=4.0, label='orders rejected by fit')
+                            if np.any(other_fit):
+                                plt.plot(order_vec[other_fit], fwhm_here[other_fit], marker='o', linestyle=' ',
+                                color='lawngreen', mfc='lawngreen',markersize=4.0, label='fits to other low SNR orders')
+                            plt.plot([order_vec[iord]], [fwhm_this_ord], marker='o', linestyle=' ',color='red', mfc='red', markersize=6.0,label='this order')
+                            plt.plot(order_vec, fwhm_all, color='cornflowerblue', zorder=10, linewidth=2.0, label=fwhm_str)
+                            plt.legend()
+                            plt.show()
+                    else:
+                        # If this is not the brightest object then assign it the FWHM of the brightest object
+                        indx     = np.where((sobjs.ech_objid == uni_objid[iobj]) & (sobjs.ech_orderindx == iord))[0][0]
+                        indx_bri = np.where((sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord))[0][0]
+                        spec = sobjs[indx]
+                        spec.fwhm = sobjs[indx_bri].fwhm
+
+            thisobj = (self.sobjs.ech_orderindx == iord) # indices of objects for this slit
+            thismask = (self.slitmask == iord) # pixels for this slit
+            # True  = Good, False = Bad for inmask
+            inmask = (self.mask == 0) & (self.crmask == False) & thismask
+            # Local sky subtraction and extraction
+            self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] = \
+                skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts, self.waveimg, self.global_sky,
+                                            self.rn2img, thismask, self.tslits_dict['slit_left'][:,iord],
+                                            self.tslits_dict['slit_righ'][:, iord], self.sobjs[thisobj], inmask=inmask,
+                                            model_full_slit=self.par['model_full_slit'], model_noise=model_noise, std = std,
+                                            bsp=self.par['bspline_spacing'], sn_gauss=self.par['sn_gauss'],
+                                            show_profile=show_profile, show_resids=show_resids)
+            # update the FWHM fitting vector for the brighest object
+            indx = (self.sobjs.ech_objid == uni_objid[ibright]) & (self.sobjs.ech_orderindx == iord)
+            fwhm_here[iord] = np.median(self.sobjs[indx].fwhmfit)
+            # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
+            # for future fits
+            if np.abs(fwhm_here[iord] - self.sobjs[indx].fwhm) >= 0.01:
+                fwhm_was_fit[iord] = False
+
+        # Set the bit for pixels which were masked by the extraction.
+        # For extractmask, True = Good, False = Bad
+        iextract = (self.mask == 0) & (self.extractmask == False)
+        self.outmask[iextract] += np.uint64(2**8)
+        # Step
+        self.steps.append(inspect.stack()[0][3])
+
+        if show:
+            self.show('local', sobjs = self.sobjs, slits= True)
+            self.show('resid', sobjs = self.sobjs, slits= True)
+
+        # Return
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
+
