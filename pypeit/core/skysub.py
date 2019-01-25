@@ -970,7 +970,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                 tslits_dict['slit_left'][:,iord],tslits_dict['slit_righ'][:, iord], sobjs[thisobj], inmask=inmask,
                 std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg, prof_nsigma=prof_nsigma,
                 niter=niter, box_rad=box_rad, sigrej=sigrej, bkpts_optimal=bkpts_optimal, sn_gauss=sn_gauss,
-                model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debub_bkpts,
+                model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debug_bkpts,
                 show_resids=show_resids, show_profile=show_profile)
             # update the FWHM fitting vector for the brighest object
             indx = (sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord)
