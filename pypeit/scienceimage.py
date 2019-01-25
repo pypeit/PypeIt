@@ -1,24 +1,13 @@
 # Module for the ScienceImage class
 from __future__ import absolute_import, division, print_function
 
-import inspect
 import numpy as np
-
-import time
-import datetime
-
-from astropy import stats
-
 from pypeit import msgs
 from pypeit import processimages
-from pypeit import specobjs
 from pypeit import utils
 from pypeit import ginga
-from pypeit.core import skysub, extract, trace_slits, pixels, coadd2d
+from pypeit.core import coadd2d
 from pypeit.par import pypeitpar
-from matplotlib import pyplot as plt
-
-from pypeit import debugger
 
 class ScienceImage(processimages.ProcessImages):
     """
@@ -145,9 +134,6 @@ class ScienceImage(processimages.ProcessImages):
         else:
             self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_sci(
                 self.file_list, reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
-
-        # Now add the slitmask to the mask (i.e. post CR reject)
-        self.mask = self.update_mask_slitmask(self.mask, self.slitmask)
 
         # Show the science image if an interactive run, only show the crmask
         if show:

@@ -7,7 +7,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import time
-from abc import ABCMeta
+#from abc import ABCMeta
 import os
 import datetime
 import numpy as np
@@ -68,7 +68,7 @@ class PypeIt(object):
             set of valid formats. A description can be found `here`_
             (include doc link).
     """
-    __metaclass__ = ABCMeta
+#    __metaclass__ = ABCMeta
 
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None, show=False,
                  redux_path=None):
@@ -479,9 +479,10 @@ class PypeIt(object):
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
 
-        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, ir_redux = self.ir_redux,
-                                      par=self.par['scienceimage'],frame_par=self.par['scienceframe'],
-                                      objtype=self.objtype, det=det, binning=self.binning)
+        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
+                                           ir_redux = self.ir_redux,par=self.par['scienceimage'],
+                                           frame_par=self.par['scienceframe'],
+                                           objtype=self.objtype, det=det, binning=self.binning)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
@@ -491,7 +492,7 @@ class PypeIt(object):
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
-            self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
+            self.redux.global_skysub(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
         if not self.std_redux:
@@ -502,14 +503,16 @@ class PypeIt(object):
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
-            if not self.std_redux:
-                # Global sky subtraction second pass. Uses skymask from object finding
-                self.global_sky = self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'],
-                                                     skymask=self.skymask, maskslits=self.maskslits, show=self.show)
+            # Global sky subtraction second pass. Uses skymask from object finding
+            self.global_sky = self.initial_sky if self.std_redux else \
+                self.redux.global_skysub(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'],
+                skymask=self.skymask, maskslits=self.maskslits, show=self.show)
+
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                self.redux.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
-                                          std = self.std_redux,maskslits=self.maskslits, show_profile=self.show,
-                                          show=self.show)
+            self.redux.local_skysub_extract(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
+                                            self.global_sky, self.rn2img, self.sobjs_obj,
+                                            model_noise=(not self.ir_redux),std = self.std_redux,
+                                            maskslits=self.maskslits, show_profile=self.show,show=self.show)
 
             # Purge out the negative objects if this was a near-IR reduction
             if self.ir_redux:
