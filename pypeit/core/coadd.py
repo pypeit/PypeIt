@@ -198,7 +198,7 @@ def unpack_spec(spectra, all_wave=False):
     return fluxes, sigs, wave
 
 
-def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, debug=False):
+def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, debug=False, verbose=False):
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
     for coadding.
 
@@ -262,13 +262,13 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
     rms_sn_stack = np.sqrt(np.mean(sn2))
 
     if rms_sn_stack <= 3.0 or const_weights:
-        msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
+        if verbose:
+            msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
         weights = np.outer(sn2, np.ones(nspec))
         return rms_sn, weights
     else:
-        # TODO make this a velocity smoothing. This code below is nonsense.
-        msgs.info("Using wavelength dependent weights for coadding")
-        #msgs.warn("If your spectra have very different dispersion, this is *not* accurate")
+        if verbose:
+            msgs.info("Using wavelength dependent weights for coadding")
         weights = np.ones_like(flux_stack) #((fluxes.shape[0], fluxes.shape[1]))
         spec_vec = np.arange(nspec)
         for ispec in range(nstack):

@@ -2391,4 +2391,3 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
         canvas.add('constructedcanvas', canvas_list)
 
     return sobjs_final, skymask[allmask]
-
