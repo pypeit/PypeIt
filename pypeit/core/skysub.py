@@ -4,16 +4,9 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import numpy as np
 import sys, os
-from matplotlib import pyplot as plt
 
-#from pydl.pydlutils.bspline import bspline
-from pypeit import ginga
-from pypeit.core import pydl
-from pypeit import msgs
-from pypeit import utils
-from pypeit import debugger
-from pypeit.core import pixels
-from pypeit.core import extract
+from pypeit import msgs, utils, processimages, ginga
+from pypeit.core import pixels, extract, pydl
 from matplotlib import pyplot as plt
 
 from scipy.special import ndtr
@@ -826,15 +819,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
 
-#def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
-#                         bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
-#                         niter=4, box_rad = 7, sigrej = 3.5, bkpts_optimal=True, sn_gauss = 4.0,
-#                         model_full_slit=False, model_noise = True,
-#                         debug_bkpts = False, show_profile=False, show_resids=False):
 
-def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2_img, slitmask, tslits_dict, sobjs,
-                             order_vec, model_noise=True, min_snr=2.0, std = False, fit_fwhm=False, show_profile=False,
-                             show_resids=False, show_fwhm=True, show=False):
+def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, tslits_dict, sobjs, order_vec,
+                             fit_fwhm=False, min_snr=2.0,
+                             bsp = 0.6, extract_maskwidth = 4.0, trim_edg = (3,3), std=False, prof_nsigma=None,
+                             niter=4, box_rad = 7, sigrej=3.5, bkpts_optimal=True, sn_gauss=4.0,
+                             model_full_slit=False, model_noise=True, debug_bkpts=False,
+                             show_profile=False, show_resids=False, show_fwhm=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -855,8 +846,11 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
             global_sky: (numpy.ndarray) image of the the global sky model
         """
 
+        bitmask = processimages.ProcessImagesBitMask()  # The bit mask interpreter
+
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
+        slitmask = pixels.tslits2mask(tslits_dict)
         outmask = np.copy(mask)
         extractmask = (mask == 0)
         # TODO case of no objects found should be properly dealt with by local_skysub_extract
@@ -872,7 +866,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
         slit_vec = np.arange(norders)
 
         if (np.sum(sobjs.sign > 0) % norders) == 0:
-            nobjs = int((np.sum(self.sobjs.sign > 0)/norders))
+            nobjs = int((np.sum(sobjs.sign > 0)/norders))
         else:
             msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
 
@@ -925,12 +919,12 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                                                                             maxrej=1,sticky=False, minx=minx, maxx=maxx)
                             fwhm_this_ord = utils.func_val(fwhm_coeffs, order_vec[iord], 'polynomial', minx=minx, maxx=maxx)
                             fwhm_all = utils.func_val(fwhm_coeffs, order_vec, 'polynomial', minx=minx, maxx=maxx)
-                            fwhm_str = 'LIN FIT'
+                            fwhm_str = 'linear fit'
                         else:
                             fit_mask = np.ones_like(order_vec[other_orders],dtype=bool)
                             fwhm_this_ord = np.median(fwhm_here[other_orders])
                             fwhm_all = np.full(norders,fwhm_this_ord)
-                            fwhm_str = 'MEDIAN '
+                            fwhm_str = 'median '
                         indx = (sobjs.ech_objid == uni_objid[iobj]) & (sobjs.ech_orderindx == iord)
                         for spec in sobjs[indx]:
                             spec.fwhm = fwhm_this_ord
@@ -938,12 +932,12 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                         str_out = ''
                         for slit_now, order_now, snr_now, fwhm_now in zip(slit_vec[other_orders], order_vec[other_orders],order_snr[other_orders,ibright], fwhm_here[other_orders]):
                             str_out += '{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(slit_now, order_now, snr_now, fwhm_now) + msgs.newline()
-                        msgs.info(msgs.newline() + 'Performing linear fit for FWHM of object={:d}'.format(uni_objid[iobj]) +
+                        msgs.info(msgs.newline() + 'Using' +  fwhm_str + ' for FWHM of object={:d}'.format(uni_objid[iobj]) +
                                   ' on slit/order: {:d}/{:d}'.format(iord,order) + msgs.newline() + dash_big +
                                   msgs.newline() + '{:<8s}{:<8s}{:>10s}{:>10s}'.format('slit', 'order','SNR','FWHM') +
                                   msgs.newline() + dash_big +
                                   msgs.newline() + str_out[:-8] +
-                                  fwhm_str +  ':{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(iord, order, order_snr[iord,ibright], fwhm_this_ord) +
+                                  fwhm_str.upper() +  ':{:<8d}{:<8d}{:>10.2f}{:>10.2f}'.format(iord, order, order_snr[iord,ibright], fwhm_this_ord) +
                                   msgs.newline() + dash_big)
                         if show_fwhm:
                             plt.plot(order_vec[other_orders][fit_mask], fwhm_here[other_orders][fit_mask], marker='o', linestyle=' ',
@@ -966,38 +960,33 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                         spec = sobjs[indx]
                         spec.fwhm = sobjs[indx_bri].fwhm
 
-            thisobj = (self.sobjs.ech_orderindx == iord) # indices of objects for this slit
-            thismask = (self.slitmask == iord) # pixels for this slit
+            thisobj = (sobjs.ech_orderindx == iord) # indices of objects for this slit
+            thismask = (slitmask == iord) # pixels for this slit
             # True  = Good, False = Bad for inmask
-            inmask = (self.mask == 0) & (self.crmask == False) & thismask
+            inmask = (mask == 0) & thismask
             # Local sky subtraction and extraction
-            self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], self.extractmask[thismask] = \
-                skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts, self.waveimg, self.global_sky,
-                                            self.rn2img, thismask, self.tslits_dict['slit_left'][:,iord],
-                                            self.tslits_dict['slit_righ'][:, iord], self.sobjs[thisobj], inmask=inmask,
-                                            model_full_slit=self.par['model_full_slit'], model_noise=model_noise, std = std,
-                                            bsp=self.par['bspline_spacing'], sn_gauss=self.par['sn_gauss'],
-                                            show_profile=show_profile, show_resids=show_resids)
+            skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] = local_skysub_extract(
+                sciimg, sciivar, tilts, waveimg, global_sky,rn2img, thismask,
+                tslits_dict['slit_left'][:,iord],tslits_dict['slit_righ'][:, iord], sobjs[thisobj], inmask=inmask,
+                std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg, prof_nsigma=prof_nsigma,
+                niter=niter, box_rad=box_rad, sigrej=sigrej, bkpts_optimal=bkpts_optimal, sn_gauss=sn_gauss,
+                model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debub_bkpts,
+                show_resids=show_resids, show_profile=show_profile)
             # update the FWHM fitting vector for the brighest object
-            indx = (self.sobjs.ech_objid == uni_objid[ibright]) & (self.sobjs.ech_orderindx == iord)
-            fwhm_here[iord] = np.median(self.sobjs[indx].fwhmfit)
+            indx = (sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord)
+            fwhm_here[iord] = np.median(sobjs[indx].fwhmfit)
             # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
             # for future fits
-            if np.abs(fwhm_here[iord] - self.sobjs[indx].fwhm) >= 0.01:
+            if np.abs(fwhm_here[iord] - sobjs[indx].fwhm) >= 0.01:
                 fwhm_was_fit[iord] = False
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
-        iextract = (self.mask == 0) & (self.extractmask == False)
-        self.outmask[iextract] += np.uint64(2**8)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-
-        if show:
-            self.show('local', sobjs = self.sobjs, slits= True)
-            self.show('resid', sobjs = self.sobjs, slits= True)
+        iextract = (mask == 0) & (extractmask == False)
+        # Undefined inverse variances
+        outmask[iextract] = bitmask.turn_on(outmask[iextract], 'EXTRACT')
 
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+        return skymodel, objmodel, ivarmodel, outmask, sobjs
 
 
