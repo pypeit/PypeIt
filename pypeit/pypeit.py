@@ -480,6 +480,8 @@ class PypeIt(object):
                            show=self.show)
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
+
+
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciimg, std=self.std_redux, ir_redux=self.ir_redux,
