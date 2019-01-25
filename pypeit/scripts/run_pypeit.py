@@ -86,8 +86,7 @@ def main(args):
     # Load PypeIt file to get the spectrograph (might happen twice but that is ok)
     pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
-    pypeIt = pypeit.PypeIt(pypeitSetup.spectrograph, args.pypeit_file,
-                           verbosity=args.verbosity,reuse_masters=args.use_masters,
+    pypeIt = pypeit.PypeIt(args.pypeit_file,verbosity=args.verbosity,reuse_masters=args.use_masters,
                            overwrite=args.overwrite, logname=logname, show=args.show)
 
     # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters
