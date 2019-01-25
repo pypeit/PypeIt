@@ -486,7 +486,7 @@ class PypeIt(object):
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.redux.find_objects(self.sciimg, std=self.std_redux, ir_redux=self.ir_redux,
+            self.redux.find_objects(self.sciimg, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace,maskslits=self.maskslits,
                                     show = self.show & (not self.std_redux))
 
@@ -498,7 +498,7 @@ class PypeIt(object):
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
-                self.redux.find_objects(self.sciimg - self.initial_sky, std=self.std_redux, ir_redux=self.ir_redux,
+                self.redux.find_objects(self.sciimg - self.initial_sky, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
                                   std_trace=std_trace,maskslits=self.maskslits,show=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion

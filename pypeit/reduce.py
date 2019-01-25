@@ -161,16 +161,16 @@ class Reduce(object):
         return True
 
 
-    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
+    def find_objects(self, image, ivar, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.find_objects_pypeline(image, std=std, std_trace=std_trace, maskslits=maskslits,
+            self.find_objects_pypeline(image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
 
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.find_objects_pypeline(-image, std=std, std_trace=std_trace, maskslits=maskslits,
+                self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
                 show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
@@ -183,7 +183,7 @@ class Reduce(object):
         return sobjs_obj_init, len(sobjs_obj_init), skymask
 
 
-    def find_objects_pypeline(self, image, std=False, std_trace=None, maskslits=None,
+    def find_objects_pypeline(self, image, ivar, std=False, std_trace=None, maskslits=None,
                               show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False):
 
         """
@@ -437,7 +437,7 @@ class MultiSlit(Reduce):
 
 
 
-    def find_objects_pypeline(self, image, std=False, std_trace = None, maskslits=None,
+    def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
                               show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False):
         """
         Find objects in the slits. This is currently setup only for ARMS
@@ -611,18 +611,8 @@ class Echelle(Reduce):
 
 
 
-    def find_objects_pypeline(self, image, std=False, std_trace = None, maskslits=None,
+    def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
                               show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
-
-        # Did they run process?
-        if not self._chk_objs(['sciivar']):
-            msgs.error('All quantities necessary to run ech_objfind() have not been set.')
-
-        # Check for global sky if it does not exist print out a warning
-
-        # Somehow implmenent masking below? Not sure it is worth it
-        #self.maskslits = self._get_goodslits(maskslits)
-        #gdslits = np.where(~self.maskslits)[0]
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -635,7 +625,7 @@ class Echelle(Reduce):
         # ToDO implement parsets here!
         sig_thresh = 30.0 if std else self.par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
-            extract.ech_objfind(image, self.sciivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
+            extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                 inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
@@ -654,7 +644,7 @@ class Echelle(Reduce):
     # being updated?
     def local_skysub_extract(self, sciimg, sciivar, tilts, waveimg, global_sky, rn2img, sobjs,
                              model_noise=True, min_snr=2.0, std = False, fit_fwhm=False,
-                             maskslits=None, show_profile=False, show_resids=False, show_fwhm=True, show=False):
+                             maskslits=None, show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
