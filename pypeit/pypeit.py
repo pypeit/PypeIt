@@ -19,6 +19,7 @@ from pypeit import scienceimage
 from pypeit import specobjs
 from pypeit import fluxspec
 from pypeit import ginga
+from pypeit import reduce
 from pypeit.core import paths
 from pypeit.core import qa
 from pypeit.core import wave
@@ -460,17 +461,14 @@ class PypeIt(object):
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
-        self.sciI = scienceimage.ScienceImage(self.caliBrate.tslits_dict, self.spectrograph,
-                                              self.fitstbl.frame_paths(frames),
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, self.fitstbl.frame_paths(frames),
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
-                                              par=self.par['scienceimage'],
-                                              frame_par=self.par['scienceframe'],
+                                              par=self.par['scienceframe'],
                                               objtype=self.objtype,
                                               det=det,
-                                              binning=self.binning,
-                                              setup=self.setup)
-        # For QA on crash
+                                              binning=self.binning)
+        # For QA on crash.
         msgs.sciexp = self.sciI
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
@@ -481,32 +479,35 @@ class PypeIt(object):
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
 
+        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, ir_redux = self.ir_redux,
+                                      par=self.par['scienceimage'],frame_par=self.par['scienceframe'],
+                                      objtype=self.objtype, det=det, binning=self.binning)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.find_objects(self.sciimg, std=self.std_redux, ir_redux=self.ir_redux,
-                              std_trace=std_trace,maskslits=self.maskslits,
-                              show = self.show & (not self.std_redux))
+            self.redux.find_objects(self.sciimg, std=self.std_redux, ir_redux=self.ir_redux,
+                                    std_trace=std_trace,maskslits=self.maskslits,
+                                    show = self.show & (not self.std_redux))
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
-            self.sciI.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
+            self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
-                self.find_objects(self.sciimg - self.initial_sky, std=self.std_redux, ir_redux=self.ir_redux,
+                self.redux.find_objects(self.sciimg - self.initial_sky, std=self.std_redux, ir_redux=self.ir_redux,
                                   std_trace=std_trace,maskslits=self.maskslits,show=self.show)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
             if not self.std_redux:
                 # Global sky subtraction second pass. Uses skymask from object finding
-                self.global_sky = self.sciI.global_skysub(self.caliBrate.tilts_dict['tilts'],
+                self.global_sky = self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'],
                                                      skymask=self.skymask, maskslits=self.maskslits, show=self.show)
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                self.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
+                self.redux.local_skysub_extract(self.sobjs_obj, self.caliBrate.mswave, model_noise=(not self.ir_redux),
                                           std = self.std_redux,maskslits=self.maskslits, show_profile=self.show,
                                           show=self.show)
 
@@ -538,28 +539,6 @@ class PypeIt(object):
             self.vel_corr = None
 
         return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
-
-    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
-                          show_peaks=False, show_fits=False, show_trace=False, show=False):
-        """
-        Dummy method for object finding. Overloaded by class specific object finding.
-
-        Returns:
-
-        """
-
-        return None, None, None
-
-    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, min_snr=2.0, maskslits=None,
-                             show_profile=False, show_fwhm=False, show=False):
-        """
-        Dummy method for locak skysubtraction and extraction. Overloaded by class specific object finding.
-
-        Returns:
-
-        """
-
-        return None, None, None, None, None
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename, only_1d=False):
@@ -683,212 +662,26 @@ class PypeIt(object):
         # Generate sets string
         return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
 
-
-class MultiSlit(PypeIt):
-    """
-    Child of PypeIt for Multislit and Longslit reductions
-
-    """
-    def __init__(self, spectrograph, **kwargs):
-        super(MultiSlit, self).__init__(spectrograph, **kwargs)
-
-        # WARNING: Defining these here means it can't be used by the
-        # parent class...
-
-        # TODO: Will you need these in Echelle as well?  Do you think
-        # effectively *any* PypeIt object would need them?  If so, we
-        # should move them into the parent object.
-        self.std_idx = None
-        self.std_dict = None
-        self.std_basename = None
-        self.stdI = None
-
-
-    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
-                          show_peaks=False, show_fits=False, show_trace=False, show=False):
-
-        sobjs_obj_init, nobj_init, skymask_pos = \
-            self.sciI.find_objects(image, std=std, std_trace=std_trace, maskslits=maskslits,
-                                   show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
-
-        if ir_redux:
-            sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.sciI.find_objects(-image, std=std, std_trace=std_trace, maskslits=maskslits,
-                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
-            skymask = skymask_pos & skymask_neg
-            sobjs_obj_init.append_neg(sobjs_obj_init_neg)
-        else:
-            skymask = skymask_pos
-
-        if show:
-            self.sciI.show('image', image=image*(self.mask == 0), chname='objfind',sobjs=sobjs_obj_init, slits=True)
-
-        return sobjs_obj_init, len(sobjs_obj_init), skymask
-
-    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, min_snr=2.0, maskslits=None,
-                             show_profile=False, show_fwhm=False, show=False):
-
-        skymodel, objmodel, ivarmodel, outmask, sobjs = \
-            self.sciI.local_skysub_extract(sobjs_obj, waveimage, model_noise=model_noise, std=std, maskslits=maskslits,
-                                           show_profile=show_profile, show=show)
-
-        return skymodel, objmodel, ivarmodel, outmask, sobjs
-
-        # TODO: I don't think this function is written yet...
-    def flux_calibrate(self):
-        """
-        Doc it
-        """
-        # Flux?
-        if self.par['fluxcalib'] is None or len(self.std_dict) == 0:
-            msgs.info('Flux calibration is not performed.')
-            return
-        elif self.par['fluxcalib'] is None and len(self.std_dict) > 0:
-            msgs.info('Flux calibration parameters not provided.  Standards not used.')
-            return
-
-        # Standard star (is this a calibration, e.g. goes above?)
-        msgs.info("Taking one star per detector mosaic")
-        msgs.info("Waited until very end to work on it")
-        msgs.warn("You should probably consider using the pypeit_flux_spec script anyhow...")
-
-        # Get the sensitivity function
-        if self.par['fluxcalib']['sensfunc'] is None:
-            # Take the first standard
-            std_idx = list(self.std_dict.keys())[0]
-            # Build the list of stdobjs
-            #all_std_objs = []
-            #for det in self.std_dict[std_idx].keys():
-            #    all_std_objs += self.std_dict[std_idx][det]['specobjs']
-            # Need the Header for RA/DEC
-            std_header = {}
-            for key in ['ra', 'dec', 'airmass', 'exptime']:
-                std_header[key.upper()] = self.fitstbl[std_idx][key]
-            # Go
-            # TODO: This going to be wrong.  How des FluxSpec iterate
-            # through detectors, and then how does it use "setup"
-            setup = self.fitstbl.master_key(self.frame, det=self.det)
-            FxSpec = fluxspec.FluxSpec(std_specobjs=std_spec_objs.specobjs,
-                                       spectrograph=self.spectrograph, setup=self.setup,
-                                       master_dir=self.caliBrate.master_dir,
-                                       std_header=std_header,
-                                       mode=self.par['calibrations']['masters'])
-            sens_dict = FxSpec.get_sens_dict(self.fitstbl[std_idx])
-        else:
-            # User provided it
-            FxSpec = fluxspec.FluxSpec(sens_file=self.par['fluxcalib']['sensfunc'],
-                                       spectrograph=self.spectrograph,
-                                       master_dir=self.caliBrate.master_dir,
-                                       mode=self.par['calibrations']['masters'])
-            sens_dict = FxSpec.sens_dict
-
-        # Apply the flux calibration
-        msgs.info("Fluxing with {:s}".format(sens_dict['std_name']))
-        save_format = 'fits'
-        for kk, sci_ID in enumerate(all_sci_ID):
-            # Load from disk (we zero'd out the object to free memory)
-            if save_format == 'fits':
-                sci_spec1d_file = os.path.join(self.par['rdx']['scidir'],
-                                               'spec1d_{:s}.fits'.format(basenames[kk]))
-
-            # Load
-            sci_specobjs, sci_header = load.load_specobj(sci_spec1d_file)
-            # TODO: (KBW) This is dangerous.  We want FluxSpec to check
-            # that its internals make sense and this bypasses any of
-            # that checking.  You should be able to instantiate FluxSpec
-            # from a specobj...
-            FxSpec.sci_specobjs = sci_specobjs
-            FxSpec.sci_header = sci_header
-
-            # Flux
-            FxSpec.flux_science()
-            # Over-write
-            FxSpec.write_science(sci_spec1d_file)
-
-#    def _extract_std(self):
-#        self._extract_one(std=True)
-
-    # THESE ARENT USED YET BUT WE SHOULD CONSIDER IT
-    @staticmethod
-    def default_sci_find_obj_steps():
-        return ['process', 'find_objects', 'global_skysub', 'find_objects']
-
-    @staticmethod
-    def default_std_find_obj_steps():
-        return ['process', 'global_skysub', 'find_objects']
-
-
-
-class Echelle(PypeIt):
-    """
-    Child of PypeIt for Multislit and Longslit reductions
-
-    """
-    def __init__(self, spectrograph, **kwargs):
-        super(Echelle, self).__init__(spectrograph, **kwargs)
-
-
-    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
-                          show_peaks=False, show_fits=False, show_trace=False, show=False):
-
-        sobjs_obj_init, nobj_init, skymask_pos = \
-            self.sciI.find_objects_ech(image, std=std, std_trace=std_trace,
-                                   show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
-
-        if ir_redux:
-            sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.sciI.find_objects_ech(-image, std=std, std_trace=std_trace,
-                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
-            skymask = skymask_pos & skymask_neg
-            sobjs_obj_init.append_neg(sobjs_obj_init_neg)
-        else:
-            skymask = skymask_pos
-
-        if show:
-            self.sciI.show('image', image=image*(self.mask == 0), chname='ech_objfind',
-                      sobjs=sobjs_obj_init, slits=True)
-
-        return sobjs_obj_init, len(sobjs_obj_init), skymask
-
-
-    def local_skysub_extract(self, sobjs_obj, waveimage, model_noise=True, std=False, min_snr=2.0, maskslits=None,
-                             show_profile=False, show_fwhm=False, show=False):
-
-        skymodel, objmodel, ivarmodel, outmask, sobjs = \
-            self.sciI.local_skysub_extract_ech(sobjs_obj, waveimage, model_noise=model_noise, std=std, min_snr=min_snr,
-                                               maskslits=maskslits, show_profile=show_profile, show_fwhm=show_fwhm, show=show)
-
-        return skymodel, objmodel, ivarmodel, outmask, sobjs
-
-    # THESE ARENT USED YET BUT WE SHOULD CONSIDER IT
-    @staticmethod
-    def default_sci_find_obj_steps():
-        return ['process', 'find_objects', 'global_skysub', 'find_objects']
-
-    @staticmethod
-    def default_std_find_obj_steps():
-        return ['process', 'global_skysub', 'find_objects']
-
-
-def instantiate_me(spectrograph, pypeit_file, **kwargs):
-    """
-    Instantiate the PypeIt subclass appropriate for the provided
-    spectrograph.
-
-    The class must be subclassed from PypeIt.  See :class:`PypeIt` for
-    the description of the valid keyword arguments.
-
-    Args:
-        spectrograph
-            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The instrument used to collect the data to be reduced.
-
-    Returns:
-        :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
-        base.
-    """
-    indx = [ c.__name__ == spectrograph.pypeline for c in PypeIt.__subclasses__() ]
-    if not np.any(indx):
-        msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return PypeIt.__subclasses__()[np.where(indx)[0][0]](pypeit_file, **kwargs)
-
+#
+# def instantiate_me(spectrograph, pypeit_file, **kwargs):
+#     """
+#     Instantiate the PypeIt subclass appropriate for the provided
+#     spectrograph.
+#
+#     The class must be subclassed from PypeIt.  See :class:`PypeIt` for
+#     the description of the valid keyword arguments.
+#
+#     Args:
+#         spectrograph
+#             (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+#             The instrument used to collect the data to be reduced.
+#
+#     Returns:
+#         :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
+#         base.
+#     """
+#     indx = [ c.__name__ == spectrograph.pypeline for c in PypeIt.__subclasses__() ]
+#     if not np.any(indx):
+#         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
+#     return PypeIt.__subclasses__()[np.where(indx)[0][0]](pypeit_file, **kwargs)
+#
