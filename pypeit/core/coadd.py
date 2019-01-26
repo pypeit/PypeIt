@@ -721,7 +721,7 @@ def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
     new_sig = np.sqrt(new_var.filled(0.))
 
     # New obj (for passing around)
-    wave_in = wave if isinstance(wave,astropy.units.quantity.Quantity) else wave*astropy.units.AA
+    wave_in = wave if isinstance(wave,units.quantity.Quantity) else wave*units.AA
     new_spec = XSpectrum1D.from_tuple((wave_in, new_flux, new_sig), masking='none')
 
     if debug:
