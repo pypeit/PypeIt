@@ -75,13 +75,12 @@ class ScienceImage(processimages.ProcessImages):
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, objtype='science',
-                 binning = None, par=None):
+    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, binning = None, par=None):
 
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
-        self.objtype = objtype
-        self.par = pypeitpar.FrameGroupPar(objtype) if par is None else par
+        #self.par = pypeitpar.FrameGroupPar(objtype) if par is None else par
+        self.par = spectrograph.default_pypeit_par()['scienceframe'] if par is None else par
         self.proc_par = self.par['process']
 
         # Start up by instantiating the process images class for reading in the relevant science files
