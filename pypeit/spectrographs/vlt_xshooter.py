@@ -226,12 +226,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 2.12,
                             ronoise         = 8.0, # ?? more precise value?
-                            datasec         = '[4:,4:2044]',
+                            datasec         = '[4:,4:2044]', # These are all unbinned pixels
                             # EMA: No real overscan for XSHOOTER-NIR: 
                             # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
                             # The overscan region below contains only zeros
                             # ToDo should we just set it as empty?
-                            oscansec        = '[1:3,4:2044]',
+                            oscansec        = '[1:3,4:2044]', # These are all unbinned pixels.
                             suffix          = '_NIR'
                             )]
         self.numhead = 1
