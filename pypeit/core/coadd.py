@@ -111,7 +111,8 @@ def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_gr
 
     elif wave_method == 'concatenate':  # Concatenate
         # Setup
-        loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
+        waves_ma = np.ma.array(waves, mask = waves <= 1.0)
+        loglam = np.ma.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
         nspec = waves.shape[0]
         newloglam = loglam[iref, :].compressed()  # Deals with mask
         # Loop
@@ -256,7 +257,7 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
     # Calculate S/N
     sn_val = flux_stack*np.sqrt(ivar_stack)
     sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
-    sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, iters=5)
+    sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
     sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
@@ -353,7 +354,7 @@ def median_ratio_flux(spec, smask, ispec, iref, nsig=3., niter=5, **kwargs):
     # Ratio
     med_flux = fluxes[iref,allok] / fluxes[ispec,allok]
     # Clip
-    mn_scale, med_scale, std_scale = astropy.stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter, **kwargs)
+    mn_scale, med_scale, std_scale = astropy.stats.sigma_clipped_stats(med_flux, sigma=nsig, maxiters=niter, **kwargs)
     # Return
     return med_scale
 
@@ -722,7 +723,8 @@ def one_d_coadd(spectra, smask, weights, debug=False, **kwargs):
     new_sig = np.sqrt(new_var.filled(0.))
 
     # New obj (for passing around)
-    new_spec = XSpectrum1D.from_tuple((wave, new_flux, new_sig), masking='none')
+    wave_in = wave if isinstance(wave,astropy.units.quantity.Quantity) else wave*astropy.units.AA
+    new_spec = XSpectrum1D.from_tuple((wave_in, new_flux, new_sig), masking='none')
 
     if debug:
         debugger.plot1d(wave, new_flux, new_sig)
@@ -832,7 +834,7 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
         return 1., None
     # Here we go
     dev_sig = (fluxes[:,gdp] - iflux[gdp]) / np.sqrt(sigs[:,gdp]**2 + isig[gdp]**2)
-    std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, iters=2))
+    std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, maxiters=2))
     return std_dev, dev_sig
 
 
@@ -947,8 +949,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             ivar_final = utils.calc_ivar(var_final)
             # Cap S/N ratio at SN_MAX to prevent overly aggressive rejection
             SN_MAX = 20.0
-            ivar_cap = np.minimum(ivar_final,
-                                  (SN_MAX/newflux_now + (newflux_now <= 0.0))**2)
+            ivar_cap = np.minimum(ivar_final,(SN_MAX/(newflux_now + (newflux_now <= 0.0)))**2)
             #; adjust rejection to reflect the statistics of the distribtuion
             #; of errors. This fixes cases where for not totally understood
             #; reasons the noise model is not quite right and
