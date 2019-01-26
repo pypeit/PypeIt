@@ -405,11 +405,9 @@ class Reduce(object):
                 ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
 
         if slits:
-            from IPython import embed
-            embed()
             if self.tslits_dict is not None:
                 slit_ids = [trace_slits.get_slitid(
-                    self.sciimg.shape, self.tslits_dict['slit_left'],
+                    self.mask.shape, self.tslits_dict['slit_left'],
                     self.tslits_dict['slit_righ'], ii)[0] for ii in range(self.tslits_dict['slit_left'].shape[1])]
 
                 ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
@@ -685,8 +683,8 @@ class Echelle(Reduce):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('ech_local', sobjs = self.sobjs, slits= True)
-            self.show('ech_resid', sobjs = self.sobjs, slits= True)
+            self.show('local', sobjs = self.sobjs, slits= True, ch_name='ech_local')
+            self.show('resid', sobjs = self.sobjs, slits= True, ch_name='ech_resid')
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 

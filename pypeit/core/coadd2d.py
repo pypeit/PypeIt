@@ -113,6 +113,7 @@ def load_coadd2d_stacks(spec2d_files):
     nfiles = len(spec2d_files)
 
     specobjs_list = []
+    # TODO Sort this out with the correct detector extensions etc.
     # Read in the image stacks
     for ifile in range(nfiles):
         hdu_wave = fits.open(waveimgfiles[ifile])
