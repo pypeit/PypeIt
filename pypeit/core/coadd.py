@@ -208,8 +208,8 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
     fluxes: float ndarray, shape = (nexp, nspec)
         Stack of (nexp, nspec) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
     sigs: float ndarray, shape = (nexp, nspec)
-        1-sigam noise vectors for the spectra
-    mask_stack: bool ndarray, shape = (nexp, nspec)
+        1-sigm noise vectors for the spectra
+    mask: bool ndarray, shape = (nexp, nspec)
         Mask for stack of spectra. True=Good, False=Bad.
     wave: flota ndarray, shape = (nspec,) or (nexp, nspec)
         Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
@@ -217,10 +217,8 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
 
     Optional Parameters:
     --------------------
-
-        New wavelength grid
-    smask : ndarray
-        Bool mask of spectra. True = Good, False = Bad.
+    dv_smooth: float, 10000.0
+         Velocity smoothing used for determining smoothly varying S/N ratio weights.
 
     Returns
     -------
