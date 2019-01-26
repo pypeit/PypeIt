@@ -465,7 +465,6 @@ class PypeIt(object):
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
                                               par=self.par['scienceframe'],
-                                              objtype=self.objtype,
                                               det=det,
                                               binning=self.binning)
         # For QA on crash.
@@ -514,7 +513,8 @@ class PypeIt(object):
                                             model_noise=(not self.ir_redux),std = self.std_redux,
                                             maskslits=self.maskslits, show_profile=self.show,show=self.show)
 
-            # Purge out the negative objects if this was a near-IR reduction
+            # Purge out the negative objects if this was a near-IR reduction.
+            # TODO should we move this purge call to local_skysub_extract??
             if self.ir_redux:
                 self.sobjs.purge_neg()
 

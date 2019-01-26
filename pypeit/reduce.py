@@ -405,10 +405,12 @@ class Reduce(object):
                 ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
 
         if slits:
+            from IPython import embed
+            embed()
             if self.tslits_dict is not None:
-                slit_ids = [trace_slits.get_slitid(self.sciimg.shape, self.tslits_dict['slit_left'],
-                                                   self.tslits_dict['slit_righ'], ii)[0]
-                                for ii in range(self.tslits_dict['slit_left'].shape[1])]
+                slit_ids = [trace_slits.get_slitid(
+                    self.sciimg.shape, self.tslits_dict['slit_left'],
+                    self.tslits_dict['slit_righ'], ii)[0] for ii in range(self.tslits_dict['slit_left'].shape[1])]
 
                 ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                  slit_ids)  # , args.det)
