@@ -10,8 +10,8 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 
-import astropy
-c_kms = astropy.constants.c.to('km/s').value
+from astropy import units, constants, stats, convolution
+c_kms = constants.c.to('km/s').value
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
@@ -257,7 +257,7 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
     # Calculate S/N
     sn_val = flux_stack*np.sqrt(ivar_stack)
     sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
-    sn_sigclip = astropy.stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
+    sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
     sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
@@ -284,8 +284,8 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
             sn_med2 = np.interp(spec_vec, spec_now, sn_med1)
             #sn_med2 = np.interp(wave_stack[ispec,:], wave_now,sn_med1)
             sig_res = np.fmax(med_width/10.0, 3.0)
-            gauss_kernel = astropy.convolution.Gaussian1DKernel(sig_res)
-            sn_conv = astropy.convolution.convolve(sn_med2, gauss_kernel)
+            gauss_kernel = convolution.Gaussian1DKernel(sig_res)
+            sn_conv = convolution.convolve(sn_med2, gauss_kernel)
             weights[ispec,:] = sn_conv
 
         # Finish
@@ -354,7 +354,7 @@ def median_ratio_flux(spec, smask, ispec, iref, nsig=3., niter=5, **kwargs):
     # Ratio
     med_flux = fluxes[iref,allok] / fluxes[ispec,allok]
     # Clip
-    mn_scale, med_scale, std_scale = astropy.stats.sigma_clipped_stats(med_flux, sigma=nsig, maxiters=niter, **kwargs)
+    mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, maxiters=niter, **kwargs)
     # Return
     return med_scale
 
@@ -387,11 +387,11 @@ def median_flux(spec, smask, nsig=3., niter=5, **kwargs):
     mfluxes = np.ma.array(fluxes, mask=smask)
     #goodpix = WHERE(refivar GT 0.0 AND finite(refflux) AND finite(refivar) $
     #            AND refmask EQ 1 AND refivar LT 1.0d8)
-    mean_spec, med_spec, std_spec = astropy.stats.sigma_clipped_stats(mfluxes, sigma=nsig, iters=niter, **kwargs)
+    mean_spec, med_spec, std_spec = stats.sigma_clipped_stats(mfluxes, sigma=nsig, iters=niter, **kwargs)
     # Clip a bit
     #badpix = np.any([spec.flux.value < 0.5*np.abs(med_spec)])
     badpix = mfluxes.filled(0.) < 0.5*np.abs(med_spec)
-    mean_spec, med_spec, std_spec = astropy.stats.sigma_clipped_stats(mfluxes.filled(0.), mask=badpix,
+    mean_spec, med_spec, std_spec = stats.sigma_clipped_stats(mfluxes.filled(0.), mask=badpix,
                                                         sigma=nsig, iters=niter, **kwargs)
     debugger.set_trace()
     # Return
@@ -834,7 +834,7 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
         return 1., None
     # Here we go
     dev_sig = (fluxes[:,gdp] - iflux[gdp]) / np.sqrt(sigs[:,gdp]**2 + isig[gdp]**2)
-    std_dev = np.std(astropy.stats.sigma_clip(dev_sig, sigma=5, maxiters=2))
+    std_dev = np.std(stats.sigma_clip(dev_sig, sigma=5, maxiters=2))
     return std_dev, dev_sig
 
 
@@ -873,7 +873,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     new_wave = new_wave_grid(spectra.data['wave'], wave_method=wave_grid_method, **kwargs)
 
     # Rebin
-    rspec = spectra.rebin(new_wave*astropy.units.AA, all=True, do_sig=True, grow_bad_sig=True,
+    rspec = spectra.rebin(new_wave*units.AA, all=True, do_sig=True, grow_bad_sig=True,
                           masking='none')
 
     # Define mask -- THIS IS THE ONLY ONE TO USE
@@ -1131,7 +1131,7 @@ def coaddspec_qa(ispectra, rspec, rmask, spec1d, qafile=None, yscale=8.,debug=Fa
         ax1.scatter(rspec.wavelength[ind_mask], rspec.flux[ind_mask],
                     marker='s',facecolor='None',edgecolor='k')
 
-    if (np.max(spec1d.wavelength)>(9000.0*astropy.units.AA)):
+    if (np.max(spec1d.wavelength)>(9000.0*units.AA)):
         skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ylim[1]
