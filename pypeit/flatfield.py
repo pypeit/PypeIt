@@ -1,26 +1,21 @@
-# Module for generating the Flat Field
 from __future__ import absolute_import, division, print_function
 
 import inspect
 import numpy as np
 import os
 
-#from importlib import reload
-
 from pypeit import msgs
 
 from pypeit import processimages
-#from pypeit.core import masters
 from pypeit import masterframe
 from pypeit.core import flat
 from pypeit import ginga
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.core import trace_slits
-from pypeit.core import tracewave
-
 
 from pypeit import debugger
+
 
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -44,27 +39,22 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         msbpm (ndarray or str, optional): Bad pixel mask image
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the flat frames.
+        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`):
         tslits_dict (dict):
           dict from TraceSlits class (e.g. slitpix)
         tilts_dict (dict): dict from WaveTilts class
 
     Attributes:
         frametype (str): Set to 'pixelflat'
-        mspixelflat : ndarray
-          Stacked image
-        mspixelflatnrm : ndarray
-          Normalized flat
+        mspixelflat (ndarray): Stacked image
+        mspixelflatnrm (ndarray): Normalized flat
         extrap_slit
-        msblaze : ndarray
-          Blaze function fit to normalize
+        msblaze (ndarray): Blaze function fit to normalize
         blazeext :
         slit_profiles : ndarray
           Slit profile(s)
-        self.ntckx : int
-          Number of knots in the spatial dimension
-        self.ntcky : int
-          Number of knots in the spectral dimension
-
+        ntckx (int): Number of knots in the spatial dimension
+        ntcky (int): Number of knots in the spectral dimension
     """
 
     # Frame type is a class attribute
@@ -150,9 +140,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         Wrapper to flat.prep_ntck
 
-        Sets:
-            :attr:`ntckx` -- Number of knots in the spatial dimension
-            :attr:`ntcky` -- Number of knots in the spectral dimension
+        :attr:`ntckx` -- Number of knots in the spatial dimension
+        :attr:`ntcky` -- Number of knots in the spectral dimension
 
         """
         # Step
@@ -186,7 +175,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     def run(self, debug=False, show=False):
         """
         Main driver to generate normalized flat field and illumination flats
-        Code flow:
+
+        Code flow --
            1.  Generate the pixelflat image (if necessary)
            2.  Prepare b-spline knot spacing
            3.  Loop on slits/orders
@@ -199,7 +189,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             show (bool, optional):
 
         Returns:
-            ndarray, ndarray: self.mspixelflatnrm self.slit_profiles
+            ndarray, ndarray: self.mspixelflatnrm and self.slit_profiles
 
         """
 

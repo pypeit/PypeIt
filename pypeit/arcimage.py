@@ -1,4 +1,4 @@
-# Module for generating the Arc image
+""" Module for generating the Arc image"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
@@ -35,13 +35,11 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         msbias (ndarray or str, optional): Guides bias subtraction
 
     Attributes:
-        frametype : str
-          Set to 'arc'
+        frametype (str): Set to 'arc'
 
-    Inherited Attributes
-    --------------------
-    stack : ndarray
-      Final output image
+    Inherited Attributes:
+        stack (ndarray): Final output image
+
     """
 
     # Frametype is a class attribute
@@ -74,6 +72,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
         Returns:
             ndarray: :attr:`stack` Combined, processed image
+            
         """
         # Combine
         self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)

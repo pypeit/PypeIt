@@ -12,20 +12,13 @@ import scipy
 
 #from matplotlib import gridspec, font_manager
 
-from astropy import units
-from astropy.stats import sigma_clip
 from astropy.stats import sigma_clipped_stats
-#from matplotlib import pyplot as plt
 
 from pypeit import msgs
-from pypeit.core import qa
-from pypeit import artrace
 from pypeit.core import pydl
 from pypeit import utils
 from pypeit.core import pixels
-from pypeit import debugger
 from pypeit import ginga
-import time
 from matplotlib import pyplot as plt
 from pypeit.core import trace_slits
 from pypeit.core import arc
