@@ -54,21 +54,20 @@ class Calibrations(object):
             Parameter set defining optional parameters of PypeIt's
             low-level algorithms.  Needs to specifically be a
             CalibrationsPar child.
-        spectrograph (:obj:`pypeit.spectrograph.Spectrograph`):
+        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         redux_path (:obj:`str`, optional):
             Top-level directory for PypeIt output.  If None, the current
             working directory is used.
+        reuse_masters (:obj:`bool`, optional):
+            Load calibration files from disk if they exist
         save_masters (:obj:`bool`, optional):
-            Save Master files as they are generated for later use.
+            Save calibration files to disk (should always be True)
         write_qa (:obj:`bool`, optional):
             Create QA plots.
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
-        binning (:obj:`str`, optional)
-            Describes the instrument binning, currently binspatial,binspectral
-            Generally during the call to set_config()
 
     Attributes:
         fitstbl
@@ -136,9 +135,7 @@ class Calibrations(object):
 
     def _reset_internals(self):
         """
-        Reset all of the key internals to None
-
-        Returns:
+        Reset all of the key internals to None or an empty object
 
         """
         self.shape = None
@@ -168,12 +165,11 @@ class Calibrations(object):
            self.calib_dict[master_key][ftype] = {}
 
         Args:
-            ftype: str
-            master_key: str
+            ftype (str): Type of calibration frame
+            master_key (str): Master key naming
 
         Returns:
-            previous: bool
-               True = Built previously
+             bool: True = Built previously
         """
         previous = False
         if master_key in self.calib_dict.keys():
@@ -190,11 +186,9 @@ class Calibrations(object):
         the internals to None. The internal dict is left unmodified.
 
         Args:
-            frame (int):
-            det (int):
-            par (CalibrationPar):
-
-        Returns:
+            frame (int): Frame index in the fitstbl
+            det (int): Detector number
+            par (pypeit.par.pypeitpar.CalibrationPar):
 
         """
         self.frame = frame
@@ -221,7 +215,7 @@ class Calibrations(object):
         Args:
 
         Returns:
-            self.msarc: ndarray
+            ndarray: :attr:`msarc` image
 
         """
         # Check internals
@@ -267,7 +261,7 @@ class Calibrations(object):
            master_key, det, par
 
         Returns:
-            self.msbias: ndarray or str
+            ndarray or str: :attr:`bias`
 
         """
 
@@ -325,7 +319,7 @@ class Calibrations(object):
            Instrument dependent
 
         Returns:
-            self.msbpm: ndarray
+            ndarray: :attr:`msbpm` image of bad pixel mask
 
         """
         # Check internals
@@ -339,9 +333,6 @@ class Calibrations(object):
         if prev_build:
             self.msbpm = self.calib_dict[self.bpm_master_key]['bpm']
             return self.msbpm
-
-        # Make sure shape is defined
-        #self._check_shape()
 
         # Always use the shape!
         #  But some instruments need the filename too, e.g. for binning
@@ -360,7 +351,7 @@ class Calibrations(object):
         self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm
         return self.msbpm
 
-    def get_flats(self, show=False):
+    def get_flats(self):
         """
         Load or generate a normalized pixel flat
           and slit profile
@@ -371,8 +362,8 @@ class Calibrations(object):
            det, par
 
         Returns:
-            self.mspixflatnrm: ndarray
-            self.msillumflat: ndarray
+            ndarray, ndarray: :attr:`mspixflatnrm` which is the normalized pixel flat image
+            and :attr:`msillumflat` which is the illumination flat.
 
         """
 
@@ -513,13 +504,13 @@ class Calibrations(object):
            det par master_key
 
         Args:
-            redo:
+            redo (bool): Redo
             write_qa: bool, optional
               Generate the QA?  Turn off for testing..
 
         Returns:
-            self.tslits_dict
-            self.maskslits
+            dict, ndarray: :attr:`tslits_dict` trace slits dict and :attr:`maskslits` array
+            of slit mask
 
         """
         # Check for existing data
@@ -609,7 +600,7 @@ class Calibrations(object):
            det, par, master_key
 
         Returns:
-            self.mswave: ndarray
+            ndarray: :attr:`mswave` wavelength image
 
         """
         # Check for existing data
@@ -657,11 +648,10 @@ class Calibrations(object):
 
         Requirements:
           msarc, msbpm, tslits_dict, maskslits
-          det, par
+          det, par, arc_master_key
 
         Returns:
-            self.wv_calib: dict
-            self.maskslits -- Updated
+            dict, ndarray: :attr:`wv_calib` calibration dict and the updated slit mask array
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'maskslits']):
@@ -728,8 +718,8 @@ class Calibrations(object):
            det, par, arc_master_key, spectrograph
 
         Returns:
-            self.tilts_dict: dictionary with tilts information (2D)
-            self.maskslits: ndarray
+            dict, ndarray: :attr:`tilts_dict` dictionary with tilts information (2D)
+            and the updated slit mask array
 
         """
         # Check for existing data
@@ -778,9 +768,6 @@ class Calibrations(object):
     def run_the_steps(self):
         """
         Run full the full recipe of calibration steps
-
-        Returns:
-
         """
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
@@ -794,6 +781,16 @@ class Calibrations(object):
 
     # This is specific to `self.ms*` attributes
     def _chk_objs(self, items):
+        """
+        Check that the input items exist internally as attributes
+
+        Args:
+            items (list):
+
+        Returns:
+            bool: True if all exist
+
+        """
         for obj in items:
             if getattr(self, obj) is None:
                 msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
@@ -808,28 +805,6 @@ class Calibrations(object):
                     msgs.warn("Use get_{:s}".format(iobj))
                 return False
         return True
-    #
-    # def _check_shape(self):
-    #     """
-    #     Check that the shape attribute is not None.  If it is use,
-    #     define it using the shape of msarc
-    #
-    #     .. warning::
-    #         - This shape depends on if the images are trimmed or not!
-    #     """
-    #     # Check the shape is declared
-    #     if self.shape is None and self.msbpm is None:
-    #         raise ValueError('You must run get_bpm to get image shape, or '
-    #                          'provide shape directly.')
-    #     if self.shape is None:
-    #         self.shape = self.msbpm.shape
-
-    def show(self, obj):
-        if isinstance(obj, np.ndarray):
-            if len(obj.shape) == 2:
-                debugger.show_image(obj)
-        else:
-            msgs.warn("Not ready for this type of object")
 
     def __repr__(self):
         # Generate sets string
@@ -839,7 +814,6 @@ class Calibrations(object):
                                                           self.calib_ID)
         txt += '>'
         return txt
-
 
 
 class MultiSlitCalibrations(Calibrations):
