@@ -21,7 +21,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        file_list (:obj:`list`, optional):
+        files (:obj:`list`, optional):
             The list of files to process.  Can be an empty list.
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.

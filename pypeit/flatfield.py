@@ -24,48 +24,53 @@ from pypeit import debugger
 
 class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     """
-    This class will generate the pixel-level FlatField
+    This class will generate the pixel-level FlatField and the illumination flatfield too
       The master() method returns the image
 
-    Parameters
-    ----------
-    spectrograph : str or Spectrograph
-    file_list : list
-      List of raw files to produce the flat field
-    settings : dict-like
-    msbias : ndarray or str or None
-    tslits_dict : dict
-      dict from TraceSlits class (e.g. slitpix)
-    tilts : ndarray
-      tilts from WaveTilts class
-    det : int
-    master_key : str
+    Args:
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The `Spectrograph` instance that sets the
+            instrument used to take the observations.  Used to set
+            :attr:`spectrograph`.
+        files (:obj:`list`, optional):
+            The list of files to process.  Can be an empty list.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+        master_key (:obj:`str`, optional):
+            The string identifier for the instrument configuration.  See
+            :class:`pypeit.masterframe.MasterFrame`.
+        master_dir (str, optional): Path to master frames
+        msbias (ndarray or str, optional): Guides bias subtraction
+        msbpm (ndarray or str, optional): Bad pixel mask image
+        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
+            The parameters used to type and process the flat frames.
+        tslits_dict (dict):
+          dict from TraceSlits class (e.g. slitpix)
+        tilts_dict (dict): dict from WaveTilts class
 
-    Attributes
-    ----------
-    frametype : str
-      Set to 'pixelflat'
-    mspixelflat : ndarray
-      Stacked image
-    mspixelflatnrm : ndarray
-      Normalized flat
-    extrap_slit
-    msblaze : ndarray
-      Blaze function fit to normalize
-    blazeext :
-    slit_profiles : ndarray
-      Slit profile(s)
-    self.ntckx : int
-      Number of knots in the spatial dimension
-    self.ntcky : int
-      Number of knots in the spectral dimension
+    Attributes:
+        frametype (str): Set to 'pixelflat'
+        mspixelflat : ndarray
+          Stacked image
+        mspixelflatnrm : ndarray
+          Normalized flat
+        extrap_slit
+        msblaze : ndarray
+          Blaze function fit to normalize
+        blazeext :
+        slit_profiles : ndarray
+          Slit profile(s)
+        self.ntckx : int
+          Number of knots in the spatial dimension
+        self.ntcky : int
+          Number of knots in the spectral dimension
 
     """
 
     # Frame type is a class attribute
     frametype = 'pixelflat'
 
-    def __init__(self, spectrograph, files=None, binning=None, det=1, par=None, master_key=None,
+    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False, flatpar=None, msbias=None, msbpm=None,
                  tslits_dict=None, tilts_dict=None):
 
@@ -86,7 +91,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.tslits_dict = tslits_dict
         self.tilts_dict = tilts_dict
         self.msbpm = msbpm
-        self.binning = binning
         if master_dir is None:
             self.master_dir = os.getcwd()
         else:
@@ -113,11 +117,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     @property
     def nslits(self):
         """
-        Number of slits
+        Number of slits from the :attr:`tslits_dict` key=slit_left
 
-        Returns
-        -------
-        nslits : int
+        Returns:
+            int: Number of slits
 
         """
         if self.tslits_dict is not None:
@@ -127,16 +130,13 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
     def build_pixflat(self, trim=True):
         """
-        # Generate the flat image
+        Generate the flat image
 
-        Parameters
-        ----------
-        trim : bool, optional
+        Args:
+            trim (bool, optional):
 
-        Returns
-        -------
-        self.mspixelflat (points at self.stack)
-
+        Returns:
+            ndarray: :attr:`mspixelflat` pixel flat image, not normalized
         """
         self.mspixelflat = self.process(bias_subtract=self.msbias, bpm = self.msbpm, trim=trim, apply_gain=True)
         # Step
@@ -150,12 +150,10 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         Wrapper to flat.prep_ntck
 
-        Returns
-        -------
-        self.ntckx -- set internally
-          Number of knots in the spatial dimension
-        self.ntcky -- set internally
-          Number of knots in the spectral dimension
+        Sets:
+            :attr:`ntckx` -- Number of knots in the spatial dimension
+            :attr:`ntcky` -- Number of knots in the spectral dimension
+
         """
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -169,13 +167,12 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # technically two master files for the flats, i.e. a pixelflat and illumination flat. Perhaps the better way to deal with this
     # would be to package them into one output file and just change the load_master and save_master methods to deal with the
     # possible existence of an illumination flat
-    def load_master_illumflat(self, force=False):
+    def load_master_illumflat(self):
         """
         Load the slit illumination profile from a saved Master file
 
-        Returns
-        -------
-        self.slit_profiles
+        Returns:
+            ndarray: Image from disk
 
         """
         ms_name = masterframe.master_name('illumflat', self.master_key, self.mdir)
@@ -197,14 +194,12 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                b. Normalize
                c. Save
 
-        Parameters
-        ----------
-        datasec_img
+        Args:
+            debug (bool, optional):
+            show (bool, optional):
 
-        Returns
-        -------
-        self.mspixelflatnrm
-        self.slit_profiles
+        Returns:
+            ndarray, ndarray: self.mspixelflatnrm self.slit_profiles
 
         """
 
@@ -272,15 +267,21 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         # Return
         return self.mspixelflat, self.msillumflat
 
+    def show(self, slits=True, wcs_match=True):
+        """
+        Show all of the flat field products
 
+        Args:
+            slits (bool, optional):
+            wcs_match:
 
-    def show(self, slits = True, wcs_match = True):
+        Returns:
 
+        """
         viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1), wcs_match=wcs_match, clear=True)
         viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1), wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.rawflatimg, chname='flat', wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
-
 
         if slits:
             if self.tslits_dict is not None:

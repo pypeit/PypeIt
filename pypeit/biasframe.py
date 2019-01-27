@@ -31,7 +31,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         spectrograph : str (optional)
            Used to specify properties of the detector (for processing)
            Attempt to set with settings['run']['spectrograph'] if not input
-        file_list (list,optional): List of filenames to process
+        files (list,optional): List of filenames to process
             master_key (:obj:`str`, optional):
                 The string identifier for the instrument configuration.  See
                 :class:`pypeit.masterframe.MasterFrame`.
@@ -54,14 +54,14 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, file_list=None, det=1, par=None, master_key=None,
+    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False):
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, files=file_list, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, files=files, det=det,
                                              par=self.par['process'])
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
