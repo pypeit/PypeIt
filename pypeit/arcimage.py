@@ -32,7 +32,7 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             :class:`pypeit.masterframe.MasterFrame`.
         master_dir (str, optional): Path to master frames
         reuse_masters (bool, optional): Load from disk if possible
-        msbias (ndarray or str): Guides bias subtraction
+        msbias (ndarray or str, optional): Guides bias subtraction
 
     Attributes:
         frametype : str
