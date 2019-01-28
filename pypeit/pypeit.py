@@ -13,6 +13,7 @@ import datetime
 import numpy as np
 from collections import OrderedDict
 
+from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit import scienceimage
@@ -567,52 +568,22 @@ class PypeIt(object):
         """
         # TODO: Need some checks here that the exposure has been reduced
 
-        # Build the final list of specobjs and vel_corr
-        all_specobjs = specobjs.SpecObjs()
-
-        vel_corr = 0.  # This will not be set for Standard stars, which is fine
-        for key in sci_dict:
-            if key in ['meta']:
-                vel_corr = sci_dict['meta']['vel_corr']
-                continue
-            #
-            try:
-                all_specobjs.add_sobj(sci_dict[key]['specobjs'])
-            except KeyError:  # No object extracted
-                continue
-
-        if len(all_specobjs) == 0:
-            msgs.warn('No objects to save!')
-            return
-
-        # Write 1D spectra
-        outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],'spec1d_{:s}.fits'.format(basename))
-        helio_dict = dict(refframe='pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
-            self.caliBrate.par['wavelengths']['frame'],vel_correction=vel_corr)
-        # Did the user re-run a single detector?
-        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline,
-                                  self.spectrograph.spectrograph, outfile,
-                                  helio_dict=helio_dict, telescope=self.spectrograph.telescope,
-                                  update_det=self.par['rdx']['detnum'])
-        # 1D only?
-        if only_1d:
-            return
-        # Obj info
-        scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
-        save.save_obj_info(all_specobjs, self.spectrograph, basename, scidir, binning=self.fitstbl['binning'][frame])
-        # Write 2D images for the Science Frame
+        # Determine the headers
+        head1d = self.fitstbl[frame]
         # Need raw file header information
-        # TODO: Why is the raw file header needed?  Can the data be
-        # gotten from fitstbl?  If not, is it worth adding the relevant
-        # information to fitstbl?
         rawfile = self.fitstbl.frame_paths(frame)
-        # TODO: Make sure self.det is correct!
-        #master_key = self.fitstbl.master_key(frame, det=self.det)
-        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
-        save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
-                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, outfile,
-                            update_det=self.par['rdx']['detnum'])
-        return all_specobjs
+        head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext,)
+        refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
+            self.caliBrate.par['wavelengths']['frame']
+
+        # Determine the paths/filenames
+        scipath = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+
+        save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir, self.spectrograph,
+                      head1d, head2d, scipath, basename, only_1d=only_1d, refframe=refframe,
+                      update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
+
+        return
 
 
 

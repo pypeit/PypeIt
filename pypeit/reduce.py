@@ -683,8 +683,8 @@ class Echelle(Reduce):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('local', sobjs = self.sobjs, slits= True, ch_name='ech_local')
-            self.show('resid', sobjs = self.sobjs, slits= True, ch_name='ech_resid')
+            self.show('local', sobjs = self.sobjs, slits= True, chname='ech_local')
+            self.show('resid', sobjs = self.sobjs, slits= True, chname='ech_resid')
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
