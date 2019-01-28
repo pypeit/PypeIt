@@ -303,6 +303,7 @@ class PypeIt(object):
         self.frames = frames
         self.bg_frames = bg_frames
 
+        # JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.

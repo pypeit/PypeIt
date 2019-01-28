@@ -11,6 +11,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
 from pypeit.core import load, coadd, pixels
+from pypeit.core import parse
 from pypeit import traceslits
 from pypeit.spectrographs import util
 
@@ -90,20 +91,26 @@ def optimal_weights(specobjs_list, slitid, objid, echelle=True):
 
     return rms_sn, weights, trace_stack, wave_stack
 
-def load_coadd2d_stacks(spec2d_files):
+def load_coadd2d_stacks(spec2d_files, det=1):
+
+    # Get the detector string
+    sdet = parse.get_dnum(det, prefix=False)
 
     # Grab the files
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
     # Get the master dir
     head0 = fits.getheader(spec2d_files[0])
-    mdir = os.path.basename(head0['PYPMFDIR'])+'/'
+    master_dir = os.path.basename(head0['PYPMFDIR'])+'/'
     redux_path =  os.path.dirname(os.path.dirname(spec2d_files[0])) + '/'
-    master_path = redux_path + mdir
+    master_path = redux_path + master_dir
     tiltfiles = []
     waveimgfiles = []
     tracefiles = []
+
+    head2d_list=[]
     for file in spec2d_files:
         head = fits.getheader(file)
+        head2d_list.append(head)
         trace_key = '{:s}'.format(head['TRACMKEY'])
         wave_key = '{:s}'.format(head['ARCMKEY'])
         tracefiles.append(masterframe.master_name('trace', trace_key, master_path))
@@ -113,6 +120,8 @@ def load_coadd2d_stacks(spec2d_files):
     nfiles = len(spec2d_files)
 
     specobjs_list = []
+    head1d_list=[]
+    head2d_list=[]
     # TODO Sort this out with the correct detector extensions etc.
     # Read in the image stacks
     for ifile in range(nfiles):
@@ -144,6 +153,7 @@ def load_coadd2d_stacks(spec2d_files):
         skymodel_stack[ifile,:,:] = sky
 
         sobjs, head = load.load_specobjs(spec1d_files[ifile])
+        head1d_list.append(head)
         specobjs_list.append(sobjs)
 
     # Right now we assume there is a single tslits_dict for all images and read in the first one
@@ -152,7 +162,16 @@ def load_coadd2d_stacks(spec2d_files):
     slitmask = pixels.tslits2mask(tslits_dict)
     slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
 
-    return specobjs_list, tslits_dict, slitmask_stack, sciimg_stack, sciivar_stack, skymodel_stack, mask_stack, tilts_stack, waveimg_stack
+    stack_dict = dict(specobjs_list=specobjs_list, tslits_dict=tslits_dict,
+                      slitmask_stack=slitmask_stack,
+                      sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
+                      skymodel_stack=skymodel_stack, mask_stack=mask_stack,
+                      tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
+                      head1d_list = head1d_list, head2d_list=head2d_list,
+                      redux_path=redux_path, master_path=master_path, master_dir=master_dir,
+                      spectrograph = tslits_dict['spectrograph'])
+
+    return stack_dict
 
 
 
