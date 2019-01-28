@@ -617,7 +617,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 
 def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
-                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
+                dspat = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
                 maskwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
                 show_profile = False):
 
@@ -626,24 +626,26 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
      Parameters
      ----------
-     image : numpy float 2-d array [nspec, nspat]
+     image : numpy float 2-d array (nspec, nspat)
          sky-subtracted image
-     ivar : numpy float 2-d array [nspec, nspat]
+     ivar : numpy float 2-d array (nspec, nspat)
          inverse variance of sky-subtracted image
-     waveimg numpy float 2-d array [nspec, nspat]
+     waveimg numpy float 2-d array (nspec, nspat)
          2-d wavelength map
-     trace_in : numpy 1-d array [nspec]
+     trace_in : numpy 1-d array (nspec,)
          object trace
-     wave : numpy 1-d array [nspec]
+     wave : numpy 1-d array (nspec,)
          extracted wavelength of spectrum
-     flux : numpy 1-d array [nspec]
+     flux : numpy 1-d array (nspec,)
          extracted flux of spectrum
-     fluxivar : numpy 1-d array [nspec]
+     fluxivar : numpy 1-d array (nspec,)
          inverse variance of extracted flux spectrum
 
 
     Optional Parameters
     ----------
+    dspat: float ndarray, shape (nspec, nspat) Image containing the spatial offset in pixels from the trace at each location. If this is not input,
+           it will be computed.
     thisfwhm : float
          fwhm of the object trace
     max_trace_corr : float [default = 2.0]
@@ -691,12 +693,17 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     nspat = image.shape[1]
     nspec = image.shape[0]
 
+    # dspat is the spatial  position along the image centered on the object  trace
+    if dspat is None:
+        dspat = np.outer(np.ones(nspec), np.arange(nspat)) - np.outer(trace_in,np.ones(nspat))
+
+
+
+
     # create some images we will need
     sub_obj = image
     sub_ivar = ivar
     sub_wave = waveimg
-    sub_trace = trace_in
-    sub_x = np.arange(nspat)
     sn2_sub = np.zeros((nspec,nspat))
     spline_sub = np.zeros((nspec,nspat))
 
@@ -792,8 +799,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     xtemp = (np.cumsum(np.outer(4.0 + np.sqrt(np.fmax(sn2_1, 0.0)),np.ones(nspat)))).reshape((nspec,nspat))
     xtemp = xtemp/xtemp.max()
 
-    # norm_x is the x position along the image centered on the object  trace
-    norm_x = np.outer(np.ones(nspec), sub_x) - np.outer(sub_trace,np.ones(nspat))
 
     sigma = np.full(nspec, thisfwhm/2.3548)
     fwhmfit = sigma*2.3548
@@ -801,7 +806,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
     # sigma_x represents the profile argument, i.e. (x-x0)/sigma
-    sigma_x = norm_x/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
+    sigma_x = dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
@@ -970,7 +975,7 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         sigma = sigma*(1.0 + sigma_factor)
         area = area * h0/(1.0 + sigma_factor)
 
-        sigma_x = norm_x / (np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
+        sigma_x = dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
 
         # Update the profile B-spline fit for the next iteration
         if iiter < sigma_iter-1:
