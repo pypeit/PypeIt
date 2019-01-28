@@ -616,8 +616,8 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
     return profile_model
 
 
-def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
-                dspat = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
+def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
+                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
                 maskwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
                 show_profile = False):
 
@@ -632,6 +632,9 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
          inverse variance of sky-subtracted image
      waveimg numpy float 2-d array (nspec, nspat)
          2-d wavelength map
+     spat_img: float ndarray, shape (nspec, nspat)
+         Image containing the spatial location of pixels. If not input,
+         it will be computed via spat_img = np.outer(np.ones(nspec), np.arange(nspat))
      trace_in : numpy 1-d array (nspec,)
          object trace
      wave : numpy 1-d array (nspec,)
@@ -644,8 +647,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
 
     Optional Parameters
     ----------
-    dspat: float ndarray, shape (nspec, nspat) Image containing the spatial offset in pixels from the trace at each location. If this is not input,
-           it will be computed.
     thisfwhm : float
          fwhm of the object trace
     max_trace_corr : float [default = 2.0]
@@ -680,10 +681,6 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
                value of the reduced chi^2
      """
 
-#    multiprocessing.get_context('spawn')
-
-#    p_show_profile = None  # This is the process object that is passed back for show_profile mode
-
     if maskwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
         no_deriv = True
@@ -693,13 +690,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     nspat = image.shape[1]
     nspec = image.shape[0]
 
-    # dspat is the spatial  position along the image centered on the object  trace
-    if dspat is None:
-        dspat = np.outer(np.ones(nspec), np.arange(nspat)) - np.outer(trace_in,np.ones(nspat))
-
-
-
-
+    # dspat is the spatial position along the image centered on the object trace
+    dspat = spat_img - np.outer(trace_in, np.ones(nspat))
     # create some images we will need
     sub_obj = image
     sub_ivar = ivar

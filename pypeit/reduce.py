@@ -513,7 +513,7 @@ class MultiSlit(Reduce):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, sciimg, sciivar, tilts, waveimg, global_sky, rn2img, sobjs,
-                             maskslits=None, model_noise=True, std = False,
+                             spat_pix=None, maskslits=None, model_noise=True, std = False,
                              show_profile=False, show_resids=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -551,7 +551,6 @@ class MultiSlit(Reduce):
         # Initialize to mask in case no objects were found
         self.outmask = np.copy(self.mask)
         # Initialize to input mask in case no objects were found
-        #self.extractmask = (self.mask == 0) & self.negmask
         self.extractmask = (self.mask == 0)
         # Initialize to zero in case no objects were found
         self.objmodel = np.zeros_like(self.sciimg)
@@ -579,7 +578,8 @@ class MultiSlit(Reduce):
                                                       self.waveimg, self.global_sky, self.rn2img,
                                                       thismask, self.tslits_dict['slit_left'][:,slit],
                                                       self.tslits_dict['slit_righ'][:, slit],
-                                                      self.sobjs[thisobj], model_full_slit=self.par['model_full_slit'],
+                                                      self.sobjs[thisobj], spat_pix=spat_pix,
+                                                      model_full_slit=self.par['model_full_slit'],
                                                       model_noise=model_noise,
                                                       std = std, bsp=self.par['bspline_spacing'],
                                                       sn_gauss=self.par['sn_gauss'],
@@ -643,7 +643,7 @@ class Echelle(Reduce):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, sciimg, sciivar, tilts, waveimg, global_sky, rn2img, sobjs,
-                             model_noise=True, min_snr=2.0, std = False, fit_fwhm=False,
+                             spat_pix=None, model_noise=True, min_snr=2.0, std = False, fit_fwhm=False,
                              maskslits=None, show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -673,7 +673,7 @@ class Echelle(Reduce):
         order_vec = self.spectrograph.order_vec()
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
-            self.rn2img, self.tslits_dict, sobjs, order_vec,
+            self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
             std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp = self.par['bspline_spacing'],
             sn_gauss=self.par['sn_gauss'], model_full_slit=self.par['model_full_slit'], model_noise=model_noise,
             show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
