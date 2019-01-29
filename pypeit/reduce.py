@@ -90,7 +90,10 @@ class Reduce(object):
         self.objtype = objtype
         self.par = spectrograph.default_pypeit_par() if par is None else par
         self.proc_par = self.par['scienceframe'] ['process']
-
+        # TODO Rename the scienceimage arset to reduce.
+        self.redux_par = self.par['scienceimage']
+        self.wave_par = self.par['calibrations']['wavelengths']
+        self.flex_par = self.par['flexure']
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
@@ -247,8 +250,8 @@ class Reduce(object):
                                                              self.tslits_dict['slit_righ'][:,slit],
                                                              inmask=inmask,
                                                              sigrej=sigrej,
-                                                             bsp=self.par['bspline_spacing'],
-                                                             no_poly=self.par['no_poly'],
+                                                             bsp=self.redux_par['bspline_spacing'],
+                                                             no_poly=self.redux_par['no_poly'],
                                                              pos_mask = (not self.ir_redux),
                                                              show_fit=show_fit)
             # Mask if something went wrong
@@ -298,10 +301,10 @@ class Reduce(object):
             Spectra are modified in place (wavelengths are shifted)
         """
 
-        if self.par['flexure']['method'] != 'skip':
-            flex_list = wave.flexure_obj(sobjs, self.maskslits, self.par['flexure']['method'],
-                                         self.par['flexure']['spectrum'],
-                                         mxshft=self.par['flexure']['maxshift'])
+        if self.flex_par['method'] != 'skip':
+            flex_list = wave.flexure_obj(sobjs, self.maskslits, self.flex_par['method'],
+                                         self.flex_par['spectrum'],
+                                         mxshft=self.flex_par['maxshift'])
             # QA
             wave.flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
         else:
@@ -311,15 +314,15 @@ class Reduce(object):
     def helio_correct(self, sobjs, radec, obstime):
         """ Perform a heliocentric correction """
         # Helio, correct Earth's motion
-        if (self.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
-                and (self.par['wavelengths']['reference'] != 'pixel'):
+        if (self.wave_par['frame'] in ['heliocentric', 'barycentric']) \
+                and (self.wave_par['reference'] != 'pixel'):
             # TODO change this keyword to refframe instead of frame
-            msgs.info("Performing a {0} correction".format(self.par['wavelengths']['frame']))
+            msgs.info("Performing a {0} correction".format(self.wave_par['frame']))
             vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, self.maskslits,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
                                                    self.spectrograph.telescope['elevation'],
-                                                   self.par['wavelengths']['frame'])
+                                                   self.wave_par['frame'])
         else:
             msgs.info('A wavelength reference-frame correction will not be performed.')
             vel_corr = None
@@ -533,12 +536,13 @@ class MultiSlit(Reduce):
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
-            sig_thresh = 30.0 if std else self.par['sig_thresh']
+
+            sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit],
-                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.par['manual'],
+                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.redux_par['manual'],
                 specobj_dict=specobj_dict, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
-                qa_title=qa_title, nperslit=self.par['maxnumber'])
+                qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
@@ -620,10 +624,10 @@ class MultiSlit(Reduce):
                                                       thismask, self.tslits_dict['slit_left'][:,slit],
                                                       self.tslits_dict['slit_righ'][:, slit],
                                                       self.sobjs[thisobj], spat_pix=spat_pix,
-                                                      model_full_slit=self.par['model_full_slit'],
+                                                      model_full_slit=self.redux_par['model_full_slit'],
                                                       model_noise=model_noise,
-                                                      std = std, bsp=self.par['bspline_spacing'],
-                                                      sn_gauss=self.par['sn_gauss'],
+                                                      std = std, bsp=self.redux_par['bspline_spacing'],
+                                                      sn_gauss=self.redux_par['sn_gauss'],
                                                       inmask=inmask, show_profile=show_profile,
                                                       show_resids=show_resids)
 
@@ -664,7 +668,7 @@ class Echelle(Reduce):
         specobj_dict = {'setup': self.setup, 'slitid': 999,
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # ToDO implement parsets here!
-        sig_thresh = 30.0 if std else self.par['sig_thresh']
+        sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                 inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
@@ -715,9 +719,9 @@ class Echelle(Reduce):
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
-            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp = self.par['bspline_spacing'],
-            sn_gauss=self.par['sn_gauss'], model_full_slit=self.par['model_full_slit'], model_noise=model_noise,
-            show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
+            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp = self.redux_par['bspline_spacing'],
+            sn_gauss=self.redux_par['sn_gauss'], model_full_slit=self.redux_par['model_full_slit'],
+            model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
 
         # Step
