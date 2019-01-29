@@ -27,6 +27,8 @@ from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
+from linetools import utils as ltu
+
 
 
 from configobj import ConfigObj
@@ -481,8 +483,7 @@ class PypeIt(object):
         self.maskslits = self.caliBrate.maskslits.copy()
 
         self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
-                                           ir_redux = self.ir_redux,par=self.par['scienceimage'],
-                                           frame_par=self.par['scienceframe'],
+                                           ir_redux = self.ir_redux,par=self.par,
                                            objtype=self.objtype, det=det, binning=self.binning)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
@@ -522,8 +523,11 @@ class PypeIt(object):
 
             # Flexure correction if this is not a standard star
             if not self.std_redux:
-                self.flexure_correct(self.sobjs, self.maskslits)
-            self.vel_corr = self.helio_correct(self.sobjs, self.maskslits, frames[0], self.obstime)
+                self.redux.flexure_correct(self.sobjs, self.basename)
+
+            # Grab coord
+            radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
+            self.vel_corr = self.redux.helio_correct(self.sobjs, radec, self.obstime)
 
         else:
             # Print status message

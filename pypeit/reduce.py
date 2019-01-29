@@ -6,7 +6,7 @@ from astropy import stats
 from abc import ABCMeta
 
 from pypeit import ginga, utils, msgs, processimages, specobjs
-from pypeit.core import skysub, extract, trace_slits, pixels
+from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.par import pypeitpar
 from matplotlib import pyplot as plt
 
@@ -84,13 +84,12 @@ class Reduce(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, spectrograph, tslits_dict, mask, ir_redux=False, det=1, objtype='science', binning=None, setup=None,
-                 par=None, frame_par=None):
+                 par=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype
-        self.par = pypeitpar.ScienceImagePar() if par is None else par
-        self.frame_par = pypeitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
-        self.proc_par = self.frame_par['process']
+        self.par = spectrograph.default_pypeit_par() if par is None else par
+        self.proc_par = self.par['scienceframe'] ['process']
 
 
         # Instantiation attributes for this object
@@ -100,7 +99,8 @@ class Reduce(object):
         self.slitmask = pixels.tslits2mask(self.tslits_dict)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         self.mask = processimages.ProcessImages.update_mask_slitmask(self.mask, self.slitmask)
-
+        self.maskslits=None
+        self.maskslits = self._get_goodslits(maskslits)
         self.ir_redux = ir_redux
         self.det = det
         self.binning = binning
@@ -113,7 +113,6 @@ class Reduce(object):
         # sky-subtraction, and extraction
         self.tilts = None  # used by extract
         self.waveimage = None  # used by extract
-        self.maskslits = None  # used in find_object and extract
 
         # Key outputs images for extraction
         self.sciimg = None
@@ -228,8 +227,8 @@ class Reduce(object):
         self.sciimg = sciimg
         self.sciivar = sciivar
         self.tilts = tilts
-        self.maskslits = self._get_goodslits(maskslits)
-        gdslits = np.where(~self.maskslits)[0]
+        self.maskslits = self.maskslits if maskslits is None else maskslits
+        gdslits = np.where(np.invert(self.maskslits))[0]
 
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
@@ -286,6 +285,48 @@ class Reduce(object):
          """
 
         return None, None, None, None, None
+
+
+    def flexure_correct(self, sobjs, basename):
+        """ Correct for flexure
+
+        Args:
+            sobjs: SpecObjs object
+            maskslits: ndarray
+
+        Returns:
+            Spectra are modified in place (wavelengths are shifted)
+        """
+
+        if self.par['flexure']['method'] != 'skip':
+            flex_list = wave.flexure_obj(sobjs, self.maskslits, self.par['flexure']['method'],
+                                         self.par['flexure']['spectrum'],
+                                         mxshft=self.par['flexure']['maxshift'])
+            # QA
+            wave.flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+        else:
+            msgs.info('Skipping flexure correction.')
+
+
+    def helio_correct(self, sobjs, radec, obstime):
+        """ Perform a heliocentric correction """
+        # Helio, correct Earth's motion
+        if (self.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
+                and (self.par['wavelengths']['reference'] != 'pixel'):
+            # TODO change this keyword to refframe instead of frame
+            msgs.info("Performing a {0} correction".format(self.par['wavelengths']['frame']))
+            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, self.maskslits,
+                                                   self.spectrograph.telescope['longitude'],
+                                                   self.spectrograph.telescope['latitude'],
+                                                   self.spectrograph.telescope['elevation'],
+                                                   self.par['wavelengths']['frame'])
+        else:
+            msgs.info('A wavelength reference-frame correction will not be performed.')
+            vel_corr = None
+
+        return vel_corr
+
+
 
     def _get_goodslits(self, maskslits):
         """
@@ -471,8 +512,8 @@ class MultiSlit(Reduce):
 
         """
 
-        self.maskslits = self._get_goodslits(maskslits)
-        gdslits = np.where(~self.maskslits)[0]
+        self.maskslits = self.maskslits if maskslits is None else maskslits
+        gdslits = np.where(np.invert(self.maskslits))[0]
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -544,8 +585,8 @@ class MultiSlit(Reduce):
         self.rn2img = rn2img
 
         # get the good slits and assign self.maskslits
-        self.maskslits = self._get_goodslits(maskslits)
-        gdslits = np.where(~self.maskslits)[0]
+        self.maskslits = self.maskslits if maskslits is None else maskslits
+        gdslits = np.where(np.invert(self.maskslits))[0]
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
