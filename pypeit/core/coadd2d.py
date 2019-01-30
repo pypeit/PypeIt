@@ -121,7 +121,6 @@ def load_coadd2d_stacks(spec2d_files, det=1):
 
     specobjs_list = []
     head1d_list=[]
-    head2d_list=[]
     # TODO Sort this out with the correct detector extensions etc.
     # Read in the image stacks
     for ifile in range(nfiles):
@@ -162,6 +161,13 @@ def load_coadd2d_stacks(spec2d_files, det=1):
     slitmask = pixels.tslits2mask(tslits_dict)
     slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
 
+    # Fill the master key dict
+    head2d = head2d_list[0]
+    master_key_dict = {}
+    master_key_dict['frame'] = head2d['FRAMMKEY']
+    master_key_dict['arc']   = head2d['ARCMKEY']
+    master_key_dict['trace'] = head2d['TRACMKEY']
+
     stack_dict = dict(specobjs_list=specobjs_list, tslits_dict=tslits_dict,
                       slitmask_stack=slitmask_stack,
                       sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
@@ -169,6 +175,7 @@ def load_coadd2d_stacks(spec2d_files, det=1):
                       tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
                       head1d_list = head1d_list, head2d_list=head2d_list,
                       redux_path=redux_path, master_path=master_path, master_dir=master_dir,
+                      master_key_dict=master_key_dict,
                       spectrograph = tslits_dict['spectrograph'])
 
     return stack_dict
