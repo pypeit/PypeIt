@@ -126,7 +126,8 @@ def main(args):
     waveimg = masterframe.master_name('wave', head0['ARCMKEY'], mdir)
     # Load Tslits
     # THIS WILL BREAK WHEN PYPCALIB varies from calib type to calib type
-    master_key = '{:s}'.format(head0['TRACMKEY'])
+    tmp_key = '{:s}'.format(head0['TRACMKEY'])
+    master_key = tmp_key[0:-2] + '{:02d}'.format(args.det)
     trc_file = masterframe.master_name('trace', master_key, mdir)
     tslits_dict = traceslits.load_tslits_dict(trc_file)
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
@@ -160,6 +161,7 @@ def main(args):
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
                                   bitmask=mask_in, clear=True) #, cuts=(cut_min, cut_max), wcs_match=True)
+    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)#, args.det)
 
     # SKYSUB
     image = (sciimg - skymodel) * (mask == 0)  # sky subtracted image
