@@ -38,8 +38,14 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['sigdetect'] = 30.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
+        # Always sky subtract, starting with default parameters
+        par['scienceimage'] = pypeitpar.ScienceImagePar()
+
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'boxcar'
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -372,7 +378,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         """
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_blue'
-
         # 1D wavelength solution -- Additional parameters are grism dependent
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -404,12 +409,20 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
+            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                                      'sky_LRISb_400.fits')
         elif self.get_meta_value(scifile, 'dispname') == '400/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
+            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                                  'sky_LRISb_400.fits')
         elif self.get_meta_value(scifile, 'dispname') == '600/4000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
+            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                                      'sky_LRISb_600.fits')
         elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
+            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                                      'sky_LRISb_600.fits')
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
@@ -598,6 +611,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par
 
         """
+        # Lacosmic CR settings
+        #   Grab the defaults for LRISr
         binning = self.get_meta_value(scifile, 'binning')
         # Unbinned LRISr needs very aggressive LACosmics parameters for 1x1 binning
         if binning == '1,1':

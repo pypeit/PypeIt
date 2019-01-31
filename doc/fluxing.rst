@@ -4,10 +4,49 @@ Fluxing
 
 Overview
 ========
-The code matches a standard star to you science target based on
-the time(s) of observation. If multiple standard stars are
-supplied as calibration frames, PypeIt selects the standard star
-observed closest in time to your science observation for fluxing.
+Fluxing is done after the main run of PypeIt using a separate
+input file modeled after the PypeIt file.   This file sets
+the main parameters of the run and guides the process.
+See :ref:`fluxspec-file` for a complete example file.
+
+The top of the file sets fluxing parameters.  The spectrograph
+must *always* be set::
+
+   [rdx]
+     spectrograph = vlt_fors2
+
+See the FluxCalib ParSet documentation for other parameters
+that guide generation of the sensitivity function or the
+fluxing operation.
+
+Sensitivity Function
+--------------------
+
+If you wish to generate a sensitivity function from an
+input standard star file, then you need to set std_file
+and sensfunc::
+
+    [fluxcalib]
+       std_file = spec1d_STD_vlt_fors2_2018Dec04T004939.578.fits
+       sensfunc = bpm16274_fors2.fits
+
+The former specifies the spec1d spectrum file produced
+by PypeIt for the standard star.  The latter specifies
+the output file name, which will be overwritten if need be.
+
+Fluxing
+-------
+
+To flux one or more spec1d files, generate a `flux read`, e.g.::
+
+    flux read
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits FRB181112_fors2_1.fits
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits FRB181112_fors2_2.fits
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits FRB181112_fors2_3.fits
+    flux end
+
+The first entry of each row is the spec1d file to be fluxed
+and the second provides the output filename.
 
 .. _fluxspec-script:
 
@@ -18,54 +57,23 @@ It may be preferential to flux the spectra after the main reduction
 (i.e. run_pypeit).  PypeIt provides a script to guide the process.
 Here is the usage::
 
-    usage: pypeit_flux_spec [-h] [--std_file STD_FILE] [--std_obj STD_OBJ]
-                           [--sci_file SCI_FILE] [--instr INSTR]
-                           [--sensfunc_file SENSFUNC_FILE] [--flux_file FLUX_FILE]
-                           [--plot] [--multi_det MULTI_DET]
-                           steps
+    pypeit_flux_spec FRB181112.flux -h
+    usage: pypeit_flux_spec [-h] [--debug] [--plot] [--par_outfile] flux_file
 
     Parse
 
     positional arguments:
-      steps                 Steps to perform [sensfunc,flux]
+      flux_file      File to guide fluxing process
 
     optional arguments:
-      -h, --help            show this help message and exit
-      --std_file STD_FILE   File containing the standard 1d spectrum
-      --std_obj STD_OBJ     Standard star identifier, e.g. O479-S5009-D01-I0023
-      --sci_file SCI_FILE   File containing the science 1d spectra
-      --instr INSTR         Instrument name (required to generate sensfunc)
-      --sensfunc_file SENSFUNC_FILE
-                            File containing the sensitivity function (input or
-                            output)
-      --flux_file FLUX_FILE
-                            Output filename for fluxed science spectra
-      --plot                Show the sensitivity function?
-      --multi_det MULTI_DET
-                            Multiple detectors (e.g. 3,7 for DEIMOS)
+      -h, --help     show this help message and exit
+      --debug        show debug plots?
+      --plot         Show the sensitivity function?
+      --par_outfile  Output to save the parameters
 
-
-We suggest you first generate the sensitivity function.  Here is an
-example command::
-
-    pypeit_flux_spec sensfunc --std_file=spec1d_Feige66_KASTb_2015May20T041246.96.fits  --instr=shane_kast_blue --sensfunc_file=tmp.yaml
-
-This writes the sensitivity function to tmp.yaml.  You can inspect it visually
-by running with --plot.
-
-You can then flux any spec1d file with a command like::
-
-    pypeit_flux_spec flux --sci_file=spec1d_J1217p3905_KASTb_2015May20T045733.56.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
-
-The output file with flam and flam_var arrays is given by --flux_file.
-
-For instruments like DEIMOS where the spectrum runs across multiple
-detectors, one can splice the spectra together to generate one
-sensfunc, e.g.::
-
-    pypeit_flux_spec sensfunc --std_file=spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits  --instr=keck_deimos --sensfunc_file=sens.yaml --multi_det=3,7
-
-This should work on any spec1d science object with overlapping wavelength coverage.
+The parameters used to guide the process are written to par_outfile
+(default = fluxing.par) and --plot will generate a simple plot of
+the sensitivity function.
 
 .. _fluxspec-class:
 
@@ -78,6 +86,28 @@ See the
 Notebook on GitHub (in doc/nb) for some usage examples, although
 we recommend that most users use the :ref:`fluxspec-script`.
 
+.. _fluxspec-file:
+
+Example File
+============
+
+Here is a complete example file::
+
+    # User-defined fluxing parameters
+    [rdx]
+       spectrograph = vlt_fors2
+    [fluxcalib]
+       balm_mask_wid = 12.
+       #std_file = spec1d_STD_vlt_fors2_2018Dec04T004939.578.fits
+       sensfunc = bpm16274_fors2.fits
+
+    flux read
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits FRB181112_fors2_1.fits
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits FRB181112_fors2_2.fits
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits FRB181112_fors2_3.fits
+    flux end
+
+Note the std_file is commented out to avoid remaking the sensitivity function.
 
 Sensitivity Function
 ====================

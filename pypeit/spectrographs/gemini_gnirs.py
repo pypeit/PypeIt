@@ -105,8 +105,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
+        par['scienceimage']['sig_thresh'] = 5.0
         par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['sn_gauss'] = 4.0
+        par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
 
         # Do not correct for flexure
         par['flexure'] = None
@@ -139,7 +140,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Required (core)
         meta['ra'] = dict(ext=0, card='RA')
         meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['target'] = dict(ext=0, card='OBJECT')
         meta['decker'] = dict(ext=0, card='DECKER')
 
         meta['binning'] = dict(ext=0, card=None, default='1,1')
@@ -234,6 +235,17 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return orders[islit]
 
 
+    def order_vec(self):
+        return self.slit2order(np.arange(self.norders))
+
+
+    def slit_minmax(self, nslits, binspectral=1):
+
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        spec_max = np.asarray([1022,1022,1022,1022,1022,1022])
+        spec_min = np.asarray([512,280, 0, 0, 0, 0])
+
+        return spec_min, spec_max
 
     def slitmask(self, tslits_dict, pad=None, binning=None):
         """
@@ -277,6 +289,18 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
             slitmask[orderbad] = -1
         return slitmask
+
+
+    def wavegrid(self, binning=None):
+
+        # Define the new wavelength grid for GNIRS
+        ngrid = 5000
+        dloglam = 0.000127888 # this is the average of the median dispersions
+        logmin = 3.777
+        osamp = 1.0
+        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+
+        return np.power(10.0,loglam_grid)
 
 
     def get_match_criteria(self):

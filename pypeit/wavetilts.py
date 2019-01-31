@@ -13,7 +13,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit import ginga
 from pypeit.core import arc
-from pypeit.core import tracewave
+from pypeit.core import tracewave, pixels
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 import copy
@@ -88,13 +88,13 @@ class WaveTilts(masterframe.MasterFrame):
         # Set the slitmask and slit boundary related attributes that the code needs for execution. This also deals with
         # arcimages that have a different binning then the trace images used to defined the slits
         if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = self.spectrograph.slitmask(self.tslits_dict)
+            self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
             inmask = (self.bpm == 0) if self.bpm is not None else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.shape
-            self.nslits = self.tslits_dict['lcen'].shape[1]
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['lcen'])
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['rcen'])
+            self.nslits = self.tslits_dict['slit_left'].shape[1]
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_left'])
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_righ'])
             self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.inmask = (arc.resize_mask2arc(self.shape_arc, inmask)) & (self.msarc < self.nonlinear_counts)
@@ -427,15 +427,15 @@ class WaveTilts(masterframe.MasterFrame):
 
         viewer, ch = ginga.show_image(self.arcimg*(self.slitmask == slit), chname='Tilts')
         ginga.show_tilts(
-            viewer, ch, self.trace_dict, sedges=(self.tslits_dict['lcen'][:,slit],self.tslits_dict['rcen'][:,slit]),
+            viewer, ch, self.trace_dict, sedges=(self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit]),
             points = True, clear_canvas=True)
 
         # TODO Need to update the show function!
 
         """
         # ToDO I don't see why we are not looping over all slits for all of this. Why should we restrict to an individual fit?
-        if (self.tslits_dict['lcen'] is not None) and (slit is not None):
-            sedges=(self.tslits_dict['lcen'][:,slit], self.tslits_dict['rcen'][:,slit])
+        if (self.tslits_dict['slit_left'] is not None) and (slit is not None):
+            sedges=(self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:,slit])
         else:
             sedges = None
         if attr == 'fweight':

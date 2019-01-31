@@ -14,17 +14,13 @@ import pytest
 from pypeit import fluxspec
 from pypeit.scripts import flux_spec
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
-@pytest.fixture
-@dev_suite_required
-def master_dir():  # THIS SHOULD NOT BE COOKED.  EVER
-    return data_path('MF_shane_kast_blue')
 
 
 # TODO: Not used
@@ -39,75 +35,61 @@ def deimos_files():
 @dev_suite_required
 def kast_blue_files():
     std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_Feige66_KASTb_2015May20T041246.96.fits')
+                            'spec1d_Feige66_KASTb_2015May20T041246.960.fits')
     sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_J1217p3905_KASTb_2015May20T045733.56.fits')
+                            'spec1d_J1217p3905_KASTb_2015May20T045733.560.fits')
     return [std_file, sci_file]
 
 
-'''
 @dev_suite_required
-def test_run_from_spec1d(kast_blue_files, master_dir):
-    # Instantiate
+def test_gen_sensfunc(kast_blue_files):
+    # Get it started
+    spectrograph = load_spectrograph('shane_kast_blue')
+    par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
-    FxSpec = fluxspec.FluxSpec(std_spec1d_file=std_file, sci_spec1d_file=sci_file,
-                             spectrograph='shane_kast_blue', master_key='A_01_aa',
-                               master_dir=master_dir)
+    # Instantiate
+    FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'])
     assert FxSpec.frametype == 'sensfunc'
     # Find the standard
+    FxSpec.load_objs(std_file, std=True)
     std = FxSpec.find_standard()
-    #assert std.idx == 'O479-S5009-D01-I0023'
     # Generate the sensitivity function
     sens_dict = FxSpec.generate_sensfunc()
+    #
     assert isinstance(sens_dict, dict)
     assert 'FEIGE66' in sens_dict['std_name']
     assert FxSpec.steps[-1] == 'generate_sensfunc'
+    # Master
+    FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=data_path('sensfunc.fits'))
+
+
+@dev_suite_required
+def test_from_sens_func(kast_blue_files ):
+    """ This test will fail if the previous one does as it need its output
+    """
+    spectrograph = load_spectrograph('shane_kast_blue')
+    par = spectrograph.default_pypeit_par()
+    std_file, sci_file = kast_blue_files
+    # Instantiate
+    FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], sens_file=data_path('sensfunc.fits'))
+    assert 'FEIGE66' in FxSpec.sens_dict['std_name']
     # Flux me some science
-    FxSpec.flux_science()
+    FxSpec.flux_science(sci_file)
     assert 'FLAM' in FxSpec.sci_specobjs[0].optimal.keys()
     # Write
     FxSpec.write_science(data_path('tmp.fits'))
-    # Master
-    FxSpec.save_master(FxSpec.sens_dict)
-    # Load from Master
-    sens_dict = FxSpec.load_master(FxSpec.ms_name, force=True)
-    assert 'FEIGE66' in sens_dict['std_name']
-'''
 
 
 @dev_suite_required
-def test_from_sens_func(master_dir):
-    """ This test will fail if the previous one does as it need its output
-    """
-    # TODO: Should change this to a from_sens_file instance.  Most of
-    # the class is uninstantiated and methods will fail if you
-    # instantiate this way...
-
-    # JFH Not sure what the problem is here, but the relevant file is missing and it says above this should not
-    # point to cooked.
-    FxSpec3 = fluxspec.FluxSpec(spectrograph='shane_kast_blue',
-                                sens_file=os.path.join(master_dir,'MasterSensFunc_A_aa.fits'))
-    assert isinstance(FxSpec3.sens_dict, dict)
-
-
-"""
-@dev_suite_required
-def test_script(kast_blue_files, deimos_files):
-    std_file, sci_file = kast_blue_files
+def test_script():
     # Sensitivity function
-    pargs = flux_spec.parser(['sensfunc',
-                              '--std_file={:s}'.format(std_file),
-                              '--instr=shane_kast_blue',
-                              '--sensfunc_file={:s}'.format(data_path('tmp.fits'))])
+    pargs = flux_spec.parser([data_path('test.flux')])
     # Run
-    flux_spec.main(pargs)
+    flux_spec.main(pargs, unit_test=True)
 
-    # Flux me
-    pargs2 = flux_spec.parser(['flux',
-                               '--sci_file={:s}'.format(sci_file),
-                               '--sensfunc_file={:s}'.format(data_path('tmp.fits')),
-                               '--flux_file={:s}'.format(data_path('tmp_fluxed.fits'))])
-    flux_spec.main(pargs2)
+    # Check for output
+    assert os.path.isfile('test_sensfunc.fits')
+
 
     # DEIMOS (multi-det)
     #pypeit_flux_spec sensfunc --std_file=spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits  --instr=keck_deimos --sensfunc_file=sens.yaml --multi_det=3,7
@@ -122,4 +104,3 @@ def test_script(kast_blue_files, deimos_files):
     '''
 
 
-"""

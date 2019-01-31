@@ -270,6 +270,7 @@ class Calibrations(object):
             self.msbias: ndarray or str
 
         """
+
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
@@ -470,8 +471,8 @@ class Calibrations(object):
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
                     # Add tweaked boundaries to the MasterTrace file
-                    self.traceSlits.lcen_tweak = self.flatField.tslits_dict['lcen']
-                    self.traceSlits.rcen_tweak = self.flatField.tslits_dict['rcen']
+                    self.traceSlits.slit_left_tweak = self.flatField.tslits_dict['slit_left']
+                    self.traceSlits.slit_righ_tweak = self.flatField.tslits_dict['slit_righ']
                     self.traceSlits.save_master()
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
@@ -541,7 +542,7 @@ class Calibrations(object):
         prev_build = self.check_for_previous('trace', self.trace_master_key)
         if prev_build and (not redo):
             self.tslits_dict = self.calib_dict[self.trace_master_key]['trace']
-            self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+            self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
             return self.tslits_dict, self.maskslits
 
         # Instantiate (without mstrace)
@@ -595,7 +596,7 @@ class Calibrations(object):
 
         # Save, initialize maskslits, and return
         self.calib_dict[self.trace_master_key]['trace'] = self.tslits_dict
-        self.maskslits = np.zeros(self.tslits_dict['lcen'].shape[1], dtype=bool)
+        self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
 
         return self.tslits_dict, self.maskslits
 
@@ -709,7 +710,7 @@ class Calibrations(object):
             self.waveCalib.wv_calib = self.wv_calib
 
         # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
-        self.wv_maskslits = self.waveCalib.make_maskslits(self.tslits_dict['lcen'].shape[1])
+        self.wv_maskslits = self.waveCalib.make_maskslits(self.tslits_dict['slit_left'].shape[1])
         self.maskslits += self.wv_maskslits
 
         # Save & return

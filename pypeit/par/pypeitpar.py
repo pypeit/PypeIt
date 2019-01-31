@@ -581,14 +581,14 @@ class FlexurePar(ParSet):
         dtypes['method'] = str
         descr['method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
-                          'extraction of objects.  ' \
+                          'extraction of objects (not recommended).  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
         defaults['maxshift'] = 20
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
-        # TODO: THIS IS NOT USED!
+        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -622,7 +622,7 @@ class FlexurePar(ParSet):
         """
         Return the valid flat-field methods
         """
-        return [ 'boxcar', 'slitcen', 'skip' ]
+        return ['boxcar', 'slitcen', 'skip']
 
     def validate(self):
         """
@@ -644,7 +644,8 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, nonlinear=None, sensfunc=None):
+    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None,
+                 star_type=None, star_mag=None, multi_det=None, telluric=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -657,17 +658,35 @@ class FluxCalibrationPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        # TODO: I don't think this is used anywhere
-        defaults['nonlinear'] = False
-        dtypes['nonlinear'] = bool
-        descr['nonlinear'] = 'Perform a non-linear correction.  Requires a series of ' \
-                             'pixelflats of the same lamp and setup and with a variety of ' \
-                             'exposure times and count rates in every pixel.'
+        defaults['balm_mask_wid'] = 5.
+        dtypes['balm_mask_wid'] = float
+        descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
+
+        dtypes['std_file'] = str
+        descr['std_file'] = 'Standard star file to generate sensfunc'
+
+        dtypes['std_obj_id'] = [str, int]
+        descr['std_obj_id'] = 'Specifies object in spec1d file to use as standard.' \
+            ' The brightest object found is used otherwise.'
+
+        dtypes['multi_det'] = list
+        descr['multi_det'] = 'List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)' \
+                        ' They are assumed to be in order of increasing wavelength' \
+                        ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
 
         dtypes['sensfunc'] = str
-        descr['sensfunc'] = 'YAML file with an existing calibration function'
+        descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
+
+        defaults['telluric'] = False
+        dtypes['telluric'] = bool
+        descr['telluric'] = 'If telluric=True the code creates a sintetic standard star spectrum using the Kurucz models, ' \
+            'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
+
+        dtypes['star_type'] = float
+        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
+
+        dtypes['star_mag'] = float
+        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
 
         # Instantiate the parameter set
         super(FluxCalibrationPar, self).__init__(list(pars.keys()),
@@ -680,7 +699,8 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'nonlinear', 'sensfunc' ]
+        parkeys = ['balm_mask_wid',  'sensfunc', 'std_file', 'std_obj_id',
+                   'star_type', 'star_mag', 'multi_det', 'telluric']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -690,7 +710,7 @@ class FluxCalibrationPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        if self.data['sensfunc'] is not None and not os.path.isfile(self.data['sensfunc']):
+        if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 
@@ -946,7 +966,7 @@ class ReducePar(ParSet):
                 'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
                 'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
                 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-                'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b']
+                'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'vlt_fors2']
 
     def validate(self):
         pass
@@ -1302,9 +1322,9 @@ class TraceSlitsPar(ParSet):
                 pars['trim'] = tuple(pars['trim'])
             except:
                 raise TypeError('Could not convert provided trim to a tuple.')
-        defaults['trim'] = (3,3)
+        defaults['trim'] = (0,0)
         dtypes['trim'] = tuple
-        descr['trim'] = 'How much to trim off each edge of each slit'
+        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 or positive'
 
         dtypes['maxgap'] = int
         descr['maxgap'] = 'Maximum number of pixels to allow for the gap between slits.  Use ' \
@@ -1818,7 +1838,8 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, manual=None):
+    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
+                 no_poly=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1846,6 +1867,10 @@ class ScienceImagePar(ParSet):
         dtypes['bspline_spacing'] = [int, float]
         descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
 
+        defaults['no_poly'] = False
+        dtypes['no_poly'] = bool
+        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+
         defaults['sig_thresh'] = 10.0
         dtypes['sig_thresh'] = [int, float]
         descr['sig_thresh'] = 'Significance threshold for object finding.'
@@ -1860,6 +1885,12 @@ class ScienceImagePar(ParSet):
         descr['sn_gauss'] = 'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
                             'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract' \
                             'with a Gaussian with FWHM determined from the object finding.'
+
+        defaults['model_full_slit'] = False
+        dtypes['model_full_slit'] = bool
+        descr['model_full_slit'] = 'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will ' \
+                            'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
+                            'observations using narrow slits or echelle observations with narrow slits'
 
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
@@ -1877,7 +1908,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'manual']
+        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

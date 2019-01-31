@@ -103,9 +103,9 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
 
     if ycen is None:
         if ndim == 1:
-            ycen_out = np.arange(npix, dtype='int')
+            ycen_out = np.arange(npix, dtype=int)
         elif ndim == 2:
-            ycen_out = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
+            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
         else:
             raise ValueError('trace is not 1 or 2 dimensional')
     else:
@@ -209,7 +209,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
     # Checks on radius
     if (isinstance(radius_in,int) or isinstance(radius_in,float)):
         radius = radius_in
-    elif ((np.size(radius)==np.size(trace_in)) & (np.shape(radius) == np.shape(trace_in))):
+    elif ((np.size(radius_in)==np.size(trace_in)) & (np.shape(radius_in) == np.shape(trace_in))):
         radius = radius_in.T
     else:
         raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
@@ -230,7 +230,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
         if ndim == 1:
             ycen_out = np.arange(npix, dtype='int')
         elif ndim == 2:
-            ycen_out = np.outer(np.ones(nTrace, dtype='int'), np.arange(npix, dtype='int'), )
+            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
         else:
             raise ValueError('trace is not 1 or 2 dimensional')
     else:
@@ -1035,12 +1035,31 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
     l_limit = ((sigma_x.flat[ss])[::-1])[lp] - 0.1
     r_limit = sigma_x.flat[ss[rp]] + 0.1
 
+    # Determine the left and right locations (l_limit and r_limit) where the profile logarithmic derivative crosses 1.0 for apodization
+    # of the object profiles. If the profile slope is never actually one, then just find the maximum value in the interval between
+    # (l_limit, -1.0) or (1.0, r_limit)
+    l_lim_vec = np.arange(l_limit+0.1,-1.0, 0.1)
+    l_lim_vec = np.asarray([-1.1]) if len(l_lim_vec) == 0 else l_lim_vec
+    l_fit1, _ = bset.value(l_lim_vec)
+    l_fit2, _ = bset.value(l_lim_vec*0.9)
+    l_deriv_vec = (np.log(l_fit2) - np.log(l_fit1))/(0.1*l_lim_vec)
+    l_deriv_max = np.fmax(l_deriv_vec.min(), -1.0)
+
+    r_lim_vec = np.arange(r_limit-0.1,1.0, -0.1)
+    r_lim_vec = np.asarray([1.1]) if len(r_lim_vec) == 0 else r_lim_vec
+
+    r_fit1, _ = bset.value(r_lim_vec)
+    r_fit2, _ = bset.value(r_lim_vec*0.9)
+    r_deriv_vec = (np.log(r_fit2) - np.log(r_fit1))/(0.1*r_lim_vec)
+    r_deriv_max = np.fmin(r_deriv_vec.max(), 1.0)
+
+
     while True:
         l_limit += 0.1
         l_fit, _ = bset.value(np.asarray([l_limit]))
         l2, _ = bset.value(np.asarray([l_limit])* 0.9)
         l_deriv = (np.log(l2[0]) - np.log(l_fit[0]))/(0.1*l_limit)
-        if (l_deriv < -1.0) | (l_limit >= -1.0):
+        if (l_deriv <= l_deriv_max) | (l_limit >= -1.0):
             break
 
     while True:
@@ -1048,9 +1067,8 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
         r_fit, _ = bset.value(np.asarray([r_limit]))
         r2, _ = bset.value(np.asarray([r_limit])* 0.9)
         r_deriv = (np.log(r2[0]) - np.log(r_fit[0]))/(0.1*r_limit)
-        if (r_deriv > 1.0) | (r_limit <= 1.0):
+        if (r_deriv >= r_deriv_max) | (r_limit <= 1.0):
             break
-
 
     # JXP kludge
     if prof_nsigma is not None:
@@ -1058,13 +1076,12 @@ def fit_profile(image, ivar, waveimg, trace_in, wave, flux, fluxivar,
        l_limit = 0.0
        r_limit = 0.0
 
-
-    # Hack to fix degenerate profiles which have a positive derivative
+    # Apodization of object profiles with exponential, ensuring continuity of first derivative
     if (l_deriv < 0) and (r_deriv > 0) and no_deriv is False:
         left = sigma_x.flatten() < l_limit
-        full_bsp[left] =  np.exp(-(sigma_x.flat[left]-l_limit)*l_deriv) * l_fit
+        full_bsp[left] =  np.exp(-(sigma_x.flat[left]-l_limit)*l_deriv) * l_fit[0]
         right = sigma_x.flatten() > r_limit
-        full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit
+        full_bsp[right] = np.exp(-(sigma_x.flat[right] - r_limit) * r_deriv) * r_fit[0]
 
     # Final object profile
     full_bsp = full_bsp.reshape(nspec,nspat)
@@ -1967,7 +1984,7 @@ def pca_trace(xinit, predict = None, npca = None, pca_explained_var=99.0,
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_link=1.0, order_vec=None, plate_scale=0.2,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, snr_trim=True, min_snr=0.2, nabove_min_snr=1,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, min_snr=-np.inf, nabove_min_snr=1,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), show_peaks=False, show_fits=False, show_trace=False, show_single_trace=False, debug=False):
@@ -2016,8 +2033,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
        the number of components contains approximately 99% of the variance
     coeff_npoly: int, default = None,
        order of polynomial used for PCA coefficients fitting. Default is None and this will be determined automatically.
-    snr_trim: bool, default=True
-       Trim objects based on S/N ratio determined from quick extraction
     min_snr: float, default = 0.2
        Minimum SNR for keeping an object. For an object to be kept it must have a median S/N ratio above min_snr for
        at least nabove_min_snr orders.
@@ -2272,25 +2287,21 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
             spec = sobjs_align[indx][0]
             thismask = slitmask == iord
             inmask_iord = inmask & thismask
-            if snr_trim:
-                # TODO make the snippet below its own function quick_extraction()
-                box_rad_pix = box_radius/plate_scale_ord[iord]
-                flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-                var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-                ivar_tmp = utils.calc_ivar(var_tmp)
-                pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-                mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
-                flux_box[:,iord,iobj] = flux_tmp*mask_tmp
-                ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
-                mask_box[:,iord,iobj] = mask_tmp
-                (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
-                sigma_lower=5.0,sigma_upper=5.0)
-                # ToDO assign this to sobjs_align for use in the extraction
-                SNR_arr[iord,iobj] = med_sn
-                spec.ech_snr = med_sn
-            else:
-                SNR_arr[iord, iobj] = 1e10
-                spec.ech_snr = 1e10
+            # TODO make the snippet below its own function quick_extraction()
+            box_rad_pix = box_radius/plate_scale_ord[iord]
+            flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+            var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+            ivar_tmp = utils.calc_ivar(var_tmp)
+            pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+            mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
+            flux_box[:,iord,iobj] = flux_tmp*mask_tmp
+            ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
+            mask_box[:,iord,iobj] = mask_tmp
+            (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
+            sigma_lower=5.0,sigma_upper=5.0)
+            # ToDO assign this to sobjs_align for use in the extraction
+            SNR_arr[iord,iobj] = med_sn
+            spec.ech_snr = med_sn
 
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
@@ -2313,6 +2324,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
                       ' on at least nabove_min_snr >= {:d}'.format(nabove_min_snr) + ' orders')
 
     nobj_trim = np.sum(keep_obj)
+
     if nobj_trim == 0:
         sobjs_final = specobjs.SpecObjs()
         skymask = create_skymask_fwhm(sobjs_final, allmask)
@@ -2382,4 +2394,3 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
         canvas.add('constructedcanvas', canvas_list)
 
     return sobjs_final, skymask[allmask]
-

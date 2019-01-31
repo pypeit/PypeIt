@@ -596,6 +596,7 @@ def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir, outfile, c
             prihdu.header.add_history(str(tmp))
 
         # PYPEIT
+        # TODO Should the spectrograph be written to the header?
         prihdu.header['PIPELINE'] = str('PYPEIT')
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
         prihdu.header['FRAMMKEY'] = master_key_dict['frame']
@@ -605,6 +606,7 @@ def save_2d_images(sci_output, rawfile, ext0, master_key_dict, mfdir, outfile, c
         prihdu.header['TRACMKEY']  = master_key_dict['trace']
         prihdu.header['FLATMKEY']  = master_key_dict['flat']
         prihdu.header['PYPMFDIR'] = str(mfdir)
+
 
     # Fill in the images
     ext = len(hdus) - 1

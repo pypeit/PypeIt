@@ -156,7 +156,7 @@ def test_median_ratio_flux():
     spec2 = dummy_spectrum(s2n=10)
     spec2.data['flux'][0,:] *= 2.
     spec = collate([spec1,spec2])
-    smask = spec.data['sig'].filled(0.) <= 0.
+    smask = spec.data['sig'].filled(0.) > 0.
     # Put in a bad pixel
     med_flux = coadd.median_ratio_flux(spec, smask, 1, 0)
     np.testing.assert_allclose(med_flux, 0.5, atol=0.05)
@@ -168,23 +168,26 @@ def test_sn_weight():
     dspec = dummy_spectra(s2n=0.3, seed=1234)
     cat_wave = coadd.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
-    smask = rspec.data['sig'].filled(0.) <= 0.
-    sn2, weights = coadd.sn_weight(rspec, smask)
-    np.testing.assert_allclose(sn2[0], 0.095, atol=0.1)  # Noise is random
+    smask = rspec.data['sig'].filled(0.) > 0.
+    fluxes, sigs, wave = coadd.unpack_spec(rspec)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    np.testing.assert_allclose(rms_sn[0], 0.318, atol=0.1)  # Noise is random
     #  Low S/N first
     dspec = dummy_spectra(s2n=3., seed=1234)
     cat_wave = coadd.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
-    smask = rspec.data['sig'].filled(0.) <= 0.
-    sn2, weights = coadd.sn_weight(rspec, smask)
-    np.testing.assert_allclose(sn2[0], 8.6, atol=0.1)  # Noise is random
+    smask = rspec.data['sig'].filled(0.) > 0.
+    fluxes, sigs, wave = coadd.unpack_spec(rspec)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    np.testing.assert_allclose(rms_sn[0], 2.934, atol=0.1)  # Noise is random
     #  High S/N now
     dspec2 = dummy_spectra(s2n=10., seed=1234)
     cat_wave = coadd.new_wave_grid(dspec2.data['wave'], wave_method='concatenate')
     rspec2 = dspec2.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
-    smask = rspec2.data['sig'].filled(0.) <= 0.
-    sn2, weights = coadd.sn_weight(rspec2, smask)
-    np.testing.assert_allclose(sn2[0], 98.0, atol=0.1)  # Noise is random
+    smask = rspec2.data['sig'].filled(0.) > 0.
+    fluxes, sigs, wave = coadd.unpack_spec(rspec2)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    np.testing.assert_allclose(rms_sn[0], 9.904, atol=0.1)  # Noise is random
 
 
 def test_scale():
@@ -193,30 +196,34 @@ def test_scale():
     dspec = dummy_spectra(s2n=10.)
     cat_wave = coadd.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
-    smask = rspec.data['sig'].filled(0.) <= 0.
+    smask = rspec.data['sig'].filled(0.) > 0.
     sv_high = rspec.copy()
-    sn2, weights = coadd.sn_weight(rspec, smask)
-    _, _ = coadd.scale_spectra(rspec, smask, sn2, hand_scale=[3., 5., 10.], scale_method='hand')
+    fluxes, sigs, wave = coadd.unpack_spec(rspec)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    _, _ = coadd.scale_spectra(rspec, smask, rms_sn, hand_scale=[3., 5., 10.], scale_method='hand')
     np.testing.assert_allclose(np.median(rspec.flux.value[rspec.sig>0.]), 3., atol=0.01)  # Noise is random
     # Median
     rspec = sv_high.copy()
-    sn2, weights = coadd.sn_weight(rspec, smask)
-    _, mthd = coadd.scale_spectra(rspec, smask, sn2, scale_method='median')
+    fluxes, sigs, wave = coadd.unpack_spec(rspec)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    _, mthd = coadd.scale_spectra(rspec, smask, rms_sn, scale_method='median')
     assert mthd == 'median_flux'
     np.testing.assert_allclose(np.median(rspec.flux.value[rspec.sig>0.]), 1., atol=0.01)  # Noise is random
     #  Auto-none
     dspec = dummy_spectra(s2n=0.1)
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
-    sn2, weights = coadd.sn_weight(rspec, smask)
-    an_scls, an_mthd = coadd.scale_spectra(rspec, smask, sn2)
+    fluxes, sigs, wave = coadd.unpack_spec(rspec)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    an_scls, an_mthd = coadd.scale_spectra(rspec, smask, rms_sn)
     assert an_mthd == 'none_SN'
     #  Auto-median
     dspec = dummy_spectra(s2n=1.5)
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
     rspec.data['flux'][1,:] *= 10.
     rspec.data['sig'][1,:] *= 10.
-    sn2, weights = coadd.sn_weight(rspec, smask)
-    am_scls, am_mthd = coadd.scale_spectra(rspec, smask, sn2, scale_method='median')
+    fluxes, sigs, wave = coadd.unpack_spec(rspec)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    am_scls, am_mthd = coadd.scale_spectra(rspec, smask, rms_sn, scale_method='median')
     assert am_mthd == 'median_flux'
     np.testing.assert_allclose(am_scls[1], 0.1, atol=0.01)
 
@@ -226,15 +233,15 @@ def test_grow_mask():
     # Setup
     dspec = dummy_spectrum(s2n=10.)
     mask = np.ma.getmaskarray(dspec.data['wave'][0,:])
-    mask[:] = False
+    mask[:] = True
     # Set some
-    mask[0] = True
-    mask[50] = True
-    mask[500] = True
+    mask[0] = False
+    mask[50] = False
+    mask[500] = False
     # Grow
     new_mask = coadd.grow_mask(mask, n_grow=1)
     # Test
-    badp = np.where(new_mask)[0]
+    badp = np.where(new_mask == False)[0]
     assert np.all(badp == np.array([0,1,49,50,51,499,500,501]))
     #badpb = np.where(new_mask[1,:])[0]
     #assert np.all(badpb == np.array([0,1]))
@@ -242,7 +249,7 @@ def test_grow_mask():
     #assert np.all(badpc == np.array([1098,1099]))
     # Grow 2
     new_mask2 = coadd.grow_mask(mask, n_grow=2)
-    badp2 = np.where(new_mask2)[0]
+    badp2 = np.where(new_mask2 == False)[0]
     assert len(badp2) == 13
 
 
@@ -252,8 +259,9 @@ def test_1dcoadd():
     dspec = dummy_spectra(s2n=10.)
     cat_wave = coadd.new_wave_grid(dspec.data['wave'], wave_method='concatenate')
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
-    smask = rspec.data['sig'].filled(0.) <= 0.
-    sn2, weights = coadd.sn_weight(rspec, smask)
+    smask = rspec.data['sig'].filled(0.) > 0.
+    fluxes, sigs, wave = coadd.unpack_spec(rspec)
+    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
     # Coadd
     spec1d = coadd.one_d_coadd(rspec, smask, weights)
     assert spec1d.npix == 1740

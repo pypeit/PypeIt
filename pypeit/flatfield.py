@@ -121,7 +121,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         """
         if self.tslits_dict is not None:
-            return self.tslits_dict['lcen'].shape[1]
+            return self.tslits_dict['slit_left'].shape[1]
         else:
             return 0
 
@@ -219,7 +219,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.mspixelflat = np.ones_like(self.rawflatimg)
         self.msillumflat = np.ones_like(self.rawflatimg)
         self.flat_model = np.zeros_like(self.rawflatimg)
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        self.slitmask = pixels.tslits2mask(self.tslits_dict)
 
 
         final_tilts = np.zeros_like(self.rawflatimg)
@@ -240,7 +240,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                self.spectrograph.detector[self.det - 1]['saturation']
             pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, slit_righ_out = \
                 flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict, slit,
-                              spectrograph=self.spectrograph, binning=self.binning, inmask=inmask,
+                              inmask=inmask,
                               nonlinear_counts=nonlinear_counts,
                               spec_samp_fine=self.flatpar['spec_samp_fine'], spec_samp_coarse=self.flatpar['spec_samp_coarse'],
                               spat_samp=self.flatpar['spat_samp'], tweak_slits=self.flatpar['tweak_slits'],
@@ -251,8 +251,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             self.flat_model[thismask_out] = flat_model[thismask_out]
             # Did we tweak slit boundaries? If so, update the tslits_dict and the tilts_dict
             if self.flatpar['tweak_slits']:
-                self.tslits_dict['lcen'][:, slit] = slit_left_out
-                self.tslits_dict['rcen'][:, slit] = slit_righ_out
+                self.tslits_dict['slit_left'][:, slit] = slit_left_out
+                self.tslits_dict['slit_righ'][:, slit] = slit_righ_out
                 final_tilts[thismask_out] = tilts_out[thismask_out]
 
         # If we tweaked the slits update the tilts_dict
@@ -284,8 +284,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         if slits:
             if self.tslits_dict is not None:
-                slit_ids = [trace_slits.get_slitid(self.rawflatimg.shape, self.tslits_dict['lcen'], self.tslits_dict['rcen'], ii)[0]
-                            for ii in range(self.tslits_dict['lcen'].shape[1])]
-                ginga.show_slits(viewer, ch, self.tslits_dict['lcen'], self.tslits_dict['rcen'], slit_ids)
+                slit_ids = [trace_slits.get_slitid(self.rawflatimg.shape, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'], ii)[0]
+                            for ii in range(self.tslits_dict['slit_left'].shape[1])]
+                ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'], slit_ids)
 
 

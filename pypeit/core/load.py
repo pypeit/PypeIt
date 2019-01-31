@@ -12,6 +12,7 @@ from astropy.io import fits
 from astropy.table import Table
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectra.utils import collate
 
 from pypeit import msgs
 from pypeit import specobjs
@@ -74,7 +75,7 @@ def load_ordloc(fname):
     return ltrace, rtrace
 
 
-def load_specobjs(fname):
+def load_specobjs(fname,order=None):
     """ Load a spec1d file into a list of SpecObjExp objects
     Parameters
     ----------
@@ -86,7 +87,7 @@ def load_specobjs(fname):
     head0
     """
     sobjs = specobjs.SpecObjs()
-    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS']
+    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
     # sobjs_keys gives correspondence between header cards and sobjs attribute name
     sobjs_key = specobjs.SpecObj.sobjs_key()
     hdulist = fits.open(fname)
@@ -103,6 +104,14 @@ def load_specobjs(fname):
             continue
         # Parse name
         idx = hdu.name
+        objp = idx.split('-')
+        if objp[-2][:5] == 'ORDER':
+            iord = int(objp[-2][5:])
+        else:
+            msgs.warn('Loading longslit data ?')
+            iord = int(-1)
+        if (order is not None) and (iord !=order):
+            continue
         specobj = specobjs.SpecObj(None, None, None, idx = idx)
         # Assign specobj attributes from header cards
         for attr, hdrcard in sobjs_key.items():
@@ -167,7 +176,7 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
 
     # Figure out which extension is the required data
     ordername = '{0:04}'.format(order)
-    extname = extnameroot.replace('OBJ0000', objid)
+    extname = extnameroot.replace('OBJ0001', objid)
     extname = extname.replace('ORDER0000', 'ORDER' + ordername)
     try:
         exten = extnames.index(extname) + 1
@@ -175,7 +184,7 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
     except:
         msgs.error("Spectrum {:s} does not contain {:s} extension".format(fname, extname))
 
-    spectrum = load.load_1dspec(fname, exten=exten, extract=extract, flux=flux)
+    spectrum = load_1dspec(fname, exten=exten, extract=extract, flux=flux)
     # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
     #   the floating point precision of float32 for var which is sig**2 (i.e. 1e38)
     bad_flux = np.any([np.isnan(spectrum.flux), np.isinf(spectrum.flux),
@@ -195,7 +204,6 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
 
     return spectrum_out
 
-# JFH This routine is deprecated.
 def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
     """Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
     Parameters:
@@ -218,7 +226,7 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
 
     fname = files[0]
     ext_final = fits.getheader(fname, -1)
-    norder = ext_final['ORDER'] + 1
+    norder = ext_final['ECHORDER'] + 1
     msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
     if norder <= 1:
         msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')

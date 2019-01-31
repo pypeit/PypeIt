@@ -11,7 +11,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
-from pypeit.core import arc
+from pypeit.core import pixels
 
 from pypeit import debugger
 
@@ -58,7 +58,7 @@ class WaveImage(masterframe.MasterFrame):
         self.wv_calib = wv_calib
         self.spectrograph = spectrograph
         self.binning = binning
-        self.slitmask = self.spectrograph.slitmask(self.tslits_dict)
+        self.slitmask = pixels.tslits2mask(self.tslits_dict)
         self.par = wv_calib['par']
 
         # Optional parameters

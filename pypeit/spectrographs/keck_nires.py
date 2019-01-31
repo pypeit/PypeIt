@@ -246,6 +246,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
+    def slit_minmax(self, nslits, binspectral=1):
+
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        spec_max = np.asarray([np.inf, np.inf, np.inf, np.inf, np.inf, np.inf])
+        spec_min = np.asarray([1024, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf])
+
+        return spec_min, spec_max
+
     def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
@@ -307,7 +315,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         orders = np.arange(7, 2, -1, dtype=int)
         return orders[islit]
 
-    def order_platescale(self, binning = None):
+    def order_vec(self):
+        return self.slit2order(np.arange(self.norders))
+
+
+    def order_platescale(self, binning=None):
 
 
         """
@@ -331,9 +343,27 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #binspatial, binspectral = parse.parse_binning(binning)
         return np.full(5, 0.15)
 
+    # JFH This function should probably take a disperser name or something for other instruments??
+    def wavegrid(self, binning=None):
+        """
+        For fixed format echelle spectrographs return the wavelength grid used for 2D coadds
+        Args:
+            binning:
 
+        Returns:
 
+        """
 
+        # Define the grid for NIRES
+        R = 2700.0 * 2.7
+        dloglam = 1.0 / R / np.log(10.0)
+        logmin = np.log10(9500.0)
+        logmax = np.log10(26000)
+        ngrid = int(np.ceil((logmax - logmin) / dloglam))
+        osamp = 1.0
+        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+
+        return np.power(10.0,loglam_grid)
 
 
 

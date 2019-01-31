@@ -15,7 +15,7 @@ import numpy as np
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 from pypeit import wavetilts
-from pypeit.core import tracewave
+from pypeit.core import tracewave, pixels
 from pypeit.par import pypeitpar
 
 
@@ -48,7 +48,7 @@ def test_step_by_step(master_dir):
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0
-    waveTilts.slitmask = waveTilts.spectrograph.slitmask(waveTilts.tslits_dict)
+    waveTilts.slitmask = pixels.tslits2mask(waveTilts.tslits_dict)
     thismask = waveTilts.slitmask == slit
     waveTilts.lines_spec, waveTilts.lines_spat = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
 

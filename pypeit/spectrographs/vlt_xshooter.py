@@ -189,6 +189,18 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 #        return match_criteria
 
 
+    @property
+    def norders(self):
+        return None
+
+    def slit2order(self, islit):
+        pass
+
+    def order_vec(self):
+        return self.slit2order(np.arange(self.norders))
+
+
+
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
@@ -214,10 +226,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 2.12,
                             ronoise         = 8.0, # ?? more precise value?
-                    # JFH TODO these are slightly off. There should actually be 4 pixels shaved off in the spectral
-                    # direction but I don't want to break the wavelength solutions.
-                            datasec         = '[20:,4:2044]',
-                            oscansec        = '[4:20,4:2044]',
+                            datasec         = '[4:,4:2044]', # These are all unbinned pixels
+                            # EMA: No real overscan for XSHOOTER-NIR: 
+                            # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
+                            # The overscan region below contains only zeros
+                            # ToDo should we just set it as empty?
+                            oscansec        = '[1:3,4:2044]', # These are all unbinned pixels.
                             suffix          = '_NIR'
                             )]
         self.numhead = 1
@@ -272,9 +286,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
+        # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
+        par['scienceframe']['process']['satpix'] = 'nothing'
 
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
@@ -354,13 +372,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
-                y_shift = 14
+                y_shift = -2
                 x_shift = 18
                 bpm_data = np.flipud(bpm_fits[0].data)
                 y_len = len(bpm_data[:,0])
                 x_len = len(bpm_data[0,:])
-                bpm_data_pypeit = np.full( ((y_len+y_shift),(x_len+x_shift)) , 0)
-                bpm_data_pypeit[:-y_shift,:-x_shift] = bpm_data_pypeit[:-y_shift,:-x_shift] + bpm_data
+                bpm_data_pypeit = np.full( ((y_len+abs(y_shift)),(x_len+abs(x_shift))) , 0)
+                bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] = bpm_data_pypeit[:-abs(y_shift),:-abs(x_shift)] + bpm_data
                 bpm_data_pypeit = np.roll(bpm_data_pypeit,-y_shift,axis=0)
                 bpm_data_pypeit = np.roll(bpm_data_pypeit,x_shift,axis=1)
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
@@ -426,6 +444,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
         return plate_scale
 
+    def slit_minmax(self, nslits, binspectral=1):
+
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
+        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
+
+        return spec_min, spec_max
+
 
     def slitmask(self, tslits_dict, pad=None):
         """
@@ -468,6 +494,22 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
             slitmask[orderbad] = -1
         return slitmask
+
+
+    def wavegrid(self, binning=None):
+
+        # Define the grid for VLT-XSHOOTER NIR
+        dloglam = 1.93724e-5
+        # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
+        # loglam across the orders deviates from this value by +-6% from this first to final order
+        logmin = np.log10(9500.0)
+        logmax = np.log10(26000)
+        ngrid = int(np.ceil((logmax - logmin) / dloglam))
+        osamp = 1.0
+        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+
+        return np.power(10.0,loglam_grid)
+
 
 
 
@@ -556,11 +598,15 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['illumflatten'] = True
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
-        # TODO FIX THIS TO USE BIASES!!
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
+        # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
 
         return par
@@ -640,6 +686,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         return plate_scale*binspatial
 
 
+    def slit_minmax(self, nslits, binspectral=1):
+
+        spec_max = np.asarray([4000]*14 + [3000])//binspectral
+        spec_min = np.asarray([2000,1000] + [0]*13)//binspectral
+
+        return spec_min, spec_max
+
     def slitmask(self, tslits_dict, pad=None):
         """
          Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
@@ -706,12 +759,21 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
+        # ToDo Ema: This is just a workaround to deal with
+        # different binning. I guess binspatial and binspectral
+        # should be passed in.
+        if shape[0]<3000.:
+            binspectral_bpm=2
+        else:
+            binspectral_bpm=1
+        if shape[1]<1500.:
+            binspatial_bpm=2
+        else:
+            binspatial_bpm=1
+
         self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            # TODO: This is for the 1x1 binning it should
-            # change for other binning
-            self.bpm_img[2912:,824:826] = 1.
-
+            self.bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return self.bpm_img
 
 
@@ -742,7 +804,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[49:,1:]', # '[49:2000,1:2999]',
+                            datasec         = '[49:2096,1:]', # '[49:2000,1:2999]',
                             oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             )]

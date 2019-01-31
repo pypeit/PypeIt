@@ -1,0 +1,5 @@
+# Incomplete list of the ESO standards
+# https://www.eso.org/sci/observing/tools/standards/spectra/stanlis.html
+  File                    Name        RA_2000    DEC_2000
+fbpm16274.dat           BPM16274   00:50:03.65 -52:08:15.5
+
