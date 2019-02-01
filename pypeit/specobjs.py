@@ -100,8 +100,8 @@ class SpecObj(object):
         self.trace_spat = None
         self.spat_pixpos = spat_pixpos # Position on the image in pixels at the midpoint of the slit in spectral direction
         self.maskwidth = None
-        self.mincol = None
-        self.maxcol = None
+        self.min_spat = None
+        self.max_spat = None
         self.prof_nsigma = None
         self.fwhmfit = None
         self.smash_nsig = None
