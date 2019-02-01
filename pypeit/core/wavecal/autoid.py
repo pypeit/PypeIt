@@ -741,7 +741,6 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         if len(gd_det) < 4:
             msgs.warn("Not enough useful IDs")
             wvcalib[str(slit)] = None
-            debugger.set_trace()
             continue
         # Fit
         try:

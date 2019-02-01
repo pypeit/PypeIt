@@ -131,7 +131,7 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial = headarr[0]['CCDXBIN']
             binspec = headarr[0]['CCDYBIN']
-            return parse.binning2string(binspatial, binspec)
+            return parse.binning2string(binspec, binspatial)
         else:
             msgs.error("Not ready for this compound meta")
 
