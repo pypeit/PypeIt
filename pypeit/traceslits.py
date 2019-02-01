@@ -15,7 +15,6 @@ from astropy.io import fits
 from linetools import utils as ltu
 
 from pypeit import msgs
-from pypeit import debugger
 from pypeit.core import parse, trace_slits, extract, pixels
 from pypeit import utils
 from pypeit import masterframe
