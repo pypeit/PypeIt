@@ -1,4 +1,4 @@
-# Module for the ScienceImage class
+""" Module for the ScienceImage class"""
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -8,10 +8,13 @@ from pypeit import utils
 from pypeit import ginga
 from pypeit.core import coadd2d
 
+
 class ScienceImage(processimages.ProcessImages):
     """
     This class will organize and run actions related to
     a Science or Standard star exposure
+
+    ..todo.. Clean this up JFH
 
     Parameters
     ----------
@@ -252,29 +255,14 @@ class ScienceImage(processimages.ProcessImages):
         return sciimg, sciivar, rn2img, mask, crmask
 
 
-    def show(self, image, showmask=False, sobjs=None, chname=None, slits=False,clear=False):
+    def show(self, image, chname=None):
         """
         Show one of the internal images
 
-        .. todo::
-            Should probably put some of these in ProcessImages
+        Args:
+            image : ndarray, optional
+              User supplied image to display
 
-        Parameters
-        ----------
-        attr : str
-          global -- Sky model (global)
-          sci -- Processed science image
-          rawvar -- Raw variance image
-          modelvar -- Model variance image
-          crmasked -- Science image with CRs set to 0
-          skysub -- Science image with global sky subtracted
-          image -- Input image
-        display : str, optional
-        image : ndarray, optional
-          User supplied image to display
-
-        Returns
-        -------
 
         """
 

@@ -406,7 +406,6 @@ class Calibrations(object):
 
         # Instantiate
         self.flatField = flatfield.FlatField(self.spectrograph, files=pixflat_image_files,
-                                             binning=self.binning,
                                              det=self.det, par=self.par['pixelflatframe'],
                                              master_key=self.pixflat_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
@@ -537,14 +536,13 @@ class Calibrations(object):
             return self.tslits_dict, self.maskslits
 
         # Instantiate (without mstrace)
-        self.traceSlits = traceslits.TraceSlits(None, self.spectrograph,
+        self.traceSlits = traceslits.TraceSlits(None, self.spectrograph, self.par['slits'],
                                                 binning=self.binning,
-                                                par=self.par['slits'],
                                                 det=self.det, master_key=self.trace_master_key,
                                                 master_dir=self.master_dir,
                                                 redux_path=self.redux_path,
                                                 reuse_masters=self.reuse_masters,
-                                                binbpx=self.msbpm)
+                                                msbpm=self.msbpm)
 
         # Load via master, as desired
         self.tslits_dict = self.traceSlits.master(prev_build=prev_build)
