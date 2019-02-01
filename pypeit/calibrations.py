@@ -566,7 +566,7 @@ class Calibrations(object):
                                                          trim=self.par['trim'], apply_gain=True)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
-            binspatial, binspectral = parse.parse_binning(self.binning)
+            binspectral, binspatial = parse.parse_binning(self.binning)
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
             # User-defined slits??
@@ -689,7 +689,7 @@ class Calibrations(object):
         # Grab arc binning (may be different from science!)
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        binspat, binspec = parse.parse_binning(self.spectrograph.get_meta_value(
+        binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(
             self.arc_files[0], 'binning'))
         # Instantiate
         self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binspectral=binspec,

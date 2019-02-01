@@ -76,7 +76,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
             binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
-            binning = parse.binning2string(binspatial, binspec)
+            binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key in ['ra', 'dec']:
             try:  # Calibs do not have RA values
@@ -654,7 +654,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
 
 
-    def order_platescale(self, binning = None):
+    def order_platescale(self, binning=None):
         """
         Returns the plate scale in arcseconds for each order
 
@@ -673,7 +673,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         """
 
         # VIS has no binning, but for an instrument with binning we would do this
-        binspatial, binspectral = parse.parse_binning(binning)
+        binspectral, binspatial = parse.parse_binning(binning)
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
@@ -728,7 +728,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
 
         binning = tslits_dict['binning']
-        binspatial, binspectral = parse.parse_binning(binning)
+        binspectral, binspatial = parse.parse_binning(binning)
         # These are the order boundaries determined by eye by JFH.
         order_max = np.asarray([4000]*14 + [3000])//binspectral
         order_min = np.asarray([2000,1000] + [0]*13)//binspectral
@@ -912,7 +912,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         """
 
-        binspatial, binspectral = parse.parse_binning(binning)
+        binspectral, binspatial = parse.parse_binning(binning)
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.

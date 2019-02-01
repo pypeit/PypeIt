@@ -93,7 +93,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
 #            return '1,1'
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
-            binning = parse.binning2string(binspatial, binspec)
+            binning = parse.binning2string(binspec, binspatial)
             return binning
         else:
             msgs.error("Not ready for this compound meta")
@@ -426,7 +426,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
 
         # Slit tracing
         # Reduce the slit parameters because the flux does not span the full detector
