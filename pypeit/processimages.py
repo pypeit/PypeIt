@@ -421,7 +421,6 @@ class ProcessImages(object):
                 if trim:
                     image = procimg.trim_frame(image, datasec_img < 1)
                 temp = image-msbias
-                debugger.set_trace()
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtact")
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec[kk],

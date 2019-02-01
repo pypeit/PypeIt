@@ -416,7 +416,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         orders = np.arange(26,10,-1, dtype=int)
         return orders[islit]
 
-    def order_platescale(self, binning = None):
+    def order_platescale(self, binning=None):
         """
         Returns the spatial plate scale in arcseconds for each order
 
@@ -651,7 +651,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         orders = np.arange(30,15,-1, dtype=int)
 
         return orders[islit]
-
 
 
     def order_platescale(self, binning=None):

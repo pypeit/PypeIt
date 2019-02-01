@@ -28,6 +28,23 @@ outpath=resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
                    lowredux=True, ifiles=None, det_cut=None, chk=False):
+    """
+    Generate a full_template for a given instrument
+
+    Args:
+        in_files:
+        slits:
+        wv_cuts:
+        binspec:
+        outroot:
+        lowredux:
+        ifiles:
+        det_cut:
+        chk:
+
+    Returns:
+
+    """
     # Load xidl file
     # Grab it
     # Load and splice
@@ -274,12 +291,17 @@ def main(flg):
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
     if flg & (2**11):  # R1200
+        # slits = [2-3]  # 7726 -- 9250
+        # slits = [1-4]  # 9250 -- 9925
         binspec = 1
         outroot='keck_lris_red_1200_9000.fits'
-        slits = [3]  # 7726 -- 9294
-        lcut = []
-        wfile = os.path.join(template_path, 'Keck_LRIS', 'R1200_9000', 'MasterWaveCalib_A_1_02.json')
-        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+        ifiles = [0, 1]
+        slits = [3, 7]
+        lcut = [9250.]
+        wfile1 = os.path.join(template_path, 'Keck_LRIS', 'R1200_9000', 'MasterWaveCalib_A_1_02.json')  # Original Dev
+        wfile2 = os.path.join(template_path, 'Keck_LRIS', 'R1200_9000', 'MasterWaveCalib_A_1_01.json')  # Dev suite 2x1
+        build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
+                       ifiles=ifiles)
 
 
 # Command line execution
@@ -304,7 +326,7 @@ if __name__ == '__main__':
 
     # Keck/LRISr
     #flg += 2**10  # R400
-    #flg += 2**11  # R1200
+    flg += 2**11  # R1200
 
     # Shane/Kastr
     #  Need several arcs to proceed this way
