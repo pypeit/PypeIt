@@ -875,7 +875,7 @@ def tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc):
                                       function='legendre')
     #tmpa = (msarc.shape[0]-1)*utils.polyval2d_general(coeff, np.arange(1490, 1499)/(msarc.shape[1]-1),
     #tmpb = np.polynomial.legendre.legval2d(xsbs.flatten(), zsbs.flatten(), coeff)
-    tmpa = utils.polyval2d_general(coeff, np.arange(1490, 1499)/(msarc.shape[1]-1),
+    tmpa = polyval2d_general(coeff, np.arange(1490, 1499)/(msarc.shape[1]-1),
                                      np.array([968.5, 969.34])/(msarc.shape[0]-1),
                                      minx=0., maxx=1., miny=0., maxy=1.,
                                      function='legendre')
@@ -884,6 +884,29 @@ def tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc):
     # Return
     return tilts
 
+
+def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
+    """Document me please. I think this evaluates on an image??"""
+
+    if ('2d' in function):
+        function = function[:-2]
+
+    if function == "polynomial":
+        xx, yy = np.meshgrid(x, y)
+        return np.polynomial.polynomial.polyval2d(xx, yy, c)
+    elif function in ["legendre", "chebyshev"]:
+        # Scale x-direction
+        xv = scale_minmax(x, minx=minx, maxx=maxx)
+        # Scale y-direction
+        yv = scale_minmax(y, minx=miny, maxx=maxy)
+        xx, yy = np.meshgrid(xv, yv)
+        if function == "legendre":
+            return np.polynomial.legendre.legval2d(xx, yy, c)
+        elif function == "chebyshev":
+            return np.polynomial.chebyshev.chebval2d(xx, yy, c)
+    else:
+        msgs.error("Function {0:s} has not yet been implemented".format(function))
+    return None
 
 
 def prep_tilts_qa(msarc, all_tilts, tilts, arcdet, ordcen, slit, maskval=-999999.9):

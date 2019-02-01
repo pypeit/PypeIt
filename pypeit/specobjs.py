@@ -690,3 +690,31 @@ def lst_to_array(lst, mask=None):
     else:
         return np.array(lst)[mask]
 
+
+def unravel_specobjs(specobjs):
+    """
+    Likely to be Deprecated
+
+    Method to unwrap nested specobjs objects into a single list
+
+    Args:
+        specobjs (list of lists or list of SpecObj):
+
+    Returns:
+        list: list of SpecObj
+
+    """
+    # Wrapped is all None and lists
+    ans = [isinstance(ispec, (list, type(None))) for ispec in specobjs]
+    if np.all(ans):
+        all_specobj = []
+        for det in range(len(specobjs)):           # detector loop
+            if specobjs[det] is None:
+                continue
+            for sl in range(len(specobjs[det])):   # slit loop
+                for spobj in specobjs[det][sl]:    # object loop
+                    all_specobj.append(spobj)
+    else:
+        all_specobj = specobjs
+    # Return
+    return all_specobj

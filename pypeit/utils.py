@@ -43,8 +43,7 @@ def rebin(a, newshape):
         newshape:
           Shape of the new image desired. Dimensionality must be the same as a.
     Returns:
-        a_new: ndarray, same dtype as a
-          Image with same values as a rebinning to shape newshape
+        ndarray: same dtype as input Image with same values as a rebinning to shape newshape
     '''
 
     if not len(a.shape) == len(newshape):
@@ -55,7 +54,7 @@ def rebin(a, newshape):
     indices = coordinates.astype('i')  # choose the biggest smaller integer index
     return a[tuple(indices)]
 
-# JFH This function is only used by procimg.lacosmic. Can it be replaced by above?
+# TODO This function is only used by procimg.lacosmic. Can it be replaced by above?
 def rebin_evlist(frame, newshape):
     # This appears to be from
     # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
@@ -70,6 +69,7 @@ def rebin_evlist(frame, newshape):
 
 
 
+'''
 def quicksave(data,fname):
     """
     Save a fits file (quickly) -- overwrite is forced, and no quality control checks
@@ -80,7 +80,9 @@ def quicksave(data,fname):
         os.remove(fname)
     hdulist.writeto(fname)
     return
+'''
 
+'''
 def bspline_inner_knots(all_knots):
     """Trim to the inner knots.  Used in bspline_magfit
     Might be useful elsewhere
@@ -90,8 +92,10 @@ def bspline_inner_knots(all_knots):
     i0=pos[0]
     i1=pos[-1]
     return all_knots[i0:i1]
+'''
 
 
+'''
 # JFH Testing
 def zerocross1d(x, y, getIndices=False):
     """
@@ -158,11 +162,16 @@ def zerocross1d(x, y, getIndices=False):
         return zz
     else:
         return zz, zzindi
+'''
 
 
-
-# params for pretty matplotlib plots
 def pyplot_rcparams():
+    """
+    params for pretty matplotlib plots
+
+    Returns:
+
+    """
     # set some plotting parameters
     plt.rcParams["xtick.top"] = True
     plt.rcParams["ytick.right"] = True
@@ -187,12 +196,17 @@ def pyplot_rcparams():
     plt.rcParams["legend.frameon"] = False
     plt.rcParams["legend.handletextpad"] = 1
 
-# restore default rcparams
+
 def pyplot_rcparams_default():
+    """
+    restore default rcparams
+
+    Returns:
+
+    """
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
 
- # This code taken from this cookbook and slightly modified: https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
 def smooth(x, window_len, window='flat'):
     """smooth the data using a window with requested size.
 
@@ -200,6 +214,7 @@ def smooth(x, window_len, window='flat'):
     The signal is prepared by introducing reflected copies of the signal
     (with the window size) in both ends so that edge effects are minimize at the beginning and end part of the signal.
 
+     This code taken from this cookbook and slightly modified: https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
 
     input:
         x: the input signal
@@ -251,33 +266,27 @@ def smooth(x, window_len, window='flat'):
 
 def fast_running_median(seq, window_size):
     """
-      Compute the median of sequence of numbers with a running window. The boundary conditions are identical to the
-      scipy 'reflect' boundary codition:
+    Compute the median of sequence of numbers with a running window. The boundary conditions are identical to the
+    scipy 'reflect' boundary codition:
 
-         'reflect' (`d c b a | a b c d | d c b a`)
-         The input is extended by reflecting about the edge of the last pixel.
+     'reflect' (`d c b a | a b c d | d c b a`)
+     The input is extended by reflecting about the edge of the last pixel.
 
-      This code has been confirmed to produce identical results to scipy.ndimage.filters.median_filter with the reflect
-      boundary condition, but is ~ 100 times faster.
+    This code has been confirmed to produce identical results to scipy.ndimage.filters.median_filter with the reflect
+    boundary condition, but is ~ 100 times faster.
 
-      Parameters
-      ----------
-      seq : list or 1-d numpy array of numbers.
+    Args:
+        seq (list or 1-d numpy array of numbers):
+        window_size (int): size of running window.
 
-      window_size = size of running window.
+    Returns:
+        ndarray: median filtered values
 
-      Returns
-      -------
-      ndarray of median filtered values
+    Code contributed by Peter Otten, made to be consistent with scipy.ndimage.filters.median_filter by Joe Hennawi.
 
-      Code contributed by Peter Otten, made to be consistent with scipy.ndimage.filters.median_filter by Joe Hennawi.
-
-      See discussion at:
-      http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
-      """
-
-
-
+    See discussion at:
+    http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
+    """
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
@@ -307,7 +316,7 @@ def fast_running_median(seq, window_size):
 
 # TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
-    ''' bspline fit to x,y
+    """ bspline fit to x,y
     Should probably only be called from func_fit
 
     Parameters:
@@ -335,7 +344,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
     ---------
     tck : tuple
       describes the bspline
-    '''
+    """
     task = 0  # Default of splrep
     if w is None:
         ngd = x.size
@@ -571,11 +580,18 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
 
 def calc_ivar(varframe):
     """ Calculate the inverse variance based on the input array
+
+    Args:
+        varframe (ndarray):  Variance image
+
+    Returns:
+        ndarray:  Inverse variance image
     """
     ivar = (varframe > 0.) / (np.abs(varframe) + (varframe == 0))
     return ivar
 
 
+'''
 def calc_offset(raA, decA, raB, decB, distance=False):
     """
     Calculate the offset in arcseconds between two sky coordinates
@@ -587,12 +603,10 @@ def calc_offset(raA, decA, raB, decB, distance=False):
         return np.sqrt(delRA**2 + delDEC**2)
     else:
         return delRA, delDEC
-
-def dummy_fitsdict(nfile=10, spectrograph='shane_kast_blue', directory='./'):
-    pass
+'''
 
 
-
+'''
 def func_der(coeffs, func, nderive=1):
     if func == "polynomial":
         return np.polynomial.polynomial.polyder(coeffs, m=nderive)
@@ -603,6 +617,7 @@ def func_der(coeffs, func, nderive=1):
     else:
         msgs.error("Functional derivative '{0:s}' is not implemented yet"+msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
+'''
 
 
 def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None, w=None, inmask = None, guesses=None,
@@ -833,18 +848,16 @@ def func_val(c, x, func, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None
 def calc_fit_rms(xfit, yfit, fit, func, minx=None, maxx=None, weights=None):
     """ Simple RMS calculation
 
-    Parameters
-    ----------
-    xfit : ndarray
-    yfit : ndarray
-    fit : coefficients
-    func : str
-    minx : float, optional
-    maxx : float, optional
+    Args:
+        xfit : ndarray
+        yfit : ndarray
+        fit : coefficients
+        func : str
+        minx : float, optional
+        maxx : float, optional
 
-    Returns
-    -------
-    rms : float
+    Returns:
+        float: RMS
 
     """
     if weights is None:
@@ -858,34 +871,7 @@ def calc_fit_rms(xfit, yfit, fit, func, minx=None, maxx=None, weights=None):
     return rms
 
 
-def func_vander(x, func, deg, minx=None, maxx=None):
-    if func == "polynomial":
-        return np.polynomial.polynomial.polyvander(x, deg)
-    elif func == "legendre":
-        if minx is None or maxx is None:
-            if np.size(x) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x), np.max(x)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legvander(xv, deg)
-    elif func == "chebyshev":
-        if minx is None or maxx is None:
-            if np.size(x) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x), np.max(x)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebvander(xv, deg)
-    else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                   "Please choose from 'polynomial', 'legendre', 'chebyshev'")
-
-
+'''
 def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
     mask = np.zeros(xarray.size,dtype=np.int)
     mskcnt=0
@@ -910,19 +896,25 @@ def mask_polyfit(xarray,yarray,order,maxone=True,sigma=3.0):
         if mskcnt == np.sum(mask): break # No new values have been included in the mask
         mskcnt = np.sum(mask)
     return mask
+'''
 
 
 def robust_meanstd(array):
     """
     Determine a robust measure of the mean and dispersion of array
-    :param array: an array of values
-    :return: median of the array and a robust estimate of the standand deviation (assuming a symmetric distribution)
+
+    Args:
+        array (ndarray): an array of values
+
+    Returns:
+        float, float: median of the array and a robust estimate of the standand deviation (assuming a symmetric distribution)
     """
     med = np.median(array)
     mad = np.median(np.abs(array-med))
     return med, 1.4826*mad
 
 
+'''
 def perturb(covar, bparams, nsim=1000):
     cvsize = covar.shape[0]
     # Generate a new set of starting parameters from the covariance matrix
@@ -934,9 +926,21 @@ def perturb(covar, bparams, nsim=1000):
     # Find the new best-fitting model parameters
     newpar += Y_covar_fit
     return newpar
+'''
 
 
 def polyfitter2d(data, mask=None, order=2):
+    """
+    2D fitter
+
+    Args:
+        data:
+        mask:
+        order:
+
+    Returns:
+
+    """
     x, y = np.meshgrid(np.linspace(0.0, 1.0, data.shape[1]), np.linspace(0.0, 1.0, data.shape[0]))
     if isinstance(mask, (float, int)):
         # mask is the value that should be masked in data
@@ -965,28 +969,21 @@ def polyfitter2d(data, mask=None, order=2):
         m = polyfit2d(xf, yf, data[w].T.flatten(), order)
     # Return the best model
     return m, polyval2d(x, y, m).T
-    # print m
-    # model = polyval2d(x,y,m)
-    # # Plot it
-    # zmin, zmax = arplot.zscale(data)
-    # plt.subplot(131)
-    # implt = plt.imshow(data,aspect='auto',interpolation='none')
-    # plt.colorbar()
-    # implt.set_clim(zmin, zmax)
-    # plt.subplot(132)
-    # implt = plt.imshow(model,aspect='auto',interpolation='none')
-    # plt.colorbar()
-    # implt.set_clim(zmin, zmax)
-    # plt.subplot(133)
-    # zmin, zmax = arplot.zscale(data-model)
-    # implt = plt.imshow(data-model,aspect='auto',interpolation='none')
-    # plt.colorbar()
-    # implt.set_clim(zmin, zmax)
-    # plt.show()
-    # return m, polyval2d(x,y,m).T
 
 
 def polyfit2d(x, y, z, order=3):
+    """
+    Generate 2D polynomial
+
+    Args:
+        x:
+        y:
+        z:
+        order:
+
+    Returns:
+
+    """
     ncols = (order + 1)**2
     G = np.zeros((x.size, ncols))
     ij = itertools.product(range(order+1), range(order+1))
@@ -997,6 +994,17 @@ def polyfit2d(x, y, z, order=3):
 
 
 def polyval2d(x, y, m):
+    """
+    Generate 2D polynomial
+
+    Args:
+        x:
+        y:
+        m:
+
+    Returns:
+
+    """
     order = int(np.sqrt(len(m))) - 1
     ij = itertools.product(range(order+1), range(order+1))
     z = np.zeros_like(x)
@@ -1006,96 +1014,96 @@ def polyval2d(x, y, m):
 
 
 def moffat(x,p0,p1,p2):
-    """  Moffat profile
+    """
+    Moffat profile
     This 3 parameter formulation assumes the trace is known
-    Parameters
-    ----------
-    x
-    p0 : float
-      Amplitude
-    p1 : float
-      Width scaling
-    p2 : float
 
-    Returns
-    -------
-    Evaluated Moffat
+    Args:
+        x (float or ndarray): x values
+        p0 (float): Amplitude
+        p1 (float):
+          Width scaling
+        p2 : float
+
+    Returns:
+        float or ndarray: Evaluated Moffat
     """
     return p0 / (1+(x/p1)**2)**p2
 
-def gauss_2deg(x,ampl,sigm):
-    """  Simple 2 parameter Gaussian (amplitude, sigma)
-    Parameters
-    ----------
-    x
-    ampl
-    sigm
 
-    Returns
-    -------
-    Evaluated Gausssian
+def gauss_2deg(x,ampl,sigm):
+    """
+    Simple 2 parameter Gaussian (amplitude, sigma)
+
+    Args:
+        x
+        ampl
+        sigm
+
+    Returns:
+        float or ndarray: Evaluated Gausssian
     """
     return ampl*np.exp(-1.*x**2/2./sigm**2)
 
 
 def gauss_3deg(x,ampl,cent,sigm):
     """  Simple 3 parameter Gaussian
-    Parameters
-    ----------
-    x
-    ampl
-    cent
-    sigm
 
-    Returns
-    -------
-    Evaluated Gausssian
+    Args:
+        x (float or ndarray): x-valus
+        ampl (float): Amplitude
+        cent (float): Centroid
+        sigm (float): sigma
+
+    Returns:
+        float or ndarray: Evaluated Gausssian
     """
     return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 
 def gauss_4deg(x,b, ampl,cent,sigm):
     """  Simple 3 parameter Gaussian
-    Parameters
-    ----------
-    x
-    ampl
-    cent
-    sigm
 
-    Returns
-    -------
-    Evaluated Gausssian
+    Args:
+        x
+        b (float): Floor
+        ampl (float): Amplitude
+        cent (float): Centroid
+        sigm (float): sigma
+
+    Returns:
+        float or ndarray: Evaluated Gausssian
     """
     return b + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 
 def gauss_5deg(x,m, b, ampl,cent,sigm):
     """  Simple 3 parameter Gaussian
-    Parameters
-    ----------
-    x
-    ampl
-    cent
-    sigm
 
-    Returns
-    -------
-    Evaluated Gausssian
+    Args:
+        x
+        m (float): Slope of floor
+        b (float): Floor
+        ampl (float): Amplitude
+        cent (float): Centroid
+        sigm (float): sigma
+
+    Returns:
+        float or ndarray: Evaluated Gausssian
     """
     return b + m*x + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
 
 def guess_gauss(x,y):
-    """ Guesses Gaussian parameters with basic stats
+    """
+    Guesses Gaussian parameters with basic stats
 
-    Parameters
-    ----------
-    x
-    y
+    Args:
+        x (ndarray): x-values
+        y (ndarray): y-values
 
-    Returns
-    -------
+    Returns:
+        float, float, float:  Amplitude, centroid, sigma
 
     """
     ypos = y - y.min()
@@ -1111,6 +1119,7 @@ def guess_gauss(x,y):
     return ampl, cent, sigma
 
 
+'''
 def poly_to_gauss(coeffs):
     try:
         sigm = np.sqrt(-0.5/coeffs[2])
@@ -1119,6 +1128,8 @@ def poly_to_gauss(coeffs):
     except:
         return [0.0, 0.0, 0.0], True
     return [ampl, cent, sigm], False
+'''
+
 
 
 def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
@@ -1161,6 +1172,18 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     return c.reshape(deg+1)
 
 def scale_minmax(x, minx=None, maxx=None):
+    """
+    Scale in the input array
+
+    Args:
+        x (ndarray): x-values
+        minx (float, optional): Minimum value for scaling
+        maxx (float, optional): Maximum value for scaling
+
+    Returns:
+        ndarray: Scaled x values
+
+    """
     if minx is None or maxx is None:
         if np.size(x) == 1:
             xmin, xmax = -1.0, 1.0
@@ -1171,30 +1194,8 @@ def scale_minmax(x, minx=None, maxx=None):
     xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
     return xv
 
-def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
-    """Document me please. I think this evaluates on an image??"""
 
-    if ('2d' in function):
-        function = function[:-2]
-
-    if function == "polynomial":
-        xx, yy = np.meshgrid(x, y)
-        return np.polynomial.polynomial.polyval2d(xx, yy, c)
-    elif function in ["legendre", "chebyshev"]:
-        # Scale x-direction
-        xv = scale_minmax(x, minx=minx, maxx=maxx)
-        # Scale y-direction
-        yv = scale_minmax(y, minx=miny, maxx=maxy)
-        xx, yy = np.meshgrid(xv, yv)
-        if function == "legendre":
-            return np.polynomial.legendre.legval2d(xx, yy, c)
-        elif function == "chebyshev":
-            return np.polynomial.chebyshev.chebval2d(xx, yy, c)
-    else:
-        msgs.error("Function {0:s} has not yet been implemented".format(function))
-    return None
-
-
+'''
 def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
     order = int(deg) + 1
     x = np.asarray(x)
@@ -1256,8 +1257,10 @@ def polyfit_integral(x, y, dx, deg, rcond=None, full=False, w=None):
         return c, [resids, rank, s, rcond]
     else:
         return c
+'''
 
 
+'''
 def poly_iterfit(x,y,ordr,maxrej=5):
     xfit = x.copy()
     yfit = y.copy()
@@ -1282,6 +1285,7 @@ def poly_iterfit(x,y,ordr,maxrej=5):
         r += 1
     msgs.info("Robust regression identified {0:d} outliers".format(r))
     return c
+'''
 
 
 
@@ -1472,6 +1476,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 
     return outmask, ct
 
+'''
 def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', min=None, max=None):
     """
     Deprecated
@@ -1525,9 +1530,20 @@ def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', m
         indx[slct+inds] = temp
         i += 1
     return tc
+'''
 
 
 def subsample(frame):
+    """
+    Used by LACosmic
+
+    Args:
+        frame (ndarray):
+
+    Returns:
+        ndarray: Sliced image
+
+    """
     newshape = (2*frame.shape[0], 2*frame.shape[1])
     slices = [slice(0, old, float(old)/new) for old, new in zip(frame.shape, newshape)]
     coordinates = np.mgrid[slices]
@@ -1604,153 +1620,4 @@ def yamlify(obj, debug=False):
         print(type(obj))
     return obj
 
-# This code is now deprecated and one should be using detect_lines for peak finding.
-###########
-def fit_min(xarr, yarr, xguess, width=None):
 
-    errcode = 0
-    # Edges
-    if width is None:
-        xleft, xright = np.min(xarr), np.max(xarr)
-    else:
-        xleft = xguess - width
-        xright = xguess + width
-    idx = np.where((xarr >= xleft) & (xarr <= xright))[0]
-
-    # Setup
-    thisx = xarr[idx]
-    thisy = yarr[idx]
-
-    # Guess for Gaussian
-    guess = np.max(thisy), 0., width/2.
-
-    # Fit with Gaussian
-    try:
-        coeff = func_fit(thisx-xguess, thisy, 'gaussian', 3, guesses=guess)
-    except RuntimeError:  # Bad fit
-        errcode = -1
-        return xguess, 0., errcode
-    sigma = coeff[2]
-    xbest = xguess + coeff[1]
-
-    # Could/should add a bunch of sanity checks
-    # Insist on it being a minimum
-    if coeff[0] > 0.:
-        errcode = -4
-    if (xbest < xleft) or (xbest > xright):
-        errcode = -6
-    # Return
-    return xbest, sigma, errcode
-
-# This code is now deprecated and one should be using detect_lines for peak finding.
-def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
-    """ Find minima in an input 1D array
-    Parameters
-    ----------
-    yflux : ndarray
-    xvec : ndarray, optional
-      Assumed to be ascending
-    nfind : int, optional
-      Number of peaks to find in the input array
-    nsmooth : int, optional
-      Smooth by a Gaussian with kenrel of nsmooth
-    minsep : int, optional
-      Minimum separation between peaks
-    width : int, optional
-      Width around a putative peak to fit a Gaussian
-
-    Returns
-    -------
-    peaks: ndarray
-      x values of the peaks 
-    sigmas: ndarray
-      sigma widths of the Gaussian fits to each peak
-    ledges: ndarray
-      left edges of each peak;  defined to be at least minsep away
-      from the peak and where the slope of the data switches 
-    redges: ndarray
-      right edges of each peak;  defined to be at least minsep away
-      from the peak and where the slope of the data switches 
-    """
-    # Init
-    if xvec is None:
-        xvec = np.arange(len(yflux))
-    # Gaussian smooth
-    if nsmooth is not None:
-        yflux = convolve(yflux, Gaussian1DKernel(nsmooth))#, **kwargs)
-
-    # ycopy, yderiv, ydone
-    ycopy = yflux.copy()
-    yderiv = np.roll(ycopy,1)-ycopy
-    yderiv[0] = 0.
-    yderiv[-1] = 0.
-    ydone = np.max(ycopy)
-
-    # Find first one
-    peaks, sigmas, ledges, redges = [], [], [], []
-    npeak = 0
-    for kk in range(nfind):
-        imin = np.argmin(ycopy)
-        xbest, sigma, errcode = fit_min(xvec, ycopy, xvec[imin], width=width)
-        #
-        noldpeak = npeak
-        npeak = len(peaks)
-        # Find edges and
-        # Block out pixels within minsep and 2*minsep
-        x1 = (xvec < xvec[imin]-minsep) & (np.roll(yderiv,1) < 0.)
-        if np.any(x1):
-            ix1 = np.where(x1)[0][-1]
-        else:
-            ix1 = 0
-        x2 = (xvec > xvec[imin]+minsep) & (yderiv > 0.)  # Scans until increasing
-        if np.any(x2):
-            ix2 = np.where(x2)[0][0]
-        else:
-            ix2 = len(xvec)
-        ycopy[ix1:ix2] = ydone
-        # Save
-        if npeak == 0:  # Always grab at least one
-            peaks.append(xbest)
-            sigmas.append(sigma)
-            ledges.append(ix1)
-            redges.append(ix2-1)
-        else:  # Check it is minsep away (seems like it will always be)
-            xmin = np.min(np.abs(np.array(peaks-xbest)))
-            if (xmin > minsep) & (errcode >= 0):
-                peaks.append(xbest)
-                sigmas.append(sigma)
-                ledges.append(ix1)
-                redges.append(ix2-1)
-        # Any more to look for?
-        if not np.any(ycopy < ydone):
-            npeak = nfind
-    return np.array(peaks), np.array(sigmas), np.array(ledges), np.array(redges)
-
-
-def unravel_specobjs(specobjs):
-    """
-    Method to unwrap nested specobjs objects into a single list
-
-    Parameters
-    ----------
-    specobjs : list of lists or list of SpecObj
-
-    Returns
-    -------
-    all_specobj : list of SpecObj
-
-    """
-    # Wrapped is all None and lists
-    ans = [isinstance(ispec, (list, type(None))) for ispec in specobjs]
-    if np.all(ans):
-        all_specobj = []
-        for det in range(len(specobjs)):           # detector loop
-            if specobjs[det] is None:
-                continue
-            for sl in range(len(specobjs[det])):   # slit loop
-                for spobj in specobjs[det][sl]:    # object loop
-                    all_specobj.append(spobj)
-    else:
-        all_specobj = specobjs
-    # Return
-    return all_specobj

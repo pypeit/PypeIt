@@ -1209,7 +1209,7 @@ def load_tslits_dict(filename):
 
     Returns:
         dict:  The trace slits dict
-        
+
     """
     traceSlits = TraceSlits(None,None,None)
     return traceSlits.load_master(filename)
