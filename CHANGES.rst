@@ -96,6 +96,8 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Fluxing now implemented via a script.
 - Turned flexure back on for several instruments
 - Introduced VLT/FORS2 spectrograph
+- Swapped binspec and binspat in parse binning methods
+- Extended LRISr 1200_900 arc template
 
 0.9.0
 -----
