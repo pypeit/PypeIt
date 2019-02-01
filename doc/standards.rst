@@ -57,9 +57,13 @@ ltt9491_002.fits            LTT9491       23:19:35.00    -17:05:30.0
 feige110_005.fits           FEIGE110      23:19:58.40    -05:09:56.2
 ========================== ============= ============== ==============
 
-
-
-
-
 Full list is available in pypeit/data/standards/calspec/README
+
+ESO standards
+=============
+
+We now include a few ESO standard star files
+
+
+
 

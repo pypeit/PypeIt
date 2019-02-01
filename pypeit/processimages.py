@@ -507,22 +507,19 @@ class ProcessImages(object):
         """
         Process the images from loading to combining
 
-        Parameters
-        ----------
-        bias_subtract : str or ndarray or None
-          Guides bias subtraction
-        apply_gain : bool, optional
-          Apply gain to the various amplifier regions
-        trim : bool, optional
-        overwrite :
-        pixel_flat : ndarray or None
-          This is the normalized pixel flat (i.e. no blaze, no slit illumination profile).
-          The values of this array should have a scatter about 1.0
+        Args:
+            bias_subtract (str, ndarray, None): Guides bias subtraction
+            apply_gain (bool, optional): Apply gain to the various amplifier regions
+            trim (bool, optional):
+            overwrite (bool, optional):
+            pixel_flat (ndarray, optional):
+              This is the normalized pixel flat (i.e. no blaze, no slit illumination profile).
+              The values of this array should have a scatter about 1.0
+            bpm (ndarray, optional): Bad pixel mask image
+            illum_flat (ndarray, optional): Illumination flat
 
-        Returns
-        -------
-        self.stack : ndarray
-
+        Returns:
+            ndarray: Stacked image
         """
 
         # Over-write?

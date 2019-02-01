@@ -229,7 +229,7 @@ class FluxSpec():
 
         """
         # Note the unravel here
-        for sci_obj in utils.unravel_specobjs(specobjs):
+        for sci_obj in specobjs.unravel_specobjs(specobjs):
             if sci_obj is not None:
                 # Do it
                 flux.apply_sensfunc(sci_obj, self.sens_dict, airmass, exptime,

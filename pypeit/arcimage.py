@@ -1,4 +1,4 @@
-# Module for generating the Arc image
+""" Module for generating the Arc image"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
@@ -17,12 +17,11 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     Generate an Arc Image by processing and combining one or more arc frames.
 
     Args:
-        spectrograph (:obj:`str`,
-            :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The string or `Spectrograph` instance that sets the
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        file_list (:obj:`list`, optional):
+        files (:obj:`list`, optional):
             The list of files to process.  Can be an empty list.
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
@@ -31,20 +30,16 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
+        master_dir (str, optional): Path to master frames
+        reuse_masters (bool, optional): Load from disk if possible
+        msbias (ndarray or str, optional): Guides bias subtraction
 
-        root_path (:obj:`str`, optional):
-        msbias : ndarray or str
-          Guides bias subtraction
+    Attributes:
+        frametype (str): Set to 'arc'
 
-    Attributes
-    ----------
-    frametype : str
-      Set to 'arc'
+    Inherited Attributes:
+        stack (ndarray): Final output image
 
-    Inherited Attributes
-    --------------------
-    stack : ndarray
-      Final output image
     """
 
     # Frametype is a class attribute
@@ -68,20 +63,17 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
                                          reuse_masters=reuse_masters, master_dir=master_dir)
 
-
     def build_image(self, overwrite=False):
         """ Build the arc image from one or more arc files
 
         Args:
             overwrite: (:obj: `bool`, optional):
-                Recreate?
+                Regenerate the stack image
 
         Returns:
-            self.stack
-               Combined, processed image
+            ndarray: :attr:`stack` Combined, processed image
+            
         """
-        # Get list of arc frames for this science frame
-        #  unless one was input already
         # Combine
         self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
         #

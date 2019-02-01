@@ -231,7 +231,7 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
     ch
     lord_in : ndarray
     rord_in : ndarray
-    slit_ids : list of int
+    slit_ids  (list of int):
     rotate : bool, optional
       Allow for a rotated image
     pstep : int
@@ -325,12 +325,27 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
 
 
 def clear_canvas(cname):
+    """
+    Clear the ginga canvas
+
+    Args:
+        cname (str):  Channel name
+
+    Returns:
+
+    """
     viewer = connect_to_ginga()
     ch = viewer.channel(cname)
     canvas = viewer.canvas(ch._chname)
     canvas.clear()
 
 def clear_all():
+    """
+    Clear all of the ginga canvasses
+
+    Returns:
+
+    """
     viewer = connect_to_ginga()
     shell = viewer.shell()
     chnames = shell.get_channel_names()
@@ -340,6 +355,7 @@ def clear_all():
 
 def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1, points=True, clear_canvas = False):
     """  Display arc image and overlay the arcline tilt measurements
+
     Parameters
     ----------
     msarc : ndarray
