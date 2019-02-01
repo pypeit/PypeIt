@@ -104,7 +104,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
             binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
-            binning = parse.binning2string(binspatial, binspec)
+            binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key in ['ra', 'dec']:
             try:  # Calibs do not have RA values

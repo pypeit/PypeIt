@@ -451,7 +451,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.tslits_dict['nspat'] = self.mstrace.shape[1]
         self.tslits_dict['nslits'] = self.lcen.shape[1]
         self.tslits_dict['pad'] = self.par['pad']
-        binspatial, binspectral = parse.parse_binning(self.binning)
+        binspectral, binspatial = parse.parse_binning(self.binning)
         self.tslits_dict['binspectral'] = binspectral
         self.tslits_dict['binspatial'] = binspatial
         self.tslits_dict['spectrograph'] = self.spectrograph.spectrograph
@@ -1168,8 +1168,8 @@ class TraceSlits(masterframe.MasterFrame):
             out_dict['tc_dict'] = self.tc_dict
         out_dict['steps'] = self.steps
         out_dict['spectrograph'] = self.spectrograph.spectrograph
-        binspatial, binspectral = parse.parse_binning(self.binning)
-        binning = parse.binning2string(binspatial, binspectral)
+        binspectral, binspatial = parse.parse_binning(self.binning)
+        binning = parse.binning2string(binspectral, binspatial)
         out_dict['binning'] = binning
         # Clean+Write
         outfile = root+'.json'

@@ -299,7 +299,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
-            binning = parse.binning2string(binspatial, binspec)
+            binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'dispangle':
             if headarr[0]['GRATEPOS'] == 3:

@@ -542,18 +542,19 @@ class ProcessImages(object):
             msgs.warn("Your images have not been bias subtracted!")
 
         # Create proc_images from raw_images if need be
-        #   Mainly if no bias subtraction was performed
+        #   Mainly if no bias subtraction was previously performed
         if self.proc_images is None:
             # Trim even if not bias subtracting
             temp = self.raw_images[0]
             if trim:
                 datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
                 temp = procimg.trim_frame(temp, datasec_img < 1)
+            # Init proc_images array
             self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
+            # Load it up
             for kk,image in enumerate(self.raw_images):
                 self.proc_images[:,:,kk] = procimg.trim_frame(image, datasec_img < 1) \
                                                 if trim else image
-
         # Combine
         self.stack = self.proc_images[:,:,0] if self.proc_images.shape[2] == 1 else self.combine()
         self.raw_stack = self.stack
