@@ -740,9 +740,8 @@ class Calibrations(object):
             return self.tilts_dict, self.maskslits
 
         # Instantiate
-        self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, spectrograph=self.spectrograph,
-                                             binning=self.binning,
-                                             par=self.par['tilts'], wavepar = self.par['wavelengths'], det=self.det,
+        self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, self.spectrograph,
+                                             self.par['tilts'], self.par['wavelengths'], det=self.det,
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, bpm=self.msbpm)

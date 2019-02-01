@@ -38,7 +38,7 @@ class WaveCalib(masterframe.MasterFrame):
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
-            The parameters used to type and process the arc frames.
+            The parameters used for the wavelength solution
         binspectral (int, optional): Binning of the Arc in the spectral dimension
         det (int, optional): Detector number
         master_key (str, optional)
