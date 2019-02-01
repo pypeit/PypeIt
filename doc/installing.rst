@@ -32,18 +32,10 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
-*  yaml -- You may need to install pyyaml
-*  `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
+* yaml -- You may need to install pyyaml
+* `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
+* `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 
-These packages need to be installed by cloning from GitHub:
-
-* `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
-
-The sequence is simply::
-
-    git clone https://github.com/profxj/ginga.git
-    cd ginga
-    python setup.py install
 
 If you are using Anaconda, you can check the presence of these packages with::
 
@@ -55,27 +47,20 @@ If any of the packages are out of date, they can be updated with a command like:
 
 	conda update scipy
 
-For Ginga, it is currently necessary that you install the fork maintained by JXP::
+The following packages need to be installed by cloning from GitHub:
+
+* `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
+* `linetools <https://github.com/linetools/linetools/>`_ Linetools is a package designed for the analysis of 1-D spectra.
+
+Do **not** use pip install for these.
+
+To remind you, install via GitHub with a sequence like::
 
     git clone https://github.com/profxj/ginga
     cd ginga
     python setup.py install
 
-We hope to make a plug-in for PypeIt instead in the future.
-
-Installing Linetools
---------------------
-The latest version of `linetools <https://github.com/linetools/linetools/>`_ is
-also required for PypeIt.
-Linetools is a package designed for the analysis of 1-D spectra.
-The installation steps for linetools are provided
-`here <http://linetools.readthedocs.io/en/latest/install.html/>`_.
-Do **not** use the pip install.
-
-According to the linetools documentation page, "If you wish to have
-full functionality of the GUIs and are using MacOSX, then you probably
-need to change your backend from macosx to TkAgg in the matplotlibrc file."
-
+This will push the code into your Python distribution.
 
 Installing PypeIt
 ================
