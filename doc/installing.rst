@@ -32,8 +32,8 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
-*  yaml -- On Python 3 (at least), you may need to install pyyaml
-*  configobj -- version 5.0.6 or later
+*  yaml -- You may need to install pyyaml
+*  `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 
 These packages need to be installed by cloning from GitHub:
 
