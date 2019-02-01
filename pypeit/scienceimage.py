@@ -81,7 +81,6 @@ class ScienceImage(processimages.ProcessImages):
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         #self.par = pypeitpar.FrameGroupPar(objtype) if par is None else par
         self.par = spectrograph.default_pypeit_par()['scienceframe'] if par is None else par
-        self.proc_par = self.par['process']
 
         # Start up by instantiating the process images class for reading in the relevant science files
         processimages.ProcessImages.__init__(self, spectrograph, [], det=det,par=self.par['process'])
@@ -161,7 +160,7 @@ class ScienceImage(processimages.ProcessImages):
         nsci = len(file_list)
         weights = np.ones(nsci)/float(nsci)
         sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
-        self.read_stack(file_list, self.bias, self.pixel_flat, self.bpm, self.det, self.proc_par, self.spectrograph,
+        self.read_stack(file_list, self.bias, self.pixel_flat, self.bpm, self.det, self.par['process'], self.spectrograph,
                             illum_flat=self.illum_flat, reject_cr=reject_cr, binning=self.binning)
 
         # ToDO The bitmask is not being properly propagated here!
@@ -216,7 +215,7 @@ class ScienceImage(processimages.ProcessImages):
         sciivar = utils.calc_ivar(varcomb)*outmask_comb
         rn2img = rn2img_sci + rn2img_bg
         # Now reject CRs again on the differenced image
-        crmask_diff = self.build_crmask(sciimg, self.proc_par, self.det, self.spectrograph, ivar=sciivar, binning=self.binning)
+        crmask_diff = self.build_crmask(sciimg, self.par['process'], self.det, self.spectrograph, ivar=sciivar, binning=self.binning)
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         crmask = crmask_diff | np.invert(outmask_comb)
         # Create a mask for this image now
