@@ -75,7 +75,7 @@ class ScienceImage(processimages.ProcessImages):
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, binning = None, par=None):
+    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, binning=None, par=None):
 
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
