@@ -19,6 +19,8 @@ See the FluxCalib ParSet documentation for other parameters
 that guide generation of the sensitivity function or the
 fluxing operation.
 
+WARNING: The code only allows for a select set of :doc:`standards`.
+
 Sensitivity Function
 --------------------
 

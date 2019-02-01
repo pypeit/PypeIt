@@ -1,4 +1,4 @@
-# Module for the ScienceImage class
+""" Module for the ScienceImage class"""
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
@@ -7,12 +7,14 @@ from pypeit import processimages
 from pypeit import utils
 from pypeit import ginga
 from pypeit.core import coadd2d
-from pypeit.par import pypeitpar
+
 
 class ScienceImage(processimages.ProcessImages):
     """
     This class will organize and run actions related to
     a Science or Standard star exposure
+
+    ..todo.. Clean this up JFH
 
     Parameters
     ----------
@@ -75,7 +77,7 @@ class ScienceImage(processimages.ProcessImages):
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, binning = None, par=None):
+    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, binning=None, par=None):
 
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -116,8 +118,29 @@ class ScienceImage(processimages.ProcessImages):
 
 
     # JFH TODO This stuff should be eventually moved to processimages?
-    def proc(self, bias, pixel_flat, bpm, illum_flat=None, reject_cr=True, sigma_clip=False, sigrej=None,
-             maxiters=5,show=False):
+    def proc(self, bias, pixel_flat, bpm, illum_flat=None, sigrej=None, maxiters=5, show=False):
+        """
+        Primary wrapper for processing one or more science frames or science frames with bgframes
+
+        Args:
+            bias (ndarray, None or str):  Specifies bias subtraction approach and/or provides bias image
+            pixel_flat (ndarray):  Pixel flat image
+            bpm (ndarray):  Bad pixel mask
+            illum_flat (ndarray, optional): Illumination flat
+            sigrej (int or float, optional): Rejection threshold for sigma clipping.
+                 Code defaults to determining this automatically based on the numberr of images provided.
+            maxiters (int, optional):
+            show (bool, optional):
+
+        Returns:
+            ndarray, ndarray, ndarray, ndarray, ndarray:
+              sciimg
+              sciivar
+              rn2img
+              mask
+              crmask
+
+        """
 
         # Process
         self.bpm = bpm
@@ -142,21 +165,27 @@ class ScienceImage(processimages.ProcessImages):
 
     def proc_sci(self, file_list, reject_cr=True, sigma_clip=False, sigrej=None, maxiters=5):
         """
+        Process a list of science images
+
+        This includes stacking the images if there is more than 1
 
         Args:
-            bias:
-            pixel_flat:
-            bpm:
-            illum_flat:
-            sigma_clip:
-            sigrej:
-            maxiters:
-            show:
+            file_list (list): List of filenames for science frames
+            reject_cr (bool, optional):
+            sigrej (int or float, optional): Rejection threshold for sigma clipping.
+                 Code defaults to determining this automatically based on the numberr of images provided.
+            maxiters (int, optional):
+            show (bool, optional):
 
         Returns:
+            ndarray, ndarray, ndarray, ndarray, ndarray:
+              sciimg
+              sciivar
+              rn2img
+              mask
+              crmask
 
         """
-
         nsci = len(file_list)
         weights = np.ones(nsci)/float(nsci)
         sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
@@ -189,9 +218,11 @@ class ScienceImage(processimages.ProcessImages):
 
 
     def proc_diff(self, file_list, bg_file_list, reject_cr = True,sigma_clip=False, sigrej=None, maxiters=5):
-        """ Process the image
+        """
+        Process a list of science images and their background frames
+        Primarily for near-IR reductions
 
-        Wrapper to ProcessImages.process()
+        Wrapper to proc_sci for
 
         Needed in part to set self.sciframe, although I could kludge it another way..
 
@@ -224,29 +255,14 @@ class ScienceImage(processimages.ProcessImages):
         return sciimg, sciivar, rn2img, mask, crmask
 
 
-    def show(self, image, showmask=False, sobjs=None, chname=None, slits=False,clear=False):
+    def show(self, image, chname=None):
         """
         Show one of the internal images
 
-        .. todo::
-            Should probably put some of these in ProcessImages
+        Args:
+            image : ndarray, optional
+              User supplied image to display
 
-        Parameters
-        ----------
-        attr : str
-          global -- Sky model (global)
-          sci -- Processed science image
-          rawvar -- Raw variance image
-          modelvar -- Model variance image
-          crmasked -- Science image with CRs set to 0
-          skysub -- Science image with global sky subtracted
-          image -- Input image
-        display : str, optional
-        image : ndarray, optional
-          User supplied image to display
-
-        Returns
-        -------
 
         """
 

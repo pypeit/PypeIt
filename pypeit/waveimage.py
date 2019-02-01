@@ -19,34 +19,34 @@ from pypeit import debugger
 class WaveImage(masterframe.MasterFrame):
     """Class to generate the Wavelength Image
 
-    Parameters
-    ----------
-    tilts : ndarray
-      Tilt image
-    wv_calib : dict
-      wavelength solution dictionary
-    settings : dict
-    master_key : str
-    maskslits : ndarray
-      True = skip this slit
-    slitpix : ndarray
-      Specifies locations of pixels in the slits
+    Args:
+        tslits_dict (dict): dict from TraceSlits class (e.g. slitpix)
+        tilts (np.ndarray): Tilt image
+        wv_calib (dict): wavelength solution dictionary
+            Parameters are read from wv_calib['par']
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The `Spectrograph` instance that sets the
+            instrument used to take the observations.  Used to set
+            :attr:`spectrograph`.
+        master_key (:obj:`str`, optional):
+            The string identifier for the instrument configuration.  See
+            :class:`pypeit.masterframe.MasterFrame`.
+        master_dir (str, optional): Path to master frames
+        maskslits (ndarray, optional): True = skip this slit
+        reuse_masters (bool, optional):  Load from disk if possible
 
-    Attributes
-    ----------
-    frametype : str
-      Hard-coded to 'wave'
-    wave : ndarray
-      Wavelength image
+    Attributes:
+        frametype : str
+          Hard-coded to 'wave'
+        wave (ndarray): Wavelength image
+        steps (list): List of the processing steps performed
 
-    steps : list
-      List of the processing steps performed
     """
     # Frametype is a class attribute
     frametype = 'wave'
 
-    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, binning = None, master_key=None, master_dir=None,
-                 reuse_masters=False, maskslits=None):
+    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, maskslits,
+                 master_key=None, master_dir=None, reuse_masters=False):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
@@ -57,7 +57,6 @@ class WaveImage(masterframe.MasterFrame):
         self.tilts = tilts
         self.wv_calib = wv_calib
         self.spectrograph = spectrograph
-        self.binning = binning
         self.slitmask = pixels.tslits2mask(self.tslits_dict)
         self.par = wv_calib['par']
 
@@ -74,13 +73,10 @@ class WaveImage(masterframe.MasterFrame):
         """
         Main algorithm to build the wavelength image
 
-        Returns
-        -------
-        self.wave : ndarray
-          Wavelength image
+        Returns:
+            ndarray: Wavelength image
 
         """
-        # TODO: self.maskslits cannot be None
         # Loop on slits
         ok_slits = np.where(~self.maskslits)[0]
         self.wave = np.zeros_like(self.tilts)
@@ -120,12 +116,10 @@ class WaveImage(masterframe.MasterFrame):
         """
         Show the image
 
-        Parameters
-        ----------
-        item : str, optional
+        Args:
+            item (str, optional):
 
-        Returns
-        -------
+        Returns:
 
         """
         if item == 'wave':

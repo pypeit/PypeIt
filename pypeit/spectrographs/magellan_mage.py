@@ -205,7 +205,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
-            return parse.binning2string(binspatial, binspec)
+            return parse.binning2string(binspec, binspatial)
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

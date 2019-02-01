@@ -616,60 +616,56 @@ def is_keyword(v):
     return valid
 
 
-# TODO Given that python images are always (nspec, nspat) this routine should be flipped to a more appropriate
-# convention of returning binspectral, binspatial.
-def binning2string(binspatial, binspectral):
-    """ Convert binning keyword to binning values
-
-    Parameters
-    ----------
-    binspatial : int
-    binspectral : int
-
-    Returns
-    --------
-    binning : str
-      Binning string following the PypeIt convention
+def binning2string(binspectral, binspatial):
     """
-    return '{:d},{:d}'.format(binspatial,binspectral)
 
-# TODO Given that python images are always (nspec, nspat) this routine should be flipped to a more appropriate
-# convention of returning binspectral, binspatial.
+    Args:
+        binspectral (int):
+        binspatial (int):
+
+    Returns:
+        str: Binning in binspectral, binspatial order, e.g. '2,1'
+
+    """
+    return '{:d},{:d}'.format(binspectral, binspatial) # ,binspectral)
+
+
 def parse_binning(binning):
-    """ Convert binning keyword to binning values
+    """
+    Parse input binning into binspectral, binspatial
 
-    Parameters
-    ----------
-    binning : str, ndarray, or tuple
-      Probably parsed from the header
+    Note that for some instruments, the meaning will be swapped if
+    parsed directly from the Header.  The developer needs to react accordingly..
 
-    Returns
-    -------
-    binspatial : int
-    binspectral : int
+    Args:
+        binning (str, ndarray or tuple):
+
+    Returns:
+        int,int: binspectral, binspatial
 
     """
     # comma separated format
     if isinstance(binning, basestring):
         if ',' in binning:
-            binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
+            binspectral, binspatial = [int(item) for item in binning.split(',')]  # Keck standard, I think
         elif 'x' in binning:
-            binspatial, binspectral = [int(item) for item in binning.split('x')]  # LRIS
+            binspectral, binspatial = [int(item) for item in binning.split('x')]  # LRIS
         elif binning == 'None':
             msgs.warn("Assuming unbinned, i.e.  1x1")
-            binspatial, binspectral = 1,1
+            binspectral, binspatial = 1,1
         else:
-            binspatial, binspectral = [int(item) for item in binning.strip().split(' ')]  # Gemini
+            binspectral, binspatial = [int(item) for item in binning.strip().split(' ')]  # Gemini
     elif isinstance(binning, tuple):
-        binspatial, binspectral = binning
+        binspectral, binspatial = binning
     elif isinstance(binning, np.ndarray):
-        binspatial, binspectral = binning
+        binspectral, binspatial = binning
     else:
         msgs.error("Unable to parse input binning: {}".format(binning))
     # Return
-    return binspatial, binspectral
+    return binspectral, binspatial
 
 
+'''
 def dummy_settings(pypeitdir=None, nfile=10, spectrograph='shane_kast_blue',
                    set_idx=True):
     """ Generate default settings for use in tests.
@@ -730,6 +726,7 @@ def dummy_settings(pypeitdir=None, nfile=10, spectrograph='shane_kast_blue',
                         spect._spect[key]['index'] += [np.array([2,3])]
     init(argf, spect)
     return
+'''
 
 
 def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False,

@@ -39,6 +39,12 @@ These packages need to be installed by cloning from GitHub:
 
 * `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
 
+The sequence is simply::
+
+    git clone https://github.com/profxj/ginga.git
+    cd ginga
+    python setup.py install
+
 If you are using Anaconda, you can check the presence of these packages with::
 
 	conda list "^python$|numpy|astropy$|scipy$|matplotlib|numba|PyQT|ginga|yaml|h5py"

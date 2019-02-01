@@ -336,7 +336,7 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning=None):
 
     """
     slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
-    binspatial, binspectral = parse.parse_binning(binning)
+    binspectral, binspatial = parse.parse_binning(binning)
     for specobj in all_specobjs:
         if specobj is None:
             continue
@@ -352,7 +352,7 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning=None):
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
             # Convert to arcsec
-            binspatial, binspectral = parse.parse_binning(binning)
+            binspectral, binspatial = parse.parse_binning(binning)
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)

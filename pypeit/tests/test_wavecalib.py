@@ -16,16 +16,10 @@ import numpy as np
 from astropy.table import Table
 
 from pypeit import wavecalib
-from pypeit import bpmimage
-from pypeit import traceslits
-from pypeit import arcimage
 from pypeit.metadata import PypeItMetaData
-from pypeit.core import framematch
-from pypeit.core.wavecal import autoid
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit.spectrographs import util
 
-import json
-import h5py
 
 
 def data_path(filename):
@@ -54,11 +48,13 @@ def read_old_fitstbl(spectrograph, f):
 @dev_suite_required
 def test_user_redo():
     # Check for files
+    spectrograph = util.load_spectrograph('shane_kast_blue')
     wvcalib_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib',
                                 'MasterWaveCalib_ShaneKastBlue_A.json')
     assert os.path.isfile(wvcalib_file)
     # Instantiate
-    waveCalib = wavecalib.WaveCalib(None, None, spectrograph='shane_kast_blue')
+    waveCalib = wavecalib.WaveCalib(None, None, spectrograph,
+                                    spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
     wv_calib = waveCalib.load_master(wvcalib_file)
     # Setup
     waveCalib.par['sigdetect'] = 5.

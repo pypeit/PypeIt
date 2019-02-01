@@ -145,14 +145,14 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(msarc)
 
     if tslits:
-        traceSlits = traceslits.TraceSlits(None,None, spectrograph)
+        traceSlits = traceslits.TraceSlits(None,spectrograph,None)
         tslits_dict = traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01'))
         # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
         tslits_dict['mstrace'] = traceSlits.mstrace
         ret.append(tslits_dict)
 
     if tilts:
-        wvTilts = wavetilts.WaveTilts(None, None, spectrograph=spectrograph, master_key=master_key,
+        wvTilts = wavetilts.WaveTilts(None, None, spectrograph, None, None, master_key=master_key,
                                       master_dir=master_dir, reuse_masters=reuse_masters)
         tilts_dict = wvTilts.master()
         ret.append(tilts_dict)
@@ -162,7 +162,9 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(datasec_img)
 
     if wvcalib:
-        Wavecalib = wavecalib.WaveCalib(None, None, None, spectrograph, master_key=master_key,
+        Wavecalib = wavecalib.WaveCalib(None, None, spectrograph,
+                                        spectrograph.default_pypeit_par()['calibrations']['wavelengths'],
+                                        master_key=master_key,
                                         master_dir=master_dir, reuse_masters=reuse_masters)
         wv_calib = Wavecalib.master()
         ret.append(wv_calib)

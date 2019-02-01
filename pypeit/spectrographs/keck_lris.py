@@ -50,7 +50,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]    # This may be too low for LRISb
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [29, None]
         return par
@@ -93,7 +93,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
 #            return '1,1'
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
-            binning = parse.binning2string(binspatial, binspec)
+            binning = parse.binning2string(binspec, binspatial)
             return binning
         else:
             msgs.error("Not ready for this compound meta")
@@ -165,6 +165,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                                             if k in arc_lamp_stat]), axis=0)
         if status == 'dome':
             # Check if any dome lamps are on
+            # Warning 9, 10 are FEARGON and DEUTERI
             dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
@@ -426,7 +427,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
 
         # Slit tracing
         # Reduce the slit parameters because the flux does not span the full detector
