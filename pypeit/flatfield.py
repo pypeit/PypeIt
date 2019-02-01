@@ -43,6 +43,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         tslits_dict (dict):
           dict from TraceSlits class (e.g. slitpix)
         tilts_dict (dict): dict from WaveTilts class
+        reuse_masters (bool, optional):  Load from disk if possible
 
     Attributes:
         frametype (str): Set to 'pixelflat'

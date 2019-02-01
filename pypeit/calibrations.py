@@ -680,9 +680,10 @@ class Calibrations(object):
         binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(
             self.arc_files[0], 'binning'))
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, binspectral=binspec,
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, self.par['wavelengths'],
+                                             binspectral=binspec,
                                              spectrograph=self.spectrograph,det=self.det,
-                                             par=self.par['wavelengths'], master_key=self.arc_master_key,
+                                             master_key=self.arc_master_key,
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, bpm=self.msbpm)

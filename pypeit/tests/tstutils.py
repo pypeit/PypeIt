@@ -162,7 +162,9 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(datasec_img)
 
     if wvcalib:
-        Wavecalib = wavecalib.WaveCalib(None, None, None, spectrograph, master_key=master_key,
+        Wavecalib = wavecalib.WaveCalib(None, None, spectrograph,
+                                        spectrograph.default_pypeit_par()['calibrations']['wavelengths'],
+                                        master_key=master_key,
                                         master_dir=master_dir, reuse_masters=reuse_masters)
         wv_calib = Wavecalib.master()
         ret.append(wv_calib)
