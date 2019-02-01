@@ -773,8 +773,16 @@ class Calibrations(object):
             getattr(self, 'get_{:s}'.format(step))()
         msgs.info("Calibration complete!")
 
-    # This is general to any attribute
     def _chk_set(self, items):
+        """
+        Check whether a needed attribute has previously been set
+
+        Args:
+            items (list): Attributes to check
+
+        Returns:
+
+        """
         for item in items:
             if getattr(self, item) is None:
                 msgs.error("Use self.set to specify '{:s}' prior to generating XX".format(item))
@@ -830,6 +838,13 @@ class MultiSlitCalibrations(Calibrations):
 
     @staticmethod
     def default_steps():
+        """
+        This defines the steps for calibrations and their order
+
+        Returns:
+            list: Calibration steps, in order of execution
+
+        """
         return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts',
                 'flats', 'wave']
 
