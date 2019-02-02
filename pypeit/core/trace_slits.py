@@ -40,21 +40,20 @@ import time
 
 
 def add_user_edges(tc_dict, add_slits):
-    """Add user-defined slit(s)
+    """
+    Add user-defined slit(s)
 
     Warning: There is no real error checking here.
     The user is assumed to know what they are doing!
 
-    Parameters
-    ----------
-    edgearr
-    siglev
-    tc_dict
-    add_slits
-
-    Returns
-    -------
     tc_dict is updated in place
+
+    Args:
+        tc_dict (dict):
+        add_slits (list):
+
+
+    Returns:
 
     """
     nspec = tc_dict['left']['traces'].shape[0]
@@ -64,11 +63,11 @@ def add_user_edges(tc_dict, add_slits):
     for new_slit in add_slits:
         msgs.info("Adding a user-defined slit [x0, x1, yrow]:  {}".format(new_slit))
         # Parse
-        xleft, xright, yrow = new_slit
+        y_spec, x_spat0, x_spat1 = new_slit
 
-        for xx, side in zip([xleft,xright], ['left', 'right']):
+        for xx, side in zip([x_spat0,x_spat1], ['left', 'right']):
             # Left
-            ref_x = tc_dict[side]['traces'][yrow,:]
+            ref_x = tc_dict[side]['traces'][y_spec,:]
             # Find the closest
             idx = np.argmin(np.abs(xx-ref_x))
             dx = ref_x[idx]-xx
