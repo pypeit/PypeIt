@@ -98,7 +98,7 @@ def rm_user_edges(tc_dict, rm_slits):
     Args:
         tc_dict: dict
         rm_slits: list
-          xcen,yrow pairs
+          y_spec, x_spat pairs
 
     Returns:
         Modifies tc_dict in place
@@ -113,7 +113,7 @@ def rm_user_edges(tc_dict, rm_slits):
     # Loop me
     for rm_slit in rm_slits:
         # Deconstruct
-        xcen, yrow = rm_slit
+        yrow, xcen = rm_slit
         # Edges
         lefts = tc_dict['left']['traces'][yrow,:]
         rights = tc_dict['right']['traces'][yrow,:]
