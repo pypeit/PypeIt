@@ -245,7 +245,7 @@ class Spectrograph(object):
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
-        transpose = self.detector[det-1]['specaxis'] == 0
+        transpose = self.detector[det-1]['specaxis'] == 1
 
         return image_sections, one_indexed, include_last, transpose
 

@@ -537,9 +537,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             nonlinear       = 0.86,
                             numamplifiers   = 1,
                             gain            = 0.595,
-                            ronoise         = 3.1,
-                            datasec         = '[11:2058,1:]', #'[29:1970,1:]',
-                            oscansec        = '[2059:2106,1:]',
+                            ronoise         = 3.1, # raw unbinned images are (4000,2106) (spec, spat)
+                            datasec='[1:, 11:2058]',  # pre and oscan are in the spatial direction
+                            oscansec='[1:, 2059:2106]',  # JFH I'm confused, it seems these should be flipxed
+#                            datasec='[11:2058,1:]',  # pre and oscan are in the spatial direction
+#                            oscansec='[2059:2106,1:]',  # JFH I'm confused, it seems these should be flipxed
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
