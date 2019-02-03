@@ -111,6 +111,29 @@ and/or specify whether the spectrum is fluxed::
 Note that these parameters must be outside of the 'a', 'b', 'c', etc. dicts
 or else they will have no effect.
 
+Flux Scaling
+++++++++++++
+
+Each entry can include a *scale* dict that will be used to
+scale the flux of the coadded spectrum using an input filter
+and magnitude.  Here is an example::
+
+    'a':
+        'object': ['SPAT0119-SLIT0000-DET01', 'SPAT0159-SLIT0000-DET01', 'SPAT0079-SLIT0000-DET01']
+        'outfile': 'FRB181112_fors2.fits'
+        'scale': {'filter': 'DES_r', 'mag': 21.73, 'mag_type': 'AB', 'masks': [[0., 6000.]]}
+
+The call here will convolve the coadded spectrum with the DES r-band filter,
+and then scale the flux to give an AB magnitude of 21.73.  Furthermore,
+the spectral wavelengths less than 6000 Ang are masked in the analysis.
+
+Filters
+-------
+
+Here is the set of ingested filters:
+
+DES_g, DES_r, DES_i DES_z, DES_Y
+
 Cosmic Ray Cleaning
 +++++++++++++++++++
 
