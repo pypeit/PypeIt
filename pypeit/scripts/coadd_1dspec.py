@@ -99,6 +99,12 @@ def main(args, unit_test=False, path=''):
         #
         outfile = coadd_dict[key]['outfile']
 
+        # Scale
+        if 'scale' in coadd_dict[key]:
+            scale_dict = coadd_dict[key]['scale']
+        else:
+            scale_dict = None
+
         # Generate local keywords
         try:
             local_kwargs = coadd_dict[key]['local']
@@ -169,6 +175,9 @@ def main(args, unit_test=False, path=''):
                                     extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
+
+
         # Coadd!
-        coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
+        coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
+                            flux_scale=scale_dict, **gparam)
 

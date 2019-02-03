@@ -13,6 +13,8 @@ from astropy.table import Table
 from astropy.units import Quantity
 from astropy.utils import isiterable
 
+from linetools.spectra import xspectrum1d
+
 from pypeit import msgs
 from pypeit.core import parse
 from pypeit.core import trace_slits
@@ -238,6 +240,30 @@ class SpecObj(object):
         sobj_copy.optimal = copy.deepcopy(self.optimal)
         # These attributes are numpy arrays that don't seem to copy from the lines above??
         return sobj_copy
+
+    def to_xspec1d(self, extraction='optimal'):
+        extract = getattr(self, extraction)
+        if len(extract) == 0:
+            msgs.warn("This object has not been extracted with extract={}".format(extraction))
+        if 'FLAM' in extract:
+            flux = extract['FLAM']
+            sig = extract['FLAM_SIG']
+        else:
+            flux = extract['COUNTS']
+            sig = np.zeros_like(flux)
+            gdc = extract['COUNTS_IVAR'] > 0.
+            sig[gdc] = 1./np.sqrt(extract['COUNTS_IVAR'][gdc])
+        # Create
+        xspec = xspectrum1d.XSpectrum1D.from_tuple((extract['WAVE'], flux, sig))
+        return xspec
+
+    def show(self, extraction='optimal'):
+        extract = getattr(self, extraction)
+        # Generate an XSpec
+        xspec = self.to_xspec1d(extraction=extraction)
+        if xspec is None:
+            return
+        xspec.plot(xspec=True)
 
     def __getitem__(self, key):
         """ Access the DB groups
