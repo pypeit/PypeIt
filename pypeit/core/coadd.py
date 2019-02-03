@@ -18,6 +18,7 @@ from linetools.spectra.utils import collate
 
 from pypeit import msgs
 from pypeit.core import load
+from pypeit.core import flux
 from pypeit import utils
 from pypeit import debugger
 from pkg_resources import resource_filename
@@ -837,19 +838,26 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
 
 
 def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
+                  flux_scale=None,
                   scale_method='auto', do_offset=False, sigrej_final=3.,
                   do_var_corr=True, qafile=None, outfile=None,
                   do_cr=True, debug=False,**kwargs):
     """
-    Parameters
-    ----------
-    spectra : XSpectrum1D
-    wave_grid_method :
 
-    Returns
-    -------
-    spec1d : XSpectrum1D
-
+    Args:
+        spectra:
+        wave_grid_method:
+        niter:
+        flux_scale (dict):  Use input info to scale the final spectrum to a photometric magnitude
+        scale_method:
+        do_offset:
+        sigrej_final:
+        do_var_corr:
+        qafile:
+        outfile:
+        do_cr:
+        debug:
+        **kwargs:
     """
     # Init
     if niter <= 0:
@@ -928,7 +936,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
         for qq in range(rspec.nspec):
 
             # Grab full spectrum (unmasked)
-            flux = uspec.data['flux'][qq,:].filled(0.)
+            iflux = uspec.data['flux'][qq,:].filled(0.)
             sig = uspec.data['sig'][qq,:].filled(0.)
             ivar = np.zeros_like(sig)
             gd = sig > 0.
@@ -955,7 +963,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
             #; Is the model offset relative to the data? If so take it out
             if do_offset:
-                diff1 = flux-newflux_now
+                diff1 = iflux-newflux_now
                 #idum = np.where(arrmask[*, j] EQ 0, nnotmask)
                 debugger.set_trace() # GET THE MASK RIGHT!
                 nnotmask = np.sum(rmask)
@@ -969,18 +977,18 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
                 chi2 = (diff1-diff_sm)**2*ivar_real
                 goodchi = (rmask) & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
                 if np.sum(goodchi) == 0:
-                    goodchi = np.array([True]*flux.size)
+                    goodchi = np.array([True]*iflux.size)
 #                debugger.set_trace()  # Port next line to Python to use this
                 #djs_iterstat, (arrflux[goodchi, j]-newflux_now[goodchi]) $
                 #   , invvar = ivar_real[goodchi], mean = offset_mean $
                 #   , median = offset $
             else:
                 offset = 0.
-            chi2 = (flux-newflux_now - offset)**2*ivar_real
+            chi2 = (iflux-newflux_now - offset)**2*ivar_real
             goodchi = rmask[qq,:] & (ivar_real > 0.0) & (chi2 <= 36.0) # AND masklam, ngd)
             ngd = np.sum(goodchi)
             if ngd == 0:
-                goodchi = np.array([True]*flux.size)
+                goodchi = np.array([True]*iflux.size)
             #; evalute statistics of chi2 for good pixels and excluding
             #; extreme 6-sigma outliers
             chi2_good = chi2[goodchi]
@@ -992,7 +1000,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
             chi2_sigrej = chi2_srt[sigind]
             one_sigma = np.minimum(np.maximum(np.sqrt(chi2_sigrej),1.0),5.0)
             sigrej_eff = sigrej_final*one_sigma
-            chi2_cap = (flux-newflux_now - offset)**2*ivar_cap
+            chi2_cap = (iflux-newflux_now - offset)**2*ivar_cap
             # Grow??
             #Is this correct? This is not growing mask
             #chi_mask = (chi2_cap > sigrej_eff**2) & (~rmask[qq,:])
@@ -1034,6 +1042,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     if qafile is not None:
         msgs.info("Writing QA file: {:s}".format(qafile))
         coaddspec_qa(spectra, rspec, rmask, spec1d, qafile=qafile,debug=debug)
+
+    # Scale the flux??
+    if flux_scale is not None:
+        spec1d = flux.scale_in_filter(spec1d, flux_scale)
 
     # Write to disk?
     if outfile is not None:
