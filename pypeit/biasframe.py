@@ -3,8 +3,6 @@
 from __future__ import absolute_import, division, print_function
 
 import inspect
-import os
-
 
 from pypeit import msgs
 from pypeit import processimages
