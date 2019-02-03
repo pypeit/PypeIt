@@ -39,25 +39,22 @@ except ImportError:
 import time
 
 
-def add_user_edges(tc_dict, add_slits):
+def add_user_edges(lcen, rcen, add_slits):
     """Add user-defined slit(s)
 
     Warning: There is no real error checking here.
     The user is assumed to know what they are doing!
 
-    Parameters
-    ----------
-    edgearr
-    siglev
-    tc_dict
-    add_slits
+    Args:
+        lcen (np.ndarray):
+        rcen (np.ndarray):
+        add_slits (list):
 
-    Returns
-    -------
-    tc_dict is updated in place
+    Returns:
+        np.ndarray, np.ndarray: new lcen, rcen
 
     """
-    nspec = tc_dict['left']['traces'].shape[0]
+    nspec = lcen.shape[0]
     ycen = nspec//2
 
     # Loop me
@@ -68,7 +65,8 @@ def add_user_edges(tc_dict, add_slits):
 
         for xx, side in zip([xleft,xright], ['left', 'right']):
             # Left
-            ref_x = tc_dict[side]['traces'][yrow,:]
+            ref_t = lcen if side == 'left' else rcen
+            ref_x = ref_t[y]
             # Find the closest
             idx = np.argmin(np.abs(xx-ref_x))
             dx = ref_x[idx]-xx
