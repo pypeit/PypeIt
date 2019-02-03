@@ -242,6 +242,16 @@ class SpecObj(object):
         return sobj_copy
 
     def to_xspec1d(self, extraction='optimal'):
+        """
+        Convert the SpecObj to an XSpectrum1D object
+
+        Args:
+            extraction (str): Extraction method to convert
+
+        Returns:
+            linetools.spectra.xspectrum1d.XSpectrum1D:  Spectrum object
+
+        """
         extract = getattr(self, extraction)
         if len(extract) == 0:
             msgs.warn("This object has not been extracted with extract={}".format(extraction))
@@ -258,6 +268,15 @@ class SpecObj(object):
         return xspec
 
     def show(self, extraction='optimal'):
+        """
+        Show the spectrum by converting it to a XSpectrum1D object
+
+        Args:
+            extraction (str): Extraction option 'optimal' or 'boxcar'
+
+        Returns:
+
+        """
         extract = getattr(self, extraction)
         # Generate an XSpec
         xspec = self.to_xspec1d(extraction=extraction)

@@ -98,6 +98,7 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Introduced VLT/FORS2 spectrograph
 - Swapped binspec and binspat in parse binning methods
 - Extended LRISr 1200_900 arc template
+- Add an option in coadding to scale the coadded spectrum to a given magnitude in a given filter
 
 0.9.0
 -----
