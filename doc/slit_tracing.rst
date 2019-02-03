@@ -56,8 +56,8 @@ Reduction Mode
 Longslit
 --------
 
-If you have only one slit per detector, it is recommended
-that you specify the :ref:`trace-slit-number` as 1.
+If you have only one slit per detector, you may wish
+to specify the :ref:`trace-slit-number` as 1.
 
 Multislit
 ---------
@@ -96,21 +96,26 @@ and maybe also:
 (2) Modify the range for smashing the Sobolev image
 with :ref:`trace-slit-smash_range`.
 
+.. _trace-slit-add:
+
 Add User Slits
 ++++++++++++++
 
 The code may be instructed to add slits at user-input
 locations.  The syntax is is a list of lists, with
-each sub-list having syntax (all integers):  det:x0:x1:yrow
+each sub-list having syntax (all integers):  det:y_spec:x_spat0:x_spat1
 For example::
 
     [calibrations]
       [[slits]]
-        add_slits = 2:2121:2322:2000,3:1201:1500:2000
+        add_slits = 2:2000:2121:2322,3:2000:1201:1500
 
 The above will add one slit on detector 2 with left/right edge at
 2121/2322 at row 2000.  The shapes of the slit will be taken from
-the ones nearest.
+the ones that are nearest.
+
+See the `PypeIt-HOWTO-slits <https://tinyurl.com/pypeit-howto-slits>`_ slides
+for further details.
 
 .. _trace-slit-rm:
 
@@ -119,17 +124,18 @@ Remove Slits
 
 The code may be instructed to remove slits at user-input
 locations. The syntax is a list of lists,
-with each sub-list having syntax (all integers):  det:xcen:yrow
+with each sub-list having syntax (all integers):  det:y_spec:x_spat
 For example::
 
     [calibrations]
       [[slits]]
-        rm_slits = 2:2121:2000,3:1500:2000
+        rm_slits = 2:2000:2121,3:2000:1500
 
-This will remove any slit on det=2 that contains xcen=2121
-at yrow=2000 and similarly for the slit on det=3.
+This will remove any slit on det=2 that contains x_spat=2121
+at y_spec=2000 and similarly for the slit on det=3.
 
-.. _trace-slit-threshold:
+See the `PypeIt-HOWTO-slits <https://tinyurl.com/pypeit-howto-slits>`_ slides
+for further details.
 
 Echelle
 -------
