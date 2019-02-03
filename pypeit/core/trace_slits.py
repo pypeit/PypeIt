@@ -39,7 +39,7 @@ except ImportError:
 import time
 
 
-def add_user_edges(tc_dict, add_slits):
+def add_user_edges(lcen, rcen, add_slits):
     """
     Add user-defined slit(s)
 
@@ -49,14 +49,16 @@ def add_user_edges(tc_dict, add_slits):
     tc_dict is updated in place
 
     Args:
-        tc_dict (dict):
-        add_slits (list):
-
+        lcen (np.ndarray): Left traces of slit/orders
+        rcen (np.ndarray): Right traces of slit/orders
+        add_slits (list):  List of slit info for adding
+           y_spec, x_spat0, x_spat1 (int)
 
     Returns:
+        np.ndarray, np.ndarray: new lcen, rcen arrays
 
     """
-    nspec = tc_dict['left']['traces'].shape[0]
+    nspec = lcen.shape[0]
     ycen = nspec//2
 
     # Loop me
@@ -67,25 +69,30 @@ def add_user_edges(tc_dict, add_slits):
 
         for xx, side in zip([x_spat0,x_spat1], ['left', 'right']):
             # Left
-            ref_x = tc_dict[side]['traces'][y_spec,:]
+            ref_t = lcen if side == 'left' else rcen
+            ref_x = ref_t[y_spec,:]
             # Find the closest
             idx = np.argmin(np.abs(xx-ref_x))
             dx = ref_x[idx]-xx
             # New trace
-            new_trace = tc_dict[side]['traces'][:,idx] - dx
-            tc_dict[side]['traces'] = np.append(tc_dict[side]['traces'], new_trace.reshape(nspec,1), axis=1)
-            # Update xval
-            tc_dict[side]['xval'] = np.append(tc_dict[side]['xval'],int(new_trace[ycen]))
+            new_trace = ref_t[:,idx] - dx
+            if side == 'left':
+                lcen = np.append(ref_t, new_trace.reshape(nspec,1), axis=1)
+            else:
+                rcen = np.append(ref_t, new_trace.reshape(nspec,1), axis=1)
 
     # Sort me
     for side in ['left', 'right']:
-        allx = tc_dict[side]['xval']
+        ref_t = lcen if side == 'left' else rcen
+        allx = lcen[ycen,:]
         isrt = np.argsort(allx)
         # Do it
-        tc_dict[side]['xval'] = tc_dict[side]['xval'][isrt]
-        tc_dict[side]['traces'] = tc_dict[side]['traces'][:,isrt]
+        if side == 'left':
+            lcen = ref_t[:,isrt]
+        else:
+            rcen = ref_t[:,isrt]
     # Done
-    return
+    return lcen, rcen
 
 def rm_user_edges(tc_dict, rm_slits):
     """

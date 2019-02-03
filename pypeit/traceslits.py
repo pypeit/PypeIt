@@ -309,40 +309,19 @@ class TraceSlits(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return any_slits
 
-    def add_user_slits(self, user_slits, run_to_finish=False, orig=False):
+    def add_user_slits(self, user_slits):
         """
         Add a user-defined slit
 
         Wrapper to trace_slits.add_user_edges()
 
-        Parameters
-        ----------
-        user_slits : list
-        run_to_finish : bool (optional)
-          Perform the additional steps to complete TraceSlit operation
+        self.lcen and self.rcen are updated
 
-        Returns
-        -------
-        self.edgearr : ndarray (internal)
+        Args:
+            user_slits : list
 
         """
-        # Reset (if needed) -- For running after PyepIt took a first pass
-        #self.reset_edgearr_ednum()
-        # Add user input slits
-        if orig:
-            self.edgearr = trace_slits.orig_add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
-        else:
-            trace_slits.add_user_edges(self.tc_dict, user_slits)
-        '''
-        # Finish
-        if run_to_finish:
-            self._set_lrminx()
-            self._fit_edges('left')
-            self._fit_edges('right')
-            self._synchronize()
-            self._pca()
-            self._trim_slits(plate_scale = plate_scale)
-        '''
+        self.lcen, self.rcen = trace_slits.add_user_edges(self.lcen, self.rcen, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -1318,9 +1297,6 @@ class TraceSlits(masterframe.MasterFrame):
             self._pca_refine(mask_frac_thresh=self.par['mask_frac_thresh'], debug=debug, show=show)
             # Synchronize and add in edges
             self._mslit_sync()
-            # Add user input slits
-            if add_user_slits is not None:
-                self.add_user_slits(add_user_slits)
             # Remove user input slits
             if rm_user_slits is not None:
                 self.rm_user_slits(rm_user_slits)
@@ -1339,6 +1315,10 @@ class TraceSlits(masterframe.MasterFrame):
         # Adjust slit edges
         self.lcen += self.par['trim'][0]
         self.rcen -= self.par['trim'][1]
+
+        # Add user input slits -- These are done *last*
+        if add_user_slits is not None:
+            self.add_user_slits(add_user_slits)
 
         # Generate pixel arrays
         self._make_pixel_arrays()
