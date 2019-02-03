@@ -841,7 +841,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         # Remove user input slits
-        trace_slits.rm_user_edges(self.tc_dict, user_slits)
+        self.lcen, self.rcen = trace_slits.rm_user_edges(self.lcen, self.rcen, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -1013,7 +1013,7 @@ class TraceSlits(masterframe.MasterFrame):
         if attr == 'edges':
             viewer, ch = ginga.show_image(self.mstrace, chname='edges')
             if self.lcen is not None:
-                ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids = np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
+                ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids=np.arange(self.lcen.shape[1]) + 1, pstep=pstep)
         elif attr == 'binarr':
             ginga.show_image(self.binarr, chname='binarr')
         elif attr == 'xset':
@@ -1297,9 +1297,6 @@ class TraceSlits(masterframe.MasterFrame):
             self._pca_refine(mask_frac_thresh=self.par['mask_frac_thresh'], debug=debug, show=show)
             # Synchronize and add in edges
             self._mslit_sync()
-            # Remove user input slits
-            if rm_user_slits is not None:
-                self.rm_user_slits(rm_user_slits)
 
         # Set lcen and rcen, lmin, lmax
         self.lcen = self.tc_dict['left']['traces']
@@ -1316,9 +1313,13 @@ class TraceSlits(masterframe.MasterFrame):
         self.lcen += self.par['trim'][0]
         self.rcen -= self.par['trim'][1]
 
-        # Add user input slits -- These are done *last*
+        # Add/rm user input slits
+        # These should be done *last*
         if add_user_slits is not None:
             self.add_user_slits(add_user_slits)
+        # Remove user input slits
+        if rm_user_slits is not None:
+            self.rm_user_slits(rm_user_slits)
 
         # Generate pixel arrays
         self._make_pixel_arrays()

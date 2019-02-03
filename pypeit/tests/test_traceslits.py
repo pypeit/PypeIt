@@ -16,10 +16,37 @@ import numpy as np
 from pypeit import traceslits
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.spectrographs import util
+from pypeit.core import trace_slits
 
 def chk_for_files(root):
     files = glob.glob(root+'*')
     return len(files) != 0
+
+@dev_suite_required
+def test_addrm_slit():
+    # Check for files
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
+                                'MasterTrace_KeckLRISr_400_8500_det1')
+    assert chk_for_files(mstrace_root)
+    # Load
+    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
+    norig = traceSlits.nslit
+
+    #  Add dummy slit
+    #  y_spec, left edge, right edge on image
+    add_user_slits = [[1024, 140, 200]]
+    traceSlits.lcen, traceSlits.rcen = trace_slits.add_user_edges(
+        traceSlits.lcen, traceSlits.rcen, add_user_slits)
+    # Test
+    assert traceSlits.nslit == (norig+1)
+    xcen0 = np.median((traceSlits.lcen[:,0] + traceSlits.rcen[:,0])/2.)
+    assert np.abs(xcen0-170) < 3
+
+    # Remove it
+    rm_user_slits = [[1024, 170]]
+    traceSlits.lcen, traceSlits.rcen = trace_slits.rm_user_edges(
+        traceSlits.lcen, traceSlits.rcen, rm_user_slits)
+    assert traceSlits.nslit == norig
 
 @dev_suite_required
 def test_chk_kast_slits():
@@ -96,33 +123,6 @@ def test_chk_deimos_slits():
         assert traceSlits.nslit == norig
 
 
-#@dev_suite_required
-#def test_load_from_master_and_run():
-#    # Check for files
-#    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-#                                'MasterTrace_KeckLRISr_150420_402')
-#    assert chk_for_files(mstrace_root)
-#    # Load
-#    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
-#    assert isinstance(traceSlits.mstrace, np.ndarray)
-
-
-#def test_add_slit():
-#    if skip_test:
-#        assert True
-#        return
-#    # Check for files
-#    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-#                                'MasterTrace_KeckLRISr_150420_402')
-#    assert chk_for_files(mstrace_root)
-#    # Load
-#    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
-#    norig = traceSlits.nslit
-#    #  left edge, right edge, row on image
-#    add_user_slits = [[489, 563, 1024]]
-#    # run_to_finish reset#s things in a proper manner
-#    traceSlits.add_user_slits(add_user_slits, run_to_finish=True)
-#    assert traceSlits.nslit == (norig+1)
 
 
 #@dev_suite_required
