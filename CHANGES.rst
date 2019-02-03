@@ -103,6 +103,7 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Many doc string updates in top level routines (not core)
 - Updates to install and cookbook docs
 - Continued the process of requiring spectrograph and par in each base class
+- Extended DEIMOS 1200G template
 
 0.9.0
 -----

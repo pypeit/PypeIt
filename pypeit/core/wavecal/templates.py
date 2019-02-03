@@ -267,18 +267,20 @@ def main(flg):
         # 3-14 = red   6508 -- 7730
         # 7-3 = blue  7589 -- 8821
         # 7-17 = red  8000 - 9230
-        ifiles = [0, 0, 1, 1]
-        slits = [3, 14, 3, 17]
-        lcut = [7450., 7730., 8170]
+        # 7c-0 = red  9120 -- 9950
+        ifiles = [0, 0, 1, 1, 2]
+        slits = [3, 14, 3, 17, 0]
+        lcut = [7450., 7730., 8170, 9120]
         wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_03.json')
         wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_07.json')
+        wfile3 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_07c.json')
         # det_dict
         det_cut = None
         #det_cut = {}
         #det_cut['dets'] = [[1,2,3,4], [5,6,7,8]]
         #det_cut['wcuts'] = [[0,9000.], [8200,1e9]]  # Significant overlap is fine
         #
-        build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
+        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut, chk=True)
 
     # Keck/LRISr
@@ -322,11 +324,11 @@ if __name__ == '__main__':
     # Keck/DEIMOS
     #flg += 2**7  # 600
     #flg += 2**8  # 830G
-    #flg += 2**9  # 1200
+    flg += 2**9  # 1200
 
     # Keck/LRISr
     #flg += 2**10  # R400
-    flg += 2**11  # R1200
+    #flg += 2**11  # R1200
 
     # Shane/Kastr
     #  Need several arcs to proceed this way
