@@ -98,6 +98,9 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Introduced VLT/FORS2 spectrograph
 - Swapped binspec and binspat in parse binning methods
 - Extended LRISr 1200_900 arc template
+- Many doc string updates in top level routines (not core)
+- Updates to install and cookbook docs
+- Continued the process of requiring spectrograph and par in each base class
 
 0.9.0
 -----
