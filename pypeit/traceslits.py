@@ -307,6 +307,7 @@ class TraceSlits(masterframe.MasterFrame):
             self.edgearr = trace_slits.orig_add_user_edges(self.edgearr, self.siglev, self.tc_dict, user_slits)
         else:
             trace_slits.add_user_edges(self.tc_dict, user_slits)
+        self.lcen, self.rcen = trace_slits.add_user_edges(self.lcen, self.rcen, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
