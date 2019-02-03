@@ -606,7 +606,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
 
 def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False,
-                  x_percentile=50., debug=False):
+                  x_percentile=50., template_dict=None, debug=False):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
 
@@ -633,6 +633,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
           and input spectrum.
         x_percentile: float, optional
           Passed to reidentify to reduce the dynamic range of arc line amplitudes
+        template_dict (dict, optional): Dict containing tempmlate items, largely for development
 
     Returns:
         wvcalib: dict
@@ -647,7 +648,12 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         line_lists = waveio.load_line_lists(par['lamps'])
 
     # Load template
-    temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'], det)
+    if template_dict is None:
+        temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'], det)
+    else:
+        temp_wv = template_dict['wave']
+        temp_spec = template_dict['spec']
+        temp_bin = template_dict['bin']
 
     # Deal with binning (not yet tested)
     if binspectral != temp_bin:
@@ -662,6 +668,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
     elif spec.ndim == 1:
         nspec = spec.size
         nslits = 1
+        spec = np.reshape(spec, (nspec,1))
 
     # Loop on slits
     wvcalib = {}
