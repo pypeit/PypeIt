@@ -165,9 +165,11 @@ def load_coadd2d_stacks(spec2d_files, det=1):
     head2d = head2d_list[0]
     master_key_dict = {}
     master_key_dict['frame'] = head2d['FRAMMKEY']
+    master_key_dict['bpm']   = head2d['BPMMKEY']
+    master_key_dict['bias']   = head2d['BIASMKEY']
     master_key_dict['arc']   = head2d['ARCMKEY']
     master_key_dict['trace'] = head2d['TRACMKEY']
-
+    master_key_dict['flat'] = head2d['FLATMKEY']
     stack_dict = dict(specobjs_list=specobjs_list, tslits_dict=tslits_dict,
                       slitmask_stack=slitmask_stack,
                       sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,

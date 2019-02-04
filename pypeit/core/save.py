@@ -136,7 +136,7 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
-                  only_1d=False, refframe='heliocentric', update_det=None, binning=None):
+                  only_1d=False, refframe='heliocentric', update_det=None, binning='None'):
 
     # Filenames to write out
     objinfofile = scipath + '/objinfo_{:s}.txt'.format(basename)
@@ -323,7 +323,7 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
-def save_obj_info(all_specobjs, spectrograph, outfile, binning=None):
+def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
     """
 
     Parameters
