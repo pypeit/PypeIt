@@ -70,7 +70,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.det = det
         self.redux_path = redux_path
         #
-        if self.spectrograph.detector is not None:
+        if self.spectrograph is not None:
             self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
         else:
             self.nonlinear_counts=1e10
@@ -509,4 +509,22 @@ class WaveTilts(masterframe.MasterFrame):
         txt += '>'
         return txt
 
+
+
+def load_tilts(filename):
+    """
+    Utility function which enables one to load the tilts from a master file in one line of code without
+    instantiating the class.
+
+    Args:
+        filename (str): Master file name
+
+    Returns:
+        dict:  The trace slits dict
+
+    """
+
+    waveTilts = WaveTilts(None, None, None, None, None)
+    tilts_dict, _ = waveTilts.load_master(filename)
+    return tilts_dict['tilts']
 

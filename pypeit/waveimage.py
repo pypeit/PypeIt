@@ -150,6 +150,6 @@ def load_waveimage(filename):
     """
 
     waveImage = WaveImage(None, None, None, None, None)
-    waveimage, head = waveImage.load_master(filename)
+    waveimage, _ = waveImage.load_master(filename)
 
-    return waveimage, head
+    return waveimage

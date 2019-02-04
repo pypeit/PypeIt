@@ -12,6 +12,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import waveimage
+from pypeit import wavetilts
 from pypeit import reduce
 from pypeit import processimages
 
@@ -96,6 +97,12 @@ def optimal_weights(specobjs_list, slitid, objid, echelle=True):
 
     return rms_sn, weights, trace_stack, wave_stack
 
+def det_error_msg(exten, sdet):
+    # Print out error message if extension is not found
+    msgs.error("Extension {:s} for requested detector {:s} was not found.\n".format(exten)  +
+               " Maybe you chose the wrong detector to coadd? "
+               "Set with --det= or check file contents with pypeit_show_2dspec Science/spec2d_XXX --list".format(sdet))
+
 def load_coadd2d_stacks(spec2d_files, det):
 
     # Get the detector string
@@ -129,22 +136,35 @@ def load_coadd2d_stacks(spec2d_files, det):
     # TODO Sort this out with the correct detector extensions etc.
     # Read in the image stacks
     for ifile in range(nfiles):
-        waveImage = waveimage.WaveImage(None, None, None, None, None)
-        waveimage = waveImage.load_master(waveimgfiles[ifile])
-        traceSlits = traceslits.TraceSlits(None, None, None)
-        traceSlits.save_master(tslits_dict_psuedo)
-
-        hdu_wave = fits.open(waveimgfiles[ifile])
-
-        waveimg = hdu_wave[0].data
-        hdu_tilts = fits.open(tiltfiles[ifile])
-        tilts = hdu_tilts[0].data
-
-        hdu_sci = fits.open(spec2d_files[ifile])
-        sciimg = hdu_sci[1].data
-        sky = hdu_sci[3].data
-        sciivar = hdu_sci[5].data
-        mask = hdu_sci[6].data
+        waveimg = waveimage.load_waveimage(waveimgfiles[ifile])
+        tilts = wavetilts.load_tilts(tiltfiles[ifile])
+        hdu = fits.open(spec2d_files[ifile])
+        # One detector, sky sub for now
+        names = [hdu[i].name for i in range(len(hdu))]
+        # science image
+        try:
+            exten = names.index('DET{:s}-PROCESSED'.format(sdet))
+        except:  # Backwards compatability
+            det_error_msg(exten, sdet)
+        sciimg = hdu[exten].data
+        # skymodel
+        try:
+            exten = names.index('DET{:s}-SKY'.format(sdet))
+        except:  # Backwards compatability
+            det_error_msg(exten, sdet)
+        skymodel = hdu[exten].data
+        # Inverse variance model
+        try:
+            exten = names.index('DET{:s}-IVARMODEL'.format(sdet))
+        except ValueError:  # Backwards compatability
+            det_error_msg(exten, sdet)
+        sciivar = hdu[exten].data
+        # Mask
+        try:
+            exten = names.index('DET{:s}-MASK'.format(sdet))
+        except ValueError:  # Backwards compatability
+            det_error_msg(exten, sdet)
+        mask = hdu[exten].data
         if ifile == 0:
             # the two shapes accomodate the possibility that waveimg and tilts are binned differently
             shape_wave = (nfiles,waveimg.shape[0],waveimg.shape[1])
@@ -161,7 +181,7 @@ def load_coadd2d_stacks(spec2d_files, det):
         sciimg_stack[ifile,:,:] = sciimg
         sciivar_stack[ifile,:,:] = sciivar
         mask_stack[ifile,:,:] = mask
-        skymodel_stack[ifile,:,:] = sky
+        skymodel_stack[ifile,:,:] = skymodel
 
         sobjs, head = load.load_specobjs(spec1d_files[ifile])
         head1d_list.append(head)
