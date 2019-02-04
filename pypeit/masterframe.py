@@ -202,7 +202,7 @@ def master_name(ftype, master_key, mdir):
     """
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, master_key),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, master_key),
-                     trace='{:s}/MasterTrace_{:s}'.format(mdir, master_key),   # Just a root as FITS+JSON are generated
+                     trace='{:s}/MasterTrace_{:s}.json'.format(mdir, master_key),   # Just a root as FITS+JSON are generated
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, master_key),
                      pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, master_key),
                      illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, master_key),

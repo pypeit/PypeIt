@@ -210,11 +210,16 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         final_tilts = np.zeros_like(self.rawflatimg)
 
+        # If we are tweaking slits allocate the new aray to hold tweaked slit boundaries
+        if self.flatpar['tweak_slits']:
+            self.tslits_dict['slit_left_tweak'] = np.zeros_like(self.tslits_dict['slit_left'])
+            self.tslits_dict['slit_righ_tweak'] = np.zeros_like(self.tslits_dict['slit_righ'])
+
         # Loop on slits
         for slit in range(self.nslits):
             msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
             if self.msbpm is not None:
-                inmask = ~self.msbpm
+                inmask = np.invert(self.msbpm)
             else:
                 inmask = np.ones_like(self.rawflatimg,dtype=bool)
 
@@ -239,6 +244,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             if self.flatpar['tweak_slits']:
                 self.tslits_dict['slit_left'][:, slit] = slit_left_out
                 self.tslits_dict['slit_righ'][:, slit] = slit_righ_out
+                self.tslits_dict['slit_left_tweak'][:, slit] = slit_left_out
+                self.tslits_dict['slit_righ_tweak'][:, slit] = slit_righ_out
                 final_tilts[thismask_out] = tilts_out[thismask_out]
 
         # If we tweaked the slits update the tilts_dict

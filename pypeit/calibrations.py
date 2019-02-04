@@ -461,9 +461,7 @@ class Calibrations(object):
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
                     # Add tweaked boundaries to the MasterTrace file
-                    self.traceSlits.slit_left_tweak = self.flatField.tslits_dict['slit_left']
-                    self.traceSlits.slit_righ_tweak = self.flatField.tslits_dict['slit_righ']
-                    self.traceSlits.save_master()
+                    self.traceSlits.save_master(self.flatField.tslits_dict)
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.tilts_dict = self.flatField.tilts_dict
@@ -558,6 +556,7 @@ class Calibrations(object):
             binspectral, binspatial = parse.parse_binning(self.binning)
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
+            # JFH Why is this stuff on user defined slits here and not in the class?
             # User-defined slits??
             add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
@@ -567,7 +566,7 @@ class Calibrations(object):
                                                        add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
                                                        write_qa=write_qa)
             except:
-                self.traceSlits.save_master()
+                self.traceSlits.save_master(self.tslits_dict)
                 # TODO why do we have this error method here but nowhere else?
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
             # No slits?
@@ -577,7 +576,7 @@ class Calibrations(object):
             # Save to disk
             if self.save_masters:
                 # Master
-                self.traceSlits.save_master()
+                self.traceSlits.save_master(self.tslits_dict)
         else:
             msgs.info("TraceSlits master files loaded..")
             # Construct dictionary
