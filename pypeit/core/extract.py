@@ -578,11 +578,10 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
     return
 
 
-def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
+def return_gaussian(sigma_x, norm_obj, inmask, fwhm, med_sn2, obj_string, show_profile,
                     ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
 
-#    p_show_profile = None  # This is the process object that is passed back for show_profile mode
-    profile_model = np.exp(-0.5 *sigma_x** 2)/np.sqrt(2.0 * np.pi) * (sigma_x ** 2 < 25.)
+    profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0 * np.pi)*(sigma_x ** 2 < 25.)*inmask
     info_string = "FWHM=" + "{:6.2f}".format(fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
     title_string = obj_string + ', ' + info_string
     msgs.info(title_string)
@@ -591,26 +590,22 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
     if (ninf != 0):
         msgs.warn("Nan pixel values in object profile... setting them to zero")
         profile_model[inf] = 0.0
+    # JFH This normalization causes problems in cases where there is significant masking and anyway, the Gaussian
+    # formula above is already normalized. The only deviation coming from the truncation at sigma_x > 5.0
     # Normalize profile
-    nspat = profile_model.shape[1]
-    norm = np.outer(np.sum(profile_model, 1), np.ones(nspat))
-    if (np.sum(norm) > 0.0):
-        profile_model = profile_model / norm
-    if (show_profile):
+    #nspat = profile_model.shape[1]
+    #norm_spec = np.sum(profile_model, 1)
+    #norm = np.outer(norm_spec, np.ones(nspat))
+    #if np.sum(norm) > 0.0:
+    #    profile_model = profile_model*(norm > 0.0)/(norm + (norm <= 0.0))
+    if show_profile:
         qa_fit_profile(sigma_x, norm_obj, profile_model, title = title_string, l_limit = l_limit, r_limit = r_limit,
-                       ind =ind, xlim = xlim, xtrunc=xtrunc)
-        # Execute the interactive plot as another process
-#        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj, profile_model),
-#                                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string,
-#                                                         'ind': ind, 'xlim': xlim, 'xtrunc':xtrunc})
-#        p_show_profile.daemon = True
-#        p_show_profile.start()
-
+                       ind=ind, xlim = xlim, xtrunc=xtrunc)
     return profile_model
 
 
 def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
-                thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
+                inmask = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
                 maskwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
                 show_profile = False):
 
@@ -674,6 +669,8 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
                value of the reduced chi^2
      """
 
+    if inmask is None:
+        inmask = (ivar > 0.0)
     if maskwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
         no_deriv = True
@@ -684,13 +681,10 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     nspec = image.shape[0]
 
     # dspat is the spatial position along the image centered on the object trace
-    dspat = spat_img - np.outer(trace_in, np.ones(nspat))
+    dspat = (spat_img - np.outer(trace_in, np.ones(nspat)))*inmask
     # create some images we will need
-    sub_obj = image
-    sub_ivar = ivar
-    sub_wave = waveimg
-    sn2_sub = np.zeros((nspec,nspat))
-    spline_sub = np.zeros((nspec,nspat))
+    sn2_img = np.zeros((nspec,nspat))
+    spline_img = np.zeros((nspec,nspat))
 
     flux_sm = scipy.ndimage.filters.median_filter(flux, size=5, mode = 'reflect')
     fluxivar_sm =  scipy.ndimage.filters.median_filter(fluxivar, size = 5, mode = 'reflect')
@@ -735,17 +729,17 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     cont_flux1 = pydl.djs_maskinterp(cont_flux1,(cmask2 == False))
     (_, _, sigma1) = sigma_clipped_stats(flux[indsp],sigma_lower=3.0,sigma_upper=5.0)
 
-    igood = (ivar > 0.0)
     sn2_med_filt = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
-    if np.any(igood):
-        sn2_interp = scipy.interpolate.interp1d((wave[indsp])[isrt],sn2_med_filt[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
-        sn2_sub[igood] = sn2_interp(sub_wave[igood])
+    if np.any(inmask):
+        sn2_interp = scipy.interpolate.interp1d((wave[indsp])[isrt],sn2_med_filt[isrt],assume_sorted=False,
+                                                bounds_error=False,fill_value = 'extrapolate')
+        sn2_img[inmask] = sn2_interp(waveimg[inmask])
     else:
         msgs.error('Entire ')
     msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
     if(med_sn2 <= 2.0):
-        spline_sub[igood]= np.fmax(sigma1,0)
+        spline_img[inmask]= np.fmax(sigma1,0)
     else:
         if((med_sn2 <=5.0) and (med_sn2 > 2.0)):
             spline_flux1 = cont_flux1
@@ -765,18 +759,19 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
         spline_flux1 = scipy.ndimage.filters.median_filter(spline_flux1,size=5,mode ='reflect')
 
         # Create the normalized object image
-        if np.any(igood):
+        if np.any(inmask):
             isrt = np.argsort(wave)
-            spline_sub_interp = scipy.interpolate.interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
-            spline_sub[igood] = spline_sub_interp(sub_wave[igood])
+            spline_img_interp = scipy.interpolate.interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False,
+                                                           bounds_error=False,fill_value = 'extrapolate')
+            spline_img[inmask] = spline_img_interp(waveimg[inmask])
         else:
-            spline_sub[igood] = np.fmax(sigma1, 0)
+            spline_img[inmask] = np.fmax(sigma1, 0)
 
-    norm_obj = (spline_sub != 0.0)*sub_obj/(spline_sub + (spline_sub == 0.0))
-    norm_ivar = sub_ivar*spline_sub**2
+    norm_obj = (spline_img != 0.0)*image/(spline_img + (spline_img == 0.0))
+    norm_ivar = ivar*spline_img**2
 
     # Cap very large inverse variances
-    ivar_mask = (norm_obj > -0.2) & (norm_obj < 0.7) & (sub_ivar > 0.0) & np.isfinite(norm_obj) & np.isfinite(norm_ivar)
+    ivar_mask = (norm_obj > -0.2) & (norm_obj < 0.7) & inmask & np.isfinite(norm_obj) & np.isfinite(norm_ivar)
     norm_ivar = norm_ivar*ivar_mask
     good = (norm_ivar.flatten() > 0.0)
     ngood = np.sum(good)
@@ -791,13 +786,13 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
     # sigma_x represents the profile argument, i.e. (x-x0)/sigma
-    sigma_x = dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
+    sigma_x = (dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat)))*inmask
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
         msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
         msgs.info("Returning Gaussian profile")
-        profile_model = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
+        profile_model = return_gaussian(sigma_x, norm_obj, inmask, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
         return (profile_model, trace_in, fwhmfit, med_sn2)
 
     mask = np.full(nspec*nspat, False, dtype=bool)
@@ -823,7 +818,7 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     bkpt = bkpt[keep]
 
     # Attempt B-spline first
-    GOOD_PIX = (sn2_sub > sn_gauss**2) & (norm_ivar > 0)
+    GOOD_PIX = (sn2_img > sn_gauss**2) & (norm_ivar > 0)
     IN_PIX   = (sigma_x >= min_sigma) & (sigma_x <= max_sigma) & (norm_ivar > 0)
     ngoodpix = np.sum(GOOD_PIX)
     ninpix     = np.sum(IN_PIX)
@@ -886,8 +881,8 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     if(ninside < 10):
         msgs.info("Too few pixels inside l_limit and r_limit")
         msgs.info("Returning Gaussian profile")
-        profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,show_profile,
-                                                          ind = good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
+        profile_model = return_gaussian(sigma_x, norm_obj, inmask, bspline_fwhm, med_sn2, obj_string,show_profile,
+                                                          ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
         return (profile_model, trace_in, fwhmfit, med_sn2)
 
     sigma_iter = 3
@@ -918,8 +913,8 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
         if not np.any(mode_shift_out[1]):
             msgs.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
-            profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
-                                            show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
+            profile_model = return_gaussian(sigma_x, norm_obj, inmask, bspline_fwhm, med_sn2, obj_string,
+                                            show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
 
@@ -939,7 +934,7 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
         if not np.any(mode_stretch_out[1]):
             msgs.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
-            profile_model  = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+            profile_model  = return_gaussian(sigma_x, norm_obj, inmask, bspline_fwhm, med_sn2, obj_string,
                                                               show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
@@ -974,7 +969,7 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
             if not np.any(bset_out[1]):
                 msgs.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
                 msgs.info("Returning Gaussian profile")
-                profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
+                profile_model = return_gaussian(sigma_x, norm_obj, inmask, bspline_fwhm, med_sn2, obj_string,
                                                                   show_profile, ind=good, l_limit=l_limit,r_limit=r_limit, xlim=7.0)
                 return (profile_model, trace_in, fwhmfit, med_sn2)
 
@@ -999,14 +994,14 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     bset = bset_out[0]
     outmask = bset_out[1]
 
-    # inmask = False for pixels within (min_sigma, max_sigma), True outside
-    inmask = (sigma_x.flatten() > min_sigma) & (sigma_x.flatten() < max_sigma)
+    # igood = False for pixels within (min_sigma, max_sigma), True outside
+    igood = (sigma_x.flatten() > min_sigma) & (sigma_x.flatten() < max_sigma)
     full_bsp = np.zeros(nspec*nspat, dtype=float)
-    sigma_x_inmask = sigma_x.flat[inmask]
-    yfit_out, _  = bset.value(sigma_x_inmask)
-    full_bsp[inmask] = yfit_out
-    isrt = sigma_x_inmask.argsort()
-    (peak, peak_x, lwhm, rwhm) = findfwhm(yfit_out[isrt] - median_fit, sigma_x_inmask[isrt])
+    sigma_x_igood = sigma_x.flat[igood]
+    yfit_out, _  = bset.value(sigma_x_igood)
+    full_bsp[igood] = yfit_out
+    isrt = sigma_x_igood.argsort()
+    (peak, peak_x, lwhm, rwhm) = findfwhm(yfit_out[isrt] - median_fit, sigma_x_igood[isrt])
 
 
     left_bool = (((full_bsp[ss] < (min_level+median_fit)) & (sigma_x.flat[ss] < peak_x)) | (sigma_x.flat[ss] < (peak_x-limit)))[::-1]

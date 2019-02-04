@@ -561,7 +561,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 
-def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False):
+def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False, show_peaks=False):
 
     # Find the objid of the brighest object, and the average snr across all orders
     nslits = stack_dict['tslits_dict']['slit_left'].shape[1]
@@ -680,7 +680,7 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
 
     # Object finding
     sobjs_obj, nobj, skymask_init = redux.find_objects(imgminsky_psuedo, sciivar_psuedo, ir_redux=ir_redux,
-                                                       show_peaks=show, show=show)
+                                                       show_peaks=show_peaks, show=show)
     # Local sky-subtraction
     global_sky_psuedo = np.zeros_like(imgminsky_psuedo) # No global sky for co-adds since we go straight to local
     rn2img_psuedo = global_sky_psuedo # No rn2img for co-adds since we go do not model noise

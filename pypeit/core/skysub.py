@@ -660,9 +660,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slitid) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
                     sign = sobjs[iobj].sign
-                    (profile_model, trace_new, fwhmfit, med_sn2) = extract.fit_profile(
+                    profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix],spat_pix[ipix], sobjs[iobj].trace_spat,
-                        wave, sign*flux, fluxivar, thisfwhm=sobjs[iobj].fwhm, maskwidth=sobjs[iobj].maskwidth,
+                        wave, sign*flux, fluxivar, inmask = outmask[ipix],
+                        thisfwhm=sobjs[iobj].fwhm, maskwidth=sobjs[iobj].maskwidth,
                         prof_nsigma=sobjs[iobj].prof_nsigma,sn_gauss=sn_gauss, obj_string = obj_string,
                         show_profile=show_profile)
                     #proc_list.append(show_proc)
