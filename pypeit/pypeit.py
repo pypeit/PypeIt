@@ -314,11 +314,14 @@ class PypeIt(object):
         # Save the frame
         self.frames = frames
         self.bg_frames = bg_frames
+        # Is this an IR reduction?
+        self.ir_redux = True if len(bg_frames) > 0 else False
 
         # JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
+        sci_dict['meta']['ir_redux'] = self.ir_redux
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
@@ -510,8 +513,6 @@ class PypeIt(object):
         """
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
-        # Is this an IR reduction
-        self.ir_redux = True if len(bg_frames) > 0 else False
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
         # Get the standard trace if need be

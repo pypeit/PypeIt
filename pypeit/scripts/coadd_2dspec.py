@@ -9,15 +9,18 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from configobj import ConfigObj
-import numpy as np
 from astropy.io import fits
 from pypeit import par, msgs
 from pypeit.core import coadd2d
+from pypeit.core import save
 from pypeit.spectrographs.util import load_spectrograph
 from collections import OrderedDict
 import argparse
 import glob
 import os
+import numpy as np
+from pypeit.par import pypeitpar
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Echelle examples:
@@ -117,12 +120,9 @@ def parser(options=None):
 def main(args, unit_test=False):
     """ Runs fluxing steps
     """
-    import pdb
-    import os
-    import numpy as np
 
-    from pypeit import fluxspec
-    from pypeit.core import flux
+
+
     from pypeit.par import pypeitpar
 
     # Load the file
@@ -142,7 +142,6 @@ def main(args, unit_test=False):
         msgs.info("Restricting reductions to detector={}".format(args.det))
         par['rdx']['detnum'] = int(args.det)
 
-
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
     par.to_config(args.par_outfile)
@@ -151,17 +150,21 @@ def main(args, unit_test=False):
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
     head1d = fits.getheader(spec1d_files[0])
     head2d = fits.getheader(spec2d_files[0])
+    filename = os.path.basename(spec2d_files[0])
+
+    skysub_mode = head2d['SKYSUB']
+    ir_redux = True if 'DIFF' in skysub_mode else False
+    if ir_redux:
+        msgs.info('Performing coadd of frames reduce with DIFFERENCE imaging')
     redux_path = './'
     master_dirname = os.path.basename(head2d['PYPMFDIR'])+'/'
     master_dir = os.path.join(redux_path,os.path.normpath(master_dirname) + '_coadd/')
-
 
     # Make the new master dir and Science dir
     if os.path.exists(master_dir):
         msgs.info("The following directory already exists:"+msgs.newline()+master_dir)
     else:
         os.mkdir(master_dir)
-
 
     # Instantiate the sci_dict
     sci_dict = OrderedDict()  # This needs to be ordered
@@ -174,19 +177,21 @@ def main(args, unit_test=False):
         msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
         set(np.arange(spectrograph.ndet)) - set(detectors)])))
 
-    # Loop on Detectors
+    # Loop on detectors
     for det in detectors:
         msgs.info("Working on detector {0}".format(det))
         sci_dict[det] = {}
 
         # Read in the stack, grab some meta data we will need
-        stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det)
+        stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det, ir_redux=ir_redux)
 
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
         sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
-        sci_dict[det]['specobjs'] = coadd2d.extract()
+        sci_dict[det]['specobjs'] = coadd2d.extract_coadd2d(stack_dict, master_dir, ir_redux=ir_redux, par=par,
+                                                            show=args.show)
 
     # Make the science directory, and write outputs to disk
+    master_key_dict = stack_dict['master_key_dict']
     scipath = redux_path + 'Science_coadd'
     if os.path.exists(scipath):
         msgs.info("The following directory already exists:" + msgs.newline() + scipath)
@@ -195,36 +200,13 @@ def main(args, unit_test=False):
     basename = filename.split('_')[1]
     save.save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename)
 
-            # Instantiate
-    if spectrograph.pypeline == 'Echelle':
-        # THIS MAY BE BROKEN
-        FxSpec = fluxspec.EchFluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
-    else:
-        FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
-
-    # Generate sensfunc??
-    if par['fluxcalib']['std_file'] is not None:
-        # Load standard
-        FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
-        # For echelle, the code will deal with the standard star in the ech_fluxspec.py
-        if not spectrograph.pypeline == 'Echelle':
-            # Find the star
-            _ = FxSpec.find_standard()
-        # Sensitivity
-        _ = FxSpec.generate_sensfunc()
-        # Output
-        _ = FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=par['fluxcalib']['sensfunc'])
-        # Show
-        if args.plot:
-            FxSpec.show_sensfunc()
-
-    # Flux?
-    if len(flux_dict) > 0:
-        for spec1d_file, flux_file in zip(flux_dict['spec1d_files'], flux_dict['flux_files']):
-            FxSpec.flux_science(spec1d_file)
-            FxSpec.write_science(flux_file)
 
 
-
+    # I don't think I need this below
+    #try:
+    #    mjd = head1d['mjd']  # recorded as 'mjd' in fitstbl
+    #except KeyError:
+    #    mjd = head1d['MJD-OBS']
+    #obstime = time.Time(mjd, format='mjd')
 
 

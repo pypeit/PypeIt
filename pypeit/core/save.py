@@ -431,16 +431,21 @@ def save_2d_images(sci_output, raw_header, master_key_dict, mfdir, outfile, clob
         # TODO Should the spectrograph be written to the header?
         prihdu.header['PIPELINE'] = str('PYPEIT')
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
-        prihdu.header['FRAMMKEY'] = master_key_dict['frame']
-        prihdu.header['BPMMKEY'] = master_key_dict['bpm']
-        prihdu.header['BIASMKEY']  = master_key_dict['bias']
-        prihdu.header['ARCMKEY']  = master_key_dict['arc']
-        prihdu.header['TRACMKEY']  = master_key_dict['trace']
-        prihdu.header['FLATMKEY']  = master_key_dict['flat']
+        prihdu.header['FRAMMKEY'] = master_key_dict['frame'][:-3]
+        prihdu.header['BPMMKEY'] = master_key_dict['bpm'][:-3]
+        prihdu.header['BIASMKEY']  = master_key_dict['bias'][:-3]
+        prihdu.header['ARCMKEY']  = master_key_dict['arc'][:-3]
+        prihdu.header['TRACMKEY']  = master_key_dict['trace'][:-3]
+        prihdu.header['FLATMKEY']  = master_key_dict['flat'][:-3]
         prihdu.header['PYPMFDIR'] = str(mfdir)
+        if sci_output['meta']['ir_redux']:
+            prihdu.header['SKYSUB'] ='DIFF'
+        else:
+            prihdu.header['SKYSUB'] ='MODEL'
 
 
-    # Fill in the images
+
+        # Fill in the images
     ext = len(hdus) - 1
     for key in sci_output.keys():
         if key in ['meta']:
