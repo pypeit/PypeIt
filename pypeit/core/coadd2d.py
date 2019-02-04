@@ -113,7 +113,7 @@ def load_coadd2d_stacks(spec2d_files, det):
     # Get the master dir
     head0 = fits.getheader(spec2d_files[0])
     master_dir = os.path.basename(head0['PYPMFDIR'])+'/'
-    redux_path =  os.path.dirname(os.path.dirname(spec2d_files[0])) + '/'
+    redux_path =  './'
     master_path = redux_path + master_dir
     tiltfiles = []
     waveimgfiles = []

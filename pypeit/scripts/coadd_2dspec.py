@@ -54,10 +54,9 @@ def read_coadd2d_file(ifile):
 
     """
     # Read in the pypeit reduction file
-    msgs.info('Loading the fluxcalib file')
+    msgs.info('Loading the coadd2d file')
     lines = par.util._read_pypeit_file_lines(ifile)
     is_config = np.ones(len(lines), dtype=bool)
-
 
     # Parse the fluxing block
     spec2d_files = []
@@ -69,7 +68,7 @@ def read_coadd2d_file(ifile):
     else:
         for line in lines[s:e]:
             prs = line.split(' ')
-            spec2d_files.append(prs[0])
+            spec2d_files.append(os.path.join('Science/', os.path.basename(prs[0])))
         is_config[s-1:e+1] = False
 
     # Construct config to get spectrograph
@@ -104,7 +103,7 @@ def parser(options=None):
                         help="Object name in lieu of extension, e.g if the spec2d files are named "
                              "'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits. then obj=J1234+5678")
     parser.add_argument("--show", default=False, action="store_true",
-                        help="Show the reduction steps. Equivalent to the -s option when running pypeit?")
+                        help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--par_outfile", default='coadd2d.par', action="store_true",
                         help="Output file to save the parameters")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
@@ -122,8 +121,7 @@ def main(args, unit_test=False):
     """
 
     # Load the file
-    spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.flux_file)
-
+    spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.coadd2d_file)
     # Parameters
     spectrograph_def_par = spectrograph.default_pypeit_par()
     par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
@@ -168,7 +166,7 @@ def main(args, unit_test=False):
     sci_dict['meta']['vel_corr'] = 0.
 
     # Find the detectors to reduce
-    detectors = select_detectors()
+    detectors = select_detectors(par, spectrograph)
     if len(detectors) != spectrograph.ndet:
         msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
         set(np.arange(spectrograph.ndet)) - set(detectors)])))
