@@ -131,6 +131,7 @@ def main(args, unit_test=False):
     if args.obj is not None:
         spec2d_files = glob.glob('./Science/spec2d_' + args.obj + '*')
 
+
     # If detector was passed as an argument override whatever was in the coadd2d_file
     if args.det is not None:
         msgs.info("Restricting reductions to detector={}".format(args.det))
@@ -145,11 +146,19 @@ def main(args, unit_test=False):
     head1d = fits.getheader(spec1d_files[0])
     head2d = fits.getheader(spec2d_files[0])
     filename = os.path.basename(spec2d_files[0])
+    basename = filename.split('_')[1]
 
     skysub_mode = head2d['SKYSUB']
     ir_redux = True if 'DIFF' in skysub_mode else False
-    if ir_redux:
-        msgs.info('Performing coadd of frames reduce with DIFFERENCE imaging')
+
+    # Print status message
+    msgs_string = 'Reducing target {:s}'.format(basename) + msgs.newline()
+    msgs_string += 'Performing coadd of frames reduce with {:s} imaging'.format(skysub_mode) + msgs.newline()
+    msgs_string += 'Combining frames in 2d coadd:' + msgs.newline()
+    for file in spec2d_files:
+        msgs_string += '{0:s}'.format(os.path.basename(file)) + msgs.newline()
+    msgs.info(msgs_string)
+
     redux_path = './'
     master_dirname = os.path.basename(head2d['PYPMFDIR'])+'/'
     master_dir = os.path.join(redux_path,os.path.normpath(master_dirname) + '_coadd/')
@@ -192,7 +201,6 @@ def main(args, unit_test=False):
         msgs.info("The following directory already exists:" + msgs.newline() + scipath)
     else:
         os.mkdir(scipath)
-    basename = filename.split('_')[1]
     save.save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename)
 
 
