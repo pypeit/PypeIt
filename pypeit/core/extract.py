@@ -1454,8 +1454,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     if inmask is None:
         inmask = thismask
 
-
-    thisimg =image*(thismask & inmask & (edgmask == False))
+    totmask = thismask & inmask & np.invert(edgmask)
+    thisimg =image*totmask
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     nsamp = np.ceil(np.median(xsize))
@@ -1464,9 +1464,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
     # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
     flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym)
-    flux_mean, flux_median, flux_sig = sigma_clipped_stats(flux_spec,axis=0, sigma = 4.0)
+    mask_spec = extract_asymbox2(totmask, left_asym, righ_asym) < 0.3
+    flux_mean, flux_median, flux_sig = sigma_clipped_stats(flux_spec,mask = mask_spec, axis=0, sigma = 4.0)
+    smash_mask = np.isfinite(flux_mean)
+    flux_mean_med = np.median(flux_mean[smash_mask])
+    flux_mean[np.invert(smash_mask)] = 0.0
     if (nsamp < 9.0*fwhm):
-        fluxsub = flux_mean - np.median(flux_mean)
+        fluxsub = flux_mean - flux_mean_med
     else:
         kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
         # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
@@ -1478,7 +1482,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         isub_bad = (fluxsub == 0.0)
         frac_bad = np.sum(isub_bad)/nsamp
         if frac_bad > 0.9:
-            fluxsub = flux_mean - np.median(flux_mean)
+            fluxsub = flux_mean - flux_mean_med
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548,mode='nearest')
 
@@ -1492,7 +1496,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     ypeak_neg, _, xcen_neg, sigma_pk_neg, _, _, _, _ = arc.detect_lines(-fluxconv, cont_subtract = False, fwhm = fwhm,
                                                                         input_thresh = 'None',debug=False)
     # Only mask the strong peaks
-    (mean0, med0, sigma0) = sigma_clipped_stats(fluxconv, sigma=1.5)
+    (mean0, med0, sigma0) = sigma_clipped_stats(fluxconv, mask = np.invert(smash_mask), sigma=1.5)
     # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
     imask_pos = np.ones(int(nsamp), dtype=bool)
     imask_neg = np.ones(int(nsamp), dtype=bool)
@@ -1529,8 +1533,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
     # with the edgemask, but we do it here anyway
     not_near_edge = (xcen > trim_edg[0]) & (xcen < (nsamp - trim_edg[1]))
-    if np.any(~not_near_edge):
-        msgs.warn('Discarding {:d}'.format(np.sum(~not_near_edge)) + ' at spatial pixels spat = {:}'.format(xcen[~not_near_edge]) +
+    if np.any(np.invert(not_near_edge)):
+        msgs.warn('Discarding {:d}'.format(np.sum(np.invert(not_near_edge))) +
+                  ' at spatial pixels spat = {:}'.format(xcen[np.invert(not_near_edge)]) +
                   ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
                   ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
         msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
@@ -2046,6 +2051,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
       Skymask indicating which pixels can be used for global sky subtraction
     """
 
+    show_peaks=True
     if specobj_dict is None:
         specobj_dict = {'setup': 'unknown', 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
 
@@ -2120,7 +2126,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
         return sobjs, skymask_objfind[allmask]
 
     FOF_frac = fof_link/(np.median(np.median(slit_width,axis=0)*plate_scale_ord))
-
     # Run the FOF. We use fake coordinaes
     fracpos = sobjs.spat_fracpos
     ra_fake = fracpos/1000.0 # Divide all angles by 1000 to make geometry euclidian
@@ -2345,6 +2350,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
             spec.trace_spat = xfit_gweight[:,iord]
             spec.spat_pixpos = spec.trace_spat[specmid]
+
+    #TODO Put in some criterion here that does not let the fractional position change too much during the iterative
+    # tracefitting. The problem is spurious apertures identified on one slit can be pulled over to the center of flux
+    # resulting in a bunch of objects landing on top of each other.
 
     # Set the IDs
     sobjs_final.set_idx()

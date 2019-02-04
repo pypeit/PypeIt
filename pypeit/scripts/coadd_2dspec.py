@@ -164,6 +164,7 @@ def main(args, unit_test=False):
     sci_dict = OrderedDict()  # This needs to be ordered
     sci_dict['meta'] = {}
     sci_dict['meta']['vel_corr'] = 0.
+    sci_dict['meta']['ir_redux'] = ir_redux
 
     # Find the detectors to reduce
     detectors = select_detectors(par, spectrograph)
