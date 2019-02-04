@@ -343,7 +343,6 @@ class PypeIt(object):
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
             sci_dict[self.det] = {}
-
             # Calibrate
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
