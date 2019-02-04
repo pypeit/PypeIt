@@ -351,14 +351,14 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
 
     # Determine the wavelength grid that we will use for the current slit/order
     wavemask = thismask_stack & (waveimg_stack > 1.0) # TODO This cut on waveimg_stack should not be necessary
-    wave_min = waveimg_stack[wavemask].min()
-    wave_max = waveimg_stack[wavemask].max()
+    wave_lower = waveimg_stack[wavemask].min()
+    wave_upper = waveimg_stack[wavemask].max()
     if loglam_grid is not None:
-        ind_lower, ind_upper = get_wave_ind(loglam_grid, np.log10(wave_min), np.log10(wave_max))
+        ind_lower, ind_upper = get_wave_ind(loglam_grid, np.log10(wave_lower), np.log10(wave_upper))
         loglam_bins = loglam_grid[ind_lower:ind_upper + 1]
         wave_bins = np.power(10.0, loglam_bins)
     elif wave_grid is not None:
-        ind_lower, ind_upper = get_wave_ind(wave_grid, wave_min, wave_max)
+        ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
         wave_bins = wave_grid[ind_lower:ind_upper + 1]
         loglam_bins = np.log10(wave_bins)
     else:
@@ -408,9 +408,12 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     sciivar = utils.calc_ivar(var_list_out[0])
 
     wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]
+    wave_min = wave_bins[:-1]
+    wave_max = wave_bins[1:]
+
     dspat_mid = ((dspat_bins + np.roll(dspat_bins,1))/2.0)[1:]
     coadd_dict = dict(wave_bins=wave_bins, dspat_bins=dspat_bins,
-                      wave_mid = wave_mid, dspat_mid=dspat_mid,
+                      wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max, dspat_mid=dspat_mid,
                       sciimg=sciimg, sciivar=sciivar, imgminsky=imgminsky, outmask=outmask,
                       nused=nused, tilts=tilts, waveimg=waveimg, dspat=dspat,
                       nspec=imgminsky.shape[0], nspat=imgminsky.shape[1])
@@ -608,6 +611,8 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
     nused_psuedo = np.zeros(shape_psuedo, dtype=int)
     inmask_psuedo = np.zeros(shape_psuedo, dtype=bool)
     wave_mid = np.zeros((nspec_psuedo, nslits))
+    wave_min = np.zeros((nspec_psuedo, nslits))
+    wave_max = np.zeros((nspec_psuedo, nslits))
     dspat_mid = np.zeros((nspat_psuedo, nslits))
 
     spat_left = nspat_pad
@@ -629,6 +634,9 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
         spat_psuedo[ispec, ispat] = image_temp
         nused_psuedo[ispec, ispat] = coadd_dict['nused']
         wave_mid[ispec, islit] = coadd_dict['wave_mid']
+        wave_min[ispec, islit] = coadd_dict['wave_min']
+        wave_max[ispec, islit] = coadd_dict['wave_max']
+
         dspat_mid[ispat, islit] = coadd_dict['dspat_mid']
         slit_left[:,islit] = np.full(nspec_psuedo, spat_left)
         slit_righ[:,islit] = np.full(nspec_psuedo, spat_righ)
@@ -684,6 +692,17 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
     if ir_redux:
         sobjs.purge_neg()
 
+    # Add the information about the fixed wavelength grid to the sobjs
+    for spec in sobjs:
+        spec.boxcar['WAVE_GRID'] = wave_mid[:,spec.slitid]
+        spec.boxcar['WAVE_GRID_MIN'] = wave_min[:,spec.slitid]
+        spec.boxcar['WAVE_GRID_MAX'] = wave_max[:,spec.slitid]
+
+        spec.optimal['WAVE_GRID'] = wave_mid[:,spec.slitid]
+        spec.optimal['WAVE_GRID_MIN'] = wave_min[:,spec.slitid]
+        spec.optimal['WAVE_GRID_MAX'] = wave_max[:,spec.slitid]
+
+
     # TODO Implement flexure and heliocentric corrections on the single exposure 1d reductions and apply them to the
     # waveimage. Change the data model to accomodate a wavelength model for each image.
     # Using the same implementation as in core/pypeit
@@ -697,9 +716,6 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
     traceSlits.save_master(tslits_dict_psuedo)
 
     return imgminsky_psuedo, sciivar_psuedo, skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs
-
-
-
 
 
 # TODO make weights optional and do uniform weighting without.
