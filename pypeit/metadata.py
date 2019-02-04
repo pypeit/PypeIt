@@ -572,7 +572,7 @@ class PypeItMetaData:
         _cfg_keys = self.spectrograph.configuration_keys() if cfg_keys is None else cfg_keys
         return {k:self.table[k][indx] for k in _cfg_keys}
 
-    def master_key(self, row, det=1):
+    def master_key(self, row, det=None):
         """
         Construct the master key for the file in the provided row.
 
@@ -605,10 +605,16 @@ class PypeItMetaData:
         if 'setup' not in self.keys() or 'calibbit' not in self.keys():
             msgs.error('Cannot provide master key string without setup and calibbit; '
                        'run set_configurations and set_calibration_groups.')
-        if det <= 0 or det > self.spectrograph.ndet:
-            raise IndexError('{0} is not a valid detector for {1}!'.format(det,
-                             self.spectrograph.spectrograph))
-        return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
+
+        if det is not None:
+            if det <= 0 or det > self.spectrograph.ndet:
+                raise IndexError('{0} is not a valid detector for {1}!'.format(det,self.spectrograph.spectrograph))
+            return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
+        else:
+            return '{0}_{1}'.format(self['setup'][row], self['calibbit'][row])
+
+
+
 
     def construct_obstime(self, row):
         """

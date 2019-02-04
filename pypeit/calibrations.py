@@ -202,7 +202,7 @@ class Calibrations(object):
         # Reset internals to None
         self._reset_internals()
         # Initialize the master key dict for this science/standard frame
-        self.master_key_dict['frame'] = self.fitstbl.master_key(frame, det=det)
+        self.master_key_dict['frame'] = self.fitstbl.master_key(frame)
 
     def get_arc(self):
         """
@@ -224,7 +224,7 @@ class Calibrations(object):
         # Prep
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        self.arc_master_key = self.fitstbl.master_key(arc_rows[0], det=self.det)
+        self.arc_master_key = self.fitstbl.master_key(arc_rows[0])
         self.master_key_dict['arc'] = self.arc_master_key
 
         prev_build = self.check_for_previous('arc', self.arc_master_key)
@@ -272,9 +272,9 @@ class Calibrations(object):
         bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
         self.bias_files = self.fitstbl.frame_paths(bias_rows)
         if len(bias_rows) > 0:
-            self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
+            self.bias_master_key = self.fitstbl.master_key(bias_rows[0])
         else:  # Allow for other bias modes
-            self.bias_master_key = self.fitstbl.master_key(self.frame, det=self.det)
+            self.bias_master_key = self.fitstbl.master_key(self.frame)
         self.master_key_dict['bias'] = self.bias_master_key
 
         # Grab from internal dict (or hard-drive)?
@@ -326,7 +326,7 @@ class Calibrations(object):
         self._chk_set(['par'])
 
         # Generate a bad pixel mask (should not repeat)
-        self.bpm_master_key = self.fitstbl.master_key(self.frame, det=self.det)
+        self.bpm_master_key = self.fitstbl.master_key(self.frame)
         self.master_key_dict['bpm'] = self.bpm_master_key
 
         prev_build = self.check_for_previous('bpm', self.bpm_master_key)
@@ -391,9 +391,9 @@ class Calibrations(object):
         # TODO: Why aren't these set to self
         pixflat_image_files = self.fitstbl.frame_paths(pixflat_rows)
         if len(pixflat_rows) > 0:
-            self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0], det=self.det)
+            self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0])
         else:  # Allow for user-supplied file (e.g. LRISb)
-            self.pixflat_master_key = self.fitstbl.master_key(self.frame, det=self.det)
+            self.pixflat_master_key = self.fitstbl.master_key(self.frame)
 
         self.master_key_dict['flat'] = self.pixflat_master_key
         # Return already generated data
@@ -523,7 +523,7 @@ class Calibrations(object):
         trace_rows = self.fitstbl.find_frames('trace', calib_ID=self.calib_ID, index=True)
         self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
 
-        self.trace_master_key = self.fitstbl.master_key(trace_rows[0], det=self.det)
+        self.trace_master_key = self.fitstbl.master_key(trace_rows[0])
         self.master_key_dict['trace'] = self.trace_master_key
 
         # Return already generated data

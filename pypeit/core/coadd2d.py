@@ -91,7 +91,7 @@ def optimal_weights(specobjs_list, slitid, objid, echelle=True):
 
     return rms_sn, weights, trace_stack, wave_stack
 
-def load_coadd2d_stacks(spec2d_files, det=1):
+def load_coadd2d_stacks(spec2d_files, det):
 
     # Get the detector string
     sdet = parse.get_dnum(det, prefix=False)
@@ -111,8 +111,8 @@ def load_coadd2d_stacks(spec2d_files, det=1):
     for file in spec2d_files:
         head = fits.getheader(file)
         head2d_list.append(head)
-        trace_key = '{:s}'.format(head['TRACMKEY'])
-        wave_key = '{:s}'.format(head['ARCMKEY'])
+        trace_key = '{:s}'.format(head0['TRACMKEY']) + '_{:02d}'.format(det)
+        wave_key = '{:s}'.format(head['ARCMKEY']) + '_{:02d}'.format(det)
         tracefiles.append(masterframe.master_name('trace', trace_key, master_path))
         waveimgfiles.append(masterframe.master_name('wave', wave_key, master_path))
         tiltfiles.append(masterframe.master_name('tilts', wave_key, master_path))

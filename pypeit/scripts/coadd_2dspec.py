@@ -10,9 +10,14 @@ from __future__ import unicode_literals
 
 from configobj import ConfigObj
 import numpy as np
+from astropy.io import fits
 from pypeit import par, msgs
+from pypeit.core import coadd2d
 from pypeit.spectrographs.util import load_spectrograph
+from collections import OrderedDict
 import argparse
+import glob
+import os
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Echelle examples:
@@ -25,9 +30,9 @@ import argparse
 #         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
 
 
-def read_fluxfile(ifile):
+def read_coadd2d_file(ifile):
     """
-    Read a PypeIt flux file, akin to a standard PypeIt file
+    Read a PypeIt coadd2d file, akin to a standard PypeIt file
 
     The top is a config block that sets ParSet parameters
       The spectrograph is required
@@ -52,19 +57,16 @@ def read_fluxfile(ifile):
 
 
     # Parse the fluxing block
-    flux_dict = {}
-    s, e = par.util._find_pypeit_block(lines, 'flux')
+    spec2d_files = []
+    s, e = par.util._find_pypeit_block(lines, 'spec2d')
     if s >= 0 and e < 0:
-        msgs.error("Missing 'flux end' in {0}".format(ifile))
+        msgs.error("Missing 'spec2d end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
-        msgs.warn("No flux block, you must be making the sensfunc only..")
+        msgs.warn("No spec2d file block, you must have passed --objprefix as an argument..")
     else:
-        flux_dict['spec1d_files'] = []
-        flux_dict['flux_files'] = []
         for line in lines[s:e]:
             prs = line.split(' ')
-            flux_dict['spec1d_files'].append(prs[0])
-            flux_dict['flux_files'].append(prs[1])
+            spec2d_files.append(prs[0])
         is_config[s-1:e+1] = False
 
     # Construct config to get spectrograph
@@ -74,14 +76,36 @@ def read_fluxfile(ifile):
     spectrograph = load_spectrograph(spectrograph_name)
 
     # Return
-    return spectrograph, cfg_lines, flux_dict
+    return spectrograph, cfg_lines, spec2d_files
+
+
+# TODO this is an exact copy of the same function in pypeit class. We should probably make it a utility in par??
+def select_detectors(par, spectrograph):
+    """
+    Return the 1-indexed list of detectors to reduce.
+
+    Returns:
+    list:  List of detectors to be reduced
+
+    """
+    if par['rdx']['detnum'] is None:
+        return np.arange(spectrograph.ndet)+1
+    return [par['rdx']['detnum']] if isinstance(par['rdx']['detnum'], int) else par['rdx']['detnum']
+
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
-    parser.add_argument("flux_file", type=str, help="File to guide fluxing process")
+    parser.add_argument("coadd2d_file", type=str, help="File to guide 2d coadds")
+    parser.add_argument('--det', default=1, type=int, help="Only coadd this detector number")
+    parser.add_argument("--obj", type=str, default=None,
+                        help="Object name in lieu of extension, e.g if the spec2d files are named "
+                             "'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits. then obj=J1234+5678")
+    parser.add_argument("--show", default=False, action="store_true",
+                        help="Show the reduction steps. Equivalent to the -s option when running pypeit?")
+    parser.add_argument("--par_outfile", default='coadd2d.par', action="store_true",
+                        help="Output file to save the parameters")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
-    parser.add_argument("--par_outfile", default='fluxing.par', action="store_true", help="Output to save the parameters")
+
 
     if options is None:
         args = parser.parse_args()
@@ -102,25 +126,76 @@ def main(args, unit_test=False):
     from pypeit.par import pypeitpar
 
     # Load the file
-    spectrograph, config_lines, flux_dict = read_fluxfile(args.flux_file)
+    spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.flux_file)
 
     # Parameters
     spectrograph_def_par = spectrograph.default_pypeit_par()
     par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                              merge_with=config_lines)
 
-    if unit_test:
-        path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
-        par['fluxcalib']['std_file'] = os.path.join(path, par['fluxcalib']['std_file'])
-        for kk, spec1d_file, flux_file in zip(np.arange(len(flux_dict['spec1d_files'])), flux_dict['spec1d_files'], flux_dict['flux_files']):
-            flux_dict['spec1d_files'][kk] = os.path.join(path, spec1d_file)
-            flux_dict['flux_files'][kk] = os.path.join(path, flux_file)
+    # If obj was passed in, disregards the spec2d_files in the coadd2d file and use all objects with this name
+    if args.obj is not None:
+        spec2d_files = glob.glob('./Science/spec2d_' + args.obj + '*')
+
+    # If detector was passed as an argument override whatever was in the coadd2d_file
+    if args.det is not None:
+        msgs.info("Restricting reductions to detector={}".format(args.det))
+        par['rdx']['detnum'] = int(args.det)
+
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
     par.to_config(args.par_outfile)
 
-    # Instantiate
+    # Now run the coadds
+    spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
+    head1d = fits.getheader(spec1d_files[0])
+    head2d = fits.getheader(spec2d_files[0])
+    redux_path = './'
+    master_dirname = os.path.basename(head2d['PYPMFDIR'])+'/'
+    master_dir = os.path.join(redux_path,os.path.normpath(master_dirname) + '_coadd/')
+
+
+    # Make the new master dir and Science dir
+    if os.path.exists(master_dir):
+        msgs.info("The following directory already exists:"+msgs.newline()+master_dir)
+    else:
+        os.mkdir(master_dir)
+
+
+    # Instantiate the sci_dict
+    sci_dict = OrderedDict()  # This needs to be ordered
+    sci_dict['meta'] = {}
+    sci_dict['meta']['vel_corr'] = 0.
+
+    # Find the detectors to reduce
+    detectors = select_detectors()
+    if len(detectors) != spectrograph.ndet:
+        msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
+        set(np.arange(spectrograph.ndet)) - set(detectors)])))
+
+    # Loop on Detectors
+    for det in detectors:
+        msgs.info("Working on detector {0}".format(det))
+        sci_dict[det] = {}
+
+        # Read in the stack, grab some meta data we will need
+        stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det)
+
+        sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
+        sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
+        sci_dict[det]['specobjs'] = coadd2d.extract()
+
+    # Make the science directory, and write outputs to disk
+    scipath = redux_path + 'Science_coadd'
+    if os.path.exists(scipath):
+        msgs.info("The following directory already exists:" + msgs.newline() + scipath)
+    else:
+        os.mkdir(scipath)
+    basename = filename.split('_')[1]
+    save.save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename)
+
+            # Instantiate
     if spectrograph.pypeline == 'Echelle':
         # THIS MAY BE BROKEN
         FxSpec = fluxspec.EchFluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)

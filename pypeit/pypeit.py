@@ -445,7 +445,6 @@ class PypeIt(object):
         else:
             msgs.error('Unrecognized objtype')
         setup = self.fitstbl.master_key(frame, det=det)
-
         return objtype_out, setup, obstime, basename, binning
 
     def get_std_trace(self, std_redux, det, std_outfile):
@@ -537,7 +536,8 @@ class PypeIt(object):
 
         self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
                                            ir_redux = self.ir_redux,par=self.par,
-                                           objtype=self.objtype, det=det, binning=self.binning)
+                                           objtype=self.objtype, setup=self.setup,
+                                           det=det, binning=self.binning)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
