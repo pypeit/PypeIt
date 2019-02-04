@@ -118,12 +118,8 @@ def parser(options=None):
 
 
 def main(args, unit_test=False):
-    """ Runs fluxing steps
+    """ Executes 2d coadding
     """
-
-
-
-    from pypeit.par import pypeitpar
 
     # Load the file
     spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.flux_file)
@@ -182,8 +178,8 @@ def main(args, unit_test=False):
         msgs.info("Working on detector {0}".format(det))
         sci_dict[det] = {}
 
-        # Read in the stack, grab some meta data we will need
-        stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det, ir_redux=ir_redux)
+        # Read in the images stacks and other clibration/meta data for this detector
+        stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det)
 
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
         sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \

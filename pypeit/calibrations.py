@@ -418,7 +418,7 @@ class Calibrations(object):
         # 1)  Try to load master files from disk (MasterFrame)?
         self.mspixflatnrm = self.flatField.master(prev_build=prev_build1)
         if prev_build2:
-            self.msillumflat = self.flatField.load_master_illumflat()
+            self.msillumflat, _ = self.flatField.load_master_illumflat()
 
         # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
         if self.par['flatfield']['frame'] not in ['pixelflat']:
@@ -434,7 +434,7 @@ class Calibrations(object):
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
                     self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
-            self.mspixflatnrm = self.flatField.load_master(mspixelflat_name, exten=self.det)
+            self.mspixflatnrm, _ = self.flatField.load_master(mspixelflat_name, exten=self.det)
 
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
@@ -479,7 +479,7 @@ class Calibrations(object):
         # illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
             # 2) If no illumination file is set yet, try to read it in from a master
-            self.msillumflat = self.flatField.load_master_illumflat()
+            self.msillumflat, _ = self.flatField.load_master_illumflat()
             # 3) If there is no master file, then set illumflat to unit
             # and war user that they are not illumflatting their data
             if self.msillumflat is None:

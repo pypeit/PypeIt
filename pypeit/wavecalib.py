@@ -327,7 +327,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None
+            return None, None
         else:
             msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
             self.wv_calib = linetools.utils.loadjson(filename)
@@ -341,7 +341,7 @@ class WaveCalib(masterframe.MasterFrame):
             # parset
             if 'par' in self.wv_calib.keys():
                 self.par = self.wv_calib['par'].copy()
-            return self.wv_calib
+            return self.wv_calib, None
 
     def save_master(self, data, outfile=None, raw_files=None, steps=None, overwrite=True, extensions=None, names=None):
         """
@@ -528,9 +528,8 @@ def load_wv_calib(filename):
         tuple (dict, parset): wv_calib dict, wavelengths parset
     """
 
-
     waveCalib = WaveCalib(None, None, None, None)
-    _ = waveCalib.load_master(filename)
-    return waveCalib.wv_calib, waveCalib.par
+    wv_calib, _ = waveCalib.load_master(filename)
+    return wv_calib, wv_calib['par'].copy()
 
 

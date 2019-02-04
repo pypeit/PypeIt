@@ -1071,7 +1071,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None
+            return None, None
         else:
             tslits_dict = ltu.loadjson(filename)
             # Recast a few items as arrays
@@ -1079,7 +1079,7 @@ class TraceSlits(masterframe.MasterFrame):
                 if isinstance(tslits_dict[key], list):
                     tslits_dict[key] = np.array(tslits_dict[key])
 
-        return tslits_dict
+        return tslits_dict, None
 
 
     # JFH TODO this needs an argument to follow convention for save_master
@@ -1273,4 +1273,5 @@ def load_tslits_dict(filename):
 
     """
     traceSlits = TraceSlits(None,None,None)
-    return traceSlits.load_master(filename)
+    tslits_dict, _ = traceSlits.load_master(filename)
+    return tslits_dict

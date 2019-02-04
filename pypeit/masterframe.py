@@ -85,7 +85,7 @@ class MasterFrame(object):
         """
         # Are we loading master files from disk?
         if self.reuse_masters or prev_build:
-            self.msframe = self.load_master(self.ms_name)
+            self.msframe, head = self.load_master(self.ms_name)
             return self.msframe
         else:
             return None
@@ -106,7 +106,7 @@ class MasterFrame(object):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None
+            return None, None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
             hdu = fits.open(filename)
@@ -119,7 +119,7 @@ class MasterFrame(object):
                 if 'FRAME' in key:
                     file_list.append(head0[key])
             #return data , head0, file_list
-            return data
+            return data, head0
 
     def save_master(self, data, outfile=None, raw_files=None, steps=None, overwrite=True, extensions=None, names=None):
         """

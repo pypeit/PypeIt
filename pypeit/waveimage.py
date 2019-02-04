@@ -134,3 +134,22 @@ class WaveImage(masterframe.MasterFrame):
         return txt
 
 
+
+
+def load_waveimage(filename):
+    """
+    Utility function which enables one to load the waveimage from a master file in one line of code without
+    instantiating the class.
+
+    Args:
+        filename (str): Master file name
+
+    Returns:
+        dict:  The trace slits dict
+
+    """
+
+    waveImage = WaveImage(None, None, None, None, None)
+    waveimage, head = waveImage.load_master(filename)
+
+    return waveimage, head

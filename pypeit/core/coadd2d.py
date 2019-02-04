@@ -129,10 +129,17 @@ def load_coadd2d_stacks(spec2d_files, det):
     # TODO Sort this out with the correct detector extensions etc.
     # Read in the image stacks
     for ifile in range(nfiles):
+        waveImage = waveimage.WaveImage(None, None, None, None, None)
+        waveimage = waveImage.load_master(waveimgfiles[ifile])
+        traceSlits = traceslits.TraceSlits(None, None, None)
+        traceSlits.save_master(tslits_dict_psuedo)
+
         hdu_wave = fits.open(waveimgfiles[ifile])
+
         waveimg = hdu_wave[0].data
         hdu_tilts = fits.open(tiltfiles[ifile])
         tilts = hdu_tilts[0].data
+
         hdu_sci = fits.open(spec2d_files[ifile])
         sciimg = hdu_sci[1].data
         sky = hdu_sci[3].data
@@ -663,9 +670,9 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
 
     # Write out the psuedo master files to disk
     master_key_dict = stack_dict['master_key_dict']
-    masterFrame = waveimage.WaveImage(None, None, None, None, None,
+    waveImage = waveimage.WaveImage(None, None, None, None, None,
                                       master_key=master_key_dict['arc'], master_dir=master_dir)
-    masterFrame.save_master(waveimg_psuedo)
+    waveImage.save_master(waveimg_psuedo)
     traceSlits = traceslits.TraceSlits(None, None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
     traceSlits.save_master(tslits_dict_psuedo)
 

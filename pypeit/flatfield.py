@@ -166,11 +166,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         """
         ms_name = masterframe.master_name('illumflat', self.master_key, self.mdir)
-        msframe = self.load_master(ms_name)
+        msframe, head = self.load_master(ms_name)
         if msframe is None:
             msgs.warn("No Master frame found of type {:s}: {:s}".format('illumflat', ms_name))
 
-        return msframe
+        return msframe, head
 
     # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
     def run(self, debug=False, show=False):
