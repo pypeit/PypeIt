@@ -10,6 +10,7 @@ from pypeit.core import skysub, extract, trace_slits, pixels
 from pypeit.par import pypeitpar
 from matplotlib import pyplot as plt
 
+from pypeit import debugger
 
 class Reduce(object):
     """

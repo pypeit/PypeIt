@@ -31,6 +31,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
+from pypeit.par import ManualExtractionPar
 from pypeit.metadata import PypeItMetaData
 
 from pypeit import debugger
@@ -97,6 +98,23 @@ class PypeIt(object):
         # Fitstbl
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
                                       usrdata=usrdata, strict=True)
+        # Deal with manual_extract -- THIS SHOULD BE DONE ELSEWHERE
+        if 'manual_extract' in self.fitstbl.keys():
+            mframes = np.where(self.fitstbl['manual_extract'] != 'None')[0]
+            # Loop
+            mext_list = []
+            for mframe in mframes:
+                # Parse the input
+                items = self.fitstbl['manual_extract'][mframe].split(';')
+                for item in items:
+                    numbers = item.split(',')
+                    mextpar = ManualExtractionPar(frame=self.fitstbl['filename'][mframe],
+                                                  det=int(numbers[0]), spec=float(numbers[1]),
+                                                  spat=float(numbers[2]), fwhm=float(numbers[3]))
+                    mext_list.append(mextpar)
+            #
+            self.par['scienceimage']['manual'] = mext_list
+
         # The following could be put in a prepare_to_run() method in PypeItMetaData
         if 'setup' not in self.fitstbl.keys():
             self.fitstbl['setup'] = setups[0]
