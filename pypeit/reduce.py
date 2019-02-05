@@ -554,10 +554,10 @@ class MultiSlit(Reduce):
                 hand_extract_dict = {}
                 for mex_par in self.redux_par['manual']:
                     if base_sci == mex_par['frame']:
-                        hand_extract_dict['hand_extract_spec'] = np.array(mex_par['spec'])
-                        hand_extract_dict['hand_extract_spat'] = np.array(mex_par['spat'])
-                        hand_extract_dict['hand_extract_det'] = np.array(mex_par['det'])
-                        hand_extract_dict['hand_extract_fwhm'] = np.array(mex_par['fwhm'])
+                        hand_extract_dict['hand_extract_spec'] = mex_par['spec']
+                        hand_extract_dict['hand_extract_spat'] = mex_par['spat']
+                        hand_extract_dict['hand_extract_det'] = mex_par['det']
+                        hand_extract_dict['hand_extract_fwhm'] = mex_par['fwhm']
             else:
                 hand_extract_dict = None
 

@@ -1156,6 +1156,8 @@ def parse_hand_dict(hand_extract_dict):
         raise ValueError('hand_extract_spec, hand_extract_spat, and hand_extract_det must have the same size in the hand_extract_dict')
     nhand = hand_extract_spec.size
 
+    hand_extract_fwhm = np.asarray(hand_extract_dict['hand_extract_fwhm'])
+    '''
     hand_extract_fwhm = hand_extract_dict.get('hand_extract_fwhm')
     if hand_extract_fwhm is not None:
         hand_extract_fwhm = np.asarray(hand_extract_fwhm)
@@ -1167,7 +1169,7 @@ def parse_hand_dict(hand_extract_dict):
             raise ValueError('hand_extract_fwhm must either be a number of have the same size as hand_extract_spec and hand_extract_spat')
     else:
         hand_extract_fwhm = np.full(nhand, None)
-
+    '''
     return hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm
 
 
@@ -1702,7 +1704,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         # First Parse the hand_dict
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
-        hand_on_slit = thismask[int(np.rint(hand_extract_spec)),int(np.rint(hand_extract_spat))]
+        hand_on_slit = np.where(np.array(thismask[int(np.rint(hand_extract_spec)),int(np.rint(hand_extract_spat))]))[0]
         hand_extract_spec = hand_extract_spec[hand_on_slit]
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]
