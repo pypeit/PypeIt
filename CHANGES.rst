@@ -1,5 +1,9 @@
-0.9.1dev (unreleased)
----------------------
+0.9.2dev
+--------
+
+
+0.9.1 (4 Feb 2019)
+------------------
 
 - Move write method for sensitivity function
 - Modify I/O for detnum parameter
