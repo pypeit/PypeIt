@@ -102,8 +102,9 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
 #ToDO JFH I don't see why the disp is being passed in here, the code is doing fits and  so can easily calculate the disp. At the
 # very least it should be optional
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
-                      match_toler = 2.0, func = 'legendre', n_first = 2, sigrej_first = 2.0, n_final = 4, sigrej_final = 3.0,
-                      weights=None, plot_fil=None, verbose = False):
+                      match_toler = 2.0, func = 'legendre', n_first=2, sigrej_first=2.0,
+                      n_final=4, sigrej_final=3.0,
+                      weights=None, plot_fil=None, verbose=False):
 
     """ Routine for iteratively fitting wavelength solutions.
 
