@@ -662,7 +662,7 @@ def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
     # Return
     return
 
-
+'''
 def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True, verbose=False):
     """ Method to synchronize the slit edges
     Adds in extra edges according to a few criteria
@@ -787,6 +787,7 @@ def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_sli
 
     # Return
     return new_edgearr
+'''
 
 
 def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
