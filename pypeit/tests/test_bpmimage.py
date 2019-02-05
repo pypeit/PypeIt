@@ -16,13 +16,10 @@ import numpy as np
 from pypeit import bpmimage
 from pypeit.pypmsgs import PypeItError
 
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import dev_suite_required
+from pypeit.spectrographs import util
+from pypeit.core import procimg
 
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -32,9 +29,9 @@ def data_path(filename):
 def test_instantiate():
     # Empty
     # Can no longer be empty!
-    with pytest.raises(PypeItError):
+    with pytest.raises(TypeError):
         _ = bpmimage.BPMImage()
-    bpm = bpmimage.BPMImage(spectrograph='keck_lris_red')
+    bpm = bpmimage.BPMImage('keck_lris_red')
     assert bpm.spectrograph.spectrograph == 'keck_lris_red'
 
     # These will no longer error!
@@ -53,35 +50,49 @@ def test_instantiate():
 #    with pytest.raises(PypitError):
 #        _ = bpmimage.BPMImage(reduce_badpix='bias')
 
+
 def test_dummy_image():
     # Simple
     shape=(2048,2048)
-    bpmImage = bpmimage.BPMImage(spectrograph='shane_kast_blue', shape=shape, trim=False)
+    bpmImage = bpmimage.BPMImage('shane_kast_blue', shape=shape)#, trim=False)
     bpm = bpmImage.build()
     assert isinstance(bpm, np.ndarray)
     assert bpm.shape == shape
     assert np.sum(bpm) == 0
 
+
+@dev_suite_required
 def test_keck_lris_red():
-    if skip_test:
-        return
+    # Spectrograph
+    spectrograph = util.load_spectrograph('keck_lris_red')
+    #
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_red',
-                                'long_600_7500_d560', 'LR.20160216.05529.fits')
+                                'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
+    # Get the shape
+    dsec_img = spectrograph.get_datasec_img(example_file, det=2)
+    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage(spectrograph='keck_lris_red', filename=example_file, det=2)
-    bpm = bpmImage.build()
+    bpmImage = bpmimage.BPMImage('keck_lris_red', shape=shape, det=2)
+    bpm = bpmImage.build(filename=example_file)
     assert np.sum(bpm) > 0
 
+
+@dev_suite_required
 def test_keck_deimos():
-    if skip_test:
-        return
-    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L',
-                                'd0914_0002.fits')
+    spectrograph = util.load_spectrograph('keck_deimos')
+    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
+                                'd0914_0002.fits.gz')
+    # Get the shape
+    dsec_img = spectrograph.get_datasec_img(example_file, det=2)
+    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage(spectrograph='keck_deimos', filename=example_file, det=4)
+    bpmImage = bpmimage.BPMImage('keck_deimos', shape=shape, det=4)
     bpm = bpmImage.build()
     assert bpm[0,0] == 1
 
+
+# This is too experimental
+'''
 def test_bpm_from_bias():
     bias = np.full((1024,1024), 1000, dtype=float)
     bias[512,512] += 50.
@@ -89,5 +100,6 @@ def test_bpm_from_bias():
     bpm = bpmImage.build()
     # Test
     assert np.isclose(bpm[512,512],1)
+'''
 
 

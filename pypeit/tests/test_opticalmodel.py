@@ -12,11 +12,8 @@ import pytest
 from pypeit.spectrographs.opticalmodel import DetectorMap
 from pypeit.spectrographs.keck_deimos import DEIMOSCameraDistortion, KeckDEIMOSSpectrograph
 
-# These tests are not run on Travis
-if os.getenv('PYPEIT_DEV') is None:
-    skip_test=True
-else:
-    skip_test=False
+from pypeit.tests.tstutils import dev_suite_required
+
 
 def test_detectormap():
     d = DetectorMap()
@@ -27,15 +24,16 @@ def test_detectormap():
     det, _xpix, _ypix = d.ccd_coordinates(ximg, yimg)
     assert numpy.all(numpy.isclose(_xpix, xpix) & numpy.isclose(_ypix, ypix)), 'I/O mismatch'
 
+
 def test_deimos_distortion():
     c = DEIMOSCameraDistortion()
     assert abs(c.apply_distortion(c.remove_distortion(0.5)) - 0.5) < 1e-5, \
         'Failed distortion recovery'
 
+
+@dev_suite_required
 def test_deimos_mask_coordinates():
-    if skip_test:
-        return
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     spec.get_grating(f)
@@ -47,10 +45,10 @@ def test_deimos_mask_coordinates():
     assert numpy.isclose(xpix, 528.54329982), 'Incorrect x coordinate'
     assert numpy.isclose(ypix, 487.64455754), 'Incorrect y coordinate'
 
+
+@dev_suite_required
 def test_deimos_ccd_slits():
-    if skip_test:
-        return
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     ximg, yimg, ccd, xpix, ypix = spec.mask_to_pixel_coordinates(filename=f)
@@ -61,4 +59,5 @@ def test_deimos_ccd_slits():
             'Should find slits on all CCDs'
     assert numpy.sum(n_per_ccd) == 106, 'Should return coordinates for all 106 slits'
     assert n_per_ccd[1] == 11, 'Incorrect number of slits on CCD 1'
+
 

@@ -20,9 +20,10 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Display MasterTrace image in a previously launched RC Ginga viewer',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('root', type = str, default = None, help='PYPIT Master Trace file root [e.g. MasterTrace_A_01_aa]')
+    parser.add_argument('root', type=str, default = None, help='PYPIT Master Trace file root [e.g. MasterTrace_A_01_aa]')
     parser.add_argument("--chname", default='MTrace', type=str, help="Channel name for image in Ginga")
     parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
+    parser.add_argument("--show", type=str, help="Use the show() method of TraceSlits to show something else")
 
     if options is None:
         args = parser.parse_args()
@@ -50,6 +51,11 @@ def main(pargs):
     except ValueError:
         subprocess.Popen(['ginga', '--modules=RC'])
         time.sleep(3)
+
+    if pargs.show is not None:
+        Tslits.show(pargs.show)
+        print("Check your Ginga viewer")
+        return
 
     # Show Image
     viewer, ch = ginga.show_image(Tslits.mstrace, chname=pargs.chname)

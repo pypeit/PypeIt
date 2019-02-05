@@ -775,7 +775,7 @@ def trace_tilt(slf, det, msarc, slitnum, censpec=None, maskval=-999999.9,
 
     msgs.work("Detecting lines for slit {0:d}".format(slitnum+1))
     ordcen = slf._pixcen[det-1].copy()
-    tampl, tcent, twid, w, _ = arc.detect_lines(censpec)
+    tampl, tcent, twid, _, w, _ = arc.detect_lines(censpec)
     satval = settings.spect[dnum]['saturation']*settings.spect[dnum]['nonlinear']
     # Order of the polynomials to be used when fitting the tilts.
     arcdet = (tcent[w]+0.5).astype(np.int)

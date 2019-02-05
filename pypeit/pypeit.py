@@ -1,160 +1,690 @@
+"""
+Main driver class for PypeIt run
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
 import time
+#from abc import ABCMeta
+import os
+import datetime
+import numpy as np
+from collections import OrderedDict
 
 from pypeit import msgs
-# TODO: (KBW) Can archeck code be put in pypeit/__init__.py ?
-from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
-from pypeit.core import fsort
+from pypeit import calibrations
+from pypeit import scienceimage
+from pypeit import specobjs
+from pypeit import fluxspec
+from pypeit import ginga
+from pypeit import reduce
+from pypeit.core import paths
 from pypeit.core import qa
-from pypeit import arms
+from pypeit.core import wave
+from pypeit.core import save
+from pypeit.core import load
+from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit import pypeitsetup
+
+from configobj import ConfigObj
+from pypeit.par.util import parse_pypeit_file
+from pypeit.par import PypeItPar
+from pypeit.metadata import PypeItMetaData
 
 from pypeit import debugger
 
-def PypeIt(pypeit_file, setup_only=False, calibration_check=False, use_header_frametype=False,
-          sort_dir=None, quick=False, ncpus=1, overwrite=True, verbosity=2,
-          use_masters=False, show = False, logname=None):
+class PypeIt(object):
     """
-    Execute PYPIT.
+    This class is designed to run PypeIt
 
     .. todo::
-        - More description in docstring
-        - Allow the user to just provide a list of files or always
-          require a pypeit file?
+        Improve docstring...
 
     Args:
-        pypeit_file (:obj:`str`):
-            Name of the pypeit file to read.  Pypit files have a specific
-            set of valid formats. A description can be found `here`_
-            (include doc link).
-        setup_only (bool):
-            Only this setup will be performed.  Pypit is expected to
-            execute in a way that ends after this class is fully
-            instantiated such that the user can inspect the results
-            before proceeding.  This has the effect of providing more
-            output describing the success of the setup and how to
-            proceed, and provides warnings (instead of errors) for
-            issues that may cause the reduction itself to fail.
-        calibration_check (bool):
-            Only check that the calibration frames are appropriately
-            setup and exist on disk.  Pypit is expected to execute in a
-            way that ends after this class is fully instantiated such
-            that the user can inspect the results before proceeding. 
-        use_header_frametype (bool):
-            Allow setup to use the frame types drawn from the file
-            headers using the instrument specific keywords.
-        sort_dir (str):
-            The directory to put the '.sorted' file.
-        quick (:obj:`bool`, optional):
-            Perform a quick version of the reduction.  NOT IMPLEMENTED.
-        ncpus (:obj:`int`, optional):
-            The number of cpus to use.  NOT IMPLEMENTED.
-        overwrite (:obj:`bool`, optional):
-            Flag to overwrite any existing files/directories.
+        pypeit_file (:obj:`str`,
+            Filename
         verbosity (:obj:`int`, optional):
             Verbosity level of system output.  Can be::
                 - 0: No output
                 - 1: Minimal output (default)
                 - 2: All output
-        use_masters (:obj:`bool`, optional):
-            Use the master frames if available (same as setting
-            par['calibrations']['masters'] = 'reuse'.
-        show: (:obj:`bool`, optional):
-            Show reduction steps via plots (which will block further execution until clicked on) and
-            outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"
+        overwrite (:obj:`bool`, optional):
+            Flag to overwrite any existing files/directories.
         logname (:obj:`str`, optional):
-          The name of an ascii log file with the details of the
-          reduction
+            The name of an ascii log file with the details of the
+            reduction.
+        redux_path (:obj:`str`, optional):
+            Over-ride reduction path in PypeIt file (e.g. Notebook usage)
+        show: (:obj:`bool`, optional):
+            Show reduction steps via plots (which will block further
+            execution until clicked on) and outputs to ginga. Requires
+            remote control ginga session via "ginga --modules=RC &"
 
-    Returns:
-        int: The status of the reduction::
-            - 0: Reductions successful
-            - 1: Setup successful (when `setup_only=True`)
-            - 2: Calibration check successful (when `calibration_check=True`)
+    Attributes:
+        pypeit_file (:obj:`str`):
+            Name of the pypeit file to read.  PypeIt files have a specific
+            set of valid formats. A description can be found `here`_
+            (include doc link).
     """
-    if quick:
-        raise NotImplementedError('Quick version of pypeit is not yet implemented.')
+#    __metaclass__ = ABCMeta
 
-    # Reset the global logger
-    msgs.reset(log=logname, verbosity=verbosity)
-    msgs.pypeit_file = pypeit_file
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None, show=False,
+                 redux_path=None):
 
-    # Record the starting time
-    tstart = time.time()
+        # Load
+        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file, runtime=True)
+        self.pypeit_file = pypeit_file
 
-    # Perform the setup
-    setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
-    par, spectrograph, fitstbl, setup_dict = setup.run(setup_only=setup_only,
-                                                       calibration_check=calibration_check,
-                                                       use_header_frametype=use_header_frametype,
-                                                       sort_dir=sort_dir)
+        # Spectrograph
+        cfg = ConfigObj(cfg_lines)
+        spectrograph_name = cfg['rdx']['spectrograph']
+        self.spectrograph = load_spectrograph(spectrograph_name)
 
-    # TODO This --use_masters flag should probably be passed as an argument to setup instead of modifying the parset here
-    # If the --use_masters flag was set change the parset to make this so
-    if use_masters:
-        par['calibrations']['masters'] = 'reuse'
-        msgs.info('PypeIt will REUSE master files when they exist')
+        # Par
+        # Defaults
+        spectrograph_def_par = self.spectrograph.default_pypeit_par()
+        # Grab a science file for configuration specific parameters
+        for idx, row in enumerate(usrdata):
+            if 'science' in row['frametype']:
+                sci_file = data_files[idx]
+                break
+        # Set
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
+        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
-    # Write the fits table
-    setup.write_fitstbl()
+        # Fitstbl
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
+                                      usrdata=usrdata, strict=True)
+        # The following could be put in a prepare_to_run() method in PypeItMetaData
+        if 'setup' not in self.fitstbl.keys():
+            self.fitstbl['setup'] = setups[0]
+        self.fitstbl.get_frame_types(user=frametype)  # This sets them using the user inputs
+        self.fitstbl.set_defaults()  # Only does something if values not set in PypeIt file
+        self.fitstbl._set_calib_group_bits()
+        self.fitstbl._check_calib_groups()
+        # Write .calib file (For QA naming amongst other things)
+        calib_file = pypeit_file.replace('.pypeit', '.calib')
+        self.fitstbl.write_calib(calib_file)
 
-    # Exit if finished
-    if setup_only:
-        msgs.info('Setup complete')
-        return 1
-    if calibration_check:
-        msgs.info('Calcheck complete')
-        return 2
 
-    # Make the output directories
-    # TODO: Do we want the code to interactively ask for a new
-    # directory?  I think it would be better if it just faulted when a
-    # directory/file exists and overwrite is False.
-    fsort.make_dirs(spectrograph.spectrograph, par['calibrations']['caldir'],
-                     par['rdx']['scidir'], par['rdx']['qadir'], overwrite=overwrite)
+        # Other Internals
+        self.logname = logname
+        self.overwrite = overwrite
+        # Currently the runtime argument determines the behavior for reuse_masters. There is also a reuse_masters
+        # parameter in the parset but it is currently ignored.
+        self.reuse_masters=reuse_masters
+        self.show = show
 
-    # Just do it (sponsored by Nike)
-    if par['rdx']['pipeline'] == 'ARMS':
-        msgs.info('Data reduction will be performed using PYPIT-ARMS')
-        #status = arms.ARMS(fitstbl, setup_dict, sciexp=sciexp)
-        status = arms.ARMS(fitstbl, setup_dict, par=par, spectrograph=spectrograph, show = show)
-    elif par['rdx']['pipeline'] == 'ARMED':
-        import pdb; pdb.set_trace()
-        msgs.error('ARMED is currently broken.')
-        msgs.info('Data reduction will be performed using PYPIT-ARMED')
-        status = armed.ARMED(fitstbl)
-    else:
-        msgs.error('Unrecognized pipeline!')
+        # Make the output directories
+        self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+        msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
+        paths.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
+                        self.par['rdx']['scidir'], self.par['rdx']['qadir'],
+                        overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
 
-    # Check for successful reduction
-    if status == 0:
-        msgs.info('Data reduction complete')
-        # QA HTML
-        msgs.info('Generating QA HTML')
-        qa.gen_mf_html(pypeit_file)
+        # Instantiate Calibrations class
+        self.caliBrate \
+            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'], self.spectrograph,
+                                                 redux_path=self.par['rdx']['redux_path'],
+                                                 reuse_masters=self.reuse_masters,
+                                                 save_masters=True, write_qa=True,
+                                                 show=self.show)
+        # Init
+        self.verbosity = verbosity
+        # TODO: I don't think this ever used
+
+        self.frame = None
+        self.det = None
+
+        self.tstart = None
+        self.basename = None
+        self.sciI = None
+        self.obstime = None
+
+    def build_qa(self):
+        """
+        Generate QA wrappers
+
+        Returns:
+
+        """
+        qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
-    else:
-        msgs.error('Data reduction failed with status ID {0:d}'.format(status))
 
-    # Capture the end time and print it to user
-    tend = time.time()
-    codetime = tend-tstart
-    if codetime < 60.0:
-        msgs.info('Data reduction execution time: {0:.2f}s'.format(codetime))
-    elif codetime/60.0 < 60.0:
-        mns = int(codetime/60.0)
-        scs = codetime - 60.0*mns
-        msgs.info('Data reduction execution time: {0:d}m {1:.2f}s'.format(mns, scs))
-    else:
-        hrs = int(codetime/3600.0)
-        mns = int(60.0*(codetime/3600.0 - hrs))
-        scs = codetime - 60.0*mns - 3600.0*hrs
-        msgs.info('Data reduction execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
+    def outfile_exists(self, frame):
+        """
+         Returns: True if the 2d file exists
+                 False if it does not exist
 
-    return status
+        """
+        # Check if the 2d output file exists
+        scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+        basename = self.fitstbl.construct_basename(frame)
+        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
+        return os.path.isfile(outfile)
 
+    def get_std_outfile(self, standard_frames):
+        # TODO: Need to decide how to associate standards with
+        # science frames in the case where there is more than one
+        # standard associated with a given science frame.  Below, I
+        # just use the first standard
+
+        std_outfile = None
+        std_frame = None if len(standard_frames) == 0 else standard_frames[0]
+        # Prepare to load up standard?
+        if std_frame is not None:
+            std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
+            'spec1d_{:s}.fits'.format(self.fitstbl.construct_basename(std_frame))) \
+            if isinstance(std_frame, (int,np.integer)) else None
+
+        if std_outfile is not None and not os.path.isfile(std_outfile):
+            msgs.error('Could not find standard file: {0}'.format(std_outfile))
+
+        return std_outfile
+
+    def reduce_all(self):
+        """
+        Reduce all of the science exposures
+        Generate all needed calibration files
+
+        Returns:
+
+        """
+        # Validate the parameter set
+        required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
+        can_be_None = ['flexure', 'fluxcalib']
+        self.par.validate_keys(required=required, can_be_None=can_be_None)
+
+        self.tstart = time.time()
+
+        # Find the standard frames
+        is_standard = self.fitstbl.find_frames('standard')
+
+        # Find the science frames
+        is_science = self.fitstbl.find_frames('science')
+
+        # Frame indices
+        frame_indx = np.arange(len(self.fitstbl))
+
+        # Iterate over each calibration group and reduce the standards
+        for i in range(self.fitstbl.n_calib_groups):
+
+            # Find all the frames in this calibration group
+            in_grp = self.fitstbl.find_calib_group(i)
+
+            # Find the indices of the standard frames in this calibration group:
+            grp_standards = frame_indx[is_standard & in_grp]
+
+            # Reduce all the standard frames, loop on unique comb_id
+            u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
+            for j, comb_id in enumerate(u_combid_std):
+                frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
+                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                if not self.outfile_exists(frames[0]) or self.overwrite:
+                    std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
+                    # TODO come up with sensible naming convention for save_exposure for combined files
+                    self.save_exposure(frames[0], std_dict, self.basename)
+                else:
+                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                              '. Set overwrite=True to recreate and overwrite.')
+
+        # Iterate over each calibration group again and reduce the science frames
+        for i in range(self.fitstbl.n_calib_groups):
+
+            # Find all the frames in this calibration group
+            in_grp = self.fitstbl.find_calib_group(i)
+
+            # Find the indices of the science frames in this calibration group:
+            grp_science = frame_indx[is_science & in_grp]
+            # Associate standards (previously reduced above) for this setup
+            std_outfile = self.get_std_outfile(frame_indx[is_standard])
+            # Reduce all the science frames; keep the basenames of the science frames for use in flux calibration
+            science_basename = [None]*len(grp_science)
+            # Loop on unique comb_id
+            u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
+            for j, comb_id in enumerate(u_combid):
+                frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
+                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                if not self.outfile_exists(frames[0]) or self.overwrite:
+                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
+                    science_basename[j] = self.basename
+                    # TODO come up with sensible naming convention for save_exposure for combined files
+                    self.save_exposure(frames[0], sci_dict, self.basename)
+                else:
+                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                              '. Set overwrite=True to recreate and overwrite.')
+
+            # Apply the flux calibration for this calibration group
+            # TODO: I don't think this function is written yet...
+            #self.flux_calibrate()
+
+            msgs.info('Finished calibration group {0}'.format(i))
+
+        # Finish
+        self.print_end_time()
+
+
+    def select_detectors(self):
+        """
+        Return the 1-indexed list of detectors to reduce.
+        """
+        if self.par['rdx']['detnum'] is None:
+            return np.arange(self.spectrograph.ndet)+1
+        return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
+                    else self.par['rdx']['detnum']
+
+    def reduce_exposure(self, frames, bg_frames=[], std_outfile=None):
+        """
+        Reduce a single exposure
+
+        Args:
+            frame (:obj:`int`):
+                0-indexed row in :attr:`fitstbl` with the frame to
+                reduce
+            bgframe (:obj:`int`, optional):
+                0-indexed row in :attr:`fitstbl` with the matching background frame
+            std_frame (:obj:`int`, :obj:`str`, optional):
+                0-indexed row in :attr:`fitstbl` with a standard frame
+                associated with the frame to reduce, or the name of a
+                file with a previously PypeIt-reduced standard spectrum.
+
+        Returns:
+            dict: The dictionary containing the primary outputs of
+            extraction
+        """
+        # if show is set, clear the ginga channels at the start of each new sci_ID
+        if self.show:
+            ginga.clear_all()
+
+        # Save the frame
+        self.frames = frames
+        self.bg_frames = bg_frames
+
+        sci_dict = OrderedDict()  # This needs to be ordered
+        sci_dict['meta'] = {}
+        sci_dict['meta']['vel_corr'] = 0.
+
+        # Print status message
+        msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
+        msgs_string += 'Combining frames:' + msgs.newline()
+        for iframe in self.frames:
+            msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+        msgs.info(msgs_string)
+        if len(bg_frames) > 0:
+            bg_msgs_string = ''
+            for iframe in self.bg_frames:
+                bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+            bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline() + bg_msgs_string
+            msgs.info(bg_msgs_string)
+
+        # Find the detectors to reduce
+        detectors = self.select_detectors()
+        if len(detectors) != self.spectrograph.ndet:
+            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
+                                set(np.arange(self.spectrograph.ndet))-set(detectors)])))
+
+        # Loop on Detectors
+        for self.det in detectors:
+            msgs.info("Working on detector {0}".format(self.det))
+            sci_dict[self.det] = {}
+
+            # Calibrate
+            #TODO Is the right behavior to just use the first frame?
+            self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
+            self.caliBrate.run_the_steps()
+            # Extract
+            # TODO: pass back the background frame, pass in background
+            # files as an argument. extract one takes a file list as an
+            # argument and instantiates science within
+            sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], sci_dict[self.det]['skymodel'], \
+                sci_dict[self.det]['objmodel'], sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
+                sci_dict[self.det]['specobjs'], vel_corr \
+                    = self.extract_one(self.frames, self.det, bg_frames = self.bg_frames, std_outfile = std_outfile)
+            if vel_corr is not None:
+                sci_dict['meta']['vel_corr'] = vel_corr
+
+            # JFH TODO write out the background frame?
+
+        # Return
+        return sci_dict
+
+    def flexure_correct(self,sobjs,maskslits):
+        """ Correct for flexure
+
+        Args:
+            sobjs: SpecObjs object
+            maskslits: ndarray
+
+        Returns:
+            Spectra are modified in place (wavelengths are shifted)
+        """
+
+        if self.par['flexure']['method'] != 'skip':
+            flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
+                                         self.par['flexure']['spectrum'],
+                                         mxshft=self.par['flexure']['maxshift'])
+            # QA
+            wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
+                            out_dir=self.par['rdx']['redux_path'])
+        else:
+            msgs.info('Skipping flexure correction.')
+
+
+    def helio_correct(self, sobjs, maskslits, frame, obstime):
+        """ Perform a heliocentric correction """
+        # Helio, correct Earth's motion
+        if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
+                and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
+            # TODO change this keyword to refframe instead of frame
+            msgs.info("Performing a {0} correction".format(self.caliBrate.par['wavelengths']['frame']))
+            vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, frame, obstime,
+                                                   self.spectrograph.telescope['longitude'],
+                                                   self.spectrograph.telescope['latitude'],
+                                                   self.spectrograph.telescope['elevation'],
+                                                   self.caliBrate.par['wavelengths']['frame'])
+        else:
+            msgs.info('A wavelength reference-frame correction will not be performed.')
+            vel_corr = None
+
+        return vel_corr
+
+    def get_sci_metadata(self, frame, det):
+
+        # Set binning, obstime, basename, and objtype
+        binning = self.fitstbl['binning'][frame]
+        obstime  = self.fitstbl.construct_obstime(frame)
+        basename = self.fitstbl.construct_basename(frame, obstime=obstime)
+        objtype  = self.fitstbl['frametype'][frame]
+        if 'science' in objtype:
+            objtype_out = 'science'
+        elif 'standard' in objtype:
+            objtype_out = 'standard'
+        else:
+            msgs.error('Unrecognized objtype')
+        setup = self.fitstbl.master_key(frame, det=det)
+
+        return objtype_out, setup, obstime, basename, binning
+
+    def get_std_trace(self, std_redux, det, std_outfile):
+        """
+        Returns the trace of the standard if it is applicable to the current reduction
+        """
+        if std_redux is False and std_outfile is not None:
+            sobjs, hdr_std = load.load_specobjs(std_outfile)
+            # Does the detector match?
+            # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
+            # we would use the standard from another detector
+            this_det = sobjs.det == det
+            if np.any(this_det):
+                sobjs_det = sobjs[this_det]
+                sobjs_std = sobjs_det.get_std()
+                std_trace = sobjs_std.trace_spat
+                # flatten the array if this multislit
+                if 'MultiSlit' in self.spectrograph.pypeline:
+                    std_trace = std_trace.flatten()
+                elif 'Echelle' in self.spectrograph.pypeline:
+                    std_trace = std_trace.T
+                else:
+                    msgs.error('Unrecognized pypeline')
+            else:
+                std_trace = None
+        else:
+            std_trace = None
+
+        return std_trace
+
+    def extract_one(self, frames, det, bg_frames=[], std_outfile=None):
+        """
+        Extract a single exposure/detector pair
+
+        sci_ID and det need to have been set internally prior to calling this method
+
+        Returns:
+            sciimg
+            sciivar
+            skymodel
+            objmodel
+            ivarmodel
+            outmask
+            sobjs
+            vel_corr
+
+        """
+        # Grab some meta-data needed for the reduction from the fitstbl
+        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
+        # Is this an IR reduction
+        self.ir_redux = True if len(bg_frames) > 0 else False
+        # Is this a standard star?
+        self.std_redux = 'standard' in self.objtype
+        # Get the standard trace if need be
+        std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
+        # Instantiate ScienceImage for the files we will reduce
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, self.fitstbl.frame_paths(frames),
+                                              bg_file_list=self.fitstbl.frame_paths(bg_frames),
+                                              ir_redux = self.ir_redux,
+                                              par=self.par['scienceframe'],
+                                              det=det,
+                                              binning=self.binning)
+        # For QA on crash.
+        msgs.sciexp = self.sciI
+
+        # Process images (includes inverse variance image, rn2 image, and CR mask)
+        self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = \
+            self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+                           self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
+                           show=self.show)
+        # Object finding, first pass on frame without sky subtraction
+        self.maskslits = self.caliBrate.maskslits.copy()
+
+        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
+                                           ir_redux = self.ir_redux,par=self.par['scienceimage'],
+                                           frame_par=self.par['scienceframe'],
+                                           objtype=self.objtype, det=det, binning=self.binning)
+
+        # Do one iteration of object finding, and sky subtract to get initial sky model
+        self.sobjs_obj, self.nobj, skymask_init = \
+            self.redux.find_objects(self.sciimg, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
+                                    std_trace=std_trace,maskslits=self.maskslits,
+                                    show = self.show & (not self.std_redux))
+
+        # Global sky subtraction, first pass. Uses skymask from object finding step above
+        self.initial_sky = \
+            self.redux.global_skysub(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
+                                    std=self.std_redux, maskslits=self.maskslits, show=self.show)
+
+        if not self.std_redux:
+            # Object finding, second pass on frame *with* sky subtraction. Show here if requested
+            self.sobjs_obj, self.nobj, self.skymask = \
+                self.redux.find_objects(self.sciimg - self.initial_sky, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
+                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show)
+
+        # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
+        if self.nobj > 0:
+            # Global sky subtraction second pass. Uses skymask from object finding
+            self.global_sky = self.initial_sky if self.std_redux else \
+                self.redux.global_skysub(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'],
+                skymask=self.skymask, maskslits=self.maskslits, show=self.show)
+
+            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
+            self.redux.local_skysub_extract(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
+                                            self.global_sky, self.rn2img, self.sobjs_obj,
+                                            model_noise=(not self.ir_redux),std = self.std_redux,
+                                            maskslits=self.maskslits, show_profile=self.show,show=self.show)
+
+            # Purge out the negative objects if this was a near-IR reduction.
+            # TODO should we move this purge call to local_skysub_extract??
+            if self.ir_redux:
+                self.sobjs.purge_neg()
+
+            # Flexure correction if this is not a standard star
+            if not self.std_redux:
+                self.flexure_correct(self.sobjs, self.maskslits)
+            self.vel_corr = self.helio_correct(self.sobjs, self.maskslits, frames[0], self.obstime)
+
+        else:
+            # Print status message
+            msgs_string = 'No objects to extract for target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
+            msgs_string += 'On frames:' + msgs.newline()
+            for iframe in frames:
+                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+            msgs.warn(msgs_string)
+            # set to first pass global sky
+            self.skymodel = self.initial_sky
+            self.objmodel = np.zeros_like(self.sciimg)
+            # Set to sciivar. Could create a model but what is the point?
+            self.ivarmodel = np.copy(self.sciivar)
+            # Set to inmask in case on objects were found
+            self.outmask = self.mask
+            # empty specobjs object from object finding
+            self.sobjs = self.sobjs_obj
+            self.vel_corr = None
+
+        return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
+
+    # TODO: Why not use self.frame?
+    def save_exposure(self, frame, sci_dict, basename, only_1d=False):
+        """
+        Save the outputs from extraction for a given exposure
+
+        Args:
+            frame (:obj:`int`):
+              0-indexed row in the metadata table with the frame that
+              has been reduced.
+            sci_dict (:obj:`dict`):
+              Dictionary containing the primary outputs of extraction
+            basename (:obj:`str`):
+                The root name for the output file.
+            only_1d (:obj:`bool`, optional):
+              Save only the 1D spectra?
+
+        Returns:
+            DOC!
+
+            This can return None or all_specobjs
+
+        """
+        # TODO: Need some checks here that the exposure has been reduced
+
+        # Build the final list of specobjs and vel_corr
+        all_specobjs = specobjs.SpecObjs()
+
+        vel_corr = 0.  # This will not be set for Standard stars, which is fine
+        for key in sci_dict:
+            if key in ['meta']:
+                vel_corr = sci_dict['meta']['vel_corr']
+                continue
+            #
+            try:
+                all_specobjs.add_sobj(sci_dict[key]['specobjs'])
+            except KeyError:  # No object extracted
+                continue
+
+        if len(all_specobjs) == 0:
+            msgs.warn('No objects to save!')
+            return
+
+        # Write 1D spectra
+        outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],'spec1d_{:s}.fits'.format(basename))
+        helio_dict = dict(refframe='pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
+            self.caliBrate.par['wavelengths']['frame'],vel_correction=vel_corr)
+        # Did the user re-run a single detector?
+        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline,
+                                  self.spectrograph.spectrograph, outfile,
+                                  helio_dict=helio_dict, telescope=self.spectrograph.telescope,
+                                  update_det=self.par['rdx']['detnum'])
+        # 1D only?
+        if only_1d:
+            return
+        # Obj info
+        scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+        save.save_obj_info(all_specobjs, self.spectrograph, basename, scidir, binning=self.fitstbl['binning'][frame])
+        # Write 2D images for the Science Frame
+        # Need raw file header information
+        # TODO: Why is the raw file header needed?  Can the data be
+        # gotten from fitstbl?  If not, is it worth adding the relevant
+        # information to fitstbl?
+        rawfile = self.fitstbl.frame_paths(frame)
+        # TODO: Make sure self.det is correct!
+        #master_key = self.fitstbl.master_key(frame, det=self.det)
+        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
+        save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
+                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, outfile,
+                            update_det=self.par['rdx']['detnum'])
+        return all_specobjs
+
+
+
+    def msgs_reset(self):
+        """
+        Reset the msgs object
+
+        Returns:
+
+        """
+
+        # Reset the global logger
+        msgs.reset(log=self.logname, verbosity=self.verbosity)
+        msgs.pypeit_file = self.pypeit_file
+
+    def print_end_time(self):
+        """
+        Print the elapsed time
+
+        Returns:
+
+        """
+        # Capture the end time and print it to user
+        tend = time.time()
+        codetime = tend-self.tstart
+        if codetime < 60.0:
+            msgs.info('Execution time: {0:.2f}s'.format(codetime))
+        elif codetime/60.0 < 60.0:
+            mns = int(codetime/60.0)
+            scs = codetime - 60.0*mns
+            msgs.info('Execution time: {0:d}m {1:.2f}s'.format(mns, scs))
+        else:
+            hrs = int(codetime/3600.0)
+            mns = int(60.0*(codetime/3600.0 - hrs))
+            scs = codetime - 60.0*mns - 3600.0*hrs
+            msgs.info('Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
+
+    # TODO: Move this to fitstbl?
+    def show_science(self):
+        """
+        Simple print of science frames
+
+        Returns:
+
+        """
+        indx = self.fitstbl.find_frames('science')
+        print(self.fitstbl[['target','ra','dec','exptime','dispname']][indx])
+
+    def __repr__(self):
+        # Generate sets string
+        return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
+
+#
+# def instantiate_me(spectrograph, pypeit_file, **kwargs):
+#     """
+#     Instantiate the PypeIt subclass appropriate for the provided
+#     spectrograph.
+#
+#     The class must be subclassed from PypeIt.  See :class:`PypeIt` for
+#     the description of the valid keyword arguments.
+#
+#     Args:
+#         spectrograph
+#             (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+#             The instrument used to collect the data to be reduced.
+#
+#     Returns:
+#         :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
+#         base.
+#     """
+#     indx = [ c.__name__ == spectrograph.pypeline for c in PypeIt.__subclasses__() ]
+#     if not np.any(indx):
+#         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
+#     return PypeIt.__subclasses__()[np.where(indx)[0][0]](pypeit_file, **kwargs)
+#

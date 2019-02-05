@@ -19,17 +19,107 @@ with PypeIt.   The basic steps are:
  2. Load the parameters guiding wavelength calibration
  3. Generate the 1D wavelength fits
 
-For the primary step (#3), the preferred approach is a
-new pattern-searching algorithm currently packaged in the PypeIt
-repository named `arclines`.  It is designed to estimate
-the dispersion and wavelength coverage of the spectrum with
-limited inputs and then automatically identify the known
-arc lines.
-
 The code is guided by the WaveCalib class, partially described
 by this `WaveCalib.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`_
 Notebook.
 
+For the primary step (#3), we have developed several
+algorithms finding it challenging to have one that satisfies
+all instruments in all configurations.  We now briefly
+describe each and where they tend to be most effective.
+Each of these is used only to identify known arc lines in the
+spectrum.  Fits to the identified lines (vs. pixel) are
+performed with the same, iterative algorithm to generate
+the final wavelength solution.
+
+Holy Grail
+----------
+
+This algorithm is based on pattern matching the detected lines
+with that expected from the lamps observed.  It has worked
+well for the low dispersion spectrographs and has been used
+to generate the templates needed for most of the other algorithms.
+It has the great positive of requiring limited developer
+effort once a vetted line-list for the observed lamps has been
+generated.
+
+However, we have found this algorithm is not highly robust
+(e.g. slits fail at ~5-10% rate) and it struggles with
+high dispersion data (e.g. ThAr lamps).  At this stage, we
+recommend it be used primarily by the Developers to generate
+template spectra.
+
+.. _wvcalib-reidentify:
+
+Reidentify
+----------
+
+Following on our success using archived templates with the
+LowRedux code, we have implemented an improved version in PypeIt.
+Each input arc spectrum is cross-correlated against one or
+more archived spectra, allowing for both a shift and a stretch.
+
+Archived spectra that yield a high cross-correlation score
+are used to identify arc lines based on their recorded
+wavelength solutions.
+
+This algorithm is optimal for fixed-format spectrographs
+(e.g. X-Shooter, ESI).
+
+Full Template
+-------------
+
+This algorithm is similar to :ref:`wvcalib-reidentify` with
+two exceptions:  (i) there is only a single template used
+(occasionally one per detector for spectra that span across
+multiple, e.g. DEIMOS); (ii) IDs from
+the input arc spectrum are generally performed on snippets
+of the full input array.  The motivation for the latter is
+to reduce non-linearities that are not well captured by the
+shift+stretch analysis of :ref:`wvcalib-reidentify`.
+
+We recommend implementing this method for multi-slit
+observations, long-slit observations where wavelengths
+vary (e.g. grating tilts).  We are likely to implement
+this for echelle observations (e.g. HIRES).
+
+
+
+Common Failure Modes
+====================
+
+Most of the failures should only be in MultiSlit mode
+or if the calibrations for Echelle are considerably
+different from expectation.
+
+As regards Multislit, the standard failure modes of
+the :ref:`full-template` method that is now preferred
+are:
+
+ 1. The lamps used are substantially different from those archived.
+ 2. The slit spans much bluer/redder than the archived template.
+
+In either case, a new template may need to be generated.
+If you are confident this is the case, raise an Issue.
+
+Possible Items to Modify
+========================
+
+FWHM
+----
+
+The arc lines are identified and fitted with ane
+expected knowledge of their FWHM (future versions
+should solve for this).  A fiducial value for a
+standard slit is assume for each instrument but
+if you are using particularly narrow/wide slits
+than you may need to modify::
+
+    [calibrations]
+      [[wavelengths]]
+        fwhm=X.X
+
+in your PypeIt file.
 
 Line Lists
 ==========
@@ -39,9 +129,9 @@ the `NIST database <http://physics.nist.gov/PhysRefData`_,
 *in vacuum*. These data are stored as ASCII tables in the
 `arclines` repository. Here are the available lamps:
 
-======  ==========  =============
+======  ==========  ==============
 Lamp    Range (A)   Last updated
-======  ==========  =============
+======  ==========  ==============
 ArI     3000-10000  21 April 2016
 CdI     3000-10000  21 April 2016
 CuI     3000-10000  13 June 2016
@@ -51,7 +141,13 @@ KrI     4000-12000  May 2018
 NeI     3000-10000  May 2018
 XeI     4000-12000  May 2018
 ZnI     2900-8000   2 May 2016
-======  ==========  =============
+ThAr    3000-11000  9 January 2018
+======  ==========  ==============
+
+In the case of the ThAr list, all of the lines are taken from
+the NIST database, and are labelled with a 'MURPHY' flag if the
+line also appears in the list of lines identified by
+`Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
 
 By-Hand Calibration
 ===================
@@ -117,68 +213,51 @@ More details are provided in :doc:`heliocorr`.
 Developers
 ==========
 
-Adding a new grating to existing instrument
--------------------------------------------
+.. _full-template:
 
-This section describes how to add a new
-wavelength solution for a new instrument and/or
-grating.
+Full Template
+-------------
 
-Open ararc.py to add information to an already
-existing instrument.
+The preferred method for multi-slit calibration is now
+called `full_template` which
+cross-matches an input sepctrum against an archived template.  The
+latter must be constructed by a Developer, using the
+core.wavecal.templates.py module.  The following table
+summarizes the existing ones (all of which are in the
+data/arc_lines/reid_arxiv folder):
 
-In the method setup_param, add the new disperser to the
-list, under the appropriate instrument. In setup_param,
-all the defaults for all instruments and gratings are listed
-first::
+===============  =========================  =============================
+Instrument       Setup                      Name
+===============  =========================  =============================
+keck_deimos      600ZD grating, all lamps   keck_deimos_600.fits
+keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
+keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
+keck_lris_blue   B300 grism, all lamps      keck_lris_blue_300_d680.fits
+keck_lris_blue   B400 grism, all lamps?     keck_lris_blue_400_d560.fits
+keck_lris_blue   B600 grism, all lamps      keck_lris_blue_600_d560.fits
+keck_lris_blue   B1200 grism, all lamps     keck_lris_blue_1200_d460.fits
+keck_lris_red    R400 grating, all lamps    keck_lris_red_400.fits
+keck_lris_red    R1200/9000 , all lamps     keck_lris_red_1200_9000.fits
+shane_kast_blue  452_3306 grism, all lamps  shane_kast_blue_452.fits
+shane_kast_blue  600_4310 grism, all lamps  shane_kast_blue_600.fits
+shane_kast_blue  830_3460 grism, all lamps  shane_kast_blue_830.fits
+===============  =========================  =============================
 
-    # Defaults
-    arcparam = dict(llist='',
-        disp=0.,           # Ang/unbinned pixel
-        b1=0.,               # Pixel fit term (binning independent)
-        b2=0.,               # Pixel fit term
-        wvmnx=[2900.,12000.],# Guess at wavelength range
-        disp_toler=0.1,      # 10% tolerance
-        match_toler=3.,      # Matcing tolerance (pixels)
-        func='legendre',     # Function for fitting
-        n_first=1,           # Order of polynomial for first fit
-        n_final=4,           # Order of polynomial for final fit
-        nsig_rej=2.,         # Number of sigma for rejection
-        nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
-        Nstrong=13)          # Number of lines for auto-analysis
+See the Templates Notebook or the core.wavecal.templates.py module
+for further details.
 
-Find the instrument you'd like to add a grating to. For
-example, to add the 1200/5000 grating to KAST red, the
-section of interest would be::
+One of the key parameters (and the only one modifiable) for
+`full_template` is the number of snippets to break the input
+spectrum into for cross-matchging.  The default is 2 and the
+concept is to handle non-linearities by simply reducing the
+length of the spectrum.  For relatively linear dispersers,
+nsinppet=1 may frequently suffice.
 
-    elif sname=='kast_red':
-        lamps = ['HgI','NeI','ArI']
-        #arcparam['llist'] = slf._argflag['run']['pypeitdir'] + 'data/arc_lines/kast_red.lst'
-
-And the following lines should be added::
-
-        elif disperser == '1200/5000':
-            arcparam['disp']=1.17 # This information is on the instrument's website
-            arcparam['b1']= 1./arcparam['disp']/slf._msarc[det-1].shape[0]
-            arcparam['wvmnx'][1] = 5000. # This is a guess at max wavelength covered
-            arcparam['n_first']=2 # Should be able to lock on
-
-Now in armlsd.py, put a stop after wavelength calibration
-to check that the arc lines were correctly identified for
-this new disperser. To do this, in method ARMLSD, find::
-
-                # Extract arc and identify lines
-                wv_calib = ararc.simple_calib(slf, det)
-                slf.SetFrame(slf._wvcalib, wv_calib, det)
-                slf._qa.close()
-                debugger.set_trace()
-
-Note that the last two lines were added so that the QA
-plots can be correctly closed, and the process stopped.
-Run PypeIt, and check in the QA plots that the arc lines
-identified by PypeIt are consistent with a pre-existing
-arc line mapping, and you're done!
-
+For instruments where the spectrum runs across multiple
+detectors in the spectral dimension (e.g. DEIMOS), it may
+be necessary to generate detector specific templates (ugh).
+This is especially true if the spectrum is partial on the
+detector (e.g. the 830G grating).
 
 Validation
 ==========

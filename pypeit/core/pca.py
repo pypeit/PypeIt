@@ -11,6 +11,8 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import qa
 
+from pypeit import debugger
+
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None,
           function='polynomial'):
     nrow = xfit.shape[0]
@@ -54,13 +56,13 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
         if weights is not None:
             tmask, coeff0 = utils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
                                                    weights=weights[usetrace], sigma=2.0, function=function,
-                                                   minv=x0in[0], maxv=x0in[-1])
+                                                   minx=x0in[0], maxx=x0in[-1])
         else:
             tmask, coeff0 = utils.robust_polyfit(x0in[usetrace], hidden[i-1, :], pnpc[i],
                                                    sigma=2.0, function=function,
-                                                   minv=x0in[0], maxv=x0in[-1])
+                                                   minx=x0in[0], maxx=x0in[-1])
         coeffstr.append(coeff0)
-        high_order_matrix[:, i-1] = utils.func_val(coeff0, x0in, function, minv=x0in[0], maxv=x0in[-1])
+        high_order_matrix[:, i-1] = utils.func_val(coeff0, x0in, function, minx=x0in[0], maxx=x0in[-1])
     # high_order_matrix[:,1] = utils.func_val(coeff1, x0in, function)
     high_fit = high_order_matrix.copy()
 
@@ -86,8 +88,8 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
             imask = np.zeros(ntrace, dtype=np.float)
             imask[bad] = 1.0
             ttmask, x0res = utils.robust_polyfit(x0in, x0, pnpc[0], weights=weights, sigma=2.0,
-                                                   function=function, minv=x0in[0], maxv=x0in[-1], initialmask=imask)
-            x0fit = utils.func_val(x0res, x0in, function, minv=x0in[0], maxv=x0in[-1])
+                                                   function=function, minx=x0in[0], maxx=x0in[-1], initialmask=imask)
+            x0fit = utils.func_val(x0res, x0in, function, minx=x0in[0], maxx=x0in[-1])
             good = np.where(ttmask == 0)[0]
             xstd = 1.0  # This should represent the dispersion in the fit
             chisq = ((x0[good]-x0fit[good])/xstd)**2.0
@@ -100,8 +102,8 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
                 x0[good] = numer[good]/denom[good]
 #				x0res = utils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
                 x0res = utils.func_fit(x0in[good], x0[good], function, pnpc[0],
-                                         weights=weights, minv=x0in[0], maxv=x0in[-1])
-                x0fit = utils.func_val(x0res, x0in, function, minv=x0in[0], maxv=x0in[-1])
+                                         weights=weights, minx=x0in[0], maxx=x0in[-1])
+                x0fit = utils.func_val(x0res, x0in, function, minx=x0in[0], maxx=x0in[-1])
                 chisq = (x0[good]-x0fit[good])**2.0
                 fitmask[good] *= (chisq < np.sum(chisq)/2.0).astype(np.int)
                 chisqnu = np.sum(chisq)/np.sum(fitmask)
@@ -156,7 +158,7 @@ def extrapolate(outpar, ords, function='polynomial'):
     nords = ords.size
 
     x0ex = utils.func_val(outpar['x0res'], ords, function,
-                            minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
+                            minx=outpar['x0in'][0], maxx=outpar['x0in'][-1])
 
     # Order centre
     high_matr = np.zeros((nords, outpar['npc']))
@@ -165,7 +167,7 @@ def extrapolate(outpar, ords, function='polynomial'):
             high_matr[:,i-1] = np.ones(nords)*outpar['high_fit'][0,i-1]
             continue
         high_matr[:,i-1] = utils.func_val(outpar['coeffstr'][i-1], ords, function,
-                                            minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
+                                            minx=outpar['x0in'][0], maxx=outpar['x0in'][-1])
     extfit = np.dot(outpar['eigv'], high_matr.T) + np.outer(x0ex, np.ones(outpar['eigv'].shape[0])).T
     outpar['high_matr'] = high_matr
     return extfit, outpar
@@ -173,16 +175,16 @@ def extrapolate(outpar, ords, function='polynomial'):
 
 def refine_iter(outpar, orders, mask, irshft, relshift, fitord, function='polynomial'):
     fail = False
-    x0ex = utils.func_val(outpar['x0res'], orders, function,  minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
+    x0ex = utils.func_val(outpar['x0res'], orders, function,  minx=outpar['x0in'][0], maxx=outpar['x0in'][-1])
     # Make the refinement
     x0ex[irshft] += relshift
     # Refit the data to improve the refinement
     good = np.where(mask != 0.0)[0]
 #	x0res = utils.robust_regression(x0in[good],x0[good],pnpc[0],0.2,function=function)
     null, x0res = utils.robust_polyfit(orders[good], x0ex[good], fitord, sigma=2.0, function=function,
-                                         minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
+                                         minx=outpar['x0in'][0], maxx=outpar['x0in'][-1])
     #x0res = utils.func_fit(orders[good], x0ex[good], function, fitord, min=outpar['x0in'][0], max=outpar['x0in'][-1])
-    x0fit = utils.func_val(x0res, orders, function, minv=outpar['x0in'][0], maxv=outpar['x0in'][-1])
+    x0fit = utils.func_val(x0res, orders, function, minx=outpar['x0in'][0], maxx=outpar['x0in'][-1])
     chisq = (x0ex[good]-x0fit[good])**2.0
     chisqnu = np.sum(chisq)/np.sum(mask)
     msgs.prindent("  Reduced chi-squared = {0:E}".format(chisqnu))
@@ -200,6 +202,7 @@ def get_pc(data, k, tol=0.0, maxiter=20, nofix=False, noortho=False):
         msgs.error("You need to supply more components in the PCA")
     #n = np.size(data)/p
     if k > p:
+        debugger.set_trace()
         msgs.error("The number of principal components must be less than or equal" + msgs.newline() +
                    "to the order of the fitting function")
 
@@ -398,9 +401,9 @@ def pca_plot(setup, inpar, ofit, prefix, maxp=25, pcadesc="", addOne=True,
     # Setup
     method = inspect.stack()[0][3]
     if not show:
-        outroot = arqa.set_qa_filename(setup, method, prefix=prefix)
+        outroot = qa.set_qa_filename(setup, method, prefix=prefix)
     npc = inpar['npc']+1
-    pages, npp = arqa.get_dimen(npc, maxp=maxp)
+    pages, npp = qa.get_dimen(npc, maxp=maxp)
     #
     x0 = inpar['x0']
     ordernum = inpar['x0in']

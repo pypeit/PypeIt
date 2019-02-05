@@ -4,10 +4,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+
 ### TEST_UNICODE_LITERALS
 
 import os
 import pytest
+from pypeit.specobjs import SpecObjs
 
 from pypeit.core import load
 
@@ -28,12 +30,12 @@ def data_path(filename):
 #    assert headers[0][0]['OBJECT'] == 'Arcs'
 
 
-def test_load_specobj():
+def test_load_specobjs():
     spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
-    specobjs, head0 = load.load_specobj(spec_file)
+    specobjs, head0 = load.load_specobjs(spec_file)
     # Test
-    assert isinstance(specobjs, list)
-    assert len(specobjs[0].boxcar['counts']) == 1199
+    assert isinstance(specobjs, SpecObjs)
+    assert len(specobjs[0].boxcar['COUNTS']) == 1200
 
 
 def test_load_1dspec():
@@ -44,10 +46,11 @@ def test_load_1dspec():
     # Test
     assert isinstance(spec, XSpectrum1D)
     # Boxcar
-    spec = load.load_1dspec(spec_file, extract='box')
+    spec = load.load_1dspec(spec_file, extract='BOX')
     assert isinstance(spec, XSpectrum1D)
     # By objname
-    spec2 = load.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
+    #spec2 = load.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
+    spec2 = load.load_1dspec(spec_file, objname='SPAT0132-SLIT0001-DET01-SCI008')
     assert isinstance(spec2, XSpectrum1D)
 
 

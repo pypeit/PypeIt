@@ -6,33 +6,42 @@
 
 
 """
-This script generates files to setup a PYPIT run
+This script generates files to setup a PypeIt run
 """
 from __future__ import (print_function, absolute_import, division,
                         unicode_literals)
 
 import argparse
+from pypeit.spectrographs.util import valid_spectrographs
 
 def parser(options=None):
-    parser = argparse.ArgumentParser(description="Script to setup a PypeIt run [v2]")
-    parser.add_argument("files_root", type=str, help="File path+root, e.g. /data/Kast/b ")
-    parser.add_argument("spectrograph", type=str, help="Name of spectrograph")
-    parser.add_argument("-v", "--verbosity", type=int, default=2,
-                        help="(2) Level of verbosity (0-2)")
-    parser.add_argument("--extension", default='.fits',
+    # TODO: Add argument that specifies the log file
+    parser = argparse.ArgumentParser(description="Script to setup a PypeIt run [v3]")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-r', '--root', type=str, default=None,
+                       help='File path+root, e.g. /data/Kast/b ')
+    #group.add_argument('-p', '--pypeit_file', type=str, default=None,
+    #                   help='PypeIt file to use')
+    parser.add_argument('-s', '--spectrograph', default=None, type=str,
+                        help='A valid spectrograph identifier: {0}'.format(
+                                ', '.join(valid_spectrographs())))
+    parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
-    parser.add_argument("--pypeit_file", default=False, action='store_true',
-                        help='Input is the .pypeit file')
-    parser.add_argument("--redux_path", default=None,
-                        help='Path to reduction folder.  Default is current working directory.')
-    parser.add_argument("-c", "--custom", default=False, action='store_true',
-                        help='Generate custom folders and pypeit files?')
+    parser.add_argument('-d', '--output_path', default=None,
+                        help='Path to top-level output directory.  '
+                             'Default is the current working directory.')
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
-#    parser.add_argument("-q", "--quick", default=False, help="Quick reduction",
-#                        action="store_true")
-#    parser.add_argument("-c", "--cpus", default=False,
-#                        help="Number of CPUs for parallel processing", action="store_true")
+    parser.add_argument('-c', '--cfg_split', default=False, action='store_true',
+                        help='Split the output PypeIt files by configuration.')
+    parser.add_argument('-b', '--background', default=False, action='store_true',
+                        help='Include the background-pair columns for the user to edit')
+    parser.add_argument('-v', '--verbosity', type=int, default=2,
+                        help='Level of verbosity from 0 to 2; default is 2.')
+#    parser.add_argument('-q', '--quick', default=False, help='Quick reduction',
+#                        action='store_true')
+#    parser.add_argument('-c', '--cpus', default=False,
+#                        help='Number of CPUs for parallel processing', action='store_true')
 #    parser.print_help()
 
     return parser.parse_args() if options is None else parser.parse_args(options)
@@ -41,94 +50,47 @@ def parser(options=None):
 def main(args):
 
     import os
-    import datetime
     import pdb as debugger
 
     from pypeit import msgs
-    from pypeit.spectrographs.util import valid_spectrographs
-    from pypeit.core import pypsetup
-    from pypeit.par.util import make_pypeit_file, parse_pypeit_file
-    from pypeit.scripts import run_pypeit
+    from pypeit.spectrographs.util import load_spectrograph
+    from pypeit.pypeitsetup import PypeItSetup
 
-    # Check that input spectrograph is supported
-    instruments_served = valid_spectrographs()
-    if args.spectrograph not in instruments_served:
-        raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
-                         + '\tAvailable options are: {0}\n'.format(', '.join(instruments_served))
-                         + '\tSelect an available instrument or consult the documentation '
-                         + 'on how to add a new instrument.')
+    # Check that the spectrograph is provided if using a file root
+    if args.root is not None:
+        if args.spectrograph is None:
+            raise ValueError('Must provide spectrograph identifier with file root.')
+        # Check that input spectrograph is supported
+        instruments_served = valid_spectrographs()
+        if args.spectrograph not in instruments_served:
+            raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
+                             + '\tOptions are: {0}\n'.format(', '.join(instruments_served))
+                             + '\tSelect an available instrument or consult the documentation '
+                             + 'on how to add a new instrument.')
 
-    # setup_files dir
-    redux_path = os.getcwd() if args.redux_path is None else args.redux_path
-    outdir = os.path.join(redux_path, 'setup_files')
-    msgs.info('Setup files will be written to: {0}'.format(outdir))
-    if not os.path.isdir(outdir):
-        os.mkdir(outdir)
+    # Get the output directory
+    output_path = os.getcwd() if args.output_path is None else args.output_path
+    sort_dir = os.path.join(output_path, 'setup_files')
+   
+    # Initialize PypeItSetup based on the arguments
+    if args.root is not None:
+        ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
+                                        output_path=sort_dir)
+    else:
+        # Should never reach here
+        raise IOError('Need to set -r !!')
+        #raise IOError('Something wrong in pypeit_setup command-line arguments.')
+    #elif args.pypeit_file is not None:
+    #    ps = PypeItSetup.from_pypeit_file(args.pypeit_file)
 
-    # Generate a dummy .pypeit file
-    date = str(datetime.date.today().strftime('%Y-%b-%d'))
-    root = args.spectrograph+'_'+date
-    pypeit_file = outdir+'/'+root+'.pypeit'
+    # Run the setup
+    #ps.run(setup_only=True, bkg_pairs='empty' if args.background else None, sort_dir=sort_dir)
+    ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background)
 
-
-    # Generate
-    dfname = "{:s}*{:s}*".format(args.files_root, args.extension)
-    # configuration lines
-    cfg_lines = ['[rdx]']
-    cfg_lines += ['    spectrograph = {0}'.format(args.spectrograph)]
-    cfg_lines += ['    sortroot = {0}'.format(root)]
-    make_pypeit_file(pypeit_file, args.spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
-    msgs.info('Wrote template pypeit file: {0}'.format(pypeit_file))
-
-
-    # Parser
-    pinp = [pypeit_file, '-p', '-r {0}'.format(root) ]
-    if args.overwrite:
-        pinp += ['-o']
-
-    pargs = run_pypeit.parser(pinp)
-    sorted_file = pypeit_file.replace('.pypeit', '.sorted')
-
-    # Run
-    run_pypeit.main(pargs)
-
-
-
-
-    # #####################
-    # Generate custom .pypeit files
-    if not args.custom:
-        return
-
-    msgs.reset(verbosity=2)
-
-    # Read master file
-    _, data_files, frametype, setups = parse_pypeit_file(pypeit_file)
-
-    # Get paths
-    paths = []
-    for data_file in data_files:
-        islsh = data_file.rfind('/')
-        path = data_file[:islsh+1]
-        if path not in paths:
-            paths.append(path)
-
-    # Generate .pypeit files and sub-folders
-    all_setups, all_setuplines, all_setupfiles = pypsetup.load_sorted(sorted_file)
-    for setup, setup_lines, sorted_files in zip(all_setups, all_setuplines, all_setupfiles):
-        root = args.spectrograph+'_setup_'
-        # Make the dir
-        newdir = os.path.join(redux_path, root+setup)
-        if not os.path.exists(newdir):
-            os.mkdir(newdir)
-        # Now the file
-        pypeit_file = os.path.join(newdir, root+setup+'.pypeit')
-        # Modify parlines
-        for kk in range(len(cfg_lines)):
-            if 'sortroot' in cfg_lines[kk]:
-                cfg_lines[kk] = '    sortroot = {0}'.format(root+setup)
-
-        make_pypeit_file(pypeit_file, args.spectrograph, [], cfg_lines=cfg_lines,
-                        setup_lines=setup_lines, sorted_files=sorted_files, paths=paths)
-        print("Wrote {:s}".format(pypeit_file))
+    # Use PypeItMetaData to write the complete PypeIt file
+    if args.cfg_split:
+        pypeit_file = os.path.join(output_path, '{0}.pypeit'.format(args.spectrograph))
+        ps.fitstbl.write_pypeit(pypeit_file, overwrite=args.overwrite,
+                            cfg_lines=ps.user_cfg, write_bkg_pairs=args.background)
+    return 0
 

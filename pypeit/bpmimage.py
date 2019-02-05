@@ -6,12 +6,11 @@ import os
 
 from pypeit import msgs
 from pypeit.core import procimg
+from pypeit.core import parse
 
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
-from pypeit.core import parse
 
 
 class BPMImage(object):
@@ -20,7 +19,7 @@ class BPMImage(object):
       The master() method will return the image
 
     Should provide both shape and filename to ensure that the
-    spectograph can construct the bpm, if reduce_badpix is False.
+    spectrograph can construct the bpm, if reduce_badpix is False.
 
     There are several ways to build a BPM:
        1. keck_lris_red
@@ -34,7 +33,7 @@ class BPMImage(object):
 
     Parameters
     ----------
-    spectrograph : str (optional)
+    spectrograph : str or Spectrograph
        Used to specify properties of the detector (for processing)
        Attempt to set with settings['run']['spectrograph'] if not input
     settings : dict (optional)
@@ -42,12 +41,12 @@ class BPMImage(object):
     det : int, optional
       Detector index
       Required for LRISr and DEIMOS
-    binning : Table (optional)
-        Could remove if we put binning in settings['detector']
+    filename : str, optional
+      Used primarily for binning...
     shape : tuple
       Image shape;  used to construct a dummy BPM if all else fails
 
-        This is the UNTRIMMED size of the raw images.
+        This is the TRIMMED size of the raw images.
 
     msbias : ndarray, optional
       Used to construct the BPM if reduce_badpix=='bias'
@@ -64,34 +63,30 @@ class BPMImage(object):
     frametype = 'bpm'
 
     # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph=None, shape=None, filename=None, det=None, msbias=None,
-                 trim=True):
+    def __init__(self, spectrograph, shape=None, det=None):
 
-        # Spectrograph is required
-        if isinstance(spectrograph, str):
-            self.spectrograph = load_spectrograph(spectrograph=spectrograph)
-        elif isinstance(spectrograph, Spectrograph):
-            self.spectrograph = spectrograph
-        else:
-            self.spectrograph = None
+        # This function interprets both strings and spectrograph
+        # instances now
+        self.spectrograph = load_spectrograph(spectrograph)
 
         # Used to construct the BPM using the spectrograph class
         self.shape = shape
-        self.filename = filename
+        #self.filename = filename
         self.det = det
 
         # Used to construct the BPM from the bias
-        self.msbias = msbias
-        self.trim = trim
+        #self.msbias = msbias JFH This is not yet supported anyway
+        #self.trim = trim -- Killing this option for now
 
         # spectrograph or msbias must be defined
-        if self.spectrograph is None and msbias is None:
-            msgs.error('BPMImage instantiation incomplete.  Must provide spectrograph or msbias.')
+        if self.spectrograph is None:
+            msgs.error('BPMImage instantiation incomplete.  Must provide spectrograph.')
+
 
         # Output
         self.bpm_img = None
 
-    def build(self, datasec=None):
+    def build(self, datasec=None, filename=None):
         """
         Generate the BPM Image
 
@@ -101,18 +96,18 @@ class BPMImage(object):
 
         """
         # Will raise an exception if could not construct the BPM
-        if self.msbias is None:
+        if self.shape is not None:
             # WARNING: This assumes shape is the untrimmed size of the
             # image!
-            self.bpm_img = self.spectrograph.bpm(shape=self.shape, filename=self.filename,
-                                                 det=self.det)
-            if self.trim:
-                mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
-
+            self.bpm_img = self.spectrograph.bpm(shape=self.shape, det=self.det, filename=filename)
+            #if self.trim:
+            #    mask = self.spectrograph.get_datasec_img(filename=self.filename, det=self.det) < 1
         else:
+            # JFH This is all deprecated here
+            debugger.set_trace() # TOO EXPERIMENTAL
             _datasec = datasec
             if self.spectrograph is None and _datasec is None:
-                _datasec = [[slice(None),slice(None)]]
+                _datasec = [(slice(None),slice(None))]
                 _numamplifiers = 1
             if _datasec is None:
                 # Get the data sections from the spectrograph definition
@@ -135,8 +130,8 @@ class BPMImage(object):
                     mask[d] = False
 
         # Trim
-        if self.trim:
-            self.bpm_img = procimg.trim_frame(self.bpm_img, mask)
+        #if self.trim:
+        #    self.bpm_img = procimg.trim_frame(self.bpm_img, mask)
         return self.bpm_img
 
 

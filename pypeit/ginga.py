@@ -11,20 +11,25 @@ import os
 import numpy as np
 import time
 
+# A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
+# c
+# The add() command can add any of the shape types that are defined under ginga.canvas.types. The good part is that if you
+# go to that directory in the ginga source tree (ginga/canvas/types) and browse the source, you will find a parameter
+# description table at the beginning of each type definition, describing each parameter in the type and what it is for.
+# Most of the standard geometric types are in basic.py and there are specialized ones in utils.py, astro.py and layer.py. Looking at
+# the classes will also tell you which parameters are positional and which are keyword.
+
+
 # CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
 #from pypeit import ardebug as debugger
-import pdb as debugger
-from pypeit import scienceimage
+#import pdb as debugger
+#from pypeit import scienceimage
 
 from ginga.util import grc
 
 from astropy.io import fits
 
 from pypeit import msgs
-
-# TODO: There needs to be a way to call show_image() without importing
-# arlris, requires a code refactor
-# from pypeit import arlris
 
 def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     """ Connect to an active RC Ginga
@@ -49,57 +54,95 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
         if raise_err:
             raise ValueError
         else:
-            msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer: ginga --module=RC   then continue.")
+            msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer: ginga --modules=RC then continue.")
             debugger.set_trace()
     # Return
     return viewer
 
 
-def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cuts = None):
-    """ Displays input image in Ginga viewer
-    Supersedes method in xastropy
 
-    Parameters
-    ----------
-    inp : str or ndarray (2D)
-      If str, assumes the image is written to disk
-
-    Optional Parameters
-    ----------
-    wcs_img : str, optional
-      If included, use this in WCS.  Mainly to show wavelength array
-
-    bitmask: ndarray (2D)
-      bitmask produced by PypeIt extraction illustrating which pixels were masked and why
-
-    exten: int, optional
-      extension of image in fits file. Only passed in if inp is a file
-
-    Returns
-    -------
-
+def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
+               clear=False, wcs_match=False):
     """
-    if isinstance(inp, basestring):
-        if '.fits' in inp:
-            hdu = fits.open(inp)
-            img = hdu[exten].data
-    else:
-        img = inp
-# TODO implement instrument specific reading
+    Display an image using Ginga.
 
+    .. todo::
+        - implement instrument specific reading
+        - use the `mask` as a boolean mask if `bitmask` is not provided.
+
+    Args:
+        inp (:obj:`str`, numpy.ndarray):
+            The image to view.  If a string is provided, it must be the
+            name of a fits image that can be read by `astropy.io.fits`.
+        chname (:obj:`str`, optional):
+            The name of the ginga channel to use.
+        waveimg (:obj:`str`, optional):
+            The name of a fits image with the relevant WCS coordinates
+            in its header, mainly for wavelength array.  If None, no WCS
+            is used.
+        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+            The object used to unpack the mask values.  If this is
+            provided, mask must also be provided and the expectation is
+            that a extraction image is being shown.
+        mask (numpy.ndarray, optional):
+            A boolean or bitmask array that designates a pixel as being
+            masked.  Currently this is only used when displaying the
+            spectral extraction result.
+        exten (:obj:`int`, optional):
+            The extension of the fits file with the image to show.  This
+            is only used if the input is a file name.
+        cuts (array-like, optional):
+            Initial cut levels to apply when displaying the image.  This
+            object must have a length of 2 with the lower and upper
+            levels, respectively.
+        clear (:obj:`bool`, optional):
+            Clear any existing ginga viewer and its channels.
+        wcs_match(:obj:`bool`, optional):
+            Use this as a reference image for the WCS and match all
+            image in other channels to it.
+
+    Returns:
+        ginga.util.grc.RemoteClient, ginga.util.grc._channel_proxy: The
+        ginga remote client and the channel with the displayed image.
+
+    Raises:
+        ValueError:
+            Raised if `cuts` is provided and does not have two elements
+            or if bitmask is provided but mask is not.
+    """
+    # Input checks
+    if cuts is not None and len(cuts) != 2:
+        raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
+    if bitmask is not None and mask is None:
+        raise ValueError('If providing a bitmask, must also provide the mask values.')
+
+    # Read or set the image data.  This will fail if the input is a
+    # string and astropy.io.fits cannot read the image.
+    img = fits.open(inp)[exten].data if isinstance(inp, basestring) else inp
+
+    # Instantiate viewer
     viewer = connect_to_ginga()
+    if clear:
+        # Clear existing channels
+        shell = viewer.shell()
+        chnames = shell.get_channel_names()
+        for ch in chnames:
+            shell.delete_channel(ch)
     ch = viewer.channel(chname)
+
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
-    if wcs_img is not None:
-        header['WCS-XIMG'] = wcs_img
-        #header['WCS-XIMG'] = '/home/xavier/REDUX/Keck/LRIS/2017mar20/lris_red_setup_C/MF_lris_red/MasterWave_C_02_aa.fits'
+    if waveimg is not None:
+        header['WCS-XIMG'] = waveimg
+
     # Giddy up
     ch.load_np(chname, img, 'fits', header)
     canvas = viewer.canvas(ch._chname)
-    # These commands set up the viewer. They can be found at ginga/ginga/ImageView.py
+
+    # These commands set up the viewer. They can be found at
+    # ginga/ginga/ImageView.py
     out = canvas.clear()
     if cuts is not None:
         out = ch.cut_levels(cuts[0], cuts[1])
@@ -109,14 +152,24 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
     out = ch.restore_contrast()
     out = ch.restore_cmap()
 
-    #ToDO I would prefer to change the color map to indicate these pixels rather than overplot points. Because for
-    # large numbers of masked pixels, this is super slow. Need to ask ginga folks how to do that.
+    # WCS Match this to other images with this as the reference image?
+    if wcs_match:
+        # After displaying all the images since up the images with WCS_MATCH
+        shell = viewer.shell()
+        out = shell.start_global_plugin('WCSMatch')
+        out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
 
-    # If bitmask was passed in, expand it into the constituent masks and plot them
+    # TODO: I would prefer to change the color map to indicate these
+    # pixels rather than overplot points. Because for large numbers of
+    # masked pixels, this is super slow. Need to ask ginga folks how to
+    # do that.
+
+    # If bitmask was passed in, assume this is an extraction qa image
+    # and use the mask to identify why each pixel was masked
     if bitmask is not None:
         # Unpack the bitmask
-        (bpm, crmask, satmask, minmask, offslitmask,
-         nanmask, ivar0mask, ivarnanmask, extractmask) = scienceimage.unpack_bitmask(bitmask)
+        bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
+                = bitmask.unpack(mask)
 
         # These are the pixels that were masked by the bpm
         spec_bpm, spat_bpm = np.where(bpm & ~offslitmask)
@@ -140,9 +193,11 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
                             kwargs=dict(style='plus', color='red')) for i in range(next)]
 
         # These are the pixels that were masked for any other reason
-        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask & ~offslitmask)
+        spec_oth, spat_oth = np.where(satmask | minmask | nanmask | ivar0mask | ivarnanmask
+                                      & ~offslitmask)
         noth = len(spec_oth)
-        # note: must cast numpy floats to regular python floats to pass the remote interface
+        # note: must cast numpy floats to regular python floats to pass
+        # the remote interface
         points_oth = [dict(type='point', args=(float(spat_oth[i]), float(spec_oth[i]), 2),
                             kwargs=dict(style='plus', color='yellow')) for i in range(noth)]
 
@@ -161,13 +216,14 @@ def show_image(inp, chname='Image', wcs_img=None, bitmask = None, exten = 0, cut
         text_oth = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'OTHER'),
                           kwargs=dict(color='yellow', fontsize=20))]
 
-        canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr + text_ext + text_oth
+        canvas_list = points_bpm + points_cr + points_ext + points_oth + text_bpm + text_cr \
+                        + text_ext + text_oth
         canvas.add('constructedcanvas', canvas_list)
 
     return viewer, ch
 
 
-def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=1, clear = False):
+def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=50, clear = False):
     """ Overplot slits on image in Ginga
     Parameters
     ----------
@@ -231,20 +287,29 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
         canvas.add(str('text'), xt, yt, str('S{:}'.format(slit_ids[slit])), color=str('red'),
                    fontsize=20.)
 
-def show_trace(viewer, ch, trace, trc_name = 'Trace', color='blue', clear=False,
-               rotate=False, pstep=1):
+
+def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
+               rotate=False, pstep=50, yval=None):
     """
+    trace: ndarray
+      x-positions on the detector
     rotate : bool, optional
       Allow for a rotated image
     pstep : int
       Show every pstep point of the edges
+    yval : ndarray, optional
+      If not provided, it is assumed the input x values
+        track y=0,1,2,3,etc.
     """
     # Canvas
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
     # Show
-    y = (np.arange(trace.size)[::pstep]).tolist()
+    if yval is None:
+        y = (np.arange(trace.size)[::pstep]).tolist()
+    else:
+        y = yval[::pstep].tolist()
     xy = [trace[::pstep].tolist(), y]
     if rotate:
         xy[0], xy[1] = xy[1], xy[0]
@@ -255,6 +320,7 @@ def show_trace(viewer, ch, trace, trc_name = 'Trace', color='blue', clear=False,
     xyt = [float(trace[ohf]), float(y[ohf])]
     if rotate:
         xyt[0], xyt[1] = xyt[1], xyt[0]
+    # Do it
     canvas.add(str('text'), xyt[0], xyt[1], trc_name, rot_deg=90., color=str(color), fontsize=17.)
 
 
@@ -264,7 +330,98 @@ def clear_canvas(cname):
     canvas = viewer.canvas(ch._chname)
     canvas.clear()
 
+def clear_all():
+    viewer = connect_to_ginga()
+    shell = viewer.shell()
+    chnames = shell.get_channel_names()
+    for ch in chnames:
+        shell.delete_channel(ch)
 
+
+def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1, points=True, clear_canvas = False):
+    """  Display arc image and overlay the arcline tilt measurements
+    Parameters
+    ----------
+    msarc : ndarray
+    trcdict : dict
+      Contains trace info
+    sedges : tuple
+      Arrays of the slit
+    xoff : float, optional
+      In case Ginga has an index offset.  It appears not to
+    yoff : float, optional
+
+
+    Returns
+    -------
+
+    """
+    canvas = viewer.canvas(ch._chname)
+    if clear_canvas:
+        canvas.clear()
+
+    if sedges is not None:
+        show_slits(viewer, ch,sedges[0], sedges[1])
+
+    tilts = trc_tilt_dict['tilts']
+    # Crutch is set plot the crutch instead of the tilt itself
+    tilts_fit = trc_tilt_dict['tilts_fit']
+
+    tilts_spat = trc_tilt_dict['tilts_spat']
+    tilts_mask = trc_tilt_dict['tilts_mask']
+    tilts_err = trc_tilt_dict['tilts_err']
+
+    use_tilt = trc_tilt_dict['use_tilt']
+    # Show a trace
+    nspat = trc_tilt_dict['nspat']
+    nspec = trc_tilt_dict['nspec']
+    nlines = tilts.shape[1]
+    for iline in range(nlines):
+        x = tilts_spat[:,iline] + xoff # FOR IMAGING (Ginga offsets this value by 1 internally)
+        this_mask = tilts_mask[:,iline]
+        this_err = (tilts_err[:,iline] > 900)
+        if np.sum(this_mask) > 0:
+            if points: # Plot the gaussian weighted tilt centers
+                y = tilts[:, iline] + yoff
+                # Plot the actual flux weighted centroids of the arc lines that were traced
+                goodpix = (this_mask == True) & (this_err == False)
+                ngood = np.sum(goodpix)
+                if ngood > 0:
+                    xgood = x[goodpix]
+                    ygood = y[goodpix]
+                    # note: must cast numpy floats to regular python floats to pass the remote interface
+                    points_good = [dict(type='squarebox',
+                                        args=(float(xgood[i]), float(ygood[i]), 0.7),
+                                        kwargs=dict(color='cyan',fill=True, fillalpha=0.5)) for i in range(ngood)]
+                    canvas.add('constructedcanvas', points_good)
+                badpix = (this_mask == True) & (this_err == True)
+                nbad = np.sum(badpix)
+                if nbad > 0:
+                    xbad = x[badpix]
+                    ybad = y[badpix]
+                    # Now show stuff that had larger errors
+                    # note: must cast numpy floats to regular python floats to pass the remote interface
+                    points_bad = [dict(type='squarebox',
+                                       args=(float(xbad[i]), float(ybad[i]), 0.7),
+                                       kwargs=dict(color='red', fill=True,fillalpha=0.5)) for i in range(nbad)]
+                    canvas.add('constructedcanvas', points_bad)
+                # Now plot the polynomial fits to the the Gaussian weighted centroids
+            y = tilts_fit[:, iline] + yoff
+            points = list(zip(x[this_mask][::pstep].tolist(),y[this_mask][::pstep].tolist()))
+            if use_tilt[iline]:
+                clr = 'blue'  # Good line
+            else:
+                clr = 'yellow'  # Bad line
+            canvas.add('path', points, color=clr, linewidth=3)
+
+
+    canvas.add(str('text'), nspat//2 - 40, nspec//2,      'good tilt fit', color=str('blue'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, 'bad  tilt fit', color=str('yellow'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace good', color=str('cyan'),fontsize=20.)
+    canvas.add(str('text'), nspat//2 - 40, nspec//2 - 90, 'trace masked', color=str('red'),fontsize=20.)
+
+
+# Old method
 def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10,
                   cname='ArcTilts'):
     """  Display arc image and overlay the arcline tilt measurements

@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import os
+import time
 import glob
 import warnings
 import textwrap
@@ -24,9 +25,12 @@ except NameError:
 
 import numpy as np
 
+from astropy.table import Table
+
 from configobj import ConfigObj
 
 from pypeit import msgs
+from pypeit import debugger
 
 #-----------------------------------------------------------------------
 # Parameter utility functions
@@ -300,22 +304,19 @@ def _read_data_file_names(lines, file_check=True):
     read_inp = []
     for l in lines:
         _l = l.split(' ')
-        if len(_l) > 2:
-            msgs.error('There can be no more than two strings per line in a data block:'
-                       + msgs.newline() + l)
 
         if _l[0] == 'skip':
-            skip_inp += _parse_data_file_name(_l[1], current_path)
+            space_ind = l.index(" ")
+            path = l[space_ind + 1:]
+            skip_inp += _parse_data_file_name(path, current_path)
             continue
 
         if _l[0] == 'path':
-            current_path = _l[1]
+            space_ind = l.index(" ")
+            current_path = l[space_ind + 1:]
             continue
 
-        if len(_l) > 1:
-            msgs.error('There must be no spaces when specifying the datafile:'+msgs.newline()+l)
-
-        read_inp += _parse_data_file_name(_l[0], current_path)
+        read_inp += _parse_data_file_name(l, current_path)
 
     # Remove any repeated lines
     if len(skip_inp) > 0 and len(skip_inp) != len(set(skip_inp)):
@@ -339,78 +340,125 @@ def _read_data_file_names(lines, file_check=True):
     return read_inp
 
 
-def _read_pypeit_file_lines(ifile):
-    """
-    General parser for a pypeit file.
-
-    - Checks that the file exists.
-    - Reads all the lines in the file
-    - Removes comments, empty lines, and replaces special characters.
-    
-    Applies to settings, setup, and user-level reduction files.
-
-    Args:
-        ifile (str): Name of the file to parse.
-
-    Returns:
-        :obj:`numpy.ndarray`: Returns a list of the valid lines in the
-        files.
-    """
-    # Check the files
-    if not os.path.isfile(ifile):
-        msgs.error('The filename does not exist -' + msgs.newline() + ifile)
-
-    # Read the input lines and replace special characters
-    with open(ifile, 'r') as f:
-        lines = np.array([l.replace('\t', ' ').replace('\n', ' ').strip() \
-                                for l in f.readlines()])
-    # Remove empty or fully commented lines
-    lines = lines[np.array([ len(l) > 0 and l[0] != '#' for l in lines ])]
-    # Remove appended comments and return
-    return np.array([ l.split('#')[0] for l in lines ])
-
 
 def _determine_data_format(lines):
-    """Determine how the data is formatted in the pypeit file."""
-    return 'table' if len(lines) > 1 and lines[1][0] == '|' else 'raw'
+    """
+    Determine the format of the data block in the pypeit file.
+
+    The test used in this function is pretty basic.  A table format is
+    assumed if the first character in *any* line is `|`.
+
+    Args:
+        lines (:obj:`list`):
+            The list of lines read from the data block of the pypeit
+            file.
+    
+    Returns:
+        str: The syntax of the data files to read::
+
+            'raw': A (list of) file roots to be read or found using
+            `glob`.
+
+            'table': ASCII output of an astropy.table.Table
+
+    """
+    for l in lines:
+        if l[0] == '|':
+            return 'table'
+    return 'raw'
 
 
 def _read_data_file_table(lines, file_check=True):
-    """Read the file table format."""
-    path = lines[0].split(' ')[1]
-    header = np.array([ l.strip() for l in lines[1].split('|') ])
+    """
+    Read the file table format.
+    
+    Args:
+        lines (:obj:`list`):
+            List of lines *within the data* block read from the pypeit
+            file.
+        file_check (:obj:`bool`, optional):
+            Check if the specified data files exist.
+    
+    Returns:
+        list, dict, Table:  Returns the list of data file names, a
+        dictionary with the frame types of each file where the key of
+        the dictionary is the file name, and a Table with the data
+        provided in the pypeit file.  Note that the files listed in the
+        first object contain the full path, whereas the file names in
+        the frame type dictionary and the data table do not include the
+        full path to the file.
 
-    file_col = np.where(header == 'filename')[0]
-    if len(file_col) == 0:
+    Raise:
+        PypeItError:
+            Raised if `file_check=True` and any of the specified files
+            to not exist, or if the table does not have a 'filename' or
+            'frametype' column.
+    """
+
+    # Allow for multiple paths
+    paths = []
+    for l in lines:
+        space_ind = l.index(" ")
+        if l[:space_ind].strip() != 'path':
+            break
+        paths += [ l[space_ind+1:] ]
+
+    npaths = len(paths)
+    header = [ l.strip() for l in lines[npaths].split('|') ][1:-1]
+
+    # Minimum columns required
+    if 'filename' not in header:
         msgs.error('Table format failure: No \'filename\' column.')
-    file_col = file_col[0]
-
-    frame_col = np.where(header == 'frametype')[0]
-    if len(frame_col) == 0:
+    if 'frametype' not in header:
         msgs.error('Table format failure: No \'frametype\' column.')
-    frame_col = frame_col[0]
 
-    nfiles = len(lines) - 2
+    # Build the table
+    nfiles = len(lines) - npaths - 1
+    tbl = np.empty((nfiles, len(header)), dtype=object)
+
+    for i in range(nfiles):
+        row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
+        if len(row) != tbl.shape[1]:
+            raise ValueError('Data and header lines have mismatched columns!')
+        tbl[i,:] = row
+    data = {}
+    for i,key in enumerate(header):
+        data[key] = tbl[:,i]
+    tbl = Table(data)
+
+    # Build full paths to file and set frame types
     frametype = {}
     data_files = []
     for i in range(nfiles):
-        row_values = lines[i+2].split('|') 
-        filename = row_values[file_col].strip()
-        frametype[filename] = row_values[frame_col].strip()
-        filename = os.path.join(path, filename)
-        if os.path.isfile(filename):
-            data_files.append(filename)
-        elif file_check:
+        frametype[tbl['filename'][i]] = tbl['frametype'][i]
+        for p in paths:
+            filename = os.path.join(p, tbl['filename'][i])
+            if os.path.isfile(filename):
+                break
+        data_files.append(filename)
+        if not os.path.isfile(filename) and file_check:
             msgs.error('File does not exist: {0}'.format(filename))
-    return data_files, frametype
+
+    return data_files, frametype, tbl
 
 
 def _parse_setup_lines(lines):
     """Return a list of the setup names"""
-    return [ l.split()[1].strip() for l in lines if 'Setup' in l ]
+    setups = []
+    for l in lines:
+        if 'Setup' in l:
+            tsetup = l.split()[1].strip()
+            # Remove any lingering colon
+            if tsetup[-1] == ':':
+                setup = tsetup[:-1]
+            else:
+                setup = tsetup
+            setups.append(setup)
+    #
+    return setups
 
 
-def parse_pypeit_file(ifile, file_check=True):
+def parse_pypeit_file(ifile, file_check=True, runtime=False):
     """
     Parse the user-provided .pypeit reduction file.
 
@@ -420,11 +468,15 @@ def parse_pypeit_file(ifile, file_check=True):
         file_check (:obj:`bool`, optional):
             Check that the files in the pypeit configuration data file
             exist, and fault if they do not.
+        runtime (:obj:`boo`, optional):
+            Perform additional checks if called to run PypeIt
 
     Returns:
-        :obj:`lists`: Four lists are provided: (1) the list of
-        configuration lines, (2) the list of datafiles to read, (3) the
-        list of frametypes for each file, and (4) the list of setup
+        :obj:`lists`: Four lists are provided:
+        (1) the list of configuration lines,
+        (2) the list of datafiles to read,
+        (3) the list of frametypes for each file, and
+        (4) the list of setup
         lines.
     """
     # Read in the pypeit reduction file
@@ -445,9 +497,10 @@ def parse_pypeit_file(ifile, file_check=True):
     data_format = _determine_data_format(lines[s:e])
     if data_format == 'raw':
         frametype = None
+        usrtbl = None
         data_files = _read_data_file_names(lines[s:e], file_check=file_check)
     elif data_format == 'table':
-        data_files, frametype = _read_data_file_table(lines[s:e], file_check=file_check)
+        data_files, frametype, usrtbl = _read_data_file_table(lines[s:e], file_check=file_check)
     is_config[s-1:e+1] = False
     if len(data_files) == 0 and file_check:
         msgs.error('There are no raw data frames' + msgs.newline() +
@@ -465,8 +518,17 @@ def parse_pypeit_file(ifile, file_check=True):
         setups = _parse_setup_lines(lines[s:e])
         is_config[s-1:e+1] = False
 
+    # Running PypeIt?
+    if runtime:
+        for key in ['filename', 'frametype']:
+            if key not in usrtbl.keys():
+                msgs.error("Need to add {:s} to your PypeIt file before using run_pypeit".format(key))
+        # Setup
+        if len(setups) != 1:
+            msgs.error("Need to add setup info to your PypeIt file in the setup block!")
+
     msgs.info('Input file loaded successfully')
-    return list(lines[is_config]), data_files, frametype, setups
+    return list(lines[is_config]), data_files, frametype, usrtbl, setups
 
 
 def pypeit_config_lines(ifile):
@@ -522,7 +584,7 @@ def pypeit_config_lines(ifile):
     
 
 def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
-                    setup_lines=None, sorted_files=None, paths=None):
+                     setup_lines=None, sorted_files=None, paths=None):
     """ Generate a default PYPIT file
 
     Parameters
@@ -541,6 +603,8 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
       Running setup script?
     calcheck : bool, optional
       Run calcheck?
+    setup_mode : bool, optional
+      Running setups?
 
     Returns
     -------
@@ -557,6 +621,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         _cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
     else:
         _cfg_lines = list(cfg_lines)
+
     if setup_mode:
         _cfg_lines += ['[calibrations]']
         _cfg_lines += ['    [[biasframe]]']
@@ -571,17 +636,20 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         _cfg_lines += ['        number = 0']
         _cfg_lines += ['    [[standardframe]]']
         _cfg_lines += ['        number = 0']
-    else:
-        _cfg_lines += ['[calibrations]']
-        _cfg_lines += ['    [[arcframe]]']
-        _cfg_lines += ['        number = 1']
+    # TODO: Got rid of this, but need to check this doesn't break
+    # anything
+#    else:
+#        _cfg_lines += ['[calibrations]']
+#        _cfg_lines += ['    [[arcframe]]']
+#        _cfg_lines += ['        number = 1']
 
     # TODO: Clean up and check validity of _cfg_lines by reading it into
     # a ConfigObj?
 
     # Here we go
     with open(pypeit_file, 'w') as f:
-        f.write("# This is a comment line\n")
+        f.write('# Auto-generated PypeIt file\n')
+        f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
         f.write("\n")
         f.write("# User-defined execution parameters\n")
         f.write('\n'.join(_cfg_lines))
@@ -591,7 +659,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
             f.write("# Setup\n")
             f.write("setup read\n")
             for sline in setup_lines:
-                f.write(' '+sline)
+                f.write(' '+sline+'\n')
             f.write("setup end\n")
             f.write("\n")
         # Data
@@ -605,8 +673,8 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
             for path in paths:
                 f.write(' path '+path+'\n')
         if sorted_files is not None:
-            for sfile in sorted_files:
-                f.write(sfile)
+            f.write('\n'.join(sorted_files))
+            f.write('\n')
         f.write("data end\n")
         f.write("\n")
 

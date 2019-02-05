@@ -28,7 +28,7 @@ def main(args, unit_test=False, path=''):
       Mainly for running the unit test
     """
 
-    from pypeit import arqa
+    from pypeit.core import qa
 
     # Flags
     flg_MF, flg_exp = False, False
@@ -41,9 +41,9 @@ def main(args, unit_test=False, path=''):
 
     # Master Frame
     if flg_MF:
-        arqa.gen_mf_html(args.pypeit_file)
+        qa.gen_mf_html(args.pypeit_file)
 
     # Exposures
     if flg_exp:
-        arqa.gen_exp_html()
+        qa.gen_exp_html()
 

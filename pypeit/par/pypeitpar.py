@@ -103,7 +103,7 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, number=None, process=None):
+    def __init__(self, frametype=None, useframe=None, number=None, exprng=None, process=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -118,7 +118,8 @@ class FrameGroupPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['frametype'] = 'bias'
+#        defaults['frametype'] = 'bias'
+        defaults['frametype'] = frametype       # This is a kludge
         options['frametype'] = FrameGroupPar.valid_frame_types()
         dtypes['frametype'] = str
         descr['frametype'] = 'Frame type.  ' \
@@ -129,7 +130,15 @@ class FrameGroupPar(ParSet):
 
         defaults['number'] = 0
         dtypes['number'] = int
-        descr['number'] = 'Number of frames to use of this type'
+        descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
+                          'the number of frames to use of this type'
+
+        defaults['exprng'] = [None, None]
+        dtypes['exprng'] = list
+        descr['exprng'] = 'Used in identifying frames of this type.  This sets the minimum ' \
+                          'and maximum allowed exposure times.  There must be two items in ' \
+                          'the list.  Use None to indicate no limit; i.e., to select exposures ' \
+                          'with any time greater than 30 sec, use exprng = [30, None].'
 
         defaults['process'] = ProcessImagesPar()
         dtypes['process'] = [ ParSet, dict ]
@@ -148,7 +157,7 @@ class FrameGroupPar(ParSet):
     @classmethod
     def from_dict(cls, frametype, cfg):
         k = cfg.keys()
-        parkeys = [ 'useframe', 'number' ]
+        parkeys = [ 'useframe', 'number', 'exprng' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -161,11 +170,15 @@ class FrameGroupPar(ParSet):
         """
         Return the list of valid frame types.
         """
-        return [ 'bias', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science', 'all' ]
+        return [ 'bias', 'dark', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science',
+                 'all' ]
 
     def validate(self):
         if self.data['useframe'] is None:
+            self.default['useframe'] = self.data['frametype']
             self.data['useframe'] = self.data['frametype']
+        if len(self.data['exprng']) != 2:
+            raise ValueError('exprng must be a list with two items.')
 
 
 class ProcessImagesPar(ParSet):
@@ -261,7 +274,7 @@ class ProcessImagesPar(ParSet):
         dtypes['rmcompact'] = bool
         descr['rmcompact'] = 'Remove compact detections in LA cosmics routine'
 
-        defaults['sigclip'] = 5.0
+        defaults['sigclip'] = 4.5
         dtypes['sigclip'] = [int, float]
         descr['sigclip'] = 'Sigma level for rejection in LA cosmics routine'
 
@@ -269,7 +282,7 @@ class ProcessImagesPar(ParSet):
         dtypes['sigfrac'] = [int, float]
         descr['sigfrac'] = 'Fraction for the lower clipping threshold in LA cosmics routine.'
 
-        defaults['objlim'] = 5.0
+        defaults['objlim'] = 3.0
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
@@ -404,7 +417,9 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frame=None, slitprofile=None, method=None, params=None, twodpca=None):
+    def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None, spec_samp_coarse=None,
+                 spat_samp=None, tweak_slits=None, tweak_slits_thresh=None, tweak_slits_maxfrac=None):
+
     
         # Grab the parameter names and values from the function
         # arguments
@@ -421,36 +436,56 @@ class FlatFieldPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
-        # TODO: Provide a list of valid masters to use as options?
-        defaults['frame'] = 'pixelflat'
-        dtypes['frame'] = str
-        descr['frame'] = 'Frame to use for field flattening.  Options are: pixelflat, pinhole, ' \
-                         'or a specified master calibration file.'
 
-        defaults['slitprofile'] = True
-        dtypes['slitprofile'] = bool
-        descr['slitprofile'] = 'Use the flat field to determine the spatial profile of each slit.'
-
+        # ToDO there are only two methods. The bspline method and skip, so maybe we should rename the bspline method.
         defaults['method'] = 'bspline'
         options['method'] = FlatFieldPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method used to flat field the data; use None to skip flat-fielding.  ' \
+        descr['method'] = 'Method used to flat field the data; use skip to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
-        defaults['params'] = [20]
-        dtypes['params'] = [int, list]
-        descr['params'] = 'Flat-field method parameters.  For \'PolyScan\', set params = order, ' \
-                          'numPixels, repeat ; for bspline, set params = spacing '
+        # TODO: Provide a list of valid masters to use as options?
+        defaults['frame'] = 'pixelflat'
+        dtypes['frame'] = str
+        descr['frame'] = 'Frame to use for field flattening.  Options are: "pixelflat", ' \
+                         'or a specified calibration filename.'
 
-        # TODO:  How is twodpca used?  Is it just another method that is
-        # only used for ARMED?  Could we remove twodpca and just add
-        # another method option?
-        defaults['twodpca'] = 0
-        dtypes['twodpca'] = int
-        descr['twodpca'] = 'Perform a simple 2D PCA on the echelle blaze fits if the value of ' \
-                           'this argument is >1. The argument value is equal to the number of ' \
-                           'PCA components. 0 means that no PCA will be performed.  **This is ' \
-                           'only used with ARMED pipeline.'
+        defaults['illumflatten'] = True
+        dtypes['illumflatten'] = bool
+        descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
+
+        defaults['spec_samp_fine'] = 1.2
+        dtypes['spec_samp_fine'] = [int, float]
+        descr['spec_samp_fine'] = 'bspline break point spacing in units of pixels for spectral fit to flat field blaze function.'
+
+        defaults['spec_samp_coarse'] = 50.0
+        dtypes['spec_samp_coarse'] = [int, float]
+        descr['spec_samp_coarse'] = 'bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to ' \
+                                    'flat field image residuals. This should be a large number unless you are trying to ' \
+                                    'fit a sky flat with lots of narrow spectral features.'
+        defaults['spat_samp'] = 5.0
+        dtypes['spat_samp'] = [int, float]
+        descr['spat_samp'] = 'Spatial sampling for slit illumination function. This is the width of the median ' \
+                             'filter in pixels used to determine the slit illumination function, and thus sets the ' \
+                             'minimum scale on which the illumination function will have features.'
+
+        defaults['tweak_slits'] = True
+        dtypes['tweak_slits'] = bool
+        descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
+                               'This will work even if illumflatten is set to False '
+
+        defaults['tweak_slits_thresh'] = 0.93
+        dtypes['tweak_slits_thresh'] = float
+        descr['tweak_slits_thresh'] = 'If tweak_slits is True, this sets the illumination function threshold used to ' \
+                                      'tweak the slit boundaries based on the illumination flat. ' \
+                                      'It should be a number less than 1.0'
+
+        defaults['tweak_slits_maxfrac'] = 0.10
+        dtypes['tweak_slits_maxfrac'] = float
+        descr['tweak_slits_maxfrac'] = 'If tweak_slit is True, this sets the maximum fractional amount (of a slits width) ' \
+                                       'allowed for trimming each (i.e. left and right) slit boundary, i.e. the default is 10% ' \
+                                       'which means slits would shrink or grow by at most 20% (10% on each side)'
+
 
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
@@ -466,7 +501,8 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'frame', 'slitprofile', 'method', 'params', 'twodpca' ]
+        parkeys = [ 'method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse', 'spat_samp',
+                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -477,29 +513,31 @@ class FlatFieldPar(ParSet):
         """
         Return the valid frame types.
         """
-        return ['pixelflat', 'pinhole']
+
+        # ToDO JFH So won't this fail if the user tries to provide a filename?
+        return ['pixelflat'] # , 'pinhole'] disabling this for now, we don't seem to be using it. JFH
 
     @staticmethod
     def valid_methods():
         """
         Return the valid flat-field methods
         """
-        return [ 'PolyScan', 'bspline' ]
+        return ['bspline', 'skip'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
 
     def validate(self):
         """
         Check the parameters are valid for the provided method.
         """
         # Convert param to list
-        if isinstance(self.data['params'], int):
-            self.data['params'] = [self.data['params']]
+        #if isinstance(self.data['params'], int):
+        #    self.data['params'] = [self.data['params']]
         
         # Check that there are the correct number of parameters
-        if self.data['method'] == 'PolyScan' and len(self.data['params']) != 3:
-            raise ValueError('For PolyScan method, set params = order, number of '
-                             'pixels, number of repeats')
-        if self.data['method'] == 'bspline' and len(self.data['params']) != 1:
-            raise ValueError('For bspline method, set params = spacing (integer).')
+        #if self.data['method'] == 'PolyScan' and len(self.data['params']) != 3:
+        #    raise ValueError('For PolyScan method, set params = order, number of '
+        #                     'pixels, number of repeats')
+        #if self.data['method'] == 'bspline' and len(self.data['params']) != 1:
+        #    raise ValueError('For bspline method, set params = spacing (integer).')
         if self.data['frame'] in FlatFieldPar.valid_frames() or self.data['frame'] is None:
             return
 
@@ -507,6 +545,11 @@ class FlatFieldPar(ParSet):
         if not os.path.isfile(self.data['frame']):
             raise ValueError('Provided frame file name does not exist: {0}'.format(
                                 self.data['frame']))
+
+        # Check that if tweak slits is true that illumflatten is alwo true
+        if self.data['tweak_slits'] and not self.data['illumflatten']:
+            raise ValueError('In order to tweak slits illumflatten must be set to True')
+
 
 
 class FlexurePar(ParSet):
@@ -533,20 +576,19 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-
-        defaults['method'] = 'boxcar'
+        defaults['method'] = 'skip'
         options['method'] = FlexurePar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method used to correct for flexure. Use None for no correction.  If ' \
+        descr['method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
-                          'extraction of objects.  ' \
+                          'extraction of objects (not recommended).  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
         defaults['maxshift'] = 20
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
-        # TODO: THIS IS NOT USED!
+        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -580,7 +622,7 @@ class FlexurePar(ParSet):
         """
         Return the valid flat-field methods
         """
-        return [ 'boxcar', 'slitcen' ]
+        return ['boxcar', 'slitcen', 'skip']
 
     def validate(self):
         """
@@ -602,7 +644,8 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, nonlinear=None, sensfunc=None):
+    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None,
+                 star_type=None, star_mag=None, multi_det=None, telluric=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -615,17 +658,35 @@ class FluxCalibrationPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        # TODO: I don't think this is used anywhere
-        defaults['nonlinear'] = False
-        dtypes['nonlinear'] = bool
-        descr['nonlinear'] = 'Perform a non-linear correction.  Requires a series of ' \
-                             'pixelflats of the same lamp and setup and with a variety of ' \
-                             'exposure times and count rates in every pixel.'
+        defaults['balm_mask_wid'] = 5.
+        dtypes['balm_mask_wid'] = float
+        descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
+
+        dtypes['std_file'] = str
+        descr['std_file'] = 'Standard star file to generate sensfunc'
+
+        dtypes['std_obj_id'] = [str, int]
+        descr['std_obj_id'] = 'Specifies object in spec1d file to use as standard.' \
+            ' The brightest object found is used otherwise.'
+
+        dtypes['multi_det'] = list
+        descr['multi_det'] = 'List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)' \
+                        ' They are assumed to be in order of increasing wavelength' \
+                        ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
 
         dtypes['sensfunc'] = str
-        descr['sensfunc'] = 'YAML file with an existing calibration function'
+        descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
+
+        defaults['telluric'] = False
+        dtypes['telluric'] = bool
+        descr['telluric'] = 'If telluric=True the code creates a sintetic standard star spectrum using the Kurucz models, ' \
+            'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
+
+        dtypes['star_type'] = float
+        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
+
+        dtypes['star_mag'] = float
+        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
 
         # Instantiate the parameter set
         super(FluxCalibrationPar, self).__init__(list(pars.keys()),
@@ -638,7 +699,8 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'nonlinear', 'sensfunc' ]
+        parkeys = ['balm_mask_wid',  'sensfunc', 'std_file', 'std_obj_id',
+                   'star_type', 'star_mag', 'multi_det', 'telluric']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -648,88 +710,9 @@ class FluxCalibrationPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        if self.data['sensfunc'] is not None and not os.path.isfile(self.data['sensfunc']):
+        if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
-
-# JFH TODO this parset is now deprecated
-# TODO: What other parameters should there be?
-class SkySubtractionPar(ParSet):
-    """
-    A parameter set holding the arguments for how to perform the sky
-    subtraction.
-
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-    """
-    def __init__(self, bspline_spacing=None, nodding=None): #method=None, params=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-
-        defaults['bspline_spacing'] = 0.6
-        dtypes['bspline_spacing'] = [int, float]
-        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
-
-        defaults['nodding'] = False
-        dtypes['nodding'] = bool
-        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
-
-#        defaults['method'] = 'bspline'
-#        options['method'] = SkySubtractionPar.valid_methods()
-#        dtypes['method'] = str
-#        descr['method'] = 'Method used to for sky subtraction.  ' \
-#                          'Options are: None, {0}'.format(', '.join(options['method']))
-#
-#        defaults['params'] = 20
-#        dtypes['params'] = int
-#        descr['params'] = 'Sky-subtraction method parameters.  For bspline, set params = spacing.'
-
-        # Instantiate the parameter set
-        super(SkySubtractionPar, self).__init__(list(pars.keys()),
-                                                values=list(pars.values()),
-                                                defaults=list(defaults.values()),
-                                                options=list(options.values()),
-                                                dtypes=list(dtypes.values()),
-                                                descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'bspline_spacing', 'nodding' ] #'method', 'params' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-#    @staticmethod
-#    def valid_methods():
-#        """
-#        Return the valid sky-subtraction methods
-#        """
-#        return [ 'bspline' ]
-
-    def validate(self):
-        pass
-
-#        """
-#        Check the parameters are valid for the provided method.
-#        """
-#        if self.data['method'] == 'bspline' and not isinstance(self.data['params'], int):
-#            raise ValueError('For bspline sky-subtraction method, set params = spacing (integer).')
 
 
 class ManualExtractionPar(ParSet):
@@ -895,8 +878,8 @@ class ReducePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, spectrograph=None, pipeline=None, detnum=None, sortroot=None, calwin=None,
-                 scidir=None, qadir=None):
+    def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
+                 qadir=None, redux_path=None, ignore_bad_headers=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -917,12 +900,7 @@ class ReducePar(ParSet):
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
 
-        options['pipeline'] = ReducePar.valid_pipelines()
-        dtypes['pipeline'] = str
-        descr['pipeline'] = 'Pipeline options that pypeit can use for reductions.  ' \
-                            'Options are: {0}'.format(', '.join(options['pipeline']))
-
-        dtypes['detnum'] = [list]
+        dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
 
         dtypes['sortroot'] = str
@@ -930,10 +908,15 @@ class ReducePar(ParSet):
                             'None, the default is the root name of the pypeit file.  If off, ' \
                             'no output is produced.'
 
+        # TODO: Allow this to apply to each calibration frame type
         defaults['calwin'] = 0
         dtypes['calwin']   = [int, float]
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
                           'science frame'
+
+        defaults['ignore_bad_headers'] = False
+        dtypes['ignore_bad_headers'] = bool
+        descr['ignore_bad_headers'] = 'Ignore bad headers (NOT recommended unless you know it is safe).'
 
         defaults['scidir'] = 'Science'
         dtypes['scidir'] = str
@@ -943,6 +926,10 @@ class ReducePar(ParSet):
         dtypes['qadir'] = str
         descr['qadir'] = 'Directory relative to calling directory to write quality ' \
                          'assessment files.'
+
+        defaults['redux_path'] = os.getcwd()
+        dtypes['redux_path'] = str
+        descr['redux_path'] = 'Path to folder for performing reductions.'
 
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
@@ -958,8 +945,8 @@ class ReducePar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'spectrograph', 'pipeline', 'detnum', 'sortroot', 'calwin', 'scidir',
-                    'qadir' ]
+        parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
+                    'redux_path', 'ignore_bad_headers']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -973,14 +960,13 @@ class ReducePar(ParSet):
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
-        return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires', 'keck_nirspec',
-                'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'vlt_xshooter_vis', 'vlt_xshooter_nir']
-
-    @staticmethod
-    def valid_pipelines():
-        """Return the list of allowed pipelines within pypit."""
-        return [ 'ARMS' , 'ARMED' ]
+        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
+                'keck_hires_red', 'keck_hires_blue', 'mmt_binospec',
+                'keck_nirspec_low', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
+                'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
+                'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
+                'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
+                'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'vlt_fors2']
 
     def validate(self):
         pass
@@ -994,8 +980,13 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None, lamps=None, detection=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None):
+    def __init__(self, reference=None, method=None,
+                 echelle = None, ech_fix_format = None, ech_nspec_coeff = None, ech_norder_coeff = None, ech_sigrej = None,
+                 lamps=None, nonlinear_counts = None,
+                 sigdetect=None, fwhm=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
+                 nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
+                 sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
+                 IDwaves=None, medium=None, frame=None, nsnippet=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1010,6 +1001,8 @@ class WavelengthSolutionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
+        # TODO JFH Does sky actually do anything?
         # TODO: Only test for 'pixel' is ever used. I.e. 'arc' or 'sky'
         # does not make a difference.
         defaults['reference'] = 'arc'
@@ -1018,31 +1011,166 @@ class WavelengthSolutionPar(ParSet):
         descr['reference'] = 'Perform wavelength calibration with an arc, sky frame.  Use ' \
                              '\'pixel\' for no wavelength solution.'
 
-        defaults['method'] = 'arclines'
+        defaults['method'] = 'holy-grail'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use to fit the individual arc lines.  ' \
-                          '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
-                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
-                          '\'arclines\' uses the arclines python package.' \
-                          'Options are: {0}'.format(', '.join(options['method']))
+        descr['method'] = 'Method to use to fit the individual arc lines. Most of these methods are now deprecated ' \
+                          'as they fail most of the time without significant parameter tweaking. ' \
+                          '\'holy-grail\' attempts to get a first guess at line IDs by looking for patterns in the ' \
+                          'line locations. It is fully automated and works really well excpet for when it does not' \
+                          '\'reidentify\' is now the preferred method, however it requires that an archive of ' \
+                          'wavelength solution has been constructed for your instrument/grating combination'' \
+                          ''Options are: {0}'.format(', '.join(options['method']))
+#        descr['method'] = 'Method to use to fit the individual arc lines.  ' \
+#                          '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
+#                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
+#                          '\'arclines\' uses the arclines python package.' \
+#                          'Options are: {0}'.format(', '.join(options['method']))
 
-        # TODO: Not used
+        # Echelle wavelength calibration stuff
+        defaults['echelle'] = False
+        dtypes['echelle'] = bool
+        descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function ' \
+                           'of spectral pixel and order number to improve the wavelength solution'
+
+        defaults['ech_nspec_coeff'] = 4
+        dtypes['ech_nspec_coeff'] = int
+        descr['ech_nspec_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the spectral dimension. ' \
+                                   'You should choose this to be the n_final of the fits to the individual orders.'
+
+        defaults['ech_norder_coeff'] = 4
+        dtypes['ech_norder_coeff'] = int
+        descr['ech_norder_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
+
+        defaults['ech_sigrej'] = 2.0
+        dtypes['ech_sigrej'] = [int,float]
+        descr['ech_sigrej'] = 'For echelle spectrographs sigma clipping rejection threshold in 2d fit to spectral and order dimensions'
+
+
+        # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
         # Force lamps to be a list
         if pars['lamps'] is not None and not isinstance(pars['lamps'], list):
             pars['lamps'] = [pars['lamps']]
-        options['lamps'] = WavelengthSolutionPar.valid_lamps()
+        options['lamps'] = None
+        #options['lamps'] = WavelengthSolutionPar.valid_lamps()
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          'None for no calibration.  ' \
-                         'Options are: {0}'.format(', '.join(options['lamps']))
+                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
+
+
+        # ToDo Should this be in counts or ADU? Currently the arcs are in ADU (which actually sort of makes sense here) but the
+        # name of the parameter is counts. Perhaps we should just change this to nonlinear_adu or something to avoid confusion.
+
+        # These are the parameters used for arc line detection
+        # TODO: Why is this not always defined by the detectors of the
+        # spectrograph?
+        defaults['nonlinear_counts'] = 1e10
+        dtypes['nonlinear_counts'] = float
+        descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
+                                    'be accurately centroided'
+
+        defaults['sigdetect'] = 5.
+        dtypes['sigdetect'] =  [int, float, list, numpy.ndarray]
+        descr['sigdetect'] = 'Detection threshold for arc lines. This can be a single number or a list/array providing the value for each slit'
+
+        defaults['fwhm'] = 4.
+        dtypes['fwhm'] = [int, float]
+        descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.'
+
+        # These are the parameters used for reidentification
+        defaults['reid_arxiv']=None
+        dtypes['reid_arxiv'] = str
+        descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used for the wavelength ' \
+                              'reidentification if the wavelength solution method = reidentify'
+
+        defaults['nreid_min'] = 1
+        dtypes['nreid_min'] = int
+        descr['nreid_min'] = 'Minimum number of times that a given candidate reidentified line must be properly matched ' \
+                             'with a line in the arxiv to be considered a good reidentification. If there is a lot of ' \
+                             'duplication in the arxiv of the spectra in question (i.e. multislit) set this to a number ' \
+                             'like 1-4. For echelle this depends on the number of solutions in the arxiv. For fixed format ' \
+                             'echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will ' \
+                             'depend on the number of solutions in the arxiv.'
+
+        defaults['nsnippet'] = 2
+        dtypes['nsnippet'] = int
+        descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when using the full_template method'
+
+        defaults['cc_thresh'] = 0.70
+        dtypes['cc_thresh'] = [float, list, numpy.ndarray]
+        descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between an input spectrum and member ' \
+                             'of the archive required to attempt reidentification. Spectra from the archive with a lower ' \
+                             'cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit'
+
+        defaults['cc_local_thresh'] = 0.70
+        dtypes['cc_local_thresh'] = float
+        descr['cc_local_thresh'] = 'Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  ' \
+                                   'between an input spectrum and the shifted and stretched archive spectrum above which a ' \
+                                   'line must be to be considered a good line for reidentification. The local cross-correlation ' \
+                                   'is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then ' \
+                                   'used to score the the reidentified lines to arrive at the final set of good reidentifications'
+
+        defaults['nlocal_cc'] = 11
+        dtypes['nlocal_cc'] = int
+        descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation computation for each arc line. If not ' \
+                             'an odd number one will be added to it to make it odd.'
+
+        defaults['ech_fix_format'] = True
+        dtypes['ech_fix_format'] = bool
+        descr['ech_fix_format'] = 'Is this a fixed format echelle like ESI, X-SHOOTER, or NIRES. If so reidentification ' \
+                                  'will assume that each order in the data is aligned with a single order in the reid arxiv'
+
+
+
+
+        # These are the parameters used for the iterative fitting of the arc lines
+        defaults['rms_threshold'] = 0.15
+        dtypes['rms_threshold'] = [float, list, numpy.ndarray]
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit'
+
+        defaults['match_toler'] = 2.0
+        dtypes['match_toler'] = float
+        descr['match_toler'] = 'Matching tolerance in pixels when searching for new lines. This is the difference ' \
+                               'in pixels between the wavlength assigned to an arc line by an iteration of the wavelength ' \
+                               'solution to the wavelength in the line list. This parameter is also used as the matching ' \
+                               'tolerance in pixels for a line reidentification. A good line match must match within this ' \
+                               'tolerance to the shifted and stretched archive spectrum, and the archive wavelength ' \
+                               'solution at this match must be within match_toler dispersion elements from the line in line list.'
+
+        defaults['func'] = 'legendre'
+        dtypes['func'] = str
+        descr['func'] = 'Function used for wavelength solution fits'
+
+        defaults['n_first'] = 2
+        dtypes['n_first'] = int
+        descr['n_first'] = 'Order of first guess fit to the wavelength solution.'
+
+        defaults['sigrej_first'] = 2.0
+        dtypes['sigrej_first'] = float
+        descr['sigrej_first'] = 'Number of sigma for rejection for the first guess to the wavelength solution.'
+
+
+        defaults['n_final'] = 4
+        dtypes['n_final'] = [int, float, list, numpy.ndarray]
+        descr['n_final'] = 'Order of final fit to the wavelength solution. This can be a single number or a list/array providing the value for each slit'
+
+
+        defaults['sigrej_final'] = 3.0
+        dtypes['sigrej_final'] = float
+        descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the wavelength solution.'
 
         # TODO: Not used
-        defaults['detection'] = 6.0
-        dtypes['detection'] = [int, float]
-        descr['detection'] = 'Detection threshold for arc lines (in standard deviation)'
+        # Backwards compatibility with basic and semi_brute algorithms
+        defaults['wv_cen'] = 0.0
+        dtypes['wv_cen'] = float
+        descr['wv_cen'] = 'Central wavelength. Backwards compatibility with basic and semi-brute algorithms.'
 
-        # TODO: Not used
+        defaults['disp'] = 0.0
+        dtypes['disp'] = float
+        descr['disp'] = 'Dispersion. Backwards compatibility with basic and semi-brute algorithms.'
+
+
         defaults['numsearch'] = 20
         dtypes['numsearch'] = int
         descr['numsearch'] = 'Number of brightest arc lines to search for in preliminary ' \
@@ -1053,7 +1181,7 @@ class WavelengthSolutionPar(ParSet):
         descr['nfitpix'] = 'Number of pixels to fit when deriving the centroid of the arc ' \
                            'lines (an odd number is best)'
 
-        dtypes['IDpixels'] = [int, list]
+        dtypes['IDpixels'] = [int, float, list]
         descr['IDpixels'] = 'One or more pixels at which to manually identify a line'
 
         dtypes['IDwaves'] = [int, float, list]
@@ -1073,7 +1201,6 @@ class WavelengthSolutionPar(ParSet):
         descr['frame'] = 'Frame of reference for the wavelength calibration.  ' \
                          'Options are: {0}'.format(', '.join(options['frame']))
 
-
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
                                                     values=list(pars.values()),
@@ -1086,8 +1213,13 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method', 'lamps', 'detection', 'numsearch', 'nfitpix',
-                    'IDpixels', 'IDwaves', 'medium', 'frame' ]
+        parkeys = [ 'reference', 'method',
+                    'echelle', 'ech_fix_format', 'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej',
+                    'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm',
+                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
+                    'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
+                    'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame',
+                    'nsnippet']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1105,7 +1237,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        return [ 'simple', 'fit', 'arclines' ]
+        return [ 'simple', 'semi-brute', 'basic','holy-grail', 'reidentify', 'full_template']
 
     @staticmethod
     def valid_lamps():
@@ -1141,10 +1273,10 @@ class TraceSlitsPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
-                 maxgap=None, maxshift=None, pad=None, sigdetect=None, fracignore=None,
-                 min_slit_width = None,
+                 maxgap=None, maxshift=None, pad=None, sigdetect=None,
+                 min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
-                 pcaextrap=None):
+                 pcaextrap=None, smash_range=None, mask_frac_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1190,9 +1322,9 @@ class TraceSlitsPar(ParSet):
                 pars['trim'] = tuple(pars['trim'])
             except:
                 raise TypeError('Could not convert provided trim to a tuple.')
-        defaults['trim'] = (3,3)
+        defaults['trim'] = (0,0)
         dtypes['trim'] = tuple
-        descr['trim'] = 'How much to trim off each edge of each slit'
+        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 or positive'
 
         dtypes['maxgap'] = int
         descr['maxgap'] = 'Maximum number of pixels to allow for the gap between slits.  Use ' \
@@ -1201,7 +1333,7 @@ class TraceSlitsPar(ParSet):
 
         defaults['maxshift'] = 0.15
         dtypes['maxshift'] = [int, float]
-        descr['maxshift'] = 'Maximum shift in trace crude'
+        descr['maxshift'] = 'Maximum shift in trace crude. Use a larger number for more curved slits/orders.'
 
         defaults['pad'] = 0
         dtypes['pad'] = int
@@ -1210,12 +1342,15 @@ class TraceSlitsPar(ParSet):
         defaults['sigdetect'] = 20.0
         dtypes['sigdetect'] = [int, float]
         descr['sigdetect'] = 'Sigma detection threshold for edge detection'
-    
-        defaults['fracignore'] = 0.01
-        dtypes['fracignore'] = float
-        descr['fracignore'] = 'If a slit spans less than this fraction over the spectral size ' \
-                              'of the detector, it will be ignored (and reconstructed when/if ' \
-                              'an \'order\' PCA analysis is performed).'
+
+        defaults['mask_frac_thresh'] = 0.6
+        dtypes['mask_frac_thresh'] = float
+        descr['mask_frac_thresh'] = 'Minimum fraction of the slit edge that was *not* masked to use in initial PCA.'
+
+        defaults['smash_range'] = [0., 1.]
+        dtypes['smash_range'] = list
+        descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges. ' \
+                             'If the spectrum covers only a portion of the image, use that range.'
 
         defaults['min_slit_width'] = 6.0  # arcseconds!
         dtypes['min_slit_width'] = float
@@ -1229,6 +1364,7 @@ class TraceSlitsPar(ParSet):
         descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
                                  'spatial size of all orders.'
 
+        # DEPRECATED
         defaults['single'] = []
         dtypes['single'] = list
         descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
@@ -1239,12 +1375,25 @@ class TraceSlitsPar(ParSet):
                           'user-definition for the first detector but adds one for the second. ' \
                           ' None means no user-level slits defined.'
 
+        defaults['add_slits'] = []
+        dtypes['add_slits'] = [str, list]
+        descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
+                             'each sub-list having syntax (all integers):  det:x0:x1:yrow  ' \
+                             'For example,  2:2121:2322:2000,3:1201:1500:2000'
+
+        defaults['rm_slits'] = []
+        dtypes['rm_slits'] = [str, list]
+        descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, ' \
+                            'with each sub-list having syntax (all integers):  det:xcen:yrow  ' \
+                            'For example,  2:2121:2000,3:1500:2000'
+
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
         dtypes['sobel_mode'] = str
         descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\' but the ' \
                               'developers find \'constant\' works best for DEIMOS.'
 
+        # DEPRECATED
         defaults['pcatype'] = 'pixel'
         options['pcatype'] = TraceSlitsPar.valid_pca_types()
         dtypes['pcatype'] = str
@@ -1254,10 +1403,12 @@ class TraceSlitsPar(ParSet):
                            'irregular.  Order is used for echelle spectroscopy or for slits ' \
                            'with separations that are a smooth function of the slit number.'
 
-        defaults['pcapar'] = [ 3, 2, 1, 0, 0, 0 ]
+        # DEPRECATED
+        defaults['pcapar'] = [3, 2, 1, 0]
         dtypes['pcapar'] = list
         descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  TODO: Provide more explanation'
+                          'components.  The list length must be equal to or less than ' \
+                          'polyorder+1. TODO: Provide more explanation'
 
         defaults['pcaextrap'] = [0, 0]
         dtypes['pcaextrap'] = list
@@ -1278,8 +1429,9 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
-                    'pad', 'sigdetect', 'fracignore', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
-                    'pcatype', 'pcapar', 'pcaextrap' ]
+                    'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
+                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range',
+                    'mask_frac_thresh']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1327,8 +1479,8 @@ class WaveTiltsPar(ParSet):
         previously `disporder`?  If so, I think I prefer the generality
         of `disporder`...
     """
-    def __init__(self, idsonly=None, tracethresh=None, order=None, function=None, yorder=None,
-                 func2D=None, method=None, params=None):
+    def __init__(self, idsonly=None, tracethresh=None, sig_neigh=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
+                 func2d=None, maxdev2d=None, sigrej2d=None):
 
 
         # Grab the parameter names and values from the function
@@ -1346,45 +1498,94 @@ class WaveTiltsPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
+        #maxdev_tracefit = 1.0,
+        #sigrej_trace = 3.0, max_badpix_frac = 0.20, tcrude_nave = 5,
+        #npca = 1, coeff_npoly_pca = 1, sigrej_pca = 2.0,
+
         defaults['idsonly'] = False
         dtypes['idsonly'] = bool
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
                            'tilts'
 
-        defaults['tracethresh'] = 1000.
+        defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
-        descr['tracethresh'] = 'TODO: X fill in the doc for this'
+        descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts. ' \
+                               'This can be a single number or a list/array providing the value for each slit'
 
-        defaults['order'] = 2
-        dtypes['order'] = int
-        descr['order'] = 'Order of the polynomial function to be used for the tilt of an ' \
-                         'individual arc line.  Must be 1 for eschelle data (ARMED pipeline).'
 
-        defaults['function'] = 'legendre'
+        defaults['sig_neigh'] = 10.
+        dtypes['sig_neigh'] = [int, float]
+        descr['sig_neigh'] = 'Significance threshold for arcs to be used in line identification for the purpose of identifying neighboring lines.' \
+                             'The tracethresh parameter above determines the significance threshold of lines that will be traced, but these lines' \
+                             ' must be at least nfwhm_neigh fwhm away from neighboring lines. This parameter determines the significance above which' \
+                             ' a line must be to be considered a possible colliding neighbor. A low value of sig_neigh will result in an overall' \
+                             ' larger number of lines, which will result in more lines above tracethresh getting rejected'
+
+        defaults['nfwhm_neigh'] = 3.0
+        dtypes['nfwhm_neigh'] = [int, float]
+        descr['nfwhm_neigh'] = 'Required separation between neighboring arc lines for them to be considered for tilt tracing in units of the ' \
+                               'the spectral fwhm (see wavelength parset where fwhm is defined)'
+
+        defaults['maxdev_tracefit'] = 0.2
+        dtypes['maxdev_tracefit'] = [int, float]
+        descr['maxdev_tracefit'] = 'Maximum absolute deviation (in units of fwhm) for the legendre polynomial fits to individual ' \
+                                   'arc line tilt fits during iterative trace fitting (flux weighted, then gaussian weighted)'
+
+        defaults['sigrej_trace'] = 3.0
+        dtypes['sigrej_trace'] = [int, float]
+        descr['sigrej_trace'] = 'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
+
+        defaults['spat_order'] = 3
+        dtypes['spat_order'] = [int, float, list, numpy.ndarray]
+        descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines' \
+                              'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the' \
+                              '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the' \
+                              'slit/order. This can be a single number or a list/array providing the value for each slit'
+
+        defaults['spec_order'] = 4
+        dtypes['spec_order'] = [int, float, list, numpy.ndarray]
+        descr['spec_order'] = 'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is ' \
+                              'fit to obtain a global solution for the tilts across the slit/order. ' \
+                              'This can be a single number or a list/array providing the value for each slit'
+
+
+        defaults['func2d'] = 'legendre2d'
+        dtypes['func2d'] = str
+        descr['func2d'] = 'Type of function for 2D fit'
+
+        defaults['maxdev2d'] = 0.25
+        dtypes['maxdev2d'] = [int, float]
+        descr['maxdev2d'] = 'Maximum absolute deviation (in units of fwhm) rejection threshold used to determines which pixels in global 2d fits to ' \
+                            'arc line tilts are rejected because they deviate from the model by more than this value'
+
+        defaults['sigrej2d'] = 3.0
+        dtypes['sigrej2d'] = [int, float]
+        descr['sigrej2d'] = 'Outlier rejection significance determining which pixels on a fit to an arc line tilt ' \
+                            'are rejected by the global 2D fit'
+
+
+        # Right now this is not used the fits are hard wired to be legendre for the individual fits.
+        #defaults['function'] = 'legendre'
         # TODO: Allowed values?
-        dtypes['function'] = str
-        descr['function'] = 'Type of function for arc line fits'
+        #dtypes['function'] = str
+        #descr['function'] = 'Type of function for arc line fits'
 
-        defaults['yorder'] = 4
-        dtypes['yorder'] = int
-        descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
-                          'along the y direction.  TODO: Only used by ARMED pipeline?'
+        #defaults['yorder'] = 4
+        #dtypes['yorder'] = int
+        #descr['yorder'] = 'Order of the polynomial function to be used to fit the tilts ' \
+        #                  'along the y direction.'
 
-        defaults['func2D'] = 'legendre'
-        # TODO: Allowed values?
-        dtypes['func2D'] = str
-        descr['func2D'] = 'Type of function for 2D fit'
 
-        defaults['method'] = 'spca'
-        options['method'] = WaveTiltsPar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \
-                          'Options are: {0}'.format(', '.join(options['method']))
+        #defaults['method'] = 'spca'
+        #options['method'] = WaveTiltsPar.valid_methods()
+        #dtypes['method'] = str
+        #descr['method'] = 'Method used to trace the tilt of the slit along an order.  ' \
+        #                  'Options are: {0}'.format(', '.join(options['method']))
 
         # TODO: Need to add checks that check params against method
-        defaults['params'] = [ 1, 1, 0 ]
-        dtypes['params'] = [ int, list ]
-        descr['params'] = 'Parameters to use for the provided method.  TODO: Need more explanation'
+        #defaults['params'] = [ 1, 1, 0 ]
+        #dtypes['params'] = [ int, list ]
+        #descr['params'] = 'Parameters to use for the provided method.  TODO: Need more explanation'
 
         # Instantiate the parameter set
         super(WaveTiltsPar, self).__init__(list(pars.keys()),
@@ -1398,25 +1599,28 @@ class WaveTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'tracethresh', 'order', 'function', 'yorder', 'func2D',
-                    'method', 'params' ]
+        parkeys = [ 'idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2d','maxdev2d', 'sigrej2d']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_methods():
-        """
-        Return the valid methods to use for tilt tracing.
-        """
-        return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
 
     def validate(self):
-        # Convert param to list
-        if isinstance(self.data['params'], int):
-            self.data['params'] = [self.data['params']]
         pass
+
+    #@staticmethod
+    #def valid_methods():
+    #    """
+    #    Return the valid methods to use for tilt tracing.
+    #    """
+    #    return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
+
+#    def validate(self):
+#        # Convert param to list
+#        if isinstance(self.data['params'], int):
+#            self.data['params'] = [self.data['params']]
+#        pass
 
 # TODO: JFH. This parameter class is now deprecated
 # From artrace.trace_objects_in_slit
@@ -1473,8 +1677,8 @@ class TraceObjectsPar(ParSet):
         defaults['method'] = 'pca'
         options['method'] = TraceObjectsPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use for tracing each object; only used with ARMED pipeline.' \
-                          '  Options are: {0}'.format(', '.join(options['method']))
+        descr['method'] = 'Method to use for tracing each object; only used with Echelle ' \
+                          'pipeline.  Options are: {0}'.format(', '.join(options['method']))
 
         defaults['params'] = [1, 0]
         dtypes['params'] = [int, list]
@@ -1627,13 +1831,15 @@ class ExtractObjectsPar(ParSet):
 # ToDO place holder to be updated by JFH
 class ScienceImagePar(ParSet):
     """
-    The parameter set used to hold arguments for sky subtraction, object finding and extraction in the ScienceImage class
+    The parameter set used to hold arguments for sky subtraction, object
+    finding and extraction in the ScienceImage class
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, maxnumber=None,manual=None, nodding = None):
+    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
+                 no_poly=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1659,34 +1865,50 @@ class ScienceImagePar(ParSet):
 
         defaults['bspline_spacing'] = 0.6
         dtypes['bspline_spacing'] = [int, float]
-        descr['bspline_spacing'] = 'Break-point spacing for the bspline fit'
+        descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
 
+        defaults['no_poly'] = False
+        dtypes['no_poly'] = bool
+        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+
+        defaults['sig_thresh'] = 10.0
+        dtypes['sig_thresh'] = [int, float]
+        descr['sig_thresh'] = 'Significance threshold for object finding.'
+
+        defaults['maxnumber'] = 10
         dtypes['maxnumber'] = int
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'
 
-        # Place holder for NIR maybe in the future
-        defaults['nodding'] = False
-        dtypes['nodding'] = bool
-        descr['nodding'] = 'Use the nodded frames to perform the sky subtraction'
+        defaults['sn_gauss'] = 4.0
+        dtypes['sn_gauss'] = [int, float]
+        descr['sn_gauss'] = 'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
+                            'b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extract' \
+                            'with a Gaussian with FWHM determined from the object finding.'
+
+        defaults['model_full_slit'] = False
+        dtypes['model_full_slit'] = bool
+        descr['model_full_slit'] = 'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will ' \
+                            'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
+                            'observations using narrow slits or echelle observations with narrow slits'
 
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
         # Instantiate the parameter set
         super(ScienceImagePar, self).__init__(list(pars.keys()),
-                                                values=list(pars.values()),
-                                                defaults=list(defaults.values()),
-                                                options=list(options.values()),
-                                                dtypes=list(dtypes.values()),
-                                                descr=list(descr.values()))
+                                              values=list(pars.values()),
+                                              defaults=list(defaults.values()),
+                                              options=list(options.values()),
+                                              dtypes=list(dtypes.values()),
+                                              descr=list(descr.values()))
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'maxnumber', 'nodding']
+        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1708,10 +1930,10 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, caldir=None, masters=None, setup=None, trim=None, badpix=None,
-                 biasframe=None, arcframe=None, pixelflatframe=None, pinholeframe=None,
-                 traceframe=None, standardframe=None, flatfield=None, wavelengths=None,
-                 slits=None, tilts=None):
+    def __init__(self, caldir=None, reuse_masters=None, setup=None, trim=None, badpix=None,
+                 biasframe=None, darkframe=None, arcframe=None, pixelflatframe=None,
+                 pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
+                 wavelengths=None, slits=None, tilts=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1731,13 +1953,11 @@ class CalibrationsPar(ParSet):
         dtypes['caldir'] = str
         descr['caldir'] = 'Directory relative to calling directory to write master files.'
 
-        options['masters'] = CalibrationsPar.allowed_master_options()
-        dtypes['masters'] = str
-        descr['masters'] = 'Treatment of master frames.  Use None to select the default ' \
-                           'behavior (which is?), \'reuse\' to use any existing masters, and ' \
-                           '\'force\' to __only__ use master frames.  ' \
-                           'Options are: None, {0}'.format(', '.join(options['masters']))
-
+        # JFH Currently this parameter does nothing, since it is controlled by the run_pypeit argument -m
+        options['reuse_masters'] = False #CalibrationsPar.allowed_master_options()
+        dtypes['reuse_masters'] = bool
+        descr['reuse_masters'] = 'If True PypeIt will reuse existing master frames rather than recreate them. If False, it will' \
+                                 '  recreate the master frames. '
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
@@ -1754,6 +1974,10 @@ class CalibrationsPar(ParSet):
         defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
+
+        defaults['darkframe'] = FrameGroupPar(frametype='bias', number=0)
+        dtypes['darkframe'] = [ ParSet, dict ]
+        descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5)
         dtypes['pixelflatframe'] = [ ParSet, dict ]
@@ -1800,14 +2024,14 @@ class CalibrationsPar(ParSet):
                                               options=list(options.values()),
                                               dtypes=list(dtypes.values()),
                                               descr=list(descr.values()))
-        self.validate()
+        #self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'caldir', 'masters', 'setup', 'trim', 'badpix' ]
+        parkeys = [ 'caldir', 'reuse_masters', 'setup', 'trim', 'badpix' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1815,6 +2039,8 @@ class CalibrationsPar(ParSet):
         # Keywords that are ParSets
         pk = 'biasframe'
         kwargs[pk] = FrameGroupPar.from_dict('bias', cfg[pk]) if pk in k else None
+        pk = 'darkframe'
+        kwargs[pk] = FrameGroupPar.from_dict('dark', cfg[pk]) if pk in k else None
         pk = 'arcframe'
         kwargs[pk] = FrameGroupPar.from_dict('arc', cfg[pk]) if pk in k else None
         pk = 'pixelflatframe'
@@ -1836,20 +2062,22 @@ class CalibrationsPar(ParSet):
 
         return cls(**kwargs)
 
-    @staticmethod
-    def allowed_master_options():
-        """Return the allowed handling methods for the master frames."""
-        return [ 'reuse', 'force' ]
+    #@staticmethod
+    #def allowed_master_options():
+    #    """Return the allowed handling methods for the master frames."""
+    #    return [ 'reuse', 'force' ]
 
     # TODO: Perform extensive checking that the parameters are valid for
     # the Calibrations class.  May not be necessary because validate will
     # be called for all the sub parameter sets, but this can do higher
     # level checks, if necessary.
-    def validate(self):
-        if self.data['masters'] == 'force' \
-                and (self.data['setup'] is None or len(self.data['setup']) == 0):
-            raise ValueError('When forcing use of master frames, you must specify the setup to '
-                             'be used using the \'setup\' keyword.')
+
+    # JFH I'm not sure what to do about this function? Commentingo out for now.
+    #def validate(self):
+    #    if self.data['masters'] == 'force' \
+    #            and (self.data['setup'] is None or len(self.data['setup']) == 0):
+    #        raise ValueError('When forcing use of master frames, you must specify the setup to '
+    #                         'be used using the \'setup\' keyword.')
 
 #-----------------------------------------------------------------------------
 # Parameters superset
@@ -1888,7 +2116,8 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None, flexure=None, fluxcalib=None):
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
+                 flexure=None, fluxcalib=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1921,27 +2150,11 @@ class PypeItPar(ParSet):
 
         defaults['scienceimage'] = ScienceImagePar()
         dtypes['scienceimage'] = [ParSet, dict]
-        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and extraction'
-
-## JFH commented out objects, extract, and skysubtract below. These parsets are all deprecated now
-#        defaults['objects'] = TraceObjectsPar()
-#        dtypes['objects'] = [ ParSet, dict ]
-#        descr['objects'] = 'Define how to tract the slit tilts using the trace frames'
-
-#        defaults['extract'] = ExtractObjectsPar()
-#        dtypes['extract'] = [ ParSet, dict ]
-#        descr['extract'] = 'Define how to extract 1D object spectra'
-
-        # Sky subtraction is turned OFF by default
-#        dtypes['skysubtract'] = [ ParSet, dict ]
-#        descr['skysubtract'] = 'Parameters used by the sky-subtraction procedure.  Sky ' \
-#                               'subtraction is not performed by default.  To turn on, either' \
-#                               'set the parameters in the \'skysubtract\' parameter group or ' \
-#                               'set \'skysubtract = True\' in the \'rdx\' parameter group ' \
-#                               'to use the default sky-subtraction parameters.'
-
+        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and ' \
+                                'extraction'
 
         # Flexure is turned OFF by default
+        defaults['flexure'] = FlexurePar()
         dtypes['flexure'] = [ ParSet, dict ]
         descr['flexure'] = 'Parameters used by the flexure-correction procedure.  Flexure ' \
                            'corrections are not performed by default.  To turn on, either ' \
@@ -2178,23 +2391,9 @@ class PypeItPar(ParSet):
         pk = 'scienceimage'
         kwargs[pk] = ScienceImagePar.from_dict(cfg[pk]) if pk in k else None
 
-        # JFH These lines here below are deprecated now
-        '''
-        pk = 'objects'
-        kwargs[pk] = TraceObjectsPar.from_dict(cfg[pk]) if pk in k else None
-
-        pk = 'extract'
-        kwargs[pk] = ExtractObjectsPar.from_dict(cfg[pk]) if pk in k else None
-
-        # Allow sky subtraction to be turned on using cfg['rdx']
-        pk = 'skysubtract'
-        default = SkySubtractionPar() \
-                        if pk in cfg['rdx'].keys() and cfg['rdx']['skysubtract'] else None
-        kwargs[pk] = SkySubtractionPar.from_dict(cfg[pk]) if pk in k else default
-        '''
         # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
-        default = FlexurePar() if pk in cfg['rdx'].keys() and cfg['rdx']['flexure'] else None
+        default = FlexurePar()
         kwargs[pk] = FlexurePar.from_dict(cfg[pk]) if pk in k else default
 
         # Allow flux calibration to be turned on using cfg['rdx']
@@ -2291,7 +2490,7 @@ class DetectorPar(ParSet):
     class, and an explanation of how to define a new instrument, see
     :ref:`instruments`.
     """
-    def __init__(self, dataext=None, dispaxis=None, xgap=None, ygap=None, ysize=None,
+    def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip = None, xgap=None, ygap=None, ysize=None,
                  platescale=None, darkcurr=None, saturation=None, mincounts = None, nonlinear=None,
                  numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
                  suffix=None):
@@ -2315,11 +2514,24 @@ class DetectorPar(ParSet):
         descr['dataext'] = 'Index of fits extension containing data'
 
         # TODO: Should this be detector-specific, or camera-specific?
-        defaults['dispaxis'] = 0
-        options['dispaxis'] = [ 0, 1, -1]
-        dtypes['dispaxis'] = int
-        descr['dispaxis'] = 'Spectra are dispersed along this axis (0 for row, 1 for column,' \
-                            'negative sign means there will be a flip because wavelengths will always be increasing upward)'
+        defaults['specaxis'] = 0
+        options['specaxis'] = [ 0, 1]
+        dtypes['specaxis'] = int
+        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
+                            '(first dimension for a numpy array shape) or 1 (second dimension for numpy array shape)'
+
+
+        defaults['specflip'] = False
+        dtypes['specflip'] = bool
+        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by the specaxis) will be ' \
+                            'flipped so that wavelengths are always an increasing function of array index'
+
+        defaults['spatflip'] = False
+        dtypes['spatflip'] = bool
+        descr['spatflip'] = 'If this is True then the spatial dimension will be ' \
+                            'flipped so that blue orders for echelle spectra will appear spatially on the ' \
+                            'left and wavelength will increase to the right'
+
 
         defaults['xgap'] = 0.0
         dtypes['xgap'] = [int, float]
@@ -2408,7 +2620,7 @@ class DetectorPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'dataext', 'dispaxis', 'xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
+        parkeys = [ 'dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
                     'saturation', 'mincounts','nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
                     'oscansec', 'suffix' ]
         kwargs = {}
@@ -2515,7 +2727,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT' ]
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT' ]
 
     def validate(self):
         pass

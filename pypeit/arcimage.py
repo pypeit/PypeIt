@@ -1,5 +1,5 @@
 # Module for generating the Arc image
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import inspect
@@ -8,38 +8,33 @@ import numpy as np
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import masterframe
-from pypeit.core import fsort
 from pypeit.par import pypeitpar
 
 from pypeit import debugger
 
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
-    This class is primarily designed to generate an Arc Image from one or more arc frames
-      The master() method returns the image (loaded or built)
+    Generate an Arc Image by processing and combining one or more arc frames.
 
-    Parameters
-    ----------
-    file_list : list (optional)
-      List of filenames
-    spectrograph : str (optional)
-       Used to specify properties of the detector (for processing)
-       Passed to ProcessImages
-       Attempts to set with settings['run']['spectrograph'] if not input
-    settings : dict (optional)
-       Passed to ProcessImages
-       Settings for image combining+detector
-    setup : str (optional)
-      Setup tag;  required for MasterFrame functionality
-    det : int, optional
-      Detector index, starts at 1
-    sci_ID : int (optional)
-      Science ID value
-      used to match bias frames to the current science exposure
-    msbias : ndarray or str
-      Guides bias subtraction
-    fitstbl : Table (optional)
-      FITS info (mainly for filenames)
+    Args:
+        spectrograph (:obj:`str`,
+            :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The string or `Spectrograph` instance that sets the
+            instrument used to take the observations.  Used to set
+            :attr:`spectrograph`.
+        file_list (:obj:`list`, optional):
+            The list of files to process.  Can be an empty list.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
+            The parameters used to type and process the arc frames.
+        master_key (:obj:`str`, optional):
+            The string identifier for the instrument configuration.  See
+            :class:`pypeit.masterframe.MasterFrame`.
+
+        root_path (:obj:`str`, optional):
+        msbias : ndarray or str
+          Guides bias subtraction
 
     Attributes
     ----------
@@ -55,47 +50,41 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'arc'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, root_path=None,
-                 mode=None, fitstbl=None, sci_ID=None, msbias=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
+                 master_dir=None, reuse_masters=False, msbias=None):
     
         # Parameters unique to this Object
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
         self.msbias = msbias
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, files=files, det=det,
                                              par=self.par['process'])
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        directory_path = None if root_path is None \
-                                else root_path+'_'+self.spectrograph.spectrograph
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         directory_path=directory_path, mode=mode)
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
+                                         reuse_masters=reuse_masters, master_dir=master_dir)
 
 
-    def build_image(self):
-        """
-        Build the arc image from one or more arc files
+    def build_image(self, overwrite=False):
+        """ Build the arc image from one or more arc files
 
-        Returns
-        -------
+        Args:
+            overwrite: (:obj: `bool`, optional):
+                Recreate?
 
+        Returns:
+            self.stack
+               Combined, processed image
         """
         # Get list of arc frames for this science frame
         #  unless one was input already
-        if self.nfiles == 0:
-            self.file_list = fsort.list_of_files(self.fitstbl, self.frametype, self.sci_ID)
         # Combine
-        self.stack = self.process(bias_subtract=self.msbias)
+        self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
         #
         return self.stack
-
-    # TODO: There is no master() method.  Does this mean useframe is
-    # always 'arc'?
 
 

@@ -6,16 +6,68 @@ import numpy as np
 import os
 import datetime
 
+from pkg_resources import resource_filename
+
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
-
 from linetools import utils as ltu
-
+from pypeit import wavecalib
+from pypeit import msgs
 import pypeit  # For path
 from pypeit.core.wavecal import defs
-line_path = pypeit.__path__[0]+'/data/arc_lines/lists/'
-nist_path = pypeit.__path__[0]+'/data/arc_lines/NIST/'
 
+from pypeit import debugger
+
+line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
+nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
+reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
+
+
+def load_template(arxiv_file, det):
+    """
+    Load a full template file from disk
+
+    Args:
+        arxiv_file: str
+        det: int
+
+    Returns:
+        wave: ndarray
+        flux: ndarray
+        binning: int
+          Of the template arc spectrum
+
+    """
+    # Path already included?
+    if os.path.basename(arxiv_file) == arxiv_file:
+        calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+    else:
+        calibfile = arxiv_file
+    # Read me
+    tbl = Table.read(calibfile)
+    # Parse on detector?
+    if 'det' in tbl.keys():
+        idx = np.where(tbl['det'].data & 2**det)[0]
+    else:
+        idx = np.arange(len(tbl)).astype(int)
+    # Return
+    return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
+
+def load_reid_arxiv(arxiv_file):
+    # ToDO put in some code to allow user specified files rather than everything in the main directory
+    calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+    wv_calib_arxiv, par = wavecalib.load_wv_calib(calibfile)
+    # Pop out par and steps if they were inserted in this calibration dictionary
+    try:
+        wv_calib_arxiv.pop('steps')
+    except KeyError:
+        pass
+    try:
+        wv_calib_arxiv.pop('par')
+    except KeyError:
+        pass
+
+    return wv_calib_arxiv, par
 
 def load_by_hand():
     """ By-hand line list
@@ -31,7 +83,7 @@ def load_by_hand():
     """
     str_len_dict = defs.str_len()
 
-    src_file = pypeit.__path__[0]+'/data/arc_lines/sources/by_hand_list.ascii'
+    src_file = resource_filename('pypeit', '/data/arc_lines/sources/by_hand_list.ascii')
     # Read
     line_list = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Add
@@ -57,14 +109,23 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
       Not yet implemented
     NIST : bool, optional
       NIST formatted table?
+    use_ion : bool, optional
+      Interpret line_file as an ion, e.g. CuI
 
     Returns
     -------
     line_list : Table
 
     """
+    if NIST:
+        path = nist_path
+    else:
+        path = line_path
     if use_ion:
-        line_file = line_path+'{:s}_lines.dat'.format(line_file)
+        if NIST:
+            line_file = path+'{:s}_vacuum.ascii'.format(line_file)
+        else:
+            line_file = path+'{:s}_lines.dat'.format(line_file)
     line_list = Table.read(line_file, format='ascii.fixed_width', comment='#')
     #  NIST?
     if NIST:
@@ -175,6 +236,52 @@ def load_source_table():
     sources = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Return
     return sources
+
+
+def load_tree(polygon=4, numsearch=20):
+    """ Load a KDTree of ThAr patterns that is stored on disk
+
+    Parameters
+    ----------
+    polygon : int
+      Number of sides to the polygon used in pattern matching:
+        polygon=3  -->  trigon (two anchor lines and one floating line)
+        polygon=4  -->  tetragon (two anchor lines and two floating lines)
+        polygon=5  -->  pentagon (two anchor lines and three floating lines)
+        ...
+    numsearch : int
+      Number of consecutive detected lines used to generate a pattern. For
+      example, if numsearch is 4, then for a trigon, the following patterns will
+      be generated (assuming line #1 is the left anchor):
+      1 2 3  (in this case line #3 is the right anchor)
+      1 2 4  (in this case line #4 is the right anchor)
+      1 3 4  (in this case line #4 is the right anchor)
+
+    Returns
+    -------
+    file_load : KDTree instance
+      The KDTree containing the patterns
+    index : ndarray
+      For each pattern in the KDTree, this array stores the corresponding index in
+      the linelist
+    """
+
+    import pickle
+    filename = pypeit.__path__[0] +\
+               '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
+    fileindx = pypeit.__path__[0] +\
+               '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.index.npy'.format(polygon, numsearch)
+    try:
+        file_load = pickle.load(open(filename, 'rb'))
+        index = np.load(fileindx)
+    except FileNotFoundError:
+        msgs.info('The requested KDTree was not found on disk' + msgs.newline() +
+                  'please be patient while the ThAr KDTree is built and saved to disk.')
+        from pypeit.core.wavecal import kdtree_generator
+        file_load, index = kdtree_generator.main(polygon, numsearch=numsearch, verbose=True,
+                                                 ret_treeindx=True, outname=filename)
+
+    return file_load, index
 
 
 def load_nist(ion):

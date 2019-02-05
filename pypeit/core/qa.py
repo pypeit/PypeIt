@@ -1,4 +1,4 @@
-""" Module for QA in PYPIT
+""" Module for QA in PypeIt
 """
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
@@ -9,6 +9,7 @@ import glob
 import numpy as np
 
 import yaml
+from pypeit import debugger
 
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs
@@ -19,7 +20,7 @@ import yaml
 #except NameError:  # For Python 3
 #    basestring = str
 
-def set_qa_filename(root, method, det=None, slit=None, prefix=None):
+def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None):
     """
     Parameters
     ----------
@@ -31,12 +32,17 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     slit : int, optional
     prefix : str, optional
       start the name of the QA file
+    out_dir : str, optional
+      Path to QA/
 
     Returns
     -------
     outfile : str
       Filename
     """
+    if out_dir is None:
+        out_dir = os.getcwd()
+    #
     if method == 'slit_trace_qa':
         outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
     elif method == 'slit_profile_qa':
@@ -45,8 +51,16 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
         outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
-    elif method == 'plot_tiltres':
-        outfile = 'QA/PNGs/Arc_tilts_{:s}_S{:04d}.png'.format(root, slit)
+    elif method == 'arc_fit2d_global_qa':
+        outfile = 'QA/PNGs/Arc_2dfit_global_{:s}'.format(root)
+    elif method == 'arc_fit2d_orders_qa':
+        outfile = 'QA/PNGs/Arc_2dfit_orders_{:s}'.format(root)
+    elif method == 'plot_tilt_spec':
+        outfile = 'QA/PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
+    elif method == 'plot_tilt_spat':
+        outfile = 'QA/PNGs/Arc_tilts_spat_{:s}_S{:04d}.png'.format(root, slit)
+    elif method == 'plot_tilt_2d':
+        outfile = 'QA/PNGs/Arc_tilts_2d_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'pca_plot':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
     elif method == 'pca_arctilt':  # This is root for multiple PNGs
@@ -64,7 +78,7 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None):
     else:
         raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return
-    return outfile
+    return os.path.join(out_dir, outfile)
 
 
 def get_dimen(x, maxp=25):
@@ -182,51 +196,56 @@ def html_init(f, title):
     return links
 
 
-def html_mf_pngs(setup, cbset, det):
-    """ Geneate HTML for MasterFrame PNGs
-    Parameters
-    ----------
-    setup : str
-    cbset : str
-    det : int
+def html_mf_pngs(idval):
+    """ Generate HTML for MasterFrame PNGs
 
-    Returns
-    -------
-    links : str
-    body : str
+    Args:
+        idval: str
+          Master key of the calibration set
+
+    Returns:
+        links: str
+          HTML links to the PNGs
+        body: str
+          HTML edits for the main body
 
     """
     links = ''
     body = ''
     # QA root
     # Search for PNGs
-    idval = '{:s}_{:02d}_{:s}'.format(setup, det, cbset)
 
     # Organize the outputs
     html_dict = {}
     html_dict['strace'] = dict(fname='slit_trace_qa', ext='',
-        href='strace', label='Slit Trace', slit=False)
+                               href='strace', label='Slit Trace', slit=False)
     html_dict['sprof'] = dict(fname='slit_profile_qa', ext='*.png',
                               href='sprof', label='Slit Profile', slit=False)
     html_dict['blaze'] = dict(fname='plot_orderfits_Blaze', ext='*.png',
-                               href='blaze', label='Blaze', slit=False)
+                              href='blaze', label='Blaze', slit=False)
     html_dict['arc_fit'] = dict(fname='arc_fit_qa', ext='',
-                              href='arc_fit', label='Arc 1D Fit', slit=True)
-    html_dict['arc_tilt'] = dict(fname='plot_tiltres', ext='*.png',
-                              href='arc_tilts', label='Arc Tilts', slit=True)
+                                href='arc_fit', label='Arc 1D Fit', slit=True)
+    html_dict['arc_tilt'] = dict(fname='plot_tilt_spec', ext='*.png',
+                                 href='arc_tilts', label='Arc Tilts', slit=True)
     html_dict['arc_pca'] = dict(fname='pca_arctilt', ext='*.png',
-                                 href='arc_pca', label='Arc Tilt PCA', slit=False)
+                                href='arc_pca', label='Arc Tilt PCA', slit=False)
+    html_dict['arc_fit2d_global'] = dict(fname='arc_fit2d_global_qa', ext='*.png',
+                                         href='arc_fit2d_global', label='2D Arc Global', slit=False)
+    html_dict['arc_fit2d_orders'] = dict(fname='arc_fit2d_orders_qa', ext='*.png',
+                                         href='arc_fit2d_orders', label='2D Arc Orders', slit=False)
 
     # Generate HTML
-    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_tilt']:
+    for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d_global', 'arc_fit2d_orders', 'arc_tilt']:
         png_root = set_qa_filename(idval, html_dict[key]['fname'], slit=9999)
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')
         pngs = glob.glob(png_root+html_dict[key]['ext'])
+        pngs.sort()
         if len(pngs) > 0:
             href="{:s}_{:s}".format(html_dict[key]['href'], idval)
             # Link
-            links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(href, html_dict[key]['label'], idval)
+            links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(
+                href, html_dict[key]['label'], idval)
             # Body
             body += '<hr>\n'
             body += '<div class="section" id="{:s}">\n'.format(href)
@@ -236,7 +255,15 @@ def html_mf_pngs(setup, cbset, det):
                 ifnd = png.find('QA/')
                 if ifnd < 0:
                     raise ValueError("QA is expected to be in the path!")
-                body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
+                if html_dict[key]['slit']:  # Kludge to handle multiple slits
+                    i0 = png.find('{:s}_S'.format(idval))
+                    href="{:s}_{:s}".format(html_dict[key]['href'], png[i0:])
+                    body += '<img class ="research" src="{:s}" width="100%" id={:s} height="auto"/>\n'.format(
+                        png[ifnd+3:], href)
+                    links += '<li><a class="reference internal" href="#{:s}">{:s} {:s}</a></li>\n'.format(
+                        href, html_dict[key]['label'], png[i0:-4])
+                else:
+                    body += '<img class ="research" src="{:s}" width="100%" height="auto"/>\n'.format(png[ifnd+3:])
             body += '</div>\n'
 
     # Return
@@ -316,9 +343,9 @@ def gen_mf_html(pypeit_file):
     for key in calib_dict[setup].keys():
         if key == '--':
             continue
-        try:
+        if isinstance(key,str):
             dets.append(int(key))
-        except ValueError:
+        else:
             cbsets.append(key)
     # Generate MF file
     MF_filename = 'QA/MF_{:s}.html'.format(setup)
@@ -330,7 +357,8 @@ def gen_mf_html(pypeit_file):
         for cbset in cbsets:
             for det in dets:
                 # Run
-                new_links, new_body = html_mf_pngs(setup, cbset, det)
+                idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
+                new_links, new_body = html_mf_pngs(idval)
                 # Save
                 links += new_links
                 body += new_body

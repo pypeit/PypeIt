@@ -35,9 +35,6 @@ def test_flexure():
 def test_fluxcalibration():
     pypeitpar.FluxCalibrationPar()
 
-def test_skysubtraction():
-    pypeitpar.SkySubtractionPar()
-
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
 
@@ -96,7 +93,6 @@ def test_mergecfg():
 
     # Make some modifications
     p['rdx']['spectrograph'] = 'keck_lris_blue'
-    p['rdx']['pipeline'] = 'ARMS'
     p['calibrations']['biasframe']['useframe'] = 'overscan'
 
     # Write the modified config
@@ -108,7 +104,6 @@ def test_mergecfg():
 
     # Check the values are correctly read in
     assert p['rdx']['spectrograph'] == 'keck_lris_blue', 'Test spectrograph is incorrect!'
-    assert p['rdx']['pipeline'] == 'ARMS', 'Test pipeline is incorrect!'
     assert p['calibrations']['biasframe']['useframe'] == 'overscan', \
                 'Test biasframe:useframe is incorrect!'
 
@@ -130,8 +125,8 @@ def test_sync():
 
 def test_pypeit_file():
     # Read the PypeIt file
-    cfg, data, frametype, setups = parse_pypeit_file(data_path('example_pypeit_file.pypeit'),
-                                                    file_check=False)
+    cfg, data, frametype, usrdata, setups \
+            = parse_pypeit_file(data_path('example_pypeit_file.pypeit'), file_check=False)
     # Long-winded way of getting the spectrograph name
     name = pypeitpar.PypeItPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
     # Instantiate the spectrograph
@@ -144,7 +139,6 @@ def test_pypeit_file():
     # This is a PypeItPar default that's not changed
     assert p['calibrations']['pinholeframe']['number'] == 0
     # These are spectrograph specific defaults
-    assert p['rdx']['pipeline'] == 'ARMS'
     assert p['fluxcalib'] is not None
     # These are user-level changes
     assert p['calibrations']['arcframe']['number'] == 1

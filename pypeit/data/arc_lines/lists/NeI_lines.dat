@@ -4,6 +4,8 @@
 # Creation Date: 2016-Dec-23
 # Creation Date: 2016-Dec-21
 | ion |       wave | NIST | Instr | amplitude |                    Source |
+| NeI |  5332.2603 |    1 |    16 |      6000 |           deimos_600.json |
+| NeI |  5402.0631 |    1 |    16 |      6000 |           deimos_600.json |
 | NeI |  5854.1101 |    1 |     9 |      7489 | lrisr_600_7500_PYPIT.json |
 | NeI |  5883.5252 |    1 |     1 |      5962 | lrisr_600_7500_PYPIT.json |
 | NeI |  5946.4810 |    1 |     9 |     10105 | lrisr_600_7500_PYPIT.json |

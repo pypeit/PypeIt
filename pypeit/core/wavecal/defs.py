@@ -23,6 +23,8 @@ def instruments():
     instr_dict['Kastr'] = 2**3
     instr_dict['DEIMOS'] = 2**4
     instr_dict['NIRSPEC'] = 2**5
+    instr_dict['GMOS'] = 2**6
+
     #
     return instr_dict
 
@@ -48,6 +50,17 @@ def lines():
     line_dict['ZnI'] = 2**6
     line_dict['HeI'] = 2**7
     line_dict['OH_R24000'] = 2**8
+    line_dict['OH_triplespec'] = 2**9
+    line_dict['CuI'] = 2**10
+    line_dict['ArII'] = 2**11
+    line_dict['OH_XSHOOTER'] = 2**12
+    line_dict['OH_GNIRS'] = 2**13
+    line_dict['OH_NIRES'] = 2**14
+    line_dict['ThAr_XSHOOTER_VIS'] = 2**15
+    line_dict['OH_GMOS'] = 2**16
+    line_dict['OH_MODS'] = 2**17
+
+
     #
     return line_dict
 

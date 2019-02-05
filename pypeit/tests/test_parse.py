@@ -20,9 +20,9 @@ def test_parse_binning():
     assert bin1 == 2
     assert bin2 == 2
     # Other input
-    bin1, bin2 = parse.parse_binning((2,2))   # String output required so this returns 1,1 (the default)
-    assert bin1 == 1
-    assert bin2 == 1
+    bin1, bin2 = parse.parse_binning((2,2))
+    assert bin1 == 2
+    assert bin2 == 2
 
 def test_sec2slice():
     sub = ':10,10:'

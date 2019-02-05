@@ -2,16 +2,17 @@
 """
 from __future__ import absolute_import, division, print_function
 
-
-
 import numpy as np
+import os
+from pkg_resources import resource_filename
 
+from astropy.time import Time
 
 from pypeit import msgs
+from pypeit import telescopes
+from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit import telescopes
-from pypeit.core import fsort
 
 from pypeit import debugger
 
@@ -25,160 +26,178 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         super(ShaneKastSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast'
         self.telescope = telescopes.ShaneTelescopePar()
-        self.timeunit = 's'
+        #self.timeunit = 'isot'
 
     @staticmethod
-    def kast_default_pypeit_par():
+    def default_pypeit_par():
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for Shane Kast reductions.
         """
         par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
-        # Use the ARMS pipeline
-        par['rdx']['pipeline'] = 'ARMS'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 5
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
-        # Set wave tilts order
-        par['calibrations']['tilts']['order'] = 2
+
+
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'boxcar'
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 1]
+        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+        par['calibrations']['traceframe']['exprng'] = [0, None]
+        par['calibrations']['arcframe']['exprng'] = [None, 61]
+        par['calibrations']['standardframe']['exprng'] = [1, 61]
+        par['scienceframe']['exprng'] = [61, None]
         return par
 
-    def kast_header_keys(self):
-        """
-        Provide the relevant header keywords
-        """
-        def_keys = self.default_header_keys()
-
-        # A time stamp of the observation; used to find calibrations
-        # proximate to science frames. The units of this value are
-        # specified by fits+timeunit below
-        def_keys[0]['time'] = 'TSEC'
-
-        # Image size
-        # TODO: Check ordering
-        def_keys[0]['naxis0'] = 'NAXIS2'
-        def_keys[0]['naxis1'] = 'NAXIS1'
-
-        # Lamp names and statuses
-        def_keys[0]['lampname01'] = 'LAMPNAM1'
-        def_keys[0]['lampstat01'] = 'LAMPSTA1'
-        def_keys[0]['lampname02'] = 'LAMPNAM2'
-        def_keys[0]['lampstat02'] = 'LAMPSTA2'
-        def_keys[0]['lampname03'] = 'LAMPNAM3'
-        def_keys[0]['lampstat03'] = 'LAMPSTA3'
-        def_keys[0]['lampname04'] = 'LAMPNAM4'
-        def_keys[0]['lampstat04'] = 'LAMPSTA4'
-        def_keys[0]['lampname05'] = 'LAMPNAM5'
-        def_keys[0]['lampstat05'] = 'LAMPSTA5'
-        def_keys[0]['lampname06'] = 'LAMPNAMA'
-        def_keys[0]['lampstat06'] = 'LAMPSTAA'
-        def_keys[0]['lampname07'] = 'LAMPNAMB'
-        def_keys[0]['lampstat07'] = 'LAMPSTAB'
-        def_keys[0]['lampname08'] = 'LAMPNAMC'
-        def_keys[0]['lampstat08'] = 'LAMPSTAC'
-        def_keys[0]['lampname09'] = 'LAMPNAMD'
-        def_keys[0]['lampstat09'] = 'LAMPSTAD'
-        def_keys[0]['lampname10'] = 'LAMPNAME'
-        def_keys[0]['lampstat10'] = 'LAMPSTAE'
-        def_keys[0]['lampname11'] = 'LAMPNAMF'
-        def_keys[0]['lampstat11'] = 'LAMPSTAF'
-        def_keys[0]['lampname12'] = 'LAMPNAMG'
-        def_keys[0]['lampstat12'] = 'LAMPSTAG'
-        def_keys[0]['lampname13'] = 'LAMPNAMH'
-        def_keys[0]['lampstat13'] = 'LAMPSTAH'
-        def_keys[0]['lampname14'] = 'LAMPNAMI'
-        def_keys[0]['lampstat14'] = 'LAMPSTAI'
-        def_keys[0]['lampname15'] = 'LAMPNAMJ'
-        def_keys[0]['lampstat15'] = 'LAMPSTAJ'
-        def_keys[0]['lampname16'] = 'LAMPNAMK'
-        def_keys[0]['lampstat16'] = 'LAMPSTAK'
-
-        # Dichroic and decker
-        def_keys[0]['dichroic'] = 'BSPLIT_N'
-        def_keys[0]['decker'] = 'SLIT_N'
-
-        return def_keys
-
-    def kast_cond_dict(self, ftype):
-        cond_dict = {}
-
-        if ftype == 'science':
-            cond_dict['condition1'] = 'lampstat01=off&lampstat02=off&lampstat03=off' \
-                                      '&lampstat04=off&lampstat05=off&lampstat06=off' \
-                                      '&lampstat07=off&lampstat08=off&lampstat09=off' \
-                                      '&lampstat10=off&lampstat11=off&lampstat12=off' \
-                                      '&lampstat13=off&lampstat14=off&lampstat15=off' \
-                                      '&lampstat16=off'
-            cond_dict['condition2'] = 'exptime>1'
-        elif ftype == 'bias':
-            cond_dict['condition1'] = 'exptime<1'
-        elif ftype == 'pixelflat':
-            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on' \
-                                      '|lampstat04=on|lampstat05=on'
-            cond_dict['condition2'] = 'exptime>0'
-        elif ftype == 'pinhole':
-            cond_dict['condition1'] = 'exptime>99999999'
-        elif ftype == 'trace':
-            cond_dict['condition1'] = 'lampstat01=on|lampstat02=on|lampstat03=on|lampstat04=on' \
-                                      '|lampstat05=on'
-            cond_dict['condition2'] = 'exptime>0'
-        elif ftype == 'arc':
-            cond_dict['condition1'] = 'lampstat06=on|lampstat07=on|lampstat08=on|lampstat09=on' \
-                                      '|lampstat10=on|lampstat11=on|lampstat12=on|lampstat13=on' \
-                                      '|lampstat14=on|lampstat15=on|lampstat16=on'
-            cond_dict['condition2'] = 'exptime<=60'
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'mjd':
+            time = headarr[0]['DATE']
+            ttime = Time(time, format='isot')
+            return ttime.mjd
         else:
-            pass
+            msgs.error("Not ready for this compound meta")
 
-        return cond_dict
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
 
-    def check_ftype(self, ftype, fitstbl):
-        # Load up
-        cond_dict = self.kast_cond_dict(ftype)
+        Returns:
+            self.meta: dict (generated in place)
 
-        # Do it
-        gd_chk = fsort.chk_all_conditions(fitstbl, cond_dict)
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        # dispname is arm specific (blue/red)
+        meta['decker'] = dict(ext=0, card='SLIT_N')
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+        meta['mjd'] = dict(ext=0, card=None, compound=True)
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Additional ones, generally for configuration determination or time
+        meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        lamp_names = [ '1', '2', '3', '4', '5',
+                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+        for kk,lamp_name in enumerate(lamp_names):
+            meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card='LAMPSTA{0}'.format(lamp_name))
+        # Ingest
+        self.meta = meta
 
-        return gd_chk
+    def configuration_keys(self):
+        """
+        Set the configuration keys
 
-    def get_match_criteria(self):
-        """Set the general matching criteria for Shane Kast."""
-        match_criteria = {}
-        for key in fsort.ftype_list:
-            match_criteria[key] = {}
+        Returns:
+            cfg_keys: list
 
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
+        """
+        # decker is not included because arcs are often taken with a 0.5" slit
+        return ['dispname', 'dichroic' ]
 
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['science', 'standard']:
+            return good_exp & self.lamps(fitstbl, 'off')
+#            \
+#                        & np.array([ t not in ['Arcs', 'Bias', 'Dome Flat']
+#                                        for t in fitstbl['target']])
+        if ftype == 'bias':
+            return good_exp # & (fitstbl['target'] == 'Bias')
+        if ftype == 'pixelflat' or ftype == 'trace':
+            # Flats and trace frames are typed together
+            return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
+        if ftype == 'pinhole' or ftype == 'dark':
+            # Don't type pinhole or dark frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'arc':
+            return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
 
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+  
+    def lamps(self, fitstbl, status):
+        """
+        Check the lamp status.
 
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['naxis0'] = '=0'
-        match_criteria['trace']['match']['naxis1'] = '=0'
-        match_criteria['trace']['match']['decker'] = ''
+        Args:
+            fitstbl (:obj:`astropy.table.Table`):
+                The table with the fits header meta data.
+            status (:obj:`str`):
+                The status to check.  Can be `off`, `arcs`, or `dome`.
+        
+        Returns:
+            numpy.ndarray: A boolean array selecting fits files that
+            meet the selected lamp status.
 
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
+        Raises:
+            ValueError:
+                Raised if the status is not one of the valid options.
+        """
+        if status == 'off':
+            # Check if all are off
+            return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
+                                        for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
+        if status == 'arcs':
+            # Check if any arc lamps are on
+            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(6,17) ]
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in arc_lamp_stat]), axis=0)
+        if status == 'dome':
+            # Check if any dome lamps are on
+            dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in dome_lamp_stat]), axis=0)
+        raise ValueError('No implementation for status = {0}'.format(status))
 
-        return match_criteria
+#    def parse_binning(self, inp, det=1):
+#        return '1,1'
+
+#    def get_match_criteria(self):
+#        """Set the general matching criteria for Shane Kast."""
+#        match_criteria = {}
+#        for key in framematch.FrameTypeBitMask().keys():
+#            match_criteria[key] = {}
+#
+#        match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+#
+#        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
+#
+#        match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
+#        match_criteria['pixelflat']['match']['decker'] = ''
+#
+#        match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['naxis0'] = '=0'
+#        match_criteria['trace']['match']['naxis1'] = '=0'
+#        match_criteria['trace']['match']['decker'] = ''
+#
+#        match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
+#
+#        return match_criteria
+
 
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
     """
@@ -191,22 +210,24 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTb'
         self.detector = [
                 # Detector 1
-                pypeitpar.DetectorPar(dataext         = 0,
-                                     dispaxis        = 1,
-                                     xgap            = 0.,
-                                     ygap            = 0.,
-                                     ysize           = 1.,
-                                     platescale      = 0.43,
-                                     darkcurr        = 0.0,
-                                     saturation      = 65535.,
-                                     nonlinear       = 0.76,
-                                     numamplifiers   = 2,
-                                     gain            = [1.2, 1.2],
-                                     ronoise         = [3.7, 3.7],
-                                     datasec         = [ '[1:1024,:]', '[1025:2048,:]'],
-                                     oscansec        = [ '[2050:2080,:]', '[2081:2111,:]'],
-                                     suffix          = '_blue'
-                                     )]
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
+                            specaxis        = 1,
+                            specflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.43,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 2,
+                            gain            = [1.2, 1.2],
+                            ronoise         = [3.7, 3.7],
+                            datasec         = [ '[1:1024,:]', '[1025:2048,:]'],
+                            oscansec        = [ '[2050:2080,:]', '[2081:2111,:]'],
+                            suffix          = '_blue'
+                            )]
         self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
@@ -216,21 +237,54 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         Set default parameters for Shane Kast Blue reductions.
         """
-        par = self.kast_default_pypeit_par()
+        par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_blue'
+        par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                                  'sky_kastb_600.fits')
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
+        par['calibrations']['wavelengths']['lamps'] = ['CdI','HgI','HeI']
+
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['match_toler'] = 2.5
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
+        # Set wave tilts order
+        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spec_order'] = 5
+        par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
+        par['calibrations']['tilts']['maxdev2d'] = 0.02
+
         return par
 
-    def check_header(self, headers):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name (replace any spaces with underscores)
-        chk_dict[1]['DSENSOR'] = 'Fairchild CCD 3041 2Kx2K'
-        return chk_dict
+    def config_specific_par(self, par, scifile):
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '600/4310':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
+        else:
+            msgs.error("NEED TO ADD YOUR GRISM HERE!")
+        # Return
+        return par
 
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for a Shane Kast blue exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = {   '0.NAXIS': 2,
+#                            '0.DSENSOR': 'Fairchild CCD 3041 2Kx2K' }
+#        super(ShaneKastBlueSpectrograph, self).check_headers(headers,
+#                                                             expected_values=expected_values)
+
+    '''
     def header_keys(self):
         """
         Header keys specific to shane_kast_blue
@@ -238,34 +292,27 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         Returns:
 
         """
-        head_keys = self.kast_header_keys()
+        hdr_keys = super(ShaneKastBlueSpectrograph, self).header_keys()
         # Add the name of the dispersing element
-        head_keys[0]['dispname'] = 'GRISM_N'
-        return head_keys
+        # dispangle and filter1 are not defined for Shane Kast Blue
+        hdr_keys[0]['dispname'] = 'GRISM_N'
+        return hdr_keys
+    '''
 
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
+    def init_meta(self):
         """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
+        Meta data specific to shane_kast_blue
 
         Returns:
-            arcparam is modified in place
 
         """
-        arcparam['lamps'] = ['CdI','HgI','HeI']
-        if disperser == '600/4310':
-            arcparam['disp']=1.02
-            arcparam['b1']=6.88935788e-04
-            arcparam['b2']=-2.38634231e-08
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['wv_cen'] = 4250.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+        super(ShaneKastBlueSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+
+        # Required
+        self.meta['dispname'] = dict(ext=0, card='GRISM_N')
+        # Additional (for config)
 
 
 class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
@@ -283,22 +330,24 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                pypeitpar.DetectorPar(dataext         = 0,
-                                     dispaxis        = 0,
-                                     xgap            = 0.,
-                                     ygap            = 0.,
-                                     ysize           = 1.,
-                                     platescale      = 0.43,
-                                     darkcurr        = 0.0,
-                                     saturation      = 65535.,
-                                     nonlinear       = 0.76,
-                                     numamplifiers   = 2,
-                                     gain            = [1.9, 1.9],
-                                     ronoise         = [3.8, 3.8],
-                                     datasec         = ['[:,2:511]', '[:,513:525]'],
-                                     oscansec        = ['[:,527:625]', '[:,627:725]'],
-                                     suffix          = '_red'
-                                     )]
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
+                            specaxis        = 0,
+                            specflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.43,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 2,
+                            gain            = [1.9, 1.9],
+                            ronoise         = [3.8, 3.8],
+                            datasec         = ['[:,2:511]', '[:,513:525]'],
+                            oscansec        = ['[:,527:625]', '[:,627:725]'],
+                            suffix          = '_red'
+                            )]
         self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
@@ -306,24 +355,49 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for Shane Kast Red reductions.
         """
-        par = self.kast_default_pypeit_par()
-        #
+        par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red'
-        #
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+
         return par
 
+    def init_meta(self):
+        """
+        Meta data specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastRedSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle is not defined for Shane Kast Blue
+
+        # Required
+        self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
+        # Additional (for config)
+
+
     def check_header(self, headers):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name
-        chk_dict[1]['DSENSOR'] = '2k x 4k Hamamatsu'
-        return chk_dict
+        """
+        Check headers match expectations for a Shane Kast red exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+
+        Args:
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = {   '0.NAXIS': 2,
+                            '0.DSENSOR': '2k x 4k Hamamatsu' }
+        super(ShaneKastRedSpectrograph, self).check_headers(headers,
+                                                            expected_values=expected_values)
 
     def header_keys(self):
         """
@@ -332,41 +406,12 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         Returns:
 
         """
-        head_keys = self.kast_header_keys()
-        head_keys[0]['filter1'] = 'RDFILT_N'
-        head_keys[0]['dispname'] = 'GRATING_N'
-        head_keys[0]['dispangle'] = 'GRTILT_P'
-        return head_keys
+        hdr_keys = super(ShaneKastRedSpectrograph, self).header_keys()
+        hdr_keys[0]['dispname'] = 'GRATING_N'
+        hdr_keys[0]['filter1'] = 'RDFILT_N'
+        hdr_keys[0]['dispangle'] = 'GRTILT_P'
+        return hdr_keys
 
-    def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
-                       binspectral=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
-        if disperser == '600/7500':
-            arcparam['disp']=1.30
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-        elif disperser == '1200/5000':
-            arcparam['disp']=0.63
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-            arcparam['wv_cen'] = 6600.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
@@ -381,21 +426,24 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.camera = 'KASTr'
         self.detector = [
                 # Detector 1
-                pypeitpar.DetectorPar(dataext         = 0,
-                                     dispaxis        = 1,
-                                     xgap            = 0.,
-                                     ygap            = 0.,
-                                     ysize           = 1.,
-                                     platescale      = 0.774,
-                                     darkcurr        = 0.0,
-                                     saturation      = 65535.,
-                                     nonlinear       = 0.76,
-                                     numamplifiers   = 1,
-                                     gain            = 3.0,
-                                     ronoise         = 12.5,
-                                     oscansec        = '[1203:1232,:]',
-                                     suffix          = '_red'
-                                     )]
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
+                            specaxis        = 1,
+                            specflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.774,
+                            darkcurr        = 0.0,
+                            saturation      = 120000., # JFH adjusted to this level as the flat are otherwise saturated
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 3.0,
+                            ronoise         = 12.5,
+                            oscansec        = '[1203:1232,:]',
+                            suffix          = '_red'
+                            )]
+        # TODO: Can we change suffix to be unique wrt ShaneKastRed?
         self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
@@ -403,74 +451,73 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for Shane Kast Red Ret reductions.
         """
-        par = self.kast_default_pypeit_par()
+        par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red_ret'
-        #
         par['calibrations']['pixelflatframe']['number'] = 3
         par['calibrations']['traceframe']['number'] = 3
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
+
         return par
 
-    def header_keys(self):
-        """
-        Header keys specific to shane_kast_blue
-
-        Returns:
-
-        """
-        head_keys = self.kast_header_keys()
-        head_keys[0]['filter1'] = 'RDFILT_N'
-        head_keys[0]['dispname'] = 'GRATNG_N'
-        head_keys[0]['dispangle'] = 'GRTILT_P'
-        #
-        return head_keys
-
     def check_header(self, headers):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        # Check the CCD name
-        chk_dict[1]['DSENSOR'] = 'Ret 400x1200'
-        return chk_dict
-
-    def get_match_criteria(self):
-        match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
-        # Add more
-        match_criteria['standard']['match']['dispangle'] = '|<=20'
-        match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
-        match_criteria['arc']['match']['dispangle'] = '|<=10'
-        return match_criteria
-
-    def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
-                       binspectral=None, **null_kwargs):
         """
-        Setup the arc parameters
+        Check headers match expectations for a Shane Kast Red Ret
+        exposure.
+
+        See also
+        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
 
         Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
+            headers (list):
+                A list of headers read from a fits file
+        """
+        expected_values = {   '0.NAXIS': 2,
+                            '0.DSENSOR': 'Ret 400x1200' }
+        super(ShaneKastRedRetSpectrograph, self).check_headers(headers,
+                                                               expected_values=expected_values)
+    
+    def header_keys(self):
+        """
+        Header keys specific to shane_kast_red_ret
 
         Returns:
-            arcparam is modified in place
 
         """
-        arcparam['lamps'] = ['NeI','HgI','HeI','ArI']
-        if disperser == '600/7500':
-            arcparam['disp']=2.35
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-        elif disperser == '1200/5000':
-            arcparam['disp']=1.17
-            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0] / binspectral
-            arcparam['wvmnx'][0] = 5000.
-            arcparam['n_first']=2 # Should be able to lock on
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
+        hdr_keys = super(ShaneKastRedRetSpectrograph, self).header_keys()
+        hdr_keys[0]['dispname'] = 'GRATNG_N'
+        hdr_keys[0]['filter1'] = 'RDFILT_N'
+        hdr_keys[0]['dispangle'] = 'GRTILT_P'
+        return hdr_keys
+
+    def init_meta(self):
+        """
+        Meta data specific to shane_kast_blue
+
+        Returns:
+
+        """
+        super(ShaneKastRedRetSpectrograph, self).init_meta()
+        # Add the name of the dispersing element
+        # dispangle and filter1 are not defined for Shane Kast Blue
+
+        # Required
+        self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
+        # Additional (for config)
+
+#    def get_match_criteria(self):
+#        # Get the parent matching criteria ...
+#        match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
+#        # ... add more
+#        match_criteria['standard']['match']['dispangle'] = '|<=20'
+#        match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
+#        match_criteria['arc']['match']['dispangle'] = '|<=10'
+#        match_criteria['arc']['match']['decker'] = 'any'
+#        return match_criteria
 

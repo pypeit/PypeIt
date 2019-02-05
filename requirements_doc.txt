@@ -1,0 +1,3 @@
+-r pypeit/requirements.txt
+Sphinx>=1.6.5
+

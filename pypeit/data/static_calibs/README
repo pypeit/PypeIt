@@ -1,0 +1,7 @@
+This directory contains instrument specific static calibrations.
+
+./vlt_xshoooter/BP_MAP_RP_NIR.fits.gz     # VLT XSHOOTER BPM for NIR arm
+./vlt_xshoooter/BP_MAP_RP_UVB_1x1.fits.gz # VLT XSHOOTER BPM for UVB arm 1x1 binning
+./vlt_xshoooter/BP_MAP_RP_VIS_1x1.fits.gz # VLT XSHOOTER BPM for VIS arm 1x1 binning
+./vlt_xshoooter/BP_MAP_RP_VIS_1x2.fits.gz # VLT XSHOOTER BPM for VIS arm 1x2 binning
+./vlt_xshoooter/BP_MAP_RP_VIS_2x2.fits.gz # VLT XSHOOTER BPM for VIS arm 2x2 binning

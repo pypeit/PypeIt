@@ -12,170 +12,16 @@ from astropy.io import fits
 from astropy.table import Table
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
+from linetools.spectra.utils import collate
 
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import debugger
-
-
-def load_headers(datlines, spectrograph, strict=True):
-    """ Load the header information for each fits file
-    The cards of interest are specified in the instrument settings file
-    A check of specific cards is performed if specified in settings
-
-    Parameters
-    ----------
-    datlines : list
-      Input (uncommented) lines specified by the user.
-      datlines contains the full data path to every
-      raw exposure provided by the user.
-
-    Returns
-    -------
-    fitstbl : Table
-      The relevant header information of all fits files
-    """
-    # FITS dict/table keys
-    head_keys = spectrograph.header_keys()
-    all_keys = []
-    for key in head_keys.keys():
-        all_keys += list(head_keys[key].keys())
-    # Init
-    fitsdict = dict({'directory': [], 'filename': [], 'utc': []})
-    headdict = {}
-    for k in range(spectrograph.numhead):
-        headdict[k] = []
-    whddict = dict({})
-    for k in all_keys:
-        fitsdict[k]=[]
-    numfiles = len(datlines)
-    # Loop on files
-    for i in range(numfiles):
-        # Try to open the fits file
-        headarr = spectrograph.get_headarr(datlines[i], strict=strict)
-        numhead = len(headarr)
-        # Save the headers into its dict
-        for k in range(numhead):
-            headdict[k].append(headarr[k].copy())
-        # Perform checks on each FITS file
-        # TODO: The check_headers function currently always passes!
-        # Needs to be implemented for each instrument.
-        # spectrograph.check_headers() should raise an exception with an
-        # appropriate message.
-        try:
-            spectrograph.check_headers(headarr)
-        except:
-            msgs.warn('File:' + msgs.newline() + datlines[i] + msgs.newline()
-                      + ' does not match the expected header format of instrument:'
-                      + msgs.newline() + '{0}'.format(spectrograph.spectrograph) + msgs.newline()
-                      + 'The file should be removed or you should pick a different instrument.')
-            numfiles -= 1
-            continue
-        # Now set the key values for each of the required keywords
-        dspl = datlines[i].split('/')
-        fitsdict['directory'].append('/'.join(dspl[:-1])+'/')
-        fitsdict['filename'].append(dspl[-1])
-        # Attempt to load a UTC
-        utcfound = False
-        for k in range(numhead):
-            if 'UTC' in headarr[k].keys():
-                utc = headarr[k]['UTC']
-                utcfound = True
-                break
-            elif 'UT' in headarr[k].keys():
-                utc = headarr[k]['UT']
-                utcfound = True
-                break
-        if utcfound:
-            fitsdict['utc'].append(utc)
-        else:
-            fitsdict['utc'].append('None') # Changed from None so it writes to disk
-            msgs.warn("UTC is not listed as a header keyword in file:"+msgs.newline()+datlines[i])
-        # Read binning-dependent detector properties here? (maybe read speed too)
-        # Now get the rest of the keywords
-
-        for head_idx in head_keys.keys():
-            for kw, hkey in head_keys[head_idx].items():
-                try:
-                    value = headarr[head_idx][hkey]
-                except KeyError: # Keyword not found in header
-                    msgs.warn("{:s} keyword not in header. Setting to None".format(hkey))
-                    value = str('None')
-#                except IndexError:
-#                    debugger.set_trace()
-                # Convert the input time into hours -- Should we really do this here??
-                if kw == 'time':
-                    if spectrograph.timeunit == 's'  : value = float(value)/3600.0    # Convert seconds to hours
-                    elif spectrograph.timeunit == 'm'  : value = float(value)/60.0      # Convert minutes to hours
-                    elif spectrograph.timeunit in Time.FORMATS.keys() : # Astropy time format
-                        if spectrograph.timeunit in ['mjd']:
-                            ival = float(value)
-                        else:
-                            ival = value
-                        tval = Time(ival, scale='tt', format=spectrograph.timeunit)
-                        # dspT = value.split('T')
-                        # dy,dm,dd = np.array(dspT[0].split('-')).astype(np.int)
-                        # th,tm,ts = np.array(dspT[1].split(':')).astype(np.float64)
-                        # r=(14-dm)/12
-                        # s,t=dy+4800-r,dm+12*r-3
-                        # jdn = dd + (153*t+2)/5 + 365*s + s/4 - 32083
-                        # value = jdn + (12.-th)/24 + tm/1440 + ts/86400 - 2400000.5  # THIS IS THE MJD
-                        value = tval.mjd * 24.0 # Put MJD in hours
-                    else:
-                        msgs.error('Bad time unit')
-                # Put the value in the keyword
-                typv = type(value)
-                if typv is int or typv is np.int_:
-                    fitsdict[kw].append(value)
-                elif typv is float or typv is np.float_:
-                    fitsdict[kw].append(value)
-                elif isinstance(value, str) or typv is np.string_:
-                    fitsdict[kw].append(value.strip())
-                elif typv is bool or typv is np.bool_:
-                    fitsdict[kw].append(value)
-                else:
-                    msgs.bug("I didn't expect a useful header ({0:s}) to contain type {1:s}".format(kw, typv).replace('<type ','').replace('>',''))
-
-        msgs.info("Successfully loaded headers for file:" + msgs.newline() + datlines[i])
-
-    # Check if any other settings require header values to be loaded
-    msgs.info("Checking spectrograph settings for required header information")
-    '''  # I HOPE THIS IS NO LONGER NEEDED
-    # Just use the header info from the last file
-    keylst = []
-    generate_updates(settings_spect.copy(), keylst, [], whddict, headarr)
-    '''
-
-    # Convert the fitsdict arrays into numpy arrays
-    for k in fitsdict.keys():
-        fitsdict[k] = np.array(fitsdict[k])
-    #
-    msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
-    if numfiles != len(datlines):
-        msgs.warn("Headers were not loaded for {0:d} files".format(len(datlines) - numfiles))
-    if numfiles == 0:
-        msgs.error("The headers could not be read from the input data files." + msgs.newline() +
-                   "Please check that the settings file matches the data.")
-    #  Might have to carry the headers around separately
-    #    as packing them into a table could be problematic..
-    #for key in headdict.keys():
-    #    fitsdict['head{:d}'.format(key)] = headdict[key]
-    # Return after creating a Table
-    fitstbl = Table(fitsdict)
-    fitstbl.sort('time')
-
-    # Add instrument (PYPIT name; mainly for saving late in the game)
-    fitstbl['instrume'] = spectrograph.spectrograph
-
-    # Instrument specific
-    spectrograph.add_to_fitstbl(fitstbl)
-
-    # Return
-    return fitstbl
-
+from pypeit.core import parse
 
 def load_extraction(name, frametype='<None>', wave=True):
-    msgs.info("Loading a pre-existing {0:s} extraction frame:".format(frametype)+msgs.newline()+name)
+    msgs.info('Loading a pre-existing {0} extraction frame:'.format(frametype)
+                + msgs.newline() + name)
     props_savas = dict({"ORDWN":"ordwnum"})
     props = dict({})
     props_allow = props_savas.keys()
@@ -229,7 +75,7 @@ def load_ordloc(fname):
     return ltrace, rtrace
 
 
-def load_specobj(fname):
+def load_specobjs(fname,order=None):
     """ Load a spec1d file into a list of SpecObjExp objects
     Parameters
     ----------
@@ -240,73 +86,173 @@ def load_specobj(fname):
     specObjs : list of SpecObjExp
     head0
     """
-    speckeys = ['wave', 'sky', 'mask', 'flam', 'flam_var', 'var', 'counts']
-    #
-    specObjs = []
+    sobjs = specobjs.SpecObjs()
+    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
+    # sobjs_keys gives correspondence between header cards and sobjs attribute name
+    sobjs_key = specobjs.SpecObj.sobjs_key()
     hdulist = fits.open(fname)
     head0 = hdulist[0].header
+    #pypeline = head0['PYPELINE']
+    # Is this an Echelle reduction?
+    #if 'Echelle' in pypeline:
+    #    echelle = True
+    #else:
+    #    echelle = False
+
     for hdu in hdulist:
         if hdu.name == 'PRIMARY':
             continue
         # Parse name
-        objp = hdu.name.split('-')
-        det = int(objp[-2][1:])
+        idx = hdu.name
+        objp = idx.split('-')
+        if objp[-2][:5] == 'ORDER':
+            iord = int(objp[-2][5:])
+        else:
+            msgs.warn('Loading longslit data ?')
+            iord = int(-1)
+        if (order is not None) and (iord !=order):
+            continue
+        specobj = specobjs.SpecObj(None, None, None, idx = idx)
+        # Assign specobj attributes from header cards
+        for attr, hdrcard in sobjs_key.items():
+            try:
+                value = hdu.header[hdrcard]
+            except:
+                continue
+            setattr(specobj, attr, value)
         # Load data
         spec = Table(hdu.data)
         shape = (len(spec), 1024)  # 2nd number is dummy
-        # Init
-        #specobj = specobjs.SpecObj(shape, 'dum_config', int(objp[-1][1:]),
-        #                           int(objp[-2][1:]), [float(objp[1][1:])/10000.]*2, 0.5,
-        #                           float(objp[0][1:])/1000., 'unknown')
-        # New and wrong
-        try:
-            specobj = specobjs.SpecObj(shape, [float(objp[1][1:])/10000.]*2,
-                                       np.mean([int(objp[-1][1:]), int(objp[-2][1:])]),
-                                       config='dummy_config',
-                                       slitid=1, det=det,
-                                       spat_pixpos=100)  # DUMMY
-        except:
-            debugger.set_trace()
-        # Add trace
-        specobj.trace = spec['obj_trace']
+        specobj.shape = shape
+        specobj.trace_spat = spec['TRACE']
         # Add spectrum
-        if 'box_counts' in spec.keys():
+        if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:
                 try:
-                    specobj.boxcar[skey] = spec['box_{:s}'.format(skey)].data
+                    specobj.boxcar[skey] = spec['BOX_{:s}'.format(skey)].data
                 except KeyError:
                     pass
             # Add units on wave
-            specobj.boxcar['wave'] = specobj.boxcar['wave'] * units.AA
+            specobj.boxcar['WAVE'] = specobj.boxcar['WAVE'] * units.AA
 
-        if 'opt_counts' in spec.keys():
+        if 'OPT_COUNTS' in spec.keys():
             for skey in speckeys:
                 try:
-                    specobj.optimal[skey] = spec['opt_{:s}'.format(skey)].data
+                    specobj.optimal[skey] = spec['OPT_{:s}'.format(skey)].data
                 except KeyError:
                     pass
             # Add units on wave
-            specobj.optimal['wave'] = specobj.optimal['wave'] * units.AA
+            specobj.optimal['WAVE'] = specobj.optimal['WAVE'] * units.AA
         # Append
-        specObjs.append(specobj)
+        sobjs.add_sobj(specobj)
+
     # Return
-    return specObjs, head0
+    return sobjs, head0
 
+def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
+    """Loading single order spectrum from a PypeIt 1D specctrum fits file.
+        it will be called by ech_load_spec
+    Parameters:
+        fname (str) : The file name of your spec1d file
+        objid (str) : The id of the object you want to load. (default is the first object)
+        order (int) : which order you want to load (default is None, loading all orders)
+        extract (str) : 'OPT' or 'BOX'
+        flux (bool) : default is True, loading fluxed spectra
+    returns:
+        spectrum_out : XSpectrum1D
+    """
+    if objid is None:
+        objid = 0
+    if order is None:
+        msgs.error('Please specify which order you want to load')
 
-def load_tilts(fname):
-    # Load the files
-    msarc_bname, msarc_bext = os.path.splitext(fname)
-    tname = msarc_bname+"_tilts"+msarc_bext
-    sname = msarc_bname+"_satmask"+msarc_bext
-    # Load the order locations
-    tilts = np.array(fits.getdata(tname, 0),dtype=np.float)
-    msgs.info("Loaded order tilts for frame:"+msgs.newline()+fname)
-    satmask = np.array(fits.getdata(sname, 0),dtype=np.float)
-    msgs.info("Loaded saturation mask for frame:"+msgs.newline()+fname)
-    return tilts, satmask
+    # read extension name into a list
+    primary_header = fits.getheader(fname, 0)
+    nspec = primary_header['NSPEC']
+    extnames = [primary_header['EXT0001']] * nspec
+    for kk in range(nspec):
+        extnames[kk] = primary_header['EXT' + '{0:04}'.format(kk + 1)]
+    extnameroot = extnames[0]
 
+    # Figure out which extension is the required data
+    ordername = '{0:04}'.format(order)
+    extname = extnameroot.replace('OBJ0001', objid)
+    extname = extname.replace('ORDER0000', 'ORDER' + ordername)
+    try:
+        exten = extnames.index(extname) + 1
+        msgs.info("Loading extension {:s} of spectrum {:s}".format(extname, fname))
+    except:
+        msgs.error("Spectrum {:s} does not contain {:s} extension".format(fname, extname))
 
-def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
+    spectrum = load_1dspec(fname, exten=exten, extract=extract, flux=flux)
+    # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
+    #   the floating point precision of float32 for var which is sig**2 (i.e. 1e38)
+    bad_flux = np.any([np.isnan(spectrum.flux), np.isinf(spectrum.flux),
+                       np.abs(spectrum.flux) > 1e30,
+                       spectrum.sig ** 2 > 1e10,
+                       ], axis=0)
+    # Sometimes Echelle spectra have zero wavelength
+    bad_wave = spectrum.wavelength < 1000.0*units.AA
+    bad_all = bad_flux + bad_wave
+    ## trim bad part
+    wave_out,flux_out,sig_out = spectrum.wavelength[~bad_all],spectrum.flux[~bad_all],spectrum.sig[~bad_all]
+    spectrum_out = XSpectrum1D.from_tuple((wave_out,flux_out,sig_out), verbose=False)
+    #if np.sum(bad_flux):
+    #    msgs.warn("There are some bad flux values in this spectrum.  Will zero them out and mask them (not ideal)")
+    #    spectrum.data['flux'][spectrum.select][bad_flux] = 0.
+    #    spectrum.data['sig'][spectrum.select][bad_flux] = 0.
+
+    return spectrum_out
+
+def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
+    """Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
+    Parameters:
+        files (str) : The list of file names of your spec1d file
+        objid (str) : The id (one per fits file) of the object you want to load. (default is the first object)
+        order (int) : which order you want to load (default is None, loading all orders)
+        extract (str) : 'OPT' or 'BOX'
+        flux (bool) : default is True, loading fluxed spectra
+    returns:
+        spectrum_out : XSpectrum1D
+    """
+
+    nfiles = len(files)
+    if objid is None:
+        objid = ['OBJ0000'] * nfiles
+    elif len(objid) == 1:
+        objid = objid * nfiles
+    elif len(objid) != nfiles:
+        msgs.error('The length of objid should be either 1 or equal to the number of spectra files.')
+
+    fname = files[0]
+    ext_final = fits.getheader(fname, -1)
+    norder = ext_final['ECHORDER'] + 1
+    msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
+    if norder <= 1:
+        msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')
+
+    # Load spectra
+    spectra_list = []
+    for ii, fname in enumerate(files):
+
+        if order is None:
+            msgs.info('Loading all orders into a gaint spectra')
+            for iord in range(norder):
+                spectrum = load_spec_order(fname,objid=objid[ii],order=iord,extract=extract,flux=flux)
+                # Append
+                spectra_list.append(spectrum)
+        elif order >= norder:
+            msgs.error('order number cannot greater than the total number of orders')
+        else:
+            spectrum = load_spec_order(fname, objid=objid[ii], order=order, extract=extract, flux=flux)
+            # Append
+            spectra_list.append(spectrum)
+    # Join into one XSpectrum1D object
+    spectra = collate(spectra_list)
+    # Return
+    return spectra
+
+def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     """
     Parameters
     ----------
@@ -329,13 +275,14 @@ def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
     """
     # Keywords for Table
     rsp_kwargs = {}
-    rsp_kwargs['wave_tag'] = '{:s}_wave'.format(extract)
+    rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
     if flux:
-        rsp_kwargs['flux_tag'] = '{:s}_flam'.format(extract)
-        rsp_kwargs['var_tag'] = '{:s}_flam_var'.format(extract)
+        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_FLAM_SIG'.format(extract)
     else:
-        rsp_kwargs['flux_tag'] = '{:s}_counts'.format(extract)
-        rsp_kwargs['var_tag'] = '{:s}_var'.format(extract)
+        rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_COUNTS_SIG'.format(extract)
+
     # Identify extension from objname?
     if objname is not None:
         hdulist = fits.open(fname)
@@ -343,10 +290,27 @@ def load_1dspec(fname, exten=None, extract='opt', objname=None, flux=False):
         exten = hdu_names.index(objname)
         if exten < 0:
             msgs.error("Bad input object name: {:s}".format(objname))
+
     # Load
     spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
     # Return
     return spec
+
+def load_std_trace(spec1dfile, det):
+
+    sdet = parse.get_dnum(det, prefix=False)
+    hdulist_1d = fits.open(spec1dfile)
+    det_nm = 'DET{:s}'.format(sdet)
+    for hdu in hdulist_1d:
+        if det_nm in hdu.name:
+            tbl = Table(hdu.data)
+            # TODO what is the data model for echelle standards? This routine needs to distinguish between echelle and longslit
+            from IPython import embed
+            embed()
+            trace = tbl['TRACE']
+
+    return trace
+
 
 def waveids(fname):
     infile = fits.open(fname)
@@ -360,3 +324,4 @@ def waveids(fname):
     except:
         pass
     return pixels
+

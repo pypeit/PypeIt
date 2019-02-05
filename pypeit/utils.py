@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import os
 import warnings
 import itertools
+import matplotlib
 
 import numpy as np
 
@@ -12,14 +13,62 @@ from scipy import interpolate
 from astropy import units
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
+from matplotlib import pyplot as plt
+
+# Imports for fast_running_median
+from collections import deque
+from itertools import islice
+from bisect import insort, bisect_left
 
 #from pydl.pydlutils import math
 #from pydl.pydlutils import bspline
 
+
+
 from pypeit.core import pydl
 
 from pypeit import msgs
-from pypeit import debugger
+
+
+def rebin(a, newshape):
+    '''Rebin an array to a new shape using slicing. This routine is taken from:
+    https://scipy-cookbook.readthedocs.io/items/Rebinning.html. The image shapes need
+    not be integer multiples of each other, but in this regime the transformation will
+    not be reversible, i.e. if a_orig = rebin(rebin(a,newshape), a.shape) then
+    a_orig will not be everywhere equal to a (but it will be equal in most places).
+
+    Args:
+        a: ndarray, any dtype
+          Image of any dimensionality and data type
+        newshape:
+          Shape of the new image desired. Dimensionality must be the same as a.
+    Returns:
+        a_new: ndarray, same dtype as a
+          Image with same values as a rebinning to shape newshape
+    '''
+
+    if not len(a.shape) == len(newshape):
+        msgs.error('Dimension of a image does not match dimension of new requested image shape')
+
+    slices = [slice(0, old, float(old) / new) for old, new in zip(a.shape, newshape)]
+    coordinates = np.mgrid[slices]
+    indices = coordinates.astype('i')  # choose the biggest smaller integer index
+    return a[tuple(indices)]
+
+# JFH This function is only used by procimg.lacosmic. Can it be replaced by above?
+def rebin_evlist(frame, newshape):
+    # This appears to be from
+    # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
+    shape = frame.shape
+    lenShape = len(shape)
+    factor = np.asarray(shape)/np.asarray(newshape)
+    evList = ['frame.reshape('] + \
+             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
+             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
+             ['/factor[%d]' % i for i in range(lenShape)]
+    return eval(''.join(evList))
+
+
 
 def quicksave(data,fname):
     """
@@ -41,6 +90,220 @@ def bspline_inner_knots(all_knots):
     i0=pos[0]
     i1=pos[-1]
     return all_knots[i0:i1]
+
+
+# JFH Testing
+def zerocross1d(x, y, getIndices=False):
+    """
+      Find the zero crossing points in 1d data.
+
+      Find the zero crossing events in a discrete data set.
+      Linear interpolation is used to determine the actual
+      locations of the zero crossing between two data points
+      showing a change in sign. Data point which are zero
+      are counted in as zero crossings if a sign change occurs
+      across them. Note that the first and last data point will
+      not be considered whether or not they are zero.
+
+      Parameters
+      ----------
+      x, y : arrays
+          Ordinate and abscissa data values.
+      getIndices : boolean, optional
+          If True, also the indicies of the points preceding
+          the zero crossing event will be returned. Defeualt is
+          False.
+
+      Returns
+      -------
+      xvals : array
+          The locations of the zero crossing events determined
+          by linear interpolation on the data.
+      indices : array, optional
+          The indices of the points preceding the zero crossing
+          events. Only returned if `getIndices` is set True.
+    """
+
+    # Check sorting of x-values
+    if np.any((x[1:] - x[0:-1]) <= 0.0):
+        msgs.error("The x-values must be sorted in ascending order!. Sort the data prior to calling zerocross1d.")
+
+    # Indices of points *before* zero-crossing
+    indi = np.where(y[1:] * y[0:-1] < 0.0)[0]
+
+    # Find the zero crossing by linear interpolation
+    dx = x[indi + 1] - x[indi]
+    dy = y[indi + 1] - y[indi]
+    zc = -y[indi] * (dx / dy) + x[indi]
+
+    # What about the points, which are actually zero
+    zi = np.where(y == 0.0)[0]
+    # Do nothing about the first and last point should they
+    # be zero
+    zi = zi[np.where((zi > 0) & (zi < x.size - 1))]
+    # Select those point, where zero is crossed (sign change
+    # across the point)
+    zi = zi[np.where(y[zi - 1] * y[zi + 1] < 0.0)]
+
+    # Concatenate indices
+    zzindi = np.concatenate((indi, zi))
+    # Concatenate zc and locations corresponding to zi
+    zz = np.concatenate((zc, x[zi]))
+
+    # Sort by x-value
+    sind = np.argsort(zz)
+    zz, zzindi = zz[sind], zzindi[sind]
+
+    if not getIndices:
+        return zz
+    else:
+        return zz, zzindi
+
+
+
+# params for pretty matplotlib plots
+def pyplot_rcparams():
+    # set some plotting parameters
+    plt.rcParams["xtick.top"] = True
+    plt.rcParams["ytick.right"] = True
+    plt.rcParams["xtick.minor.visible"] = True
+    plt.rcParams["ytick.minor.visible"] = True
+    plt.rcParams["ytick.direction"] = 'in'
+    plt.rcParams["xtick.direction"] = 'in'
+    plt.rcParams["xtick.major.size"] = 6
+    plt.rcParams["ytick.major.size"] = 6
+    plt.rcParams["xtick.minor.size"] = 3
+    plt.rcParams["ytick.minor.size"] = 3
+    plt.rcParams["xtick.major.width"] = 1
+    plt.rcParams["ytick.major.width"] = 1
+    plt.rcParams["xtick.minor.width"] = 1
+    plt.rcParams["ytick.minor.width"] = 1
+    plt.rcParams["axes.linewidth"] = 1
+    plt.rcParams["lines.linewidth"] = 3
+    plt.rcParams["lines.markeredgewidth"] = 2
+    plt.rcParams["patch.linewidth"] = 3
+    plt.rcParams["hatch.linewidth"] = 3
+    plt.rcParams["font.size"] = 13
+    plt.rcParams["legend.frameon"] = False
+    plt.rcParams["legend.handletextpad"] = 1
+
+# restore default rcparams
+def pyplot_rcparams_default():
+    matplotlib.rcParams.update(matplotlib.rcParamsDefault)
+
+
+ # This code taken from this cookbook and slightly modified: https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
+def smooth(x, window_len, window='flat'):
+    """smooth the data using a window with requested size.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that edge effects are minimize at the beginning and end part of the signal.
+
+
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing., default is 'flat'
+
+    output:
+        the smoothed signal, same shape as x
+
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+
+    see also:
+
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
+
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
+
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1 dimension arrays.")
+
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
+
+    if window_len < 3:
+        return x
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+    # print(len(s))
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
+    else:
+        w = eval('np.' + window + '(window_len)')
+
+    y = np.convolve(w / w.sum(), s, mode='same')
+
+    return y[(window_len-1):(y.size-(window_len-1))]
+
+
+def fast_running_median(seq, window_size):
+    """
+      Compute the median of sequence of numbers with a running window. The boundary conditions are identical to the
+      scipy 'reflect' boundary codition:
+
+         'reflect' (`d c b a | a b c d | d c b a`)
+         The input is extended by reflecting about the edge of the last pixel.
+
+      This code has been confirmed to produce identical results to scipy.ndimage.filters.median_filter with the reflect
+      boundary condition, but is ~ 100 times faster.
+
+      Parameters
+      ----------
+      seq : list or 1-d numpy array of numbers.
+
+      window_size = size of running window.
+
+      Returns
+      -------
+      ndarray of median filtered values
+
+      Code contributed by Peter Otten, made to be consistent with scipy.ndimage.filters.median_filter by Joe Hennawi.
+
+      See discussion at:
+      http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
+      """
+
+
+
+    # pad the array for the reflection
+    seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
+
+    window_size= int(window_size)
+    seq_pad = iter(seq_pad)
+    d = deque()
+    s = []
+    result = []
+    for item in islice(seq_pad, window_size):
+        d.append(item)
+        insort(s, item)
+        result.append(s[len(d)//2])
+    m = window_size // 2
+    for item in seq_pad:
+        old = d.popleft()
+        d.append(item)
+        del s[bisect_left(s, old)]
+        insort(s, item)
+        result.append(s[m])
+
+    # This takes care of the offset produced by the original code deducec by trial and error comparison with
+    # scipy.ndimage.filters.medfilt
+
+    result = np.roll(result, -window_size//2 + 1)
+    return result[window_size:-window_size]
+
 
 # TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere
 def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
@@ -113,8 +376,9 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
         raise ValueError("Crashing out of bspline fitting")
     return tck
 
-
-def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
+#ToDo I would prefer to remove the kwargs_bspline and
+# and make them explicit
+def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5, lower=5,
                     maxiter=25, nord = 4, bkpt=None, fullbkpt=None,
                     relative=None, kwargs_bspline={}, kwargs_reject={}):
     """
@@ -188,10 +452,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     if profile_basis.size != nx*npoly:
         msgs.error('Profile basis is not a multiple of the number of data points.')
 
-    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nx=" + "{:3d}".format(nx) + " pixels")
-    msgs.info("****************************  Iter  Chi^2  # rejected  Rel. fact   ****************************")
-    msgs.info("                              ----  -----  ----------  --------- ")
-
     # Init
     yfit = np.zeros(ydata.shape)
     reduced_chi = 0.
@@ -200,18 +460,26 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
         outmask = True
     else:
         outmask = np.ones(invvar.shape, dtype='bool')
-    maskwork = outmask & (invvar > 0)
+
+    if inmask is None:
+        inmask = (invvar > 0)
+
+    nin = np.sum(inmask)
+    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nin=" + "{:3d}".format(nin) + " good pixels")
+    msgs.info("******************************  Iter  Chi^2  # rejected  Rel. fact   ******************************")
+    msgs.info("                              ----  -----  ----------  --------- ")
+
+
+    maskwork = outmask & inmask & (invvar > 0)
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
     else:
-        #from IPython import embed
-        #embed()
         # Init bspline class
         sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
                        funcname='Bspline longslit special', **kwargs_bspline)
         if maskwork.sum() < sset.nord:
             msgs.warn('Number of good data points fewer than nord.')
-            return (sset, outmask, yfit, reduced_chi)
+            return sset, outmask, yfit, reduced_chi
 
     # This was checked in detail against IDL for identical inputs
     outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T
@@ -221,15 +489,16 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
     iiter = 0
     error = -1
     qdone = False
-
+    exit_status = 0
     relative_factor = 1.0
-    tempin = None
-    while (error != 0 or qdone is False) and iiter <= maxiter:
+    tempin = np.copy(inmask)
+    while (error != 0 or qdone is False) and iiter <= maxiter and (exit_status == 0):
         ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
-            iiter = maxiter + 1 # End iterations
+            exit_status = 2 # This will end iterations
+            #iiter = maxiter + 1 # End iterations
         else:
             # Do the fit. Return values from workit for error are as follows:
             #    0 if fit is good
@@ -239,7 +508,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             # we'll do the fit right here..............
             if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
-                #if((bf1 == -2) or (bf1.size !=nx*nord)):
                 if np.any(bf1 == -2) or (bf1.size !=nx*nord):
                     msgs.error("BSPLINE_ACTION failed!")
                 action = np.copy(action_multiple)
@@ -251,8 +519,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
             error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
         iiter += 1
         if error == -2:
-            msgs.warn(" All break points have been dropped!!")
-            return (sset, outmask, yfit, reduced_chi)
+            msgs.warn(" All break points have been dropped!! Fit failed, I hope you know what you are doing")
+            return (sset, np.zeros(xdata.shape,dtype=bool), np.zeros(xdata.shape), reduced_chi)
         elif error == 0:
             # Iterate the fit -- next rejection iteration
             chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
@@ -268,6 +536,9 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
                     relative_factor = np.sqrt(this_chi2)
                 relative_factor = max(relative_factor,1.0)
             # Rejection
+            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
+            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
+            # further consideration. I think requiring sticky to be set is the more transparent behavior.
             maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
                                          inmask=tempin, outmask=maskwork,
                                          upper=upper*relative_factor,
@@ -279,15 +550,22 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, upper=5, lower=5,
         else:
             msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
 
+    if iiter == (maxiter + 1):
+        exit_status = 1
 
-    msgs.info("***********************************************************************************************")
+    # Exit status:
+    #    0 = fit exited cleanly
+    #    1 = maximum iterations were reached
+    #    2 = all points were masked
+
+    msgs.info("***************************************************************************************************")
     msgs.info(
         "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
         ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
     # Finish
     outmask = np.copy(maskwork)
     # Return
-    return sset, outmask, yfit, reduced_chi
+    return sset, outmask, yfit, reduced_chi, exit_status
 
 
 
@@ -327,8 +605,8 @@ def func_der(coeffs, func, nderive=1):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev'")
 
 
-def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
-             bspline_par=None):
+def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None, w=None, inmask = None, guesses=None,
+             bspline_par=None, return_errors=False):
     """ General routine to fit a function to a given set of x,y points
 
     Parameters
@@ -339,8 +617,8 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
       polynomial, legendre, chebyshev, bspline, gaussian
     deg : int
       degree of the fit
-    minv : float, optional
-    maxv
+    minx : float, optional
+    maxx
     w
     guesses : tuple
     bspline_par : dict
@@ -353,72 +631,119 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
       tuple for bspline
 
     """
-    if func == "polynomial":
-        return np.polynomial.polynomial.polyfit(x, y, deg, w=w)
+
+    # If the user provided an inmask apply it. The logic below of evaluating the fit only at the non-masked
+    # pixels is preferable to the other approach of simply setting the weights to zero. The reason for that is that
+    # the fits use a least-square optimization approach using matrix algebra, and lots of zero weights are
+    # 1) more costly, and 2) will not produce exactly the same result (due to roundoff error) as actually
+    # removing the locations you want to mask.
+    if inmask is not None:
+        x_out = x[inmask]
+        y_out = y[inmask]
+        if x2 is not None:
+            x2_out = x2[inmask]
+        else:
+            x2_out = None
+        if w is not None:
+            w_out = w[inmask]
+        else:
+            w_out = None
+    else:
+        x_out = x
+        y_out = y
+        if x2 is not None:
+            x2_out = x2
+        else:
+            x2_out = None
+        if w is not None:
+            w_out = w
+        else:
+            w_out = None
+
+    # For two-d fits x = x, y = x2, y = z
+    if ('2d' in func) and (x2_out is not None):
+        # Is this a 2d fit?
+        return polyfit2d_general(x_out, x2_out, y_out, deg, w=w_out, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
+    elif func == "polynomial":
+        return np.polynomial.polynomial.polyfit(x_out, y_out, deg, w=w_out)
     elif func == "legendre":
-        if minv is None or maxv is None:
-            if np.size(x) == 1:
+        if minx is None or maxx is None:
+            if np.size(x_out) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
-                xmin, xmax = np.min(x), np.max(x)
+                xmin, xmax = np.min(x_out), np.max(x_out)
         else:
-            xmin, xmax = minv, maxv
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legfit(xv, y, deg, w=w)
+            xmin, xmax = minx, maxx
+        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
+        return np.polynomial.legendre.legfit(xv, y_out, deg, w=w_out)
     elif func == "chebyshev":
-        if minv is None or maxv is None:
-            if np.size(x) == 1:
+        if minx is None or maxx is None:
+            if np.size(x_out) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
-                xmin, xmax = np.min(x), np.max(x)
+                xmin, xmax = np.min(x_out), np.max(x_out)
         else:
-            xmin, xmax = minv, maxv
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebfit(xv, y, deg, w=w)
+            xmin, xmax = minx, maxx
+        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
+        return np.polynomial.chebyshev.chebfit(xv, y_out, deg, w=w_out)
     elif func == "bspline":
         if bspline_par is None:
             bspline_par = {}
         # TODO -- Deal with this kwargs-like kludge
-        return bspline_fit(x, y, order=deg, w=w, **bspline_par)
-    elif func in ["gaussian"]:
+        return bspline_fit(x_out, y_out, order=deg, w=w_out, **bspline_par)
+    elif func == "gaussian":
         # Guesses
         if guesses is None:
-            mx, cent, sigma = guess_gauss(x, y)
+            ampl, cent, sigma = guess_gauss(x_out, y_out)
+            # As first guess choose slope and intercept to be zero
+            b = 0
+            m = 0
         else:
             if deg == 2:
-                mx, sigma = guesses
+                ampl, sigma = guesses
             elif deg == 3:
-                mx, cent, sigma = guesses
+                ampl, cent, sigma = guesses
+            elif deg == 4:
+                b, ampl, cent, sigma = guesses
+            elif deg == 5:
+                m, b, ampl, cent, sigma = guesses
         # Error
-        if w is not None:
-            sig_y = 1./w
+        if w_out is not None:
+            sig_y = 1./w_out
         else:
             sig_y = None
         if deg == 2:  # 2 parameter fit
-            popt, pcov = curve_fit(gauss_2deg, x, y, p0=[mx, sigma], sigma=sig_y)
+            popt, pcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
         elif deg == 3:  # Standard 3 parameters
-            popt, pcov = curve_fit(gauss_3deg, x, y, p0=[mx, cent, sigma],
+            popt, pcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
                                    sigma=sig_y)
+        elif deg == 4:  # 4 parameters
+            popt, pcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma],sigma=sig_y)
+        elif deg == 5:  # 5 parameters
+            popt, pcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma],sigma=sig_y)
         else:
             msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
         # Return
-        return popt
-    elif func in ["moffat"]:
+        if return_errors:
+            return popt, pcov
+        else:
+            return popt
+    elif func == "moffat":
         # Guesses
         if guesses is None:
-            mx, cent, sigma = guess_gauss(x, y)
-            p0 = mx
+            ampl, cent, sigma = guess_gauss(x_out, y_out)
+            p0 = ampl
             p2 = 3. # Standard guess
             p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
         else:
             p0,p1,p2 = guesses
         # Error
-        if w is not None:
-            sig_y = 1./w
+        if w_out is not None:
+            sig_y = 1./w_out
         else:
             sig_y = None
         if deg == 3:  # Standard 3 parameters
-            popt, pcov = curve_fit(moffat, x, y, p0=[p0,p1,p2], sigma=sig_y)
+            popt, pcov = curve_fit(moffat, x_out, y_out, p0=[p0,p1,p2], sigma=sig_y)
         else:
             msgs.error("Not prepared for deg={:d} for Moffat fit".format(deg))
         # Return
@@ -428,7 +753,7 @@ def func_fit(x, y, func, deg, minv=None, maxv=None, w=None, guesses=None,
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
-def func_val(c, x, func, minv=None, maxv=None):
+def func_val(c, x, func, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None):
     """ Generic routine to return an evaluated function
     Functional forms include:
       polynomial, legendre, chebyshev, bspline, gauss
@@ -439,34 +764,51 @@ def func_val(c, x, func, minv=None, maxv=None):
       coefficients
     x
     func
-    minv
-    maxv
+    minx
+    maxx
 
     Returns
     -------
     values : ndarray
 
     """
-    if func == "polynomial":
+    # For two-d fits x = x, y = x2, y = z
+    if ('2d' in func) and (x2 is not None):
+        # Is this a 2d fit?
+        if func[:-2] == "polynomial":
+            return np.polynomial.polynomial.polyval2d(x, x2, c)
+        elif func[:-2] in ["legendre", "chebyshev"]:
+            # Scale x-direction
+            xv = scale_minmax(x, minx=minx, maxx=maxx)
+            # Scale x2-direction
+            x2v = scale_minmax(x2, minx=minx2, maxx=maxx2)
+            if func[:-2] == "legendre":
+                return np.polynomial.legendre.legval2d(xv, x2v, c)
+            elif func[:-2] == "chebyshev":
+                return np.polynomial.chebyshev.chebval2d(xv, x2v, c)
+        else:
+            msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(func))
+        return None
+    elif func == "polynomial":
         return np.polynomial.polynomial.polyval(x, c)
     elif func == "legendre":
-        if minv is None or maxv is None:
+        if minx is None or maxx is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = minv, maxv
+            xmin, xmax = minx, maxx
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.legendre.legval(xv, c)
     elif func == "chebyshev":
-        if minv is None or maxv is None:
+        if minx is None or maxx is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = minv, maxv
+            xmin, xmax = minx, maxx
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebval(xv, c)
     elif func == "bspline":
@@ -488,7 +830,7 @@ def func_val(c, x, func, minv=None, maxv=None):
                    "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
 
-def calc_fit_rms(xfit, yfit, fit, func, minv=None, maxv=None):
+def calc_fit_rms(xfit, yfit, fit, func, minx=None, maxx=None, weights=None):
     """ Simple RMS calculation
 
     Parameters
@@ -497,41 +839,46 @@ def calc_fit_rms(xfit, yfit, fit, func, minv=None, maxv=None):
     yfit : ndarray
     fit : coefficients
     func : str
-    minv : float, optional
-    maxv : float, optional
+    minx : float, optional
+    maxx : float, optional
 
     Returns
     -------
     rms : float
 
     """
-    values = func_val(fit, xfit, func, minv=minv, maxv=maxv)
-    rms = np.std(yfit-values)
+    if weights is None:
+        weights = np.ones(xfit.size)
+    # Normalise
+    weights /= np.sum(weights)
+    values = func_val(fit, xfit, func, minx=minx, maxx=maxx)
+    # rms = np.std(yfit-values)
+    rms = np.sqrt(np.sum(weights*(yfit-values)**2))
     # Return
     return rms
 
 
-def func_vander(x, func, deg, minv=None, maxv=None):
+def func_vander(x, func, deg, minx=None, maxx=None):
     if func == "polynomial":
         return np.polynomial.polynomial.polyvander(x, deg)
     elif func == "legendre":
-        if minv is None or maxv is None:
+        if minx is None or maxx is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = minv, maxv
+            xmin, xmax = minx, maxx
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.legendre.legvander(xv, deg)
     elif func == "chebyshev":
-        if minv is None or maxv is None:
+        if minx is None or maxx is None:
             if np.size(x) == 1:
                 xmin, xmax = -1.0, 1.0
             else:
                 xmin, xmax = np.min(x), np.max(x)
         else:
-            xmin, xmax = minv, maxv
+            xmin, xmax = minx, maxx
         xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
         return np.polynomial.chebyshev.chebvander(xv, deg)
     else:
@@ -706,6 +1053,39 @@ def gauss_3deg(x,ampl,cent,sigm):
     """
     return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
 
+
+def gauss_4deg(x,b, ampl,cent,sigm):
+    """  Simple 3 parameter Gaussian
+    Parameters
+    ----------
+    x
+    ampl
+    cent
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return b + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
+
+def gauss_5deg(x,m, b, ampl,cent,sigm):
+    """  Simple 3 parameter Gaussian
+    Parameters
+    ----------
+    x
+    ampl
+    cent
+    sigm
+
+    Returns
+    -------
+    Evaluated Gausssian
+    """
+    return b + m*x + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
+
+
 def guess_gauss(x,y):
     """ Guesses Gaussian parameters with basic stats
 
@@ -718,13 +1098,17 @@ def guess_gauss(x,y):
     -------
 
     """
-    cent = np.sum(y*x)/np.sum(y)
-    sigma = np.sqrt(np.abs(np.sum((x-cent)**2*y)/np.sum(y))) # From scipy doc
-    # Calculate mx from pixels within +/- sigma/2
-    cen_pix = np.where(np.abs(x-cent)<sigma/2)
-    mx = np.median(y[cen_pix])
+    ypos = y - y.min()
+    cent = np.sum(ypos*x)/np.sum(ypos)
+    sigma = np.sqrt(np.abs(np.sum((x-cent)**2*ypos)/np.sum(ypos))) # From scipy doc
+    # Calculate ampl from pixels within +/- sigma/2
+    cen_pix= np.abs(x-cent)<sigma/2
+    if np.any(cen_pix):
+        ampl = np.median(y[cen_pix])
+    else:
+        ampl = y.max()
     # Return
-    return mx, cent, sigma
+    return ampl, cent, sigma
 
 
 def poly_to_gauss(coeffs):
@@ -747,7 +1131,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     :param w: weights
     :return: coefficients
     """
-    msgs.work("Generalize to different polynomial types")
+#    msgs.work("Generalize to different polynomial types")
     x = np.asarray(x)
     y = np.asarray(y)
     z = np.asarray(z)
@@ -760,20 +1144,20 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
         yv = scale_minmax(y, minx=miny, maxx=maxy)
         vander = np.polynomial.legendre.legvander2d(xv, yv, deg)
     else:
-        msgs.error("Not read for this type of {:s}".format(function))
+        msgs.error("Not ready for this type of {:s}".format(function))
     # Weights
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
-            msgs.bug("arutils.polyfit2d - Expected 1D vector for weights")
+            msgs.bug("utils.polyfit2d - Expected 1D vector for weights")
         if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
-            msgs.bug("arutils.polyfit2d - Expected x, y and weights to have same length")
+            msgs.bug("utils.polyfit2d - Expected x, y and weights to have same length")
         z = z * w
         vander = vander * w[:,np.newaxis]
     # Reshape
     vander = vander.reshape((-1,vander.shape[-1]))
     z = z.reshape((vander.shape[0],))
-    c = np.linalg.lstsq(vander, z)[0]
+    c = np.linalg.lstsq(vander, z, rcond=None)[0]
     return c.reshape(deg+1)
 
 def scale_minmax(x, minx=None, maxx=None):
@@ -788,6 +1172,11 @@ def scale_minmax(x, minx=None, maxx=None):
     return xv
 
 def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny=None, maxy=None):
+    """Document me please. I think this evaluates on an image??"""
+
+    if ('2d' in function):
+        function = function[:-2]
+
     if function == "polynomial":
         xx, yy = np.meshgrid(x, y)
         return np.polynomial.polynomial.polyval2d(xx, yy, c)
@@ -796,14 +1185,6 @@ def polyval2d_general(c, x, y, function="polynomial", minx=None, maxx=None, miny
         xv = scale_minmax(x, minx=minx, maxx=maxx)
         # Scale y-direction
         yv = scale_minmax(y, minx=miny, maxx=maxy)
-        #if miny is None or maxy is None:
-        #    if np.size(y) == 1:
-        #        ymin, ymax = -1.0, 1.0
-        #    else:
-        #        ymin, ymax = np.min(y), np.max(y)
-        #else:
-        #    ymin, ymax = miny, maxy
-        #yv = 2.0 * (y-ymin)/(ymax-ymin) - 1.0
         xx, yy = np.meshgrid(xv, yv)
         if function == "legendre":
             return np.polynomial.legendre.legval2d(xx, yy, c)
@@ -903,20 +1284,10 @@ def poly_iterfit(x,y,ordr,maxrej=5):
     return c
 
 
-def rebin(frame, newshape):
-    shape = frame.shape
-    lenShape = len(shape)
-    factor = np.asarray(shape)/np.asarray(newshape)
-    evList = ['frame.reshape('] + \
-             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
-             [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
-             ['/factor[%d]' % i for i in range(lenShape)]
-    return eval(''.join(evList))
-
 
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
-                   minv=None, maxv=None, guesses=None, bspline_par=None, verbose=True):
+                   minx=None, maxx=None, guesses=None, bspline_par=None, verbose=True):
     """
     A robust (equally weighted) polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are masked values
@@ -930,8 +1301,8 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     :param function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
     :param initialmask: a mask can be supplied as input, these values will be masked for the first iteration. 1 = value masked
     :param forceimask: if True, the initialmask will be forced for all iterations
-    :param minv: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    :param maxv: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+    :param minx: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    :param maxx: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
     :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
     """
     # Setup the initial mask
@@ -945,6 +1316,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     mskcnt = np.sum(mask)
     # Iterate, and mask out new values on each iteration
     ct = guesses
+
     while True:
         w = np.where(mask == 0)
         xfit = xarray[w]
@@ -954,10 +1326,11 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         else:
             wfit = None
         ct = func_fit(xfit, yfit, function, order, w=wfit,
-                      guesses=ct, minv=minv, maxv=maxv, bspline_par=bspline_par)
-        yrng = func_val(ct, xarray, function, minv=minv, maxv=maxv)
+                      guesses=ct, minx=minx, maxx=maxx, bspline_par=bspline_par)
+        yrng = func_val(ct, xarray, function, minx=minx, maxx=maxx)
         sigmed = 1.4826*np.median(np.abs(yfit-yrng[w]))
-        if xarray.size-np.sum(mask) <= order+2:
+        #if xarray.size-np.sum(mask) <= order+2: JFH fixed this bug
+        if xarray.size - np.sum(mask) <= order + 1:
             if verbose:
                 msgs.warn("More parameters than data points - fit might be undesirable")
             break  # More data was masked than allowed by order
@@ -974,6 +1347,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
             mask[w] = 1
         if mskcnt == np.sum(mask): break  # No new values have been included in the mask
         mskcnt = np.sum(mask)
+
     # Final fit
     w = np.where(mask == 0)
     xfit = xarray[w]
@@ -982,15 +1356,127 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         wfit = weights[w]
     else:
         wfit = None
-    ct = func_fit(xfit, yfit, function, order, w=wfit, minv=minv, maxv=maxv, bspline_par=bspline_par)
+    ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
     return mask, ct
 
+# TODO This should replace robust_polyfit. #ToDO This routine needs to return dicts with the minx and maxx set
+def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial', minx = None, maxx = None, minx2 = None, maxx2 = None,
+                       bspline_par = None,
+                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
+                       maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
+                       sticky=True, use_mad=True):
+    """
+    A robust polynomial fit is performed to the xarray, yarray pairs
+    mask[i] = 1 are good values
+
+    xarray: independent variable values
+    yarray: dependent variable values
+    order: the order of the polynomial to be used in the fitting
+    x2: ndarray, default = None
+       Do a 2d fit?
+    function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
+    minx: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    maxx: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+    guesses : tuple
+    bspline_par : dict
+        Passed to bspline_fit()
+    maxiter : :class:`int`, optional
+         Maximum number of rejection iterations, default 10.  Set this to zero to disable rejection and simply do a fit.
+    inmask : :class:`numpy.ndarray`, optional
+        Input mask.  Bad points are marked with a value that evaluates to ``False``.
+        Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
+        will also always evaluate to "False" in the outmask
+    sigma : :class: float or `numpy.ndarray`, optional
+        Standard deviation of the yarray, used to reject points based on the values
+        of `upper` and `lower`. This can either be a single float for the entire yarray or a ndarray with the same
+        shape as the yarray.
+    invvar : :class: float or `numpy.ndarray`, optional
+        Inverse variance of the data, used to reject points based on the values
+        of `upper` and `lower`.  This can either be a single float for the entire yarray or a ndarray with the same
+        shape as the yarray. If both `sigma` and `invvar` are set the code will return an error.
+    lower : :class:`int` or :class:`float`, optional
+        If set, reject points with data < model - lower * sigma.
+    upper : :class:`int` or :class:`float`, optional
+        If set, reject points with data > model + upper * sigma.
+    maxdev : :class:`int` or :class:`float`, optional
+        If set, reject points with abs(data-model) > maxdev.  It is permitted to
+        set all three of `lower`, `upper` and `maxdev`.
+    maxrej: :class:`int` or :class:`numpy.ndarray`, optional
+        Maximum number of points to reject in this iteration.  If `groupsize` or
+        `groupdim` are set to arrays, this should be an array as well.
+    groupdim: class: `int`
+        Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
+        If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
+        In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
+    groupsize: class: `int`
+        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points.  If groupdim is also
+        set, then this specifies sub-groups within that. NOT WELL TESTED IN PYTHON!!
+    groupbadpix : :class:`bool`, optional
+        If set to ``True``, consecutive sets of bad pixels are considered groups,
+        overriding the values of `groupsize`.
+    grow : :class:`int`, optional, default = 0
+        If set to a non-zero integer, N, the N nearest neighbors of rejected
+        pixels will also be rejected.
+    sticky : :class:`bool`, optional, default is True
+        If set to ``True``, pixels rejected in one iteration remain rejected in
+        subsequent iterations, even if the model changes. If
+    use_mad : :class: `bool`, optional, defaul = False
+        It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
+        the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
+        and also pass in values for sigma or invvar, and the code will return an error if this is done.
+
+
+    Returns:
+    --------
+    :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
+    """
+
+    # Setup the initial mask
+    if inmask is None:
+        inmask = np.ones(xarray.size, dtype=bool)
+
+    if sigma is not None and invvar is not None:
+        msgs.error('You cannot specify both sigma and invvar')
+    elif sigma is not None:
+        weights = 1.0/sigma**2
+    elif invvar is not None:
+        weights = np.copy(invvar)
+    else:
+        weights = np.ones(xarray.size,dtype=float)
+
+    # Iterate, and mask out new values on each iteration
+    ct = guesses
+
+    iIter = 0
+    qdone = False
+    thismask = np.copy(inmask)
+    while (not qdone) and (iIter < maxiter):
+        if np.sum(thismask) <= np.sum(order) + 1:
+            msgs.warn("More parameters than data points - fit might be undesirable")
+        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct, minx=minx, maxx=maxx,
+                      minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
+        ymodel = func_val(ct, xarray, function, x2 = x2, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
+        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
+                                          lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
+                                          groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
+                                          use_mad=use_mad,sticky=sticky)
+        iIter += 1
+    if (iIter == maxiter) & (maxiter != 0):
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
+    outmask = np.copy(thismask)
+    if np.sum(outmask) == 0:
+        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
+
+    # Do the final fit
+    ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask = outmask, minx=minx, maxx=maxx, minx2 = minx2, maxx2=maxx2, bspline_par=bspline_par)
+
+    return outmask, ct
 
 def robust_regression(x, y, ordr, outfrac, maxiter=100, function='polynomial', min=None, max=None):
     """
     Deprecated
     """
-    msgs.bug("PYPIT using deprecated function")
+    msgs.bug("PypeIt using deprecated function")
     msgs.error("Please contact the authors")
     xsize=x.size
     infrac = 1.0-outfrac
@@ -1118,6 +1604,7 @@ def yamlify(obj, debug=False):
         print(type(obj))
     return obj
 
+# This code is now deprecated and one should be using detect_lines for peak finding.
 ###########
 def fit_min(xarr, yarr, xguess, width=None):
 
@@ -1155,7 +1642,7 @@ def fit_min(xarr, yarr, xguess, width=None):
     # Return
     return xbest, sigma, errcode
 
-
+# This code is now deprecated and one should be using detect_lines for peak finding.
 def find_nminima(yflux, xvec=None, nfind=10, nsmooth=None, minsep=5, width=5):
     """ Find minima in an input 1D array
     Parameters

@@ -27,7 +27,7 @@ from pypeit import debugger
 class TraceImage(processimages.ProcessImages):
     """
     This class is primarily designed to generate a Bias frame for bias subtraction
-      It also contains I/O methods for the Master frames of PYPIT
+      It also contains I/O methods for the Master frames of PypeIt
       The build_master() method will return a simple command (str) if that is the specified setting
       in settings['bias']['useframe']
 
@@ -44,8 +44,6 @@ class TraceImage(processimages.ProcessImages):
       Detector index, starts at 1
     ind : list (optional)
       Indices for bias frames (if a Bias image may be generated)
-    fitstbl : Table (optional)
-      FITS info (mainly for filenames)
     par : ParSet
       PypitPar['calibrations']['traceframe']
 
@@ -64,9 +62,9 @@ class TraceImage(processimages.ProcessImages):
     # Frametype is a class attribute
     frametype = 'trace_image'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None):
         self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
-        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
+        processimages.ProcessImages.__init__(self, spectrograph, files=files, det=det,
                                              par=self.par['process'])
 
 

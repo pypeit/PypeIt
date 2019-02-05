@@ -13,7 +13,9 @@ PypeIt distinguishes between various configurations
 for a given instrument when processing calibrations,
 generating Master frames, and performing the data
 reduction.  This Table summarizes the parameters that
-specify a unique setup:
+may specify a unique setup.  The actual items used
+are set by the configuration_keys() method in each
+spectrograph.
 
 ========= ========= ====== ======== =======================================
 Element   Attribute  Type   Example    Description
@@ -31,7 +33,7 @@ slit      decker    str    long_1.0 Name of decker or slit mask
 ========= ========= ====== ======== =======================================
 
 Each setup is given a unique setup ID value which is a
-two digit number starting at 01 (stored as a string).
+capitol letter, e.g. A.
 
 If you tend to observe with one instrument configuration
 and with a simple set of calibrations, then setup should
@@ -91,27 +93,32 @@ is failing to automatically recognize your science or arc frames.
 Execution
 ---------
 
-The setup script requires two inputs: the root of the data
-files (with the full path) and the instrument name.  Here is an example::
+The setup script requires two inputs: the root of the data files and the
+instrument name.  Importantly, the file root must contain the full path.
+Trailing letters are treated as the common root name of all the `fits`
+files; to search a full directory for fits files, regardless of their
+root name, the provided path *must* have a trailing `/` character.  As
+always, to get help with a PypeIt script, use the `-h` option.  Here is
+an example::
 
-    pypeit_setup /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB keck_lris_blue
+    pypeit_setup -r /Users/xavier/Keck/LRIS/data/2016apr06/Raw/LB -s keck_lris_blue
 
-The code will search for all FITS files with the inputted root.
-Note that the root should **not** contain a wild-card.
+The code will search for all `*.fits` and `*.fits.gz` files with the
+provided root.  Generally, the provided path should **not** contain a
+wild-card; however, you can search through multiple directories as
+follows::
 
-Alternatively, one can generate a PypeIt File (with extension .pypeit)
-and add `run setup True` to the file.
+    pypeit_setup -r "/Users/xavier/Keck/LRIS/data/2016apr06/Raw/*/LB" -s keck_lris_blue
 
-Note that both of these options set default values in the codes
-and may over-ride user settings.
-
+If you wish to specify pairs (or groups) of files to use for background
+subtraction (e.g. A-B), then include the `-b` option.
 
 Output without --custom
 =======================
 
-When pypeit_setup is run without --custom (Step 2 of the :doc:`cookbook`),
-the pypeit_setup script generates several outputs in a folder
-named *setup_files*.  Here is a brief description of these.
+When `pypeit_setup` is run without `--cfg_split` (Step 2 of the
+:doc:`cookbook`), the script generates several outputs in a folder named
+*setup_files*.  Here is a brief description of these.
 
 .. _setups-file:
 
@@ -199,10 +206,10 @@ Here is some sample output::
 
 
 
-Output with --custom
-====================
+Output with --cfg_split
+=======================
 
-When pypeit_setup is run with --custom (Step 4 of the :doc:`cookbook`),
+When pypeit_setup is run with `--cfg_split` (Step 4 of the :doc:`cookbook`),
 the script generates one PypeIt file per
 setup.  Each of these is placed in its own folder, one per setup.
 See :doc:`pypeit_file` for a greater description of editing
