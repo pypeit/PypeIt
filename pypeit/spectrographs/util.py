@@ -10,6 +10,13 @@ from pypeit import spectrographs
 # work for 'shane_kast_red' and 'shane_kast_red_ret'.
 
 def valid_spectrographs():
+    """
+    Return a list of allowed spectrograph names
+
+    Returns:
+        list:  Allowed spectrograph names
+
+    """
     # TODO: Is there a more clever way to do this?  If we change these
     # names, we could do something like what's done in
     # pypeit.instantiate_me.
@@ -21,6 +28,7 @@ def valid_spectrographs():
             'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'vlt_fors2']
             # There are no such spectrographs defined
             #'keck_hires_blue', 'mmt_binospec']
+
 
 def load_spectrograph(spectrograph):
     """
@@ -41,18 +49,8 @@ def load_spectrograph(spectrograph):
         spectrograph used to obtain the data to be reduced.
     """
 
-    # TODO: I'm not crazy about the idea that that spectrograph can be
-    # undefined, even when one is working with master files.  It means
-    # that objects are not fully defined.
-    #if spectrograph is None:
-    #    return None
-    # JFH Changed the above to address this and other issues
-    # JXP Turned back.  The Spectrograph class is an ABC and should not
-    #  be instantiated on its own.  And at the moment it can't be anyhow.
-
     if spectrograph is None:
         return None
-        #return spectrographs.spectrograph.Spectrograph()
 
     if isinstance(spectrograph, spectrographs.spectrograph.Spectrograph):
         return spectrograph
@@ -139,7 +137,18 @@ def load_spectrograph(spectrograph):
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 
 
+'''
 def checkme(chk_dict, headarr):
+    """
+    DEPRECATED
+    
+    Args:
+        chk_dict: 
+        headarr: 
+
+    Returns:
+
+    """
     #
     skip = False
     for head_idx in chk_dict.keys():
@@ -150,4 +159,5 @@ def checkme(chk_dict, headarr):
                 skip = True
     # Return
     return skip
+'''
 

@@ -6,7 +6,7 @@ from astropy import stats
 from abc import ABCMeta
 
 from pypeit import ginga, utils, msgs, processimages, specobjs
-from pypeit.core import skysub, extract, trace_slits, pixels
+from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.par import pypeitpar
 from matplotlib import pyplot as plt
 
@@ -85,14 +85,16 @@ class Reduce(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, spectrograph, tslits_dict, mask, ir_redux=False, det=1, objtype='science', binning=None, setup=None,
-                 par=None, frame_par=None):
+                 par=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype
-        self.par = pypeitpar.ScienceImagePar() if par is None else par
-        self.frame_par = pypeitpar.FrameGroupPar(objtype) if frame_par is None else frame_par
-        self.proc_par = self.frame_par['process']
-
+        self.par = spectrograph.default_pypeit_par() if par is None else par
+        self.proc_par = self.par['scienceframe'] ['process']
+        # TODO Rename the scienceimage arset to reduce.
+        self.redux_par = self.par['scienceimage']
+        self.wave_par = self.par['calibrations']['wavelengths']
+        self.flex_par = self.par['flexure']
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
@@ -101,7 +103,8 @@ class Reduce(object):
         self.slitmask = pixels.tslits2mask(self.tslits_dict)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         self.mask = processimages.ProcessImages.update_mask_slitmask(self.mask, self.slitmask)
-
+        self.maskslits=None
+        self.maskslits = self._get_goodslits(maskslits)
         self.ir_redux = ir_redux
         self.det = det
         self.binning = binning
@@ -114,7 +117,6 @@ class Reduce(object):
         # sky-subtraction, and extraction
         self.tilts = None  # used by extract
         self.waveimage = None  # used by extract
-        self.maskslits = None  # used in find_object and extract
 
         # Key outputs images for extraction
         self.sciimg = None
@@ -229,8 +231,8 @@ class Reduce(object):
         self.sciimg = sciimg
         self.sciivar = sciivar
         self.tilts = tilts
-        self.maskslits = self._get_goodslits(maskslits)
-        gdslits = np.where(~self.maskslits)[0]
+        self.maskslits = self.maskslits if maskslits is None else maskslits
+        gdslits = np.where(np.invert(self.maskslits))[0]
 
         # Prep
         self.global_sky = np.zeros_like(self.sciimg)
@@ -249,8 +251,8 @@ class Reduce(object):
                                                              self.tslits_dict['slit_righ'][:,slit],
                                                              inmask=inmask,
                                                              sigrej=sigrej,
-                                                             bsp=self.par['bspline_spacing'],
-                                                             no_poly=self.par['no_poly'],
+                                                             bsp=self.redux_par['bspline_spacing'],
+                                                             no_poly=self.redux_par['no_poly'],
                                                              pos_mask = (not self.ir_redux),
                                                              show_fit=show_fit)
             # Mask if something went wrong
@@ -287,6 +289,48 @@ class Reduce(object):
          """
 
         return None, None, None, None, None
+
+
+    def flexure_correct(self, sobjs, basename):
+        """ Correct for flexure
+
+        Args:
+            sobjs: SpecObjs object
+            maskslits: ndarray
+
+        Returns:
+            Spectra are modified in place (wavelengths are shifted)
+        """
+
+        if self.flex_par['method'] != 'skip':
+            flex_list = wave.flexure_obj(sobjs, self.maskslits, self.flex_par['method'],
+                                         self.flex_par['spectrum'],
+                                         mxshft=self.flex_par['maxshift'])
+            # QA
+            wave.flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+        else:
+            msgs.info('Skipping flexure correction.')
+
+
+    def helio_correct(self, sobjs, radec, obstime):
+        """ Perform a heliocentric correction """
+        # Helio, correct Earth's motion
+        if (self.wave_par['frame'] in ['heliocentric', 'barycentric']) \
+                and (self.wave_par['reference'] != 'pixel'):
+            # TODO change this keyword to refframe instead of frame
+            msgs.info("Performing a {0} correction".format(self.wave_par['frame']))
+            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, self.maskslits,
+                                                   self.spectrograph.telescope['longitude'],
+                                                   self.spectrograph.telescope['latitude'],
+                                                   self.spectrograph.telescope['elevation'],
+                                                   self.wave_par['frame'])
+        else:
+            msgs.info('A wavelength reference-frame correction will not be performed.')
+            vel_corr = None
+
+        return vel_corr
+
+
 
     def _get_goodslits(self, maskslits):
         """
@@ -472,8 +516,8 @@ class MultiSlit(Reduce):
 
         """
 
-        self.maskslits = self._get_goodslits(maskslits)
-        gdslits = np.where(~self.maskslits)[0]
+        self.maskslits = self.maskslits if maskslits is None else maskslits
+        gdslits = np.where(np.invert(self.maskslits))[0]
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -493,12 +537,13 @@ class MultiSlit(Reduce):
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
-            sig_thresh = 30.0 if std else self.par['sig_thresh']
+
+            sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit],
-                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.par['manual'],
+                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.redux_par['manual'],
                 specobj_dict=specobj_dict, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
-                qa_title=qa_title, nperslit=self.par['maxnumber'])
+                qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
@@ -514,7 +559,7 @@ class MultiSlit(Reduce):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, sciimg, sciivar, tilts, waveimg, global_sky, rn2img, sobjs,
-                             maskslits=None, model_noise=True, std = False,
+                             spat_pix=None, maskslits=None, model_noise=True, std = False,
                              show_profile=False, show_resids=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -545,14 +590,13 @@ class MultiSlit(Reduce):
         self.rn2img = rn2img
 
         # get the good slits and assign self.maskslits
-        self.maskslits = self._get_goodslits(maskslits)
-        gdslits = np.where(~self.maskslits)[0]
+        self.maskslits = self.maskslits if maskslits is None else maskslits
+        gdslits = np.where(np.invert(self.maskslits))[0]
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
         self.outmask = np.copy(self.mask)
         # Initialize to input mask in case no objects were found
-        #self.extractmask = (self.mask == 0) & self.negmask
         self.extractmask = (self.mask == 0)
         # Initialize to zero in case no objects were found
         self.objmodel = np.zeros_like(self.sciimg)
@@ -580,10 +624,11 @@ class MultiSlit(Reduce):
                                                       self.waveimg, self.global_sky, self.rn2img,
                                                       thismask, self.tslits_dict['slit_left'][:,slit],
                                                       self.tslits_dict['slit_righ'][:, slit],
-                                                      self.sobjs[thisobj], model_full_slit=self.par['model_full_slit'],
+                                                      self.sobjs[thisobj], spat_pix=spat_pix,
+                                                      model_full_slit=self.redux_par['model_full_slit'],
                                                       model_noise=model_noise,
-                                                      std = std, bsp=self.par['bspline_spacing'],
-                                                      sn_gauss=self.par['sn_gauss'],
+                                                      std = std, bsp=self.redux_par['bspline_spacing'],
+                                                      sn_gauss=self.redux_par['sn_gauss'],
                                                       inmask=inmask, show_profile=show_profile,
                                                       show_resids=show_resids)
 
@@ -624,7 +669,7 @@ class Echelle(Reduce):
         specobj_dict = {'setup': self.setup, 'slitid': 999,
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # ToDO implement parsets here!
-        sig_thresh = 30.0 if std else self.par['sig_thresh']
+        sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                 inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
@@ -644,7 +689,7 @@ class Echelle(Reduce):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, sciimg, sciivar, tilts, waveimg, global_sky, rn2img, sobjs,
-                             model_noise=True, min_snr=2.0, std = False, fit_fwhm=False,
+                             spat_pix=None, model_noise=True, min_snr=2.0, std = False, fit_fwhm=False,
                              maskslits=None, show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -674,18 +719,18 @@ class Echelle(Reduce):
         order_vec = self.spectrograph.order_vec()
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
-            self.rn2img, self.tslits_dict, sobjs, order_vec,
-            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp = self.par['bspline_spacing'],
-            sn_gauss=self.par['sn_gauss'], model_full_slit=self.par['model_full_slit'], model_noise=model_noise,
-            show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
+            self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
+            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp = self.redux_par['bspline_spacing'],
+            sn_gauss=self.redux_par['sn_gauss'], model_full_slit=self.redux_par['model_full_slit'],
+            model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
 
         # Step
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            self.show('local', sobjs = self.sobjs, slits= True, ch_name='ech_local')
-            self.show('resid', sobjs = self.sobjs, slits= True, ch_name='ech_resid')
+            self.show('local', sobjs = self.sobjs, slits= True, chname='ech_local')
+            self.show('resid', sobjs = self.sobjs, slits= True, chname='ech_resid')
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 

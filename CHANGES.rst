@@ -100,6 +100,9 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Extended LRISr 1200_900 arc template
 - Modified add/rm slit methods to be spec,spat
 - Add an option in coadding to scale the coadded spectrum to a given magnitude in a given filter
+- Many doc string updates in top level routines (not core)
+- Updates to install and cookbook docs
+- Continued the process of requiring spectrograph and par in each base class
 - Extended DEIMOS 1200G template
 
 0.9.0

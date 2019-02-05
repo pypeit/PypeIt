@@ -13,6 +13,34 @@ from pypeit.core import qa
 
 from pypeit import debugger
 
+def func_vander(x, func, deg, minx=None, maxx=None):
+    if func == "polynomial":
+        return np.polynomial.polynomial.polyvander(x, deg)
+    elif func == "legendre":
+        if minx is None or maxx is None:
+            if np.size(x) == 1:
+                xmin, xmax = -1.0, 1.0
+            else:
+                xmin, xmax = np.min(x), np.max(x)
+        else:
+            xmin, xmax = minx, maxx
+        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+        return np.polynomial.legendre.legvander(xv, deg)
+    elif func == "chebyshev":
+        if minx is None or maxx is None:
+            if np.size(x) == 1:
+                xmin, xmax = -1.0, 1.0
+            else:
+                xmin, xmax = np.min(x), np.max(x)
+        else:
+            xmin, xmax = minx, maxx
+        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+        return np.polynomial.chebyshev.chebvander(xv, deg)
+    else:
+        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
+                   "Please choose from 'polynomial', 'legendre', 'chebyshev'")
+
+
 def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, mask=None,
           function='polynomial'):
     nrow = xfit.shape[0]
@@ -32,7 +60,7 @@ def basis(xfit, yfit, coeff, npc, pnpc, weights=None, skipx0=True, x0in=None, ma
     # Do the PCA analysis
     eigc, hidden = get_pc(coeff[1:npc+1, usetrace], npc)
 
-    modl = utils.func_vander(xfit[:,0], function, npc)
+    modl = func_vander(xfit[:,0], function, npc)
     eigv = np.dot(modl[:,1:], eigc)
 
     med_hidden = np.median(hidden, axis=1)
