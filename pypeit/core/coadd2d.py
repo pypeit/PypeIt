@@ -188,6 +188,8 @@ def load_coadd2d_stacks(spec2d_files, det):
         specobjs_list.append(sobjs)
 
     # Right now we assume there is a single tslits_dict for all images and read in the first one
+    # TODO this needs to become a tslits_dict for each file to accomodate slits defined by flats taken on different
+    # nights
     tslits_dict = traceslits.load_tslits_dict(tracefiles[0])
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
     slitmask = pixels.tslits2mask(tslits_dict)
