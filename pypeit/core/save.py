@@ -180,7 +180,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     # TODO: Why is the raw file header needed?  Can the data be gotten from fitstbl?
     #  If not, is it worth adding the relevant information to fitstbl?
     # Original header
-    save_2d_images(sci_dict, head2d, master_key_dict, master_dir, outfile2d, update_det=update_det)
+    save_2d_images(sci_dict, head2d, spectrograph.spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
 
     return
 
@@ -391,7 +391,7 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
         obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
 
-def save_2d_images(sci_output, raw_header, master_key_dict, mfdir, outfile, clobber=True, update_det=None):
+def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir, outfile, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 
     Args:
@@ -430,6 +430,7 @@ def save_2d_images(sci_output, raw_header, master_key_dict, mfdir, outfile, clob
         # PYPEIT
         # TODO Should the spectrograph be written to the header?
         prihdu.header['PIPELINE'] = str('PYPEIT')
+        prihdu.header['SPECTROG'] = spectrograph
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
         prihdu.header['FRAMMKEY'] = master_key_dict['frame'][:-3]
         prihdu.header['BPMMKEY'] = master_key_dict['bpm'][:-3]

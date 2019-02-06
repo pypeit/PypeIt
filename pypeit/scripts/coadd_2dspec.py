@@ -60,16 +60,16 @@ def read_coadd2d_file(ifile):
 
     # Parse the fluxing block
     spec2d_files = []
-    s, e = par.util._find_pypeit_block(lines, 'spec2d')
+    s, e = par.util._find_pypeit_block(lines, 'coadd2d')
     if s >= 0 and e < 0:
-        msgs.error("Missing 'spec2d end' in {0}".format(ifile))
-    elif (s < 0) or (s==e):
-        msgs.warn("No spec2d file block, you must have passed --objprefix as an argument..")
+        msgs.error("Missing 'coadd2d end' in {0}".format(ifile))
     else:
         for line in lines[s:e]:
             prs = line.split(' ')
             spec2d_files.append(os.path.join('Science/', os.path.basename(prs[0])))
         is_config[s-1:e+1] = False
+    #elif (s < 0) or (s==e):
+    #    msgs.warn("No spec2d file block, you must have passed --obj as an argument..")
 
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
@@ -97,7 +97,7 @@ def select_detectors(par, spectrograph):
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
-    parser.add_argument("coadd2d_file", type=str, help="File to guide 2d coadds")
+    parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
     parser.add_argument('--det', default=1, type=int, help="Only coadd this detector number")
     parser.add_argument("--obj", type=str, default=None,
                         help="Object name in lieu of extension, e.g if the spec2d files are named "
@@ -116,21 +116,25 @@ def parser(options=None):
     return args
 
 
-def main(args, unit_test=False):
+def main(args):
     """ Executes 2d coadding
     """
 
     # Load the file
-    spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.coadd2d_file)
-    # Parameters
-    spectrograph_def_par = spectrograph.default_pypeit_par()
-    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                             merge_with=config_lines)
-
-    # If obj was passed in, disregards the spec2d_files in the coadd2d file and use all objects with this name
-    if args.obj is not None:
+    if args.file is not None:
+        spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.file)
+        # Parameters
+        spectrograph_def_par = spectrograph.default_pypeit_par()
+        par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                 merge_with=config_lines)
+    elif args.obj is not None:
         spec2d_files = glob.glob('./Science/spec2d_' + args.obj + '*')
-
+        head0 = fits.getheader(spec2d_files[0])
+        spectrograph_name = head0['SPECTROG']
+        spectrograph = load_spectrograph(spectrograph_name)
+        par = spectrograph.default_pypeit_par()
+    else:
+        msgs.error('You must either input a coadd2d file with --file or an object name with --obj')
 
     # If detector was passed as an argument override whatever was in the coadd2d_file
     if args.det is not None:
