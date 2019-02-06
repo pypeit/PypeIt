@@ -12,6 +12,7 @@ Submodules
    pypeit.core.wavecal.kdtree_generator
    pypeit.core.wavecal.patterns
    pypeit.core.wavecal.qa
+   pypeit.core.wavecal.templates
    pypeit.core.wavecal.waveio
    pypeit.core.wavecal.wvutils
 

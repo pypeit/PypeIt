@@ -188,7 +188,7 @@ class Calibrations(object):
         Args:
             frame (int): Frame index in the fitstbl
             det (int): Detector number
-            par (pypeit.par.pypeitpar.CalibrationPar):
+            par (:class:`pypeit.par.pypeitpar.CalibrationPar`):
 
         """
         self.frame = frame

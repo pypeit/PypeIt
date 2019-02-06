@@ -36,8 +36,6 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
     Attributes:
         frametype (str): Set to 'arc'
-
-    Inherited Attributes:
         stack (ndarray): Final output image
 
     """

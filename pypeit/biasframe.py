@@ -46,7 +46,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         reuse_masters (bool, optional): Load from disk if possible
 
     Attributes:
-        frametype (str):
 
     """
 
