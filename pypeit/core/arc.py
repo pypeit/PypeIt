@@ -693,8 +693,112 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     # plt.grid()
     plt.show()
 
+def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
+                   cont_mask_neg=False, npoly=None, debug=False):
+    """
+    Routine to determine the continuum and continuum pixels in spectra with peaks.
+
+    Args:
+       spec:  ndarray, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
+       inmask: ndarray, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
+       niter_cont: int, default = 3
+            Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
+       npoly: int, default = None
+            If set the code will perform a polynomimal fit to the interpolate a running median filter of the
+            continuum points instead of the default behavior which is to just return the
+            interpolated running median filter
+       sigthresh: float, default = 2.0
+            Signifiance threshold for peak finding
+       sigrej: float, default = 3.0
+            Sigma clipping rejection threshold for threshold determination
+       fwhm:  float, default = 4.0
+            Number of pixels per fwhm resolution element.
+       cont_samp: float, default = 30.0
+            The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
+            median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
+            (i.e. that don't have peaks).
+       cont_frac_fwhm float, default = 1.0
+            Width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
+            parameter
+       cont_mask_neg: bool, default = False
+           If True, the code will also search for negative peaks when iteratively determining the continuum. This option is
+           used for object finding in the near-IR where there will also be negative peaks.
+       cont_samp: float, default = 30.0
+           The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
+           median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
+        debug: bool, default = False
+           Show plots for debugging
+
+    Returns: (cont, cont_mask)
+        cont: ndarray, float, shape (nspec) The continuum determined
+        cont_mask: ndarray, bool, shape (nspec) A mask indicating which pixels were used for continuum determination
+
+
+    """
+
+    if inmask is None:
+        inmask = np.ones(spec.size,dtype=bool)
+        cont_mask = np.copy(inmask)
+    else:
+        cont_mask = np.copy(inmask)
+
+    nspec = spec.size
+    spec_vec = np.arange(nspec)
+    cont_now = np.zeros(nspec)
+    mask_sm = np.round(cont_frac_fwhm*fwhm).astype(int)
+    mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
+    for iter in range(niter_cont):
+        spec_sub = spec - cont_now
+        mask_sigclip = np.invert(cont_mask & inmask)
+        (mean, med, stddev) = sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej, sigma_upper=sigrej)
+        # be very liberal in determining threshold for continuum determination
+        thresh = med + sigthresh*stddev
+        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75)
+        # mask out the peaks we find for the next continuum iteration
+        cont_mask_fine = np.ones_like(cont_now)
+        cont_mask_fine[pixt_now] = 0.0
+        if cont_mask_neg is True:
+            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75)
+            cont_mask_fine[pixt_now_neg] = 0.0
+        # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
+        cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999) & inmask
+        # If more than half the spectrum is getting masked than short circuit this masking
+        frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
+        if (frac_mask > 0.70):
+            msgs.warn('Too many pixels masked in spectrum continuum definiton: frac_mask = {:5.3f}'.format(frac_mask) + ' . Not masking....')
+            cont_mask = np.ones_like(cont_mask) & inmask
+        ngood = np.sum(cont_mask)
+        samp_width = np.ceil(ngood/cont_samp).astype(int)
+        cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
+        if npoly is not None:
+            # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
+            msk, poly = utils.robust_polyfit_djs(spec_vec[cont_mask], cont_med, npoly, function='polynomial', maxiter=25,
+                                                 upper=3.0, lower=3.0, minx=0.0, maxx=float(nspec-1))
+            cont_now = utils.func_val(poly, spec_vec, 'polynomial')
+        else:
+            cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
+
+        if debug & (iter == (niter_cont-1)):
+            plt.plot(spec_vec, spec,'k', label='Spectrum')
+            #plt.plot(spec_vec, spec*cont_mask,'k', label='Spectrum*cont_mask')
+            plt.plot(spec_vec, cont_now,'g',label='continuum')
+            plt.plot(spec_vec, spec_sub,'b',label='spec-cont')
+            plt.plot(spec_vec[cont_mask], spec[cont_mask], color='green', markersize=3.0,
+                     mfc='green', linestyle='None', fillstyle='full',
+                     zorder=9, marker='o', label = 'Used for cont')
+            plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
+                     mfc='red', linestyle='None', fillstyle='full',
+                     zorder=9, marker='o', label = 'masked for cont')
+            plt.legend()
+            plt.show()
+
+
+    return cont_now, cont_mask
+
+
 # ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=True, fwhm = 4.0, fit_frac_fwhm=1.25, cont_frac_fwhm = 1.0,
+def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25,
+                 input_thresh = None, cont_subtract=True, cont_frac_fwhm = 1.0,
                  max_frac_fwhm = 2.5, cont_samp = 30,
                  nonlinear_counts=1e10, niter_cont = 3,nfind = None, verbose = False, debug=False, debug_peak_find = False):
     """
@@ -791,38 +895,12 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
     detns = detns.astype(np.float)
     xrng = np.arange(detns.size, dtype=np.float)
 
-    cont_mask = np.ones(detns.size, dtype=bool)
     if cont_subtract:
-        nspec = detns.size
-        spec_vec = np.arange(nspec)
-        cont_now = np.arange(nspec)
-        mask_sm = np.round(cont_frac_fwhm*fwhm).astype(int)
-        mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
-        for iter in range(niter_cont):
-            arc_now = detns - cont_now
-            (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
-            # be very liberal in determining threshold for continuum determination
-            thresh = med + 2.0*stddev
-            pixt_now = detect_peaks(arc_now, mph=thresh, mpd=fwhm*0.75)
-            # mask out the peaks we find for the next continuum iteration
-            cont_mask_fine = np.ones_like(cont_now)
-            cont_mask_fine[pixt_now] = 0.0
-            # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
-            cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
-            # If more than half the spectrum is getting masked than short circuit this masking
-            frac_mask = np.sum(~cont_mask)/float(nspec)
-            if (frac_mask > 0.70):
-                msgs.warn('Too many pixels masked in arc continuum definiton: frac_mask = {:5.3f}'.format(frac_mask) + ' . Not masking....')
-                cont_mask = np.ones_like(cont_mask)
-            ngood = np.sum(cont_mask)
-            samp_width = np.ceil(ngood/cont_samp).astype(int)
-            cont_med = utils.fast_running_median(detns[cont_mask], samp_width)
-            cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
+        cont_now, cont_mask = iter_continuum(detns, fwhm=fwhm, niter_cont=niter_cont, cont_samp=cont_samp,
+                                             cont_frac_fwhm=cont_frac_fwhm)
     else:
+        cont_mask = np.ones(detns.size, dtype=bool)
         cont_now = np.zeros_like(detns)
-
-    #msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
-    # Final peak detection
 
     arc = detns - cont_now
     if input_thresh is None:
@@ -872,7 +950,7 @@ def detect_lines(censpec, sigdetect = 5.0, input_thresh = None, cont_subtract=Tr
     if debug:
         plt.figure(figsize=(14, 6))
         plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc', linewidth = 1.0)
-        plt.plot(tcent[~good], tampl[~good],'r+', markersize =6.0, label = 'bad peaks')
+        plt.plot(tcent[np.invert(good)], tampl[np.invert(good)],'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
         if thresh is not None:
             plt.hlines(thresh, xrng.min(), xrng.max(), color='cornflowerblue', linestyle=':', linewidth=2.0,

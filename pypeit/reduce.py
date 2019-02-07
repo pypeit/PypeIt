@@ -170,6 +170,7 @@ class Reduce(object):
             self.find_objects_pypeline(image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
 
+        # For nobj we take only the positive objects
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
@@ -182,7 +183,8 @@ class Reduce(object):
         if show:
             self.show('image', image=image*(self.mask == 0), chname='objfind',sobjs=sobjs_obj_init, slits=True)
 
-        return sobjs_obj_init, len(sobjs_obj_init), skymask
+        # For nobj we take only the positive objects
+        return sobjs_obj_init, nobj_init, skymask
 
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace=None, maskslits=None,

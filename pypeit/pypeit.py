@@ -598,6 +598,8 @@ class PypeIt(object):
             # Set to inmask in case on objects were found
             self.outmask = self.mask
             # empty specobjs object from object finding
+            if self.ir_redux:
+                self.sobjs_obj.purge_neg()
             self.sobjs = self.sobjs_obj
             self.vel_corr = None
 

@@ -109,6 +109,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceimage']['bspline_spacing'] = 0.8
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
+        par['scienceimage']['no_poly']  = True         # Do not use polynomial degree of freedom for global skysub
 
 
         # Do not correct for flexure

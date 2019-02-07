@@ -1490,51 +1490,35 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         if frac_bad > 0.9:
             fluxsub = flux_mean - flux_mean_med
 
-    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548,mode='nearest')
+    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, 0.7*fwhm/2.3548,mode='nearest')
 
-    #TODO Implement something here instead like the iterative continuum fitting and threshold determination that
-    # is already present in the arc.detect_lines routine. The logic behind the masking here for determining the threshold
-    # is a bit cumbersome.
+    cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
+                                         cont_frac_fwhm=2.0, sigthresh=sig_thresh,
+                                         sigrej=2.0, cont_samp=3,npoly=1, cont_mask_neg=True)
+    # TODO this is experimental, but I'm removing the linear continuum fit
+    fluxconv_cont = fluxconv - cont
 
-    # Perform initial finding with a very liberal threshold
-    ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv, cont_subtract = False, fwhm = fwhm,
-                                                            input_thresh = 'None',debug=False)
-    ypeak_neg, _, xcen_neg, sigma_pk_neg, _, _, _, _ = arc.detect_lines(-fluxconv, cont_subtract = False, fwhm = fwhm,
-                                                                        input_thresh = 'None',debug=False)
-    # Only mask the strong peaks
-    (mean0, med0, sigma0) = sigma_clipped_stats(fluxconv, mask = np.invert(smash_mask), sigma=1.5)
-    # Create a mask for pixels to use for a background flucutation level estimate. Mask spatial pixels that hit an object
-    imask_pos = np.ones(int(nsamp), dtype=bool)
-    imask_neg = np.ones(int(nsamp), dtype=bool)
-    xvec = np.arange(nsamp)
-    xcen_pos_top = xcen[ypeak > (med0 + sig_thresh*sigma0)]
-    xcen_neg_top = xcen_neg[ypeak_neg < (med0 - sig_thresh*sigma0)]
+    if np.any(cont_mask) == False:
+        cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    for xx in xcen_pos_top:
-        ibad = (np.abs(xvec - xx) <= 2.0*fwhm)
-        imask_pos[ibad] = False
-    for xx in xcen_neg_top:
-        ibad = (np.abs(xvec - xx) <= 2.0*fwhm)
-        imask_neg[ibad] = False
+    (mean, med, skythresh) = sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
+    (mean, med, sigma)     = sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
 
-    # Good pixels for flucutation level estimate. Omit edge pixels and pixels within a fwhm of a candidate object
-    igd = imask_pos & imask_neg & (xvec > trim_edg[0]) & (xvec <= (nsamp-trim_edg[1]))
-    if np.any(igd) == False:
-        igd = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
-
-    (mean, med, skythresh) = sigma_clipped_stats(fluxconv[igd], sigma=1.5)
-    (mean, med, sigma)     = sigma_clipped_stats(fluxconv[igd], sigma=2.5)
     if(skythresh == 0.0) & (sigma != 0.0):
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma==0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
-        good = fluxconv > 0.0
+        good = fluxconv_cont > 0.0
         if np.any(good) == True:
-            (mean, med_sn2, skythresh) = sigma_clipped_stats(fluxconv[good], sigma=1.5)
-            (mean, med_sn2, sigma) = sigma_clipped_stats(fluxconv[good], sigma=2.5)
+            (mean, med_sn2, skythresh) = sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
+            (mean, med_sn2, sigma) = sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
-            msgs.error('Object finding failed. All the elements of the fluxconv spatial profile array are zero')
+            msgs.error('Object finding failed. All the elements of the fluxconv_cont spatial profile array are zero')
     else:
         pass
+
+    # Now find all the peaks without setting any threshold
+    ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv_cont, cont_subtract = False, fwhm = fwhm,
+                                                            input_thresh = 'None',debug=False)
 
     # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
     # with the edgemask, but we do it here anyway
@@ -1603,8 +1587,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
         # Define the plotting function
         #def plot_show_peaks():
-        plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
-        plt.plot(spat_approx_vec, fluxconv/sigma, color='black', label = 'FWHM Convolved')
+        #plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
+        plt.plot(spat_approx_vec, fluxconv_cont/sigma, color='black', label = 'Collapsed flux (FWHM convol)')
+        plt.plot(spat_approx_vec[cont_mask], fluxconv_cont[cont_mask]/sigma, color='red', markersize=3.0,
+                 mfc='red', linestyle='None', fillstyle='full',
+                 zorder=9, marker='o', label = 'Used for threshold')
         plt.hlines(threshold/sigma,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
         plt.hlines(1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':', label='+- 1 sigma')
         plt.hlines(-1.0,spat_approx_vec.min(),spat_approx_vec.max(), color='green',linestyle=':')
@@ -1642,13 +1629,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
         # Find right location where smash profile croses yhalf
         if x0 < (int(nsamp)-1):
-            ind_righ, = np.where(fluxconv[x0:] < yhalf)
+            ind_righ, = np.where(fluxconv_cont[x0:] < yhalf)
             if len(ind_righ) > 0:
                 i2 = ind_righ[0]
                 if i2 == 0:
                     xrigh = None
                 else:
-                    xrigh_int = scipy.interpolate.interp1d(fluxconv[x0 + i2-1:x0 + i2 + 1], x0 + np.array([i2-1,i2],dtype=float),assume_sorted=False)
+                    xrigh_int = scipy.interpolate.interp1d(fluxconv_cont[x0 + i2-1:x0 + i2 + 1], x0 + np.array([i2-1,i2],dtype=float),assume_sorted=False)
                     xrigh = xrigh_int([yhalf])[0]
             else:
                 xrigh = None
@@ -1656,13 +1643,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             xrigh = None
         # Find left location where smash profile crosses yhalf
         if x0 > 0:
-            ind_left, = np.where(fluxconv[0:np.fmin(x0+1,int(nsamp)-1)] < yhalf)
+            ind_left, = np.where(fluxconv_cont[0:np.fmin(x0+1,int(nsamp)-1)] < yhalf)
             if len(ind_left) > 0:
                 i1 = (ind_left[::-1])[0]
                 if i1 == (int(nsamp)-1):
                     xleft = None
                 else:
-                    xleft_int = scipy.interpolate.interp1d(fluxconv[i1:i1+2],np.array([i1,i1+1],dtype=float), assume_sorted= False)
+                    xleft_int = scipy.interpolate.interp1d(fluxconv_cont[i1:i1+2],np.array([i1,i1+1],dtype=float), assume_sorted= False)
                     xleft = xleft_int([yhalf])[0]
             else:
                 xleft = None
@@ -1740,7 +1727,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             thisobj.hand_extract_flag = True
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
             thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False) # interpolate from ximg
-            thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos*nsamp,np.arange(nsamp),fluxconv) # interpolate from fluxconv
+            thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos*nsamp,np.arange(nsamp),fluxconv_cont) # interpolate from fluxconv
             # assign the trace
             spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
             shift = thisobj.hand_extract_spat - spat_0
@@ -2057,6 +2044,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
       Skymask indicating which pixels can be used for global sky subtraction
     """
 
+    show_peaks=True
     if specobj_dict is None:
         specobj_dict = {'setup': 'unknown', 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
 
