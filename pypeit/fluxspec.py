@@ -452,11 +452,6 @@ class FluxSpec():
                               vel_correction=self.sci_header['VEL'])
         else:
             helio_dict = None
-        telescope=None
-        if 'LON-OBS' in self.sci_header.keys():
-            telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
-                                     latitude=self.sci_header['LAT-OBS'],
-                                     elevation=self.sci_header['ALT-OBS'])
         # KLUDGE ME
         if isinstance(self.sci_specobjs, list):
             specObjs = specobjs.SpecObjs(self.sci_specobjs)
@@ -464,10 +459,8 @@ class FluxSpec():
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline,
-                                  self.spectrograph.spectrograph, outfile,
-                                  helio_dict=helio_dict,
-                                  telescope=telescope, overwrite=True)
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph, outfile,
+                                  helio_dict=helio_dict, overwrite=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -826,11 +819,11 @@ class EchFluxSpec(masterframe.MasterFrame):
                               vel_correction=self.sci_header['VEL'])
         else:
             helio_dict = None
-        telescope = None
-        if 'LON-OBS' in self.sci_header.keys():
-            telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
-                                     latitude=self.sci_header['LAT-OBS'],
-                                     elevation=self.sci_header['ALT-OBS'])
+        #telescope = None
+        #if 'LON-OBS' in self.sci_header.keys():
+        #    telescope = TelescopePar(longitude=self.sci_header['LON-OBS'],
+        #                             latitude=self.sci_header['LAT-OBS'],
+        #                             elevation=self.sci_header['ALT-OBS'])
         # KLUDGE ME
         if isinstance(self.sci_specobjs, list):
             specObjs = specobjs.SpecObjs(self.sci_specobjs)
@@ -838,9 +831,8 @@ class EchFluxSpec(masterframe.MasterFrame):
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline, self.spectrograph.spectrograph, outfile,
-                                  helio_dict=helio_dict,
-                                  telescope=telescope, overwrite=True)
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph, outfile,
+                                  helio_dict=helio_dict, overwrite=True)
         msgs.info("Wrote spectrum to {}".format(outfile))
         # Step
         self.steps.append(inspect.stack()[0][3])
