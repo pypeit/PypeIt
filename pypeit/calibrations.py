@@ -14,7 +14,7 @@ from pypeit.core import pixels
 from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import biasframe
-from pypeit import bpmimage
+#from pypeit import bpmimage
 from pypeit import flatfield
 from pypeit import traceimage
 from pypeit import traceslits
@@ -42,9 +42,6 @@ class Calibrations(object):
     To avoid rebuilding MasterFrames that were generated during this execution
     of PypeIt, the class performs book-keeping of these master frames and
     holds that info in self.calib_dict
-
-    .. todo::
-        Improve docstring...
 
     Args:
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
@@ -345,7 +342,8 @@ class Calibrations(object):
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
 
         # Build it
-        bpmImage = bpmimage.BPMImage(self.spectrograph,det=self.det, shape=self.shape)
+        bpmImage = self.spectrograph.bpm(shape=self.shape, det=self.det)
+        #bpmImage = bpmimage.BPMImage(self.spectrograph, self.shape, det=self.det)
         # Build, save, and return
         self.msbpm = bpmImage.build(filename=sci_image_files[0])
         self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm

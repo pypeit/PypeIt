@@ -12,6 +12,7 @@ from pypeit.par import pypeitpar
 
 from pypeit import debugger
 
+
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
     Generate an Arc Image by processing and combining one or more arc frames.
@@ -35,7 +36,6 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         msbias (ndarray or str, optional): Guides bias subtraction
 
     Attributes:
-        frametype (str): Set to 'arc'
         stack (ndarray): Final output image
 
     """

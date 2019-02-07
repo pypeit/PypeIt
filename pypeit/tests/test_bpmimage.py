@@ -26,30 +26,6 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-def test_instantiate():
-    # Empty
-    # Can no longer be empty!
-    with pytest.raises(TypeError):
-        _ = bpmimage.BPMImage()
-    bpm = bpmimage.BPMImage('keck_lris_red')
-    assert bpm.spectrograph.spectrograph == 'keck_lris_red'
-
-    # These will no longer error!
-#    with pytest.raises(PypitError):
-#        _ = bpmimage.BPMImage('keck_lris_red', det=1)
-#    with pytest.raises(PypitError):
-#        _ = bpmimage.BPMImage('keck_lris_red')
-#    with pytest.raises(PypitError):
-#        _ = bpmimage.BPMImage('keck_lris_red', binning='1,1')
-#    with pytest.raises(PypitError):
-#        _ = bpmimage.BPMImage('keck_deimos')
-
-#   reduce_badpix is no longer an argument.  This functionality is
-#   performed when calling `build` when msbias is not None
-
-#    with pytest.raises(PypitError):
-#        _ = bpmimage.BPMImage(reduce_badpix='bias')
-
 
 def test_dummy_image():
     # Simple
