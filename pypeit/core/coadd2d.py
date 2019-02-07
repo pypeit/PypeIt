@@ -351,6 +351,7 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
+
     # Determine the wavelength grid that we will use for the current slit/order
     wavemask = thismask_stack & (waveimg_stack > 1.0) # TODO This cut on waveimg_stack should not be necessary
     wave_lower = waveimg_stack[wavemask].min()
@@ -409,15 +410,27 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
     sciivar = utils.calc_ivar(var_list_out[0])
 
-    # Now interpolate the waveimg and dspat images
-    from IPython import embed
-    embed()
-
-
+    # Compute the midpoints vectors, and lower/upper bins of the rectified image
     wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]
     wave_min = wave_bins[:-1]
     wave_max = wave_bins[1:]
     dspat_mid = ((dspat_bins + np.roll(dspat_bins,1))/2.0)[1:]
+
+    # Interpolate the dspat images, since this is not allowed to have holes in it
+    dspat_orig = dspat.copy()
+    nspec_coadd, nspat_coadd = imgminsky.shape
+    spat_img_coadd, spec_img_coadd = np.meshgrid(np.arange(nspat_coadd), np.arange(nspec_coadd))
+    dspat_img_fake = spat_img_coadd + dspat_mid[0]
+    points_good = np.stack((spec_img_coadd[outmask], spat_img_coadd[outmask]), axis=1)
+    points_bad = np.stack((spec_img_coadd[np.invert(outmask)], spat_img_coadd[np.invert(outmask)]), axis=1)
+    values_dspat = dspat[outmask]
+    dspat_bad = scipy.interpolate.griddata(points_good, values_dspat, points_bad, method='cubic')
+    # Points outside the convex hull of the data are set to nan. We identify those and simply assume them values from
+    # the dspat_img_fake
+    dspat[np.invert(outmask)] = dspat_bad
+    nanpix = np.isnan(dspat)
+    dspat[nanpix] = dspat_img_fake[nanpix]
+
     coadd_dict = dict(wave_bins=wave_bins, dspat_bins=dspat_bins,
                       wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max, dspat_mid=dspat_mid,
                       sciimg=sciimg, sciivar=sciivar, imgminsky=imgminsky, outmask=outmask,
