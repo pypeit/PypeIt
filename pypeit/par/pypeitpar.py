@@ -865,7 +865,8 @@ class ManualExtractionParOld(ParSet):
                                     self.data['frame']))
 
 
-
+# TODO The name of this should be changed to PypeItPar so that ReducePar can be used for what is now ScienceImagePar which
+# governs the ReduceClass
 class ReducePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
@@ -1842,7 +1843,7 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
+    def __init__(self, bspline_spacing=None, global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
                  no_poly=None, manual=None):
 
         # Grab the parameter names and values from the function
@@ -1871,9 +1872,12 @@ class ScienceImagePar(ParSet):
         dtypes['bspline_spacing'] = [int, float]
         descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
 
-        defaults['no_poly'] = False
-        dtypes['no_poly'] = bool
-        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+        defaults['global_sky_std'] = True
+        dtypes['global_sky_std'] = bool
+        descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
+                                  'off for example for near-IR reductions with narrow slits, since bright standards can' \
+                                  'fill the slit causing global sky-subtraction to fail. In these situations we go ' \
+                                  'straight to local sky-subtraction since it is designed to deal with such situations'
 
         defaults['sig_thresh'] = 10.0
         dtypes['sig_thresh'] = [int, float]
@@ -1896,6 +1900,10 @@ class ScienceImagePar(ParSet):
                             'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
                             'observations using narrow slits or echelle observations with narrow slits'
 
+        defaults['no_poly'] = False
+        dtypes['no_poly'] = bool
+        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
@@ -1912,7 +1920,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual']
+        parkeys = ['bspline_spacing', 'global_sky_std', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

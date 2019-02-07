@@ -391,6 +391,12 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
         obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
 
+#TODO 2d data model should be expanded to include:
+# waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
+#                every exposure (i.e. it depneds on obstime, RA, DEC and the flexure incurred) it should be written out for
+#                each science frame.
+# tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
+#                 write these for each file as well. Alternatively we could just write the offsets to the header.
 def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir, outfile, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 

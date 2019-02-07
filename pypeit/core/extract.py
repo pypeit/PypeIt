@@ -705,7 +705,11 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     b_answer, bmask2  = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask, kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
-    cont_flux, _ = c_answer.value(wave[indsp])
+    try:
+        cont_flux, _ = c_answer.value(wave[indsp])
+    except:
+        from IPython import embed
+        embed()
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)

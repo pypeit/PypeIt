@@ -12,6 +12,21 @@ from matplotlib import pyplot as plt
 from scipy.special import ndtr
 import scipy
 
+def skysub_npoly(thismask):
+    slit_width = np.sum(thismask,axis=1)
+    med_slit_width = np.median(slit_width[slit_width > 0])
+    nspec_eff = np.sum(slit_width > 0.5*slit_width)
+    npercol = np.fmax(np.floor(np.sum(thismask)/nspec_eff), 1.0)
+    # Demand at least 10 pixels per row (on average) per degree of the polynomial
+    if npercol > 100:
+        npoly = 3
+    elif npercol > 40:
+        npoly = 2
+    else:
+        npoly = 1
+
+    return npoly
+
 
 
 def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3.0, maxiter=35,
@@ -94,7 +109,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     (nspec, nspat) = image.shape
     piximg = tilts * (nspec-1)
     if inmask is None:
-        inmask = np.copy(thismask)
+        inmask = (ivar > 0.0) & thismask & np.isfinite(image) & np.isfinite(ivar)
 
 
     # Sky pixels for fitting
@@ -129,20 +144,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     # Include a polynomial basis?
     if no_poly:
         poly_basis = np.ones_like(sky)
-        npoly = 1
+        npoly_fit = 1
     else:
-        npercol = np.fmax(np.floor(np.sum(thismask) / nspec), 1.0)
-        # Demand at least 10 pixels per row (on average) per degree of the polynomial
-        if npoly is None:
-            #npoly_in = 7
-            #npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol / 10.)).astype(int)), 1)
-            if npercol > 100:
-                npoly = 3
-            elif npercol > 40:
-                npoly = 2
-            else:
-                npoly = 1
-        poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly).T
+        npoly_fit = skysub_npoly(thismask) if npoly is None else npoly
+        poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly_fit).T
 
     # Full fit now
     #full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp, npoly = npoly)
@@ -162,7 +167,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
     # chi^2
     if exit_status == 1:
-        msgs.warn('Maximum iterations reached in bspline_profile global sky-subtraction for npoly={:d}.'.format(npoly) +
+        msgs.warn('Maximum iterations reached in bspline_profile global sky-subtraction for npoly={:d}.'.format(npoly_fit) +
                   msgs.newline() +
                   'Redoing sky-subtraction without polynomial degrees of freedom')
         poly_basis = np.ones_like(sky)
@@ -212,7 +217,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
 
 # Utility routine used by local_bg_subtraction_slit
-def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial = None, fullbkpt = None):
+def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej = 3.0, npoly=1, spatial=None, fullbkpt=None):
 
 
     nx = data.size
@@ -513,10 +518,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     """
 
     if inmask is None:
-        # These values are hard wired for the case where no inmask is provided
-        FULLWELL = 5e5
-        MINWELL = -1000.0,
-        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar)
 
     # Adjust maskwidths of the objects such that we will apply the local_skysub_extract to the entire slit
     if model_full_slit:
@@ -576,6 +578,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     spec_max = spec_img[thismask].max()
 
     xsize = slit_righ - slit_left
+    # TODO Can this be simply replaced with spat_img above (but not spat_pix since that could have holes)
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
 
     # Loop over objects and group them
@@ -594,6 +597,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 max_spat1 = np.minimum(np.maximum(righ_edge, max_spat1), slit_righ)
                 min_spat1 = np.maximum(np.minimum(left_edge, min_spat1), slit_left)
                 group = np.append(group, i2)
+        # Create the local mask which defines the pixels that will be updated by local sky subtraction
+        min_spat_img = np.outer(min_spat1, np.ones(nspat))
+        max_spat_img = np.outer(max_spat1, np.ones(nspat))
+        localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
+        npoly = skysub_npoly(localmask)
         # Keep for next iteration
         i1 = group.max() + 1
         # Some bookeeping to define the sub-image and make sure it does not land off the mask
@@ -608,13 +616,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         spec_vec = np.arange(nspec, dtype=np.intp)
         spat_vec = np.arange(min_spat, min_spat + nc, dtype=np.intp)
         ipix = np.ix_(spec_vec, spat_vec)
-        skymask = outmask & np.invert(edgmask)
-        if nc > 100:
-            npoly = 3
-        elif nc > 40:
-            npoly = 2
-        else:
-            npoly = 1
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
         sigrej_eff = sigrej
         for iiter in range(1, niter + 1):
@@ -689,18 +690,19 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             iterbsp = 0
             while (not sky_bmodel.any()) & (iterbsp <= 5):
                 bsp_now = (1.2 ** iterbsp) * bsp
-                ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & \
-                        (spat_img >= spat_min) & (spat_img <= spat_max) & \
-                        (spat_img >= min_spat) & (spat_img <= max_spat) & \
-                        thismask
-                sampmask = (waveimg > 0.0) & ibool
-                fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, sampmask, debug=(debug_bkpts & (iiter == niter)),
+                #ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & \
+                #        (spat_img >= spat_min) & (spat_img <= spat_max) & \
+                #        (spat_img >= min_spat) & (spat_img <= max_spat) & \
+                #        thismask
+                #sampmask = (waveimg > 0.0) & ibool
+                fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
                                          skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
-                isub, = np.where(ibool.flatten())
+                isub, = np.where(localmask.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
+                skymask = outmask & np.invert(edgmask)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(piximg.flat[isub], sciimg.flat[isub],
                                                                  (modelivar * skymask).flat[isub],
                                                                  obj_profiles_flat[isub, :], sortpix,

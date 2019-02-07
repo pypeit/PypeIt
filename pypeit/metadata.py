@@ -1424,6 +1424,7 @@ class PypeItMetaData:
             ff.write('Setup {:s}\n'.format(setup))
             ff.write(yaml.dump(utils.yamlify(cfg)))
             ff.write('#---------------------------------------------------------\n')
+            subtbl.sort(['mjd']) # JFH added this line so that the output reads like a log file
             subtbl.write(ff, format='ascii.fixed_width')
         ff.write('##end\n')
         ff.close()

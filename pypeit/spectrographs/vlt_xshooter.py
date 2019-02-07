@@ -271,6 +271,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -293,6 +295,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
