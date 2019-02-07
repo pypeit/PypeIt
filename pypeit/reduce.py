@@ -293,12 +293,12 @@ class Reduce(object):
     def flexure_correct(self, sobjs, basename):
         """ Correct for flexure
 
+        Spectra are modified in place (wavelengths are shifted)
+
         Args:
             sobjs: SpecObjs object
             maskslits: ndarray
 
-        Returns:
-            Spectra are modified in place (wavelengths are shifted)
         """
 
         if self.flex_par['method'] != 'skip':
