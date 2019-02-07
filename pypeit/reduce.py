@@ -221,6 +221,13 @@ class Reduce(object):
             global_sky: (numpy.ndarray) image of the the global sky model
         """
 
+
+        # Prep
+        self.global_sky = np.zeros_like(sciimg)
+        if (std and not self.redux_par['global_sky_std']):
+            msgs.info('Skipping global sky-subtraction for standard star.')
+            return self.global_sky
+
         if std:
             sigrej = 7.0
             update_crmask = False
@@ -233,8 +240,6 @@ class Reduce(object):
         self.maskslits = self.maskslits if maskslits is None else maskslits
         gdslits = np.where(np.invert(self.maskslits))[0]
 
-        # Prep
-        self.global_sky = np.zeros_like(self.sciimg)
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciimg, dtype=bool)
