@@ -959,10 +959,6 @@ class ArchiveReid:
 
             sigdetect = self._parse_param(self.par, 'sigdetect', slit)
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
-            if slit == 12:
-                from IPython import embed
-                embed()
-
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
