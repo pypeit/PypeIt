@@ -551,7 +551,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     # Set some rejection parameters based on whether this is a standard or not. Only reject extreme outliers for standards
     # since super high S/N and low order profile models imply we will always have large outliers
     if std is True:
-        chi2_sigrej = 100.0
+        chi2_sigrej = 500.0
         sigrej_ceil = 1e10
     else:
         chi2_sigrej = 6.0
