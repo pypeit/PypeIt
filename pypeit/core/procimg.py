@@ -822,8 +822,9 @@ def trim_frame(frame, mask):
 #        msgs.error("Cannot trim file")
 
 #ToDO JFH: I think we should have separate routines that create a raw variance frame and a model variance frame
+# TODO we should add "adderr" functionality here to set a maximum on the S/N ratio
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
-                   exptime=None, skyframe=None, objframe=None):
+                   exptime=None, skyframe=None, objframe=None, adderr = 0.01):
     """
     Calculate the variance image including detector noise.
 
@@ -849,6 +850,11 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
         ronoise (:obj:`float`, array-like):
 
         darkcurrent (:noise (:
+
+        adderr: float, default = 0.01
+            Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
+            S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
+
     objframe : ndarray, optional
       Model of object counts
     Returns
@@ -865,7 +871,9 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
         _darkcurr = 0 if darkcurr is None else darkcurr
         if exptime is not None:
             _darkcurr *= exptime/3600.
-        return np.abs(sciframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise + _darkcurr
+        var = np.abs(sciframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise + _darkcurr
+        var = var + adderr**2*(np.abs(sciframe))**2
+        return var
 
     # TODO: There's some complicated logic here.  Why is objframe
     # needed?  Can't a users just use objframe in place of sciframe and
@@ -874,7 +882,9 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
 
     # ToDO JFH: shouldn't dark current be added here as well??
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
-    return np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
+    var = np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
+    var = var + adderr ** 2 * (np.abs(sciframe)) ** 2
+    return
 
 
 

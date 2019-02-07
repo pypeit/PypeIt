@@ -524,7 +524,7 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
     nsamp = 150
     half_bin = (maxx - minx)/nsamp/2.0
     if ylim is None:
-        ymax = np.fmax(1.5*model.max(), 0.3)
+        ymax = np.fmax(1.5*model.max(), 0.1)
         ymin = np.fmin(-0.1*ymax, -0.05)
         ylim = (ymin, ymax)
     plot_mid = (np.arange(nsamp) + 0.5)/nsamp*(maxx - minx) + minx
@@ -578,10 +578,10 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
     return
 
 
-def return_gaussian(sigma_x, norm_obj, inmask, fwhm, med_sn2, obj_string, show_profile,
+def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
                     ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
 
-    profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0 * np.pi)*(sigma_x ** 2 < 25.)*inmask
+    profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0 * np.pi)*(sigma_x ** 2 < 25.)
     info_string = "FWHM=" + "{:6.2f}".format(fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
     title_string = obj_string + ', ' + info_string
     msgs.info(title_string)
@@ -590,9 +590,7 @@ def return_gaussian(sigma_x, norm_obj, inmask, fwhm, med_sn2, obj_string, show_p
     if (ninf != 0):
         msgs.warn("Nan pixel values in object profile... setting them to zero")
         profile_model[inf] = 0.0
-    # JFH This normalization causes problems in cases where there is significant masking and anyway, the Gaussian
-    # formula above is already normalized. The only deviation coming from the truncation at sigma_x > 5.0
-    # Normalize profile
+    # JFH Not sure we need this normalization.
     #nspat = profile_model.shape[1]
     #norm_spec = np.sum(profile_model, 1)
     #norm = np.outer(norm_spec, np.ones(nspat))
@@ -604,8 +602,8 @@ def return_gaussian(sigma_x, norm_obj, inmask, fwhm, med_sn2, obj_string, show_p
     return profile_model
 
 
-def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
-                inmask = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, wvmnx = (2900.0,30000.0),
+def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
+                inmask = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, #, wvmnx = (2900.0,30000.0),
                 maskwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
                 show_profile = False):
 
@@ -670,9 +668,9 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
      """
 
     if inmask is None:
-        inmask = (ivar > 0.0)
+        inmask = (ivar > 0.0) & thismask
 
-    totmask = inmask & (ivar > 0.0)
+    totmask = inmask & (ivar > 0.0) & thismask
 
     if maskwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
@@ -685,7 +683,7 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     nspec = image.shape[0]
 
     # dspat is the spatial position along the image centered on the object trace
-    dspat = (spat_img - np.outer(trace_in, np.ones(nspat)))*totmask
+    dspat = (spat_img - np.outer(trace_in, np.ones(nspat)))
     # create some images we will need
     sn2_img = np.zeros((nspec,nspat))
     spline_img = np.zeros((nspec,nspat))
@@ -693,23 +691,24 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     flux_sm = scipy.ndimage.filters.median_filter(flux, size=5, mode = 'reflect')
     fluxivar_sm0 =  scipy.ndimage.filters.median_filter(fluxivar, size = 5, mode = 'reflect')
     fluxivar_sm0 = fluxivar_sm0*(fluxivar > 0.0)
+    wave_min = waveimg[thismask].min()
+    wave_max = waveimg[thismask].max()
 
     # This adds an error floor to the fluxivar_sm, preventing too much rejection at high-S/N (i.e. standard stars)
     adderr = 0.01
     gmask = fluxivar_sm0 > 0
     fluxivar_sm =gmask/(1.0/(fluxivar_sm0 + np.invert(gmask)) + adderr**2*(np.abs(flux_sm))**2)
-    indsp = (wave > wvmnx[0]) & (wave < wvmnx[1]) & \
+    indsp = (wave >= wave_min) & (wave <= wave_max) & \
              np.isfinite(flux_sm) & \
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
-    b_answer, bmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    b_answer, bmask2  = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask, kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    b_answer, bmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
+                                     kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    b_answer, bmask2  = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
+                                     kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
+    c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
+                                     kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
-    try:
-        cont_flux, _ = c_answer.value(wave[indsp])
-    except:
-        from IPython import embed
-        embed()
+    cont_flux, _ = c_answer.value(wave[indsp])
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)
@@ -719,18 +718,18 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     else:
         med_sn2 = 0.0
 
-    min_wave = np.min(wave[indsp])
-    max_wave = np.max(wave[indsp])
+    #min_wave = np.min(wave[indsp])
+    #max_wave = np.max(wave[indsp])
     spline_flux1 = np.zeros(nspec)
     cont_flux1 = np.zeros(nspec)
     sn2_1 = np.zeros(nspec)
-    ispline = (wave >= min_wave) & (wave <= max_wave)
+    ispline = (wave >= wave_min) & (wave <= wave_max)
     spline_tmp, _ = b_answer.value(wave[ispline])
     spline_flux1[ispline] = spline_tmp
     cont_tmp, _ = c_answer.value(wave[ispline])
     cont_flux1[ispline] = cont_tmp
     isrt = np.argsort(wave[indsp])
-    s2_1_interp = scipy.interpolate.interp1d((wave[indsp])[isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 'extrapolate')
+    s2_1_interp = scipy.interpolate.interp1d(wave[indsp][isrt], sn2[isrt],assume_sorted=False, bounds_error=False,fill_value = 0.0)
     sn2_1[ispline] = s2_1_interp(wave[ispline])
     bmask = np.zeros(nspec,dtype='bool')
     bmask[indsp] = bmask2
@@ -742,11 +741,12 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
 
     sn2_med_filt = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
     if np.any(totmask):
-        sn2_interp = scipy.interpolate.interp1d((wave[indsp])[isrt],sn2_med_filt[isrt],assume_sorted=False,
+        sn2_interp = scipy.interpolate.interp1d(wave[indsp][isrt],sn2_med_filt[isrt],assume_sorted=False,
                                                 bounds_error=False,fill_value = 'extrapolate')
         sn2_img[totmask] = sn2_interp(waveimg[totmask])
     else:
-        msgs.error('Entire ')
+        msgs.warn('All pixels are masked')
+
     msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
     if(med_sn2 <= 2.0):
@@ -761,18 +761,21 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
         nbad1 = np.sum(indbad1)
         if(nbad1 > 0):
             spline_flux1[indbad1] = cont_flux1[indbad1]
-        indbad2 = badpix & ~goodval
+        indbad2 = badpix & np.invert(goodval)
         nbad2 = np.sum(indbad2)
-        ngood0 = np.sum(~badpix)
+        ngood0 = np.sum(np.invert(badpix))
         if((nbad2 > 0) or (ngood0 > 0)):
-            spline_flux1[indbad2] = np.median(spline_flux1[~badpix])
+            spline_flux1[indbad2] = np.median(spline_flux1[np.invert(badpix)])
         # take a 5-pixel median to filter out some hot pixels
         spline_flux1 = scipy.ndimage.filters.median_filter(spline_flux1,size=5,mode ='reflect')
 
         # Create the normalized object image
         if np.any(totmask):
-            isrt = np.argsort(wave)
-            spline_img_interp = scipy.interpolate.interp1d(wave[isrt],spline_flux1[isrt],assume_sorted=False,
+            igd = (wave >= wave_min) & (wave <= wave_max)
+            isrt1 = np.argsort(wave[igd])
+            #plt.plot(wave[igd][isrt1], spline_flux1[igd][isrt1])
+            #plt.show()
+            spline_img_interp = scipy.interpolate.interp1d(wave[igd][isrt1],spline_flux1[igd][isrt1],assume_sorted=False,
                                                            bounds_error=False,fill_value = 'extrapolate')
             spline_img[totmask] = spline_img_interp(waveimg[totmask])
         else:
@@ -790,14 +793,13 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     xtemp = (np.cumsum(np.outer(4.0 + np.sqrt(np.fmax(sn2_1, 0.0)),np.ones(nspat)))).reshape((nspec,nspat))
     xtemp = xtemp/xtemp.max()
 
-
     sigma = np.full(nspec, thisfwhm/2.3548)
     fwhmfit = sigma*2.3548
     trace_corr = np.zeros(nspec)
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
     # sigma_x represents the profile argument, i.e. (x-x0)/sigma
-    sigma_x = (dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat)))*totmask
+    sigma_x = (dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat)))
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
@@ -899,7 +901,7 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     sigma_iter = 3
     isort = (xtemp.flat[si[inside]]).argsort()
     inside = si[inside[isort]]
-    pb =np.ones(inside.size)
+    pb = np.ones(inside.size)
 
     for iiter in range(1,sigma_iter + 1):
         mode_zero, _ = bset.value(sigma_x.flat[inside])
@@ -1011,8 +1013,8 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
     sigma_x_igood = sigma_x.flat[igood]
     yfit_out, _  = bset.value(sigma_x_igood)
     full_bsp[igood] = yfit_out
-    isrt = sigma_x_igood.argsort()
-    (peak, peak_x, lwhm, rwhm) = findfwhm(yfit_out[isrt] - median_fit, sigma_x_igood[isrt])
+    isrt2 = sigma_x_igood.argsort()
+    (peak, peak_x, lwhm, rwhm) = findfwhm(yfit_out[isrt2] - median_fit, sigma_x_igood[isrt2])
 
 
     left_bool = (((full_bsp[ss] < (min_level+median_fit)) & (sigma_x.flat[ss] < peak_x)) | (sigma_x.flat[ss] < (peak_x-limit)))[::-1]
@@ -1115,13 +1117,6 @@ def fit_profile(image, ivar, waveimg, spat_img, trace_in, wave, flux, fluxivar,
         qa_fit_profile(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp,
                        l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma, title = title_string)
 
-#        p_show_profile = multiprocessing.Process(target=qa_fit_profile, args=(sigma_x, norm_obj/(pb + (pb == 0.0)), full_bsp),
-#                                 kwargs={'l_limit': l_limit, 'r_limit': r_limit, 'title': title_string, 'ind': ss[inside],
-#                                         'xlim': prof_nsigma})
-#        p_show_profile.daemon = True
-#        p_show_profile.start()
-
-#    return (profile_model, xnew, fwhmfit, med_sn2, p_show_profile)
     return (profile_model, xnew, fwhmfit, med_sn2)
 
 

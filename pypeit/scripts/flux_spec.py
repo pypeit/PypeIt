@@ -93,7 +93,6 @@ def parser(options=None):
 def main(args, unit_test=False):
     """ Runs fluxing steps
     """
-    import pdb
     import os
     import numpy as np
 
@@ -138,7 +137,7 @@ def main(args, unit_test=False):
         # Sensitivity
         _ = FxSpec.generate_sensfunc()
         # Output
-        _ = FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=par['fluxcalib']['sensfunc'])
+        _ = FxSpec.save_sens_dict(FxSpec.sens_dict, par['fluxcalib']['sensfunc'])
         # Show
         if args.plot:
             FxSpec.show_sensfunc()

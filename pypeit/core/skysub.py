@@ -449,7 +449,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
                          spat_pix = None, bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
                          niter=4, box_rad = 7, sigrej = 3.5, bkpts_optimal=True, sn_gauss = 4.0,
-                         model_full_slit=False, model_noise = True,
+                         model_full_slit=False, model_noise=True, adderr = 0.01,
                          debug_bkpts = False, show_profile=False, show_resids=False):
 
     """Perform local sky subtraction and  extraction
@@ -478,8 +478,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
      spat_pix: float ndarray, shape (nspec, nspat)
          Image containing the spatial location of pixels. If not input,
          it will be computed via spat_img = np.outer(np.ones(nspec), np.arange(nspat))
-
-
+     adderr: float, default = 0.01
+         Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
+         S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
      bsp:
      inmask:
      extract_maskwidth: float, default = 4.0
@@ -655,7 +656,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # If the extraction is bad do not update
                     if sobjs[iobj].optimal['MASK'].any():
                         flux = sobjs[iobj].optimal['COUNTS']
-                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR']
+                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR']*sobjs[iobj].optimal['MASK']
                         wave = sobjs[iobj].optimal['WAVE']
 
                 obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slitid) + ', iter # {:}'.format(iiter) + ':'
@@ -663,7 +664,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     sign = sobjs[iobj].sign
                     # TODO This is "sticky" masking. Do we want it to be?
                     profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
-                        sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix],spat_pix[ipix], sobjs[iobj].trace_spat,
+                        sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].trace_spat,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
                         thisfwhm=sobjs[iobj].fwhm, maskwidth=sobjs[iobj].maskwidth,
                         prof_nsigma=sobjs[iobj].prof_nsigma,sn_gauss=sn_gauss, obj_string = obj_string,
@@ -730,6 +731,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 #  so no need to re-model the variance.
                 if model_noise:
                     var = np.abs(sky_bmodel + obj_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
+                    var = var + adderr**2*(np.abs(sky_bmodel + obj_bmodel))**2
                     modelivar.flat[isub] = (var > 0.0) / (var + (var == 0.0))
                     #varnoobj.flat[isub] = var_no
                 # Now do some masking based on this round of model fits

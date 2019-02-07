@@ -409,10 +409,14 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
     sciivar = utils.calc_ivar(var_list_out[0])
 
+    # Now interpolate the waveimg and dspat images
+    from IPython import embed
+    embed()
+
+
     wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]
     wave_min = wave_bins[:-1]
     wave_max = wave_bins[1:]
-
     dspat_mid = ((dspat_bins + np.roll(dspat_bins,1))/2.0)[1:]
     coadd_dict = dict(wave_bins=wave_bins, dspat_bins=dspat_bins,
                       wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max, dspat_mid=dspat_mid,

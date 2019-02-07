@@ -66,6 +66,9 @@ class FluxSpec():
     # Frametype is a class attribute
     frametype = 'sensfunc'
 
+    # TODO THis is a BAD CODING!. The things that the class operates on should be arguments and the parameters
+    # should be in the parset. I really don't like to see parsets used in this way where the whole everything under the
+    # hood. It makes it impossible to understand what the code is doing.
     def __init__(self, spectrograph, par, sens_file=None, debug=False):
 
         # Init
@@ -354,8 +357,9 @@ class FluxSpec():
             msgs.warn("No sens_file found of type {:s}: {:s}".format(self.frametype, filename))
             return None
         else:
-            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
-
+            msgs.info("Loading a pre-existing sensitivity function: {:}".format(self.frametype) + " from filename: {:}".format(filename))
+            from IPython import embed
+            embed()
             hdu = fits.open(filename)
             head = hdu[0].header
             tbl = hdu['SENSFUNC'].data
@@ -369,7 +373,7 @@ class FluxSpec():
                     pass
             return sens_dict
 
-    def save_sens_dict(self, sens_dict, outfile=None):
+    def save_sens_dict(self, sens_dict, outfile):
         """
         Over-load the save_master() method in MasterFrame to write a FITS file
 
@@ -385,8 +389,8 @@ class FluxSpec():
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Allow one to over-ride output name
-        if outfile is None:
-            outfile = self.ms_name
+        #if outfile is None:
+        #    outfile = self.ms_name
         # Add steps
         self.sens_dict['steps'] = self.steps
         # Do it
@@ -416,8 +420,9 @@ class FluxSpec():
         hdulist.writeto(outfile, overwrite=True)
 
         # Finish
-        msgs.info("Wrote sensfunc to MasterFrame: {:s}".format(outfile))
+        msgs.info("Wrote sensfunc to file: {:s}".format(outfile))
 
+    # TODO Need to improve this QA, it is really not informative
     def show_sensfunc(self):
         """
         Plot the sensitivity function
@@ -430,6 +435,8 @@ class FluxSpec():
         #mag_func = utils.func_val(self.sens_dict['c'], wave, self.sens_dict['func'])
         #sens = 10.0**(0.4*mag_func)
         # Plot
+
+        # TODO not sure why you are plotting with the debugger here.
         debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):
@@ -464,10 +471,10 @@ class FluxSpec():
             specObjs = self.sci_specobjs
         else:
             msgs.error("BAD INPUT")
-        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph.pypeline,
-                                  self.spectrograph.spectrograph, outfile,
-                                  helio_dict=helio_dict,
-                                  telescope=telescope, overwrite=True)
+
+        #save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=None, overwrite=True,update_det=None)
+        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph, outfile,
+                                  helio_dict=helio_dict,overwrite=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

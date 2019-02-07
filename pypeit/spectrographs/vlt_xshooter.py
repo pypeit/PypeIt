@@ -291,6 +291,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
+        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8

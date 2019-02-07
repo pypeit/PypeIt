@@ -37,7 +37,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.15,
                             darkcurr        = 0.15,
-                            saturation      = 90000.,
+                            saturation      = 150000.,
                             nonlinear       = 0.71,
                             numamplifiers   = 1,
                             gain            = 13.5,

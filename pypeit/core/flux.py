@@ -433,7 +433,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
     else:
         masktot = inmask & (ivar_obs > 0.0) & np.isfinite(logflux_obs) & np.isfinite(ivar_obs) & \
                   np.isfinite(logflux_std) & magfunc_mask
-    logivar_obs[~masktot] = 0.
+    logivar_obs[np.invert(masktot)] = 0.0
 
     ## define a mask for fitting (both polynomial and bspline), True is good and False is masked pixel
     # TODO make this a separate function that returns the mask.
@@ -479,10 +479,12 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
                                                     grow=0, sticky=True, use_mad=True)
     magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
 
+    # TODO JFH is Polysens used?
     if polysens:
         ## If you just want a polynomial fit then just return the valuated polynomial
         magfunc = magfunc_poly.copy()
     else:
+        # TODO JFH I think this replacing the magfunc with the magfunc_poly should be done wiether or not this was a telluric
         if telluric:
             ## Using telluric free region to derive a polynomial fitting and correct the masked region.
             if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):
@@ -497,7 +499,7 @@ def get_sensfunc(wave, flux, ivar, flux_std, inmask=None, maxiter=35, upper=2, l
                 msk_clean = ((balmer_clean) | (magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
                             (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
                 magfunc[msk_clean] = magfunc_poly[msk_clean]
-                msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
+                msk_badpix = np.isfinite(ivar_obs) & (ivar_obs>0)
                 magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
             else:
                 ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
