@@ -19,7 +19,6 @@ Submodules
 
    pypeit.ararclines
    pypeit.arcimage
-   pypeit.artrace
    pypeit.biasframe
    pypeit.bitmask
    pypeit.bpmimage
@@ -27,7 +26,6 @@ Submodules
    pypeit.check_requirements
    pypeit.debugger
    pypeit.ech_coadd
-   pypeit.filter
    pypeit.flatfield
    pypeit.fluxspec
    pypeit.ginga
@@ -37,6 +35,7 @@ Submodules
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
+   pypeit.reduce
    pypeit.scienceimage
    pypeit.setup_package
    pypeit.specobjs

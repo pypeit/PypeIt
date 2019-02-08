@@ -4,6 +4,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 
 import glob
 import numpy as np
+import os
 import scipy
 
 from pkg_resources import resource_filename
@@ -15,14 +16,10 @@ from astropy.table import Table, Column
 from astropy.io import ascii
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
-from matplotlib import pyplot as plt
 
 from matplotlib import pyplot as plt
 
-try:
-    from linetools.spectra.xspectrum1d import XSpectrum1D
-except ImportError:
-    pass
+from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit.core import pydl
 from pypeit import msgs
@@ -33,6 +30,7 @@ TINY = 1e-15
 MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
+PYPEIT_FLUX_SCALE = 1e-17
 
 def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
                    spectrograph, MAX_EXTRAP=0.05):
@@ -212,7 +210,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             std_dict = dict(cal_file='Vega_04_to_06', name=star_type, fmt=1,
                             std_ra=None, std_dec=None)
             std_dict['wave'] = vega_data['col1'] * units.AA
-            std_dict['flux'] = 1e17 * vega_data['col2'] / 10**(0.4*star_mag) * \
+            std_dict['flux'] = vega_data['col2'] / 10**(0.4*star_mag) / PYPEIT_FLUX_SCALE * \
                                units.erg / units.s / units.cm ** 2 / units.AA
 
         ## using Kurucz stellar model
@@ -226,7 +224,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
                             std_ra=None, std_dec=None)
             std_dict['wave'] = star_lam * units.AA
-            std_dict['flux'] = 1e17 * star_flux * units.erg / units.s / units.cm ** 2 / units.AA
+            std_dict['flux'] = star_flux / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
             # ToDO If the Kuruck model is used, rebin create weird features
             # I using scipy interpolate to avoid this
         flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],
@@ -804,6 +802,38 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     # Return
     return extinct[['wave', 'mag_ext']]
 
+def load_filter_file(filter):
+    """
+    Load a system response curve for a given filter
+
+    Args:
+        filter (str): Name of filter
+
+    Returns:
+        ndarray, ndarray: wavelength, instrument throughput
+
+    """
+    DES_filters = ['DES_{}'.format(i) for i in ['g','r','i','z','Y']]
+    allowed_options = DES_filters
+    # Check
+    if filter not in allowed_options:
+        msgs.error("PypeIt is not ready for filter = {}".format(filter))
+    #
+    if filter[0:3] == 'DES':
+        des_file = resource_filename('pypeit', os.path.join('data', 'filters', 'STD_BANDPASSES_DES_DR1.fits'))
+        des = Table.read(des_file)
+        #
+        wave = des['LAMBDA'].data  # Angstroms
+        instr = des[filter[-1]].data  # Am keeping in atmospheric terms
+        keep = instr > 0.
+        # Parse
+        wave = wave[keep]
+        instr = instr[keep]
+    else:
+        msgs.error("Should not get here")
+    # Return
+    return wave, instr
+
 
 def load_standard_file(std_dict):
     """Load standard star data
@@ -836,7 +866,7 @@ def load_standard_file(std_dict):
         std_spec = fits.open(fil)[1].data
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
-        std_dict['flux'] = 1e17 * std_spec['FLUX'] * units.erg / units.s / units.cm ** 2 / units.AA
+        std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
     elif std_dict['fmt'] == 2: # ESO files
         std_spec = Table.read(fil, format='ascii')
         # Load
@@ -878,6 +908,71 @@ def find_standard(specobj_list):
     # Return
     return mxix
 
+def scale_in_filter(xspec, scale_dict):
+    """
+    Scale spectra to input magnitude in given filter
+
+    scale_dict has data model:
+      'filter' (str): name of filter
+      'mag' (float): magnitude
+      'mag_type' (str, optional): type of magnitude.  Assumed 'AB'
+      'masks' (list, optional): Wavelength ranges to mask in calculation
+
+    Args:
+        xspec (linetools.spectra.xspectrum1d.XSpectrum1D):
+        scale_dict (dict):
+
+    Returns:
+        linetools.spectra.xspectrum1d.XSpectrum1D:  Scaled spectrum
+
+    """
+    # Parse the spectrum
+    sig = xspec.sig
+    gdx = sig > 0.
+    wave = xspec.wavelength.value[gdx]
+    flux = xspec.flux.value[gdx]
+
+    # Mask further?
+    if 'masks' in scale_dict:
+        gdp = np.ones_like(wave, dtype=bool)
+        for mask in scale_dict['masks']:
+            bad = (wave > mask[0]) & (wave < mask[1])
+            gdp[bad] = False
+        # Cut again
+        wave = wave[gdp]
+        flux = flux[gdp]
+
+    if 'mag_type' in scale_dict:
+        mag_type = scale_dict['mag_type']
+    else:
+        mag_type = 'AB'
+
+    # Grab the instrument response function
+    fwave, trans = load_filter_file(scale_dict['filter'])
+    tfunc = scipy.interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
+
+    # Convolve
+    allt = tfunc(wave)
+    wflam = np.sum(flux*allt) / np.sum(allt) * PYPEIT_FLUX_SCALE * units.erg/units.s/units.cm**2/units.AA
+
+    mean_wv = np.sum(fwave*trans)/np.sum(trans) * units.AA
+
+    #
+    if mag_type == 'AB':
+        # Convert flam to AB magnitude
+        fnu = wflam * mean_wv**2 / constants.c
+        # Apparent AB
+        AB = -2.5 * np.log10(fnu.to('erg/s/cm**2/Hz').value) - 48.6
+        # Scale factor
+        Dm = AB - scale_dict['mag']
+        scale = 10**(Dm/2.5)
+        msgs.info("Scaling spectrum by {}".format(scale))
+        # Generate
+        new_spec = XSpectrum1D.from_tuple((xspec.wavelength, xspec.flux*scale, xspec.sig*scale))
+    else:
+        msgs.error("Need a magnitude for scaling")
+
+    return new_spec
 
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.
@@ -1087,7 +1182,8 @@ def generate_sensfunc_old(wave, counts, counts_ivar, airmass, exptime, spectrogr
             # Load standard
             load_standard_file(std_dict)
             # Interpolate onto observed wavelengths
-            std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+            #std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
+            debugger.set_trace()
             xspec = std_xspec.rebin(wave_star)  # Conserves flambda
             flux_true = xspec.flux.value
         else:

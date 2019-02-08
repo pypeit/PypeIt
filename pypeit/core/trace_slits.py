@@ -40,18 +40,22 @@ import time
 
 
 def add_user_edges(lcen, rcen, add_slits):
-    """Add user-defined slit(s)
+    """
+    Add user-defined slit(s)
 
     Warning: There is no real error checking here.
     The user is assumed to know what they are doing!
 
+    tc_dict is updated in place
+
     Args:
-        lcen (np.ndarray):
-        rcen (np.ndarray):
-        add_slits (list):
+        lcen (np.ndarray): Left traces of slit/orders
+        rcen (np.ndarray): Right traces of slit/orders
+        add_slits (list):  List of slit info for adding
+           y_spec, x_spat0, x_spat1 (int)
 
     Returns:
-        np.ndarray, np.ndarray: new lcen, rcen
+        np.ndarray, np.ndarray: new lcen, rcen arrays
 
     """
     nspec = lcen.shape[0]
@@ -61,32 +65,36 @@ def add_user_edges(lcen, rcen, add_slits):
     for new_slit in add_slits:
         msgs.info("Adding a user-defined slit [x0, x1, yrow]:  {}".format(new_slit))
         # Parse
-        xleft, xright, yrow = new_slit
+        y_spec, x_spat0, x_spat1 = new_slit
 
-        for xx, side in zip([xleft,xright], ['left', 'right']):
+        for xx, side in zip([x_spat0,x_spat1], ['left', 'right']):
             # Left
             ref_t = lcen if side == 'left' else rcen
-            ref_x = ref_t[y]
+            ref_x = ref_t[y_spec,:]
             # Find the closest
             idx = np.argmin(np.abs(xx-ref_x))
             dx = ref_x[idx]-xx
             # New trace
-            new_trace = tc_dict[side]['traces'][:,idx] - dx
-            tc_dict[side]['traces'] = np.append(tc_dict[side]['traces'], new_trace.reshape(nspec,1), axis=1)
-            # Update xval
-            tc_dict[side]['xval'] = np.append(tc_dict[side]['xval'],int(new_trace[ycen]))
+            new_trace = ref_t[:,idx] - dx
+            if side == 'left':
+                lcen = np.append(ref_t, new_trace.reshape(nspec,1), axis=1)
+            else:
+                rcen = np.append(ref_t, new_trace.reshape(nspec,1), axis=1)
 
     # Sort me
     for side in ['left', 'right']:
-        allx = tc_dict[side]['xval']
+        ref_t = lcen if side == 'left' else rcen
+        allx = ref_t[ycen,:]
         isrt = np.argsort(allx)
         # Do it
-        tc_dict[side]['xval'] = tc_dict[side]['xval'][isrt]
-        tc_dict[side]['traces'] = tc_dict[side]['traces'][:,isrt]
+        if side == 'left':
+            lcen = ref_t[:,isrt]
+        else:
+            rcen = ref_t[:,isrt]
     # Done
-    return
+    return lcen, rcen
 
-def rm_user_edges(tc_dict, rm_slits):
+def rm_user_edges(lcen, rcen, rm_slits):
     """
     Remove one or more slits, as applicable
 
@@ -94,27 +102,28 @@ def rm_user_edges(tc_dict, rm_slits):
     against the input requeest and removes any that match.
 
     Args:
-        tc_dict: dict
+        lcen (np.ndarray): Left traces of slit/orders
+        rcen (np.ndarray): Right traces of slit/orders
         rm_slits: list
-          xcen,yrow pairs
+          y_spec, x_spat pairs
 
     Returns:
-        Modifies tc_dict in place
+        np.ndarray, np.ndarray: new lcen, rcen arrays
 
     """
     # Mask me
-    good_left = np.ones_like(tc_dict['left']['xval'], dtype=bool)
-    good_right = np.ones_like(tc_dict['right']['xval'], dtype=bool)
+    good_left = np.ones(lcen.shape[1], dtype=bool)
+    good_right = np.ones(rcen.shape[1], dtype=bool)
     # Check
     if good_left.size != good_right.size:
         msgs.error("Slits need to be sync'd to use this method!")
     # Loop me
     for rm_slit in rm_slits:
         # Deconstruct
-        xcen, yrow = rm_slit
+        y_spec, xcen = rm_slit
         # Edges
-        lefts = tc_dict['left']['traces'][yrow,:]
-        rights = tc_dict['right']['traces'][yrow,:]
+        lefts = lcen[y_spec,:]
+        rights = rcen[y_spec,:]
         # Match?
         bad_slit = (lefts < xcen) & (rights > xcen)
         if np.any(bad_slit):
@@ -123,16 +132,15 @@ def rm_user_edges(tc_dict, rm_slits):
                 msgs.error("Something went horribly wrong in edge tracing")
             #
             idx = np.where(bad_slit)[0]
-            msgs.info("Removing user-supplied slit at {},{}".format(xcen,yrow))
+            msgs.info("Removing user-supplied slit at {},{}".format(xcen,y_spec))
             good_right[idx] = False
             good_left[idx] = False
-    # Finish
-    tc_dict['right']['xval'] = tc_dict['right']['xval'][good_right]
-    tc_dict['right']['traces'] = tc_dict['right']['traces'][:,good_right]
-    tc_dict['left']['xval'] = tc_dict['left']['xval'][good_left]
-    tc_dict['left']['traces'] = tc_dict['left']['traces'][:,good_left]
 
-    return
+    # Finish
+    lcen = lcen[:,good_left]
+    rcen = rcen[:,good_right]
+
+    return lcen, rcen
 
 
 def orig_add_user_edges(edgearr, siglev, tc_dict, add_slits):
@@ -654,7 +662,7 @@ def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
     # Return
     return
 
-
+'''
 def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True, verbose=False):
     """ Method to synchronize the slit edges
     Adds in extra edges according to a few criteria
@@ -779,6 +787,7 @@ def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_sli
 
     # Return
     return new_edgearr
+'''
 
 
 def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,

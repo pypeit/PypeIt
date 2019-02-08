@@ -285,7 +285,20 @@ def test_coadd():
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    coadd.coadd_spectra(dspec, wave_grid_method='concatenate')
+    spec1d = coadd.coadd_spectra(dspec, wave_grid_method='concatenate')
+    assert np.isclose(np.median(spec1d.flux.value), 1., atol=0.003)
+
+
+def test_coadd_with_fluxing():
+    """ Test full coadd method with flux scaling"""
+    scale_dict = dict(filter='DES_r', mag=19.0, mag_type='AB')
+    # Setup
+    dspec = dummy_spectra(s2n=10.)
+    dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
+    dspec.data['sig'][0, 700] *= 500.
+    spec1d = coadd.coadd_spectra(dspec, wave_grid_method='concatenate', flux_scale=scale_dict)
+    # Test
+    assert np.median(spec1d.flux.value) > 6.61
 
 
 def test_coadd_qa():

@@ -14,9 +14,7 @@ from pypeit import debugger
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
-
-    .. todo::
-        - update doc!
+    Class to generate/load the Bias image or instructions on how to deal with the bias
 
     This class is primarily designed to generate a Bias frame for bias subtraction
       It also contains I/O methods for the Master frames of PypeIt
@@ -27,33 +25,26 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # Child-specific Internals
         #    See ProcessImages for the rest
 
-    Parameters
-    ----------
-    file_list : list (optional)
-      List of filenames
-    spectrograph : str (optional)
-       Used to specify properties of the detector (for processing)
-       Attempt to set with settings['run']['spectrograph'] if not input
-    settings : dict (optional)
-      Settings for trace slits
-    master_key : str (optional)
-      Setup tag
-    det : int, optional
-      Detector index, starts at 1
-    par : ParSet
-      PypitPar['calibrations']['biasframe']
-    master_key
-    master_dir
-    mode
+    Args:
+        spectrograph : str (optional)
+           Used to specify properties of the detector (for processing)
+           Attempt to set with settings['run']['spectrograph'] if not input
+        files (list,optional): List of filenames to process
+            master_key (:obj:`str`, optional):
+                The string identifier for the instrument configuration.  See
+                :class:`pypeit.masterframe.MasterFrame`.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
+            The parameters used to type and process the arc frames.
+        master_key (:obj:`str`, optional):
+            The string identifier for the instrument configuration.  See
+            :class:`pypeit.masterframe.MasterFrame`.
+        master_dir (str, optional): Path to master frames
+        reuse_masters (bool, optional): Load from disk if possible
 
-    Attributes
-    ----------
-    frametype : str
-      Set to 'bias'
+    Attributes:
 
-    Inherited Attributes
-    --------------------
-    stack : ndarray
     """
 
     # Frame type is a class attribute
@@ -80,15 +71,14 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         Grab the bias files (as needed) and then
          process the input bias frames with ProcessImages.process()
           Avoid bias subtraction
-          Avoid trim
 
-        Parameters
-        ----------
-        overwrite : bool, optional
+        Args:
+            overwrite: (:obj: `bool`, optional):
+                Regenerate the stack image
+            trim (bool, optional): If True, trim the image
 
-        Returns
-        -------
-        stack : ndarray
+        Returns:
+            ndarray: :attr:`stack` Combined, processed image
 
         """
         # Combine
@@ -98,13 +88,17 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
     def determine_bias_mode(self, prev_build=False):
         """
+        Determine the bias mode to use in this reduction
+          - None -- No bias subtraction
+          - 'overscan' -- Overscan subtract
+          - msbias -- Use a generated bias image
 
         Args:
-            force: bool, optional
-              Force the code to attempt to load the MasterFrame
+            prev_build (bool, optional):  Load the master frame if it exists and was
+            built on this run.
 
         Returns:
-            self.msbias str, ndarray or None
+            ndarray, str or None: :attr:`msbias` str, ndarray or None
 
         """
         # How are we treating biases?
