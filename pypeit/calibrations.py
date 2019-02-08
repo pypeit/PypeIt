@@ -84,8 +84,6 @@ class Calibrations(object):
             calib group ID of the current frame
         arc_master_key
 
-
-        
     """
     __metaclass__ = ABCMeta
 
@@ -203,10 +201,9 @@ class Calibrations(object):
 
     def get_arc(self):
         """
-        Load or generate the bias frame/command
+        Load or generate the Arc image
 
         Requirements:
-          self.msbias
           master_key, det, par
 
         Args:
@@ -320,7 +317,7 @@ class Calibrations(object):
 
         """
         # Check internals
-        self._chk_set(['par'])
+        self._chk_set(['par', 'det'])
 
         # Generate a bad pixel mask (should not repeat)
         self.bpm_master_key = self.fitstbl.master_key(self.frame, det=self.det)
@@ -403,8 +400,10 @@ class Calibrations(object):
             return self.mspixflatnrm, self.msillumflat
 
         # Instantiate
-        self.flatField = flatfield.FlatField(self.spectrograph, files=pixflat_image_files,
-                                             det=self.det, par=self.par['pixelflatframe'],
+        self.flatField = flatfield.FlatField(self.spectrograph,
+                                             self.par['pixelflatframe'],
+                                             files=pixflat_image_files,
+                                             det=self.det,
                                              master_key=self.pixflat_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
@@ -498,7 +497,7 @@ class Calibrations(object):
         First, a trace flat image is generated
 
         Requirements:
-           det par master_key
+           det, par, master_key
 
         Args:
             redo (bool): Redo
@@ -774,8 +773,6 @@ class Calibrations(object):
 
         Args:
             items (list): Attributes to check
-
-        Returns:
 
         """
         for item in items:
