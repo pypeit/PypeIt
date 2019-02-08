@@ -109,7 +109,6 @@ class Calibrations(object):
         # Spectrometer class
         self.spectrograph = spectrograph
 
-
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path
         self.master_dir = masterframe.set_master_dir(self.redux_path, self.spectrograph, self.par)
@@ -339,11 +338,10 @@ class Calibrations(object):
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
 
         # Build it
-        bpmImage = self.spectrograph.bpm(shape=self.shape, det=self.det)
-        #bpmImage = bpmimage.BPMImage(self.spectrograph, self.shape, det=self.det)
-        # Build, save, and return
-        self.msbpm = bpmImage.build(filename=sci_image_files[0])
+        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_files[0], det=self.det)
+        # Record it
         self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm
+        # Return
         return self.msbpm
 
     def get_flats(self):

@@ -13,9 +13,6 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit import bpmimage
-from pypeit.pypmsgs import PypeItError
-
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.spectrographs import util
 from pypeit.core import procimg
@@ -30,8 +27,8 @@ def data_path(filename):
 def test_dummy_image():
     # Simple
     shape=(2048,2048)
-    bpmImage = bpmimage.BPMImage('shane_kast_blue', shape=shape)#, trim=False)
-    bpm = bpmImage.build()
+    spectrograph = util.load_spectrograph('shane_kast_blue')
+    bpm = spectrograph.bpm(shape=shape)#, trim=False)
     assert isinstance(bpm, np.ndarray)
     assert bpm.shape == shape
     assert np.sum(bpm) == 0
@@ -48,8 +45,7 @@ def test_keck_lris_red():
     dsec_img = spectrograph.get_datasec_img(example_file, det=2)
     shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage('keck_lris_red', shape=shape, det=2)
-    bpm = bpmImage.build(filename=example_file)
+    bpm = spectrograph.bpm(shape=shape, filename=example_file, det=2)
     assert np.sum(bpm) > 0
 
 
@@ -62,8 +58,7 @@ def test_keck_deimos():
     dsec_img = spectrograph.get_datasec_img(example_file, det=2)
     shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
     # Simple
-    bpmImage = bpmimage.BPMImage('keck_deimos', shape=shape, det=4)
-    bpm = bpmImage.build()
+    bpm = spectrograph.bpm(shape=shape,det=4)
     assert bpm[0,0] == 1
 
 
