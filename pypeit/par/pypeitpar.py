@@ -1843,7 +1843,8 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
+    def __init__(self, bspline_spacing=None, boxcar_radius=None,
+                 global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
                  no_poly=None, manual=None):
 
         # Grab the parameter names and values from the function
@@ -1871,6 +1872,11 @@ class ScienceImagePar(ParSet):
         defaults['bspline_spacing'] = 0.6
         dtypes['bspline_spacing'] = [int, float]
         descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
+
+
+        defaults['boxcar_radius'] = 1.5
+        dtypes['boxcar_radius'] = [int, float]
+        descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
 
         defaults['global_sky_std'] = True
         dtypes['global_sky_std'] = bool
@@ -1920,7 +1926,8 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'global_sky_std', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual']
+        parkeys = ['bspline_spacing', 'boxcar_radius', 'global_sky_std', 'sig_thresh', 'maxnumber', 'sn_gauss',
+                   'model_full_slit', 'no_poly', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

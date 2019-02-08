@@ -953,7 +953,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
         mode_stretch_set = mode_stretch_out[0]
         temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
-        temp_set.coeff = mode_stretch_set.coeff[0, :]
+        try:
+            temp_set.coeff = mode_stretch_set.coeff[0, :]
+        except:
+            from IPython import embed
+            embed()
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_stretch_set.coeff[1, :]
         h2, _ = temp_set.value(xx)
@@ -1413,14 +1417,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
     specobj_dict: dict, default = None
          Dictionary containing meta-data for the objects that will be propgated into the SpecObj objects, i.e. setup,
          slitid, detector, object type, and pipeline. The default is None, in which case the following dictionary will be used.
-        specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
+         specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
 
     Returns
     -------
-    fextract:   ndarray
-       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
-       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
-       the case of a single trace.
+    sobjs:   SpecoObjs object
+         Object containing the information about the objects found on the slit/order
+
 
 
     Revision History

@@ -566,7 +566,7 @@ class MultiSlit(Reduce):
     # being updated?
     def local_skysub_extract(self, sciimg, sciivar, tilts, waveimg, global_sky, rn2img, sobjs,
                              spat_pix=None, maskslits=None, model_noise=True, std = False,
-                             show_profile=False, show_resids=False, show=False):
+                             show_profile=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -625,18 +625,13 @@ class MultiSlit(Reduce):
                 inmask = (self.mask == 0) & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
-                    self.extractmask[thismask] \
-                        = skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,
-                                                      self.waveimg, self.global_sky, self.rn2img,
-                                                      thismask, self.tslits_dict['slit_left'][:,slit],
-                                                      self.tslits_dict['slit_righ'][:, slit],
-                                                      self.sobjs[thisobj], spat_pix=spat_pix,
-                                                      model_full_slit=self.redux_par['model_full_slit'],
-                                                      model_noise=model_noise,
-                                                      std = std, bsp=self.redux_par['bspline_spacing'],
-                                                      sn_gauss=self.redux_par['sn_gauss'],
-                                                      inmask=inmask, show_profile=show_profile,
-                                                      show_resids=show_resids)
+                    self.extractmask[thismask] = skysub.local_skysub_extract(
+                    self.sciimg, self.sciivar, self.tilts, self.waveimg, self.global_sky, self.rn2img,
+                    thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
+                    self.sobjs[thisobj], spat_pix=spat_pix, model_full_slit=self.redux_par['model_full_slit'],
+                    box_rad=self.redux_par['boxcar_radius']/self.spectrograph.detector[self.det-1].platescale,
+                    model_noise=model_noise, std=std, bsp=self.redux_par['bspline_spacing'],
+                    sn_gauss=self.redux_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
@@ -726,7 +721,8 @@ class Echelle(Reduce):
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
-            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp = self.redux_par['bspline_spacing'],
+            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.redux_par['bspline_spacing'],
+            box_rad_order=self.redux_par['boxcar_radius']/self.spectrograph.order_platescale(),
             sn_gauss=self.redux_par['sn_gauss'], model_full_slit=self.redux_par['model_full_slit'],
             model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
