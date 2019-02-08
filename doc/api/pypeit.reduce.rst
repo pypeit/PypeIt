@@ -1,7 +1,7 @@
-pypeit.filter module
+pypeit.reduce module
 ====================
 
-.. automodule:: pypeit.filter
+.. automodule:: pypeit.reduce
     :members:
     :undoc-members:
     :show-inheritance:

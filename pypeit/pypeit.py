@@ -13,11 +13,11 @@ import datetime
 import numpy as np
 from collections import OrderedDict
 
+from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit import scienceimage
 from pypeit import specobjs
-from pypeit import fluxspec
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import paths
@@ -26,6 +26,8 @@ from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
+from linetools import utils as ltu
+
 
 
 from configobj import ConfigObj
@@ -37,14 +39,13 @@ from pypeit import debugger
 
 class PypeIt(object):
     """
-    This class is designed to run PypeIt
+    This class runs the primary calibration and extraction in PypeIt
 
     .. todo::
         Improve docstring...
 
     Args:
-        pypeit_file (:obj:`str`,
-            Filename
+        pypeit_file (:obj:`str`):  PypeIt filename
         verbosity (:obj:`int`, optional):
             Verbosity level of system output.  Can be::
                 - 0: No output
@@ -52,6 +53,7 @@ class PypeIt(object):
                 - 2: All output
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
+        reuse_masters (bool, optional): Reuse any pre-existing calibration files
         logname (:obj:`str`, optional):
             The name of an ascii log file with the details of the
             reduction.
@@ -70,8 +72,8 @@ class PypeIt(object):
     """
 #    __metaclass__ = ABCMeta
 
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None, show=False,
-                 redux_path=None):
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
+                 show=False, redux_path=None):
 
         # Load
         cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file, runtime=True)
@@ -146,18 +148,20 @@ class PypeIt(object):
     def build_qa(self):
         """
         Generate QA wrappers
-
-        Returns:
-
         """
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
 
     def outfile_exists(self, frame):
         """
-         Returns: True if the 2d file exists
-                 False if it does not exist
+        Check whether the 2D outfile of a given frame already exists
 
+        Args:
+            frame (int): Frame index from fitstbl
+
+        Returns:
+            bool: True if the 2d file exists
+                 False if it does not exist
         """
         # Check if the 2d output file exists
         scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
@@ -166,6 +170,18 @@ class PypeIt(object):
         return os.path.isfile(outfile)
 
     def get_std_outfile(self, standard_frames):
+        """
+        Grab the output filename from an input list of standard_frame indices
+
+        If more than one index is provided, the first is taken
+
+        Args:
+            standard_frames (list): List of indices corresponding to standard stars
+
+        Returns:
+            str: Full path to the standard spec1d output file
+
+        """
         # TODO: Need to decide how to associate standards with
         # science frames in the case where there is more than one
         # standard associated with a given science frame.  Below, I
@@ -186,10 +202,9 @@ class PypeIt(object):
 
     def reduce_all(self):
         """
-        Reduce all of the science exposures
-        Generate all needed calibration files
+        Main driver of the entire reduction
 
-        Returns:
+        Calibration and extraction via a series of calls to reduce_exposure()
 
         """
         # Validate the parameter set
@@ -256,10 +271,6 @@ class PypeIt(object):
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
-            # Apply the flux calibration for this calibration group
-            # TODO: I don't think this function is written yet...
-            #self.flux_calibrate()
-
             msgs.info('Finished calibration group {0}'.format(i))
 
         # Finish
@@ -269,6 +280,10 @@ class PypeIt(object):
     def select_detectors(self):
         """
         Return the 1-indexed list of detectors to reduce.
+
+        Returns:
+            list:  List of detectors to be reduced
+
         """
         if self.par['rdx']['detnum'] is None:
             return np.arange(self.spectrograph.ndet)+1
@@ -283,12 +298,10 @@ class PypeIt(object):
             frame (:obj:`int`):
                 0-indexed row in :attr:`fitstbl` with the frame to
                 reduce
-            bgframe (:obj:`int`, optional):
-                0-indexed row in :attr:`fitstbl` with the matching background frame
-            std_frame (:obj:`int`, :obj:`str`, optional):
-                0-indexed row in :attr:`fitstbl` with a standard frame
-                associated with the frame to reduce, or the name of a
-                file with a previously PypeIt-reduced standard spectrum.
+            bgframes (:obj:`list`, optional):
+                List of frame indices for the background
+            std_outfile (:obj:`str`, optional):
+                the name of a file with a previously PypeIt-reduced standard spectrum.
 
         Returns:
             dict: The dictionary containing the primary outputs of
@@ -302,6 +315,7 @@ class PypeIt(object):
         self.frames = frames
         self.bg_frames = bg_frames
 
+        # JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
@@ -351,14 +365,15 @@ class PypeIt(object):
         return sci_dict
 
     def flexure_correct(self,sobjs,maskslits):
-        """ Correct for flexure
+        """
+        Correct for flexure
+
+        Spectra are modified in place (wavelengths are shifted)
 
         Args:
-            sobjs: SpecObjs object
-            maskslits: ndarray
+            sobjs (SpecObjs):
+            maskslits (ndarray): Mask of SpecObjs
 
-        Returns:
-            Spectra are modified in place (wavelengths are shifted)
         """
 
         if self.par['flexure']['method'] != 'skip':
@@ -373,7 +388,19 @@ class PypeIt(object):
 
 
     def helio_correct(self, sobjs, maskslits, frame, obstime):
-        """ Perform a heliocentric correction """
+        """
+        Perform a heliocentric correction on a set of spectra
+
+        Args:
+            sobjs (pypeit.specobjs.SpecObjs): Spectra
+            maskslits (ndarray): Slits that are masked
+            frame (int): Frame to use for meta info
+            obstime (astropy.time.Time):
+
+        Returns:
+            astropy.units.Quantity: Velocity correction in km/s
+
+        """
         # Helio, correct Earth's motion
         if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
                 and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
@@ -391,6 +418,22 @@ class PypeIt(object):
         return vel_corr
 
     def get_sci_metadata(self, frame, det):
+        """
+        Grab the meta data for a given science frame and specific detector
+
+        Args:
+            frame (int): Frame index
+            det (int): Detector index
+
+        Returns:
+            5 objects are returned::
+                - str: Object type;  science or standard
+                - str: Setup string from master_key()
+                - astropy.time.Time: Time of observation
+                - str: Basename of the frame
+                - str: Binning of the detector
+
+        """
 
         # Set binning, obstime, basename, and objtype
         binning = self.fitstbl['binning'][frame]
@@ -410,6 +453,15 @@ class PypeIt(object):
     def get_std_trace(self, std_redux, det, std_outfile):
         """
         Returns the trace of the standard if it is applicable to the current reduction
+
+        Args:
+            std_redux (bool): If False, proceed
+            det (int): Detector index
+            std_outfile (str): Filename for the standard star spec1d file
+
+        Returns:
+            ndarray: Trace of the standard star on input detector
+
         """
         if std_redux is False and std_outfile is not None:
             sobjs, hdr_std = load.load_specobjs(std_outfile)
@@ -441,15 +493,22 @@ class PypeIt(object):
 
         sci_ID and det need to have been set internally prior to calling this method
 
+        Args:
+            frames (list):  List of frames to extract;  stacked if more than one is provided
+            det (int):
+            bg_frames (list, optional): List of frames to use as the background
+            std_outfile (str, optional):
+
         Returns:
-            sciimg
-            sciivar
-            skymodel
-            objmodel
-            ivarmodel
-            outmask
-            sobjs
-            vel_corr
+            five objects are returned::
+                - ndarray: Science image
+                - ndarray: Science inverse variance image
+                - ndarray: Model of the sky
+                - ndarray: Model of the object
+                - ndarray: Model of inverse variance
+                - ndarray: Mask
+                - :obj:`pypeit.specobjs.SpecObjs`: spectra
+                - astropy.units.Quantity: velocity correction
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
@@ -479,8 +538,7 @@ class PypeIt(object):
         self.maskslits = self.caliBrate.maskslits.copy()
 
         self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
-                                           ir_redux = self.ir_redux,par=self.par['scienceimage'],
-                                           frame_par=self.par['scienceframe'],
+                                           ir_redux = self.ir_redux,par=self.par,
                                            objtype=self.objtype, det=det, binning=self.binning)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
@@ -520,8 +578,11 @@ class PypeIt(object):
 
             # Flexure correction if this is not a standard star
             if not self.std_redux:
-                self.flexure_correct(self.sobjs, self.maskslits)
-            self.vel_corr = self.helio_correct(self.sobjs, self.maskslits, frames[0], self.obstime)
+                self.redux.flexure_correct(self.sobjs, self.basename)
+
+            # Grab coord
+            radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
+            self.vel_corr = self.redux.helio_correct(self.sobjs, radec, self.obstime)
 
         else:
             # Print status message
@@ -560,68 +621,33 @@ class PypeIt(object):
               Save only the 1D spectra?
 
         Returns:
-            DOC!
-
-            This can return None or all_specobjs
+            None or SpecObjs:  All of the objects saved to disk
 
         """
         # TODO: Need some checks here that the exposure has been reduced
 
-        # Build the final list of specobjs and vel_corr
-        all_specobjs = specobjs.SpecObjs()
-
-        vel_corr = 0.  # This will not be set for Standard stars, which is fine
-        for key in sci_dict:
-            if key in ['meta']:
-                vel_corr = sci_dict['meta']['vel_corr']
-                continue
-            #
-            try:
-                all_specobjs.add_sobj(sci_dict[key]['specobjs'])
-            except KeyError:  # No object extracted
-                continue
-
-        if len(all_specobjs) == 0:
-            msgs.warn('No objects to save!')
-            return
-
-        # Write 1D spectra
-        outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],'spec1d_{:s}.fits'.format(basename))
-        helio_dict = dict(refframe='pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
-            self.caliBrate.par['wavelengths']['frame'],vel_correction=vel_corr)
-        # Did the user re-run a single detector?
-        save.save_1d_spectra_fits(all_specobjs, self.fitstbl[frame], self.spectrograph.pypeline,
-                                  self.spectrograph.spectrograph, outfile,
-                                  helio_dict=helio_dict, telescope=self.spectrograph.telescope,
-                                  update_det=self.par['rdx']['detnum'])
-        # 1D only?
-        if only_1d:
-            return
-        # Obj info
-        scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
-        save.save_obj_info(all_specobjs, self.spectrograph, basename, scidir, binning=self.fitstbl['binning'][frame])
-        # Write 2D images for the Science Frame
+        # Determine the headers
+        head1d = self.fitstbl[frame]
         # Need raw file header information
-        # TODO: Why is the raw file header needed?  Can the data be
-        # gotten from fitstbl?  If not, is it worth adding the relevant
-        # information to fitstbl?
         rawfile = self.fitstbl.frame_paths(frame)
-        # TODO: Make sure self.det is correct!
-        #master_key = self.fitstbl.master_key(frame, det=self.det)
-        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
-        save.save_2d_images(sci_dict, rawfile, self.spectrograph.primary_hdrext,
-                            self.caliBrate.master_key_dict, self.caliBrate.master_dir, outfile,
-                            update_det=self.par['rdx']['detnum'])
-        return all_specobjs
+        head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext,)
+        refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
+            self.caliBrate.par['wavelengths']['frame']
+
+        # Determine the paths/filenames
+        scipath = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+
+        save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir, self.spectrograph,
+                      head1d, head2d, scipath, basename, only_1d=only_1d, refframe=refframe,
+                      update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
+
+        return
 
 
 
     def msgs_reset(self):
         """
         Reset the msgs object
-
-        Returns:
-
         """
 
         # Reset the global logger
@@ -631,9 +657,6 @@ class PypeIt(object):
     def print_end_time(self):
         """
         Print the elapsed time
-
-        Returns:
-
         """
         # Capture the end time and print it to user
         tend = time.time()
@@ -654,9 +677,6 @@ class PypeIt(object):
     def show_science(self):
         """
         Simple print of science frames
-
-        Returns:
-
         """
         indx = self.fitstbl.find_frames('science')
         print(self.fitstbl[['target','ra','dec','exptime','dispname']][indx])
@@ -665,26 +685,4 @@ class PypeIt(object):
         # Generate sets string
         return '<{:s}: pypeit_file={}>'.format(self.__class__.__name__, self.pypeit_file)
 
-#
-# def instantiate_me(spectrograph, pypeit_file, **kwargs):
-#     """
-#     Instantiate the PypeIt subclass appropriate for the provided
-#     spectrograph.
-#
-#     The class must be subclassed from PypeIt.  See :class:`PypeIt` for
-#     the description of the valid keyword arguments.
-#
-#     Args:
-#         spectrograph
-#             (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-#             The instrument used to collect the data to be reduced.
-#
-#     Returns:
-#         :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
-#         base.
-#     """
-#     indx = [ c.__name__ == spectrograph.pypeline for c in PypeIt.__subclasses__() ]
-#     if not np.any(indx):
-#         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-#     return PypeIt.__subclasses__()[np.where(indx)[0][0]](pypeit_file, **kwargs)
-#
+

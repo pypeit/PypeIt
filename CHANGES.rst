@@ -1,5 +1,8 @@
 0.9.2dev
 --------
+- Many doc string updates in top level routines (not core)
+- Updates to install and cookbook docs
+- Continued the process of requiring spectrograph and par in each base class
 
 
 0.9.1 (4 Feb 2019)

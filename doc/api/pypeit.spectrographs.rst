@@ -23,6 +23,7 @@ Submodules
    pypeit.spectrographs.spectrograph
    pypeit.spectrographs.tng_dolores
    pypeit.spectrographs.util
+   pypeit.spectrographs.vlt_fors
    pypeit.spectrographs.vlt_xshooter
    pypeit.spectrographs.wht_isis
 

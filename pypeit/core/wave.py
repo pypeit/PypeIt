@@ -18,7 +18,6 @@ from astropy.coordinates import UnitSphericalRepresentation, CartesianRepresenta
 from astropy.time import Time
 
 from linetools.spectra import xspectrum1d
-from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit.core import arc
@@ -432,45 +431,44 @@ def flexure_obj_oldbuggyversion(specobjs, maskslits, method, sky_spectrum, sky_f
 
 
 
-def geomotion_calculate(fitstbl, idx, time, longitude, latitude, altitude, refframe):
+def geomotion_calculate(radec, time, longitude, latitude, elevation, refframe):
     """
     Correct the wavelength calibration solution to the desired reference frame
     """
-    loc = (longitude * units.deg, latitude * units.deg, altitude * units.m,)
-    # Grab coord
-    radec = ltu.radec_to_coord((fitstbl["ra"][idx], fitstbl["dec"][idx]))
+
     # Time
+    loc = (longitude * units.deg, latitude * units.deg, elevation * units.m,)
     obstime = Time(time.value, format=time.format, scale='utc', location=loc)
     return geomotion_velocity(obstime, radec, frame=refframe)
 
 
-def geomotion_correct(specObjs, maskslits, fitstbl, scidx, time, longitude, latitude, elevation,
-                      refframe):
-    """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
+def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
+                      elevation, refframe):
+    """
+    Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 
-    Parameters
-    ----------
-    specObjs : SpecObjs object
-    maskslits
-    fitstbl : Table/PypeItMetaData
-      Containing the properties of every fits file
-    scidx
-    time
-    settings_mosaic
-    refframe
+    Args:
+        specObjs (SpecObjs object):
+        radec (astropy.coordiantes.SkyCoord):
+        time (:obj:`astropy.time.Time`):
+        maskslits
+        fitstbl : Table/PypeItMetaData
+          Containing the properties of every fits file
+        longitude (float): deg
+        latitude (float): deg
+        elevation (float): m
+        refframe (str):
 
-    Returns
-    -------
-    vel : float
-      The velocity correction that should be applied to the wavelength array.
-    vel_corr : float
-      The relativistic velocity correction that should be multiplied by the
-      wavelength array to convert each wavelength into the user-specified
-      reference frame.
+    Returns:
+        Two objects are returned::
+            - float: - The velocity correction that should be applied to the wavelength array.
+            - float: The relativistic velocity correction that should be multiplied by the
+                  wavelength array to convert each wavelength into the user-specified
+                  reference frame.
 
     """
     # Calculate
-    vel = geomotion_calculate(fitstbl, scidx, time, longitude, latitude, elevation, refframe)
+    vel = geomotion_calculate(radec, time, longitude, latitude, elevation, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
     gdslits = np.where(~maskslits)[0]
@@ -619,7 +617,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
     # Grab the named of the method
     method = inspect.stack()[0][3]
     #
-    gdslits = np.where(~maskslits)[0]
+    gdslits = np.where(np.invert(maskslits))[0]
 
     # Loop over slits, and then over objects here
     for slit in gdslits:

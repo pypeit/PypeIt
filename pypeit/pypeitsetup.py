@@ -150,7 +150,7 @@ class PypeItSetup(object):
     @classmethod
     def from_pypeit_file(cls, filename):
         """
-        Instantiate the :class:`PypitSetup` object using a pypeit file.
+        Instantiate the :class:`PypeitSetup` object using a pypeit file.
 
         Args:
             filename (str):
@@ -159,7 +159,7 @@ class PypeItSetup(object):
                 found `here`_ (include doc link).
         
         Returns:
-            :class:`PypitSetup`: The instance of the class.
+            :class:`PypeitSetup`: The instance of the class.
         """
         cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(filename)
         return cls(data_files, frametype=frametype, usrdata=usrdata, setups=setups,
@@ -220,12 +220,13 @@ class PypeItSetup(object):
         Write a vanilla PypeIt file.
 
         Args:
-            pypeit_file: str
+            pypeit_file (str):
               Name of PypeIt file
-            root: str
-            spectrograph: str
+            root (str):
+            spectrograph (str):
               Name of spectrograph
-            extension: str, optional
+            extension (str, optional):
+              File extension
 
         Returns:
 
@@ -265,7 +266,7 @@ class PypeItSetup(object):
         Returns:
             :obj:`astropy.table.Table`: Table with the metadata for each
             fits file to reduce.  Note this is different from
-            :attr:`fitstbl`.
+            :attr:`fitstbl` which is a :obj:`PypeItMetaData` object
         """
         # Build and sort the table
         self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
@@ -282,32 +283,17 @@ class PypeItSetup(object):
 
     def match_ABBA(self):
         """
-          Matches science frames to their partner A/B frame
-          Mainly a wrapper to arsort.match_ABBA()
+        Matches science frames to their partner A/B frame
+        Mainly a wrapper to arsort.match_ABBA()
 
-        Returns
-        -------
-        self.fitstbl -- Updated with 'AB_frame' column
+        Returns:
+            :obj:`PypeItMetaData`: self.fitstbl -- Updated with 'AB_frame' column
 
         """
         self.fitstbl.match_ABBA()
         self.steps.append(inspect.stack()[0][3])
         return self.fitstbl
 
-#    def match_to_science(self, setup_only=False):
-#        """
-#          Matches calibration frames to the Science
-#          Mainly a wrapper to arsort.match_to_science()
-#
-#        Returns
-#        -------
-#        self.fitstbl -- Updated with 'sci_ID' and 'failures' columns
-#
-#        """
-#        self.fitstbl.match_to_science(self.par['calibrations'], self.par['rdx']['calwin'],
-#                                      self.par['fluxcalib'], setup=setup_only)
-#        self.steps.append(inspect.stack()[0][3])
-#        return self.fitstbl
 
     def get_frame_types(self, flag_unknown=False, use_header_id=False):
         """
@@ -325,7 +311,9 @@ class PypeItSetup(object):
             flag_unknown (:obj:`bool`, optional):
                 Allow for frames to have unknown types instead of
                 crashing.  This should be True for initial setup and
-                False otherwise.
+                False otherwise.  Passed to get_frame_types()
+            use_header_id (bool, optional):
+                Passed to get_frame_types()
 
         """
         # Use PypeItMetaData methods to get the frame types
@@ -336,23 +324,16 @@ class PypeItSetup(object):
 
     def load_metadata(self, fits_file):
         """
-          Load the fitstbl from disk (a binary FITS table)
+        Load the fitstbl from disk (a binary FITS table)
 
-        Parameters
-        ----------
-        fits_file : str
+        Args:
+            fits_file (str):  Name of PypeItMetaData file
 
-        Returns
-        -------
-        self.fitstbl
+        Returns:
+            obj:`PypeItMetaData`: The so-called fitstbl
 
         """
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, data=Table.read(fits_file))
-#        # Need to convert bytestrings back to unicode
-#        try:
-#            self.fitstbl.convert_bytestring_to_unicode()
-#        except:
-#            pass
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl.table
 
@@ -389,7 +370,6 @@ class PypeItSetup(object):
         self.fitstbl.write(ofile,
                            #columns=None if format is None else self.spectrograph.pypeit_file_keys(),
                            format=format, overwrite=True)
-
 
     def run(self, setup_only=False, calibration_check=False,
             use_header_id=False, sort_dir=None, write_bkg_pairs=False):
@@ -435,11 +415,11 @@ class PypeItSetup(object):
                 The directory to put the '.sorted' file.
 
         Returns:
-            :class:`pypeit.par.pypeitpar.PypitPar`,
+            :class:`pypeit.par.pypeitpar.PypeItPar`,
             :class:`pypeit.spectrographs.spectrograph.Spectrograph`,
-            :class:`astropy.table.Table`, dict: Returns the attributes
-            :attr:`par`, :attr:`spectrograph`, :attr:`fitstbl`, and
-            :attr:`setup_dict`.  If running with `setup_only` or
+            :class:`astropy.table.Table`: Returns the attributes
+            :attr:`par`, :attr:`spectrograph`, :attr:`fitstbl`
+            If running with `setup_only` or
             `calibrations_check`, these are all returned as `None`
             values.
         """
@@ -449,7 +429,6 @@ class PypeItSetup(object):
         # Build fitstbl
         if self.fitstbl is None:
             self.build_fitstbl(strict=not setup_only)#, bkg_pairs=bkg_pairs)
-        #debugger.set_trace()
 
         # File typing
         self.get_frame_types(flag_unknown=setup_only or calibration_check,
@@ -472,14 +451,8 @@ class PypeItSetup(object):
         #self.fitstbl.calib_to_science()
         self.fitstbl['failures'] = False                    # TODO: placeholder
 
-#        # Match calibs to science
-#        self.match_to_science(setup_only=setup_only)
-
 #        if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
 #            self.match_ABBA()
-
-        # Write metadata
-        #self.write_metadata(sort_dir=sort_dir)
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
@@ -491,16 +464,6 @@ class PypeItSetup(object):
             self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
 
-            '''
-            # Write the setup file
-            #setup_file = self.spectrograph.spectrograph + '.setups' \
-            #                    if pypeit_file is None or len(pypeit_file) == 0 \
-            #                    else pypeit_file.replace('.pypeit', '.setups')
-            #if sort_dir is not None:
-            #    setup_file = os.path.join(sort_dir, os.path.split(setup_file)[1])
-            # TODO: I want to simplify this
-            #self.fitstbl.write_setups(setup_file)
-            '''
         else:
             # Write the calib file
             calib_file = self.spectrograph.spectrograph + '.calib' \
@@ -511,7 +474,7 @@ class PypeItSetup(object):
             self.fitstbl.write_calib(calib_file)
 
         # Finish (depends on PypeIt run mode)
-        # TODO: Do we need this functionality
+        # TODO: Do we need this functionality?
         if calibration_check:
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")

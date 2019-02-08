@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Utility functions for PypIt parameter sets
+Utility functions for PypeIt parameter sets
 """
 
 from __future__ import division
@@ -16,7 +16,6 @@ import textwrap
 import sys
 if sys.version > '3':
     long = int
-from pkg_resources import resource_filename
 
 try:
     basestring
@@ -35,31 +34,6 @@ from pypeit import debugger
 #-----------------------------------------------------------------------
 # Parameter utility functions
 #-----------------------------------------------------------------------
-# TODO: This should go in a different module, or in __init__
-def pypeit_root_directory():
-    """
-    Get the root directory for the PYPIT source distribution.
-
-    .. todo::
-        - Set this in __init__.py
-
-    Returns:
-        str: Root directory to PYPIT
-
-    Raises:
-        OSError: Raised if `pkg_resources.resource_filename` fails.
-    """
-    try:
-        # Get the directory with the pypeit source code
-        code_dir = resource_filename('pypeit', '')
-    except:
-        # TODO: pypeit should always be installed as a package, so is
-        # this try/except block necessary?
-        raise OSError('Could not find PYPIT package!')
-    # Root directory is one level up from source code
-    return os.path.split(code_dir)[0]
-
-
 def _eval_ignore():
     """Provides a list of strings that should not be evaluated."""
     return [ 'open', 'file', 'dict' ]
@@ -121,32 +95,6 @@ def recursive_dict_evaluate(d):
 
     return d
 
-
-# NOT USED and causes python2 to barf in Travis
-#def merge_two_dicts(a, b):
-#    """
-#    Merge two dictionaries.
-#
-#    Values in the second dictionary take precedence over the values in
-#    the first.
-#
-#    Args:
-#        a (:obj:`dict`):
-#            Dictionary with values to be updated.
-#        b (:obj:`dict`):
-#            Dictionary to use to replace values in ``a``.
-#
-#    Returns:
-#        :obj:`dict`: Dictionary with the merged values.
-#    """
-#    try:
-#        # This is a python > 3.5 thing...
-#        return {**a, **b}
-#    except:
-#        # Assume we have to take the longer route
-#        c = a.copy()
-#        c.update(b)
-#        return c
 
 
 def get_parset_list(cfg, pk, parsetclass):
@@ -225,6 +173,13 @@ def get_parset_list(cfg, pk, parsetclass):
 def parset_to_dict(par):
     """
     Convert the provided parset into a dictionary.
+
+    Args:
+        par (ParSet):
+
+    Returns:
+        dict: Converted ParSet
+
     """
     try:
         d = dict(ConfigObj(par.to_config(section_name='tmp'))['tmp'])
@@ -269,7 +224,19 @@ def _read_pypeit_file_lines(ifile):
 
 
 def _find_pypeit_block(lines, group):
-    """Find the start and end of a pypeit file block."""
+    """
+    DEPRPECATED?
+
+    Find the PypeIt group block
+
+    Args:
+        lines (list): List of file lines
+        group (str): Name of group to parse
+
+    Returns:
+        int, int: Starting,ending line of the block;  -1 if not present
+
+    """
     start = -1
     end = -1
     for i, l in enumerate(lines):
@@ -286,7 +253,18 @@ def _find_pypeit_block(lines, group):
 
 
 def _parse_data_file_name(inp, current_path):
-    """Expand the data file name as necessary."""
+    """
+    Expand the data file name as necessary and
+    then search for all data files
+
+    Args:
+        inp (str): Path
+        current_path (str or None):
+
+    Returns:
+        list: Glob list of files in the generated a path
+
+    """
     out = os.path.expanduser(inp) if inp[0] == '~' else inp
     if current_path is not None:
         out = os.path.join(current_path, out)
@@ -294,7 +272,17 @@ def _parse_data_file_name(inp, current_path):
     
 
 def _read_data_file_names(lines, file_check=True):
-    """Read the raw data file format."""
+    """
+    Read the raw data file format
+
+    Args:
+        lines (list):
+        file_check (bool, optional):
+
+    Returns:
+        list: List of data file names
+
+    """
     # Pass through all the lines and:
     #   - Determine if a path is set
     #   - Gather the files to skip, can include wildcards
@@ -343,7 +331,7 @@ def _read_data_file_names(lines, file_check=True):
 
 def _determine_data_format(lines):
     """
-    Determine the format of the data block in the pypeit file.
+    Determine the format of the data block in the .pypeit file.
 
     The test used in this function is pretty basic.  A table format is
     assumed if the first character in *any* line is `|`.
@@ -468,16 +456,17 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
         file_check (:obj:`bool`, optional):
             Check that the files in the pypeit configuration data file
             exist, and fault if they do not.
-        runtime (:obj:`boo`, optional):
+        runtime (:obj:`bool`, optional):
             Perform additional checks if called to run PypeIt
 
     Returns:
-        :obj:`lists`: Four lists are provided:
-        (1) the list of configuration lines,
-        (2) the list of datafiles to read,
-        (3) the list of frametypes for each file, and
-        (4) the list of setup
-        lines.
+        5-element tuple containing
+
+        - list:  List of configuration lines,
+        - list:  List of datafiles to read,
+        - list:  List of frametypes for each file
+        - :obj:`astropy.table.Table`:  Table of user supplied info on data files
+        - list:  List of setup lines.
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the reduction file')
@@ -533,7 +522,14 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
 
 def pypeit_config_lines(ifile):
     """
-    Return the config lines from a pypeit file.
+    Return the config lines from a PypeIt file.
+
+    Args:
+        ifile (str): Name of PypeIt file
+
+    Returns:
+        list: List of configuration lines; will be used for ConfigObj
+
     """
     lines = _read_pypeit_file_lines(ifile)
 
@@ -556,59 +552,23 @@ def pypeit_config_lines(ifile):
     return list(lines[is_config])
     
 
-#def pypeit_file_line_groups(ifile):
-#    """
-#    Return the config, setup, and data lines from a pypeit file.
-#    """
-#    lines = _read_pypeit_file_lines(ifile)
-#
-#    # Find the config lines, assumed to be everything *except* the lines
-#    # in the data and setup blocks
-#    is_config = numpy.ones(len(lines), dtype=bool)
-#
-#    s, e = find_setting_block(lines, 'data')
-#    if s >= 0 and e < 0:
-#        msgs.error("Missing 'data end' in {0}".format(ifile))
-#    if not s < 0:
-#        is_config[s-1:e+1] = False
-#    data_lines = lines[s:e]
-#    
-#    s, e = find_setting_block(lines, 'setup')
-#    if s >= 0 and e < 0:
-#        msgs.error("Missing 'setup end' in {0}".format(ifile))
-#    if not s < 0:
-#        is_config[s-1:e+1] = False
-#    setup_lines = lines[s:e]
-#
-#    return list(lines[is_config]), list(setup_lines), list(data_lines)
-    
 
 def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
                      setup_lines=None, sorted_files=None, paths=None):
-    """ Generate a default PYPIT file
+    """
+    Generate a default PypeIt file
 
-    Parameters
-    ----------
-    pyp_file : str
-      Name of PYPIT file to be generated
-    spectrograph : str
-    dfnames : list
-      Path + file root of datafiles
-      Includes skip files
-    parlines : list, optional
-      Standard parameter calls
-    spclines : list, optional
-      Lines related to filetype and calibrations
-    setup_script : bool, optional
-      Running setup script?
-    calcheck : bool, optional
-      Run calcheck?
-    setup_mode : bool, optional
-      Running setups?
+    Args:
+        pypeit_file (str): Name of PYPIT file to be generated
+        spectrograph (str):  Name of spectrograph
+        data_files (list):  List of data files -- essentially Deprecated
+        cfg_lines (list, optional):  List of configuration lines for parameters
+        setup_mode (bool, optional):  If True, 0 out required files for everything except Arc
+        setup_lines (list, optional):
+        sorted_files (list, optional):
+        paths (list, optional): List of paths for slurping data files
 
-    Returns
-    -------
-    Creates a PYPIT File
+    Returns:
 
     """
     # Error checking

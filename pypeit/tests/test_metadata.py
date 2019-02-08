@@ -73,9 +73,9 @@ def test_lris_red_multi_run():
 
     # Test
     #assert len(ps.setup_dict) == 2, 'Should find two setups'
-    assert len(ps.fitstbl) == 40, 'Should find 40 files'
+    assert len(ps.fitstbl) >= 40, 'Should find 40+ files'
     arcs = ps.fitstbl['filename'][ps.fitstbl.find_frames('arc')]
-    assert len(arcs) == 2, 'Should find two arcs'
+    assert len(arcs) >= 2, 'Should find two or more arcs'
     assert 'r170320_2017.fits.gz' in arcs, \
             'Should have identified r170320_2017.fits.gz as an arc'
     assert 'r170816_0057.fits' in ps.fitstbl['filename'][ps.fitstbl.find_frames('science')], \

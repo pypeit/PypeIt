@@ -9,7 +9,8 @@ import os
 import pytest
 import glob
 
-from pypeit.par.util import pypeit_root_directory
+from pkg_resources import resource_filename
+
 from pypeit import spectrographs
 from pypeit.core import procimg
 
@@ -81,7 +82,7 @@ def test_kecknirspec():
 
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
-    example_file = os.path.join(pypeit_root_directory(), 'pypeit', 'tests', 'files',
+    example_file = os.path.join(resource_filename('pypeit', 'tests'), 'files',
                                 'b1.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast blue read.'
     data, _ = s.load_raw_frame(example_file)
