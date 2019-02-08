@@ -416,20 +416,22 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     wave_max = wave_bins[1:]
     dspat_mid = ((dspat_bins + np.roll(dspat_bins,1))/2.0)[1:]
 
-    # Interpolate the dspat images, since this is not allowed to have holes in it
-    dspat_orig = dspat.copy()
+    # Interpolate the dspat images wherever the coadds are masked because a given pixel was not sampled. This is done
+    # because the dspat image is not allowed to have holes if it is going to work with local_skysub_extract
     nspec_coadd, nspat_coadd = imgminsky.shape
     spat_img_coadd, spec_img_coadd = np.meshgrid(np.arange(nspat_coadd), np.arange(nspec_coadd))
-    dspat_img_fake = spat_img_coadd + dspat_mid[0]
-    points_good = np.stack((spec_img_coadd[outmask], spat_img_coadd[outmask]), axis=1)
-    points_bad = np.stack((spec_img_coadd[np.invert(outmask)], spat_img_coadd[np.invert(outmask)]), axis=1)
-    values_dspat = dspat[outmask]
-    dspat_bad = scipy.interpolate.griddata(points_good, values_dspat, points_bad, method='cubic')
-    # Points outside the convex hull of the data are set to nan. We identify those and simply assume them values from
-    # the dspat_img_fake
-    dspat[np.invert(outmask)] = dspat_bad
-    nanpix = np.isnan(dspat)
-    dspat[nanpix] = dspat_img_fake[nanpix]
+    if np.any(np.invert(outmask)):
+        points_good = np.stack((spec_img_coadd[outmask], spat_img_coadd[outmask]), axis=1)
+        points_bad = np.stack((spec_img_coadd[np.invert(outmask)], spat_img_coadd[np.invert(outmask)]), axis=1)
+        values_dspat = dspat[outmask]
+        dspat_bad = scipy.interpolate.griddata(points_good, values_dspat, points_bad, method='cubic')
+        dspat[np.invert(outmask)] = dspat_bad
+        # Points outside the convex hull of the data are set to nan. We identify those and simply assume them values from
+        # the dspat_img_fake, which is what dspat would be on a regular perfectly rectified image grid.
+        nanpix = np.isnan(dspat)
+        if np.any(nanpix):
+            dspat_img_fake = spat_img_coadd + dspat_mid[0]
+            dspat[nanpix] = dspat_img_fake[nanpix]
 
     coadd_dict = dict(wave_bins=wave_bins, dspat_bins=dspat_bins,
                       wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max, dspat_mid=dspat_mid,
@@ -697,6 +699,8 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
 
     redux = reduce.instantiate_me(spectrograph, tslits_dict_psuedo, mask, ir_redux=ir_redux, par=par, objtype = 'science')
 
+    if show:
+        redux.show('image', image=imgminsky_psuedo*(mask == 0), chname = 'imgminsky', slits=True, clear=True)
     # Object finding
     sobjs_obj, nobj, skymask_init = redux.find_objects(imgminsky_psuedo, sciivar_psuedo, ir_redux=ir_redux,
                                                        show_peaks=show_peaks, show=show)
