@@ -16,6 +16,7 @@ from pypeit import specobjs
 from pypeit.core import save
 
 from pypeit.tests.tstutils import dummy_fitstbl
+from pypeit.spectrographs import util
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -62,7 +63,8 @@ def test_save2d_fits():
     outfile = data_path('') + 'spec2d_{:s}.fits'.format(basename)
     # Create a dummy master_key_dict
     master_key_dict = dict(frame='', bpm='bpmkey',bias='',arc='',trace='',flat='')
-    save.save_2d_images(sci_dict, rawfile, 0, master_key_dict, master_dir, outfile)
+    raw_hdr = fits.open(rawfile)[0].header
+    save.save_2d_images(sci_dict, raw_hdr, master_key_dict, master_dir, outfile)
     # Read and test
     head0 = fits.getheader(data_path('spec2d_test.fits'))
     assert head0['PYPMFDIR'] == master_dir
@@ -77,10 +79,11 @@ def test_save1d_fits():
     fitstbl = dummy_fitstbl(spectro_name='shane_kast_blue', directory=data_path(''))
     sobj = mk_specobj()
     specObjs = specobjs.SpecObjs([sobj])
+    spectrograph = util.load_spectrograph('shane_kast_blue')
     # Write to FITS
     basename = 'test'
     outfile = data_path('') + 'spec1d_{:s}.fits'.format(basename)
-    save.save_1d_spectra_fits(specObjs, fitstbl[5], 'MultiSlit', 'shane_kast_blue', outfile)
+    save.save_1d_spectra_fits(specObjs, fitstbl[5], spectrograph, outfile)
 
 
 # NEEDS REFACTORING

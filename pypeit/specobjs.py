@@ -62,9 +62,7 @@ class SpecObj(object):
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     # Attributes
-    # Init
 
-    # TODO
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None, idx=None,
                  slitid=999, objtype='unknown', pypeline='unknown', spat_pixpos=None, config=None):
 
@@ -156,8 +154,10 @@ class SpecObj(object):
         """
         Generate a unique index for this spectrum
 
+        Sets self.idx internally
+
         Returns:
-            str: self.idx which is defines
+            str: :attr:`self.idx`
 
         """
         # Detector string
@@ -279,16 +279,7 @@ class SpecObj(object):
         xspec.plot(xspec=True)
 
     def __getitem__(self, key):
-        """ Access the DB groups
-
-        Args:
-            key (str or int or slice):
-
-        Returns
-            item:  The item requested
-
-        """
-        # Check
+        # Access the DB groups
         return getattr(self, key)
 
     def __repr__(self):
@@ -306,6 +297,22 @@ class SpecObjs(object):
 
     Internals:
         summary (astropy.table.Table):
+
+
+    __getitem__ is overloaded to allow one to pull an attribute or a
+                portion of the SpecObjs list
+        Args:
+            item (str or int (or slice)
+        Returns:
+            item (object, SpecObj or SpecObjs):  Depends on input item..
+
+    __setitem__ is over-loaded using our custom set() method
+        Args:
+            name (str):  Item to set
+            value (anything) : Value of the item
+        Returns:
+    __getattr__ is overloaded to generate an array of attribute 'k' from the specobjs
+        First attempts to grab data from the Summary table, then the list
     """
 
     def __init__(self, specobjs=None):
@@ -498,16 +505,6 @@ class SpecObjs(object):
 
 
     def __getitem__(self, item):
-        """
-        Overload to allow one to pull an attribute
-        or a portion of the SpecObjs list
-
-        Args:
-            item (str or int (or slice)
-
-        Returns:
-            item (object, SpecObj or SpecObjs):  Depends on input item..
-        """
         if isinstance(item, str):
             return self.__getattr__(item)
         elif isinstance(item, (int, np.integer)):
@@ -522,18 +519,8 @@ class SpecObjs(object):
             return SpecObjs(specobjs=self.specobjs[item])
 
 
-    # TODO PROFX this code fails for assignments of this nature sobjs[:].attribute = np.array(5)
+    # TODO this code fails for assignments of this nature sobjs[:].attribute = np.array(5)
     def __setitem__(self, name, value):
-        """
-        Over-load set item using our custom set() method
-
-        Args:
-            name (str):  Item to set
-            value (anything) : Value of the item
-
-        Returns:
-
-        """
         self.set(slice(0,self.nobj), name, value)
 
     def set(self, islice, attr, value):
@@ -564,19 +551,7 @@ class SpecObjs(object):
 
 
     def __getattr__(self, k):
-        """ Generate an array of attribute 'k' from the specobjs
-
-        First attempts to grab data from the Summary table, then the list
-
-        Parameters
-        ----------
-        k : str
-          Attribute
-
-        Returns
-        -------
-        numpy array
-        """
+        # Overloaded
         self.build_summary()
         # Special case(s)
         if k in self.summary.keys():  # _data
