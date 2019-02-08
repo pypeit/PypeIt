@@ -137,6 +137,38 @@ def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
                   only_1d=False, refframe='heliocentric', update_det=None, binning='None'):
+    """
+    Routine to save PypeIt 1d and 2d outputs
+    Args:
+        sci_dict: dict
+            Dictionary containing extraction outputs
+        master_key_dict: dict
+            Dictionary with master key information for this reduction
+        master_dir: str
+            Directory where the master files live
+        spectrograph: object, spectrograph
+            Spectrograph object for the spectorgraph that was used
+        head1d: dict
+            fitstbl meta data dictionary that will become the header for the spec1d files
+        head2d: dict
+            rawfile header that will become the header for the spec2d files
+        scipath: str
+            path to which the outputs should be written
+        basename: str
+            the object basename
+        only_1d: bool, default = False
+            Only write out the
+        refframe: str, default = 'heliocentric'
+            Reference frame for the wavelengths
+        update_det : int or list, default=None
+            If provided, do not clobber the existing file but only update
+            the indicated detectors.  Useful for re-running on a subset of detectors
+        binning: str, default = None
+          String indicating the binning of the data
+
+    Returns:
+
+    """
 
     # Filenames to write out
     objinfofile = scipath + '/objinfo_{:s}.txt'.format(basename)

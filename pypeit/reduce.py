@@ -83,12 +83,12 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, tslits_dict, mask, ir_redux=False, det=1, objtype='science', binning=None, setup=None,
-                 par=None, maskslits=None):
+    def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1, objtype='science', binning=None,
+                 setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype
-        self.par = spectrograph.default_pypeit_par() if par is None else par
+        #self.par = spectrograph.default_pypeit_par() if par is None else par
         self.proc_par = self.par['scienceframe'] ['process']
         # TODO Rename the scienceimage arset to reduce.
         self.redux_par = self.par['scienceimage']
