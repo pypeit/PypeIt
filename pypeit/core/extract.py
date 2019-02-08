@@ -1162,19 +1162,17 @@ def parse_hand_dict(hand_extract_dict):
     nhand = hand_extract_spec.size
 
     hand_extract_fwhm = np.asarray(hand_extract_dict['hand_extract_fwhm'])
-    '''
-    hand_extract_fwhm = hand_extract_dict.get('hand_extract_fwhm')
-    if hand_extract_fwhm is not None:
-        hand_extract_fwhm = np.asarray(hand_extract_fwhm)
-        if(hand_extract_fwhm.size==hand_extract_spec.size):
-            pass
-        elif (hand_extract_fwhm.size == 1):
-            hand_extract_fwhm = np.full(nhand, hand_extract_fwhm)
-        else:
-            raise ValueError('hand_extract_fwhm must either be a number of have the same size as hand_extract_spec and hand_extract_spat')
-    else:
-        hand_extract_fwhm = np.full(nhand, None)
-    '''
+    # hand_extract_fwhm = hand_extract_dict.get('hand_extract_fwhm')
+    # if hand_extract_fwhm is not None:
+    #     hand_extract_fwhm = np.asarray(hand_extract_fwhm)
+    #     if(hand_extract_fwhm.size==hand_extract_spec.size):
+    #         pass
+    #     elif (hand_extract_fwhm.size == 1):
+    #         hand_extract_fwhm = np.full(nhand, hand_extract_fwhm)
+    #     else:
+    #         raise ValueError('hand_extract_fwhm must either be a number of have the same size as hand_extract_spec and hand_extract_spat')
+    # else:
+    #     hand_extract_fwhm = np.full(nhand, None)
     return hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm
 
 
