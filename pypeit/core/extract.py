@@ -27,6 +27,8 @@ from sklearn.decomposition import PCA
 from pypeit import specobjs
 from pypeit.core.pydl import spheregroup
 
+from pypeit import debugger
+
 # MASK VALUES FROM EXTRACTION
 # 0 
 # 2**0 = Flagged as bad detector pixel
@@ -1159,6 +1161,8 @@ def parse_hand_dict(hand_extract_dict):
         raise ValueError('hand_extract_spec, hand_extract_spat, and hand_extract_det must have the same size in the hand_extract_dict')
     nhand = hand_extract_spec.size
 
+    hand_extract_fwhm = np.asarray(hand_extract_dict['hand_extract_fwhm'])
+    '''
     hand_extract_fwhm = hand_extract_dict.get('hand_extract_fwhm')
     if hand_extract_fwhm is not None:
         hand_extract_fwhm = np.asarray(hand_extract_fwhm)
@@ -1170,8 +1174,8 @@ def parse_hand_dict(hand_extract_dict):
             raise ValueError('hand_extract_fwhm must either be a number of have the same size as hand_extract_spec and hand_extract_spat')
     else:
         hand_extract_fwhm = np.full(nhand, None)
-
-    return (hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm)
+    '''
+    return hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm
 
 
 
@@ -1668,7 +1672,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             sobjs[iobj].fwhm = fwhm
 
 
-    if (len(sobjs) == 0) & (hand_extract_dict == None):
+    if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')
         skymask = create_skymask_fwhm(sobjs,thismask)
         return (specobjs.SpecObjs(), skymask[thismask])
@@ -1676,17 +1680,18 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
 
     msgs.info('Fitting the object traces')
 
-    # Note the transpose is here to pass in the trace_spat correctly.
-    xinit_fweight = np.copy(sobjs.trace_spat.T)
-    xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
-    xinit_gweight = np.copy(xfit_fweight)
-    xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
+    if len(sobjs) > 0:
+        # Note the transpose is here to pass in the trace_spat correctly.
+        xinit_fweight = np.copy(sobjs.trace_spat.T)
+        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
+        xinit_gweight = np.copy(xfit_fweight)
+        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
 
-    # assign the final trace
-    for iobj in range(nobj_reg):
-        sobjs[iobj].trace_spat = xfit_gweight[:, iobj]
-        sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
-        sobjs[iobj].set_idx()
+        # assign the final trace
+        for iobj in range(nobj_reg):
+            sobjs[iobj].trace_spat = xfit_gweight[:, iobj]
+            sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
+            sobjs[iobj].set_idx()
 
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
@@ -1694,7 +1699,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
         # First Parse the hand_dict
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
-        hand_on_slit = thismask[int(np.rint(hand_extract_spec)),int(np.rint(hand_extract_spat))]
+        hand_on_slit = np.where(np.array(thismask[int(np.rint(hand_extract_spec)),int(np.rint(hand_extract_spat))]))[0]
         hand_extract_spec = hand_extract_spec[hand_on_slit]
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]
@@ -1739,7 +1744,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask = None, fwhm = 3.0,
             else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
                 thisobj.fwhm = fwhm
             sobjs.add_sobj(thisobj)
-
 
     nobj = len(sobjs)
     # If there are no regular aps and no hand aps, just return

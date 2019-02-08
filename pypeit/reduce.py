@@ -1,6 +1,7 @@
 
 import inspect
 import numpy as np
+import os
 
 from astropy import stats
 from abc import ABCMeta
@@ -10,6 +11,7 @@ from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.par import pypeitpar
 from matplotlib import pyplot as plt
 
+from pypeit import debugger
 
 class Reduce(object):
     """
@@ -164,17 +166,20 @@ class Reduce(object):
 
 
     def find_objects(self, image, ivar, std=False, ir_redux=False, std_trace=None, maskslits=None,
-                          show_peaks=False, show_fits=False, show_trace=False, show=False):
+                          show_peaks=False, show_fits=False, show_trace=False, show=False,
+                     sci_files=None):
 
         sobjs_obj_init, nobj_init, skymask_pos = \
             self.find_objects_pypeline(image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
-                                   show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
+                                   show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
+                                       sci_files=sci_files)
 
         # For nobj we take only the positive objects
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
-                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
+                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
+                                           sci_files=sci_files)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
@@ -489,7 +494,8 @@ class MultiSlit(Reduce):
 
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
-                              show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False):
+                              show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False,
+                              sci_files=None):
         """
         Find objects in the slits. This is currently setup only for ARMS
 
@@ -545,9 +551,27 @@ class MultiSlit(Reduce):
             # is. This will be a png file(s) per slit.
 
             sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
+            # Parse manual
+            if self.redux_par['manual'] is not None:
+                # This requires sci_files
+                if len(sci_files) > 1:  # Can only deal with one sci file or will have to think about using the first
+                    debugger.set_trace()
+                # Generate the hand_dict
+                base_sci = os.path.basename(sci_files[0])
+                hand_extract_dict = {}
+                for mex_par in self.redux_par['manual']:
+                    if base_sci == mex_par['frame']:
+                        hand_extract_dict['hand_extract_spec'] = mex_par['spec']
+                        hand_extract_dict['hand_extract_spat'] = mex_par['spat']
+                        hand_extract_dict['hand_extract_det'] = mex_par['det']
+                        hand_extract_dict['hand_extract_fwhm'] = mex_par['fwhm']
+            else:
+                hand_extract_dict = None
+
+            #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit],
-                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.redux_par['manual'],
+                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=hand_extract_dict, #self.redux_par['manual'],
                 specobj_dict=specobj_dict, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)

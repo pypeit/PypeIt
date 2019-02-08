@@ -33,6 +33,7 @@ from linetools import utils as ltu
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
+from pypeit.par import ManualExtractionPar
 from pypeit.metadata import PypeItMetaData
 
 from pypeit import debugger
@@ -99,6 +100,28 @@ class PypeIt(object):
         # Fitstbl
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
                                       usrdata=usrdata, strict=True)
+        # Deal with manual_extract -- THIS SHOULD BE DONE ELSEWHERE
+        if 'manual_extract' in self.fitstbl.keys():
+            mframes = np.where(self.fitstbl['manual_extract'] != 'None')[0]
+            # Loop
+            mext_list = []
+            for mframe in mframes:
+                # Parse the input
+                items = self.fitstbl['manual_extract'][mframe].split(';')
+                dets, spats, specs, fwhms = [], [], [], []
+                for item in items:
+                    numbers = item.split(',')
+                    dets.append(int(numbers[0]))
+                    specs.append(float(numbers[1]))
+                    spats.append(float(numbers[2]))
+                    fwhms.append(float(numbers[3]))
+                # Instantiate
+                mextpar = ManualExtractionPar(frame=self.fitstbl['filename'][mframe],
+                                              det=dets, spat=spats, spec=specs, fwhm=fwhms)
+                mext_list.append(mextpar)
+            #
+            self.par['scienceimage']['manual'] = mext_list
+
         # The following could be put in a prepare_to_run() method in PypeItMetaData
         if 'setup' not in self.fitstbl.keys():
             self.fitstbl['setup'] = setups[0]
@@ -519,7 +542,8 @@ class PypeIt(object):
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, self.fitstbl.frame_paths(frames),
+        sci_files = self.fitstbl.frame_paths(frames)
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_files,
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
                                               par=self.par['scienceframe'],
@@ -545,7 +569,7 @@ class PypeIt(object):
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(self.sciimg, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace,maskslits=self.maskslits,
-                                    show = self.show & (not self.std_redux))
+                                    show=self.show & (not self.std_redux), sci_files=sci_files)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
@@ -556,7 +580,7 @@ class PypeIt(object):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(self.sciimg - self.initial_sky, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
-                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show)
+                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show, sci_files=sci_files)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
