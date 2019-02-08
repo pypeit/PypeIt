@@ -805,7 +805,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
         msgs.info("Too few good pixels or S/N <" + "{:5.1f}".format(sn_gauss) + " or gauss flag set")
         msgs.info("Returning Gaussian profile")
-        profile_model = return_gaussian(sigma_x, norm_obj, totmask, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
+        profile_model = return_gaussian(sigma_x, norm_obj, thisfwhm, med_sn2, obj_string,show_profile,ind=good,xtrunc=7.0)
         return (profile_model, trace_in, fwhmfit, med_sn2)
 
     mask = np.full(nspec*nspat, False, dtype=bool)
@@ -894,7 +894,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     if(ninside < 10):
         msgs.info("Too few pixels inside l_limit and r_limit")
         msgs.info("Returning Gaussian profile")
-        profile_model = return_gaussian(sigma_x, norm_obj, totmask, bspline_fwhm, med_sn2, obj_string,show_profile,
+        profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,show_profile,
                                                           ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
         return (profile_model, trace_in, fwhmfit, med_sn2)
 
@@ -926,7 +926,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         if not np.any(mode_shift_out[1]):
             msgs.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
-            profile_model = return_gaussian(sigma_x, norm_obj, totmask, bspline_fwhm, med_sn2, obj_string,
+            profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                             show_profile, ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
@@ -947,7 +947,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         if not np.any(mode_stretch_out[1]):
             msgs.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
-            profile_model  = return_gaussian(sigma_x, norm_obj, totmask, bspline_fwhm, med_sn2, obj_string,
+            profile_model  = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                                               show_profile,ind=good, l_limit=l_limit, r_limit=r_limit, xlim=7.0)
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
@@ -982,7 +982,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             if not np.any(bset_out[1]):
                 msgs.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
                 msgs.info("Returning Gaussian profile")
-                profile_model = return_gaussian(sigma_x, norm_obj, totmask, bspline_fwhm, med_sn2, obj_string,
+                profile_model = return_gaussian(sigma_x, norm_obj, bspline_fwhm, med_sn2, obj_string,
                                                                   show_profile, ind=good, l_limit=l_limit,r_limit=r_limit, xlim=7.0)
                 return (profile_model, trace_in, fwhmfit, med_sn2)
 
