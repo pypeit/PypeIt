@@ -442,28 +442,29 @@ def geomotion_calculate(radec, time, longitude, latitude, elevation, refframe):
     return geomotion_velocity(obstime, radec, frame=refframe)
 
 
-def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude, elevation, refframe):
-    """ Correct the wavelength of every pixel to a barycentric/heliocentric frame.
+def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
+                      elevation, refframe):
+    """
+    Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 
-    Parameters
-    ----------
-    specObjs : SpecObjs object
-    maskslits
-    fitstbl : Table/PypeItMetaData
-      Containing the properties of every fits file
-    scidx
-    time
-    settings_mosaic
-    refframe
+    Args:
+        specObjs (SpecObjs object):
+        radec (astropy.coordiantes.SkyCoord):
+        time (:obj:`astropy.time.Time`):
+        maskslits
+        fitstbl : Table/PypeItMetaData
+          Containing the properties of every fits file
+        longitude (float): deg
+        latitude (float): deg
+        elevation (float): m
+        refframe (str):
 
-    Returns
-    -------
-    vel : float
-      The velocity correction that should be applied to the wavelength array.
-    vel_corr : float
-      The relativistic velocity correction that should be multiplied by the
-      wavelength array to convert each wavelength into the user-specified
-      reference frame.
+    Returns:
+        Two objects are returned::
+            - float: - The velocity correction that should be applied to the wavelength array.
+            - float: The relativistic velocity correction that should be multiplied by the
+                  wavelength array to convert each wavelength into the user-specified
+                  reference frame.
 
     """
     # Calculate

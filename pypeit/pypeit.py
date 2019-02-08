@@ -428,11 +428,12 @@ class PypeIt(object):
             det (int): Detector index
 
         Returns:
-            str: Object type;  science or standard
-            str: Setup string from master_key()
-            astropy.time.Time: Time of observation
-            str: Basename of the frame
-            str: Binning of the detector
+            5 objects are returned::
+                - str: Object type;  science or standard
+                - str: Setup string from master_key()
+                - astropy.time.Time: Time of observation
+                - str: Basename of the frame
+                - str: Binning of the detector
 
         """
 
@@ -500,15 +501,15 @@ class PypeIt(object):
             std_outfile (str, optional):
 
         Returns:
-            ndarray, ndarray, ndarray, ndarray, ndarray, ndarray, SpecObjs, astropy.units.Quantity:
-            sciimg
-            sciivar
-            skymodel
-            objmodel
-            ivarmodel
-            outmask
-            sobjs
-            vel_corr
+            five objects are returned::
+                - ndarray: Science image
+                - ndarray: Science inverse variance image
+                - ndarray: Model of the sky
+                - ndarray: Model of the object
+                - ndarray: Model of inverse variance
+                - ndarray: Mask
+                - :obj:`pypeit.specobjs.SpecObjs`: spectra
+                - astropy.units.Quantity: velocity correction
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl

@@ -188,23 +188,21 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
 def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=None, overwrite=True, update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
-    Parameters
-    ----------
-    specobjs : SpecObjs object
-    header : dict or Row (dict-like)
-    pypeline : str
-      Name of PypeIt pipeline (e.g. 'MultiSlit')
-    instrume : str
-      Name of instrument
-    outfile : str
-    overwrite : bool, optional
-    update_det : int or list, optional
-      If provided, do not clobber the existing file but only update
-      the indicated detectors.  Useful for re-running on a subset of detectors
+    Args:
+        specobjs : SpecObjs object
+        header (dict or Row; dict-like):  Typically a Row from the fitstbl
+        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+          Name of PypeIt pipeline (e.g. 'MultiSlit')
+        outfile (str):
+        helio_dict (dict, optional):
+        overwrite : bool, optional
+        update_det : int or list, optional
+          If provided, do not clobber the existing file but only update
+          the indicated detectors.  Useful for re-running on a subset of detectors
 
-    Returns
-    -------
-    outfile : str
+    Returns:
+        str: outfile
+
     """
 
     pypeline = spectrograph.pypeline
@@ -401,13 +399,11 @@ def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir,
     """ Write 2D images to the hard drive
 
     Args:
-        sci_output: OrderedDict
-        fitstbl: Table
-        scidx: int
-        ext0: int
-        master_key_dict: str
-        mfdir: str
-        outfile: str
+        sci_output (OrderedDict):
+        raw_header (astropy.fits.Header or dict):
+        master_key_dict (str):
+        mfdir (str):
+        outfile (str):
         clobber: bool, optional
 
     Returns:

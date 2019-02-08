@@ -41,7 +41,7 @@ def test_step_by_step(master_dir):
     master_key = 'A_1_01'
     parset = spectrograph.default_pypeit_par()
     par = parset['calibrations']['tilts']
-    wavepar = parset['calibrations']['wavelength']
+    wavepar = parset['calibrations']['wavelengths']
     waveTilts = wavetilts.WaveTilts(msarc, tslits_dict, spectrograph, par, wavepar,
                                     det=1, master_key=master_key,
                                     master_dir=master_dir,reuse_masters=True)
