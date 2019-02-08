@@ -683,7 +683,8 @@ class Echelle(Reduce):
 
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
-                              show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
+                              show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
+                              sci_files=None):
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
