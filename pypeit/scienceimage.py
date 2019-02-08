@@ -85,7 +85,8 @@ class ScienceImage(processimages.ProcessImages):
         self.par = spectrograph.default_pypeit_par()['scienceframe'] if par is None else par
 
         # Start up by instantiating the process images class for reading in the relevant science files
-        processimages.ProcessImages.__init__(self, spectrograph, [], det=det,par=self.par['process'])
+        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
+                                             files=[], det=det)
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
