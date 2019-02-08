@@ -560,8 +560,8 @@ class PypeIt(object):
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
 
-        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
-                                           ir_redux = self.ir_redux, par=self.par,
+        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask, self.par,
+                                           ir_redux = self.ir_redux,
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
 

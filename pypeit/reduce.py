@@ -90,7 +90,7 @@ class Reduce(object):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype
-        #self.par = spectrograph.default_pypeit_par() if par is None else par
+        self.par = par
         self.proc_par = self.par['scienceframe'] ['process']
         # TODO Rename the scienceimage arset to reduce.
         self.redux_par = self.par['scienceimage']
@@ -488,8 +488,8 @@ class MultiSlit(Reduce):
     Child of Reduce for Multislit and Longslit reductions
 
     """
-    def __init__(self, spectrograph, tslits_dict, mask, **kwargs):
-        super(MultiSlit, self).__init__(spectrograph, tslits_dict, mask, **kwargs)
+    def __init__(self, spectrograph, tslits_dict, mask, par, **kwargs):
+        super(MultiSlit, self).__init__(spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 
@@ -653,7 +653,7 @@ class MultiSlit(Reduce):
                     self.sciimg, self.sciivar, self.tilts, self.waveimg, self.global_sky, self.rn2img,
                     thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix, model_full_slit=self.redux_par['model_full_slit'],
-                    box_rad=self.redux_par['boxcar_radius']/self.spectrograph.detector[self.det-1].platescale,
+                    box_rad=self.redux_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
                     model_noise=model_noise, std=std, bsp=self.redux_par['bspline_spacing'],
                     sn_gauss=self.redux_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
 
@@ -677,8 +677,8 @@ class Echelle(Reduce):
     Child of Reduce for Echelle reductions
 
     """
-    def __init__(self, spectrograph, tslits_dict, mask, **kwargs):
-        super(Echelle, self).__init__(spectrograph, tslits_dict, mask, **kwargs)
+    def __init__(self, spectrograph, tslits_dict, mask, par, **kwargs):
+        super(Echelle, self).__init__(spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 
@@ -762,7 +762,7 @@ class Echelle(Reduce):
 
 
 
-def instantiate_me(spectrograph, tslits_dict, mask, **kwargs):
+def instantiate_me(spectrograph, tslits_dict, mask, par, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -785,7 +785,7 @@ def instantiate_me(spectrograph, tslits_dict, mask, **kwargs):
     indx = [ c.__name__ == spectrograph.pypeline for c in Reduce.__subclasses__() ]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return Reduce.__subclasses__()[np.where(indx)[0][0]](spectrograph, tslits_dict, mask, **kwargs)
+    return Reduce.__subclasses__()[np.where(indx)[0][0]](spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 
