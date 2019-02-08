@@ -20,18 +20,17 @@ class MasterFrame(object):
     This class is designed to gather a set of like methods
     for Master calibration frames
 
-    Parameters
-    ----------
-    frametype : str
-    master_key : str
-      e.g. 'A_1_01'
-    master_dir : str, optional
-    redux_path : str, optional
-      Path for reduction
-    spectrograph : Spectrograph, optional
-      Only used for directory_path;  should be Deprecated
-    reuse_masters: bool, default = False
-      Reuse already created master files from disk.
+    Args:
+        frametype (str):  Frametype of the presumably
+        master_key : str
+          e.g. 'A_1_01'
+        master_dir : str, optional
+        redux_path : str, optional
+          Path for reduction
+        spectrograph : Spectrograph, optional
+          Only used for directory_path;  should be Deprecated
+        reuse_masters: bool, default = False
+          Reuse already created master files from disk.
 
     Attributes
     ----------

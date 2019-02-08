@@ -385,7 +385,7 @@ def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1
         points (bool, optional):
             Plot the Gaussian-weighted tilt centers
         clear_canvas (bool, optional):
-            Clear the canvase first?
+            Clear the canvas first?
 
     """
     canvas = viewer.canvas(ch._chname)
