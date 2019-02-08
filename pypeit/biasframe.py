@@ -65,8 +65,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key, reuse_masters=reuse_masters,
-                                         master_dir=master_dir)
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir, reuse_masters=reuse_masters)
 
     def build_image(self, overwrite=False, trim=True):
         """
