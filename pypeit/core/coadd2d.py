@@ -747,7 +747,15 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     """
 
     Args:
-        weights: ndarray, float shape (nimgs)
+        weights: float ndarray of weights.
+            Options for the shape of weights are:
+                (nimgs,)              -- a single weight per image in the stack
+                (nimgs, nspec)        -- wavelength dependent weights per image in the stack
+                (nimgs, nspec, nspat) -- weights input with the shape of the image stack
+
+             Note that the weights are distinct from the mask which is dealt with via inmask_stack argument so there
+             should not be any weights that are set to zero (although in principle this would still work).
+
         sci_list: list
             List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
             which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
