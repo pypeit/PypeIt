@@ -412,8 +412,9 @@ class SpecObjs(object):
 
         """
         # Assign the sign and the objids
-        index = (self.objid < 0) | (self.ech_objid < 0)
-        self.remove_sobj(index)
+        if self.nobj > 0:
+            index = (self.objid < 0) | (self.ech_objid < 0)
+            self.remove_sobj(index)
 
 
     def add_sobj(self, sobj):

@@ -1279,7 +1279,7 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
         # ToDO add maxdev functionality by adding kwargs_reject to xy2traceset
         xinvvar = np.ones_like(xpos1.T) # Do not do weighted fits, i.e. uniform weights but set the errro to 1.0 pixel
         pos_set1 = pydl.xy2traceset(np.outer(np.ones(nobj),spec_vec), xpos1.T, inmask = trc_inmask_out.T, ncoeff=ncoeff, maxdev=maxdev,
-                                    maxiter=maxiter,invvar = xinvvar,xmin=xmin, xmax =xmax)
+                                    maxiter=maxiter, invvar=xinvvar, xmin=xmin, xmax =xmax)
         xfit1 = pos_set1.yfit.T
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask1 = (xerr1 > 990.0)  # bad pixels have errors set to 999 and are returned to lie on the input trace
@@ -2086,6 +2086,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
+    #show_fits=True
+    #show_peaks = True
+    #ncoeff=7
     for iord in range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
@@ -2097,7 +2100,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
             std_in = None
         sobjs_slit, skymask_objfind[thismask] = \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], inmask=inmask_iord,std_trace=std_in,
-                    fwhm=fwhm,hand_extract_dict=hand_extract_dict, nperslit=nperslit, bg_smth=bg_smth,
+                    ncoeff=ncoeff, fwhm=fwhm,hand_extract_dict=hand_extract_dict, nperslit=nperslit, bg_smth=bg_smth,
                     extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh, peak_thresh=peak_thresh, abs_thresh=abs_thresh,
                     trim_edg=trim_edg, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_single_trace,
                     specobj_dict=specobj_dict)
