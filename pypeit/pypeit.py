@@ -33,7 +33,6 @@ from linetools import utils as ltu
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
-from pypeit.par import ManualExtractionPar
 from pypeit.metadata import PypeItMetaData
 
 from pypeit import debugger
@@ -100,27 +99,9 @@ class PypeIt(object):
         # Fitstbl
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
                                       usrdata=usrdata, strict=True)
-        # Deal with manual_extract -- THIS SHOULD BE DONE ELSEWHERE
-        if 'manual_extract' in self.fitstbl.keys():
-            mframes = np.where(self.fitstbl['manual_extract'] != 'None')[0]
-            # Loop
-            mext_list = []
-            for mframe in mframes:
-                # Parse the input
-                items = self.fitstbl['manual_extract'][mframe].split(';')
-                dets, spats, specs, fwhms = [], [], [], []
-                for item in items:
-                    numbers = item.split(',')
-                    dets.append(int(numbers[0]))
-                    specs.append(float(numbers[1]))
-                    spats.append(float(numbers[2]))
-                    fwhms.append(float(numbers[3]))
-                # Instantiate
-                mextpar = ManualExtractionPar(frame=self.fitstbl['filename'][mframe],
-                                              det=dets, spat=spats, spec=specs, fwhm=fwhms)
-                mext_list.append(mextpar)
-            #
-            self.par['scienceimage']['manual'] = mext_list
+        # Update par;  done explicilty here for transparency
+        #   Should only be updates related to usrdata
+        self.par = self.fitstbl.update_par(self.par)
 
         # The following could be put in a prepare_to_run() method in PypeItMetaData
         if 'setup' not in self.fitstbl.keys():
@@ -132,7 +113,6 @@ class PypeIt(object):
         # Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
-
 
         # Other Internals
         self.logname = logname
@@ -560,16 +540,38 @@ class PypeIt(object):
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
 
-        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask, self.par,
+        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict,
+                                           self.mask, self.par,
                                            ir_redux = self.ir_redux,
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
+
+        # Prep for manual extraction
+        if self.par['scienceimage']['manual'] is not None:
+            # This requires sci_files
+            if len(sci_files) > 1:  # Can only deal with one sci file or will have to think about using the first
+                msgs.warn("Taking first science frame in stack for manual extraction")
+            # Generate the hand_dict
+            base_sci = os.path.basename(sci_files[0])
+            manual_extract_dict = {}
+            for mex_par in self.par['scienceimage']['manual']:
+                if base_sci == mex_par['frame']:
+                    manual_extract_dict['hand_extract_spec'] = mex_par['spec']
+                    manual_extract_dict['hand_extract_spat'] = mex_par['spat']
+                    manual_extract_dict['hand_extract_det'] = mex_par['det']
+                    manual_extract_dict['hand_extract_fwhm'] = mex_par['fwhm']
+            # If it is empty, make it None
+            if len(manual_extract_dict) == 0:
+                manual_extract_dict = None
+        else:
+            manual_extract_dict = None
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(self.sciimg, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace,maskslits=self.maskslits,
-                                    show=self.show & (not self.std_redux), sci_files=sci_files)
+                                    show=self.show & (not self.std_redux),
+                                    manual_extract_dict=manual_extract_dict)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
@@ -580,7 +582,8 @@ class PypeIt(object):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(self.sciimg - self.initial_sky, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
-                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show, sci_files=sci_files)
+                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show,
+                                        manual_extract_dict=manual_extract_dict)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:

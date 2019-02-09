@@ -24,6 +24,7 @@ from pypeit.core import framematch
 from pypeit.core import flux
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
+from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
 #from pypeit.spectrographs.util import load_spectrograph
 
@@ -301,125 +302,32 @@ class PypeItMetaData:
         # Return
         return data
 
-    def _old_build(self, file_list, strict=True, bkg_pairs='empty'):
-        """
-        Returns a dictionary with the data to be included in the table.
-        """
-        # Get the header keywords specific to the provided spectrograph.
-        # head_keys is a nested dictionary listing the header keywords
-        # for each extension in the file.  The top-level dictionary key
-        # is just the 0-indexed number of the extension
-        head_keys = self.spectrograph.header_keys()
+    def update_par(self, par):
 
-        # The table is declared based on this input dictionary: The
-        # directory, filename, instrument are always included
-        data = {k:[] for k in PypeItMetaData.default_keys()}
+        # Manual extract
+        if 'manual_extract' in self.keys():
+            mframes = np.where(self['manual_extract'] != 'None')[0]
+            # Loop
+            mext_list = []
+            for mframe in mframes:
+                # Parse the input
+                items = self['manual_extract'][mframe].split(';')
+                dets, spats, specs, fwhms = [], [], [], []
+                for item in items:
+                    numbers = item.split(',')
+                    dets.append(int(numbers[0]))
+                    specs.append(float(numbers[1]))
+                    spats.append(float(numbers[2]))
+                    fwhms.append(float(numbers[3]))
+                # Instantiate
+                mextpar = ManualExtractionPar(frame=self['filename'][mframe],
+                                              det=dets, spat=spats, spec=specs, fwhm=fwhms)
+                mext_list.append(mextpar)
+            #
+            par['scienceimage']['manual'] = mext_list
+        # Return
+        return par
 
-        # Add columns to the output table for each keyword.  The
-        # keywords from all extensions must be unique.
-        ext = {}
-        for i in head_keys.keys():
-            for k in head_keys[i].keys():
-                if k in data.keys():
-                    raise ValueError('Keywords are not unique across all extensions!')
-                ext[k] = i
-                data[k] = []
-
-        # TODO: Stopgap for required keys in fitstbl used by other parts of
-        # the code.  Need to decide how to handle these.
-        required_columns = ['time', 'date', 'target']
-        required_for_ABBA = ['ra', 'dec'] # and for standards?
-        if any([ c not in data.keys() for c in required_columns]):
-            msgs.warn('Columns are missing.')
-
-        # Number of files to read
-        numfiles = len(file_list)
-
-        # Loop on files
-        for ifile in file_list:
-
-            # Read the fits headers
-            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
-
-            # Check that the header is valid
-            # TODO: The check_headers function needs to be implemented
-            # for each instrument.  spectrograph.check_headers() should
-            # raise an exception with an appropriate message.
-            try:
-                # TODO: Move this into spectrograph.validate_fitstbl()
-                self.spectrograph.check_headers(headarr)
-            except Exception as e:
-                msgs.warn('Reading of headers from file:' + msgs.newline() + ifile
-                          + msgs.newline() + 'failed with the following exception'
-                          + msgs.newline() + e.__repr__() + msgs.newline() +
-                          'Please check that the file was taken with the provided instrument:'
-                          + msgs.newline() + '{0}'.format(self.spectrograph.spectrograph)
-                          + msgs.newline() + 'Then either change the instrument or remove/skip '
-                          + 'the file.' + msgs.newline()+ 'Continuing by ignoring this file...')
-                numfiles -= 1
-                continue
-
-            # Add the directory, file name, and instrument to the table
-            d,f = os.path.split(ifile)
-            data['directory'].append(d)
-            data['filename'].append(f)
-            data['instrume'].append(self.spectrograph.spectrograph)
-
-            # Now get the rest of the keywords
-            for key in data.keys():
-                if key in PypeItMetaData.default_keys():
-                    continue
-
-                # Try to read the header item
-                try:
-                    value = headarr[ext[key]][head_keys[ext[key]][key]]
-                except KeyError:
-                    # Keyword not found in header
-                    msgs.warn("{0} keyword not in header. Setting to None".format(key))
-                    value = 'None'
-                except TypeError:
-                    # TODO: This should throw an error
-                    import pdb; pdb.set_trace()
-
-                # Convert the time to days
-                # TODO: Done here or as a method in Spectrograph?
-                if key == 'time' and value != 'None':
-                    # HERE IS A KULDGE
-                    if 'date' in data.keys():
-                        idate = headarr[ext['date']][head_keys[ext['date']]['date']]
-                    else:
-                        idate = None
-                    value = self.convert_time(value, date=idate)
-
-                # Set the value
-                vtype = type(value)
-                if np.issubdtype(vtype, np.str_):
-                    value = value.strip()
-                if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
-                        or np.issubdtype(vtype, np.str_) or np.issubdtype(vtype, np.bool_):
-                    data[key].append(value)
-                else:
-                    msgs.bug('Unexpected type, {1}, for key {0}'.format(key,
-                             vtype).replace('<type ','').replace('>',''))
-
-            msgs.info('Successfully loaded headers for file:' + msgs.newline() + ifile)
-
-        # Report
-        msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
-        if numfiles != len(file_list):
-            msgs.warn("Headers were not loaded for {0:d} files".format(len(file_list) - numfiles))
-        if numfiles == 0:
-            msgs.error("The headers could not be read from the input data files."
-                       + msgs.newline() + "Please check that the settings file matches the data.")
-
-#        # Add the index column
-#        data['index'] = np.arange(numfiles).tolist()
-
-        # Add the background_index column
-        #if bkg_pairs is not None:
-        self._add_bkg_pairs(data, bkg_pairs)
-
-        return data
 
     # TODO:  In this implementation, slicing the PypeItMetaData object
     # will return an astropy.table.Table, not a PypeItMetaData object.
