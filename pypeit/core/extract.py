@@ -847,8 +847,8 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     si = inside[np.argsort(sigma_x.flat[inside])]
     sr = si[::-1]
 
-    bset, bmask = pydl.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si]
-                           , nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
+    bset, bmask = pydl.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
+                                   nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
 
@@ -955,11 +955,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
         mode_stretch_set = mode_stretch_out[0]
         temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
-        try:
-            temp_set.coeff = mode_stretch_set.coeff[0, :]
-        except:
-            from IPython import embed
-            embed()
+        temp_set.coeff = mode_stretch_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_stretch_set.coeff[1, :]
         h2, _ = temp_set.value(xx)

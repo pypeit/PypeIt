@@ -15,7 +15,7 @@ import scipy
 def skysub_npoly(thismask):
     slit_width = np.sum(thismask,axis=1)
     med_slit_width = np.median(slit_width[slit_width > 0])
-    nspec_eff = np.sum(slit_width > 0.5*slit_width)
+    nspec_eff = np.sum(slit_width > 0.5*med_slit_width)
     npercol = np.fmax(np.floor(np.sum(thismask)/nspec_eff), 1.0)
     # Demand at least 10 pixels per row (on average) per degree of the polynomial
     if npercol > 100:
@@ -552,7 +552,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
            sky model for the pixels
 
     """
-
     if inmask is None:
         inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar)
 
@@ -587,8 +586,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     # Set some rejection parameters based on whether this is a standard or not. Only reject extreme outliers for standards
     # since super high S/N and low order profile models imply we will always have large outliers
     if std is True:
-        chi2_sigrej = 500.0
+        chi2_sigrej = 100.0
         sigrej_ceil = 1e10
+        sigrej = 25.0
     else:
         chi2_sigrej = 6.0
         sigrej_ceil = 10.0
@@ -674,7 +674,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                               ycen=sobjs[iobj].trace_spec)
                     pixtot = extract.extract_boxcar(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, box_rad,
                                             ycen=sobjs[iobj].trace_spec)
-                    mask_box = (extract.extract_boxcar(~outmask, sobjs[iobj].trace_spat, box_rad,
+                    mask_box = (extract.extract_boxcar(np.invert(outmask), sobjs[iobj].trace_spat, box_rad,
                                                ycen=sobjs[iobj].trace_spec) != pixtot)
                     box_denom = extract.extract_boxcar(waveimg > 0.0, sobjs[iobj].trace_spat, box_rad,
                                                ycen=sobjs[iobj].trace_spec)
