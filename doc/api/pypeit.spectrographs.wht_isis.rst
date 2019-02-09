@@ -1,7 +1,7 @@
-pypeit\.core\.wavecal\.templates module
+pypeit\.spectrographs\.wht\_isis module
 =======================================
 
-.. automodule:: pypeit.core.wavecal.templates
+.. automodule:: pypeit.spectrographs.wht_isis
     :members:
     :undoc-members:
     :show-inheritance:

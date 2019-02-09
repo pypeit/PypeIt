@@ -1,7 +1,7 @@
-pypeit\.core\.wavecal\.templates module
+pypeit\.scripts\.lowrdx\_pixflat module
 =======================================
 
-.. automodule:: pypeit.core.wavecal.templates
+.. automodule:: pypeit.scripts.lowrdx_pixflat
     :members:
     :undoc-members:
     :show-inheritance:

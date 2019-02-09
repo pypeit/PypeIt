@@ -1,7 +1,7 @@
-pypeit\.scripts\.orig\_flux\_spec module
+pypeit\.spectrographs\.keck\_lris module
 ========================================
 
-.. automodule:: pypeit.scripts.orig_flux_spec
+.. automodule:: pypeit.spectrographs.keck_lris
     :members:
     :undoc-members:
     :show-inheritance:

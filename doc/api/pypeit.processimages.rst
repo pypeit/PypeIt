@@ -1,7 +1,7 @@
-pypeit\.core\.coadd2d module
+pypeit\.processimages module
 ============================
 
-.. automodule:: pypeit.core.coadd2d
+.. automodule:: pypeit.processimages
     :members:
     :undoc-members:
     :show-inheritance:

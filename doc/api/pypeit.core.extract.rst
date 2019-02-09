@@ -1,7 +1,7 @@
-pypeit\.core\.coadd2d module
+pypeit\.core\.extract module
 ============================
 
-.. automodule:: pypeit.core.coadd2d
+.. automodule:: pypeit.core.extract
     :members:
     :undoc-members:
     :show-inheritance:

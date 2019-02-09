@@ -1,7 +1,7 @@
-pypeit\.core\.coadd2d module
+pypeit\.core\.procimg module
 ============================
 
-.. automodule:: pypeit.core.coadd2d
+.. automodule:: pypeit.core.procimg
     :members:
     :undoc-members:
     :show-inheritance:

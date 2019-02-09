@@ -1,7 +1,7 @@
-pypeit\.core\.wavecal\.templates module
+pypeit\.scripts\.lowrdx\_skyspec module
 =======================================
 
-.. automodule:: pypeit.core.wavecal.templates
+.. automodule:: pypeit.scripts.lowrdx_skyspec
     :members:
     :undoc-members:
     :show-inheritance:

@@ -1,5 +1,5 @@
-pypeit.core package
-===================
+pypeit\.core package
+====================
 
 Subpackages
 -----------
