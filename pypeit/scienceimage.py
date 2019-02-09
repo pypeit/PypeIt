@@ -264,7 +264,6 @@ class ScienceImage(processimages.ProcessImages):
             image : ndarray, optional
               User supplied image to display
 
-
         """
 
         ch_name = chname if chname is not None else 'image'
