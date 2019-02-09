@@ -750,7 +750,7 @@ class ProcessImages(object):
         """
         nfiles = len(files)
         for ifile in range(nfiles):
-            this_proc = ProcessImages(spectrograph, [files[ifile]], det=det, par=proc_par)
+            this_proc = ProcessImages(spectrograph, proc_par, [files[ifile]], det=det)
             # TODO I think trim should be hard wired, and am not letting it be a free parameter
             sciimg = this_proc.process(bias_subtract=bias,pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm,
                                        apply_gain=True, trim=True)
