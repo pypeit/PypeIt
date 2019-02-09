@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.patterns module
-======================================
+pypeit.core.wavecal.patterns module
+===================================
 
 .. automodule:: pypeit.core.wavecal.patterns
     :members:

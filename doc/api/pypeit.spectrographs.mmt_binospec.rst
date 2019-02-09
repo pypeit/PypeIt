@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.mmt\_binospec module
-===========================================
+pypeit.spectrographs.mmt\_binospec module
+=========================================
 
 .. automodule:: pypeit.spectrographs.mmt_binospec
     :members:

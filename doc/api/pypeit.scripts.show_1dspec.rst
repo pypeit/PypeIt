@@ -1,5 +1,5 @@
-pypeit\.scripts\.show\_1dspec module
-====================================
+pypeit.scripts.show\_1dspec module
+==================================
 
 .. automodule:: pypeit.scripts.show_1dspec
     :members:

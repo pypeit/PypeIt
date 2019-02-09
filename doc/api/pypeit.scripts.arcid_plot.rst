@@ -1,5 +1,5 @@
-pypeit\.scripts\.arcid\_plot module
-===================================
+pypeit.scripts.arcid\_plot module
+=================================
 
 .. automodule:: pypeit.scripts.arcid_plot
     :members:

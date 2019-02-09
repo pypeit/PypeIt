@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.qa module
-================================
+pypeit.core.wavecal.qa module
+=============================
 
 .. automodule:: pypeit.core.wavecal.qa
     :members:

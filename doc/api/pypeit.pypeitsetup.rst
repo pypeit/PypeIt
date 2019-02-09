@@ -1,5 +1,5 @@
-pypeit\.pypeitsetup module
-==========================
+pypeit.pypeitsetup module
+=========================
 
 .. automodule:: pypeit.pypeitsetup
     :members:

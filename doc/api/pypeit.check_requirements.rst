@@ -1,5 +1,5 @@
-pypeit\.check\_requirements module
-==================================
+pypeit.check\_requirements module
+=================================
 
 .. automodule:: pypeit.check_requirements
     :members:

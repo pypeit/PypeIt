@@ -1,5 +1,5 @@
-pypeit\.core\.procimg module
-============================
+pypeit.core.procimg module
+==========================
 
 .. automodule:: pypeit.core.procimg
     :members:

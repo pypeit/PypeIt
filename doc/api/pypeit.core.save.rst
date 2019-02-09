@@ -1,5 +1,5 @@
-pypeit\.core\.save module
-=========================
+pypeit.core.save module
+=======================
 
 .. automodule:: pypeit.core.save
     :members:

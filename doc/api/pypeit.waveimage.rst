@@ -1,5 +1,5 @@
-pypeit\.waveimage module
-========================
+pypeit.waveimage module
+=======================
 
 .. automodule:: pypeit.waveimage
     :members:

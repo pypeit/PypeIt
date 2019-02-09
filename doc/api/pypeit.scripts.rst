@@ -1,5 +1,5 @@
-pypeit\.scripts package
-=======================
+pypeit.scripts package
+======================
 
 Submodules
 ----------

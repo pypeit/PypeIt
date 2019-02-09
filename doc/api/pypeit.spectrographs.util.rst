@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.util module
-==================================
+pypeit.spectrographs.util module
+================================
 
 .. automodule:: pypeit.spectrographs.util
     :members:

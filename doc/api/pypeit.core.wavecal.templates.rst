@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.templates module
-=======================================
+pypeit.core.wavecal.templates module
+====================================
 
 .. automodule:: pypeit.core.wavecal.templates
     :members:

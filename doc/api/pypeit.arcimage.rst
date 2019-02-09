@@ -1,5 +1,5 @@
-pypeit\.arcimage module
-=======================
+pypeit.arcimage module
+======================
 
 .. automodule:: pypeit.arcimage
     :members:

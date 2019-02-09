@@ -1,5 +1,5 @@
-pypeit\.wavecalib module
-========================
+pypeit.wavecalib module
+=======================
 
 .. automodule:: pypeit.wavecalib
     :members:

@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.keck\_lris module
-========================================
+pypeit.spectrographs.keck\_lris module
+======================================
 
 .. automodule:: pypeit.spectrographs.keck_lris
     :members:

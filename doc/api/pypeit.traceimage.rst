@@ -1,5 +1,5 @@
-pypeit\.traceimage module
-=========================
+pypeit.traceimage module
+========================
 
 .. automodule:: pypeit.traceimage
     :members:

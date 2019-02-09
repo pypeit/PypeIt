@@ -1,5 +1,5 @@
-pypeit\.core\.tracewave module
-==============================
+pypeit.core.tracewave module
+============================
 
 .. automodule:: pypeit.core.tracewave
     :members:

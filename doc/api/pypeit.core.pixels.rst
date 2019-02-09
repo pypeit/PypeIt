@@ -1,5 +1,5 @@
-pypeit\.core\.pixels module
-===========================
+pypeit.core.pixels module
+=========================
 
 .. automodule:: pypeit.core.pixels
     :members:

@@ -1,5 +1,5 @@
-pypeit\.core\.skysub module
-===========================
+pypeit.core.skysub module
+=========================
 
 .. automodule:: pypeit.core.skysub
     :members:

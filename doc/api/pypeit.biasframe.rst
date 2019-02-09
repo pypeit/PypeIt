@@ -1,5 +1,5 @@
-pypeit\.biasframe module
-========================
+pypeit.biasframe module
+=======================
 
 .. automodule:: pypeit.biasframe
     :members:

@@ -1,5 +1,5 @@
-pypeit\.core\.extract module
-============================
+pypeit.core.extract module
+==========================
 
 .. automodule:: pypeit.core.extract
     :members:

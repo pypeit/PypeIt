@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.defs module
-==================================
+pypeit.core.wavecal.defs module
+===============================
 
 .. automodule:: pypeit.core.wavecal.defs
     :members:

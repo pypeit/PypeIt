@@ -1,5 +1,5 @@
-pypeit\.scripts\.chk\_tilts module
-==================================
+pypeit.scripts.chk\_tilts module
+================================
 
 .. automodule:: pypeit.scripts.chk_tilts
     :members:

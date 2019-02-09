@@ -1,5 +1,5 @@
-pypeit\.processimages module
-============================
+pypeit.processimages module
+===========================
 
 .. automodule:: pypeit.processimages
     :members:

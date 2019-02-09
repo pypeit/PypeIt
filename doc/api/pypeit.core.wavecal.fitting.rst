@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.fitting module
-=====================================
+pypeit.core.wavecal.fitting module
+==================================
 
 .. automodule:: pypeit.core.wavecal.fitting
     :members:

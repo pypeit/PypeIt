@@ -1,5 +1,5 @@
-pypeit\.core\.framematch module
-===============================
+pypeit.core.framematch module
+=============================
 
 .. automodule:: pypeit.core.framematch
     :members:

@@ -1,5 +1,5 @@
-pypeit\.scripts\.chk\_edges module
-==================================
+pypeit.scripts.chk\_edges module
+================================
 
 .. automodule:: pypeit.scripts.chk_edges
     :members:

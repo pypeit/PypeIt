@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.waveio module
-====================================
+pypeit.core.wavecal.waveio module
+=================================
 
 .. automodule:: pypeit.core.wavecal.waveio
     :members:

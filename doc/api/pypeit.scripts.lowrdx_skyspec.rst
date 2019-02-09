@@ -1,5 +1,5 @@
-pypeit\.scripts\.lowrdx\_skyspec module
-=======================================
+pypeit.scripts.lowrdx\_skyspec module
+=====================================
 
 .. automodule:: pypeit.scripts.lowrdx_skyspec
     :members:

@@ -1,5 +1,5 @@
-pypeit\.masterframe module
-==========================
+pypeit.masterframe module
+=========================
 
 .. automodule:: pypeit.masterframe
     :members:

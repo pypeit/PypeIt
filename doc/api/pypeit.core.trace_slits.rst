@@ -1,5 +1,5 @@
-pypeit\.core\.trace\_slits module
-=================================
+pypeit.core.trace\_slits module
+===============================
 
 .. automodule:: pypeit.core.trace_slits
     :members:

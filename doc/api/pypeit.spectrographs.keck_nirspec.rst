@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.keck\_nirspec module
-===========================================
+pypeit.spectrographs.keck\_nirspec module
+=========================================
 
 .. automodule:: pypeit.spectrographs.keck_nirspec
     :members:

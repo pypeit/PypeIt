@@ -1,5 +1,5 @@
-pypeit\.core\.flux module
-=========================
+pypeit.core.flux module
+=======================
 
 .. automodule:: pypeit.core.flux
     :members:

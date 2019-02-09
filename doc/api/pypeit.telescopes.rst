@@ -1,5 +1,5 @@
-pypeit\.telescopes module
-=========================
+pypeit.telescopes module
+========================
 
 .. automodule:: pypeit.telescopes
     :members:

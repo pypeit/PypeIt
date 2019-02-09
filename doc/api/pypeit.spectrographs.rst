@@ -1,5 +1,5 @@
-pypeit\.spectrographs package
-=============================
+pypeit.spectrographs package
+============================
 
 Submodules
 ----------

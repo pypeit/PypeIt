@@ -1,5 +1,5 @@
-pypeit\.par\.pypeitpar module
-=============================
+pypeit.par.pypeitpar module
+===========================
 
 .. automodule:: pypeit.par.pypeitpar
     :members:

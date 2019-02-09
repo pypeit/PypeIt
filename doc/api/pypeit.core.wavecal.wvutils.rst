@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.wvutils module
-=====================================
+pypeit.core.wavecal.wvutils module
+==================================
 
 .. automodule:: pypeit.core.wavecal.wvutils
     :members:

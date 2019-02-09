@@ -1,5 +1,5 @@
-pypeit\.scripts\.coadd\_1dspec module
-=====================================
+pypeit.scripts.coadd\_1dspec module
+===================================
 
 .. automodule:: pypeit.scripts.coadd_1dspec
     :members:

@@ -1,5 +1,5 @@
-pypeit\.core\.plot module
-=========================
+pypeit.core.plot module
+=======================
 
 .. automodule:: pypeit.core.plot
     :members:

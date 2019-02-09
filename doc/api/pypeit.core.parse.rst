@@ -1,5 +1,5 @@
-pypeit\.core\.parse module
-==========================
+pypeit.core.parse module
+========================
 
 .. automodule:: pypeit.core.parse
     :members:

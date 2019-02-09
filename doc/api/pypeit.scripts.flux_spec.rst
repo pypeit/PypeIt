@@ -1,5 +1,5 @@
-pypeit\.scripts\.flux\_spec module
-==================================
+pypeit.scripts.flux\_spec module
+================================
 
 .. automodule:: pypeit.scripts.flux_spec
     :members:

@@ -1,5 +1,5 @@
-pypeit\.core\.wave module
-=========================
+pypeit.core.wave module
+=======================
 
 .. automodule:: pypeit.core.wave
     :members:

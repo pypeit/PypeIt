@@ -1,5 +1,5 @@
-pypeit\.flatfield module
-========================
+pypeit.flatfield module
+=======================
 
 .. automodule:: pypeit.flatfield
     :members:

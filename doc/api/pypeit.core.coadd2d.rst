@@ -1,5 +1,5 @@
-pypeit\.core\.coadd2d module
-============================
+pypeit.core.coadd2d module
+==========================
 
 .. automodule:: pypeit.core.coadd2d
     :members:

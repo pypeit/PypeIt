@@ -1,5 +1,5 @@
-pypeit\.ech\_coadd module
-=========================
+pypeit.ech\_coadd module
+========================
 
 .. automodule:: pypeit.ech_coadd
     :members:

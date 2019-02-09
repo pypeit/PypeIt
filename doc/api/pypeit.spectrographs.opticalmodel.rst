@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.opticalmodel module
-==========================================
+pypeit.spectrographs.opticalmodel module
+========================================
 
 .. automodule:: pypeit.spectrographs.opticalmodel
     :members:

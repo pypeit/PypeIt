@@ -1,5 +1,5 @@
-pypeit\.core\.qa module
-=======================
+pypeit.core.qa module
+=====================
 
 .. automodule:: pypeit.core.qa
     :members:

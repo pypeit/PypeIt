@@ -1,5 +1,5 @@
-pypeit\.core\.combine module
-============================
+pypeit.core.combine module
+==========================
 
 .. automodule:: pypeit.core.combine
     :members:

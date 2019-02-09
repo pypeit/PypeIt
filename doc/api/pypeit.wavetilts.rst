@@ -1,5 +1,5 @@
-pypeit\.wavetilts module
-========================
+pypeit.wavetilts module
+=======================
 
 .. automodule:: pypeit.wavetilts
     :members:

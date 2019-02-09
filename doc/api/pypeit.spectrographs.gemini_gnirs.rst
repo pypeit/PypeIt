@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.gemini\_gnirs module
-===========================================
+pypeit.spectrographs.gemini\_gnirs module
+=========================================
 
 .. automodule:: pypeit.spectrographs.gemini_gnirs
     :members:

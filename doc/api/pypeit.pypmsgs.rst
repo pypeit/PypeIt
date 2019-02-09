@@ -1,5 +1,5 @@
-pypeit\.pypmsgs module
-======================
+pypeit.pypmsgs module
+=====================
 
 .. automodule:: pypeit.pypmsgs
     :members:

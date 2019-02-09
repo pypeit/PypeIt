@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal\.autoid module
-====================================
+pypeit.core.wavecal.autoid module
+=================================
 
 .. automodule:: pypeit.core.wavecal.autoid
     :members:

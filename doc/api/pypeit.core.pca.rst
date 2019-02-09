@@ -1,5 +1,5 @@
-pypeit\.core\.pca module
-========================
+pypeit.core.pca module
+======================
 
 .. automodule:: pypeit.core.pca
     :members:

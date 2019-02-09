@@ -1,5 +1,5 @@
-pypeit\.calibrations module
-===========================
+pypeit.calibrations module
+==========================
 
 .. automodule:: pypeit.calibrations
     :members:

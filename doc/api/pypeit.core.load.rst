@@ -1,5 +1,5 @@
-pypeit\.core\.load module
-=========================
+pypeit.core.load module
+=======================
 
 .. automodule:: pypeit.core.load
     :members:

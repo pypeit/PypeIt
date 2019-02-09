@@ -1,5 +1,5 @@
-pypeit\.bitmask module
-======================
+pypeit.bitmask module
+=====================
 
 .. automodule:: pypeit.bitmask
     :members:

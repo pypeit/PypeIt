@@ -1,5 +1,5 @@
-pypeit\.traceslits module
-=========================
+pypeit.traceslits module
+========================
 
 .. automodule:: pypeit.traceslits
     :members:

@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.tng\_dolores module
-==========================================
+pypeit.spectrographs.tng\_dolores module
+========================================
 
 .. automodule:: pypeit.spectrographs.tng_dolores
     :members:

@@ -1,5 +1,5 @@
-pypeit\.core\.wavecal package
-=============================
+pypeit.core.wavecal package
+===========================
 
 Submodules
 ----------

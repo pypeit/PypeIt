@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.vlt\_xshooter module
-===========================================
+pypeit.spectrographs.vlt\_xshooter module
+=========================================
 
 .. automodule:: pypeit.spectrographs.vlt_xshooter
     :members:

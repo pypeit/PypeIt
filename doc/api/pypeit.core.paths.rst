@@ -1,5 +1,5 @@
-pypeit\.core\.paths module
-==========================
+pypeit.core.paths module
+========================
 
 .. automodule:: pypeit.core.paths
     :members:

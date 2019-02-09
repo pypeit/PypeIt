@@ -1,5 +1,5 @@
-pypeit\.reduce module
-=====================
+pypeit.reduce module
+====================
 
 .. automodule:: pypeit.reduce
     :members:

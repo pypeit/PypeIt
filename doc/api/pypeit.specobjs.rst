@@ -1,5 +1,5 @@
-pypeit\.specobjs module
-=======================
+pypeit.specobjs module
+======================
 
 .. automodule:: pypeit.specobjs
     :members:

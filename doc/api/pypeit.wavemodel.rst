@@ -1,5 +1,5 @@
-pypeit\.wavemodel module
-========================
+pypeit.wavemodel module
+=======================
 
 .. automodule:: pypeit.wavemodel
     :members:

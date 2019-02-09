@@ -1,5 +1,5 @@
-pypeit\.core\.flat module
-=========================
+pypeit.core.flat module
+=======================
 
 .. automodule:: pypeit.core.flat
     :members:

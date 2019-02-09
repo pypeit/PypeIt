@@ -1,5 +1,5 @@
-pypeit\.debugger module
-=======================
+pypeit.debugger module
+======================
 
 .. automodule:: pypeit.debugger
     :members:

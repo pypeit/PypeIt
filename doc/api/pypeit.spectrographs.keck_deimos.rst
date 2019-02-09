@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.keck\_deimos module
-==========================================
+pypeit.spectrographs.keck\_deimos module
+========================================
 
 .. automodule:: pypeit.spectrographs.keck_deimos
     :members:

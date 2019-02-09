@@ -1,5 +1,5 @@
-pypeit\.par\.util module
-========================
+pypeit.par.util module
+======================
 
 .. automodule:: pypeit.par.util
     :members:

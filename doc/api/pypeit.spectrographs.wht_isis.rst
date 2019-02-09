@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.wht\_isis module
-=======================================
+pypeit.spectrographs.wht\_isis module
+=====================================
 
 .. automodule:: pypeit.spectrographs.wht_isis
     :members:

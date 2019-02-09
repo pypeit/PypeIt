@@ -1,5 +1,5 @@
-pypeit\.metadata module
-=======================
+pypeit.metadata module
+======================
 
 .. automodule:: pypeit.metadata
     :members:

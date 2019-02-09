@@ -1,5 +1,5 @@
-pypeit\.pypeit module
-=====================
+pypeit.pypeit module
+====================
 
 .. automodule:: pypeit.pypeit
     :members:

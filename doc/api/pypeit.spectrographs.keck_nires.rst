@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.keck\_nires module
-=========================================
+pypeit.spectrographs.keck\_nires module
+=======================================
 
 .. automodule:: pypeit.spectrographs.keck_nires
     :members:

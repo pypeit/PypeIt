@@ -1,5 +1,5 @@
-pypeit\.scienceimage module
-===========================
+pypeit.scienceimage module
+==========================
 
 .. automodule:: pypeit.scienceimage
     :members:

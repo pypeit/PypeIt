@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.magellan\_mage module
-============================================
+pypeit.spectrographs.magellan\_mage module
+==========================================
 
 .. automodule:: pypeit.spectrographs.magellan_mage
     :members:

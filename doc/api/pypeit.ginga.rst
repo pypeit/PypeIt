@@ -1,5 +1,5 @@
-pypeit\.ginga module
-====================
+pypeit.ginga module
+===================
 
 .. automodule:: pypeit.ginga
     :members:

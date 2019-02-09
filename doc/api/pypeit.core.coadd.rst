@@ -1,5 +1,5 @@
-pypeit\.core\.coadd module
-==========================
+pypeit.core.coadd module
+========================
 
 .. automodule:: pypeit.core.coadd
     :members:

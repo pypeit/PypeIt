@@ -1,5 +1,5 @@
-pypeit\.spectrographs\.slitmask module
-======================================
+pypeit.spectrographs.slitmask module
+====================================
 
 .. automodule:: pypeit.spectrographs.slitmask
     :members:

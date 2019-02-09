@@ -1,5 +1,5 @@
-pypeit\.par package
-===================
+pypeit.par package
+==================
 
 Submodules
 ----------

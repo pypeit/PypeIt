@@ -1,5 +1,5 @@
-pypeit\.utils module
-====================
+pypeit.utils module
+===================
 
 .. automodule:: pypeit.utils
     :members:
