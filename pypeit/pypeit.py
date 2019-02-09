@@ -70,11 +70,12 @@ class PypeIt(object):
     """
 #    __metaclass__ = ABCMeta
 
-    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None, show=False,
-                 redux_path=None):
+    def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False,
+                 logname=None, show=False, redux_path=None):
 
         # Load
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file, runtime=True)
+        cfg_lines, data_files, frametype, usrdata, setups \
+                = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
 
         # Spectrograph
@@ -91,12 +92,14 @@ class PypeIt(object):
                 sci_file = data_files[idx]
                 break
         # Set
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par,
+                                                                       sci_file).to_config()
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
         # Fitstbl
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
                                       usrdata=usrdata, strict=True)
+
         # The following could be put in a prepare_to_run() method in PypeItMetaData
         if 'setup' not in self.fitstbl.keys():
             self.fitstbl['setup'] = setups[0]
