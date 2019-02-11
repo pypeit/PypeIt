@@ -261,7 +261,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             msgs.warn('You have set illumflatten=False. No illumination flat will be applied to your data.')
             self.msillumflat = None
 
-
         # Return
         return self.mspixelflat, self.msillumflat
 

@@ -34,8 +34,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.193,
                             darkcurr        = 0.8,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
+                            saturation      = 100000.,
+                            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
                             numamplifiers   = 1,
                             gain            = 5.8,
                             ronoise         = 23,
