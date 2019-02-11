@@ -682,7 +682,7 @@ class FluxCalibrationPar(ParSet):
         descr['telluric'] = 'If telluric=True the code creates a sintetic standard star spectrum using the Kurucz models, ' \
             'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
 
-        dtypes['star_type'] = float
+        dtypes['star_type'] = str
         descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
 
         dtypes['star_mag'] = float

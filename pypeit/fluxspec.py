@@ -101,6 +101,16 @@ class FluxSpec():
                                 # to the star!
         self.debug = debug
 
+        # Echelle key
+        self.star_type = par['star_type']
+        self.star_mag = par['star_mag']
+        self.BALM_MASK_WID = par['balm_mask_wid']
+        # TODO add these to the parameters to the parset
+        self.resolution = 3000.#par['resolution']
+        self.nresln = 10.0#par['nresln']
+        self.poly_order = 5#par['poly_norder']
+        self.polycorrect = True#par['polycorrect']
+
     def load_objs(self, spec1d_file, std=True):
         """
         Load specobjs and heade from an input spec1d_file
@@ -188,27 +198,62 @@ class FluxSpec():
         self.sensfunc : dict
 
         """
+
         # Check internals
         if self.std is None:
-            msgs.warn('First identify the star first (with find_standard).')
+            msgs.warn('First identify the star first (with find_standard). But you can ignore this for Echelle data.')
             return None
         if self.std_header is None:
             msgs.warn('First set std_header with a dict-like object holding RA, DEC, '
                       'AIRMASS, EXPTIME.')
             return None
 
-        self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
-                                               self.std.boxcar['COUNTS'],
-                                               self.std.boxcar['COUNTS_IVAR'],
-                                               self.std_header['AIRMASS'],
-                                               self.std_header['EXPTIME'],
-                                               self.spectrograph,
-                                               BALM_MASK_WID=self.par['balm_mask_wid'],
-                                               telluric=self.telluric,
-                                               ra=self.std_ra,
-                                               dec=self.std_dec,
-                                               std_file = self.std_file,
-                                               debug=self.debug)
+        if self.spectrograph.pypeline == 'Echelle':
+            ext_final = fits.getheader(self.par['std_file'], -1)
+            norder = ext_final['ECHORDER'] + 1
+
+            self.sens_dict = {}
+            for iord in range(norder):
+                std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
+                std_idx = flux.find_standard(std_specobjs)
+                std = std_specobjs[std_idx]
+                wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
+                wave, counts, ivar = std.boxcar['WAVE'][wavemask], std.boxcar['COUNTS'][wavemask], \
+                                     std.boxcar['COUNTS_IVAR'][wavemask]
+                sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, float(std_header['AIRMASS']),
+                                                        std_header['EXPTIME'],
+                                                        self.spectrograph, star_type=self.star_type,
+                                                        star_mag=self.star_mag,
+                                                        telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
+                                                        resolution=self.resolution,
+                                                        BALM_MASK_WID=self.BALM_MASK_WID, std_file=self.std_file,
+                                                        norder=self.poly_order,
+                                                        polycorrect=self.polycorrect, debug=self.debug)
+                sens_dict_iord['ech_orderindx'] = iord
+                self.sens_dict[str(iord)] = sens_dict_iord
+            ## add some keys to be saved into primary header in masterframe
+            for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
+                        'std_name', 'cal_file']:
+                try:
+                    self.sens_dict[key] = sens_dict_iord[key]
+                except:
+                    pass
+            self.sens_dict['norder'] = norder
+            self.sens_dict['wave_min'] = self.sens_dict['0']['wave_min']
+
+        else:
+            self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
+                                                   self.std.boxcar['COUNTS'],
+                                                   self.std.boxcar['COUNTS_IVAR'],
+                                                   self.std_header['AIRMASS'],
+                                                   self.std_header['EXPTIME'],
+                                                   self.spectrograph,
+                                                   BALM_MASK_WID=self.par['balm_mask_wid'],
+                                                   telluric=self.telluric,
+                                                   ra=self.std_ra,
+                                                   dec=self.std_dec,
+                                                   std_file = self.std_file,
+                                                   debug=self.debug)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -356,6 +401,34 @@ class FluxSpec():
         if not os.path.isfile(filename):
             msgs.warn("No sens_file found of type {:s}: {:s}".format(self.frametype, filename))
             return None
+        elif self.spectrograph.pypeline == 'Echelle':
+            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
+
+            hdu = fits.open(filename)
+            norder = hdu[0].header['NORDER']
+            sens_dicts = {}
+            for iord in range(norder):
+                head = hdu[iord + 1].header
+                tbl = hdu['SENSFUNC-ORDER{0:04}'.format(iord)].data
+                sens_dict = {}
+                sens_dict['wave'] = tbl['WAVE']
+                sens_dict['sensfunc'] = tbl['SENSFUNC']
+                ## keys in each order
+                for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
+                            'std_name', 'cal_file', 'ech_orderindx']:
+                    try:
+                        sens_dict[key] = head[key.upper()]
+                    except:
+                        pass
+                sens_dicts[str(iord)] = sens_dict
+            ## primary header
+            for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
+                        'std_name', 'cal_file', 'norder']:
+                try:
+                    sens_dicts[key] = hdu[0].header[key]
+                except:
+                    pass
+            return sens_dicts
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
 
@@ -395,9 +468,10 @@ class FluxSpec():
         # Do it
         prihdu = fits.PrimaryHDU()
         hdus = [prihdu]
-        # Add critical keys from sens_dict to header
+
+        # Add critical keys from sens_dict to primary header
         for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
-                    'std_dec', 'std_name', 'cal_file']:
+                    'std_dec', 'std_name', 'cal_file', 'norder']:
             try:
                 prihdu.header[key.upper()] = sens_dict[key].value
             except AttributeError:
@@ -405,15 +479,41 @@ class FluxSpec():
             except KeyError:
                 pass  # Will not require all of these
 
-        cols = []
-        cols += [fits.Column(array=sens_dict['wave'], name=str('WAVE'), format=sens_dict['wave'].dtype)]
-        cols += [
-            fits.Column(array=sens_dict['sensfunc'], name=str('SENSFUNC'), format=sens_dict['sensfunc'].dtype)]
-        # Finish
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'SENSFUNC'
-        hdus += [tbhdu]
+        if self.spectrograph.pypeline == 'Echelle':
+            norder = sens_dict['norder']
+            for iord in range(norder):
+                sens_dict_iord = sens_dict[str(iord)]
+                cols = []
+                cols += [
+                    fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
+                cols += [
+                    fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'),
+                                format=sens_dict_iord['sensfunc'].dtype)]
+                # Finish
+                coldefs = fits.ColDefs(cols)
+                tbhdu = fits.BinTableHDU.from_columns(coldefs)
+                tbhdu.name = 'SENSFUNC-ORDER{0:04}'.format(iord)
+                # Add critical keys from sens_dict to the header of each order
+                for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
+                            'std_dec', 'std_name', 'cal_file', 'ech_orderindx']:
+                    try:
+                        tbhdu.header[key.upper()] = sens_dict_iord[key].value
+                    except AttributeError:
+                        tbhdu.header[key.upper()] = sens_dict_iord[key]
+                    except KeyError:
+                        pass  # Will not require all of these
+                hdus += [tbhdu]
+        else:
+            cols = []
+            cols += [fits.Column(array=sens_dict['wave'], name=str('WAVE'), format=sens_dict['wave'].dtype)]
+            cols += [
+                fits.Column(array=sens_dict['sensfunc'], name=str('SENSFUNC'), format=sens_dict['sensfunc'].dtype)]
+            # Finish
+            coldefs = fits.ColDefs(cols)
+            tbhdu = fits.BinTableHDU.from_columns(coldefs)
+            tbhdu.name = 'SENSFUNC'
+            hdus += [tbhdu]
+
         # Finish
         hdulist = fits.HDUList(hdus)
         hdulist.writeto(outfile, overwrite=True)
@@ -541,9 +641,9 @@ class EchFluxSpec(masterframe.MasterFrame):
 
         # Load standard files
         std_spectro = None
-        self.std_spec1d_file = std_spec1d_file
+        self.std_spec1d_file = par['std_file']
         # Need to unwrap these (sometimes)..
-        self.std_specobjs = std_specobjs
+        self.std_specobjs = par['std_obj_id']
         self.std_header = std_header
         if self.std_spec1d_file is not None:
             self.std_specobjs, self.std_header = load.load_specobjs(self.std_spec1d_file)

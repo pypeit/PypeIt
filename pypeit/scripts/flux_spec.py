@@ -122,10 +122,12 @@ def main(args, unit_test=False):
     # Instantiate
     if spectrograph.pypeline == 'Echelle':
         # THIS MAY BE BROKEN
-        FxSpec = fluxspec.EchFluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
+        FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
     else:
         FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
 
+    from IPython import embed
+    embed()
     # Generate sensfunc??
     if par['fluxcalib']['std_file'] is not None:
         # Load standard

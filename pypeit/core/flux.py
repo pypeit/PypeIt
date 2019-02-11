@@ -25,6 +25,7 @@ from pypeit.core import pydl
 from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
+from pypeit.wavemodel import conv2res
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
@@ -172,13 +173,16 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
         wave_star = wave_star * units.AA
 
     # Extinction correction
-    msgs.info("Applying extinction correction")
-    extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                   spectrograph.telescope['latitude'])
-    ext_corr = extinction_correction(wave_star, airmass, extinct)
-    # Correct for extinction
-    flux_star = flux_star * ext_corr
-    ivar_star = ivar_star / ext_corr ** 2
+    if np.max(wave_star) < 10000. * units.AA:
+        msgs.info("Applying extinction correction")
+        extinct = load_extinction_data(spectrograph.telescope['longitude'],
+                                       spectrograph.telescope['latitude'])
+        ext_corr = extinction_correction(wave_star, airmass, extinct)
+        # Correct for extinction
+        flux_star = flux_star * ext_corr
+        ivar_star = ivar_star / ext_corr ** 2
+    else:
+        msgs.info("Extinction correction not applied")
 
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
