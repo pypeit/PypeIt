@@ -72,7 +72,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, reuse_masters=reuse_masters)
+                                         master_dir, reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.msarc = msarc

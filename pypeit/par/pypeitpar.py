@@ -1277,7 +1277,7 @@ class TraceSlitsPar(ParSet):
                  maxgap=None, maxshift=None, pad=None, sigdetect=None,
                  min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
-                 pcaextrap=None, smash_range=None, mask_frac_thresh=None):
+                 pcaextrap=None, smash_range=None, trace_npoly=None, mask_frac_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1352,6 +1352,10 @@ class TraceSlitsPar(ParSet):
         dtypes['smash_range'] = list
         descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges. ' \
                              'If the spectrum covers only a portion of the image, use that range.'
+
+        defaults['trace_npoly'] = 5
+        dtypes['trace_npoly'] = int
+        descr['trace_npoly'] = 'Order of legendre polynomial fits to slit/order boundary traces.'
 
         defaults['min_slit_width'] = 6.0  # arcseconds!
         dtypes['min_slit_width'] = float
@@ -1435,7 +1439,7 @@ class TraceSlitsPar(ParSet):
         k = cfg.keys()
         parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
                     'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
-                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range',
+                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly'
                     'mask_frac_thresh']
         kwargs = {}
         for pk in parkeys:
@@ -1843,7 +1847,7 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, boxcar_radius=None,
+    def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
                  no_poly=None, manual=None):
 
@@ -1877,6 +1881,10 @@ class ScienceImagePar(ParSet):
         defaults['boxcar_radius'] = 1.5
         dtypes['boxcar_radius'] = [int, float]
         descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
+
+        defaults['trace_npoly'] = 5
+        dtypes['trace_npoly'] = int
+        descr['trace_npoly'] = 'Order of legendre polynomial fits to object traces.'
 
         defaults['global_sky_std'] = True
         dtypes['global_sky_std'] = bool
@@ -1926,7 +1934,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'boxcar_radius', 'global_sky_std', 'sig_thresh', 'maxnumber', 'sn_gauss',
+        parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std', 'sig_thresh', 'maxnumber', 'sn_gauss',
                    'model_full_slit', 'no_poly', 'manual']
         kwargs = {}
         for pk in parkeys:

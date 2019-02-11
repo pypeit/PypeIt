@@ -13,10 +13,10 @@ import pytest
 import glob
 import numpy as np
 
-from astropy.table import Table
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
 from pypeit import flatfield
+from pypeit.par import pypeitpar
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -56,7 +56,9 @@ def test_run():
                 = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
                                          datasec=True)
     # Instantiate
-    flatField = flatfield.FlatField(spectrograph=spectrograph, det=1, tilts_dict=tilts_dict,
+    frametype = 'pixelflat'
+    par = pypeitpar.FrameGroupPar(frametype)
+    flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
                                     tslits_dict=tslits_dict.copy())
     # Use mstrace
     flatField.rawflatimg = tslits_dict['mstrace'].copy()

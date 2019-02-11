@@ -12,6 +12,7 @@ from pypeit.par import pypeitpar
 
 from pypeit import debugger
 
+
 class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
     """
     Generate an Arc Image by processing and combining one or more arc frames.
@@ -35,7 +36,6 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         msbias (ndarray or str, optional): Guides bias subtraction
 
     Attributes:
-        frametype (str): Set to 'arc'
         stack (ndarray): Final output image
 
     """
@@ -53,13 +53,13 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, files=files, det=det,
-                                             par=self.par['process'])
+        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
+                                             files=files, det=det)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         reuse_masters=reuse_masters, master_dir=master_dir)
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir,
+                                         reuse_masters=reuse_masters)
 
     def build_image(self, overwrite=False):
         """ Build the arc image from one or more arc files

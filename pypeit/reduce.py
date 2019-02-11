@@ -18,69 +18,67 @@ class Reduce(object):
      This class will organize and run actions related to
      a Science or Standard star exposure
 
-     Parameters
-     ----------
-     file_list : list
-       List of raw files to produce the flat field
-     spectrograph : str
-     settings : dict-like
-     tslits_dict : dict
-       dict from TraceSlits class
-     tilts : ndarray
-       tilts from WaveTilts class
-       used for sky subtraction and object finding
-     det : int
-     setup : str
-     datasec_img : ndarray
-       Identifies pixels to amplifiers
-     bpm : ndarray
-       Bad pixel mask
-     maskslits : ndarray (bool)
-       Specifies masked out slits
-     pixlocn : ndarray
-     objtype : str
-       'science'
-       'standard'
-     scidx : int
-       Row in the fitstbl corresponding to the exposure
+     Args:
+         file_list : list
+           List of raw files to produce the flat field
+         spectrograph : str
+         settings : dict-like
+         tslits_dict : dict
+           dict from TraceSlits class
+         tilts : ndarray
+           tilts from WaveTilts class
+           used for sky subtraction and object finding
+         det : int
+         setup : str
+         datasec_img : ndarray
+           Identifies pixels to amplifiers
+         bpm : ndarray
+           Bad pixel mask
+         maskslits : ndarray (bool)
+           Specifies masked out slits
+         pixlocn : ndarray
+         objtype : str
+           'science'
+           'standard'
+         scidx : int
+           Row in the fitstbl corresponding to the exposure
 
-     Attributes
-     ----------
-     frametype : str
-       Set to 'science'
-     sciframe : ndarray
-       Processed 2D frame
-     rawvarframe : ndarray
-       Variance generated without a sky (or object) model
-     modelvarframe : ndarray
-       Variance generated with a sky model
-     finalvar : ndarray
-       Final variance frame
-     global_sky : ndarray
-       Sky model across the slit/order
-     skycorr_box : ndarray
-       Local corrections to the sky model
-     final_sky : ndarray
-       Final sky model; may include 'local' corrections
-     obj_model : ndarray
-       Model of the object flux
-     trcmask : ndarray
-       Masks of objects for sky subtraction
-     tracelist : list
-       List of traces for objects in slits
-     inst_name : str
-       Short name of the spectrograph, e.g. KASTb
-     target_name : str
-       Parsed from the Header
-     basename : str
-       Combination of camera, target, and time
-       e.g. J1217p3905_KASTb_2015May20T045733.56
-     time : Time
-       time object
-     specobjs : list
-       List of specobjs
-     bm: ScienceImageBitMask
-       Object used to select bits of a given type
+     Attributes:
+         frametype : str
+           Set to 'science'
+         sciframe : ndarray
+           Processed 2D frame
+         rawvarframe : ndarray
+           Variance generated without a sky (or object) model
+         modelvarframe : ndarray
+           Variance generated with a sky model
+         finalvar : ndarray
+           Final variance frame
+         global_sky : ndarray
+           Sky model across the slit/order
+         skycorr_box : ndarray
+           Local corrections to the sky model
+         final_sky : ndarray
+           Final sky model; may include 'local' corrections
+         obj_model : ndarray
+           Model of the object flux
+         trcmask : ndarray
+           Masks of objects for sky subtraction
+         tracelist : list
+           List of traces for objects in slits
+         inst_name : str
+           Short name of the spectrograph, e.g. KASTb
+         target_name : str
+           Parsed from the Header
+         basename : str
+           Combination of camera, target, and time
+           e.g. J1217p3905_KASTb_2015May20T045733.56
+         time : Time
+           time object
+         specobjs : list
+           List of specobjs
+         bm: ScienceImageBitMask
+           Object used to select bits of a given type
      """
 
     __metaclass__ = ABCMeta
@@ -543,7 +541,7 @@ class MultiSlit(Reduce):
             thismask = (self.slitmask == slit)
             inmask = (self.mask == 0) & thismask
             # Find objects
-            specobj_dict = {'setup': self.setup, 'slitid': slit,
+            specobj_dict = {'setup': self.setup, 'slitid': slit, 'orderindx': 999,
                             'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
@@ -571,7 +569,8 @@ class MultiSlit(Reduce):
             #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit],
-                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=hand_extract_dict, #self.redux_par['manual'],
+                inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
+                std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=hand_extract_dict, #self.redux_par['manual'],
                 specobj_dict=specobj_dict, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
@@ -692,13 +691,14 @@ class Echelle(Reduce):
         plate_scale = self.spectrograph.order_platescale(binning=self.binning)
         inmask = self.mask == 0
         # Find objects
-        specobj_dict = {'setup': self.setup, 'slitid': 999,
+        specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # ToDO implement parsets here!
         sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
-                                inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
+                                inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
+                                plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
 
