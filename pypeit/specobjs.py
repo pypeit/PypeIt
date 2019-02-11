@@ -64,7 +64,7 @@ class SpecObj(object):
     # Attributes
 
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None, idx=None,
-                 slitid=999, objtype='unknown', pypeline='unknown', spat_pixpos=None, config=None):
+                 slitid=999, orderindx=999, objtype='unknown', pypeline='unknown', spat_pixpos=None, config=None):
 
 
         #Assign from init parameters
@@ -97,7 +97,7 @@ class SpecObj(object):
 
         # Some things for echelle functionality
         self.ech_order = None
-        self.ech_orderindx = None
+        self.ech_orderindx = orderindx
         self.ech_objid = 999
         self.ech_snr = None
         self.ech_fracpos = None
