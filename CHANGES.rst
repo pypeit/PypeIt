@@ -5,6 +5,11 @@
 - Continued the process of requiring spectrograph and par in each base class
 - More doc + cleaning at top level, e.g. base classes
 - Eliminates BPM base class
+- Implementation of 2d coadds including a script to perform them.
+- Fixed bug in extract.fit_profile that was introduced when implementing 2d coadds
+- Polynomial order for object finding is now part of parset.
+- Improved X-shooter object tracing by increasing order.
+- Improved determination of threshold determination regions for object finding.
 
 
 0.9.1 (4 Feb 2019)
