@@ -99,7 +99,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return good_exp #& (fitstbl['idname'] == 'OBJECT')
+            return good_exp & (fitstbl['target'] != 'CuAr') & (fitstbl['target'] != 'GCALflat') & (fitstbl['target'] != 'Bias')
+            #& (fitstbl['idname'] == 'OBJECT')
         if ftype == 'arc':
             return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
         if ftype == 'pixelflat' or ftype == 'trace':
@@ -183,7 +184,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -202,10 +203,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         is defined directly.
 
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`):
+                String providing the file name to read.  Unlike the base
+                class, a file name *must* be provided.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
                 oscansec, according to the :class:`DetectorPar`
@@ -219,7 +221,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_gmos(filename, det=det)
+        if inp is None:
+            msgs.error('Must provide Keck DEIMOS file to get image section.')
+        elif not os.path.isfile(inp):
+            msgs.error('File {0} does not exist!'.format(inp))
+        temp, head0, secs = read_gmos(inp, det=det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':
