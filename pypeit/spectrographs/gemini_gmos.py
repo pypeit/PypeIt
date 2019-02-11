@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 
 import glob
-
+import os
 import numpy as np
 from astropy.io import fits
 
@@ -222,7 +222,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         # Read the file
         if inp is None:
-            msgs.error('Must provide Keck DEIMOS file to get image section.')
+            msgs.error('Must provide Gemini GMOS file to get image section.')
         elif not os.path.isfile(inp):
             msgs.error('File {0} does not exist!'.format(inp))
         temp, head0, secs = read_gmos(inp, det=det)
