@@ -33,8 +33,10 @@ MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
-def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
-                   spectrograph, MAX_EXTRAP=0.05):
+# TODO Remove dependencies on objects here (sobjs and spectrograph). This should have the following argument lists
+#  wave, counts, counts_ivar, sens_dict, airmass, exptime, longitude, latitude
+# i.e. if the it is echelle loop over the sens_dict and apply to each.
+def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
 

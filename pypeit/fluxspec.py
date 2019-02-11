@@ -111,6 +111,7 @@ class FluxSpec():
         self.poly_order = 5#par['poly_norder']
         self.polycorrect = True#par['polycorrect']
 
+    # TODO This needs to be modified to return whatever it loaded. Pypeline independent.
     def load_objs(self, spec1d_file, std=True):
         """
         Load specobjs and heade from an input spec1d_file
@@ -141,6 +142,8 @@ class FluxSpec():
         spectro = header['INSTRUME']
         assert spectro == self.spectrograph.spectrograph
 
+    # TODO Generalize flux.find_standard to do the right thing for echelle. The relevant information is there in the
+    # specobjs, so this does not need to be overloaded in a child class.  Pypeline independent.
     def find_standard(self):
         """
         Identify the standard star from the list of all spectra in the specobjs
@@ -186,6 +189,7 @@ class FluxSpec():
             # Return
             return self.std
 
+    # TODO Make this a dummy method in the parent which is overloaded by the children for MultiSlit or Echelle
     def generate_sensfunc(self):
         """
         Generate the senstivity function
@@ -259,6 +263,7 @@ class FluxSpec():
         # Return
         return self.sens_dict
 
+    # TODO THis appears to not be used. Depcreated.
     def flux_specobjs(self, specobjs, airmass, exptime):
         """
         Flux an input list of SpecObj objects
@@ -283,6 +288,7 @@ class FluxSpec():
                 flux.apply_sensfunc(sci_obj, self.sens_dict, airmass, exptime,
                                     self.spectrograph)
 
+    # TODO This will be overloaded by class specific methods.
     def flux_science(self, sci_file):
         """
         Flux the internal list of sci_specobjs
@@ -336,6 +342,7 @@ class FluxSpec():
         # Return
         return self.std
 
+    # TODO This appears to be deprecated.
     def get_sens_dict(self, row_fitstbl, clobber=False, save=True):
         """
         Load or generate+save the MasterFrame sensitivity function
@@ -384,6 +391,7 @@ class FluxSpec():
         # Return
         return self.sens_dict
 
+    # TODO One method for both. Make sens_dict an OrderedDict
     def load_sens_dict(self, filename):
         """
         Load the sens_dict from input file
@@ -445,6 +453,7 @@ class FluxSpec():
                     pass
             return sens_dict
 
+    # TODO THis is spectrograph independent. Make sens_dict an ordered dict.
     def save_sens_dict(self, sens_dict, outfile):
         """
         Over-load the save_master() method in MasterFrame to write a FITS file
@@ -538,6 +547,7 @@ class FluxSpec():
         # TODO not sure why you are plotting with the debugger here.
         debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
+    # TODO This should work fine for both.
     def write_science(self, outfile):
         """
         Write the flux-calibrated science spectra
