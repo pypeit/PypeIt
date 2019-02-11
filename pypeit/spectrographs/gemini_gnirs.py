@@ -71,7 +71,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Slits
         par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
 
         # Wavelengths

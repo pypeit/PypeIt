@@ -205,7 +205,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['flexure']['method'] = 'boxcar'
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['trace_npoly'] = 3
 
         # Overscan subtract the images
         par['calibrations']['biasframe']['useframe'] = 'overscan'

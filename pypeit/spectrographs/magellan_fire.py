@@ -102,7 +102,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # Set slits and tilts parameters
 #        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10]
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['sigdetect'] = 50
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
