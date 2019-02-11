@@ -64,7 +64,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
+            binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
 
