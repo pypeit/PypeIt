@@ -100,6 +100,7 @@ def main(args, unit_test=False):
     from pypeit.core import flux
     from pypeit.par import pypeitpar
 
+
     # Load the file
     spectrograph, config_lines, flux_dict = read_fluxfile(args.flux_file)
 
@@ -119,15 +120,15 @@ def main(args, unit_test=False):
     print("Writing the parameters to {}".format(args.par_outfile))
     par.to_config(args.par_outfile)
 
+    from IPython import embed
+    embed()
     # Instantiate
     if spectrograph.pypeline == 'Echelle':
         # THIS MAY BE BROKEN
-        FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
+        FxSpec = fluxspec.Echelle(spectrograph, par['fluxcalib'], debug=args.debug)
     else:
-        FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
+        FxSpec = fluxspec.MultiSlit(spectrograph, par['fluxcalib'], debug=args.debug)
 
-    from IPython import embed
-    embed()
     # Generate sensfunc??
     if par['fluxcalib']['std_file'] is not None:
         # Load standard
