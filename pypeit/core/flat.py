@@ -481,20 +481,22 @@ def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe
     if illum_flat is not None:
         if np.any(illum_flat != 1.0):
             msgs.info('Dividing by illumination flat')
-        flatframe *= illum_flat
+        final_flat = flatframe * illum_flat   # Previous code was modifying flatframe!
+    else:
+        final_flat = flatframe.copy()
 
     # New image
     retframe = np.zeros_like(sciframe)
-    w = np.where(flatframe > 0.0)
-    retframe[w] = sciframe[w]/flatframe[w]
-    if w[0].size != flatframe.size:
-        ww = np.where(flatframe <= 0.0)
+    w = np.where(final_flat > 0.0)
+    retframe[w] = sciframe[w]/final_flat[w]
+    if w[0].size != final_flat.size:
+        ww = np.where(final_flat <= 0.0)
         bpix[ww] = 1.0
     # Variance?
     if varframe is not None:
         # This is risky -- Be sure your flat is well behaved!!
         retvar = np.zeros_like(sciframe)
-        retvar[w] = varframe[w]/flatframe[w]**2
+        retvar[w] = varframe[w]/final_flat[w]**2
         return retframe, retvar
     # Error image
     if snframe is None:
@@ -1198,63 +1200,6 @@ def sn_frame(slf, sciframe, idx):
     snframe[w] = sciframe[w]/np.sqrt(errframe[w])
     return snframe
 '''
-
-#
-# def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe=None):
-#     """ Flat field the input image
-#
-#     .. todo::
-#         - Is bpix required?
-#
-#     Parameters
-#     ----------
-#     sciframe : 2d image
-#     flatframe : 2d image
-#     illum_flat : 2d image, optional
-#       slit profile image
-#     snframe : 2d image, optional
-#     det : int
-#       Detector index
-#     varframe : ndarray
-#       variance image
-#
-#     Returns
-#     -------
-#     flat-field image
-#     and updated sigma array if snframe is input
-#     or updated variance array if varframe is input
-#
-#     """
-#     if (varframe is not None) & (snframe is not None):
-#         msgs.error("Cannot set both varframe and snframe")
-#
-#     # Fold in the slit profile
-#     if illum_flat is not None:
-#         msgs.info('Dividing by illumination flat')
-#         flatframe *= illum_flat
-#
-#     # New image
-#     retframe = np.zeros_like(sciframe)
-#     w = np.where(flatframe > 0.0)
-#     retframe[w] = sciframe[w]/flatframe[w]
-#     if w[0].size != flatframe.size:
-#         ww = np.where(flatframe <= 0.0)
-#         bpix[ww] = 1.0
-#     # Variance?
-#     if varframe is not None:
-#         # This is risky -- Be sure your flat is well behaved!!
-#         retvar = np.zeros_like(sciframe)
-#         retvar[w] = varframe[w]/flatframe[w]**2
-#         return retframe, retvar
-#     # Error image
-#     if snframe is None:
-#         return retframe
-#     else:
-#         errframe = np.zeros_like(sciframe)
-#         wnz = np.where(snframe>0.0)
-#         errframe[wnz] = retframe[wnz]/snframe[wnz]
-#         return retframe, errframe
-
 
 '''
 def flatnorm(slf, det, msflat, bpix, maskval=-999999.9, overpix=6, plotdesc=""):
