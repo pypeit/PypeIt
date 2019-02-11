@@ -51,6 +51,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['dispangle'] = dict(ext=0, card='CENTWAVE', rtol=1e-5)
+        self.meta['dichroic'] = dict(ext=0, card='FILTER1')
+
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -97,13 +99,13 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'OBJECT')
+            return good_exp #& (fitstbl['idname'] == 'OBJECT')
         if ftype == 'arc':
-            return good_exp & (fitstbl['idname'] == 'ARC')
+            return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
         if ftype == 'pixelflat' or ftype == 'trace':
-            return good_exp & (fitstbl['idname'] == 'FLAT')
+            return good_exp & (fitstbl['target'] == 'GCALflat')#& (fitstbl['idname'] == 'FLAT')
         if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'BIAS')
+            return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
