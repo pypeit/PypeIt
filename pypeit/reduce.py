@@ -747,7 +747,7 @@ class Echelle(Reduce):
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
             std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.redux_par['bspline_spacing'],
-            box_rad_order=self.redux_par['boxcar_radius']/self.spectrograph.order_platescale(),
+            box_rad_order=self.redux_par['boxcar_radius']/self.spectrograph.order_platescale(binning=self.binning),
             sn_gauss=self.redux_par['sn_gauss'], model_full_slit=self.redux_par['model_full_slit'],
             model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
