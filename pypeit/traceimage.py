@@ -37,7 +37,7 @@ class TraceImage(processimages.ProcessImages):
 
     def __init__(self, spectrograph, files=None, det=1, par=None):
         self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
-        processimages.ProcessImages.__init__(self, spectrograph, files=files, det=det,
-                                             par=self.par['process'])
+        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
+                                             files=files, det=det)
 
 

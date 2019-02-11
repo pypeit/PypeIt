@@ -61,14 +61,14 @@ class ProcessImages(object):
             :func:`pypeit.spectrographs.util.load_spectrograph` or a
             preconstructed instance of
             :class:`pypeit.spectrographs.spectrograph.Spectrograph`.
+        par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+            Parameters that dictate the processing of the images.  See
+            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+            defaults.
         files (:obj:`str`, :obj:`list`):
             One or more files to read and process.
         det (:obj:`int`, optional):
             The 1-indexed number of the detector.  Default is 1.
-        par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`, optional):
-            Parameters that dictate the processing of the images.  See
-            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-            defaults.
         binning (:obj:`list`, optional):
             Binning of the relevant images in each file provided as a
             string.  Will be parsed into spatial and spectral binning
@@ -117,7 +117,7 @@ class ProcessImages(object):
     frametype='Unknown'
     bitmask = ProcessImagesBitMask()  # The bit mask interpreter
 
-    def __init__(self, spectrograph, files=None, det=1, par=None, binning=None):
+    def __init__(self, spectrograph, par, files=None, det=1, binning=None):
 
         # Assign the internal list of files
         self._set_files(files)
@@ -126,13 +126,13 @@ class ProcessImages(object):
         self.spectrograph = load_spectrograph(spectrograph)
 
         # Assign the parameters to use to process the images
-        if par is not None and not isinstance(par, pypeitpar.ProcessImagesPar):
+        if not isinstance(par, pypeitpar.ProcessImagesPar):
             raise TypeError('Provided ParSet for processing images must be type ProcessImagesPar.')
 
         # TODO: This can't be called self.par because it may overwrite
         # the self.par of the derived classes (e.g. BiasFrame).  There may
         # be a better way to do this, but I'm punting for now.
-        self.proc_par = pypeitpar.ProcessImagesPar() if par is None else par
+        self.proc_par = par
 
         # Main (possible) outputs
         self.stack = None
@@ -749,7 +749,7 @@ class ProcessImages(object):
         """
         nfiles = len(files)
         for ifile in range(nfiles):
-            this_proc = ProcessImages(spectrograph, [files[ifile]], det=det, par=proc_par)
+            this_proc = ProcessImages(spectrograph, proc_par, [files[ifile]], det=det)
             # TODO I think trim should be hard wired, and am not letting it be a free parameter
             sciimg = this_proc.process(bias_subtract=bias,pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm,
                                        apply_gain=True, trim=True)

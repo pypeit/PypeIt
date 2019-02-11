@@ -42,9 +42,6 @@ class PypeIt(object):
     """
     This class runs the primary calibration and extraction in PypeIt
 
-    .. todo::
-        Improve docstring...
-
     Args:
         pypeit_file (:obj:`str`):  PypeIt filename
         verbosity (:obj:`int`, optional):
@@ -70,6 +67,7 @@ class PypeIt(object):
             Name of the pypeit file to read.  PypeIt files have a specific
             set of valid formats. A description can be found `here`_
             (include doc link).
+        fitstbl (:obj:`pypit.metadata.PypeItMetaData`): holds the meta info
     """
 #    __metaclass__ = ABCMeta
 
@@ -327,8 +325,7 @@ class PypeIt(object):
                 the name of a file with a previously PypeIt-reduced standard spectrum.
 
         Returns:
-            dict: The dictionary containing the primary outputs of
-            extraction
+            dict: The dictionary containing the primary outputs of extraction
         """
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
@@ -389,7 +386,7 @@ class PypeIt(object):
         # Return
         return sci_dict
 
-    def flexure_correct(self,sobjs,maskslits):
+    def flexure_correct(self, sobjs, maskslits):
         """
         Correct for flexure
 
@@ -410,7 +407,6 @@ class PypeIt(object):
                             out_dir=self.par['rdx']['redux_path'])
         else:
             msgs.info('Skipping flexure correction.')
-
 
     def helio_correct(self, sobjs, maskslits, frame, obstime):
         """
@@ -524,7 +520,7 @@ class PypeIt(object):
             std_outfile (str, optional):
 
         Returns:
-            five objects are returned::
+            eight objects are returned::
                 - ndarray: Science image
                 - ndarray: Science inverse variance image
                 - ndarray: Model of the sky
