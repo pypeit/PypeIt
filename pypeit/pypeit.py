@@ -550,7 +550,7 @@ class PypeIt(object):
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
         self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = \
-            self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm,
+            self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm.copy(),
                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                            show=self.show)
         # Object finding, first pass on frame without sky subtraction
