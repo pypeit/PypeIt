@@ -572,8 +572,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # TODO THIS IS STUPID. biasframe currently determines behvior for everyone. See Issue # 554
 
         par['calibrations']['slits']['sigdetect'] = 8.0
-        par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['polyorder'] = 6
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = -1
         #par['calibrations']['slits']['fracignore'] = 0.01
@@ -610,6 +609,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames

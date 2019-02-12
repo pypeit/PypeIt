@@ -1391,18 +1391,21 @@ class TraceSlitsPar(ParSet):
         defaults['add_slits'] = []
         dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
-                             'each sub-list having syntax (all integers):  det:spat0:spat1:spec  ' \
-                             'where det=detector, spat=spatial pixel, spec=spectral pixel, ' \
-                             'For example,  2:2121:2322:2000,3:1201:1500:2000'
+                             'each sub-list having syntax (all integers):  det:spec:spat_left:spat_right' \
+                             'where det=detector, spec=spectral pixel, spat_left=spatial pixel of left slit boundary, ' \
+                             ' spat_righ=spatial pixel of right slit boundary.' \
+                             'For example,  2:2000:2121:2322,3:2000:1201:1500  will add a slit to detector 2 ' \
+                             'passing through spec=2000 extending spatially from 2121 to 2322 and another on detector 3 ' \
+                             'at spec=2000 extending from 1201 to 1500'
 
         defaults['rm_slits'] = []
         dtypes['rm_slits'] = [str, list]
         descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, ' \
-                            'with each sub-list having syntax (all integers):  det:spat:spec ' \
-                            'where det=detector, spat=spatial pixel, spec=spectral pixel, '\
-                            'for example,  2:2121:2000,3:1500:2000' \
+                            'with each sub-list having syntax (all integers):  det:spec:spat ' \
+                            'where det=detector, spec=spectral pixel, spat=spatial pixel.'\
+                            'for example,  2:2000:2121,3:2000:1500' \
                             'the slit tracing code will remove the slits on detector 2 that contain pixel ' \
-                            '(spat,spec)=(2121,2000) '
+                            '(spat,spec)=(2000,2121) and detector 3 which contain (2000,2121)'
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
