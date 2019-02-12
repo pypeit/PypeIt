@@ -10,7 +10,10 @@
 - Polynomial order for object finding is now part of parset.
 - Improved X-shooter object tracing by increasing order.
 - Improved determination of threshold determination regions for object finding.
-
+- Added S/N floor to ivar determination for image procing.
+- Reworked master output for traceslits
+- Fixed a bug associated with binned images being proc'd incorrectly.
+- Fixed master_key outputs in headers to deal with different detectors.
 
 0.9.1 (4 Feb 2019)
 ------------------
