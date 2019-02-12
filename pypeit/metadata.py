@@ -110,6 +110,9 @@ class PypeItMetaData:
         self.table = table.Table(data if file_list is None 
                                  else self._build(file_list, strict=strict, usrdata=usrdata))
                         #else self._build(file_list, strict=strict))
+        # Sort on filename
+        self.table.sort('filename')
+        #
         if usrdata is not None:
             self.merge(usrdata)
         # Instrument-specific validation of the header metadata. This
@@ -699,7 +702,7 @@ class PypeItMetaData:
                        'namp': self.spectrograph.detector[d-1]['numamplifiers']}
         return setup[skey] if config_only else setup
 
-    def get_configuration_names(self, ignore=None, return_index=False):
+    def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
         Get the list of the unique configuration names.
         
@@ -716,6 +719,10 @@ class PypeItMetaData:
             return_index (:obj:`bool, optional):
                 Return row indices with the first occurence of these
                 configurations.
+            configs (:obj:`list`, optional):
+                Only pass back those matching this set of input configs
+                if ['all'], pass back all
+                Otherwise, a list like ['A','C'] is expected
 
         Returns:
             numpy.array: The list of unique setup names.  A second
@@ -737,6 +744,15 @@ class PypeItMetaData:
             rm = np.invert(np.isin(setups, ignore))
             setups = setups[rm]
             indx = indx[rm]
+
+        # Restrict
+        if configs is not None:
+            if configs[0] == 'all':
+                pass
+            else:
+                use = np.isin(setups, configs)
+                setups = setups[use]
+                indx = indx[use]
 
         return setups, indx if return_index else setups
 
@@ -1504,7 +1520,8 @@ class PypeItMetaData:
         ff.write(yaml.dump(utils.yamlify(cfg)))
         ff.close()
 
-    def write_pypeit(self, ofile, ignore=None, cfg_lines=None, write_bkg_pairs=False):
+    def write_pypeit(self, ofile, ignore=None, cfg_lines=None, write_bkg_pairs=False,
+                     configs=None):
         """
         Write a *.pypeit file in data-table format.
 
@@ -1517,7 +1534,7 @@ class PypeItMetaData:
 
         Args:
             ofile (:obj:`str`):
-                Name for the output pypeit file.
+                Name (typically the root) for the output .pypeit file.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file(s).
             ignore (:obj:`list`, optional):
@@ -1535,6 +1552,8 @@ class PypeItMetaData:
                     - `empty`: The columns are added but their values
                       are all originally set to -1.  **This is
                       currently the only option.**
+            configs (str, optional):
+                Configs to
 
         Raises:
             PypeItError:
@@ -1544,7 +1563,7 @@ class PypeItMetaData:
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
 
         # Unique configurations
-        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
+        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True, configs=configs)
 
         for setup,i in zip(setups, indx):
             # Create the output directory
