@@ -120,23 +120,19 @@ def main(args, unit_test=False):
     print("Writing the parameters to {}".format(args.par_outfile))
     par.to_config(args.par_outfile)
 
+    # Instantiate
+    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'], debug=args.debug)
+
     from IPython import embed
     embed()
-    # Instantiate
-    if spectrograph.pypeline == 'Echelle':
-        # THIS MAY BE BROKEN
-        FxSpec = fluxspec.Echelle(spectrograph, par['fluxcalib'], debug=args.debug)
-    else:
-        FxSpec = fluxspec.MultiSlit(spectrograph, par['fluxcalib'], debug=args.debug)
-
     # Generate sensfunc??
     if par['fluxcalib']['std_file'] is not None:
         # Load standard
-        FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
-        # For echelle, the code will deal with the standard star in the ech_fluxspec.py
-        if not spectrograph.pypeline == 'Echelle':
-            # Find the star
-            _ = FxSpec.find_standard()
+        _,_ = FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
+        ## For echelle, the code will deal with the standard star in the ech_fluxspec.py
+        #if not spectrograph.pypeline == 'Echelle':
+        # Find the star
+        _ = FxSpec.find_standard()
         # Sensitivity
         _ = FxSpec.generate_sensfunc()
         # Output
