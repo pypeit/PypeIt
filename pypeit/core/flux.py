@@ -102,8 +102,58 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
         extract['FLAM_SIG'] = flam_sig
         extract['FLAM_IVAR'] = flam_var
 
+def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
 
-def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph, telluric=True, star_type=None,
+
+    # Create star model
+    if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
+        # Pull star spectral model from archive
+        msgs.info("Get standard model")
+        # Grab closest standard within a tolerance
+        std_dict = find_standard_file(ra, dec)
+        if std_dict is not None:
+            # Load standard
+            load_standard_file(std_dict)
+        else:
+            msgs.error('No spectrum found in our database for your standard star. Please use another standard star \
+                       or consider add it into out database.')
+    elif (star_mag is not None) and (star_type is not None):
+        ## using vega spectrum
+        if 'A0' in star_type:
+            msgs.info('Using vega spectrum to correct telluric')
+            std_dict={'stellar_type':star_type , 'Vmag': star_mag}
+            vega_file = resource_filename('pypeit', '/data/standards/vega_04_to_06.dat')
+            vega_data = Table.read(vega_file, comment='#', format='ascii')
+            # Generate a dict matching the output of find_standard_file
+            std_dict = dict(cal_file='Vega_04_to_06', name=star_type, fmt=1,
+                            std_ra=None, std_dec=None)
+            std_dict['wave'] = vega_data['col1'] * units.AA
+            std_dict['flux'] = vega_data['col2'] / 10**(0.4*star_mag) / PYPEIT_FLUX_SCALE * \
+                               units.erg / units.s / units.cm ** 2 / units.AA
+
+        ## using Kurucz stellar model
+        else:
+            # Create star spectral model
+            msgs.info("Creating standard model")
+            # Create star model
+            star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
+            star_lam = 10 ** star_loglam
+            # Generate a dict matching the output of find_standard_file
+            std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
+                            std_ra=None, std_dec=None)
+            std_dict['wave'] = star_lam * units.AA
+            std_dict['flux'] = star_flux / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
+            # ToDO If the Kuruck model is used, rebin create weird features
+            # I using scipy interpolate to avoid this
+    else:
+        debugger.set_trace()
+        msgs.error('Insufficient information provided for fluxing. '
+                   'Either the coordinates of the standard or a stellar type and magnitude are needed.')
+
+
+    return std_dict
+
+def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, latitude, telluric=True, star_type=None,
                       star_mag=None, ra=None, dec=None, std_file = None, norder=4, BALM_MASK_WID=5., nresln=20.,
                       resolution=3000.,watervp=1.0, trans_thresh=0.9,polycorrect=True, polysens=False, debug=False):
 
@@ -177,8 +227,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     # Extinction correction
     if np.max(wave_star) < 10000. * units.AA:
         msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                       spectrograph.telescope['latitude'])
+        extinct = load_extinction_data(longitude, latitude)
         ext_corr = extinction_correction(wave_star, airmass, extinct)
         # Correct for extinction
         flux_star = flux_star * ext_corr
@@ -186,65 +235,13 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
     else:
         msgs.info("Extinction correction not applied")
 
-    # Create star model
-    if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
-        # Pull star spectral model from archive
-        msgs.info("Get standard model")
-        # Grab closest standard within a tolerance
-        std_dict = find_standard_file(ra, dec)
-        if std_dict is not None:
-            # Load standard
-            load_standard_file(std_dict)
-            # Interpolate onto observed wavelengths
-            #std_xspec = XSpectrum1D.from_tuple((std_dict['wave'], std_dict['flux']))
-            #xspec = std_xspec.rebin(wave_star)  # Conserves flambda
-            #flux_true = xspec.flux.value
-            flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],
-                                               bounds_error=False,
-                                               fill_value='extrapolate')(wave_star)
-        else:
-            msgs.error('No spectrum found in our database for your standard star. Please use another standard star \
-                       or consider add it into out database.')
-    elif (star_mag is not None) and (star_type is not None):
-        ## using vega spectrum
-        if 'A0' in star_type:
-            msgs.info('Using vega spectrum to correct telluric')
-            std_dict={'stellar_type':star_type , 'Vmag': star_mag}
-            vega_file = resource_filename('pypeit', '/data/standards/vega_04_to_06.dat')
-            vega_data = Table.read(vega_file, comment='#', format='ascii')
-            # Generate a dict matching the output of find_standard_file
-            std_dict = dict(cal_file='Vega_04_to_06', name=star_type, fmt=1,
-                            std_ra=None, std_dec=None)
-            std_dict['wave'] = vega_data['col1'] * units.AA
-            std_dict['flux'] = vega_data['col2'] / 10**(0.4*star_mag) / PYPEIT_FLUX_SCALE * \
-                               units.erg / units.s / units.cm ** 2 / units.AA
-
-        ## using Kurucz stellar model
-        else:
-            # Create star spectral model
-            msgs.info("Creating standard model")
-            # Create star model
-            star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
-            star_lam = 10 ** star_loglam
-            # Generate a dict matching the output of find_standard_file
-            std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
-                            std_ra=None, std_dec=None)
-            std_dict['wave'] = star_lam * units.AA
-            std_dict['flux'] = star_flux / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
-            # ToDO If the Kuruck model is used, rebin create weird features
-            # I using scipy interpolate to avoid this
-        flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],
-                                               bounds_error=False,
-                                               fill_value='extrapolate')(wave_star)
-    else:
-        debugger.set_trace()
-        msgs.error('Insufficient information provided for fluxing. '
-                   'Either the coordinates of the standard or a stellar type and magnitude are needed.')
-
-
+    std_dict =  get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
+    # Interpolate the standard star onto the current set of observed wavelengths
+    flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],bounds_error=False,
+                                           fill_value='extrapolate')(wave_star)
+    # Do we need to extrapolate? TODO Replace with a model or a grey body?
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
-        # ToDo: should we extrapolate it using graybody model?
         mask_model = flux_true <= 0
         msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
@@ -258,6 +255,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, spectrograph,
             plt.plot(std_dict['wave'],  utils.func_val(poly_coeff, std_dict['wave'].value, 'polynomial'), 'k-',label='robust_poly_fit')
             plt.plot(wave_star,flux_true,'r-',label='Your Final Star Model used for sensfunc')
             plt.show()
+
 
     # Mask bad pixels, edges, and Balmer, Paschen, Brackett, and Pfund lines
     # Mask (True = good pixels)

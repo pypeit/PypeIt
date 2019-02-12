@@ -207,7 +207,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'keck_deimos'
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['trace_npoly'] = 3
         par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3, 2, 1, 0]
 

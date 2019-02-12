@@ -1273,7 +1273,7 @@ class TraceSlitsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
+    def __init__(self, function=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None,
                  min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
@@ -1300,9 +1300,9 @@ class TraceSlitsPar(ParSet):
         descr['function'] = 'Function use to trace the slit center.  ' \
                             'Options are: {0}'.format(', '.join(options['function']))
 
-        defaults['polyorder'] = 3
-        dtypes['polyorder'] = int
-        descr['polyorder'] = 'Order of the function to use.'
+        #defaults['polyorder'] = 3
+        #dtypes['polyorder'] = int
+        #descr['polyorder'] = 'Order of the function to use.'
 
         defaults['medrep'] = 0
         dtypes['medrep'] = int
@@ -1437,7 +1437,7 @@ class TraceSlitsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
+        parkeys = [ 'function', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
                     'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
                     'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly',
                     'mask_frac_thresh']
