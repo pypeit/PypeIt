@@ -5,6 +5,7 @@
 - Continued the process of requiring spectrograph and par in each base class
 - More doc + cleaning at top level, e.g. base classes
 - Eliminates BPM base class
+- Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
 - Implementation of 2d coadds including a script to perform them.
 - Fixed bug in extract.fit_profile that was introduced when implementing 2d coadds
 - Polynomial order for object finding is now part of parset.
@@ -14,6 +15,7 @@
 - Reworked master output for traceslits
 - Fixed a bug associated with binned images being proc'd incorrectly.
 - Fixed master_key outputs in headers to deal with different detectors.
+
 
 0.9.1 (4 Feb 2019)
 ------------------
@@ -117,9 +119,6 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Extended LRISr 1200_900 arc template
 - Modified add/rm slit methods to be spec,spat
 - Add an option in coadding to scale the coadded spectrum to a given magnitude in a given filter
-- Many doc string updates in top level routines (not core)
-- Updates to install and cookbook docs
-- Continued the process of requiring spectrograph and par in each base class
 - Extended DEIMOS 1200G template
 
 0.9.0
