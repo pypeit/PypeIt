@@ -119,7 +119,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 20.
-        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['trace_npoly'] = 3
         # TODO: No longer a parameter
 #        par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
