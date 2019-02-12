@@ -98,7 +98,7 @@ def test_run_and_master(kast_blue_bias_files):
 
     # Load (not kept in the Object!)
     bias_frame3 = biasframe.BiasFrame('shane_kast_blue', master_key=master_key, master_dir=master_dir,reuse_masters=True)
-    bias3 = bias_frame3.load_master(bias_frame3.ms_name)
+    bias3, head = bias_frame3.load_master(bias_frame3.ms_name)
     assert bias_frame3.msframe is None
     assert np.array_equal(bias2, bias3)
 
