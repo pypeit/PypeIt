@@ -99,6 +99,14 @@ class FluxSpec(object):
         self.std = None         # Standard star spectrum (SpecObj object)
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds
                                 # to the star!
+        # standard/telluric star information
+        self.star_type = par['star_type']
+        self.star_mag = par['star_mag']
+        # telluric mask keywords
+        self.BALM_MASK_WID = par['balm_mask_wid']
+        # sensfunc fitting parameters
+        self.poly_norder = par['poly_norder']
+        self.polycorrect = par['polycorrect']
         self.debug = debug
 
     # TODO This needs to be modified to return whatever it loaded. Pypeline independent.
@@ -494,14 +502,9 @@ class Echelle(FluxSpec):
         super(Echelle, self).__init__(spectrograph, par, **kwargs)
 
         # Echelle key
-        self.star_type = par['star_type']
-        self.star_mag = par['star_mag']
-        self.BALM_MASK_WID = par['balm_mask_wid']
-        # TODO add these to the parameters to the parset
+        # TODO add these to the parameters to the parset or try to get rid of these parameters in flux.py
         self.resolution = 3000. #par['resolution']
         self.nresln = 10.0 #par['nresln']
-        self.poly_order = 5 #par['poly_norder']
-        self.polycorrect = True #par['polycorrect']
 
     def generate_sensfunc(self):
         """
@@ -546,7 +549,7 @@ class Echelle(FluxSpec):
                                                     telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
                                                     resolution=self.resolution,
                                                     BALM_MASK_WID=self.BALM_MASK_WID, std_file=self.std_file,
-                                                    norder=self.poly_order,
+                                                    poly_norder=self.poly_norder,
                                                     polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
             self.sens_dict[iord] = sens_dict_iord

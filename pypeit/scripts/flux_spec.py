@@ -123,8 +123,6 @@ def main(args, unit_test=False):
     # Instantiate
     FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'], debug=args.debug)
 
-    from IPython import embed
-    embed()
     # Generate sensfunc??
     if par['fluxcalib']['std_file'] is not None:
         # Load standard

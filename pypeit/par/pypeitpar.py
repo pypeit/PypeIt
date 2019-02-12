@@ -645,7 +645,7 @@ class FluxCalibrationPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None,
-                 star_type=None, star_mag=None, multi_det=None, telluric=None):
+                 star_type=None, star_mag=None, multi_det=None, telluric=None, poly_norder=None, polycorrect=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -688,6 +688,14 @@ class FluxCalibrationPar(ParSet):
         dtypes['star_mag'] = float
         descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
 
+        defaults['poly_norder'] = 5
+        dtypes['poly_norder'] = int
+        descr['poly_norder'] = 'Polynomial order for sensfunc fitting'
+
+        defaults['polycorrect'] = True
+        dtypes['polycorrect'] = bool
+        descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
+
         # Instantiate the parameter set
         super(FluxCalibrationPar, self).__init__(list(pars.keys()),
                                                  values=list(pars.values()),
@@ -700,7 +708,7 @@ class FluxCalibrationPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = ['balm_mask_wid',  'sensfunc', 'std_file', 'std_obj_id',
-                   'star_type', 'star_mag', 'multi_det', 'telluric']
+                   'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
