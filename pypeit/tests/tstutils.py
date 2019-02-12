@@ -141,14 +141,14 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     master_key = 'A_1_01'
     if aimg:
         AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir, reuse_masters=reuse_masters)
-        msarc = AImg.load_master(AImg.ms_name)
+        msarc, _ = AImg.load_master(AImg.ms_name)
         ret.append(msarc)
 
     if tslits:
         traceSlits = traceslits.TraceSlits(None,spectrograph,None)
-        tslits_dict = traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01'))
+        tslits_dict, _ = traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01'))
         # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
-        tslits_dict['mstrace'] = traceSlits.mstrace
+        #tslits_dict['mstrace'] = traceSlits.mstrace
         ret.append(tslits_dict)
 
     if tilts:
