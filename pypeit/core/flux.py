@@ -36,6 +36,7 @@ PYPEIT_FLUX_SCALE = 1e-17
 # TODO Remove dependencies on objects here (sobjs and spectrograph). This should have the following argument lists
 #  wave, counts, counts_ivar, sens_dict, airmass, exptime, longitude, latitude
 # i.e. if the it is echelle loop over the sens_dict and apply to each.
+# ToDo: rethink the structure, I still prefer to keep this otherwise we need loops for both longslit and echelle data in fluxspec.
 # def apply_sensfunc(wave, counts, counts_ivar, sens_dict, airmass, exptime, longitude, latitude):
 def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
     """ Apply the sensitivity function to the data
