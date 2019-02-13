@@ -453,7 +453,7 @@ class MultiSlit(FluxSpec):
             return None
 
         self.sens_dict = {}
-        self.sens_dict_long = flux.generate_sensfunc(self.std.boxcar['WAVE'],
+        sens_dict_long = flux.generate_sensfunc(self.std.boxcar['WAVE'],
                                                self.std.boxcar['COUNTS'],
                                                self.std.boxcar['COUNTS_IVAR'],
                                                self.std_header['AIRMASS'],
@@ -488,7 +488,7 @@ class MultiSlit(FluxSpec):
         self.load_objs(sci_file, std=False)
         # Run
         for sci_obj in self.sci_specobjs:
-            flux.apply_sensfunc(sci_obj, self.sens_dict, self.sci_header['AIRMASS'],
+            flux.apply_sensfunc(sci_obj, self.sens_dict[0], self.sci_header['AIRMASS'],
                                   self.sci_header['EXPTIME'], self.spectrograph)
         self.steps.append(inspect.stack()[0][3])
 
