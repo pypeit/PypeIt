@@ -154,7 +154,6 @@ class Spectrograph(object):
         # Return
         return img, head0
 
-    '''
     def load_raw_img_head(self, raw_file, dataext, **null_kwargs):
         """
         Generic raw image reader
@@ -177,7 +176,6 @@ class Spectrograph(object):
         head0 = hdulist[0].header
         # Return
         return raw_img, head0
-    '''
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
