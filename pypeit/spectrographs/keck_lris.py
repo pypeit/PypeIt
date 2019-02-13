@@ -745,8 +745,8 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
                             ysize           =1.,
                             platescale      =0.135,
                             darkcurr        =0.0,
-                            saturation      =65535.,
-                            nonlinear       =0.76,
+                            saturation      =65535.*1.255,  # Gain applied
+                            nonlinear       =0.86,          # Modified by JXP to go higher
                             numamplifiers   =1,
                             gain            =[1.255],
                             ronoise         =[4.64],
@@ -764,8 +764,8 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
                             ysize           =1.,
                             platescale      =0.135,
                             darkcurr        =0.,
-                            saturation      =65535.,
-                            nonlinear       =0.76,
+                            saturation      =65535.*1.162,  # Gain applied
+                            nonlinear       =0.86,
                             numamplifiers   =1,
                             gain            =[1.162],
                             ronoise         =[4.62],
