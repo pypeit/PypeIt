@@ -14,7 +14,7 @@ from pypeit import debugger
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core.wavecal import autoid
+#from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wvutils
 from pypeit import debugger
 
