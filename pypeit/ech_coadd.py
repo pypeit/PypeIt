@@ -290,4 +290,3 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeor
                     msgs.info('Saving the final calibrated spectrum of order {:d} as {:s}'.format(iord+1,outfile))
                     spectra_list[iord].write_to_fits(outfile_iord)
             return spectra_list
-
