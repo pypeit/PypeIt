@@ -306,8 +306,6 @@ def load_std_trace(spec1dfile, det):
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
             # TODO what is the data model for echelle standards? This routine needs to distinguish between echelle and longslit
-            from IPython import embed
-            embed()
             trace = tbl['TRACE']
 
     return trace
