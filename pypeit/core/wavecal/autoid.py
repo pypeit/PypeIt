@@ -19,7 +19,7 @@ from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
 from pypeit.core.wavecal import fitting
 from pypeit.core.wavecal import wvutils
-from pypeit.core.wavecal import qa
+from pypeit.core import qa
 from pypeit.core import arc
 
 from pypeit.core import pca
