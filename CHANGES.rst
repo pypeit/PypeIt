@@ -4,8 +4,8 @@
 - Updates to install and cookbook docs
 - Continued the process of requiring spectrograph and par in each base class
 - More doc + cleaning at top level, e.g. base classes
-- Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
 - Eliminates BPM base class
+- More doc + cleaning at top level, e.g. base classes
 - Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
 - Implementation of 2d coadds including a script to perform them.
 - Fixed bug in extract.fit_profile that was introduced when implementing 2d coadds

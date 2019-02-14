@@ -99,6 +99,14 @@ class FluxSpec(object):
         self.std = None         # Standard star spectrum (SpecObj object)
         self.std_idx = None     # Nested indices for the std_specobjs list that corresponds
                                 # to the star!
+        # standard/telluric star information
+        self.star_type = par['star_type']
+        self.star_mag = par['star_mag']
+        # telluric mask keywords
+        self.BALM_MASK_WID = par['balm_mask_wid']
+        # sensfunc fitting parameters
+        self.poly_norder = par['poly_norder']
+        self.polycorrect = par['polycorrect']
         self.debug = debug
 
     # TODO This needs to be modified to return whatever it loaded. Pypeline independent.
@@ -135,10 +143,62 @@ class FluxSpec(object):
 
     def find_standard(self):
         """
-         Dummy method for standard star finding. Overloaded by class specific standard finding.
-         Returns:
-         """
-        return None
+        Identify the standard star from the list of all spectra in the specobjs
+
+          Wrapper to flux.find_standard which simply takes the brightest
+
+        Returns
+        -------
+        self.std : SpecObj
+          Corresponds to the chosen spectrum
+        """
+        if self.par['std_obj_id'] is not None:
+            _ = self._set_std_obj()
+            return
+        if self.multi_det is not None:
+            sv_stds = []
+            # Find the standard in each detector
+            for det in self.multi_det:
+                stds = [sobj for sobj in self.std_specobjs if sobj.det == det]
+                if len(stds) == 0:
+                    debugger.set_trace()
+                idx = flux.find_standard(stds)
+                sv_stds.append(stds[idx])
+                msgs.info("Using standard {} for det={}".format(stds[idx], det))
+            # Now splice
+            msgs.info("Splicing the standards -- The name will be for the first detector")
+            std_splice = sv_stds[0].copy()
+            # Append
+            for ostd in sv_stds[1:]:
+                std_splice.boxcar['WAVE'] = np.append(std_splice.boxcar['WAVE'].value,
+                                                      ostd.boxcar['WAVE'].value) * units.AA
+                for key in ['COUNTS', 'COUNTS_IVAR']:
+                    std_splice.boxcar[key] = np.append(std_splice.boxcar[key], ostd.boxcar[key])
+            self.std = std_splice
+        elif self.spectrograph.pypeline == 'Echelle':
+            # Find brightest object in each order
+            std_brightest = self.std_specobjs[flux.find_standard(self.std_specobjs)]
+            std_objid = std_brightest['idx'].split('-')[0]
+            self.std_idx = np.zeros(len(self.std_specobjs), dtype=bool)
+            for ii in range(len(self.std_specobjs)):
+                if std_objid in self.std_specobjs[ii]['idx']:
+                    self.std_idx[ii] = True
+            # Set internal
+            self.std = self.std_specobjs[self.std_idx]
+            # Step
+            self.steps.append(inspect.stack()[0][3])
+            # Return
+            return self.std
+        else:
+            # Find brightest object in the exposures
+            # Searches over all slits (over all detectors), and all objects
+            self.std_idx = flux.find_standard(self.std_specobjs)
+            # Set internal
+            self.std = self.std_specobjs[self.std_idx]
+            # Step
+            self.steps.append(inspect.stack()[0][3])
+            # Return
+            return self.std
 
     def generate_sensfunc(self):
         """
@@ -147,24 +207,12 @@ class FluxSpec(object):
          """
         return None
 
-    # TODO This will be overloaded by class specific methods.
     def flux_science(self, sci_file):
         """
-        Flux the internal list of sci_specobjs
-
-        Wrapper to flux.apply_sensfunc()
-
+        Dummy method for fluxing. Overloaded by class specific fluxing
         Returns
-        -------
-
         """
-        # Load
-        self.load_objs(sci_file, std=False)
-        # Run
-        for sci_obj in self.sci_specobjs:
-            flux.apply_sensfunc(sci_obj, self.sens_dict, self.sci_header['AIRMASS'],
-                                  self.sci_header['EXPTIME'], self.spectrograph)
-        self.steps.append(inspect.stack()[0][3])
+        return
 
     def _set_std_obj(self, obj_id=None):
         """
@@ -201,7 +249,6 @@ class FluxSpec(object):
         # Return
         return self.std
 
-    # TODO One method for both. Make sens_dict an OrderedDict
     def load_sens_dict(self, filename):
         """
         Load the sens_dict from input file
@@ -214,12 +261,11 @@ class FluxSpec(object):
               Sensitivity function
         """
 
-
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No sens_file found of type {:s}: {:s}".format(self.frametype, filename))
             return None
-        elif self.spectrograph.pypeline == 'Echelle':
+        else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
 
             hdu = fits.open(filename)
@@ -238,7 +284,7 @@ class FluxSpec(object):
                         sens_dict[key] = head[key.upper()]
                     except:
                         pass
-                sens_dicts[str(iord)] = sens_dict
+                sens_dicts[iord] = sens_dict
             ## primary header
             for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                         'std_name', 'cal_file', 'norder']:
@@ -247,23 +293,7 @@ class FluxSpec(object):
                 except:
                     pass
             return sens_dicts
-        else:
-            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
 
-            hdu = fits.open(filename)
-            head = hdu[0].header
-            tbl = hdu['SENSFUNC'].data
-            sens_dict = {}
-            sens_dict['wave'] = tbl['WAVE']
-            sens_dict['sensfunc'] = tbl['SENSFUNC']
-            for key in ['wave_min','wave_max','exptime','airmass','std_file','std_ra','std_dec','std_name','cal_file']:
-                try:
-                    sens_dict[key] = head[key.upper()]
-                except:
-                    pass
-            return sens_dict
-
-    # TODO THis is spectrograph independent. Make sens_dict an ordered dict.
     def save_sens_dict(self, sens_dict, outfile):
         """
         Over-load the save_master() method in MasterFrame to write a FITS file
@@ -282,6 +312,7 @@ class FluxSpec(object):
         # Allow one to over-ride output name
         #if outfile is None:
         #    outfile = self.ms_name
+        ## ToDo: why add steps to sens_dict.
         # Add steps
         self.sens_dict['steps'] = self.steps
         # Do it
@@ -298,39 +329,28 @@ class FluxSpec(object):
             except KeyError:
                 pass  # Will not require all of these
 
-        if self.spectrograph.pypeline == 'Echelle':
-            norder = sens_dict['norder']
-            for iord in range(norder):
-                sens_dict_iord = sens_dict[str(iord)]
-                cols = []
-                cols += [
-                    fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
-                cols += [
-                    fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'),
-                                format=sens_dict_iord['sensfunc'].dtype)]
-                # Finish
-                coldefs = fits.ColDefs(cols)
-                tbhdu = fits.BinTableHDU.from_columns(coldefs)
-                tbhdu.name = 'SENSFUNC-ORDER{0:04}'.format(iord)
-                # Add critical keys from sens_dict to the header of each order
-                for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
-                            'std_dec', 'std_name', 'cal_file', 'ech_orderindx']:
-                    try:
-                        tbhdu.header[key.upper()] = sens_dict_iord[key].value
-                    except AttributeError:
-                        tbhdu.header[key.upper()] = sens_dict_iord[key]
-                    except KeyError:
-                        pass  # Will not require all of these
-                hdus += [tbhdu]
-        else:
+        norder = sens_dict['norder']
+        for iord in range(norder):
+            sens_dict_iord = sens_dict[iord]
             cols = []
-            cols += [fits.Column(array=sens_dict['wave'], name=str('WAVE'), format=sens_dict['wave'].dtype)]
             cols += [
-                fits.Column(array=sens_dict['sensfunc'], name=str('SENSFUNC'), format=sens_dict['sensfunc'].dtype)]
+                fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
+            cols += [
+                fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'),
+                            format=sens_dict_iord['sensfunc'].dtype)]
             # Finish
             coldefs = fits.ColDefs(cols)
             tbhdu = fits.BinTableHDU.from_columns(coldefs)
-            tbhdu.name = 'SENSFUNC'
+            tbhdu.name = 'SENSFUNC-ORDER{0:04}'.format(iord)
+            # Add critical keys from sens_dict to the header of each order
+            for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
+                        'std_dec', 'std_name', 'cal_file', 'ech_orderindx']:
+                try:
+                    tbhdu.header[key.upper()] = sens_dict_iord[key].value
+                except AttributeError:
+                    tbhdu.header[key.upper()] = sens_dict_iord[key]
+                except KeyError:
+                    pass  # Will not require all of these
             hdus += [tbhdu]
 
         # Finish
@@ -357,7 +377,6 @@ class FluxSpec(object):
         # TODO not sure why you are plotting with the debugger here.
         debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
-    # TODO This should work fine for both.
     def write_science(self, outfile):
         """
         Write the flux-calibrated science spectra
@@ -403,59 +422,13 @@ class FluxSpec(object):
         txt += '>'
         return txt
 
-
 class MultiSlit(FluxSpec):
     """
     Child of FluxSpec for Multislit and Longslit reductions
 
     """
     def __init__(self, spectrograph, par, **kwargs):
-        super(MultiSlit, self).__init__(self, spectrograph, par, **kwargs)
-
-    def find_standard(self):
-        """
-        Identify the standard star from the list of all spectra in the specobjs
-
-          Wrapper to flux.find_standard which simply takes the brightest
-
-        Returns
-        -------
-        self.std : SpecObj
-          Corresponds to the chosen spectrum
-        """
-        if self.par['std_obj_id'] is not None:
-            _ = self._set_std_obj()
-            return
-        if self.multi_det is not None:
-            sv_stds = []
-            # Find the standard in each detector
-            for det in self.multi_det:
-                stds = [sobj for sobj in self.std_specobjs if sobj.det == det]
-                if len(stds) == 0:
-                    debugger.set_trace()
-                idx = flux.find_standard(stds)
-                sv_stds.append(stds[idx])
-                msgs.info("Using standard {} for det={}".format(stds[idx], det))
-            # Now splice
-            msgs.info("Splicing the standards -- The name will be for the first detector")
-            std_splice = sv_stds[0].copy()
-            # Append
-            for ostd in sv_stds[1:]:
-                std_splice.boxcar['WAVE'] = np.append(std_splice.boxcar['WAVE'].value,
-                                                      ostd.boxcar['WAVE'].value) * units.AA
-                for key in ['COUNTS', 'COUNTS_IVAR']:
-                    std_splice.boxcar[key] = np.append(std_splice.boxcar[key], ostd.boxcar[key])
-            self.std = std_splice
-        else:
-            # Find brightest object in the exposures
-            # Searches over all slits (over all detectors), and all objects
-            self.std_idx = flux.find_standard(self.std_specobjs)
-            # Set internal
-            self.std = self.std_specobjs[self.std_idx]
-            # Step
-            self.steps.append(inspect.stack()[0][3])
-            # Return
-            return self.std
+        super(MultiSlit, self).__init__(spectrograph, par, **kwargs)
 
     def generate_sensfunc(self):
         """
@@ -479,22 +452,46 @@ class MultiSlit(FluxSpec):
                       'AIRMASS, EXPTIME.')
             return None
 
-        self.sens_dict = flux.generate_sensfunc(self.std.boxcar['WAVE'],
+        self.sens_dict = {}
+        sens_dict_long = flux.generate_sensfunc(self.std.boxcar['WAVE'],
                                                self.std.boxcar['COUNTS'],
                                                self.std.boxcar['COUNTS_IVAR'],
                                                self.std_header['AIRMASS'],
                                                self.std_header['EXPTIME'],
-                                               self.spectrograph,
+                                               self.spectrograph.telescope['longitude'],
+                                               self.spectrograph.telescope['latitude'],
                                                BALM_MASK_WID=self.par['balm_mask_wid'],
                                                telluric=self.telluric,
                                                ra=self.std_ra,
                                                dec=self.std_dec,
                                                std_file = self.std_file,
                                                debug=self.debug)
+        self.sens_dict[0] = sens_dict_long
+        self.sens_dict['norder'] = 1
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.sens_dict
+
+    def flux_science(self, sci_file):
+        """
+        Flux the internal list of sci_specobjs
+
+        Wrapper to flux.apply_sensfunc()
+
+        Returns
+        -------
+
+        """
+        # Load
+        self.load_objs(sci_file, std=False)
+        # Run
+        for sci_obj in self.sci_specobjs:
+            flux.apply_sensfunc(sci_obj, self.sens_dict[0], self.sci_header['AIRMASS'],
+                                  self.sci_header['EXPTIME'], self.spectrograph)
+        self.steps.append(inspect.stack()[0][3])
+
 
 class Echelle(FluxSpec):
     """
@@ -502,46 +499,12 @@ class Echelle(FluxSpec):
 
     """
     def __init__(self, spectrograph, par, **kwargs):
-        super(Echelle, self).__init__(self, spectrograph, par, **kwargs)
+        super(Echelle, self).__init__(spectrograph, par, **kwargs)
 
         # Echelle key
-        self.star_type = par['star_type']
-        self.star_mag = par['star_mag']
-        self.BALM_MASK_WID = par['balm_mask_wid']
-        # TODO add these to the parameters to the parset
+        # TODO add these to the parameters to the parset or try to get rid of these parameters in flux.py
         self.resolution = 3000. #par['resolution']
         self.nresln = 10.0 #par['nresln']
-        self.poly_order = 5 #par['poly_norder']
-        self.polycorrect = True #par['polycorrect']
-
-    def find_standard(self):
-        """
-        Identify the standard star from the list of all spectra in the specobjs
-
-          Wrapper to flux.find_standard which simply takes the brightest
-
-        Returns
-        -------
-        self.std : SpecObj
-          Corresponds to the chosen spectrum
-        """
-        if self.par['std_obj_id'] is not None:
-            _ = self._set_std_obj()
-            return
-
-        # Find brightest object in each order
-        std_brightest = self.std_specobjs[flux.find_standard(self.std_specobjs)]
-        std_objid = std_brightest['idx'].split('-')[0]
-        self.std_idx = np.zeros(len(self.std_specobjs),dtype=bool)
-        for ii in range(len(self.std_specobjs)):
-            if objid in self.std_specobjs[ii]['idx']:
-                self.std_idx[ii] = True
-        # Set internal
-        self.std = self.std_specobjs[self.std_idx]
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Return
-        return self.std
 
     def generate_sensfunc(self):
         """
@@ -576,17 +539,20 @@ class Echelle(FluxSpec):
             wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
             wave, counts, ivar = std.boxcar['WAVE'][wavemask], std.boxcar['COUNTS'][wavemask], \
                                  std.boxcar['COUNTS_IVAR'][wavemask]
-            sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar, float(std_header['AIRMASS']),
-                                                    std_header['EXPTIME'],
-                                                    self.spectrograph, star_type=self.star_type,
+            sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar,
+                                                    float(self.std_header['AIRMASS']),
+                                                    self.std_header['EXPTIME'],
+                                                    self.spectrograph.telescope['longitude'],
+                                                    self.spectrograph.telescope['latitude'],
+                                                    star_type=self.star_type,
                                                     star_mag=self.star_mag,
                                                     telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
                                                     resolution=self.resolution,
                                                     BALM_MASK_WID=self.BALM_MASK_WID, std_file=self.std_file,
-                                                    norder=self.poly_order,
+                                                    poly_norder=self.poly_norder,
                                                     polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
-            self.sens_dict[str(iord)] = sens_dict_iord
+            self.sens_dict[iord] = sens_dict_iord
         ## add some keys to be saved into primary header in masterframe
         for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                     'std_name', 'cal_file']:
@@ -595,9 +561,55 @@ class Echelle(FluxSpec):
             except:
                 pass
         self.sens_dict['norder'] = norder
-        self.sens_dict['wave_min'] = self.sens_dict['0']['wave_min']
+        self.sens_dict['wave_min'] = self.sens_dict[0]['wave_min']
 
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
         return self.sens_dict
+
+    def flux_science(self, sci_file):
+        """
+        Flux the internal list of sci_specobjs
+
+        Wrapper to flux.apply_sensfunc()
+
+        Returns
+        -------
+
+        """
+        # Load
+        self.load_objs(sci_file, std=False)
+        # Run
+        norder = self.sens_dict['norder']
+        for iord in range(norder):
+            sens_dict_iord = self.sens_dict[iord]
+            for sci_obj in self.sci_specobjs:
+                if sci_obj.ech_orderindx == iord:
+                    flux.apply_sensfunc(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
+                                        self.sci_header['EXPTIME'], self.spectrograph)
+        self.steps.append(inspect.stack()[0][3])
+
+def instantiate_me(spectrograph, par, **kwargs):
+    """
+    Instantiate the FluxSpec subclass appropriate for the provided spectrograph.
+
+    The class must be subclassed from FluxSpec.  See :class:`FluxSpec` for
+    the description of the valid keyword arguments.
+
+    Args:
+      spectrograph : Spectrograph or str
+        Name of the spectrograph, e.g. shane_kast_blue
+        Used only to set settings for calls to the Class outside of PypeIt
+        This includes extinction data..
+      par: FluxCalib parset
+      sens_file : str, optional
+        Filename of a sensitivity function file to be input
+    Returns:
+        :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
+        base.
+    """
+    indx = [ c.__name__ == spectrograph.pypeline for c in FluxSpec.__subclasses__() ]
+    if not np.any(indx):
+        msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
+    return FluxSpec.__subclasses__()[np.where(indx)[0][0]](spectrograph, par, **kwargs)
