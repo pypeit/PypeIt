@@ -139,6 +139,7 @@ def test_load_gnirs():
     except:
         pytest.fail('Gemini GNIRS test data section failed: {0}'.format(files))
 
+'''
 @dev_suite_required
 def test_load_fire():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_FIRE/FIRE',
@@ -171,4 +172,5 @@ def test_load_hires():
         data_img = proc.raw_images[0][proc.datasec[0][0]]
     except:
         pytest.fail('Keck HIRES test data section failed: {0}'.format(files))
+'''
 
