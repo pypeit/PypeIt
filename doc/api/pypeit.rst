@@ -17,11 +17,9 @@ Submodules
 
 .. toctree::
 
-   pypeit.ararclines
    pypeit.arcimage
    pypeit.biasframe
    pypeit.bitmask
-   pypeit.bpmimage
    pypeit.calibrations
    pypeit.check_requirements
    pypeit.debugger
@@ -40,6 +38,7 @@ Submodules
    pypeit.setup_package
    pypeit.specobjs
    pypeit.telescopes
+   pypeit.tmp
    pypeit.traceimage
    pypeit.traceslits
    pypeit.utils

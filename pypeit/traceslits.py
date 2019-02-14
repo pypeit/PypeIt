@@ -98,7 +98,7 @@ class TraceSlits(masterframe.MasterFrame):
                  redux_path=None, reuse_masters=False, msbpm=None):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir=master_dir,
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir,
                                          reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)

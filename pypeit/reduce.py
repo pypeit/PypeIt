@@ -16,69 +16,67 @@ class Reduce(object):
      This class will organize and run actions related to
      a Science or Standard star exposure
 
-     Parameters
-     ----------
-     file_list : list
-       List of raw files to produce the flat field
-     spectrograph : str
-     settings : dict-like
-     tslits_dict : dict
-       dict from TraceSlits class
-     tilts : ndarray
-       tilts from WaveTilts class
-       used for sky subtraction and object finding
-     det : int
-     setup : str
-     datasec_img : ndarray
-       Identifies pixels to amplifiers
-     bpm : ndarray
-       Bad pixel mask
-     maskslits : ndarray (bool)
-       Specifies masked out slits
-     pixlocn : ndarray
-     objtype : str
-       'science'
-       'standard'
-     scidx : int
-       Row in the fitstbl corresponding to the exposure
+     Args:
+         file_list : list
+           List of raw files to produce the flat field
+         spectrograph : str
+         settings : dict-like
+         tslits_dict : dict
+           dict from TraceSlits class
+         tilts : ndarray
+           tilts from WaveTilts class
+           used for sky subtraction and object finding
+         det : int
+         setup : str
+         datasec_img : ndarray
+           Identifies pixels to amplifiers
+         bpm : ndarray
+           Bad pixel mask
+         maskslits : ndarray (bool)
+           Specifies masked out slits
+         pixlocn : ndarray
+         objtype : str
+           'science'
+           'standard'
+         scidx : int
+           Row in the fitstbl corresponding to the exposure
 
-     Attributes
-     ----------
-     frametype : str
-       Set to 'science'
-     sciframe : ndarray
-       Processed 2D frame
-     rawvarframe : ndarray
-       Variance generated without a sky (or object) model
-     modelvarframe : ndarray
-       Variance generated with a sky model
-     finalvar : ndarray
-       Final variance frame
-     global_sky : ndarray
-       Sky model across the slit/order
-     skycorr_box : ndarray
-       Local corrections to the sky model
-     final_sky : ndarray
-       Final sky model; may include 'local' corrections
-     obj_model : ndarray
-       Model of the object flux
-     trcmask : ndarray
-       Masks of objects for sky subtraction
-     tracelist : list
-       List of traces for objects in slits
-     inst_name : str
-       Short name of the spectrograph, e.g. KASTb
-     target_name : str
-       Parsed from the Header
-     basename : str
-       Combination of camera, target, and time
-       e.g. J1217p3905_KASTb_2015May20T045733.56
-     time : Time
-       time object
-     specobjs : list
-       List of specobjs
-     bm: ScienceImageBitMask
-       Object used to select bits of a given type
+     Attributes:
+         frametype : str
+           Set to 'science'
+         sciframe : ndarray
+           Processed 2D frame
+         rawvarframe : ndarray
+           Variance generated without a sky (or object) model
+         modelvarframe : ndarray
+           Variance generated with a sky model
+         finalvar : ndarray
+           Final variance frame
+         global_sky : ndarray
+           Sky model across the slit/order
+         skycorr_box : ndarray
+           Local corrections to the sky model
+         final_sky : ndarray
+           Final sky model; may include 'local' corrections
+         obj_model : ndarray
+           Model of the object flux
+         trcmask : ndarray
+           Masks of objects for sky subtraction
+         tracelist : list
+           List of traces for objects in slits
+         inst_name : str
+           Short name of the spectrograph, e.g. KASTb
+         target_name : str
+           Parsed from the Header
+         basename : str
+           Combination of camera, target, and time
+           e.g. J1217p3905_KASTb_2015May20T045733.56
+         time : Time
+           time object
+         specobjs : list
+           List of specobjs
+         bm: ScienceImageBitMask
+           Object used to select bits of a given type
      """
 
     __metaclass__ = ABCMeta
