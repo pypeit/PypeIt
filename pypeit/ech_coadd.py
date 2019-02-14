@@ -283,7 +283,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeor
             #                                  do_cr=do_cr, debug=debug, **kwargs)
             return spec1d_final
         else:
-            msgs.warn('Skiped merging orders')
+            msgs.warn('Skipped merging orders')
             if outfile is not None:
                 for iord in range(len(spectra_list)):
                     outfile_iord = outfile.replace('.fits','_ORDER{:04d}.fits'.format(iord+1))
