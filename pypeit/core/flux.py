@@ -833,6 +833,45 @@ def load_filter_file(filter):
         ndarray, ndarray: wavelength, instrument throughput
 
     """
+    # Optical filters
+    BASS_MZLS_filters = ['BASS-MZLS-{}'.format(i) for i in ['G', 'R','Z']]
+    CFHT_filters = ['CFHT-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
+    DECAM_filters = ['DECAM-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z', 'Y']]
+    HSC_filters = ['HSC-{}'.format(i) for i in ['G', 'R', 'I', 'Z', 'Y']]
+    LSST_filters = ['LSST-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z', 'Y']]
+    PS1_filters = ['PS1-{}'.format(i) for i in ['G', 'R', 'I', 'Z', 'Y']]
+    SDSS_filters = ['SDSS-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
+
+    # NIR filters
+    UKIDSS_filters = ['UKIDSS-{}'.format(i) for i in ['Y', 'J', 'H', 'K']]
+    VISTA_filters = ['VISTA-{}'.format(i) for i in ['Z', 'Y', 'J', 'H', 'K']]
+    TMASS_filters = ['TMASS-{}'.format(i) for i in ['J', 'H', 'K']]
+
+    # Other filters
+    GALEX_filters = ['GALEX-{}'.format(i) for i in ['F', 'N']]
+    WISE_filters = ['WISE-{}'.format(i) for i in ['W1', 'W2', 'W3', 'W4']]
+
+    allowed_options = BASS_MZLS_filters + CFHT_filters + DECAM_filters + HSC_filters \
+                      + LSST_filters + PS1_filters + SDSS_filters + UKIDSS_filters\
+                      + VISTA_filters + TMASS_filters + GALEX_filters + WISE_filters
+
+    # Check
+    if filter not in allowed_options:
+        msgs.error("PypeIt is not ready for filter = {}".format(filter))
+
+    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves_20190214.fits'))
+    trans = fits.open(trans_file)
+    wave = trans[filter].data['lam']  # Angstroms
+    instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
+    keep = instr > 0.
+    # Parse
+    wave = wave[keep]
+    instr = instr[keep]
+
+    # Return
+    return wave, instr
+
+    '''
     DES_filters = ['DES_{}'.format(i) for i in ['g','r','i','z','Y']]
     allowed_options = DES_filters
     # Check
@@ -851,9 +890,7 @@ def load_filter_file(filter):
         instr = instr[keep]
     else:
         msgs.error("Should not get here")
-    # Return
-    return wave, instr
-
+    '''
 
 def load_standard_file(std_dict):
     """Load standard star data
