@@ -1,5 +1,5 @@
 # Module for guiding 1D Wavelength Calibration
-from __future__ import absolute_import, division, print_function
+#from __future__ import absolute_import, division, print_function
 
 import os
 import inspect
@@ -8,15 +8,10 @@ import numpy as np
 #from importlib import reload
 
 from matplotlib import pyplot as plt
-
-from astropy.table import vstack
-
 import copy
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, wavecal, qa, pixels
-from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
 import linetools.utils
 
 
@@ -198,6 +193,8 @@ class WaveCalib(masterframe.MasterFrame):
                 if status != 1:
                     self.maskslits[slit] = True
         elif method == 'holy-grail':
+            from IPython import embed
+            embed()
             # Sometimes works, sometimes fails
             arcfitter = wavecal.autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
