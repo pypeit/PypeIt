@@ -272,8 +272,6 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeor
                 coadd.write_to_disk(spec1d_final, outfile)
 
             ### deprecated. leave it here for now. we may need back to using coadd
-            # from IPython import embed
-            # embed()
             #kwargs['echelle'] = True
             #kwargs['wave_grid_min'] = np.min(wave_grid)
             #kwargs['wave_grid_max'] = np.max(wave_grid)
