@@ -77,15 +77,11 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
         sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
         msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
         # Apply Extinction if optical bands
-        if np.max(wave) < 10000.:
-            msgs.info("Applying extinction correction")
-            extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                           spectrograph.telescope['latitude'])
-            ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
-            senstot = sensfunc_obs * ext_corr
-        else:
-            msgs.info("Extinction correction not applied")
-            senstot = sensfunc_obs
+        msgs.info("Applying extinction correction")
+        extinct = load_extinction_data(spectrograph.telescope['longitude'],
+                                       spectrograph.telescope['latitude'])
+        ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
+        senstot = sensfunc_obs * ext_corr
 
         flam = extract['COUNTS'] * senstot/ exptime
         flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
@@ -236,15 +232,12 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
         wave_star = wave_star * units.AA
 
     # Extinction correction
-    if np.max(wave_star) < 10000. * units.AA:
-        msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(longitude, latitude)
-        ext_corr = extinction_correction(wave_star, airmass, extinct)
-        # Correct for extinction
-        flux_star = flux_star * ext_corr
-        ivar_star = ivar_star / ext_corr ** 2
-    else:
-        msgs.info("Extinction correction not applied")
+    msgs.info("Applying extinction correction")
+    extinct = load_extinction_data(longitude,latitude)
+    ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
+    # Correct for extinction
+    flux_star = flux_star * ext_corr
+    ivar_star = ivar_star / ext_corr ** 2
 
     std_dict =  get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
     # Interpolate the standard star onto the current set of observed wavelengths
@@ -651,8 +644,7 @@ def extinction_correction(wave, airmass, extinct):
     # Deal with outside wavelengths
     gdv = np.where(mag_ext > 0.)[0]
     if len(gdv) == 0:
-        msgs.error(
-            "None of the input wavelengths are in the extinction correction range. Presumably something was wrong.")
+        msgs.warn("No valid extinction data available at this wavelength range. Extinction correction not applied")
     if gdv[0] != 0:  # Low wavelengths
         mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
         msgs.warn("Extrapolating at low wavelengths using last valid value")
