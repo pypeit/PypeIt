@@ -170,10 +170,12 @@ class FluxSpec(object):
             std_splice = sv_stds[0].copy()
             # Append
             for ostd in sv_stds[1:]:
-                std_splice.boxcar['WAVE'] = np.append(std_splice.boxcar['WAVE'].value,
-                                                      ostd.boxcar['WAVE'].value) * units.AA
+                from IPython import embed
+                embed()
+                std_splice.optimal['WAVE'] = np.append(std_splice.optimal['WAVE'].value,
+                                                      ostd.optimal['WAVE'].value) * units.AA
                 for key in ['COUNTS', 'COUNTS_IVAR']:
-                    std_splice.boxcar[key] = np.append(std_splice.boxcar[key], ostd.boxcar[key])
+                    std_splice.optimal[key] = np.append(std_splice.optimal[key], ostd.optimal[key])
             self.std = std_splice
         elif self.spectrograph.pypeline == 'Echelle':
             # Find brightest object in each order
@@ -453,9 +455,9 @@ class MultiSlit(FluxSpec):
             return None
 
         self.sens_dict = {}
-        sens_dict_long = flux.generate_sensfunc(self.std.boxcar['WAVE'],
-                                               self.std.boxcar['COUNTS'],
-                                               self.std.boxcar['COUNTS_IVAR'],
+        sens_dict_long = flux.generate_sensfunc(self.std.optimal['WAVE'],
+                                               self.std.optimal['COUNTS'],
+                                               self.std.optimal['COUNTS_IVAR'],
                                                self.std_header['AIRMASS'],
                                                self.std_header['EXPTIME'],
                                                self.spectrograph.telescope['longitude'],
@@ -536,9 +538,9 @@ class Echelle(FluxSpec):
             std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
-            wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
-            wave, counts, ivar = std.boxcar['WAVE'][wavemask], std.boxcar['COUNTS'][wavemask], \
-                                 std.boxcar['COUNTS_IVAR'][wavemask]
+            wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
+            wave, counts, ivar = std.optimal['WAVE'][wavemask], std.optimal['COUNTS'][wavemask], \
+                                 std.optimal['COUNTS_IVAR'][wavemask]
             sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar,
                                                     float(self.std_header['AIRMASS']),
                                                     self.std_header['EXPTIME'],
