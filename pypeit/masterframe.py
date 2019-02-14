@@ -20,36 +20,33 @@ class MasterFrame(object):
     This class is designed to gather a set of like methods
     for Master calibration frames
 
-    Parameters
-    ----------
-    frametype : str
-    master_key : str
-      e.g. 'A_1_01'
-    master_dir : str, optional
-    redux_path : str, optional
-      Path for reduction
-    spectrograph : Spectrograph, optional
-      Only used for directory_path;  should be Deprecated
-    reuse_masters: bool, default = False
-      Reuse already created master files from disk.
+    Args:
+        frametype (str):  Frametype of the parent class
+        master_key (str or None):
+          Root of the MasterFrame names, e.g. 'A_1_01'.
+          If None, set to 'master'
+        master_dir (str or None):
+          Name of the MasterFrame folder, e.g. MF_keck_deimos
+          If None, set to './'
+        reuse_masters (bool, optional):
+          Reuse already created master files from disk.
 
-    Attributes
-    ----------
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, frametype, master_key, spectrograph=None,
-                 master_dir=None, reuse_masters=False, par=None, redux_path=None):
+    def __init__(self, frametype, master_key, master_dir, reuse_masters=False):
 
-        # Output path
+        # Output names
+        self.frametype = frametype
         if master_dir is None:
-            self.master_dir = set_master_dir(redux_path, spectrograph, par)
-        else:
-            self.master_dir = master_dir
+            master_dir = './'
+        self.master_dir = master_dir
+
+        if master_key is None:
+            master_key = 'master'
+        self.master_key = master_key
 
         # Other parameters
-        self.frametype = frametype
-        self.master_key = master_key
         self.reuse_masters=reuse_masters
         self.msframe = None
 
@@ -57,17 +54,19 @@ class MasterFrame(object):
     def ms_name(self):
         """ Default filenames for MasterFrames
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-        msname : str
+        Returns:
+            str:  Master filename
         """
         return master_name(self.frametype, self.master_key, self.master_dir)
 
     @property
     def mdir(self):
+        """
+
+        Returns:
+            str: Master frames folder
+
+        """
         return self.master_dir
 
     def master(self, prev_build=False):
@@ -77,10 +76,11 @@ class MasterFrame(object):
         one should overload the load_master method below.
 
         Args:
+            prev_build (bool, optional):
+                If True, try to load master from disk
 
         Returns:
-            msframe : ndarray or None
-             master image
+            ndarray or None:  Master image
 
         """
         # Are we loading master files from disk?
@@ -90,16 +90,17 @@ class MasterFrame(object):
         else:
             return None
 
-
-    def load_master(self, filename, exten = 0):
+    def load_master(self, filename, exten=0):
         """
         Generic master file reader. This function should mostly be replaced by specific load_master methods in the children
         of this class.
 
-        Returns
-        -------
-        msframe : ndarray or None
-          master frame image
+        Args:
+            filename (str):  Master filename
+            exten (int, optional):  Extension of the file to load from
+
+        Returns:
+            ndarray or None:  master frame image
 
         """
 
@@ -126,18 +127,13 @@ class MasterFrame(object):
         Core function to write a MasterFrame image.  Intended for simple images only; more complex masters
         need their own method and may be written by their own Class (e.g. TraceSlits) and should thus overwrite this method.
 
-        Parameters
-        ----------
-        data : ndarray or dict
-        outfile : str (optional)
-        raw_files : list (optional)
-        steps : list (optional)
-          steps executed in the master file creation
-        extensions : list, optional
-           Additional data images to write
-        names : list, optional
-           Names of the extensions
-
+        Args:
+            data (ndarray or dict):  Object to save
+            outfile (str, optional): Outfile name
+            raw_files (list, optional): List of raw filenames
+            steps (list, optional): list of steps executed in the master file creation
+            extensions (list, optional): Additional data images to write
+            names (list, optional): Names of the extensions
 
         """
         _outfile = self.ms_name if outfile is None else outfile
@@ -181,24 +177,20 @@ class MasterFrame(object):
         msgs.info("Master {0:s} frame saved successfully:".format(self.frametype) + msgs.newline() + _outfile)
         return
 
-# ToDo Remove this master name function and instead have a master name function in each class.
-# These utility functions are occaisonally needed by other functions which is why they are outside the class.
-# Or make it a staticmethod in the Classes
+
 def master_name(ftype, master_key, mdir):
     """ Default filenames for MasterFrames
 
-    Parameters
-    ----------
-    ftype : str
-      Frame type
-    master_key : str
-      Setup name
-    mdir : str, optional
-      Master directory
+    Args:
+        ftype (str):
+          Frame type
+        master_key (str):
+          Setup name, e.b. A_1_01
+        mdir (str):
+          Master directory
 
-    Returns
-    -------
-    msname : str
+    Returns:
+        str: masterframe filename
     """
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, master_key),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, master_key),
@@ -214,7 +206,6 @@ def master_name(ftype, master_key, mdir):
                      sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, master_key[0], master_key[-2:]),
                      )
     return name_dict[ftype]
-
 
 
 def set_master_dir(redux_path, spectrograph, par):

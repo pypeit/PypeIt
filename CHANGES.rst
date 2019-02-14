@@ -3,6 +3,9 @@
 - Many doc string updates in top level routines (not core)
 - Updates to install and cookbook docs
 - Continued the process of requiring spectrograph and par in each base class
+- More doc + cleaning at top level, e.g. base classes
+- Eliminates BPM base class
+- Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
 
 
 0.9.1 (4 Feb 2019)
