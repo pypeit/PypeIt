@@ -32,8 +32,8 @@ def parser(options=None):
                              'Default is the current working directory.')
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
-    parser.add_argument('-c', '--cfg_split', default=False, action='store_true',
-                        help='Split the output PypeIt files by configuration.')
+    parser.add_argument('-c', '--cfg_split', default=None, type=str,
+                        help='Generate the PypeIt files and folders by input configuration. [all or A,B or B,D,E or E]')
     parser.add_argument('-b', '--background', default=False, action='store_true',
                         help='Include the background-pair columns for the user to edit')
     parser.add_argument('-v', '--verbosity', type=int, default=2,
@@ -53,7 +53,6 @@ def main(args):
     import pdb as debugger
 
     from pypeit import msgs
-    from pypeit.spectrographs.util import load_spectrograph
     from pypeit.pypeitsetup import PypeItSetup
 
     # Check that the spectrograph is provided if using a file root
@@ -79,17 +78,15 @@ def main(args):
     else:
         # Should never reach here
         raise IOError('Need to set -r !!')
-        #raise IOError('Something wrong in pypeit_setup command-line arguments.')
-    #elif args.pypeit_file is not None:
-    #    ps = PypeItSetup.from_pypeit_file(args.pypeit_file)
 
     # Run the setup
-    #ps.run(setup_only=True, bkg_pairs='empty' if args.background else None, sort_dir=sort_dir)
     ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background)
 
     # Use PypeItMetaData to write the complete PypeIt file
-    if args.cfg_split:
+    if args.cfg_split is not None:
         pypeit_file = os.path.join(output_path, '{0}.pypeit'.format(args.spectrograph))
-        ps.fitstbl.write_pypeit(pypeit_file, cfg_lines=ps.user_cfg, write_bkg_pairs=args.background)
+        config_list = args.cfg_split.split(',')
+        ps.fitstbl.write_pypeit(pypeit_file, cfg_lines=ps.user_cfg, write_bkg_pairs=args.background,
+                                configs=config_list)
     return 0
 

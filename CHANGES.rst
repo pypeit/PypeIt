@@ -4,8 +4,8 @@
 - Updates to install and cookbook docs
 - Continued the process of requiring spectrograph and par in each base class
 - More doc + cleaning at top level, e.g. base classes
-- Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
 - Eliminates BPM base class
+- More doc + cleaning at top level, e.g. base classes
 - Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
 - Implementation of 2d coadds including a script to perform them.
 - Fixed bug in extract.fit_profile that was introduced when implementing 2d coadds
@@ -16,6 +16,9 @@
 - Reworked master output for traceslits
 - Fixed a bug associated with binned images being proc'd incorrectly.
 - Fixed master_key outputs in headers to deal with different detectors.
+- Modify -c in pypeit_setup to require a setup (or all) be specified when writing, e.g. 'all' or 'A,C'
+- Generated a new spectrograph child for LRISr in long-slit read-out mode (only 2 amps, 1 per detector)
+- Require astropy >=3.1  [required for coadding at the least]
 
 
 0.9.1 (4 Feb 2019)
