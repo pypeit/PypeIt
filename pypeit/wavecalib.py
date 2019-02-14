@@ -222,7 +222,7 @@ class WaveCalib(masterframe.MasterFrame):
         if not skip_QA:
             for slit in ok_mask:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit, out_dir=self.redux_path)
-                qa.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
+                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -465,7 +465,7 @@ class WaveCalib(masterframe.MasterFrame):
             ax.set_ylabel('Counts')
             plt.show()
         elif item == 'fit':
-            qa.arc_fit_qa(self.wv_calib[str(slit)])
+            autoid.arc_fit_qa(self.wv_calib[str(slit)])
 
     def __repr__(self):
         # Generate sets string

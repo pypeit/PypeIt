@@ -6,7 +6,7 @@ from __future__ import (print_function, absolute_import, division, unicode_liter
 import numpy as np
 
 from pypeit import utils
-from pypeit.core.wavecal import qa
+from pypeit.core.wavecal import autoid
 from pypeit import msgs
 
 
@@ -260,6 +260,6 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     # QA
     if plot_fil is not None:
-        qa.arc_fit_qa(final_fit, plot_fil)
+        autoid.arc_fit_qa(final_fit, plot_fil)
     # Return
     return final_fit
