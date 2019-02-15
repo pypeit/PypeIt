@@ -606,7 +606,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
                 inmask = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, #, wvmnx = (2900.0,30000.0),
-                maskwidth = None, prof_nsigma = None, no_deriv = False, gauss = False, obj_string = '',
+                maskwidth = None, prof_nsigma = None, no_deriv = False, gauss=False, obj_string = '',
                 show_profile = False):
 
     """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
@@ -722,6 +722,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
     #min_wave = np.min(wave[indsp])
     #max_wave = np.max(wave[indsp])
+    # TODO -- JFH document this
     spline_flux1 = np.zeros(nspec)
     cont_flux1 = np.zeros(nspec)
     sn2_1 = np.zeros(nspec)
@@ -751,6 +752,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
     msgs.info('sqrt(med(S/N)^2) = ' + "{:5.2f}".format(np.sqrt(med_sn2)))
 
+    # TODO -- JFH document this
     if(med_sn2 <= 2.0):
         spline_img[totmask]= np.fmax(sigma1,0)
     else:
@@ -783,6 +785,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         else:
             spline_img[totmask] = np.fmax(sigma1, 0)
 
+    # TODO -- JFH document this
     norm_obj = (spline_img != 0.0)*image/(spline_img + (spline_img == 0.0))
     norm_ivar = ivar*spline_img**2
 

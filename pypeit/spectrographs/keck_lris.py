@@ -396,8 +396,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         """
         Set par values according to the specific frame
 
-        Here, we only fuss with parameters related to CR rejection
-
         Args:
             par:  ParSet
             scifile: str
@@ -600,8 +598,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     def config_specific_par(self, par, scifile):
         """
         Set par values according to the specific frame
-
-        Here, we only fuss with parameters related to CR rejection
 
         Args:
             par:  ParSet

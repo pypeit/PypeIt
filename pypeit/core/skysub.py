@@ -7,6 +7,8 @@ import sys, os
 
 from pypeit import msgs, utils, processimages, ginga
 from pypeit.core import pixels, extract, pydl
+from pypeit import debugger
+
 from matplotlib import pyplot as plt
 
 from scipy.special import ndtr
@@ -702,7 +704,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].trace_spat,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
                         thisfwhm=sobjs[iobj].fwhm, maskwidth=sobjs[iobj].maskwidth,
-                        prof_nsigma=sobjs[iobj].prof_nsigma,sn_gauss=sn_gauss, obj_string = obj_string,
+                        prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
                         show_profile=show_profile)
                     #proc_list.append(show_proc)
 
@@ -760,7 +762,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 #var_no = np.abs(sky_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
                 igood1 = skymask.flat[isub]
                 #  update the outmask for only those pixels that were fit. This prevents masking of slit edges in outmask
-                outmask.flat[isub[igood1]] = outmask_opt[igood1]
+                if False:
+                    outmask.flat[isub[igood1]] = outmask_opt[igood1]
                 #  For weighted co-adds, the variance of the image is no longer equal to the image, and so the modelivar
                 #  eqn. below is not valid. However, co-adds already have the model noise propagated correctly in sciivar,
                 #  so no need to re-model the variance.
@@ -786,7 +789,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                               ', use threshold sigrej_eff = {:5.2f}'.format(sigrej_eff))
                     # Explicitly mask > sigrej outliers using the distribution of chi2 but only in the region that was actually fit.
                     # This prevents e.g. excessive masking of slit edges
-                    outmask.flat[isub[igood1]] = outmask.flat[isub[igood1]] & (chi2[igood1] < chi2_sigrej) & (
+                    if False:
+                        outmask.flat[isub[igood1]] = outmask.flat[isub[igood1]] & (chi2[igood1] < chi2_sigrej) & (
                                 sciivar.flat[isub[igood1]] > 0.0)
                     nrej = outmask.flat[isub[igood1]].sum()
                     msgs.info(
@@ -810,6 +814,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
             objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
+            from pypeit.ginga import show_image
+            debugger.set_trace()
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask & objmask), waveimg, skyimage, rn2_img, this_profile,
                             box_rad, sobjs[iobj])
             sobjs[iobj].min_spat = min_spat

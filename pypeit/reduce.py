@@ -178,8 +178,8 @@ class Reduce(object):
         if ir_redux:
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
-                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
-                                           manual_extract_dict=manual_extract_dict)
+                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
+                                           #manual_extract_dict=manual_extract_dict)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:

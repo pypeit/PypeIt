@@ -10,6 +10,7 @@ from pypeit import utils
 from pypeit.core import parse
 
 
+from pypeit import debugger
 
 
 # TODO: Add sigdev to the high-level parameter set so that it can be
@@ -215,24 +216,33 @@ def sn_frame(slf, sciframe, idx):
 def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
-    settings_det : settings.spect[dnum]
-      Detector info
-
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
     (article : U{http://arxiv.org/abs/astro-ph/0108003})
     This routine is mostly courtesy of Malte Tewes
 
-    :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
-    :return: mask of cosmic rays (0=no CR, 1=CR)
+    Args:
+        det:
+        sciframe:
+        saturation:
+        nonlinear:
+        varframe:
+        maxiter:
+        grow:
+        remove_compact_obj:
+        sigclip:
+        sigfrac:
+        objlim:
+
+    Returns:
+        ndarray: mask of cosmic rays (0=no CR, 1=CR)
+
     """
+
     dnum = parse.get_dnum(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 #    msgs.work("Include these parameters in the settings files to be adjusted by the user")
-#    sigclip = 5.0
-#    sigfrac = 0.3
-#    objlim  = 5.0
     # Set the settings
     scicopy = sciframe.copy()
     crmask = np.cast['bool'](np.zeros(sciframe.shape))
@@ -254,7 +264,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     for i in range(1, maxiter+1):
         msgs.info("Convolving image with Laplacian kernel")
         # Subsample, convolve, clip negative values, and rebin to original size
-        #set_trace()
         subsam = utils.subsample(scicopy)
         conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
         cliped = conved.clip(min=0.0)
@@ -302,12 +311,12 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         msgs.info("Removing suspected compact bright objects")
 
         # Now we have our better selection of cosmics :
+
         if remove_compact_obj:
             cosmics = np.logical_and(candidates, sp/f > objlim)
         else:
             cosmics = candidates
         nbcosmics = np.sum(cosmics)
-        #debugger.set_trace()
 
         msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
 
