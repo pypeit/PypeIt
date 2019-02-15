@@ -637,20 +637,22 @@ def extinction_correction(wave, airmass, extinct):
     if airmass < 1.:
         msgs.error("Bad airmass value in extinction_correction")
     # Interpolate
-    f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],
-                                           extinct['mag_ext'], bounds_error=False, fill_value=0.)
+    f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],extinct['mag_ext'], bounds_error=False, fill_value=0.)
     mag_ext = f_mag_ext(wave)#.to('AA').value)
 
     # Deal with outside wavelengths
     gdv = np.where(mag_ext > 0.)[0]
+
     if len(gdv) == 0:
         msgs.warn("No valid extinction data available at this wavelength range. Extinction correction not applied")
-    if gdv[0] != 0:  # Low wavelengths
+    elif gdv[0] != 0:  # Low wavelengths
         mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
         msgs.warn("Extrapolating at low wavelengths using last valid value")
-    if gdv[-1] != (mag_ext.size - 1):  # High wavelengths
+    elif gdv[-1] != (mag_ext.size - 1):  # High wavelengths
         mag_ext[gdv[-1] + 1:] = mag_ext[gdv[-1]]
         msgs.warn("Extrapolating at high wavelengths using last valid value")
+    else:
+        msgs.info("Extinction data covered the whole spectra. Correct it!")
     # Evaluate
     flux_corr = 10.0 ** (0.4 * mag_ext * airmass)
     # Return
