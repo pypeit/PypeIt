@@ -77,15 +77,11 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
         sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
         msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
         # Apply Extinction if optical bands
-        if np.max(wave) < 10000.:
-            msgs.info("Applying extinction correction")
-            extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                           spectrograph.telescope['latitude'])
-            ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
-            senstot = sensfunc_obs * ext_corr
-        else:
-            msgs.info("Extinction correction not applied")
-            senstot = sensfunc_obs
+        msgs.info("Applying extinction correction")
+        extinct = load_extinction_data(spectrograph.telescope['longitude'],
+                                       spectrograph.telescope['latitude'])
+        ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
+        senstot = sensfunc_obs * ext_corr
 
         flam = extract['COUNTS'] * senstot/ exptime
         flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
@@ -236,15 +232,12 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
         wave_star = wave_star * units.AA
 
     # Extinction correction
-    if np.max(wave_star) < 10000. * units.AA:
-        msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(longitude, latitude)
-        ext_corr = extinction_correction(wave_star, airmass, extinct)
-        # Correct for extinction
-        flux_star = flux_star * ext_corr
-        ivar_star = ivar_star / ext_corr ** 2
-    else:
-        msgs.info("Extinction correction not applied")
+    msgs.info("Applying extinction correction")
+    extinct = load_extinction_data(longitude,latitude)
+    ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
+    # Correct for extinction
+    flux_star = flux_star * ext_corr
+    ivar_star = ivar_star / ext_corr ** 2
 
     std_dict =  get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
     # Interpolate the standard star onto the current set of observed wavelengths
@@ -651,8 +644,7 @@ def extinction_correction(wave, airmass, extinct):
     # Deal with outside wavelengths
     gdv = np.where(mag_ext > 0.)[0]
     if len(gdv) == 0:
-        msgs.error(
-            "None of the input wavelengths are in the extinction correction range. Presumably something was wrong.")
+        msgs.warn("No valid extinction data available at this wavelength range. Extinction correction not applied")
     if gdv[0] != 0:  # Low wavelengths
         mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
         msgs.warn("Extrapolating at low wavelengths using last valid value")
@@ -841,6 +833,45 @@ def load_filter_file(filter):
         ndarray, ndarray: wavelength, instrument throughput
 
     """
+    # Optical filters
+    BASS_MZLS_filters = ['BASS-MZLS-{}'.format(i) for i in ['G', 'R','Z']]
+    CFHT_filters = ['CFHT-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
+    DECAM_filters = ['DECAM-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z', 'Y']]
+    HSC_filters = ['HSC-{}'.format(i) for i in ['G', 'R', 'I', 'Z', 'Y']]
+    LSST_filters = ['LSST-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z', 'Y']]
+    PS1_filters = ['PS1-{}'.format(i) for i in ['G', 'R', 'I', 'Z', 'Y']]
+    SDSS_filters = ['SDSS-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
+
+    # NIR filters
+    UKIDSS_filters = ['UKIDSS-{}'.format(i) for i in ['Y', 'J', 'H', 'K']]
+    VISTA_filters = ['VISTA-{}'.format(i) for i in ['Z', 'Y', 'J', 'H', 'K']]
+    TMASS_filters = ['TMASS-{}'.format(i) for i in ['J', 'H', 'K']]
+
+    # Other filters
+    GALEX_filters = ['GALEX-{}'.format(i) for i in ['F', 'N']]
+    WISE_filters = ['WISE-{}'.format(i) for i in ['W1', 'W2', 'W3', 'W4']]
+
+    allowed_options = BASS_MZLS_filters + CFHT_filters + DECAM_filters + HSC_filters \
+                      + LSST_filters + PS1_filters + SDSS_filters + UKIDSS_filters\
+                      + VISTA_filters + TMASS_filters + GALEX_filters + WISE_filters
+
+    # Check
+    if filter not in allowed_options:
+        msgs.error("PypeIt is not ready for filter = {}".format(filter))
+
+    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves_20190214.fits'))
+    trans = fits.open(trans_file)
+    wave = trans[filter].data['lam']  # Angstroms
+    instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
+    keep = instr > 0.
+    # Parse
+    wave = wave[keep]
+    instr = instr[keep]
+
+    # Return
+    return wave, instr
+
+    '''
     DES_filters = ['DES_{}'.format(i) for i in ['g','r','i','z','Y']]
     allowed_options = DES_filters
     # Check
@@ -859,9 +890,7 @@ def load_filter_file(filter):
         instr = instr[keep]
     else:
         msgs.error("Should not get here")
-    # Return
-    return wave, instr
-
+    '''
 
 def load_standard_file(std_dict):
     """Load standard star data
