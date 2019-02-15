@@ -2,14 +2,10 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import inspect
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
-
-from pypeit import debugger
-
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
