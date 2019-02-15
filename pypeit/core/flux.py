@@ -845,23 +845,24 @@ def load_filter_file(filter):
     SDSS_filters = ['SDSS-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
 
     # NIR filters
-    UKIDSS_filters = ['UKIDSS-{}'.format(i) for i in ['Y', 'J', 'H', 'K']]
+    UKIDSS_filters = ['UKIRT-{}'.format(i) for i in ['Y', 'J', 'H', 'K']]
     VISTA_filters = ['VISTA-{}'.format(i) for i in ['Z', 'Y', 'J', 'H', 'K']]
     TMASS_filters = ['TMASS-{}'.format(i) for i in ['J', 'H', 'K']]
 
     # Other filters
+    GAIA_filters = ['GAIA-{}'.format(i) for i in ['G', 'B', 'R']]
     GALEX_filters = ['GALEX-{}'.format(i) for i in ['F', 'N']]
     WISE_filters = ['WISE-{}'.format(i) for i in ['W1', 'W2', 'W3', 'W4']]
 
     allowed_options = BASS_MZLS_filters + CFHT_filters + DECAM_filters + HSC_filters \
                       + LSST_filters + PS1_filters + SDSS_filters + UKIDSS_filters\
-                      + VISTA_filters + TMASS_filters + GALEX_filters + WISE_filters
+                      + VISTA_filters + TMASS_filters + GAIA_filters + GALEX_filters + WISE_filters
 
     # Check
     if filter not in allowed_options:
         msgs.error("PypeIt is not ready for filter = {}".format(filter))
 
-    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves_20190214.fits'))
+    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves_20190215.fits'))
     trans = fits.open(trans_file)
     wave = trans[filter].data['lam']  # Angstroms
     instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
@@ -872,27 +873,6 @@ def load_filter_file(filter):
 
     # Return
     return wave, instr
-
-    '''
-    DES_filters = ['DES_{}'.format(i) for i in ['g','r','i','z','Y']]
-    allowed_options = DES_filters
-    # Check
-    if filter not in allowed_options:
-        msgs.error("PypeIt is not ready for filter = {}".format(filter))
-    #
-    if filter[0:3] == 'DES':
-        des_file = resource_filename('pypeit', os.path.join('data', 'filters', 'STD_BANDPASSES_DES_DR1.fits'))
-        des = Table.read(des_file)
-        #
-        wave = des['LAMBDA'].data  # Angstroms
-        instr = des[filter[-1]].data  # Am keeping in atmospheric terms
-        keep = instr > 0.
-        # Parse
-        wave = wave[keep]
-        instr = instr[keep]
-    else:
-        msgs.error("Should not get here")
-    '''
 
 def load_standard_file(std_dict):
     """Load standard star data
