@@ -1002,7 +1002,7 @@ def scale_in_filter(xspec, scale_dict):
             wave = wave[gdp]
             flux = flux[gdp]
 
-    if ('mag_type' in scale_dict) | (scale_dict['mag_type'] is None):
+    if ('mag_type' in scale_dict) | (scale_dict['mag_type'] is not None):
         mag_type = scale_dict['mag_type']
     else:
         mag_type = 'AB'

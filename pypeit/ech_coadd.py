@@ -54,6 +54,11 @@ def spec_from_array(wave,flux,sig,**kwargs):
 def ech_phot_scale(spectra, scale_dicts, debug=False):
     '''
     ToDo Add docs here
+        scale_dicts={0: {'filter': None, 'mag': None, 'mag_type': None, 'masks': None},
+               1: {'filter': 'UKIDSS-Y', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
+               2: {'filter': 'UKIDSS-J', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
+               3: {'filter': 'UKIDSS-H', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
+               4: {'filter': 'UKIDSS-K', 'mag': 20.0, 'mag_type': 'AB', 'masks': None}}
     :param spectra:
     :param scale_dicts:
     :param debug:
