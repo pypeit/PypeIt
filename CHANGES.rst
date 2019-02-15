@@ -6,6 +6,9 @@
 - More doc + cleaning at top level, e.g. base classes
 - Eliminates BPM base class
 - Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
+- Modify -c in pypeit_setup to require a setup (or all) be specified when writing, e.g. 'all' or 'A,C'
+- Generated a new spectrograph child for LRISr in long-slit read-out mode (only 2 amps, 1 per detector)
+- Require astropy >=3.1  [required for coadding at the least]
 
 
 0.9.1 (4 Feb 2019)
