@@ -165,13 +165,12 @@ class FluxSpec(object):
                 idx = flux.find_standard(stds)
                 sv_stds.append(stds[idx])
                 msgs.info("Using standard {} for det={}".format(stds[idx], det))
+
             # Now splice
             msgs.info("Splicing the standards -- The name will be for the first detector")
             std_splice = sv_stds[0].copy()
             # Append
             for ostd in sv_stds[1:]:
-                from IPython import embed
-                embed()
                 std_splice.optimal['WAVE'] = np.append(std_splice.optimal['WAVE'].value,
                                                       ostd.optimal['WAVE'].value) * units.AA
                 for key in ['COUNTS', 'COUNTS_IVAR']:

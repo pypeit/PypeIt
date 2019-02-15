@@ -51,8 +51,45 @@ def spec_from_array(wave,flux,sig,**kwargs):
         spectrum.data['sig'][spectrum.select][bad_flux] = 0.
     return spectrum
 
+def ech_phot_scale(spectra, scale_dicts, debug=False):
+    '''
+    ToDo Add docs here
+    :param spectra:
+    :param scale_dicts:
+    :param debug:
+    :return:
+    '''
 
-def median_echelle_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5, overlapfrac=0.03, debug=False):
+    from pypeit.core.flux import scale_in_filter
+
+    norder = spectra.nspec
+
+    # scaling spectrum order by order.
+    spectra_list_new = []
+    for iord in range(norder):
+        scale_dict = scale_dicts[iord]
+        if (scale_dict['filter'] is not None) & (scale_dict['mag'] is not None):
+            speci = scale_in_filter(spectra[iord], scale_dict)
+        else:
+            msgs.warn("Not enough information given. No scaling performed on order {:d}".format(iord))
+            speci = spectra[iord]
+        spectra_list_new.append(speci)
+
+        if debug:
+            gdp = speci.sig>0
+            plt.plot(spectra[iord].wavelength[gdp], spectra[iord].flux[gdp], 'k-', label='raw spectrum')
+            plt.plot(speci.wavelength[gdp], speci.flux[gdp], 'b-',
+                     label='scaled spectrum')
+            mny, medy, stdy = stats.sigma_clipped_stats(speci.flux[gdp], sigma=3, iters=5)
+            plt.ylim([0.1 * medy, 4.0 * medy])
+            plt.legend()
+            plt.xlabel('wavelength')
+            plt.ylabel('Flux')
+            plt.show()
+
+    return collate(spectra_list_new)
+
+def ech_median_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5, overlapfrac=0.03, debug=False):
     '''
     Scale different orders.
     ToDo: clean up the docs
@@ -210,7 +247,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeor
             ## scaling different orders
             rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
             sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
-            median_echelle_scale(spectra_coadd_rebin, rmask, sn2, nsig=sigrej_final, niter=niter,
+            ech_median_scale(spectra_coadd_rebin, rmask, sn2, nsig=sigrej_final, niter=niter,
                                  SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, overlapfrac=overlapfrac, debug=debug)
 
             ## Megering orders
@@ -284,7 +321,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeor
             msgs.warn('Skipped merging orders')
             if outfile is not None:
                 for iord in range(len(spectra_list)):
-                    outfile_iord = outfile.replace('.fits','_ORDER{:04d}.fits'.format(iord+1))
-                    msgs.info('Saving the final calibrated spectrum of order {:d} as {:s}'.format(iord+1,outfile))
+                    outfile_iord = outfile.replace('.fits','_ORDER{:04d}.fits'.format(iord))
+                    msgs.info('Saving the final calibrated spectrum of order {:d} as {:s}'.format(iord,outfile))
                     spectra_list[iord].write_to_fits(outfile_iord)
             return spectra_list

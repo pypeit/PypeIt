@@ -991,15 +991,16 @@ def scale_in_filter(xspec, scale_dict):
 
     # Mask further?
     if 'masks' in scale_dict:
-        gdp = np.ones_like(wave, dtype=bool)
-        for mask in scale_dict['masks']:
-            bad = (wave > mask[0]) & (wave < mask[1])
-            gdp[bad] = False
-        # Cut again
-        wave = wave[gdp]
-        flux = flux[gdp]
+        if scale_dict['masks'] is not None:
+            gdp = np.ones_like(wave, dtype=bool)
+            for mask in scale_dict['masks']:
+                bad = (wave > mask[0]) & (wave < mask[1])
+                gdp[bad] = False
+            # Cut again
+            wave = wave[gdp]
+            flux = flux[gdp]
 
-    if 'mag_type' in scale_dict:
+    if ('mag_type' in scale_dict) | (scale_dict['mag_type'] is None):
         mag_type = scale_dict['mag_type']
     else:
         mag_type = 'AB'
