@@ -51,16 +51,16 @@ def spec_from_array(wave,flux,sig,**kwargs):
         spectrum.data['sig'][spectrum.select][bad_flux] = 0.
     return spectrum
 
-def ech_phot_scale(spectra, scale_dicts, debug=False):
+def order_phot_scale(spectra, phot_scale_dicts, debug=False):
     '''
     ToDo Add docs here
-        scale_dicts={0: {'filter': None, 'mag': None, 'mag_type': None, 'masks': None},
+        phot_scale_dicts={0: {'filter': None, 'mag': None, 'mag_type': None, 'masks': None},
                1: {'filter': 'UKIDSS-Y', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
                2: {'filter': 'UKIDSS-J', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
                3: {'filter': 'UKIDSS-H', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
                4: {'filter': 'UKIDSS-K', 'mag': 20.0, 'mag_type': 'AB', 'masks': None}}
     :param spectra:
-    :param scale_dicts:
+    :param phot_scale_dicts:
     :param debug:
     :return:
     '''
@@ -72,9 +72,9 @@ def ech_phot_scale(spectra, scale_dicts, debug=False):
     # scaling spectrum order by order.
     spectra_list_new = []
     for iord in range(norder):
-        scale_dict = scale_dicts[iord]
-        if (scale_dict['filter'] is not None) & (scale_dict['mag'] is not None):
-            speci = scale_in_filter(spectra[iord], scale_dict)
+        phot_scale_dict = phot_scale_dicts[iord]
+        if (phot_scale_dict['filter'] is not None) & (phot_scale_dict['mag'] is not None):
+            speci = scale_in_filter(spectra[iord], phot_scale_dict)
         else:
             msgs.warn("Not enough information given. No scaling performed on order {:d}".format(iord))
             speci = spectra[iord]
@@ -94,7 +94,7 @@ def ech_phot_scale(spectra, scale_dicts, debug=False):
 
     return collate(spectra_list_new)
 
-def ech_median_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5, overlapfrac=0.03, debug=False):
+def order_median_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5, overlapfrac=0.03, debug=False):
     '''
     Scale different orders.
     ToDo: clean up the docs
@@ -145,7 +145,7 @@ def ech_median_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5
         else:
             msgs.warn('Not enough overlap region for sticking different orders.')
 
-def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeorder=True,
+def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeorder=True,orderscale='median',
               wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
               scale_method='auto', do_offset=False, sigrej_final=3.,do_var_corr=False,
               SN_MIN_MEDSCALE = 0.5, overlapfrac = 0.03,
@@ -252,7 +252,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeor
             ## scaling different orders
             rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
             sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
-            ech_median_scale(spectra_coadd_rebin, rmask, sn2, nsig=sigrej_final, niter=niter,
+            order_median_scale(spectra_coadd_rebin, rmask, sn2, nsig=sigrej_final, niter=niter,
                                  SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, overlapfrac=overlapfrac, debug=debug)
 
             ## Megering orders
