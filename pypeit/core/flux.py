@@ -590,7 +590,6 @@ def get_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, msk_te
             magfunc[msk_clean] = magfunc_poly[msk_clean]
             msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
             magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
-            magfunc[~magfunc_mask] = magfunc_poly[~magfunc_mask]
         else:
             ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
             msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
