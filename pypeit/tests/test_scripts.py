@@ -18,6 +18,10 @@ matplotlib.use('agg')  # For Travis
 from pypeit import msgs
 from pypeit.scripts import coadd_1dspec
 from pypeit.scripts import view_fits
+from pypeit.scripts import chk_edges
+from pypeit.scripts import show_1dspec
+from pypeit.tests.tstutils import dev_suite_required
+from pypeit import ginga
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -33,15 +37,24 @@ def test_arcid_plot():
 """
 
 
-'''
+@dev_suite_required
 def test_show_1dspec():
-    #from PyQt4 import QtGui
-    #app = QtGui.QApplication(sys.argv)
-    spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                                'spec1d_J1217p3905_KASTb_2015May20T045733.560.fits')
+    # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
-    # Run
     show_1dspec.main(pargs, unit_test=True)
-'''
+
+
+@dev_suite_required
+def test_chk_edges():
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
+                                'MasterTrace_KeckLRISr_400_8500_det1')
+    # Ginga needs to be open in RC mode
+    ginga.connect_to_ginga(raise_err=True)
+    #
+    pargs = chk_edges.parser([mstrace_root])
+    chk_edges.main(pargs)
 
 
 def test_view_fits():
