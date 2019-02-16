@@ -98,7 +98,6 @@ class PypeIt(object):
         # Fitstbl
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
                                       usrdata=usrdata, strict=True)
-        # Deal with manual_extract -- THIS SHOULD BE DONE ELSEWHERE
         if 'manual_extract' in self.fitstbl.keys():
             mframes = np.where(self.fitstbl['manual_extract'] != 'None')[0]
             # Loop
