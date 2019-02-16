@@ -1,10 +1,8 @@
 """ Module for image processing core methods
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import astropy.stats
 import numpy as np
-import glob
 import os
 import scipy
 from astropy.io import fits
@@ -73,7 +71,34 @@ def get_brightest_obj(specobjs_list, echelle=True):
 
     return objid, snr_bar
 
-def optimal_weights(specobjs_list, slitid, objid, echelle=True):
+def optimal_weights(specobjs_list, slitid, objid):
+    """
+    Determine optimal weights for a 2d coadds. This script grabs the information from SpecObjs list for the
+    object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
+    each exposure. This routine will also pass back the trace and the wavelengths (optimally extracted) for each
+    exposure.
+
+    Args:
+        specobjs_list: list
+           list of SpecObjs objects contaning the objects that were extracted from each frame that will contribute
+           to the coadd.
+        slitid: int
+           The slitid that has the brightest object whose S/N will be used to determine the weight for each frame.
+        objid: int
+           The objid index of the brightest object whose S/N will be used to determine the weight for each frame.
+
+    Returns:
+        (rms_sn, weights, trace_stack, wave_stack)
+        rms_sn : ndarray, shape = (len(specobjs_list),)
+            Root mean square S/N value for each input spectra
+        weights : ndarray, shape (len(specobjs_list),)
+            Weights to be applied to the spectra. These are signal-to-noise squared weights.
+        trace_stack: ndarray, shape = (len(specobs_list), nspec)
+            Traces for each exposure
+        wave_stack: ndarray, shape = (len(specobs_list), nspec)
+            Wavelengths (optimally extracted) for each exposure.
+
+    """
 
     nexp = len(specobjs_list)
     nspec = specobjs_list[0][0].trace_spat.shape[0]
@@ -104,6 +129,19 @@ def det_error_msg(exten, sdet):
                "Set with --det= or check file contents with pypeit_show_2dspec Science/spec2d_XXX --list".format(sdet))
 
 def load_coadd2d_stacks(spec2d_files, det):
+    """
+
+    Args:
+        spec2d_files: list
+           List of spec2d filenames
+        det: int
+           detector in question
+
+    Returns:
+        stack_dict: dict
+           Dictionary containing all the images and keys required for perfomring 2d coadds.
+
+    """
 
     # Get the detector string
     sdet = parse.get_dnum(det, prefix=False)
@@ -113,7 +151,7 @@ def load_coadd2d_stacks(spec2d_files, det):
     # Get the master dir
     head0 = fits.getheader(spec2d_files[0])
     master_dir = os.path.basename(head0['PYPMFDIR'])+'/'
-    redux_path =  './'
+    redux_path =  os.cwd()
     master_path = redux_path + master_dir
     tiltfiles = []
     waveimgfiles = []
@@ -581,8 +619,22 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
-
+# TODO Break up into separate methods?
 def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False, show_peaks=False):
+    """
+    Main routine to run the extraction for 2d coadds. This performs 2d coadd specific tasks, and then also performs
+    some of the tasks analogous to the pypeit.extract_one method. Docs coming soon....
+    Args:
+        stack_dict:
+        master_dir:
+        ir_redux:
+        par:
+        show:
+        show_peaks:
+
+    Returns:
+
+    """
 
     # Find the objid of the brighest object, and the average snr across all orders
     nslits = stack_dict['tslits_dict']['slit_left'].shape[1]
@@ -594,10 +646,6 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
 
     # Grab the wavelength grid that we will rectify onto
     wave_grid = spectrograph.wavegrid()
-
-    ## Loop over the slit and create these stacked images for each order.
-    ## the rest of our routines will run on them, like ech_objfind etc. Generalize the Scienceimage class to handle
-    # this and/or strip those methods out to functions.
 
     coadd_list = []
     nspec_vec = np.zeros(nslits,dtype=int)
