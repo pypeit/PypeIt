@@ -725,6 +725,8 @@ class FluxCalibrationPar(ParSet):
 
 class ManualExtractionPar(ParSet):
     """
+    DEPRECATED!!
+
     A parameter set holding the arguments for how to perform the
     manual extraction of a spectrum.
 
@@ -771,7 +773,7 @@ class ManualExtractionPar(ParSet):
         descr['spat'] = 'List of spatial positions to hand extract '
 
         dtypes['det'] = [list, int]
-        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list'
+        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list.  Negative values indicated negative images.'
         dtypes['fwhm'] = [list, int,float]
         descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will be used for all members of that list'
 

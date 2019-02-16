@@ -1705,7 +1705,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
         # First Parse the hand_dict
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
-        hand_on_slit = np.where(np.array(thismask[int(np.rint(hand_extract_spec)),int(np.rint(hand_extract_spat))]))[0]
+        hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int), np.rint(hand_extract_spat).astype(int)]))[0]
         hand_extract_spec = hand_extract_spec[hand_on_slit]
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]

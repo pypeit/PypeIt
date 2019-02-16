@@ -2,14 +2,13 @@
 import inspect
 import numpy as np
 import os
+import copy
 
 from astropy import stats
 from abc import ABCMeta
 
 from pypeit import ginga, utils, msgs, processimages, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
-from pypeit.par import pypeitpar
-from matplotlib import pyplot as plt
 
 from pypeit import debugger
 
@@ -163,22 +162,59 @@ class Reduce(object):
                 return False
         return True
 
+    def parse_manual_dict(self, manual_dict, neg=False):
+        """
+        Parse the manual dict
+        This method is here mainly to deal with negative images
+
+        Args:
+            manual_dict (dict or None):
+            neg (bool, optional):
+
+        Returns:
+            None or dict:  None if no matches; dict if there are for manual extraction
+
+        """
+        if manual_dict is None:
+            return None
+        #
+        dets = manual_dict['hand_extract_det']
+        # Grab the ones we want
+        gd_det = dets > 0
+        if neg:
+            gd_det = np.invert(gd_det)
+        # Any?
+        if not np.any(gd_det):
+            return None
+        # Fill
+        manual_extract_dict = {}
+        for key in manual_dict.keys():
+            sgn = 1
+            if key == 'hand_extract_det':
+                sgn = -1
+            manual_extract_dict[key] = sgn*manual_dict[key][gd_det]
+        # Return
+        return manual_extract_dict
 
     def find_objects(self, image, ivar, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False,
                      manual_extract_dict=None):
 
+        # Positive image
+        parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_init, nobj_init, skymask_pos = \
             self.find_objects_pypeline(image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
-                                       manual_extract_dict=manual_extract_dict)
+                                       manual_extract_dict=parse_manual)
 
         # For nobj we take only the positive objects
         if ir_redux:
+            # Parses
+            parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
-                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
-                                           #manual_extract_dict=manual_extract_dict)
+                show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
+                                           manual_extract_dict=parse_manual)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
@@ -669,6 +705,7 @@ class Echelle(Reduce):
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
                               show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
+                              manual_extract_dict=None,
                               sci_files=None):
 
         # create the ouptut image for skymask
@@ -684,6 +721,7 @@ class Echelle(Reduce):
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                 inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
+                                hand_extract_dict=manual_extract_dict,
                                 plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)

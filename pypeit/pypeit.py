@@ -99,7 +99,7 @@ class PypeIt(object):
                                       usrdata=usrdata, strict=True)
         # Update par;  done explicilty here for transparency
         #   Should only be updates related to usrdata
-        self.par = self.fitstbl.update_par(self.par)
+        #self.par = self.fitstbl.update_par(self.par)
 
         # The following could be put in a prepare_to_run() method in PypeItMetaData
         if 'setup' not in self.fitstbl.keys():
@@ -542,7 +542,9 @@ class PypeIt(object):
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
 
-        # Prep for manual extraction
+        # Prep for manual extraction (if requested)
+        manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
+        '''
         if self.par['scienceimage']['manual'] is not None:
             # This requires sci_files
             if len(sci_files) > 1:  # Can only deal with one sci file or will have to think about using the first
@@ -561,6 +563,7 @@ class PypeIt(object):
                 manual_extract_dict = None
         else:
             manual_extract_dict = None
+        '''
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
