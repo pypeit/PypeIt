@@ -1271,11 +1271,6 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
         title_text = 'Flux Weighted'
 
     xfit1 = np.copy(xinit)
-    # TESTING
-    #orderindx=int(idx[0][13:17])
-    #if orderindx == 12:
-    #    from IPython import embed
-    #    embed()
 
     for iiter in range(niter):
         if gweight:
@@ -1689,9 +1684,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
     if len(sobjs) > 0:
         # Note the transpose is here to pass in the trace_spat correctly.
         xinit_fweight = np.copy(sobjs.trace_spat.T)
-        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx, show_fits=show_fits)
+        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight,ncoeff,inmask = inmask, fwhm=fwhm,idx = sobjs.idx,
+                                             show_fits=show_fits)
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True, idx = sobjs.idx, show_fits=show_fits)
+        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight,ncoeff,inmask = inmask, fwhm=fwhm,gweight = True,
+                                              idx = sobjs.idx, show_fits=show_fits)
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -2101,9 +2098,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
-    #show_fits=True
-    #show_peaks = True
-    #ncoeff=7
     for iord in range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord

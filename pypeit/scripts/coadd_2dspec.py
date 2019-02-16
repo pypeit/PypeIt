@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 
 """
-Script for fluxing PYPEIT 1d spectra
+Script for performing 2d coadds of PypeIt data.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from configobj import ConfigObj
 from astropy.io import fits
 from pypeit import par, msgs

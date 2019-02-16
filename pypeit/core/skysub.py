@@ -15,6 +15,16 @@ from scipy.special import ndtr
 import scipy
 
 def skysub_npoly(thismask):
+    """
+    Utility routine used by global_skysub and local_skysub_extract. Determine the order for the spatial
+    polynomial for global sky subtraction and local sky subtraction.
+    Args:
+        thismask:
+
+    Returns:
+        npoly: int
+           Order of polynomial
+    """
     slit_width = np.sum(thismask,axis=1)
     med_slit_width = np.median(slit_width[slit_width > 0])
     nspec_eff = np.sum(slit_width > 0.5*med_slit_width)
@@ -746,11 +756,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             iterbsp = 0
             while (not sky_bmodel.any()) & (iterbsp <= 5):
                 bsp_now = (1.2 ** iterbsp) * bsp
-                #ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & \
-                #        (spat_img >= spat_min) & (spat_img <= spat_max) & \
-                #        (spat_img >= min_spat) & (spat_img <= max_spat) & \
-                #        thismask
-                #sampmask = (waveimg > 0.0) & ibool
                 fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
                                          skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
                 # check to see if only a subset of the image is used.

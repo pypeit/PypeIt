@@ -796,11 +796,9 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     return cont_now, cont_mask
 
 
-# ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, sigdetect = 5.0, fwhm = 4.0, fit_frac_fwhm=1.25,
-                 input_thresh = None, cont_subtract=True, cont_frac_fwhm = 1.0,
-                 max_frac_fwhm = 3.0, cont_samp = 30,
-                 nonlinear_counts=1e10, niter_cont = 3,nfind = None, verbose = False, debug=False, debug_peak_find = False):
+def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None, cont_subtract=True,
+                 cont_frac_fwhm=1.0, max_frac_fwhm=3.0, cont_samp=30, nonlinear_counts=1e10, niter_cont=3, nfind=None,
+                 verbose=False, debug=False, debug_peak_find=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
