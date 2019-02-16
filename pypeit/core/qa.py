@@ -7,9 +7,7 @@ import datetime
 import getpass
 import glob
 import numpy as np
-
 import yaml
-from pypeit import debugger
 
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs

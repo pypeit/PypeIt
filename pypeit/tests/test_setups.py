@@ -35,7 +35,7 @@ def test_run_setup():
         os.remove(sfile)
     #
     droot = data_path('b')
-    pargs = setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c',
+    pargs = setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c=all',
                           '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
     setup.main(pargs)
 
@@ -49,7 +49,7 @@ def test_run_setup():
     assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
     '''
     # Failures
-    pargs2 = setup.parser(['-r', droot, '-s', 'shane_kast_blu', '-c',
+    pargs2 = setup.parser(['-r', droot, '-s', 'shane_kast_blu', '-c=all',
                               '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
     with pytest.raises(ValueError):
         setup.main(pargs2)

@@ -14,7 +14,7 @@ from pypeit.core import pixels
 from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import biasframe
-from pypeit import bpmimage
+#from pypeit import bpmimage
 from pypeit import flatfield
 from pypeit import traceimage
 from pypeit import traceslits
@@ -42,9 +42,6 @@ class Calibrations(object):
     To avoid rebuilding MasterFrames that were generated during this execution
     of PypeIt, the class performs book-keeping of these master frames and
     holds that info in self.calib_dict
-
-    .. todo::
-        Improve docstring...
 
     Args:
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
@@ -87,8 +84,6 @@ class Calibrations(object):
             calib group ID of the current frame
         arc_master_key
 
-
-        
     """
     __metaclass__ = ABCMeta
 
@@ -113,7 +108,6 @@ class Calibrations(object):
 
         # Spectrometer class
         self.spectrograph = spectrograph
-
 
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path
@@ -206,10 +200,9 @@ class Calibrations(object):
 
     def get_arc(self):
         """
-        Load or generate the bias frame/command
+        Load or generate the Arc image
 
         Requirements:
-          self.msbias
           master_key, det, par
 
         Args:
@@ -323,7 +316,7 @@ class Calibrations(object):
 
         """
         # Check internals
-        self._chk_set(['par'])
+        self._chk_set(['par', 'det'])
 
         # Generate a bad pixel mask (should not repeat)
         self.bpm_master_key = self.fitstbl.master_key(self.frame, det=self.det)
@@ -345,10 +338,10 @@ class Calibrations(object):
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
 
         # Build it
-        bpmImage = bpmimage.BPMImage(self.spectrograph,det=self.det, shape=self.shape)
-        # Build, save, and return
-        self.msbpm = bpmImage.build(filename=sci_image_files[0])
+        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_files[0], det=self.det)
+        # Record it
         self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm
+        # Return
         return self.msbpm
 
     def get_flats(self):
@@ -405,8 +398,10 @@ class Calibrations(object):
             return self.mspixflatnrm, self.msillumflat
 
         # Instantiate
-        self.flatField = flatfield.FlatField(self.spectrograph, files=pixflat_image_files,
-                                             det=self.det, par=self.par['pixelflatframe'],
+        self.flatField = flatfield.FlatField(self.spectrograph,
+                                             self.par['pixelflatframe'],
+                                             files=pixflat_image_files,
+                                             det=self.det,
                                              master_key=self.pixflat_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
                                              flatpar=self.par['flatfield'], msbias=self.msbias,
@@ -498,7 +493,7 @@ class Calibrations(object):
         First, a trace flat image is generated
 
         Requirements:
-           det par master_key
+           det, par, master_key
 
         Args:
             redo (bool): Redo
@@ -775,8 +770,6 @@ class Calibrations(object):
 
         Args:
             items (list): Attributes to check
-
-        Returns:
 
         """
         for item in items:

@@ -87,7 +87,8 @@ def load_specobjs(fname,order=None):
     head0
     """
     sobjs = specobjs.SpecObjs()
-    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
+    speckeys = ['WAVE', 'WAVE_GRID','WAVE_GRID_MIN','WAVE_GRID_MAX', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG',
+                'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
     # sobjs_keys gives correspondence between header cards and sobjs attribute name
     sobjs_key = specobjs.SpecObj.sobjs_key()
     hdulist = fits.open(fname)
@@ -305,8 +306,6 @@ def load_std_trace(spec1dfile, det):
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
             # TODO what is the data model for echelle standards? This routine needs to distinguish between echelle and longslit
-            from IPython import embed
-            embed()
             trace = tbl['TRACE']
 
     return trace

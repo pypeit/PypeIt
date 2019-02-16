@@ -2,17 +2,10 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import inspect
-import os
-
-
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
-
-from pypeit import debugger
-
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -28,9 +21,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         #    See ProcessImages for the rest
 
     Args:
-        spectrograph : str (optional)
+        spectrograph (str):
            Used to specify properties of the detector (for processing)
-           Attempt to set with settings['run']['spectrograph'] if not input
         files (list,optional): List of filenames to process
             master_key (:obj:`str`, optional):
                 The string identifier for the instrument configuration.  See
@@ -60,13 +52,13 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, files=files, det=det,
-                                             par=self.par['process'])
+        processimages.ProcessImages.__init__(self, spectrograph,
+                                             self.par['process'],
+                                             files=files, det=det)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key, reuse_masters=reuse_masters,
-                                         master_dir=master_dir)
+        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir, reuse_masters=reuse_masters)
 
     def build_image(self, overwrite=False, trim=True):
         """
@@ -100,7 +92,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             built on this run.
 
         Returns:
-            ndarray, str or None: :attr:`msbias` str, ndarray or None
+            ndarray, str or None: :attr:`msbias` str, np.ndarray or None
 
         """
         # How are we treating biases?

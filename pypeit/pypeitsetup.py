@@ -1,4 +1,4 @@
-#  Class for organizing PYPIT setup
+#  Class for organizing PypeIt setup
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -11,7 +11,6 @@ import numpy as np
 from astropy.table import hstack, Table
 
 from pypeit import msgs
-#from pypeit.core import pypsetup
 from pypeit.metadata import PypeItMetaData
 
 from pypeit.par import PypeItPar

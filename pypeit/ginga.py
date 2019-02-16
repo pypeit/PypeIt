@@ -1,7 +1,5 @@
 """ Module for ginga routines.  Mainly for debugging
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 try:
     basestring
 except NameError:
@@ -31,17 +29,18 @@ from astropy.io import fits
 
 from pypeit import msgs
 
+
 def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     """ Connect to an active RC Ginga
-    Parameters
-    ----------
-    host : str, optional
-    port : int, optional
 
-    Returns
-    -------
-    viewer : RemoteClient
-      connectoin to Ginga
+    Args:
+        host (str, optional):
+        port (int, optional):  Probably should remain at 9000
+        raise_err (bool, optional): Raise an error if no connection is made,
+          otherwise just raise a warning and continue
+
+    Returns:
+        RemoteClient: connection to ginga viewer
 
     """
     # Start
@@ -55,10 +54,8 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
             raise ValueError
         else:
             msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer: ginga --modules=RC then continue.")
-            debugger.set_trace()
     # Return
     return viewer
-
 
 
 def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten=0, cuts=None,
@@ -77,7 +74,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         chname (:obj:`str`, optional):
             The name of the ginga channel to use.
         waveimg (:obj:`str`, optional):
-            The name of a fits image with the relevant WCS coordinates
+            The name of a FITS image with the relevant WCS coordinates
             in its header, mainly for wavelength array.  If None, no WCS
             is used.
         bitmask (:class:`pypeit.bitmask.BitMask`, optional):
@@ -223,23 +220,23 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     return viewer, ch
 
 
-def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pstep=50, clear = False):
-    """ Overplot slits on image in Ginga
-    Parameters
-    ----------
-    viewer
-    ch
-    lord_in : ndarray
-    rord_in : ndarray
-    slit_ids  (list of int):
-    rotate : bool, optional
-      Allow for a rotated image
-    pstep : int
-      Show every pstep point of the edges
-    clear: bool
-      Clear the canvas?
-    """
+def show_slits(viewer, ch, lord_in, rord_in, slit_ids=None, rotate=False, pstep=50, clear=False):
+    """ Overplot slits on the image in Ginga in the given channel
 
+    Args:
+        viewer (ginga.util.grc.RemoteClient):  Ginga RC viewer
+        ch (ginga.util.grc._channel_proxy): Ginga channel
+        lord_in (ndarray):  One or 2d array of left slit edges
+        rord_in (ndarray):  One or 2d array of right slit edges
+        slit_ids (list, optional): List of slit IDs (int)
+        rotate (bool, optional):
+            Rotate the image?
+        pstep (int, optional):
+            Show every pstep point of the edges as opposed to *every* point, recommended for speed
+        clear (bool, optional):
+            Clear the canvas?
+
+    """
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
     if lord_in.ndim == 2:
@@ -291,15 +288,27 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids = None, rotate=False, pste
 def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
                rotate=False, pstep=50, yval=None):
     """
-    trace: ndarray
-      x-positions on the detector
-    rotate : bool, optional
-      Allow for a rotated image
-    pstep : int
-      Show every pstep point of the edges
-    yval : ndarray, optional
-      If not provided, it is assumed the input x values
-        track y=0,1,2,3,etc.
+
+    Args:
+        viewer (ginga.util.grc.RemoteClient):
+            Ginga RC viewer
+        ch (ginga.util.grc._channel_proxy):
+            Ginga channel
+        trace (np.ndarray):
+            x-positions on the detector
+        trc_name (str, optional):
+            Trace name
+        color (str, optional):
+            Color for the trace
+        clear (bool, optional):
+            Clear the canvas?
+        rotate (bool, optional):
+            Rotate the image?
+        pstep (int, optional):
+            Show every pstep point of the edges as opposed to *every* point, recommended for speed
+        yval (np.ndarray, optional):
+            If not provided, it is assumed the input x values track y=0,1,2,3,etc.
+
     """
     # Canvas
     canvas = viewer.canvas(ch._chname)
@@ -331,19 +340,16 @@ def clear_canvas(cname):
     Args:
         cname (str):  Channel name
 
-    Returns:
-
     """
     viewer = connect_to_ginga()
     ch = viewer.channel(cname)
     canvas = viewer.canvas(ch._chname)
     canvas.clear()
 
+
 def clear_all():
     """
     Clear all of the ginga canvasses
-
-    Returns:
 
     """
     viewer = connect_to_ginga()
@@ -353,23 +359,31 @@ def clear_all():
         shell.delete_channel(ch)
 
 
-def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1, points=True, clear_canvas = False):
-    """  Display arc image and overlay the arcline tilt measurements
+def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1,
+               points=True, clear_canvas=False):
+    """
+    Show the arc tilts on the input channel
+      Not sure this is actually working correctly...
 
-    Parameters
-    ----------
-    msarc : ndarray
-    trcdict : dict
-      Contains trace info
-    sedges : tuple
-      Arrays of the slit
-    xoff : float, optional
-      In case Ginga has an index offset.  It appears not to
-    yoff : float, optional
-
-
-    Returns
-    -------
+    Args:
+        viewer (ginga.util.grc.RemoteClient):
+            Ginga RC viewer
+        ch (ginga.util.grc._channel_proxy):
+            Ginga channel
+        trc_tilt_dict (dict):
+            Contains tilts info
+        sedges (tuple, optional):
+            Contains slit edges;  passed to show_slits()
+        yoff (float, optional):
+            Offset tilts by this amount
+        xoff (float, optional):
+            Offset tilts by this amount
+        pstep (int, optional):
+            Show every pstep point of the edges as opposed to *every* point, recommended for speed
+        points (bool, optional):
+            Plot the Gaussian-weighted tilt centers
+        clear_canvas (bool, optional):
+            Clear the canvas first?
 
     """
     canvas = viewer.canvas(ch._chname)
@@ -377,7 +391,7 @@ def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1
         canvas.clear()
 
     if sedges is not None:
-        show_slits(viewer, ch,sedges[0], sedges[1])
+        show_slits(viewer, ch, sedges[0], sedges[1])
 
     tilts = trc_tilt_dict['tilts']
     # Crutch is set plot the crutch instead of the tilt itself
@@ -435,68 +449,4 @@ def show_tilts(viewer, ch, trc_tilt_dict, sedges=None, yoff=0., xoff=0., pstep=1
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 30, 'bad  tilt fit', color=str('yellow'),fontsize=20.)
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 60, 'trace good', color=str('cyan'),fontsize=20.)
     canvas.add(str('text'), nspat//2 - 40, nspec//2 - 90, 'trace masked', color=str('red'),fontsize=20.)
-
-
-# Old method
-def chk_arc_tilts(msarc, trcdict, sedges=None, yoff=0., xoff=0., all_green=False, pstep=10,
-                  cname='ArcTilts'):
-    """  Display arc image and overlay the arcline tilt measurements
-    Parameters
-    ----------
-    msarc : ndarray
-    trcdict : dict
-      Contains trace info
-    sedges : tuple
-      Arrays of the slit
-    xoff : float, optional
-      In case Ginga has an index offset.  It appears not to
-    yoff : float, optional
-
-
-    Returns
-    -------
-
-    """
-    # Connect
-    viewer = connect_to_ginga()
-    ch = viewer.channel(cname)
-    canvas = viewer.canvas(ch._chname)
-    # Show image, clear canvas [in case this is a repeat]
-    name='image'
-    ch.load_np(name, msarc, 'fits', {})
-    canvas.clear()
-    # Show a trace
-    ntrc = len(trcdict['xtfit'])
-    for idx in range(ntrc):
-        if trcdict['xtfit'][idx] is None:
-            continue
-        x = trcdict['xtfit'][idx] + xoff
-        y = trcdict['ytfit'][idx] + yoff  # FOR IMAGING (Ginga offsets this value by 1 internally)
-        gdy = y > 0.
-        if np.sum(gdy) > 0:
-            points = list(zip(x[gdy][::pstep].tolist(),y[gdy][::pstep].tolist()))
-            if trcdict['aduse'][idx]:
-                clr = 'green'  # Good line
-            else:
-                if not all_green:
-                    clr = 'red'  # Bad line
-                else:
-                    clr = 'green'
-            canvas.add('path', points, color=clr)
-    #msgs.info("Check the Ginga viewer")
-    # Show slit edges
-    if sedges is not None:
-        y = (np.arange(msarc.shape[0]) + yoff).tolist()
-        # Left
-        for edge in [0,1]:
-            points = list(zip(sedges[edge][::50].tolist(),y[::50]))
-            canvas.add('path', points, color='cyan')
-    # ALTERNATE for comparing methods
-    if 'save_yt' in trcdict.keys():
-        x = trcdict['xtfit'][2]
-        y = trcdict['save_yt']
-        gdy = y > 0.
-        points = list(zip(x[gdy].tolist(),y[gdy].tolist()))
-        canvas.add('path', points, color='blue')
-    #debugger.set_trace()
 

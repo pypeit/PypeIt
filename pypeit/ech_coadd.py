@@ -34,6 +34,9 @@ def spec_from_array(wave,flux,sig,**kwargs):
     return spectrum from arrays of wave, flux and sigma
     """
 
+    # Get rid of 0 wavelength
+    good_wave = (wave>1.0*units.AA)
+    wave,flux,sig = wave[good_wave],flux[good_wave],sig[good_wave]
     ituple = (wave, flux, sig)
     spectrum = XSpectrum1D.from_tuple(ituple, **kwargs)
     # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
@@ -48,8 +51,45 @@ def spec_from_array(wave,flux,sig,**kwargs):
         spectrum.data['sig'][spectrum.select][bad_flux] = 0.
     return spectrum
 
+def ech_phot_scale(spectra, scale_dicts, debug=False):
+    '''
+    ToDo Add docs here
+    :param spectra:
+    :param scale_dicts:
+    :param debug:
+    :return:
+    '''
 
-def median_echelle_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5, overlapfrac=0.03, debug=False):
+    from pypeit.core.flux import scale_in_filter
+
+    norder = spectra.nspec
+
+    # scaling spectrum order by order.
+    spectra_list_new = []
+    for iord in range(norder):
+        scale_dict = scale_dicts[iord]
+        if (scale_dict['filter'] is not None) & (scale_dict['mag'] is not None):
+            speci = scale_in_filter(spectra[iord], scale_dict)
+        else:
+            msgs.warn("Not enough information given. No scaling performed on order {:d}".format(iord))
+            speci = spectra[iord]
+        spectra_list_new.append(speci)
+
+        if debug:
+            gdp = speci.sig>0
+            plt.plot(spectra[iord].wavelength[gdp], spectra[iord].flux[gdp], 'k-', label='raw spectrum')
+            plt.plot(speci.wavelength[gdp], speci.flux[gdp], 'b-',
+                     label='scaled spectrum')
+            mny, medy, stdy = stats.sigma_clipped_stats(speci.flux[gdp], sigma=3, iters=5)
+            plt.ylim([0.1 * medy, 4.0 * medy])
+            plt.legend()
+            plt.xlabel('wavelength')
+            plt.ylabel('Flux')
+            plt.show()
+
+    return collate(spectra_list_new)
+
+def ech_median_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE=0.5, overlapfrac=0.03, debug=False):
     '''
     Scale different orders.
     ToDo: clean up the docs
@@ -100,9 +140,10 @@ def median_echelle_scale(spectra, smask, sn2, nsig=3.0, niter=5, SN_MIN_MEDSCALE
         else:
             msgs.warn('Not enough overlap region for sticking different orders.')
 
-def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
+def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeorder=True,
               wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
               scale_method='auto', do_offset=False, sigrej_final=3.,do_var_corr=False,
+              SN_MIN_MEDSCALE = 0.5, overlapfrac = 0.03,
               qafile=None, outfile=None,do_cr=True, debug=False,**kwargs):
     """
     routines for coadding spectra observed with echelle spectrograph.
@@ -121,6 +162,8 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
         do_offset (str): see coadd.py, not implemented yet.
         sigrej_final (float): see coadd.py
         do_var_corr (bool): see coadd.py, default False. It seems True will results in a large error
+        SN_MIN_MEDSCALE (float): minimum SNR for scaling different orders
+        overlapfrac (float): minimum overlap fraction for scaling different orders.
         qafile (str): name of qafile
         outfile (str): name of coadded spectrum
         do_cr (bool): remove cosmic rays?
@@ -183,98 +226,102 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,
                                        do_cr=do_cr, debug=debug, **kwargs)
             spectrum = spec_from_array(spec1d_iord.wavelength, spec1d_iord.flux, spec1d_iord.sig,**rsp_kwargs)
             spectra_list.append(spectrum)
-        # Join into one XSpectrum1D object
-        spectra_coadd = collate(spectra_list)
 
-        ## merger orders
-        # Final wavelength array
-        kwargs['wave_grid_min'] = np.min(spectra_coadd.data['wave'][spectra_coadd.data['wave']>0])
-        kwargs['wave_grid_max'] = np.max(spectra_coadd.data['wave'][spectra_coadd.data['wave']>0])
-        wave_final = coadd.new_wave_grid(spectra_coadd.data['wave'], wave_method=wave_grid_method, **kwargs)
-        # The rebin function in linetools can not work on collated spectra (i.e. filled 0).
-        # Thus I have to rebin the spectra first and then collate again.
-        spectra_list_new = []
-        for i in range(spectra_coadd.nspec):
-            speci = spectra_list[i].rebin(wave_final * units.AA, all=True, do_sig=True, grow_bad_sig=True,
-                              masking='none')
-            spectra_list_new.append(speci)
-        spectra_coadd_rebin = collate(spectra_list_new)
-        fluxes, sigs, wave = coadd.unpack_spec(spectra_coadd_rebin,all_wave=False)
+        if mergeorder:
+            # Join into one XSpectrum1D object
+            spectra_coadd = collate(spectra_list)
+            # Final wavelength array
+            kwargs['wave_grid_min'] = np.min(spectra_coadd.data['wave'][spectra_coadd.data['wave'] > 0])
+            kwargs['wave_grid_max'] = np.max(spectra_coadd.data['wave'][spectra_coadd.data['wave'] > 0])
+            wave_final = coadd.new_wave_grid(spectra_coadd.data['wave'], wave_method=wave_grid_method, **kwargs)
+            # The rebin function in linetools can not work on collated spectra (i.e. filled 0).
+            # Thus I have to rebin the spectra first and then collate again.
+            spectra_list_new = []
+            for i in range(spectra_coadd.nspec):
+                speci = spectra_list[i].rebin(wave_final * units.AA, all=True, do_sig=True, grow_bad_sig=True,
+                                              masking='none')
+                spectra_list_new.append(speci)
+            spectra_coadd_rebin = collate(spectra_list_new)
+            fluxes, sigs, wave = coadd.unpack_spec(spectra_coadd_rebin, all_wave=False)
 
-        ## scaling different orders
-        rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
-        sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
-        ## ToDo pasing parameters
-        SN_MIN_MEDSCALE = 0.5
-        overlapfrac=0.03
-        median_echelle_scale(spectra_coadd_rebin, rmask, sn2, nsig=sigrej_final, niter=niter,
-                             SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, overlapfrac=overlapfrac, debug=debug)
+            ## scaling different orders
+            rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
+            sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
+            ech_median_scale(spectra_coadd_rebin, rmask, sn2, nsig=sigrej_final, niter=niter,
+                                 SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, overlapfrac=overlapfrac, debug=debug)
 
-        ## Mergering orders
-        ## ToDo: Joe claimed not to use pixel depedent weighting.
-        weights = 1.0 / sigs**2
-        weights[~np.isfinite(weights)] = 0.0
-        weight_combine = np.sum(weights, axis=0)
-        weight_norm = weights / weight_combine
-        weight_norm[np.isnan(weight_norm)] = 1.0
-        flux_final = np.sum(fluxes * weight_norm, axis=0)
-        sig_final = np.sqrt(np.sum((weight_norm * sigs) ** 2, axis=0))
-        spec1d_final = spec_from_array(wave_final * units.AA,flux_final,sig_final,**rsp_kwargs)
+            ## Megering orders
+            msgs.info('Merging different orders')
+            ## ToDo: Joe claimed not to use pixel depedent weighting.
+            weights = 1.0 / sigs**2
+            weights[~np.isfinite(weights)] = 0.0
+            weight_combine = np.sum(weights, axis=0)
+            weight_norm = weights / weight_combine
+            weight_norm[np.isnan(weight_norm)] = 1.0
+            flux_final = np.sum(fluxes * weight_norm, axis=0)
+            sig_final = np.sqrt(np.sum((weight_norm * sigs) ** 2, axis=0))
+            spec1d_final = spec_from_array(wave_final * units.AA,flux_final,sig_final,**rsp_kwargs)
 
-        # plot and save qa
-        plt.figure(figsize=(12, 6))
-        ax1 = plt.axes([0.07, 0.13, 0.9, 0.4])
-        ax2 = plt.axes([0.07, 0.55, 0.9, 0.4])
-        plt.setp(ax2.get_xticklabels(), visible=False)
+            # plot and save qa
+            plt.figure(figsize=(12, 6))
+            ax1 = plt.axes([0.07, 0.13, 0.9, 0.4])
+            ax2 = plt.axes([0.07, 0.55, 0.9, 0.4])
+            plt.setp(ax2.get_xticklabels(), visible=False)
 
-        medf = np.median(spec1d_final.flux)
-        ylim = (np.sort([0. - 0.3 * medf, 5 * medf]))
-        cmap = plt.get_cmap('RdYlBu_r')
-        for idx in range(spectra_coadd_rebin.nspec):
-            spectra_coadd_rebin.select = idx
-            color = cmap(float(idx) / spectra_coadd_rebin.nspec)
-            ind_good = spectra_coadd_rebin.sig > 0
-            ax1.plot(spectra_coadd_rebin.wavelength[ind_good], spectra_coadd_rebin.flux[ind_good], color=color)
+            medf = np.median(spec1d_final.flux)
+            ylim = (np.sort([0. - 0.3 * medf, 5 * medf]))
+            cmap = plt.get_cmap('RdYlBu_r')
+            for idx in range(spectra_coadd_rebin.nspec):
+                spectra_coadd_rebin.select = idx
+                color = cmap(float(idx) / spectra_coadd_rebin.nspec)
+                ind_good = spectra_coadd_rebin.sig > 0
+                ax1.plot(spectra_coadd_rebin.wavelength[ind_good], spectra_coadd_rebin.flux[ind_good], color=color)
 
-        if (np.max(spec1d_final.wavelength) > (9000.0 * units.AA)):
-            skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
-            skycat = np.genfromtxt(skytrans_file, dtype='float')
-            scale = 0.85 * ylim[1]
-            ax2.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5)
+            if (np.max(spec1d_final.wavelength) > (9000.0 * units.AA)):
+                skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
+                skycat = np.genfromtxt(skytrans_file, dtype='float')
+                scale = 0.85 * ylim[1]
+                ax2.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5)
 
-        ax2.plot(spec1d_final.wavelength, spec1d_final.sig, ls='steps-', color='0.7')
-        ax2.plot(spec1d_final.wavelength, spec1d_final.flux, ls='steps-', color='b')
+            ax2.plot(spec1d_final.wavelength, spec1d_final.sig, ls='steps-', color='0.7')
+            ax2.plot(spec1d_final.wavelength, spec1d_final.flux, ls='steps-', color='b')
 
-        ax1.set_xlim([np.min(spec1d_final.wavelength.value), np.max(spec1d_final.wavelength.value)])
-        ax1.set_ylim(ylim)
-        ax2.set_xlim([np.min(spec1d_final.wavelength.value), np.max(spec1d_final.wavelength.value)])
-        ax2.set_ylim(ylim)
-        ax1.set_xlabel('Wavelength (Angstrom)')
-        ax1.set_ylabel('Flux')
-        ax2.set_ylabel('Flux')
+            ax1.set_xlim([np.min(spec1d_final.wavelength.value), np.max(spec1d_final.wavelength.value)])
+            ax2.set_xlim([np.min(spec1d_final.wavelength.value), np.max(spec1d_final.wavelength.value)])
+            ax1.set_ylim(ylim)
+            ax2.set_ylim(ylim)
+            ax1.set_xlabel('Wavelength (Angstrom)')
+            ax1.set_ylabel('Flux')
+            ax2.set_ylabel('Flux')
 
-        plt.tight_layout(pad=0.2, h_pad=0., w_pad=0.2)
-        if qafile is not None:
-            if len(qafile.split('.')) == 1:
-                msgs.info("No fomat given for the qafile, save to PDF format.")
-                qafile = qafile + '.pdf'
-            plt.savefig(qafile)
-            msgs.info("Wrote coadd QA: {:s}".format(qafile))
-        if debug:
-            plt.show()
-        plt.close()
-        if outfile is not None:
-            coadd.write_to_disk(spec1d_final, outfile)
+            plt.tight_layout(pad=0.2, h_pad=0., w_pad=0.2)
+            if qafile is not None:
+                if len(qafile.split('.')) == 1:
+                    msgs.info("No fomat given for the qafile, save to PDF format.")
+                    qafile = qafile + '.pdf'
+                plt.savefig(qafile)
+                msgs.info("Wrote coadd QA: {:s}".format(qafile))
+            if debug:
+                plt.show()
+            plt.close()
+            if outfile is not None:
+                msgs.info('Saving the final calibrated spectrum as {:s}'.format(outfile))
+                coadd.write_to_disk(spec1d_final, outfile)
 
-        ### deprecated
-        # from IPython import embed
-        # embed()
-        #kwargs['echelle'] = True
-        #kwargs['wave_grid_min'] = np.min(wave_grid)
-        #kwargs['wave_grid_max'] = np.max(wave_grid)
-        #spec1d_final = coadd.coadd_spectra(spectra_coadd_rebin, wave_grid_method=wave_grid_method, niter=niter,
-        #                                  scale_method=scale_method, do_offset=do_offset, sigrej_final=sigrej_final,
-        #                                  do_var_corr=do_var_corr, qafile=qafile, outfile=outfile,
-        #                                  do_cr=do_cr, debug=debug, **kwargs)
-
-    return spec1d_final
+            ### deprecated. leave it here for now. we may need back to using coadd
+            #kwargs['echelle'] = True
+            #kwargs['wave_grid_min'] = np.min(wave_grid)
+            #kwargs['wave_grid_max'] = np.max(wave_grid)
+            #spec1d_final = coadd.coadd_spectra(spectra_coadd_rebin, wave_grid_method=wave_grid_method, niter=niter,
+            #                                  scale_method=scale_method, do_offset=do_offset, sigrej_final=sigrej_final,
+            #                                  do_var_corr=do_var_corr, qafile=qafile, outfile=outfile,
+            #                                  do_cr=do_cr, debug=debug, **kwargs)
+            return spec1d_final
+        else:
+            msgs.warn('Skipped merging orders')
+            if outfile is not None:
+                for iord in range(len(spectra_list)):
+                    outfile_iord = outfile.replace('.fits','_ORDER{:04d}.fits'.format(iord))
+                    msgs.info('Saving the final calibrated spectrum of order {:d} as {:s}'.format(iord,outfile))
+                    spectra_list[iord].write_to_fits(outfile_iord)
+            return spectra_list

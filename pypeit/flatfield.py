@@ -27,6 +27,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
+        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
+            The parameters used to type and process the flat frames.
         files (:obj:`list`, optional):
             The list of files to process.  Can be an empty list.
         det (:obj:`int`, optional):
@@ -37,8 +39,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         master_dir (str, optional): Path to master frames
         msbias (ndarray or str, optional): Guides bias subtraction
         msbpm (ndarray or str, optional): Bad pixel mask image
-        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
-            The parameters used to type and process the flat frames.
         flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`):
         tslits_dict (dict):
           dict from TraceSlits class (e.g. slitpix)
@@ -61,21 +61,23 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
     # Frame type is a class attribute
     frametype = 'pixelflat'
 
-    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
+    def __init__(self, spectrograph, par, files=None, det=1, master_key=None,
                  master_dir=None, reuse_masters=False, flatpar=None, msbias=None, msbpm=None,
                  tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
-        self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
+        #self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
+        self.par = par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, files=files, det=det,
-                                             par=self.par['process'])
+        processimages.ProcessImages.__init__(self, spectrograph,
+                                             par=self.par['process'],
+                                             files=files, det=det)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, reuse_masters=reuse_masters)
+                                         master_dir, reuse_masters=reuse_masters)
 
         # Parameters unique to this Object
         self.msbias = msbias
@@ -270,9 +272,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         Args:
             slits (bool, optional):
-            wcs_match:
-
-        Returns:
+            wcs_match (bool, optional):
 
         """
         viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1), wcs_match=wcs_match, clear=True)

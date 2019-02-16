@@ -15,6 +15,9 @@ import numpy as np
 
 from pypeit import processimages
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit.par import pypeitpar
+
+par = pypeitpar.ProcessImagesPar()
 
 @pytest.fixture
 @dev_suite_required
@@ -34,14 +37,14 @@ def kast_blue_bias_files():
 
 
 def test_instantiate():
-    proc_img = processimages.ProcessImages('shane_kast_blue')
+    proc_img = processimages.ProcessImages('shane_kast_blue', par)
     assert proc_img.nfiles == 0
 
 
 @dev_suite_required
 def test_load(deimos_flat_files, kast_blue_bias_files):
     # DEIMOS
-    deimos_flats = processimages.ProcessImages('keck_deimos', files=deimos_flat_files)
+    deimos_flats = processimages.ProcessImages('keck_deimos', par, files=deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Test
@@ -49,7 +52,7 @@ def test_load(deimos_flat_files, kast_blue_bias_files):
     assert deimos_flats.steps == ['load_images']
 
     # Kast blue
-    kastb_bias = processimages.ProcessImages('shane_kast_blue', files=kast_blue_bias_files)
+    kastb_bias = processimages.ProcessImages('shane_kast_blue', par, files=kast_blue_bias_files)
     # Load
     kastb_bias.load_images()
     # Check datasec
@@ -59,7 +62,7 @@ def test_load(deimos_flat_files, kast_blue_bias_files):
 @dev_suite_required
 def test_bias_subtract(deimos_flat_files):
     # DEIMOS
-    deimos_flats = processimages.ProcessImages('keck_deimos', files=deimos_flat_files)
+    deimos_flats = processimages.ProcessImages('keck_deimos', par, files=deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Bias subtract (and trim)
@@ -72,7 +75,7 @@ def test_bias_subtract(deimos_flat_files):
 @dev_suite_required
 def test_combine(deimos_flat_files):
     # DEIMOS
-    deimos_flats = processimages.ProcessImages('keck_deimos', files=deimos_flat_files)
+    deimos_flats = processimages.ProcessImages('keck_deimos', par, files=deimos_flat_files)
     # Load
     deimos_flats.load_images()
     # Bias subtracgt

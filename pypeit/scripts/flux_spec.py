@@ -100,6 +100,7 @@ def main(args, unit_test=False):
     from pypeit.core import flux
     from pypeit.par import pypeitpar
 
+
     # Load the file
     spectrograph, config_lines, flux_dict = read_fluxfile(args.flux_file)
 
@@ -120,20 +121,16 @@ def main(args, unit_test=False):
     par.to_config(args.par_outfile)
 
     # Instantiate
-    if spectrograph.pypeline == 'Echelle':
-        # THIS MAY BE BROKEN
-        FxSpec = fluxspec.EchFluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
-    else:
-        FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
+    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'], debug=args.debug)
 
     # Generate sensfunc??
     if par['fluxcalib']['std_file'] is not None:
         # Load standard
-        FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
-        # For echelle, the code will deal with the standard star in the ech_fluxspec.py
-        if not spectrograph.pypeline == 'Echelle':
-            # Find the star
-            _ = FxSpec.find_standard()
+        _,_ = FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
+        ## For echelle, the code will deal with the standard star in the ech_fluxspec.py
+        #if not spectrograph.pypeline == 'Echelle':
+        # Find the star
+        _ = FxSpec.find_standard()
         # Sensitivity
         _ = FxSpec.generate_sensfunc()
         # Output

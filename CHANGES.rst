@@ -3,6 +3,26 @@
 - Many doc string updates in top level routines (not core)
 - Updates to install and cookbook docs
 - Continued the process of requiring spectrograph and par in each base class
+- More doc + cleaning at top level, e.g. base classes
+- Eliminates BPM base class
+- More doc + cleaning at top level, e.g. base classes
+- Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
+- Implementation of 2d coadds including a script to perform them.
+- Fixed bug in extract.fit_profile that was introduced when implementing 2d coadds
+- Polynomial order for object finding is now part of parset.
+- Improved X-shooter object tracing by increasing order.
+- Improved determination of threshold determination regions for object finding.
+- Added S/N floor to ivar determination for image procing.
+- Reworked master output for traceslits
+- Fixed a bug associated with binned images being proc'd incorrectly.
+- Fixed master_key outputs in headers to deal with different detectors.
+- Modify -c in pypeit_setup to require a setup (or all) be specified when writing, e.g. 'all' or 'A,C'
+- Generated a new spectrograph child for LRISr in long-slit read-out mode (only 2 amps, 1 per detector)
+- Require astropy >=3.1  [required for coadding at the least]
+- Fixed a circular import which required move qa from wavecal into autoid.
+- Fixed a bug in LRIS-R that spectrograph which was not using binning for wavelength fwhm.
+- Updated docs on add/rm slits.
+- Fixed and tuned up fluxing script and fluxing routines.
 
 
 0.9.1 (4 Feb 2019)
@@ -107,9 +127,6 @@ reduction operations are done by Reduce. Reduce is now subclassed in an instrume
 - Extended LRISr 1200_900 arc template
 - Modified add/rm slit methods to be spec,spat
 - Add an option in coadding to scale the coadded spectrum to a given magnitude in a given filter
-- Many doc string updates in top level routines (not core)
-- Updates to install and cookbook docs
-- Continued the process of requiring spectrograph and par in each base class
 - Extended DEIMOS 1200G template
 
 0.9.0

@@ -554,10 +554,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             )]
         self.numhead = 5
         # Uses default timeunit
-        # Uses default primary_hdrext
-        # TODO why isn't there a sky file set here?
-        #  Because we use the default (Parnal)
-        # self.sky_file ?
 
     def default_pypeit_par(self):
         """
@@ -572,7 +568,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 4.0
         # Tilts
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 25
@@ -627,6 +622,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':  # This is basically a reidentify
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+
 
         # Return
         return par
@@ -723,6 +723,113 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             self.bpm_img[:, 0:badc] = 1
 
         return self.bpm_img
+
+
+class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
+    """
+    Child to handle Keck/LRISr in Long-slit readout mode (Vid1, Vid4)
+    """
+    def __init__(self):
+        # Get it started
+        super(KeckLRISRSpectrograph, self).__init__()
+        self.spectrograph = 'keck_lris_red_longonly'
+        self.camera = 'LRISr'
+        self.detector = [
+                # Detector 1
+                pypeitpar.DetectorPar(
+                            dataext         =1,
+                            specaxis        =0,
+                            specflip        = False,
+                            xgap            =0.,
+                            ygap            =0.,
+                            ysize           =1.,
+                            platescale      =0.135,
+                            darkcurr        =0.0,
+                            saturation      =65535.*1.255,  # Gain applied
+                            nonlinear       =0.86,          # Modified by JXP to go higher
+                            numamplifiers   =1,
+                            gain            =[1.255],
+                            ronoise         =[4.64],
+                            datasec         = ['',''],      # These are provided by read_lris
+                            oscansec        = ['',''],
+                            suffix          ='_01red'
+                            ),
+                #Detector 2
+                pypeitpar.DetectorPar(
+                            dataext         =2,
+                            specaxis        =0,
+                            specflip        = False,
+                            xgap            =0.,
+                            ygap            =0.,
+                            ysize           =1.,
+                            platescale      =0.135,
+                            darkcurr        =0.,
+                            saturation      =65535.*1.162,  # Gain applied
+                            nonlinear       =0.86,
+                            numamplifiers   =1,
+                            gain            =[1.162],
+                            ronoise         =[4.62],
+                            datasec         = ['',''],      # These are provided by read_lris
+                            oscansec        = ['',''],
+                            suffix          ='_02red'
+                            )]
+        self.numhead = 3
+        # Uses default timeunit
+
+    def load_raw_frame(self, raw_file, det=None):
+        """
+        Wrapper to the raw image reader for LRIS
+
+        Args:
+            raw_file:  str, filename
+            det: int, REQUIRED
+              Desired detector
+            **null_kwargs:
+              Captured and never used
+
+        Returns:
+            raw_img: ndarray
+              Raw image;  likely unsigned int
+            head0: Header
+
+        """
+        hdu = fits.open(raw_file)
+        header = hdu[det].header
+
+        # Grab data (this includes flips as needed)
+        data, predata, postdata, x1, y1 = lris_read_amp(hdu, det)
+        # Pack
+        raw_img = np.zeros((data.shape[0]+predata.shape[0]+postdata.shape[0], data.shape[1]))
+        raw_img[:predata.shape[0],:] = predata
+        raw_img[predata.shape[0]:predata.shape[0]+data.shape[0],:] = data
+        raw_img[-postdata.shape[0]:,:] = postdata
+
+        # Return
+        return raw_img.T, header
+
+    def get_image_section(self, inp=None, det=1, section='datasec'):
+        #
+        hdu = fits.open(inp)
+        head0 = hdu[0].header
+        binning = head0['BINNING']
+        xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+
+        # Get post, pre-pix values
+        precol = head0['PRECOL']
+        postpix = head0['POSTPIX']
+        preline = head0['PRELINE']
+        postline = head0['POSTLINE']
+
+        if section == 'datasec':
+            datsec = hdu[det].header['DATASEC']  # THIS IS BINNED
+            x1, x2, y1, y2 = np.array(parse.load_sections(datsec, fmt_iraf=False)).flatten()
+            dy = (y2-y1)+1
+            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, preline*ybin+(dy)*ybin, x1*xbin, x2*xbin)  # Eliminate lines
+        elif section == 'oscansec':
+            nx = hdu[det].data.shape[1]
+            section = '[:,{:d}:{:d}]'.format(nx*2-postpix, nx*2)
+        #
+        return [section], False, False, False
 
 
 def read_lris(raw_file, det=None, TRIM=False):
@@ -990,7 +1097,8 @@ def lris_read_amp(inp, ext):
         msgs.error("Something wrong in LRIS datasec or precol")
     xshape = 1024 // xbin
     if (xshape+precol+postpix) != temp.shape[0]:
-        msgs.error("Wrong size for in LRIS detector somewhere.  Funny binning?")
+        msgs.warn("Unexpected size for LRIS detector.  We expect you did some windowing...")
+        xshape = temp.shape[0] - precol - postpix
     data = temp[precol:precol+xshape,:]
     postdata = temp[nxt-postpix:nxt, :]
 

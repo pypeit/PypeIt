@@ -224,8 +224,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
                             nonlinear       = 0.86,
                             numamplifiers   = 1,
-                            gain            = 2.12,
-                            ronoise         = 8.0, # ?? more precise value?
+                            gain            = 2.12, #
+                            ronoise         = 8.0, # ?? more precise value? #TODO the read noise is exposure time  dependent and should be grabbed from header
                             datasec         = '[4:,4:2044]', # These are all unbinned pixels
                             # EMA: No real overscan for XSHOOTER-NIR: 
                             # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
@@ -250,7 +250,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 120.
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'order'
 
@@ -297,6 +297,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceimage']['bspline_spacing'] = 0.8
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
+        par['scienceimage']['trace_npoly'] = 8
+
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
@@ -570,8 +572,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # TODO THIS IS STUPID. biasframe currently determines behvior for everyone. See Issue # 554
 
         par['calibrations']['slits']['sigdetect'] = 8.0
-        par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['polyorder'] = 6
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = -1
         #par['calibrations']['slits']['fracignore'] = 0.01
@@ -608,6 +609,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames

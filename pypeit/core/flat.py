@@ -448,7 +448,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
 
 
 
-
 def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe=None):
     """ Flat field the input image
 
@@ -481,9 +480,9 @@ def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe
     if illum_flat is not None:
         if np.any(illum_flat != 1.0):
             msgs.info('Dividing by illumination flat')
-        final_flat = flatframe * illum_flat   # Previous code was modifying flatframe!
-    else:
-        final_flat = flatframe.copy()
+            final_flat = flatframe * illum_flat  # Previous code was modifying flatframe!
+        else:
+            final_flat = flatframe.copy()
 
     # New image
     retframe = np.zeros_like(sciframe)
@@ -1181,123 +1180,3 @@ def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", 
     return
 
 
-'''
-def sn_frame(slf, sciframe, idx):
-    # Dark Current noise
-    dnoise = settings.spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
-    # The effective read noise
-    rnoise = np.sqrt(settings.spect['det']['ronoise']**2 + (0.5*settings.spect['det']['gain'])**2)
-    errframe = np.abs(sciframe) + rnoise + dnoise
-    # If there are negative pixels, mask them as bad pixels
-    w = np.where(errframe <= 0.0)
-    if w[0].size != 0:
-        msgs.warn("The error frame is negative for {0:d} pixels".format(w[0].size)+msgs.newline()+"Are you sure the bias frame is correct?")
-        msgs.info("Masking these {0:d} pixels".format(w[0].size))
-        errframe[w]  = 0.0
-        slf._bpix[w] = 1.0
-    w = np.where(errframe > 0.0)
-    snframe = np.zeros_like(sciframe)
-    snframe[w] = sciframe[w]/np.sqrt(errframe[w])
-    return snframe
-'''
-
-'''
-def flatnorm(slf, det, msflat, bpix, maskval=-999999.9, overpix=6, plotdesc=""):
-    """ Normalize the flat-field frame
-
-    *** CAUTION ***  This function might be deprecated.
-
-    Parameters
-    ----------
-    slf : class
-      An instance of the Science Exposure class
-    det : int
-      Detector number
-    msflat : ndarray
-      Flat-field image
-    maskval : float
-      Global floating point mask value used throughout the code
-    overpix : int
-      overpix/2 = the number of pixels to extend beyond each side of the order trace
-    plotdesc : str
-      A title for the plotted QA
-
-    Returns
-    -------
-    msnormflat : ndarray
-      The normalized flat-field frame
-    msblaze : ndarray
-      A 2d array containing the blaze function for each slit
-    """
-    dnum = settings.get_dnum(det)
-
-    msgs.info("Normalizing the master flat field frame")
-    norders = slf._lordloc[det-1].shape[1]
-    # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
-    if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
-        sclframe = get_ampscale(slf, det, msflat)
-        # Divide the master flat by the relative scale frame
-        msflat /= sclframe
-    else:
-        sclframe = np.ones(msflat, dtype=np.float)
-    # Determine the blaze
-    polyord_blz = 2  # This probably doesn't need to be a parameter that can be set by the user
-    # Look at the end corners of the detector to get detector size in the dispersion direction
-    #xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
-    #xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
-    #xint = slf._pixlocn[det-1][:,0,0]
-    # Find which pixels are within the order edges
-    msgs.info("Identifying pixels within each order")
-
-    ordpix = order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
-
-    msgs.info("Applying bad pixel mask")
-    ordpix *= (1-bpix.astype(np.int))
-    mskord = np.zeros(msflat.shape)
-    msgs.info("Rectifying the orders to estimate the background locations")
-    #badorders = np.zeros(norders)
-    msnormflat = maskval*np.ones_like(msflat)
-    msblaze = maskval*np.ones((msflat.shape[0],norders))
-    msgs.work("Must consider different amplifiers when normalizing and determining the blaze function")
-    msgs.work("Multiprocess this step to make it faster")
-    flat_ext1d = maskval*np.ones((msflat.shape[0],norders))
-    for o in range(norders):
-        if settings.argflag["reduce"]["flatfield"]["method"].lower() == "bspline":
-            msgs.info("Deriving blaze function of slit {0:d} with a bspline".format(o+1))
-            tilts = slf._tilts[det - 1].copy()
-            gdp = (msflat != maskval) & (ordpix == o + 1)
-            srt = np.argsort(tilts[gdp])
-            everyn = settings.argflag['reduce']['flatfield']['params'][0]
-            if everyn > 0.0 and everyn < 1.0:
-                everyn *= msflat.shape[0]
-                everyn = int(everyn + 0.5)
-            everyn *= slf._pixwid[det - 1][o]
-            if np.where(gdp)[0].size < 2*everyn:
-                msgs.warn("Not enough pixels in slit {0:d} to fit a bspline")
-                continue
-            bspl = utils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
-            model_flat = utils.func_val(bspl, tilts.flatten(), 'bspline')
-            model = model_flat.reshape(tilts.shape)
-            word = np.where(ordpix == o + 1)
-            msnormflat[word] = msflat[word] / model[word]
-            msblaze[:, o] = utils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
-            mskord[word] = 1.0
-            flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
-            mskord *= 0.0
-        else:
-            msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
-    # Send the blaze away to be plotted and saved
-    if "2dpca" in settings.argflag["reduce"]["flatfield"].keys():
-        if settings.argflag["reduce"]["flatfield"]["2dpca"] >= 1:
-            msgs.info("Performing a 2D PCA on the blaze fits")
-            msblaze = arpca.pca2d(msblaze, settings.argflag["reduce"]["flatfield"]["2dpca"])
-    # Plot the blaze model
-    if not msgs._debug['no_qa']:
-        msgs.info("Saving blaze fits to QA")
-#        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
-        artrace.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
-    # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
-    if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
-        msnormflat *= sclframe
-    return msnormflat, msblaze
-'''

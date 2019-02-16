@@ -104,6 +104,8 @@ def parser(options=None):
                              "'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits. then obj=J1234+5678")
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
+    parser.add_argument("--peaks", default=False, action="store_true",
+                        help="Show the peaks found by the object finding algorithm.")
     parser.add_argument("--par_outfile", default='coadd2d.par', action="store_true",
                         help="Output file to save the parameters")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
@@ -196,7 +198,7 @@ def main(args):
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
         sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
         sci_dict[det]['specobjs'] = coadd2d.extract_coadd2d(stack_dict, master_dir, ir_redux=ir_redux, par=par,
-                                                            show=args.show)
+                                                            show=args.show, show_peaks=args.peaks)
 
     # Make the science directory, and write outputs to disk
     master_key_dict = stack_dict['master_key_dict']
