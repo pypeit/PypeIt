@@ -355,8 +355,7 @@ class PypeItMetaData:
         return manual_extract_dict
 
 
-    # TODO:  In this implementation, slicing the PypeItMetaData object
-
+    '''
     def update_par(self, par):
 
         # Manual extract
@@ -382,6 +381,7 @@ class PypeItMetaData:
             par['scienceimage']['manual'] = mext_list
         # Return
         return par
+    '''
 
 
     # TODO:  In this implementation, slicing the PypeItMetaData object
