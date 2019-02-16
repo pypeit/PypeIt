@@ -89,7 +89,8 @@ class Reduce(object):
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype
         self.par = par
-        self.proc_par = self.par['scienceframe'] ['process']
+        # TODO -- I find it very confusing to break apart the main parset
+        self.proc_par = self.par['scienceframe']['process']
         # TODO Rename the scienceimage arset to reduce.
         self.redux_par = self.par['scienceimage']
         self.wave_par = self.par['calibrations']['wavelengths']
@@ -637,6 +638,7 @@ class MultiSlit(Reduce):
                     thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix, model_full_slit=self.redux_par['model_full_slit'],
                     box_rad=self.redux_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
+                    sigrej=self.redux_par['sky_sigrej'],
                     model_noise=model_noise, std=std, bsp=self.redux_par['bspline_spacing'],
                     sn_gauss=self.redux_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
 

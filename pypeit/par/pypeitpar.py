@@ -1860,7 +1860,7 @@ class ScienceImagePar(ParSet):
 
     def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
-                 no_poly=None, manual=None):
+                 no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1888,6 +1888,9 @@ class ScienceImagePar(ParSet):
         dtypes['bspline_spacing'] = [int, float]
         descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
 
+        defaults['sky_sigrej'] = 3.0
+        dtypes['sky_sigrej'] = float
+        descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
 
         defaults['boxcar_radius'] = 1.5
         dtypes['boxcar_radius'] = [int, float]
@@ -1946,7 +1949,7 @@ class ScienceImagePar(ParSet):
         k = cfg.keys()
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std', 'sig_thresh', 'maxnumber', 'sn_gauss',
-                   'model_full_slit', 'no_poly', 'manual']
+                   'model_full_slit', 'no_poly', 'manual', 'sky_sigrej']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

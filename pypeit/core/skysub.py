@@ -218,9 +218,26 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
 
 
-# Utility routine used by local_bg_subtraction_slit
 # TODO -- This needs JFH docs, desperately
-def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej = 3.0, npoly=1, spatial=None, fullbkpt=None):
+def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=None, fullbkpt=None):
+    """
+    Utility routine used by local_bg_subtraction_slit
+
+    Args:
+        wave:
+        data:
+        ivar:
+        oprof (ndarray): Flattened object profile in this slit
+        sortpix:
+        sigrej:
+        npoly:
+        spatial:
+        fullbkpt:
+
+    Returns:
+        ndarray, ndarray, ndarray:
+
+    """
 
 
     nx = data.size
@@ -267,9 +284,9 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej = 3.0, npoly=1, spatial=
     sigind = int(np.fmin(np.rint(gauss_prob * float(ngood)), ngood - 1))
     chi2_sigrej = chi2_srt[sigind]
     mask1 = (chi2 < chi2_sigrej)
+
     msgs.info('2nd round....')
     msgs.info('Iter     Chi^2     Rejected Pts')
-
     if np.any(mask1):
         sset, outmask_good, yfit, red_chi, exit_status = \
             utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :], inmask=mask1,
@@ -741,6 +758,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 isub, = np.where(localmask.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
+
                 skymask = outmask & np.invert(edgmask)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(piximg.flat[isub], sciimg.flat[isub],
                                                                  (modelivar * skymask).flat[isub],
@@ -764,6 +782,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 igood1 = skymask.flat[isub]
                 #  update the outmask for only those pixels that were fit. This prevents masking of slit edges in outmask
                 outmask.flat[isub[igood1]] = outmask_opt[igood1]
+                #from pypeit.ginga import show_image
+                #show_image(sciimg*outmask)
+                #debugger.set_trace()
                 #  For weighted co-adds, the variance of the image is no longer equal to the image, and so the modelivar
                 #  eqn. below is not valid. However, co-adds already have the model noise propagated correctly in sciivar,
                 #  so no need to re-model the variance.
