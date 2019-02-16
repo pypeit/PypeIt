@@ -153,7 +153,7 @@ def load_coadd2d_stacks(spec2d_files, det):
     # Get the master dir
     head0 = fits.getheader(spec2d_files[0])
     master_dir = os.path.basename(head0['PYPMFDIR'])+'/'
-    redux_path =  './'
+    redux_path =  os.cwd()
     master_path = redux_path + master_dir
     tiltfiles = []
     waveimgfiles = []
@@ -648,10 +648,6 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
 
     # Grab the wavelength grid that we will rectify onto
     wave_grid = spectrograph.wavegrid()
-
-    ## Loop over the slit and create these stacked images for each order.
-    ## the rest of our routines will run on them, like ech_objfind etc. Generalize the Scienceimage class to handle
-    # this and/or strip those methods out to functions.
 
     coadd_list = []
     nspec_vec = np.zeros(nslits,dtype=int)
