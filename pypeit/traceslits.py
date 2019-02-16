@@ -1150,7 +1150,7 @@ class TraceSlits(masterframe.MasterFrame):
 
 
 
-def load_tslits_dict(filename):
+def load_tslits(filename):
     """
     Utility function which enables one to load the tslits_dict from a master file in one line of code without
     instantiating the class.
@@ -1163,5 +1163,5 @@ def load_tslits_dict(filename):
 
     """
     traceSlits = TraceSlits(None,None,None)
-    tslits_dict, _ = traceSlits.load_master(filename)
-    return tslits_dict
+    tslits_dict, mstrace = traceSlits.load_master(filename)
+    return tslits_dict, mstrace

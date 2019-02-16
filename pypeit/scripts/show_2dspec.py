@@ -129,7 +129,7 @@ def main(args):
 
     trace_key = '{:s}'.format(head0['TRACMKEY']) + '_{:02d}'.format(args.det)
     trc_file = masterframe.master_name('trace', trace_key, mdir)
-    tslits_dict = traceslits.load_tslits_dict(trc_file)
+    tslits_dict, _ = traceslits.load_tslits(trc_file)
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
