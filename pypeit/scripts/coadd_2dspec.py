@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Script for fluxing PYPEIT 1d spectra
+Script for performing 2d coadds of PypeIt data.
 """
 from __future__ import absolute_import
 from __future__ import division
