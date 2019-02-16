@@ -23,6 +23,8 @@
 - Fixed a bug in LRIS-R that spectrograph which was not using binning for wavelength fwhm.
 - Updated docs on add/rm slits.
 - Fixed and tuned up fluxing script and fluxing routines.
+- Introduce sky_sigrej parameter
+- Better handling of ManualExtraction
 
 
 0.9.1 (4 Feb 2019)
