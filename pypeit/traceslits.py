@@ -1031,7 +1031,7 @@ class TraceSlits(masterframe.MasterFrame):
         return txt
 
 
-    def save_master(self, tslits_dict, outfile=None, overwrite=True):
+    def save_master(self, tslits_dict, mstrace = None, outfile=None, overwrite=True):
         """
         Write the main pieces of TraceSlits to the hard drive as a MasterFrame
           FITS -- tslits_dict
@@ -1049,11 +1049,58 @@ class TraceSlits(masterframe.MasterFrame):
             return
         #
         msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
-        # Clean+Write
-        data_for_json = copy.deepcopy(tslits_dict)
-        clean_dict = ltu.jsonify(data_for_json)
-        ltu.savejson(_outfile, clean_dict, overwrite=True, easy_to_read=True)
-        msgs.info("Writing TraceSlit dict to {:s}".format(_outfile))
+        # traceimage
+        mstrace = self.mstrace if mstrace is None else mstrace
+        hdu_trc = fits.PrimaryHDU(mstrace)
+        hdu_trc.name = 'TRACEIMG'
+        # Put all meta data in the header of the first extension
+        hdu_trc.header['NSPEC'] = tslits_dict['nspec']
+        hdu_trc.header['NSPAT'] =  tslits_dict['nspat']
+        hdu_trc.header['NSLITS'] =  tslits_dict['nslits']
+        hdu_trc.header['PAD'] = tslits_dict['pad']
+        hdu_trc.header['BINSPEC'] = tslits_dict['binspectral']
+        hdu_trc.header['BINSPAT'] = tslits_dict['binspatial']
+        hdu_trc.header['SPECTROG'] = tslits_dict['spectrograph']
+        hdu_all = [hdu_trc]
+        # left slit boundaries
+        hdu_left = fits.ImageHDU(tslits_dict['slit_left'])
+        hdu_left.name = 'SLIT_LEFT'
+        hdu_all.append(hdu_left)
+        # Right slit boundaries
+        hdu_righ = fits.ImageHDU(tslits_dict['slit_righ'])
+        hdu_righ.name = 'SLIT_RIGH'
+        hdu_all.append(hdu_righ)
+        # Slit center
+        hdu_cen = fits.ImageHDU(tslits_dict['slitcen'])
+        hdu_cen.name = 'SLITCEN'
+        hdu_all.append(hdu_cen)
+        # Spec min
+        hdu_min = fits.ImageHDU(tslits_dict['spec_min'])
+        hdu_min.name = 'SPEC_MIN'
+        hdu_all.append(hdu_min)
+        # Spec max
+        hdu_max = fits.ImageHDU(tslits_dict['spec_max'])
+        hdu_max.name = 'SPEC_MAX'
+        hdu_all.append(hdu_max)
+        try:
+            hdu_left_orig = fits.ImageHDU(tslits_dict['slit_left_orig'])
+        except KeyError:
+            pass
+        else:
+            # left slit boundaries
+            hdu_left_orig.name = 'SLIT_LEFT_ORIG'
+            hdu_all.append(hdu_left_orig)
+        try:
+            hdu_righ_orig = fits.ImageHDU(tslits_dict['slit_righ_orig'])
+        except KeyError:
+            pass
+        else:
+            # left slit boundaries
+            hdu_righ_orig.name = 'SLIT_RIGH_ORIG'
+            hdu_all.append(hdu_righ_orig)
+        # Finish
+        hdulist = fits.HDUList(hdu_all)
+        hdulist.writeto(_outfile, clobber=True)
 
 
     def load_master(self, filename):
@@ -1070,192 +1117,36 @@ class TraceSlits(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None, None
+            return None, None, None
         else:
-            tslits_dict = ltu.loadjson(filename)
-            # Recast a few items as arrays
-            for key in tslits_dict.keys():
-                if isinstance(tslits_dict[key], list):
-                    tslits_dict[key] = np.array(tslits_dict[key])
+            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) +
+                      " from filename: {:}".format(filename))
+            hdu = fits.open(filename)
+            head0 = hdu[0].header
+            tslits_dict={}
+            mstrace = hdu[0].data
+            tslits_dict['slit_left'] = hdu[1].data
+            tslits_dict['slit_righ'] = hdu[2].data
+            tslits_dict['slitcen']   = hdu[3].data
+            tslits_dict['spec_min']  = hdu[4].data
+            tslits_dict['spec_max'] = hdu[5].data
+            try:
+                tslits_dict['slit_left_orig'] = hdu[6].data
+            except IndexError:
+                pass
+            try:
+                tslits_dict['slit_righ_orig'] = hdu[7].data
+            except IndexError:
+                pass
+            tslits_dict['nspec'] = head0['NSPEC']
+            tslits_dict['nspat'] = head0['NSPAT']
+            tslits_dict['nslits'] = head0['NSLITS']
+            tslits_dict['pad'] = head0['PAD']
+            tslits_dict['binspectral'] = head0['BINSPEC']
+            tslits_dict['binspatial'] = head0['BINSPAT']
+            tslits_dict['spectrograph'] = head0['SPECTROG']
+            return tslits_dict, mstrace
 
-        return tslits_dict, None
-
-
-    # JFH TODO this needs an argument to follow convention for save_master
-    def save_master_old(self, root=None, gzip=True):
-        """
-        Write the main pieces of TraceSlits to the hard drive as a MasterFrame
-          FITS -- mstrace and other images
-          JSON -- steps, settings, ts_dict
-
-        Args:
-            root (str,optional): Path+root name for the output files
-            gzip (bool, optional): gzip the FITS file (note astropy's method for this is *way* too slow)
-        """
-        if root is None:
-            root = self.ms_name
-        # Images
-        outfile = root+'.fits'
-        hdu = fits.PrimaryHDU(self.mstrace.astype(np.float32))
-        hdu.name = 'MSTRACE'
-        hdu.header['FRAMETYP'] = 'trace'
-        hdulist = [hdu]
-        if self.edgearr is not None:
-            hdue = fits.ImageHDU(self.edgearr)
-            hdue.name = 'EDGEARR'
-            hdulist.append(hdue)
-        if self.siglev is not None:
-            hdus = fits.ImageHDU(self.siglev.astype(np.float32))
-            hdus.name = 'SIGLEV'
-            hdulist.append(hdus)
-        # PIXLOCN -- may be Deprecated.
-        #hdup = fits.ImageHDU(self.pixlocn.astype(np.float32))
-        #hdup.name = 'PIXLOCN'
-        #hdulist.append(hdup)
-        if self.input_msbpm:  # User inputted
-            hdub = fits.ImageHDU(self.msbpm.astype(np.int))
-            hdub.name = 'BINBPX'
-            hdulist.append(hdub)
-        if self.lcen is not None:
-            hdulf = fits.ImageHDU(self.lcen)
-            hdulf.name = 'LCEN'
-            hdulist.append(hdulf)
-            hdurt = fits.ImageHDU(self.rcen)
-            hdurt.name = 'RCEN'
-            hdulist.append(hdurt)
-        if self.slitcen is not None:
-            hdulf = fits.ImageHDU(self.slitcen)
-            hdulf.name = 'SLITCEN'
-            hdulist.append(hdulf)
-        if self.lcen_tweak is not None:
-            hdulf = fits.ImageHDU(self.lcen_tweak)
-            hdulf.name = 'LCEN_TWEAK'
-            hdulist.append(hdulf)
-            hdurt = fits.ImageHDU(self.rcen_tweak)
-            hdurt.name = 'RCEN_TWEAK'
-            hdulist.append(hdurt)
-
-        # Write
-        hdul = fits.HDUList(hdulist)
-        hdul.writeto(outfile, overwrite=True)
-        msgs.info("Wrote TraceSlit arrays to {:s}".format(outfile))
-        # TODO None of our other masters are compressed so why do we gzip these?
-        if gzip:
-            msgs.info("gzip compressing {:s}".format(outfile))
-            command = ['gzip', '-f', outfile]
-            Popen(command)
-
-        # dict of steps, settings and more
-        out_dict = {}
-        # JFH added this below because of a crash discovered when running save_master from a pre-existing MasterFile
-        if isinstance(self.par, pypeitpar.TraceSlitsPar):
-            out_dict['settings'] = parset_to_dict(self.par)
-        elif isinstance(self.par, dict):
-            out_dict['settings'] = self.par
-        else:
-            msgs.error('Unrecognized type for self.par')
-        if self.tc_dict is not None:
-            out_dict['tc_dict'] = self.tc_dict
-        out_dict['steps'] = self.steps
-        out_dict['spectrograph'] = self.spectrograph.spectrograph
-        binspectral, binspatial = parse.parse_binning(self.binning)
-        binning = parse.binning2string(binspectral, binspatial)
-        out_dict['binning'] = binning
-        # Clean+Write
-        outfile = root+'.json'
-        clean_dict = ltu.jsonify(out_dict)
-        ltu.savejson(outfile, clean_dict, overwrite=True, easy_to_read=True)
-        msgs.info("Writing TraceSlit dict to {:s}".format(outfile))
-
-
-
-    def load_master_old(self, filename, force = False):
-        """
-        Load the master frames
-
-        Args:
-            filename: str
-            force: bool, optional
-
-        Returns:
-            dict or None: tslits dict
-
-        """
-        # Does the master file exist?
-        if not (os.path.isfile(filename + '.fits.gz') & os.path.isfile(filename + '.json')):
-            msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None
-        else:
-            # Load from filename extension. There is a fits and json file, and this routine also does file checking
-            fits_dict, ts_dict = load_traceslit_files(filename)
-            # Fail?
-            if fits_dict is None:
-                return False
-            # Load up self
-            self.msbpm = fits_dict['BINBPX'].astype(float)  # Special
-            for key in ['MSTRACE', 'PIXLOCN', 'LCEN', 'RCEN', 'SLITCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'EDGEARR', 'SIGLEV']:
-                if key in fits_dict.keys():
-                    setattr(self, key.lower(), fits_dict[key])
-            # Remake the binarr
-            self.binarr = self._make_binarr()
-            # dict
-            self.tc_dict = ts_dict['tc_dict']
-
-            self.spectrograph = util.load_spectrograph(ts_dict['spectrograph'])
-            # Set some paramaeters so that the fill_tslits_dict routine will work.
-            self.par = ts_dict['settings']
-            self.binning = ts_dict['binning']
-            # Fill
-            self._fill_tslits_dict()
-            # Success
-            return self.tslits_dict
-
-# JFH This routine is deprecated
-'''
-def load_traceslit_files(root):
-    """
-    Load up the TraceSlit objects from the FITS and JSON file
-
-    Pushed out of the class so we can both load and instantiate
-    from the output files
-
-    Args:
-        root (str):
-
-    Returns:
-        dict, dict: fits_dict which Contains all the images from the FITS file
-        and the trace slits dict
-
-    """
-    fits_dict = {}
-    # Open FITS
-    fits_file = root+'.fits.gz'
-    if not os.path.isfile(fits_file):
-        msgs.error("No TraceSlits FITS file found!")
-
-    msgs.info("Loading a pre-existing master calibration frame of type: trace from filename: {:}".format(fits_file))
-    hdul = fits.open(fits_file)
-    names = [ihdul.name for ihdul in hdul]
-    if 'SLITPIXELS' in names:
-        msgs.error("This is an out-of-date MasterTrace flat.  You will need to make a new one")
-
-    # Load me
-    for key in ['MSTRACE', 'PIXLOCN', 'BINBPX', 'LCEN', 'RCEN', 'LCEN_TWEAK', 'RCEN_TWEAK', 'SLITCEN', 'EDGEARR', 'SIGLEV']:
-        if key in names:
-            fits_dict[key] = hdul[names.index(key)].data
-
-    # JSON
-    json_file = root+'.json'
-    ts_dict = ltu.loadjson(json_file)
-
-    # Recast lists to ndarray
-    for side in ['left', 'right']:
-        for key in ['xset', 'traces']:
-            ts_dict['tc_dict'][side][key] = np.array(ts_dict['tc_dict'][side][key])
-
-    # Return
-    return fits_dict, ts_dict
-'''
 
 
 
