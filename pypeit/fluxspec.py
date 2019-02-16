@@ -290,7 +290,7 @@ class FluxSpec(object):
             for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                         'std_name', 'cal_file', 'norder']:
                 try:
-                    sens_dicts[key] = hdu[0].header[key]
+                    sens_dicts[key] = hdu[0].header[key.upper()]
                 except:
                     pass
             return sens_dicts
