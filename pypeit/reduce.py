@@ -705,8 +705,7 @@ class Echelle(Reduce):
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
                               show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
-                              manual_extract_dict=None,
-                              sci_files=None):
+                              manual_extract_dict=None):
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -724,7 +723,8 @@ class Echelle(Reduce):
                                 hand_extract_dict=manual_extract_dict,
                                 plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
-                                show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
+                                show_peaks=show_peaks, show_fits=show_fits,
+                                show_trace=show_trace, debug=debug)
 
 
 
@@ -773,6 +773,7 @@ class Echelle(Reduce):
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
             std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.redux_par['bspline_spacing'],
             box_rad_order=self.redux_par['boxcar_radius']/plate_scale,
+            sigrej=self.redux_par['sky_sigrej'],
             sn_gauss=self.redux_par['sn_gauss'], model_full_slit=self.redux_par['model_full_slit'],
             model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
