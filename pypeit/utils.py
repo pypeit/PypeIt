@@ -1199,17 +1199,12 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 
     return outmask, ct
 
-def robust_optimize(ydata, optfunc, arg_dict, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
+def robust_optimize(optfunc, inmask, arg_dict, maxiter=10, sigma=None,invvar=None, lower=None, upper=None,
                     maxdev=None,maxrej=None, groupdim=None, groupsize=None, groupbadpix=False, grow=0, sticky=True,
                     use_mad=True):
 
-    # Check the dimensionality of ydata
-    if ydata.ndim != 1:
+    if inmask.ndim != 1:
         msgs.error('ydata must be a one dimensional array')
-
-    # Setup the initial mask
-    if inmask is None:
-        inmask = np.ones(ydata.size, dtype=bool)
 
     if sigma is not None and invvar is not None:
         msgs.error('You cannot specify both sigma and invvar')
@@ -1219,7 +1214,7 @@ def robust_optimize(ydata, optfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
     thismask = np.copy(inmask)
 
     while (not qdone) and (iter < maxiter):
-        result, ymodel = optfunc(ydata, thismask, arg_dict)
+        result, ydata, ymodel = optfunc(thismask, arg_dict)
         thismask_iter = thismask.copy()
         thismask, qdone = pydl.djs_reject(ydata, ymodel, outmask=thismask, inmask=inmask, invvar=invvar,
                                           lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
@@ -1238,7 +1233,7 @@ def robust_optimize(ydata, optfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
         msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
 
     # Perform a final fit using the final outmask
-    result, ymodel = optfunc(ydata, outmask, arg_dict)
+    result, ymodel = optfunc(outmask, arg_dict)
 
     return result, ymodel, outmask
 
