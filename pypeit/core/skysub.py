@@ -219,6 +219,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
 
 # Utility routine used by local_bg_subtraction_slit
+# TODO -- This needs JFH docs, desperately
 def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej = 3.0, npoly=1, spatial=None, fullbkpt=None):
 
 
@@ -812,8 +813,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
             objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
-            from pypeit.ginga import show_image
-            debugger.set_trace()
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask & objmask), waveimg, skyimage, rn2_img, this_profile,
                             box_rad, sobjs[iobj])
             sobjs[iobj].min_spat = min_spat

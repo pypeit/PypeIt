@@ -1750,6 +1750,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
                 thisobj.fwhm = med_fwhm_reg
             else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
                 thisobj.fwhm = fwhm
+            # Finish
             sobjs.add_sobj(thisobj)
 
     nobj = len(sobjs)
@@ -1757,7 +1758,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
     #if nobj == 0:
     #    return (None, skymask, objmask)
 
-    ## Okay now loop over all the regular aps and exclude any which within a fwhm of the hand_extract_APERTURES
+    ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     if nobj_reg > 0 and hand_extract_dict is not None:
         spat_pixpos = sobjs.spat_pixpos
         hand_flag = sobjs.hand_extract_flag
@@ -1765,23 +1766,23 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
         #spat_pixpos = np.array([spec.spat_pixpos for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
         #spec_fwhm = np.array([spec.fwhm for spec in specobjs])
-        reg_ind, = np.where(hand_flag == False)
-        hand_ind, = np.where(hand_flag == True)
-        med_fwhm = np.median(spec_fwhm[hand_flag == False])
-        spat_pixpos_hand = spat_pixpos[hand_ind]
+        reg_ind, = np.where(~hand_flag)
+        hand_ind, = np.where(hand_flag)
+        #med_fwhm = np.median(spec_fwhm[~hand_flag])
+        #spat_pixpos_hand = spat_pixpos[hand_ind]
         keep = np.ones(nobj,dtype=bool)
-        for ireg in range(nobj_reg):
-            close = np.abs(sobjs[reg_ind[ireg]].spat_pixpos - spat_pixpos_hand) <= 0.6*med_fwhm
+        for ihand in hand_ind:
+            close = np.abs(sobjs[reg_ind].spat_pixpos - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
                 # Print out a warning
-                msgs.warn('Deleting object {:s}'.format(sobjs[reg_ind[ireg]].idx) +
+                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].idx) +
                           ' because it collides with a user specified hand_extract aperture')
-                for ihand in range(len(close)):
-                    if close[ihand] == True:
-                        msgs.warn('Hand aperture at (hand_extract_spec, hand_extract_spat) = ({:6.2f}'.format(sobjs[hand_ind[ihand]].hand_extract_spec) +
-                                  ',{:6.2f})'.format(sobjs[hand_ind[ihand]].hand_extract_spat) +
-                                  ' lands within 0.6*med_fwhm = {:4.2f}'.format(0.6*med_fwhm) + ' pixels of this object')
-                keep[reg_ind[ireg]] = False
+                #for ihand in range(len(close)):
+                #    if close[ihand] is True:
+                #        msgs.warn('Hand aperture at (hand_extract_spec, hand_extract_spat) = ({:6.2f}'.format(sobjs[hand_ind[ihand]].hand_extract_spec) +
+                #                  ',{:6.2f})'.format(sobjs[hand_ind[ihand]].hand_extract_spat) +
+                #                  ' lands within 0.6*med_fwhm = {:4.2f}'.format(0.6*med_fwhm) + ' pixels of this object')
+                keep[reg_ind[close]] = False
 
         sobjs = sobjs[keep]
 

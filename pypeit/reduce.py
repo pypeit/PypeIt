@@ -554,12 +554,9 @@ class MultiSlit(Reduce):
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit],
                 inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
-                std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=hand_extract_dict, #self.redux_par['manual'],
+                std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=manual_extract_dict, #self.redux_par['manual'],
                 specobj_dict=specobj_dict, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
-                                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=manual_extract_dict, #self.redux_par['manual'],
-                                specobj_dict=specobj_dict, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
-                                qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
