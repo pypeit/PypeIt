@@ -488,7 +488,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
                        funcname='Bspline longslit special', **kwargs_bspline)
         if maskwork.sum() < sset.nord:
             msgs.warn('Number of good data points fewer than nord.')
-            return sset, outmask, yfit, reduced_chi
+            exit_status = 4
+            return sset, outmask, yfit, reduced_chi, exit_status
 
     # This was checked in detail against IDL for identical inputs
     outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T
@@ -529,7 +530,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
         iiter += 1
         if error == -2:
             msgs.warn(" All break points have been dropped!! Fit failed, I hope you know what you are doing")
-            return (sset, np.zeros(xdata.shape,dtype=bool), np.zeros(xdata.shape), reduced_chi)
+            exit_status = 3
+            return (sset, np.zeros(xdata.shape,dtype=bool), np.zeros(xdata.shape), reduced_chi, exit_status)
         elif error == 0:
             # Iterate the fit -- next rejection iteration
             chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
@@ -566,6 +568,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     #    0 = fit exited cleanly
     #    1 = maximum iterations were reached
     #    2 = all points were masked
+    #    3 = all break points were dropped
+    #    4 = Number of good data points fewer than nord
 
     msgs.info("***************************************************************************************************")
     msgs.info(
