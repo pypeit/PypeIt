@@ -538,7 +538,7 @@ class Calibrations(object):
                                                 msbpm=self.msbpm)
 
         # Load via master, as desired
-        self.tslits_dict = self.traceSlits.master(prev_build=prev_build)
+        self.tslits_dict, _ = self.traceSlits.master(prev_build=prev_build)
         if self.tslits_dict is None:
             # Build the trace image first
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
