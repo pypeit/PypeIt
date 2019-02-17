@@ -233,7 +233,7 @@ class Calibrations(object):
                                           master_dir=self.master_dir, reuse_masters=self.reuse_masters)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.msarc = self.arcImage.master(prev_build=prev_build)
+        self.msarc, _ = self.arcImage.master(prev_build=prev_build)
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image()
@@ -411,7 +411,7 @@ class Calibrations(object):
         # --- Pixel flats
 
         # 1)  Try to load master files from disk (MasterFrame)?
-        self.mspixflatnrm = self.flatField.master(prev_build=prev_build1)
+        self.mspixflatnrm, _  = self.flatField.master(prev_build=prev_build1)
         if prev_build2:
             self.msillumflat, _ = self.flatField.load_master_illumflat()
 
@@ -622,7 +622,7 @@ class Calibrations(object):
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)
         # Attempt to load master
-        self.mswave = self.waveImage.master(prev_build=prev_build)
+        self.mswave, _  = self.waveImage.master(prev_build=prev_build)
         if self.mswave is None:
             self.mswave = self.waveImage._build_wave()
         # Save to hard-drive
@@ -681,7 +681,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, msbpm=self.msbpm)
         # Load from disk (MasterFrame)?
-        self.wv_calib = self.waveCalib.master(prev_build=prev_build)
+        self.wv_calib, _ = self.waveCalib.master(prev_build=prev_build)
         # Build?
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
@@ -740,7 +740,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Master
-        self.tilts_dict = self.waveTilts.master(prev_build=prev_build)
+        self.tilts_dict, _ = self.waveTilts.master(prev_build=prev_build)
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \

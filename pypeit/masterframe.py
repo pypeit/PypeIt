@@ -86,9 +86,9 @@ class MasterFrame(object):
         # Are we loading master files from disk?
         if self.reuse_masters or prev_build:
             self.msframe, head = self.load_master(self.ms_name)
-            return self.msframe
+            return self.msframe, head
         else:
-            return None
+            return None, None
 
     def load_master(self, filename, exten=0):
         """

@@ -1117,7 +1117,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None, None, None
+            return None, None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) +
                       " from filename: {:}".format(filename))

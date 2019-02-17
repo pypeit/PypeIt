@@ -106,6 +106,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # 3) User wants bias subtractions, use a Master biasframe?
         elif self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
-            self.msbias = self.master(prev_build=prev_build)
+            self.msbias, _ = self.master(prev_build=prev_build)
 
         return self.msbias
