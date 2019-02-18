@@ -33,12 +33,7 @@ MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
-# TODO Remove dependencies on objects here (sobjs and spectrograph). This should have the following argument lists
-#  wave, counts, counts_ivar, sens_dict, airmass, exptime, longitude, latitude
-# i.e. if the it is echelle loop over the sens_dict and apply to each.
-# ToDo: rethink the structure, I still prefer to keep this otherwise we need loops for both longslit and echelle data in fluxspec.
-# def apply_sensfunc(wave, counts, counts_ivar, sens_dict, airmass, exptime, longitude, latitude):
-def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
+def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, longitude, latitude):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
 
@@ -52,14 +47,13 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
       Airmass
     exptime : float
       Exposure time in seconds
-    spectrograph : dict
-      Instrument specific dict
+    longitude : float
+      longitude for observatory
+    latitude: float
+      latitude for observatory
       Used for extinction correction
-    MAX_EXTRAP : float, optional [0.05]
-      Fractional amount to extrapolate sensitivity function
     """
 
-    # ToDo Is MAX_EXTRAP necessary?
     # Loop on extraction modes
     for extract_type in ['boxcar', 'optimal']:
         extract = getattr(spec_obj, extract_type)
@@ -78,8 +72,7 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
         msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
         # Apply Extinction if optical bands
         msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(spectrograph.telescope['longitude'],
-                                       spectrograph.telescope['latitude'])
+        extinct = load_extinction_data(longitude,latitude)
         ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
         senstot = sensfunc_obs * ext_corr
 
@@ -162,8 +155,6 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
                             std_ra=None, std_dec=None)
             std_dict['wave'] = star_lam * units.AA
             std_dict['flux'] = star_flux / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
-            # ToDO If the Kuruck model is used, rebin create weird features
-            # I using scipy interpolate to avoid this
     else:
         debugger.set_trace()
         msgs.error('Insufficient information provided for fluxing. '
@@ -735,8 +726,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             else:
                 # Generate a dict
                 _idx = int(idx)
-                #TODO: os.path.join here?
-                std_dict = dict(cal_file=path+star_tbl[_idx]['File'],
+                std_dict = dict(cal_file=os.paht.join(path,star_tbl[_idx]['File']),
                                 name=star_tbl[_idx]['Name'], fmt=std_file_fmt[qq],
                                 std_ra=star_tbl[_idx]['RA_2000'],
                                 std_dec=star_tbl[_idx]['DEC_2000'])

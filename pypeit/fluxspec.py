@@ -489,7 +489,8 @@ class MultiSlit(FluxSpec):
         # Run
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sens_dict[0], self.sci_header['AIRMASS'],
-                                  self.sci_header['EXPTIME'], self.spectrograph)
+                                self.sci_header['EXPTIME'], self.spectrograph.telescope['longitude'],
+                                self.spectrograph.telescope['latitude'])
         self.steps.append(inspect.stack()[0][3])
 
 
@@ -587,7 +588,8 @@ class Echelle(FluxSpec):
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
                     flux.apply_sensfunc(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
-                                        self.sci_header['EXPTIME'], self.spectrograph)
+                                        self.sci_header['EXPTIME'], self.spectrograph.telescope['longitude'],
+                                        self.spectrograph.telescope['latitude'])
         self.steps.append(inspect.stack()[0][3])
 
 def instantiate_me(spectrograph, par, **kwargs):
