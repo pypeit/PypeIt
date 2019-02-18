@@ -250,116 +250,22 @@ class FluxSpec(object):
         # Return
         return self.std
 
-    def load_sens_dict(self, filename):
-        """
-        Load the sens_dict from input file
-
-        Args:
-            filename: str
-
-        Returns:
-            sens_dict: dict
-              Sensitivity function
-        """
-
-        # Does the master file exist?
-        if not os.path.isfile(filename):
-            msgs.warn("No sens_file found of type {:s}: {:s}".format(self.frametype, filename))
-            return None
-        else:
-            msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
-
-            hdu = fits.open(filename)
-            norder = hdu[0].header['NORDER']
-            sens_dicts = {}
-            for iord in range(norder):
-                head = hdu[iord + 1].header
-                tbl = hdu['SENSFUNC-ORDER{0:04}'.format(iord)].data
-                sens_dict = {}
-                sens_dict['wave'] = tbl['WAVE']
-                sens_dict['sensfunc'] = tbl['SENSFUNC']
-                ## keys in each order
-                for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
-                            'std_name', 'cal_file', 'ech_orderindx']:
-                    try:
-                        sens_dict[key] = head[key.upper()]
-                    except:
-                        pass
-                sens_dicts[iord] = sens_dict
-            ## primary header
-            for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
-                        'std_name', 'cal_file', 'norder']:
-                try:
-                    sens_dicts[key] = hdu[0].header[key.upper()]
-                except:
-                    pass
-            return sens_dicts
-
     def save_sens_dict(self, sens_dict, outfile):
         """
-        Over-load the save_master() method in MasterFrame to write a FITS file
+        Save the sens_dict. Wrapper for save.save_sens_dict
+        Args:
+            sens_dict:
+            outfile:
 
-        Parameters
-        ----------
-        outfile : str, optional
-          Use this input instead of the 'proper' (or unattainable) MasterFrame name
-
-        Returns
-        -------
+        Returns:
 
         """
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        # Allow one to over-ride output name
-        #if outfile is None:
-        #    outfile = self.ms_name
-        ## ToDo: why add steps to sens_dict.
-        # Add steps
-        self.sens_dict['steps'] = self.steps
-        # Do it
-        prihdu = fits.PrimaryHDU()
-        hdus = [prihdu]
+        save.save_sens_dict(sens_dict, outfile)
 
-        # Add critical keys from sens_dict to primary header
-        for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
-                    'std_dec', 'std_name', 'cal_file', 'norder']:
-            try:
-                prihdu.header[key.upper()] = sens_dict[key].value
-            except AttributeError:
-                prihdu.header[key.upper()] = sens_dict[key]
-            except KeyError:
-                pass  # Will not require all of these
+    def load_sens_dict(self, filename):
+        self.sens_dict = load.load_sens_dict(filename)
+        return self.sens_dict
 
-        norder = sens_dict['norder']
-        for iord in range(norder):
-            sens_dict_iord = sens_dict[iord]
-            cols = []
-            cols += [
-                fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
-            cols += [
-                fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'),
-                            format=sens_dict_iord['sensfunc'].dtype)]
-            # Finish
-            coldefs = fits.ColDefs(cols)
-            tbhdu = fits.BinTableHDU.from_columns(coldefs)
-            tbhdu.name = 'SENSFUNC-ORDER{0:04}'.format(iord)
-            # Add critical keys from sens_dict to the header of each order
-            for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
-                        'std_dec', 'std_name', 'cal_file', 'ech_orderindx']:
-                try:
-                    tbhdu.header[key.upper()] = sens_dict_iord[key].value
-                except AttributeError:
-                    tbhdu.header[key.upper()] = sens_dict_iord[key]
-                except KeyError:
-                    pass  # Will not require all of these
-            hdus += [tbhdu]
-
-        # Finish
-        hdulist = fits.HDUList(hdus)
-        hdulist.writeto(outfile, overwrite=True)
-
-        # Finish
-        msgs.info("Wrote sensfunc to file: {:s}".format(outfile))
 
     # TODO Need to improve this QA, it is really not informative
     # ToDo: either make it a dummy function or make it works for both multislit and echelle.
@@ -591,6 +497,120 @@ class Echelle(FluxSpec):
                                         self.sci_header['EXPTIME'], self.spectrograph.telescope['longitude'],
                                         self.spectrograph.telescope['latitude'])
         self.steps.append(inspect.stack()[0][3])
+
+    #
+    # def load_sens_dict_old(self, filename):
+    #     """
+    #     Load the sens_dict from input file. Wrapper for load.load_sens_dict
+    #
+    #     Args:
+    #         filename: str
+    #
+    #     Returns:
+    #         sens_dict: dict
+    #           Sensitivity function
+    #     """
+    #
+    #     # Does the master file exist?
+    #     if not os.path.isfile(filename):
+    #         msgs.warn("No sens_file found of type {:s}: {:s}".format(self.frametype, filename))
+    #         return None
+    #     else:
+    #         msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(
+    #             self.frametype) + " from filename: {:}".format(filename))
+    #
+    #         hdu = fits.open(filename)
+    #         norder = hdu[0].header['NORDER']
+    #         sens_dicts = {}
+    #         for iord in range(norder):
+    #             head = hdu[iord + 1].header
+    #             tbl = hdu['SENSFUNC-ORDER{0:04}'.format(iord)].data
+    #             sens_dict = {}
+    #             sens_dict['wave'] = tbl['WAVE']
+    #             sens_dict['sensfunc'] = tbl['SENSFUNC']
+    #             ## keys in each order
+    #             for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
+    #                         'std_name', 'cal_file', 'ech_orderindx']:
+    #                 try:
+    #                     sens_dict[key] = head[key.upper()]
+    #                 except:
+    #                     pass
+    #             sens_dicts[iord] = sens_dict
+    #         ## primary header
+    #         for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
+    #                     'std_name', 'cal_file', 'norder']:
+    #             try:
+    #                 sens_dicts[key] = hdu[0].header[key.upper()]
+    #             except:
+    #                 pass
+    #         return sens_dicts
+    #
+    # def save_sens_dict_old(self, sens_dict, outfile):
+    #     """
+    #     Over-load the save_master() method in MasterFrame to write a FITS file
+    #
+    #     Parameters
+    #     ----------
+    #     outfile : str, optional
+    #       Use this input instead of the 'proper' (or unattainable) MasterFrame name
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     # Step
+    #     self.steps.append(inspect.stack()[0][3])
+    #     # Allow one to over-ride output name
+    #     # if outfile is None:
+    #     #    outfile = self.ms_name
+    #     ## ToDo: why add steps to sens_dict.
+    #     # Add steps
+    #     self.sens_dict['steps'] = self.steps
+    #     # Do it
+    #     prihdu = fits.PrimaryHDU()
+    #     hdus = [prihdu]
+    #
+    #     # Add critical keys from sens_dict to primary header
+    #     for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
+    #                 'std_dec', 'std_name', 'cal_file', 'norder']:
+    #         try:
+    #             prihdu.header[key.upper()] = sens_dict[key].value
+    #         except AttributeError:
+    #             prihdu.header[key.upper()] = sens_dict[key]
+    #         except KeyError:
+    #             pass  # Will not require all of these
+    #
+    #     norder = sens_dict['norder']
+    #     for iord in range(norder):
+    #         sens_dict_iord = sens_dict[iord]
+    #         cols = []
+    #         cols += [
+    #             fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
+    #         cols += [
+    #             fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'),
+    #                         format=sens_dict_iord['sensfunc'].dtype)]
+    #         # Finish
+    #         coldefs = fits.ColDefs(cols)
+    #         tbhdu = fits.BinTableHDU.from_columns(coldefs)
+    #         tbhdu.name = 'SENSFUNC-ORDER{0:04}'.format(iord)
+    #         # Add critical keys from sens_dict to the header of each order
+    #         for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra',
+    #                     'std_dec', 'std_name', 'cal_file', 'ech_orderindx']:
+    #             try:
+    #                 tbhdu.header[key.upper()] = sens_dict_iord[key].value
+    #             except AttributeError:
+    #                 tbhdu.header[key.upper()] = sens_dict_iord[key]
+    #             except KeyError:
+    #                 pass  # Will not require all of these
+    #         hdus += [tbhdu]
+    #
+    #     # Finish
+    #     hdulist = fits.HDUList(hdus)
+    #     hdulist.writeto(outfile, overwrite=True)
+    #
+    #     # Finish
+    #     msgs.info("Wrote sensfunc to file: {:s}".format(outfile))
+
 
 def instantiate_me(spectrograph, par, **kwargs):
     """

@@ -10,8 +10,10 @@ import numpy as np
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
+import copy
 
 
+import linetools.utils
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit.core import parse
@@ -458,7 +460,8 @@ def init_hdus(update_det, outfile):
 
 
 
-def save_sens_dict(sens_dict, outfile):
+
+def save_sens_dict(sens_dict, outfile, overwrite=True):
     """
     Over-load the save_master() method in MasterFrame to write a FITS file
 
@@ -471,49 +474,93 @@ def save_sens_dict(sens_dict, outfile):
     -------
 
     """
-    # Do it
-    prihdu = fits.PrimaryHDU()
-    hdus = [prihdu]
 
-    # Add critical keys from sens_dict to primary header
-    for key in sens_dict.keys():
-        if isinstance(key,(int,np.int64)):
-            continue
-        try:
-            prihdu.header[key.upper()] = sens_dict[key].value
-        except AttributeError:
-            prihdu.header[key.upper()] = sens_dict[key]
-        except KeyError:
-            pass  # Will not require all of these
+    if os.path.exists(outfile)and (not overwrite):
+        msgs.warn("This file already exists.  Use overwrite=True to overwrite it")
+        return
+    #
 
-    nslits = sens_dict['nslits']
-    for islit in range(nlits):
-        sens_dict_iord = sens_dict[islit]
-        cols = []
-        cols += [fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
-        cols += [fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'),
-                             format=sens_dict_iord['sensfunc'].dtype)]
-        try:
-            cols += [fits.Column(array=sens_dict_iord['telluric'], name=str('TELLURIC'),
-                                 format=sens_dict_iord['telluric'].dtype)]
-        # Finish
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'SENSFUNC-SLIT{0:04}'.format(islit)
-        # Add critical keys from sens_dict to the header of each order
-        for key in sens_dict.keys()
-            if 'sensfunc' in key or ('')
-            try:
-                tbhdu.header[key.upper()] = sens_dict_iord[key].value
-            except AttributeError:
-                tbhdu.header[key.upper()] = sens_dict_iord[key]
-            except KeyError:
-                pass  # Will not require all of these
-        hdus += [tbhdu]
-
+    # jsonify has the annoying property that it modifies the objects when it jsonifies them so make a copy,
+    # which converts lists to arrays, so we make a copy
+    data_for_json = copy.deepcopy(sens_dict)
+    gddict = linetools.utils.jsonify(data_for_json)
+    linetools.utils.savejson(outfile, gddict, easy_to_read=True, overwrite=True)
     # Finish
-    hdulist = fits.HDUList(hdus)
-    hdulist.writeto(outfile, overwrite=True)
+    msgs.info("Sucessfuly save sensitivity function to file {:s}".format(outfile))
 
-    # Finish
-    msgs.info("Wrote sensfunc to file: {:s}".format(outfile))
+
+
+#
+#
+# def save_sens_dict_old(sens_dict, outfile):
+#     """
+#     Over-load the save_master() method in MasterFrame to write a FITS file
+#
+#     Parameters
+#     ----------
+#     outfile : str, optional
+#       Use this input instead of the 'proper' (or unattainable) MasterFrame name
+#
+#     Returns
+#     -------
+#
+#     """
+#     # Do it
+#     prihdu = fits.PrimaryHDU()
+#     hdus = [prihdu]
+#
+#     # Add critical keys from sens_dict to primary header
+#     for key in sens_dict.keys():
+#         if isinstance(key,(int,np.int64)):
+#             continue
+#         try:
+#             prihdu.header[key.upper()] = sens_dict[key].value
+#         except AttributeError:
+#             prihdu.header[key.upper()] = sens_dict[key]
+#         except KeyError:
+#             pass  # Will not require all of these
+#
+#     nslits = sens_dict['nslits']
+#     for islit in range(nslits):
+#         try:
+#             sens_dict_islit = sens_dict[islit]
+#         except KeyError:
+#             continue
+#
+#         cols = []
+#         cols += [fits.Column(array=sens_dict_islit['wave'], name=str('WAVE'), format=sens_dict_islit['wave'].dtype)]
+#         cols += [fits.Column(array=sens_dict_islit['sensfunc'], name=str('SENSFUNC'),
+#                              format=sens_dict_islit['sensfunc'].dtype)]
+#         try:
+#             cols += [fits.Column(array=sens_dict_islit['telluric'], name=str('TELLURIC'),
+#                                  format=sens_dict_islit['telluric'].dtype)]
+#         except KeyError:
+#             pass
+#         try:
+#             cols += [fits.Column(array=sens_dict_islit['sens_coeff'], name=str('SCOEFF'),
+#                                  format=sens_dict_islit['sens_coeff'].dtype)]
+#         except KeyError:
+#             pass
+#
+#         # Finish
+#         coldefs = fits.ColDefs(cols)
+#         tbhdu = fits.BinTableHDU.from_columns(coldefs)
+#         tbhdu.name = 'SENSFUNC-SLIT{0:04}'.format(islit)
+#         # Add critical keys from sens_dict to the header of each order
+#         for key in sens_dict_islit.keys():
+#             if key in 'wave' or key in 'sensfunc' or key in 'telluric':
+#                 continue
+#             try:
+#                 tbhdu.header[key.upper()] = sens_dict_islit[key].value
+#             except AttributeError:
+#                 tbhdu.header[key.upper()] = sens_dict_islit[key]
+#             except KeyError:
+#                 pass  # Will not require all of these
+#         hdus += [tbhdu]
+#
+#     # Finish
+#     hdulist = fits.HDUList(hdus)
+#     hdulist.writeto(outfile, overwrite=True)
+#
+#     # Finish
+#     msgs.info("Wrote sensfunc to file: {:s}".format(outfile))

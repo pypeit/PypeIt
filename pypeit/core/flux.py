@@ -33,7 +33,8 @@ MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
-def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, longitude, latitude):
+def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, wave_key='WAVE',
+                   extinct_correct=True, longitude=None, latitude=None):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
 
@@ -59,22 +60,29 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, longitude, latitude):
         extract = getattr(spec_obj, extract_type)
         if len(extract) == 0:
             continue
-        msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() +
-                  "{}".format(spec_obj))
-        wave = np.copy(np.array(extract['WAVE']))
-        #bsplinesensfunc = pydl.bspline(wave,from_dict=sensfunc['mag_set'])
-        #magfit, _ = bsplinesensfunc.value(wave)
-        #sensfit = np.power(10.0, 0.4 * np.maximum(np.minimum(magfit, MAGFUNC_MAX), MAGFUNC_MIN))
+        msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() + "{}".format(spec_obj))
+        wave = np.copy(np.array(extract[wave_key]))
         wave_sens = sens_dict['wave']
         sensfunc = sens_dict['sensfunc']
+        # Is there a separate telluric key in this dict, if so sensfunc and telluric were computed separately
+        try:
+            telluric = sens_dict['telluric']
+        except KeyError:
+            pass
+        else:
+            sensfunc = sensfunc*telluric
 
         sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
-        msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-        # Apply Extinction if optical bands
-        msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(longitude,latitude)
-        ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
-        senstot = sensfunc_obs * ext_corr
+
+        if extinct_correct:
+            if longitude is None or latitude is None:
+                msgs.error('You must specify longitude and latitude if we are extinction correcting')
+            # Apply Extinction if optical bands
+            msgs.info("Applying extinction correction")
+            msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
+            extinct = load_extinction_data(longitude,latitude)
+            ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
+            senstot = sensfunc_obs * ext_corr
 
         flam = extract['COUNTS'] * senstot/ exptime
         flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
