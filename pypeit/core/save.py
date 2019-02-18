@@ -455,3 +455,65 @@ def init_hdus(update_det, outfile):
             prihdu.header.remove(keywd)
     # Return
     return hdus, prihdu
+
+
+
+def save_sens_dict(sens_dict, outfile):
+    """
+    Over-load the save_master() method in MasterFrame to write a FITS file
+
+    Parameters
+    ----------
+    outfile : str, optional
+      Use this input instead of the 'proper' (or unattainable) MasterFrame name
+
+    Returns
+    -------
+
+    """
+    # Do it
+    prihdu = fits.PrimaryHDU()
+    hdus = [prihdu]
+
+    # Add critical keys from sens_dict to primary header
+    for key in sens_dict.keys():
+        if isinstance(key,(int,np.int64)):
+            continue
+        try:
+            prihdu.header[key.upper()] = sens_dict[key].value
+        except AttributeError:
+            prihdu.header[key.upper()] = sens_dict[key]
+        except KeyError:
+            pass  # Will not require all of these
+
+    nslits = sens_dict['nslits']
+    for islit in range(nlits):
+        sens_dict_iord = sens_dict[islit]
+        cols = []
+        cols += [fits.Column(array=sens_dict_iord['wave'], name=str('WAVE'), format=sens_dict_iord['wave'].dtype)]
+        cols += [fits.Column(array=sens_dict_iord['sensfunc'], name=str('SENSFUNC'),
+                             format=sens_dict_iord['sensfunc'].dtype)]
+        try:
+            cols += [fits.Column(array=sens_dict_iord['telluric'], name=str('TELLURIC'),
+                                 format=sens_dict_iord['telluric'].dtype)]
+        # Finish
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = 'SENSFUNC-SLIT{0:04}'.format(islit)
+        # Add critical keys from sens_dict to the header of each order
+        for key in sens_dict.keys()
+            if 'sensfunc' in key or ('')
+            try:
+                tbhdu.header[key.upper()] = sens_dict_iord[key].value
+            except AttributeError:
+                tbhdu.header[key.upper()] = sens_dict_iord[key]
+            except KeyError:
+                pass  # Will not require all of these
+        hdus += [tbhdu]
+
+    # Finish
+    hdulist = fits.HDUList(hdus)
+    hdulist.writeto(outfile, overwrite=True)
+
+    # Finish
+    msgs.info("Wrote sensfunc to file: {:s}".format(outfile))
