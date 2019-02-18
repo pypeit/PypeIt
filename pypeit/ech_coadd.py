@@ -246,25 +246,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
             spectrum = spec_from_array(spec1d_iord.wavelength, spec1d_iord.flux, spec1d_iord.sig,**rsp_kwargs)
             spectra_list.append(spectrum)
 
-        from IPython import embed
-        embed()
-
         spectra_coadd = collate(spectra_list)
-
-        if orderscale == 'photometry':
-            if phot_scale_dicts is not None:
-                order_phot_scale(spectra_coadd, phot_scale_dicts, debug=False)
-            else:
-                msgs.warn('No photometric information is provided. Will use median scale.')
-                orderscale = 'median'
-        elif orderscale == 'median':
-            #rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
-            #sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
-            ## scaling different orders
-            order_median_scale(spectra_coadd, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
-                               num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
-        else:
-            msgs.warn('No any scaling is performed between different orders.')
 
         # Rebin the spectra
         # ToDo: we should read in JFH's wavelength grid here.
@@ -281,6 +263,24 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
                                           masking='none')
             spectra_list_new.append(speci)
         spectra_coadd_rebin = collate(spectra_list_new)
+
+        ## Note
+        if orderscale == 'photometry':
+            # ToDO: Not tested yet. Need to work on it asap!
+            if phot_scale_dicts is not None:
+                order_phot_scale(spectra_coadd_rebin, phot_scale_dicts, debug=False)
+            else:
+                msgs.warn('No photometric information is provided. Will use median scale.')
+                orderscale = 'median'
+        elif orderscale == 'median':
+            #rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
+            #sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
+            ## scaling different orders
+            order_median_scale(spectra_coadd_rebin, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
+                               num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
+        else:
+            msgs.warn('No any scaling is performed between different orders.')
+
 
         if mergeorder:
             fluxes, sigs, wave = coadd.unpack_spec(spectra_coadd_rebin, all_wave=False)
