@@ -57,7 +57,7 @@ def spec_from_array(wave,flux,sig,**kwargs):
         spectrum.data['sig'][spectrum.select][bad_flux] = 0.
     return spectrum
 
-def order_phot_scale(spectra, phot_scale_dicts, debug=False):
+def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
     '''
     Scale coadded spectra with photometric data.
     Parameters:
@@ -84,8 +84,30 @@ def order_phot_scale(spectra, phot_scale_dicts, debug=False):
         if (phot_scale_dict['filter'] is not None) & (phot_scale_dict['mag'] is not None):
             speci = scale_in_filter(spectra[iord], phot_scale_dict)
         else:
-            msgs.warn("Not enough information given. No scaling performed on order {:d}".format(iord))
-            speci = spectra[iord]
+            #ToDo: Think a better way to do the following
+            try:
+                spec0 = scale_in_filter(spectra[iord-1], phot_scale_dicts[iord-1])
+                speci = spectra[iord]
+                med_flux = spec0.data['flux'] / speci.data['flux']
+                mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
+                med_scale = np.minimum(med_scale, 5.0)
+                spectra.data['flux'] *= med_scale
+                spectra.data['sig'] *= med_scale
+                msgs.warn("Not enough photometric information given. Scaled order {:d} to order {:d}".format(iord, iord-1))
+            except KeyError:
+                msgs.warn("Not enough photometric information given. Scale order {:d} to order {:d} failed".format(iord, iord-1))
+                try:
+                    spec0 = scale_in_filter(spectra[iord + 1], phot_scale_dicts[iord + 1])
+                    speci = spectra[iord]
+                    med_flux = spec0.data['flux'] / speci.data['flux']
+                    mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
+                    med_scale = np.minimum(med_scale, 5.0)
+                    speci.data['flux'] *= med_scale
+                    speci.data['sig'] *= med_scale
+                    msgs.warn("Not enough photometric information given. Scaled order {:d} to order {:d}".format(iord, iord+1))
+                except:
+                    msgs.warn("Not enough photometric information given. No scaling on order {:d}".format(iord))
+                    speci = spectra[iord]
         spectra_list_new.append(speci)
 
         if debug:
@@ -268,7 +290,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
         if orderscale == 'photometry':
             # Only tested on NIRES.
             if phot_scale_dicts is not None:
-                order_phot_scale(spectra_coadd_rebin, phot_scale_dicts, debug=debug)
+                spectra_coadd_rebin = order_phot_scale(spectra_coadd_rebin, phot_scale_dicts, debug=debug)
             else:
                 msgs.warn('No photometric information is provided. Will use median scale.')
                 orderscale = 'median'
