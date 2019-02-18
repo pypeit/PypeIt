@@ -64,11 +64,11 @@ def order_phot_scale(spectra, phot_scale_dicts, debug=False):
       spectra: XSpectrum1D spectra (longslit) or spectra list (echelle)
       phot_scale_dicts: A dict contains photometric information of each orders (if echelle).
         An example is given below.
-        phot_scale_dicts={0: {'filter': None, 'mag': None, 'mag_type': None, 'masks': None},
-               1: {'filter': 'UKIDSS-Y', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
-               2: {'filter': 'UKIDSS-J', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
-               3: {'filter': 'UKIDSS-H', 'mag': 20.0, 'mag_type': 'AB', 'masks': None},
-               4: {'filter': 'UKIDSS-K', 'mag': 20.0, 'mag_type': 'AB', 'masks': None}}
+        phot_scale_dicts = {0: {'filter': None, 'mag': None, 'mag_type': None, 'masks': None},
+                            1: {'filter': 'UKIRT-Y', 'mag': 20.33, 'mag_type': 'AB', 'masks': None},
+                            2: {'filter': 'UKIRT-J', 'mag': 20.19, 'mag_type': 'AB', 'masks': None},
+                            3: {'filter': 'UKIRT-H', 'mag': 20.02, 'mag_type': 'AB', 'masks': None},
+                            4: {'filter': 'UKIRT-K', 'mag': 19.92, 'mag_type': 'AB', 'masks': None}}
       Show QA plot if debug=True
     Return a new scaled XSpectrum1D spectra
     '''
@@ -266,9 +266,9 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
 
         ## Note
         if orderscale == 'photometry':
-            # ToDO: Not tested yet. Need to work on it asap!
+            # Only tested on NIRES.
             if phot_scale_dicts is not None:
-                order_phot_scale(spectra_coadd_rebin, phot_scale_dicts, debug=False)
+                order_phot_scale(spectra_coadd_rebin, phot_scale_dicts, debug=debug)
             else:
                 msgs.warn('No photometric information is provided. Will use median scale.')
                 orderscale = 'median'
