@@ -644,7 +644,7 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None,
+    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
                  star_type=None, star_mag=None, multi_det=None, telluric=None, poly_norder=None, polycorrect=None):
 
         # Grab the parameter names and values from the function
@@ -677,9 +677,16 @@ class FluxCalibrationPar(ParSet):
         dtypes['sensfunc'] = str
         descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
 
+
+        defaults['extinct_correct'] = True
+        dtypes['extinct_correct'] = bool
+        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
+                                   'extinction correct the data below 10000A. Note that this correction makes no ' \
+                                   'sense if one is telluric correcting and this shold be set to False'
+
         defaults['telluric'] = False
         dtypes['telluric'] = bool
-        descr['telluric'] = 'If telluric=True the code creates a sintetic standard star spectrum using the Kurucz models, ' \
+        descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
             'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
 
         dtypes['star_type'] = str
@@ -707,7 +714,7 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['balm_mask_wid',  'sensfunc', 'std_file', 'std_obj_id',
+        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'std_file', 'std_obj_id',
                    'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect']
         kwargs = {}
         for pk in parkeys:

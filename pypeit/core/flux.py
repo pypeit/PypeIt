@@ -33,7 +33,7 @@ MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
-def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, wave_key='WAVE',
+def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
                    extinct_correct=True, longitude=None, latitude=None):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
@@ -61,16 +61,19 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, wave_key='WAVE',
         if len(extract) == 0:
             continue
         msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() + "{}".format(spec_obj))
-        wave = np.copy(np.array(extract[wave_key]))
+        try:
+            wave = np.copy(np.array(extract['WAVE_GRID']))
+        except KeyError:
+            wave = np.copy(np.array(extract['WAVE']))
         wave_sens = sens_dict['wave']
-        sensfunc = sens_dict['sensfunc']
+        sensfunc = sens_dict['sensfunc'].copy()
         # Is there a separate telluric key in this dict, if so sensfunc and telluric were computed separately
         try:
             telluric = sens_dict['telluric']
         except KeyError:
             pass
         else:
-            sensfunc = sensfunc*telluric
+            sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
 
         sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
 
@@ -83,6 +86,8 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, wave_key='WAVE',
             extinct = load_extinction_data(longitude,latitude)
             ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
             senstot = sensfunc_obs * ext_corr
+        else:
+            senstot = sensfunc_obs.copy()
 
         flam = extract['COUNTS'] * senstot/ exptime
         flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
@@ -100,6 +105,7 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, wave_key='WAVE',
         extract['FLAM'] = flam
         extract['FLAM_SIG'] = flam_sig
         extract['FLAM_IVAR'] = flam_var
+
 
 def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     '''

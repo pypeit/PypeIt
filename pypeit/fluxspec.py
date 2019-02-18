@@ -171,8 +171,12 @@ class FluxSpec(object):
             std_splice = sv_stds[0].copy()
             # Append
             for ostd in sv_stds[1:]:
-                std_splice.optimal['WAVE'] = np.append(std_splice.optimal['WAVE'].value,
-                                                      ostd.optimal['WAVE'].value) * units.AA
+                try:
+                    std_splice.optimal['WAVE_GRID'] = np.append(std_splice.optimal['WAVE_GRID'].value,
+                                                           ostd.optimal['WAVE_GRID'].value) * units.AA
+                except KeyError:
+                    std_splice.optimal['WAVE'] = np.append(std_splice.optimal['WAVE'].value,
+                                                           ostd.optimal['WAVE'].value) * units.AA
                 for key in ['COUNTS', 'COUNTS_IVAR']:
                     std_splice.optimal[key] = np.append(std_splice.optimal[key], ostd.optimal[key])
             self.std = std_splice
@@ -359,7 +363,11 @@ class MultiSlit(FluxSpec):
             return None
 
         self.sens_dict = {}
-        sens_dict_long = flux.generate_sensfunc(self.std.optimal['WAVE'],
+        try:
+            this_wave = self.std.optimal['WAVE_GRID']
+        except KeyError:
+            this_wave = self.std.optimal['WAVE']
+        sens_dict_long = flux.generate_sensfunc(this_wave,
                                                self.std.optimal['COUNTS'],
                                                self.std.optimal['COUNTS_IVAR'],
                                                self.std_header['AIRMASS'],
@@ -373,7 +381,7 @@ class MultiSlit(FluxSpec):
                                                std_file = self.std_file,
                                                debug=self.debug)
         self.sens_dict[0] = sens_dict_long
-        self.sens_dict['norder'] = 1
+        self.sens_dict['nslits'] = 1
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -395,8 +403,9 @@ class MultiSlit(FluxSpec):
         # Run
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sens_dict[0], self.sci_header['AIRMASS'],
-                                self.sci_header['EXPTIME'], self.spectrograph.telescope['longitude'],
-                                self.spectrograph.telescope['latitude'])
+                                self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
+                                longitude=self.spectrograph.telescope['longitude'],
+                                latitude=self.spectrograph.telescope['latitude'])
         self.steps.append(inspect.stack()[0][3])
 
 
@@ -443,10 +452,16 @@ class Echelle(FluxSpec):
             std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
-            wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
-            wave, counts, ivar = std.optimal['WAVE'][wavemask], std.optimal['COUNTS'][wavemask], \
-                                 std.optimal['COUNTS_IVAR'][wavemask]
-            sens_dict_iord = flux.generate_sensfunc(wave, counts, ivar,
+            try:
+                wavemask = std.optimal['WAVE_GRID'] > 0.0*units.AA
+            except KeyError:
+                wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
+                this_wave = std.optimal['WAVE'][wavemask]
+            else:
+                this_wave = std.optimal['WAVE_GRID'][wavemask]
+
+            counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
+            sens_dict_iord = flux.generate_sensfunc(this_wave, counts, ivar,
                                                     float(self.std_header['AIRMASS']),
                                                     self.std_header['EXPTIME'],
                                                     self.spectrograph.telescope['longitude'],
@@ -488,14 +503,16 @@ class Echelle(FluxSpec):
         # Load
         self.load_objs(sci_file, std=False)
         # Run
-        norder = self.sens_dict['norder']
+        norder = self.sens_dict['meta']['nslits']
         for iord in range(norder):
-            sens_dict_iord = self.sens_dict[iord]
+            sens_dict_iord = self.sens_dict[str(iord)]
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
                     flux.apply_sensfunc(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
-                                        self.sci_header['EXPTIME'], self.spectrograph.telescope['longitude'],
-                                        self.spectrograph.telescope['latitude'])
+                                        self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
+                                        longitude=self.spectrograph.telescope['longitude'],
+                                        latitude=self.spectrograph.telescope['latitude'])
+
         self.steps.append(inspect.stack()[0][3])
 
     #
