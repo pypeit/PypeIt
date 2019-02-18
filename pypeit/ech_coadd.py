@@ -159,10 +159,10 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
         else:
             msgs.warn('Not enough overlap region for sticking different orders.')
 
-def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeorder=True,orderscale='median',
+def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,orderscale='median',mergeorder=True,
               wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
               scale_method='auto', do_offset=False, sigrej_final=3.,do_var_corr=False,
-              SN_MIN_MEDSCALE = 0.5, overlapfrac = 0.03, num_min_pixels=50,
+              SN_MIN_MEDSCALE = 0.5, overlapfrac = 0.03, num_min_pixels=50,phot_scale_dicts=None,
               qafile=None, outfile=None,do_cr=True, debug=False,**kwargs):
     """
     routines for coadding spectra observed with echelle spectrograph.
@@ -246,29 +246,44 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,mergeor
             spectrum = spec_from_array(spec1d_iord.wavelength, spec1d_iord.flux, spec1d_iord.sig,**rsp_kwargs)
             spectra_list.append(spectrum)
 
-        if mergeorder:
-            # Join into one XSpectrum1D object
-            spectra_coadd = collate(spectra_list)
-            # Final wavelength array
-            kwargs['wave_grid_min'] = np.min(spectra_coadd.data['wave'][spectra_coadd.data['wave'] > 0])
-            kwargs['wave_grid_max'] = np.max(spectra_coadd.data['wave'][spectra_coadd.data['wave'] > 0])
-            wave_final = coadd.new_wave_grid(spectra_coadd.data['wave'], wave_method=wave_grid_method, **kwargs)
-            # The rebin function in linetools can not work on collated spectra (i.e. filled 0).
-            # Thus I have to rebin the spectra first and then collate again.
-            spectra_list_new = []
-            for i in range(spectra_coadd.nspec):
-                speci = spectra_list[i].rebin(wave_final * units.AA, all=True, do_sig=True, grow_bad_sig=True,
-                                              masking='none')
-                spectra_list_new.append(speci)
-            spectra_coadd_rebin = collate(spectra_list_new)
-            fluxes, sigs, wave = coadd.unpack_spec(spectra_coadd_rebin, all_wave=False)
+        from IPython import embed
+        embed()
 
+        spectra_coadd = collate(spectra_list)
+
+        if orderscale == 'photometry':
+            if phot_scale_dicts is not None:
+                order_phot_scale(spectra_coadd, phot_scale_dicts, debug=False)
+            else:
+                msgs.warn('No photometric information is provided. Will use median scale.')
+                orderscale = 'median'
+        elif orderscale == 'median':
+            #rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
+            #sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
             ## scaling different orders
-            rmask = spectra_coadd_rebin.data['sig'].filled(0.) > 0.
-            sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
-            order_median_scale(spectra_coadd_rebin, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
+            order_median_scale(spectra_coadd, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
                                num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
+        else:
+            msgs.warn('No any scaling is performed between different orders.')
 
+        # Rebin the spectra
+        # ToDo: we should read in JFH's wavelength grid here.
+        # Join into one XSpectrum1D object
+        # Final wavelength array
+        kwargs['wave_grid_min'] = np.min(spectra_coadd.data['wave'][spectra_coadd.data['wave'] > 0])
+        kwargs['wave_grid_max'] = np.max(spectra_coadd.data['wave'][spectra_coadd.data['wave'] > 0])
+        wave_final = coadd.new_wave_grid(spectra_coadd.data['wave'], wave_method=wave_grid_method, **kwargs)
+        # The rebin function in linetools can not work on collated spectra (i.e. filled 0).
+        # Thus I have to rebin the spectra first and then collate again.
+        spectra_list_new = []
+        for i in range(spectra_coadd.nspec):
+            speci = spectra_list[i].rebin(wave_final * units.AA, all=True, do_sig=True, grow_bad_sig=True,
+                                          masking='none')
+            spectra_list_new.append(speci)
+        spectra_coadd_rebin = collate(spectra_list_new)
+
+        if mergeorder:
+            fluxes, sigs, wave = coadd.unpack_spec(spectra_coadd_rebin, all_wave=False)
             ## Megering orders
             msgs.info('Merging different orders')
             ## ToDo: Joe claimed not to use pixel depedent weighting.
