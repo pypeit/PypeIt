@@ -85,7 +85,7 @@ def main(args):
     # Use PypeItMetaData to write the complete PypeIt file
     if args.cfg_split is not None:
         pypeit_file = os.path.join(output_path, '{0}.pypeit'.format(args.spectrograph))
-        config_list = args.cfg_split.split(',')
+        config_list = [item.strip() for item in args.cfg_split.split(',')]
         ps.fitstbl.write_pypeit(pypeit_file, cfg_lines=ps.user_cfg, write_bkg_pairs=args.background,
                                 configs=config_list)
     return 0
