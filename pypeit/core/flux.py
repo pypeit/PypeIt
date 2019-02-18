@@ -101,8 +101,20 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
         extract['FLAM_IVAR'] = flam_var
 
 def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
-
-
+    '''
+    Get the standard spetrum using given information of your standard/telluric star.
+    Parameters:
+      star_type: str
+         Spectral type of your standard/telluric star
+      star_mag: float
+       Apparent magnitude of the telluric star
+      ra: str
+        Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
+      dec: str
+        Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
+    Return:
+        A dict contains the information you provided and the standard/telluric spectrum.
+    '''
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
         # Pull star spectral model from archive
@@ -306,10 +318,20 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
 
 def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BALM_MASK_WID=10., trans_thresh=0.9):
     '''
-    get couple of masks from your observed standard spectrum.
-    I give two more parameters mask_star, mask_tell which could be useful for telluric corrections
-        based on science target directly.
-    trans_thresh: parameter for selecting telluric regions.
+    Get couple of masks from your observed standard spectrum.
+    Parameters:
+      wave_star: array
+        wavelength array of your spectrum
+      flux_star: array
+        flux array of your spectrum
+      ivar_star:
+        ivar array of your spectrum
+      mask_star: bool
+        whether you need to mask Hydrogen recombination line region. If False, the returned msk_star are all good.
+      mask_tell: bool
+        whether you need to mask telluric region. If False, the returned msk_tell are all good.
+      trans_thresh: float
+        parameter for selecting telluric regions.
     returns:
         msk_bad: mask for bad pixels.
         msk_star: mask for recombination lines in star spectrum.
@@ -431,8 +453,12 @@ def get_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, msk_te
       inverse variance
     flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    inmask : ndarray
-      bspline mask
+    msk_bad : ndarray
+      mask for bad pixels. True is good.
+    msk_star: ndarray
+      mask for hydrogen recombination lines. True is good.
+    msk_tell:ndarray
+      mask for telluric regions. True is good.
     maxiter : integer
       maximum number of iterations for polynomial fit
     upper : integer
@@ -441,16 +467,13 @@ def get_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, msk_te
       number of sigma for rejection in polynomial
     poly_norder : integer
       order of polynomial fit
-    resolution: integer/float
-      spectra resolution
-    watervp: float
-      water waper when observing, default is 1.0mm.
-    trans_thresh: float
-      threshold for masking telluric region (0.0-1.0)
     BALM_MASK_WID : float
       in units of angstrom
       Mask parameter for Balmer absorption. A region equal to
       BALM_MASK_WID is masked.
+    resolution: integer/float.
+      spectra resolution
+      This paramters should be removed in the future. The resolution should be estimated from spectra directly.
     debug : bool
       if True shows some dubugging plots
 
