@@ -266,9 +266,9 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
 
         ## Note
         if orderscale == 'photometry':
-            # ToDO: Not tested yet. Need to work on it asap!
+            # Only tested on NIRES.
             if phot_scale_dicts is not None:
-                order_phot_scale(spectra_coadd_rebin, phot_scale_dicts, debug=False)
+                order_phot_scale(spectra_coadd_rebin, phot_scale_dicts, debug=debug)
             else:
                 msgs.warn('No photometric information is provided. Will use median scale.')
                 orderscale = 'median'
