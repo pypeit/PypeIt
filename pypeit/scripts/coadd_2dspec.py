@@ -97,6 +97,8 @@ def parser(options=None):
     parser.add_argument("--obj", type=str, default=None,
                         help="Object name in lieu of extension, e.g if the spec2d files are named "
                              "'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits. then obj=J1234+5678")
+    parser.add_argument("--std", default=False, action="store_true",
+                        help="This is a standard star reduction.")
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--peaks", default=False, action="store_true",
@@ -193,7 +195,7 @@ def main(args):
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
         sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
         sci_dict[det]['specobjs'] = coadd2d.extract_coadd2d(stack_dict, master_dir, ir_redux=ir_redux, par=par,
-                                                            show=args.show, show_peaks=args.peaks)
+                                                            show=args.show, show_peaks=args.peaks, std=args.std)
 
     # Make the science directory, and write outputs to disk
     master_key_dict = stack_dict['master_key_dict']

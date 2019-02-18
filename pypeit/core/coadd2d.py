@@ -151,8 +151,8 @@ def load_coadd2d_stacks(spec2d_files, det):
     # Get the master dir
     head0 = fits.getheader(spec2d_files[0])
     master_dir = os.path.basename(head0['PYPMFDIR'])+'/'
-    redux_path =  os.cwd()
-    master_path = redux_path + master_dir
+    redux_path =  os.getcwd()
+    master_path = os.path.join(redux_path,master_dir)
     tiltfiles = []
     waveimgfiles = []
     tracefiles = []
@@ -228,7 +228,7 @@ def load_coadd2d_stacks(spec2d_files, det):
     # Right now we assume there is a single tslits_dict for all images and read in the first one
     # TODO this needs to become a tslits_dict for each file to accomodate slits defined by flats taken on different
     # nights
-    tslits_dict = traceslits.load_tslits_dict(tracefiles[0])
+    tslits_dict, _ = traceslits.load_tslits(tracefiles[0])
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
     slitmask = pixels.tslits2mask(tslits_dict)
     slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
@@ -620,7 +620,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
-def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False, show_peaks=False):
+def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False, show=False, show_peaks=False):
     """
     Main routine to run the extraction for 2d coadds. This performs 2d coadd specific tasks, and then also performs
     some of the tasks analogous to the pypeit.extract_one method. Docs coming soon....
@@ -712,7 +712,9 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
         spec_max1[islit] = nspec_vec[islit]-1
         spat_left = spat_righ + nspat_pad
 
-    tslits_dict_psuedo = dict(slit_left=slit_left, slit_righ=slit_righ, nspec=nspec_psuedo, nspat=nspat_psuedo, pad=0,
+    slitcen = (slit_left + slit_righ)/2.0
+    tslits_dict_psuedo = dict(slit_left=slit_left, slit_righ=slit_righ, slitcen=slitcen,
+                              nspec=nspec_psuedo, nspat=nspat_psuedo, pad=0,
                               nslits = nslits, binspectral=1, binspatial=1, spectrograph=spectrograph.spectrograph,
                               spec_min=spec_min1, spec_max=spec_max1)
 
@@ -750,14 +752,14 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, show=False
     if show:
         redux.show('image', image=imgminsky_psuedo*(mask == 0), chname = 'imgminsky', slits=True, clear=True)
     # Object finding
-    sobjs_obj, nobj, skymask_init = redux.find_objects(imgminsky_psuedo, sciivar_psuedo, ir_redux=ir_redux,
+    sobjs_obj, nobj, skymask_init = redux.find_objects(imgminsky_psuedo, sciivar_psuedo, ir_redux=ir_redux, std=std,
                                                        show_peaks=show_peaks, show=show)
     # Local sky-subtraction
     global_sky_psuedo = np.zeros_like(imgminsky_psuedo) # No global sky for co-adds since we go straight to local
     rn2img_psuedo = global_sky_psuedo # No rn2img for co-adds since we go do not model noise
     skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs = \
         redux.local_skysub_extract(imgminsky_psuedo, sciivar_psuedo, tilts_psuedo, waveimg_psuedo, global_sky_psuedo,
-                                   rn2img_psuedo, sobjs_obj, spat_pix=spat_psuedo,
+                                   rn2img_psuedo, sobjs_obj, spat_pix=spat_psuedo, std=std,
                                    model_noise=False, show_profile=show, show=show)
 
     if ir_redux:
