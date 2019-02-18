@@ -290,7 +290,7 @@ class FluxSpec(object):
             for key in ['wave_min', 'wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                         'std_name', 'cal_file', 'norder']:
                 try:
-                    sens_dicts[key] = hdu[0].header[key]
+                    sens_dicts[key] = hdu[0].header[key.upper()]
                 except:
                     pass
             return sens_dicts
@@ -362,6 +362,7 @@ class FluxSpec(object):
         msgs.info("Wrote sensfunc to file: {:s}".format(outfile))
 
     # TODO Need to improve this QA, it is really not informative
+    # ToDo: either make it a dummy function or make it works for both multislit and echelle.
     def show_sensfunc(self):
         """
         Plot the sensitivity function
@@ -374,8 +375,6 @@ class FluxSpec(object):
         #mag_func = utils.func_val(self.sens_dict['c'], wave, self.sens_dict['func'])
         #sens = 10.0**(0.4*mag_func)
         # Plot
-
-        # TODO not sure why you are plotting with the debugger here.
         debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):

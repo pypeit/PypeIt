@@ -101,8 +101,20 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, spectrograph):
         extract['FLAM_IVAR'] = flam_var
 
 def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
-
-
+    '''
+    Get the standard spetrum using given information of your standard/telluric star.
+    Parameters:
+      star_type: str
+         Spectral type of your standard/telluric star
+      star_mag: float
+       Apparent magnitude of the telluric star
+      ra: str
+        Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
+      dec: str
+        Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
+    Return:
+        A dict contains the information you provided and the standard/telluric spectrum.
+    '''
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
         # Pull star spectral model from archive
@@ -306,10 +318,20 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
 
 def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BALM_MASK_WID=10., trans_thresh=0.9):
     '''
-    get couple of masks from your observed standard spectrum.
-    I give two more parameters mask_star, mask_tell which could be useful for telluric corrections
-        based on science target directly.
-    trans_thresh: parameter for selecting telluric regions.
+    Get couple of masks from your observed standard spectrum.
+    Parameters:
+      wave_star: array
+        wavelength array of your spectrum
+      flux_star: array
+        flux array of your spectrum
+      ivar_star:
+        ivar array of your spectrum
+      mask_star: bool
+        whether you need to mask Hydrogen recombination line region. If False, the returned msk_star are all good.
+      mask_tell: bool
+        whether you need to mask telluric region. If False, the returned msk_tell are all good.
+      trans_thresh: float
+        parameter for selecting telluric regions.
     returns:
         msk_bad: mask for bad pixels.
         msk_star: mask for recombination lines in star spectrum.
@@ -431,8 +453,12 @@ def get_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, msk_te
       inverse variance
     flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    inmask : ndarray
-      bspline mask
+    msk_bad : ndarray
+      mask for bad pixels. True is good.
+    msk_star: ndarray
+      mask for hydrogen recombination lines. True is good.
+    msk_tell:ndarray
+      mask for telluric regions. True is good.
     maxiter : integer
       maximum number of iterations for polynomial fit
     upper : integer
@@ -441,16 +467,13 @@ def get_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, msk_te
       number of sigma for rejection in polynomial
     poly_norder : integer
       order of polynomial fit
-    resolution: integer/float
-      spectra resolution
-    watervp: float
-      water waper when observing, default is 1.0mm.
-    trans_thresh: float
-      threshold for masking telluric region (0.0-1.0)
     BALM_MASK_WID : float
       in units of angstrom
       Mask parameter for Balmer absorption. A region equal to
       BALM_MASK_WID is masked.
+    resolution: integer/float.
+      spectra resolution
+      This paramters should be removed in the future. The resolution should be estimated from spectra directly.
     debug : bool
       if True shows some dubugging plots
 
@@ -590,7 +613,6 @@ def get_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, msk_te
             magfunc[msk_clean] = magfunc_poly[msk_clean]
             msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
             magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
-            magfunc[~magfunc_mask] = magfunc_poly[~magfunc_mask]
         else:
             ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
             msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
@@ -637,20 +659,22 @@ def extinction_correction(wave, airmass, extinct):
     if airmass < 1.:
         msgs.error("Bad airmass value in extinction_correction")
     # Interpolate
-    f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],
-                                           extinct['mag_ext'], bounds_error=False, fill_value=0.)
+    f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],extinct['mag_ext'], bounds_error=False, fill_value=0.)
     mag_ext = f_mag_ext(wave)#.to('AA').value)
 
     # Deal with outside wavelengths
     gdv = np.where(mag_ext > 0.)[0]
+
     if len(gdv) == 0:
         msgs.warn("No valid extinction data available at this wavelength range. Extinction correction not applied")
-    if gdv[0] != 0:  # Low wavelengths
+    elif gdv[0] != 0:  # Low wavelengths
         mag_ext[0:gdv[0]] = mag_ext[gdv[0]]
         msgs.warn("Extrapolating at low wavelengths using last valid value")
-    if gdv[-1] != (mag_ext.size - 1):  # High wavelengths
+    elif gdv[-1] != (mag_ext.size - 1):  # High wavelengths
         mag_ext[gdv[-1] + 1:] = mag_ext[gdv[-1]]
         msgs.warn("Extrapolating at high wavelengths using last valid value")
+    else:
+        msgs.info("Extinction data covered the whole spectra. Correct it!")
     # Evaluate
     flux_corr = 10.0 ** (0.4 * mag_ext * airmass)
     # Return
@@ -843,23 +867,24 @@ def load_filter_file(filter):
     SDSS_filters = ['SDSS-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
 
     # NIR filters
-    UKIDSS_filters = ['UKIDSS-{}'.format(i) for i in ['Y', 'J', 'H', 'K']]
+    UKIDSS_filters = ['UKIRT-{}'.format(i) for i in ['Y', 'J', 'H', 'K']]
     VISTA_filters = ['VISTA-{}'.format(i) for i in ['Z', 'Y', 'J', 'H', 'K']]
     TMASS_filters = ['TMASS-{}'.format(i) for i in ['J', 'H', 'K']]
 
     # Other filters
+    GAIA_filters = ['GAIA-{}'.format(i) for i in ['G', 'B', 'R']]
     GALEX_filters = ['GALEX-{}'.format(i) for i in ['F', 'N']]
     WISE_filters = ['WISE-{}'.format(i) for i in ['W1', 'W2', 'W3', 'W4']]
 
     allowed_options = BASS_MZLS_filters + CFHT_filters + DECAM_filters + HSC_filters \
                       + LSST_filters + PS1_filters + SDSS_filters + UKIDSS_filters\
-                      + VISTA_filters + TMASS_filters + GALEX_filters + WISE_filters
+                      + VISTA_filters + TMASS_filters + GAIA_filters + GALEX_filters + WISE_filters
 
     # Check
     if filter not in allowed_options:
         msgs.error("PypeIt is not ready for filter = {}".format(filter))
 
-    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves_20190214.fits'))
+    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves_20190215.fits'))
     trans = fits.open(trans_file)
     wave = trans[filter].data['lam']  # Angstroms
     instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
@@ -870,27 +895,6 @@ def load_filter_file(filter):
 
     # Return
     return wave, instr
-
-    '''
-    DES_filters = ['DES_{}'.format(i) for i in ['g','r','i','z','Y']]
-    allowed_options = DES_filters
-    # Check
-    if filter not in allowed_options:
-        msgs.error("PypeIt is not ready for filter = {}".format(filter))
-    #
-    if filter[0:3] == 'DES':
-        des_file = resource_filename('pypeit', os.path.join('data', 'filters', 'STD_BANDPASSES_DES_DR1.fits'))
-        des = Table.read(des_file)
-        #
-        wave = des['LAMBDA'].data  # Angstroms
-        instr = des[filter[-1]].data  # Am keeping in atmospheric terms
-        keep = instr > 0.
-        # Parse
-        wave = wave[keep]
-        instr = instr[keep]
-    else:
-        msgs.error("Should not get here")
-    '''
 
 def load_standard_file(std_dict):
     """Load standard star data
@@ -1000,7 +1004,7 @@ def scale_in_filter(xspec, scale_dict):
             wave = wave[gdp]
             flux = flux[gdp]
 
-    if ('mag_type' in scale_dict) | (scale_dict['mag_type'] is None):
+    if ('mag_type' in scale_dict) | (scale_dict['mag_type'] is not None):
         mag_type = scale_dict['mag_type']
     else:
         mag_type = 'AB'
