@@ -357,7 +357,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Define the grid for NIRES
         R = 2700.0 * 2.7
         dloglam = 1.0 / R / np.log(10.0)
-        logmin = np.log10(9500.0)
+        logmin = np.log10(9400.0)
         logmax = np.log10(26000)
         ngrid = int(np.ceil((logmax - logmin) / dloglam))
         osamp = 1.0
