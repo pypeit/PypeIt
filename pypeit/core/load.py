@@ -276,15 +276,6 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     spec : XSpectrum1D
 
     """
-    # Keywords for Table
-    rsp_kwargs = {}
-    rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
-    if flux:
-        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
-        rsp_kwargs['sig_tag'] = '{:s}_FLAM_SIG'.format(extract)
-    else:
-        rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
-        rsp_kwargs['sig_tag'] = '{:s}_COUNTS_SIG'.format(extract)
 
     # Identify extension from objname?
     if objname is not None:
@@ -294,8 +285,24 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
         if exten < 0:
             msgs.error("Bad input object name: {:s}".format(objname))
 
+    # Keywords for Table
+    rsp_kwargs = {}
+    if flux:
+        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_FLAM_SIG'.format(extract)
+    else:
+        rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_COUNTS_SIG'.format(extract)
+
+    # Use the WAVE_GRID (for 2d coadds) if it exists, otherwise use WAVE
+    rsp_kwargs['wave_tag'] = '{:s}_WAVE_GRID'.format(extract)
     # Load
-    spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
+    try:
+        spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
+    except ValueError:
+        rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
+        spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
+
     # Return
     return spec
 
