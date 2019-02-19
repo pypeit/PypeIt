@@ -617,11 +617,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     # since super high S/N and low order profile models imply we will always have large outliers
     if std is True:
         chi2_sigrej = 100.0
-        sigrej_ceil = 1e10
+        #sigrej_ceil = 1e10
         sigrej = 25.0
     else:
         chi2_sigrej = 6.0
-        sigrej_ceil = 10.0
+        #sigrej_ceil = 10.0
     # We will use this number later
     gauss_prob = 1.0 - 2.0 * ndtr(-sigrej)
 
@@ -809,7 +809,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     chi2_sigrej = chi2_srt[sigind]
                     sigrej_eff = np.fmax(np.sqrt(chi2_sigrej), sigrej)
                     #  Maximum sigrej is sigrej_ceil (unless this is a standard)
-                    sigrej_eff = np.fmin(sigrej_eff, sigrej_ceil)
+                    #sigrej_eff = np.fmin(sigrej_eff, sigrej_ceil)
                     msgs.info('Measured effective rejection from distribution of chi^2')
                     msgs.info('Instead of rejecting sigrej = {:5.2f}'.format(sigrej) +
                               ', use threshold sigrej_eff = {:5.2f}'.format(sigrej_eff))
