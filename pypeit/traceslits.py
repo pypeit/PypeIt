@@ -735,22 +735,6 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-
-    def _set_lrminx(self, orig=False):
-        """
-        Set lmin, lmax, etc.
-
-        Returns
-        -------
-        self.lmin : int (intenal)
-        self.lmax: int (intenal)
-        self.rmin : int (intenal)
-        self.rmax: int (intenal)
-
-        """
-        self.lmin, self.lmax = 0, self.lcen.shape[1]
-        self.rmin, self.rmax = 0, self.rcen.shape[1]
-
     def _trim_slits(self, trim_slits=True, plate_scale = None, ech_slit_tol = 0.3):
         """
         Trim slits
@@ -970,7 +954,8 @@ class TraceSlits(masterframe.MasterFrame):
         # Set lcen and rcen, lmin, lmax
         self.lcen = self.tc_dict['left']['traces']
         self.rcen = self.tc_dict['right']['traces']
-        self._set_lrminx()
+        self.lmin, self.lmax = 0, self.lcen.shape[1]
+        self.rmin, self.rmax = 0, self.rcen.shape[1]
         self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
 
         # Remove any slits that are completely off the detector

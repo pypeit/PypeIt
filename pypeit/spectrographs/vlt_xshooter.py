@@ -250,9 +250,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 120.
-        par['calibrations']['slits']['trace_npoly'] = 8
+        par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'order'
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  25.0
@@ -297,7 +296,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceimage']['bspline_spacing'] = 0.8
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['trace_npoly'] = 8
+        par['scienceimage']['trace_npoly'] = 5
 
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
