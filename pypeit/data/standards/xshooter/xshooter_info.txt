@@ -1,3 +1,10 @@
+#This directory contains data files for X-shooter reference
+#spectra of six selected southern standard stars. The
+#selection of the stars, measurement of their fluxes and
+#comparison to atmospheric models is presented in Moehler
+#et al. 2014, A&A, 568, 9; see also Moehler et al., 2014,
+#The Messenger, 158, 16.
+#http://www.eso.org/sci/observing/tools/standards/spectra/Xshooterspec.html
   File                Name        RA_2000    DEC_2000
 fEG274.dat           EG274     16:23:33.84 -39:13:46.2
 fFeige110.dat        Feige110  23:19:58.40 -05:09:56.2
