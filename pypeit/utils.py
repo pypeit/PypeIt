@@ -1183,8 +1183,14 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     while (not qdone) and (iIter < maxiter):
         if np.sum(thismask) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
-        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct, minx=minx, maxx=maxx,
-                      minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
+        if not np.any(thismask):
+            msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
+            if ct is None:
+                ct = np.zeros(order + 1)
+            return thismask, ct
+
+        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct,
+                      minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, x2 = x2, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
         # TODO Add nrej and nrej_tot as in robust_optimize below?
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
