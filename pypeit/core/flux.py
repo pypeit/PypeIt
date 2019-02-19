@@ -720,8 +720,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             - 'dec': str -- DEC(J2000)
     """
     # Priority
-    std_sets = [load_calspec, load_esofil]
-    std_file_fmt = [1, 2]  # 1=Calspec style FITS binary table; 2=ESO ASCII format
+    std_sets = [load_calspec, load_esofil, load_xshooter]
+    std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
@@ -954,7 +954,7 @@ def load_standard_file(std_dict):
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
         std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 2: # ESO files
+    elif (std_dict['fmt'] == 2) or (std_dict['fmt'] == 3): # ESO files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
