@@ -380,7 +380,7 @@ class MultiSlit(FluxSpec):
                                                dec=self.std_dec,
                                                std_file = self.std_file,
                                                debug=self.debug)
-        self.sens_dict[0] = sens_dict_long
+        self.sens_dict['0'] = sens_dict_long
         self.sens_dict['nslits'] = 1
 
         # Step
@@ -402,7 +402,7 @@ class MultiSlit(FluxSpec):
         self.load_objs(sci_file, std=False)
         # Run
         for sci_obj in self.sci_specobjs:
-            flux.apply_sensfunc(sci_obj, self.sens_dict[0], self.sci_header['AIRMASS'],
+            flux.apply_sensfunc(sci_obj, self.sens_dict['0'], self.sci_header['AIRMASS'],
                                 self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
                                 longitude=self.spectrograph.telescope['longitude'],
                                 latitude=self.spectrograph.telescope['latitude'])
@@ -474,7 +474,7 @@ class Echelle(FluxSpec):
                                                     poly_norder=self.poly_norder,
                                                     polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
-            self.sens_dict[iord] = sens_dict_iord
+            self.sens_dict[str(iord)] = sens_dict_iord
         ## add some keys to be saved into primary header in masterframe
         for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                     'std_name', 'cal_file']:
@@ -482,8 +482,9 @@ class Echelle(FluxSpec):
                 self.sens_dict[key] = sens_dict_iord[key]
             except:
                 pass
-        self.sens_dict['norder'] = norder
-        self.sens_dict['wave_min'] = self.sens_dict[0]['wave_min']
+        self.sens_dict['meta'] = {}
+        self.sens_dict['meta']['nslits'] = norder
+        self.sens_dict['wave_min'] = self.sens_dict['0']['wave_min']
 
         # Step
         self.steps.append(inspect.stack()[0][3])
