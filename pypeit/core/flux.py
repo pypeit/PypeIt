@@ -303,7 +303,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
 
     # Add in wavemin,wavemax
     sens_dict = {}
-    sens_dict['wave'] = wave_star
+    sens_dict['wave'] = wave_star.value
     sens_dict['sensfunc'] = sensfunc
     sens_dict['wave_min'] = np.min(wave_star)
     sens_dict['wave_max'] = np.max(wave_star)
@@ -740,7 +740,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             else:
                 # Generate a dict
                 _idx = int(idx)
-                std_dict = dict(cal_file=os.paht.join(path,star_tbl[_idx]['File']),
+                std_dict = dict(cal_file=os.path.join(path,star_tbl[_idx]['File']),
                                 name=star_tbl[_idx]['Name'], fmt=std_file_fmt[qq],
                                 std_ra=star_tbl[_idx]['RA_2000'],
                                 std_dec=star_tbl[_idx]['DEC_2000'])

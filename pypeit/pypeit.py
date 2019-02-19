@@ -86,10 +86,12 @@ class PypeIt(object):
         # Defaults
         spectrograph_def_par = self.spectrograph.default_pypeit_par()
         # Grab a science file for configuration specific parameters
+        sci_file = None
         for idx, row in enumerate(usrdata):
             if 'science' in row['frametype']:
                 sci_file = data_files[idx]
                 break
+
         # Set
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
