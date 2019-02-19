@@ -810,6 +810,27 @@ def load_esofil():
     # Return
     return esofil_path, esofil_stds
 
+def load_xshooter():
+    """
+    Load the list of ESO standards
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    esofil_path : str
+      Path from pypeitdir to calspec standard star files
+    esofil_stds : Table
+      astropy Table of the calspec standard stars (file, Name, RA, DEC)
+    """
+    # Read
+    xshooter_path = '/data/standards/xshooter/'
+    xshooter_file = resource_filename('pypeit', xshooter_path + 'xshooter_info.txt')
+    xshooter_stds = Table.read(xshooter_file, comment='#', format='ascii')
+    # Return
+    return xshooter_path, xshooter_stds
+
 def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     """
     Find the best extinction file to use, based on longitude and latitude
