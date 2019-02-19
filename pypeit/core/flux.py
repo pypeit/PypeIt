@@ -303,7 +303,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
 
     # Add in wavemin,wavemax
     sens_dict = {}
-    sens_dict['wave'] = wave_star
+    sens_dict['wave'] = wave_star.value
     sens_dict['sensfunc'] = sensfunc
     sens_dict['wave_min'] = np.min(wave_star)
     sens_dict['wave_max'] = np.max(wave_star)
