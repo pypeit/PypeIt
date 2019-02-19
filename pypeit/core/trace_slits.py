@@ -3016,7 +3016,7 @@ def tc_indices(tc_dict):
 # ToDo 1) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
-                 fwhm=3.0, sigthresh=100.0, trc_thresh=20.0, trc_median_frac=0.01, upper=2.0, lower=2.0, debug=False, fweight_boost=1.,
+                 fwhm=3.0, sigthresh=100.0, trc_thresh=5.0, trc_median_frac=0.01, upper=2.0, lower=2.0, debug=False, fweight_boost=1.,
                  maxrej=1, smash_range=(0, 1)):
     """
     Refines input trace using a PCA analysis
@@ -3063,7 +3063,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
 
     # edges_mask True = Good, Bad = False
     # filt image has left as positive, right as negative
-
+    debug=True
     nedges = edges.shape[1]
     nspec = filt_image.shape[0]
     nspat = filt_image.shape[1]
@@ -3121,7 +3121,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     for key,sign in zip(['left','right'], [1., -1.]):
         ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
             sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh=sigthresh,
-            max_frac_fwhm = 10.0, debug=debug)
+            max_frac_fwhm = 4.0*fwhm, min_pkdist_frac_fwhm=5.0*fwhm, debug=debug)
         # ToDO add error catching here if there are no peaks found!
         trace_dict[key] = {}
         trace_dict[key]['start'] = edge_start[igd]
@@ -3134,9 +3134,8 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         #bg_tmp   = extract.extract_boxcar(np.fmax(sign*filt_image, -1.0*sign), trace_crutch + sign*5.0, 3.0)
         #bg_med   = signal.medfilt(bg_tmp, kernel_size=(1,21))
         #ext_med = (flux_med - bg_med).T
-
         trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff,
-                                                       trc_inmask = (flux_med.T > trc_thresh), fwhm=fweight_boost*fwhm, niter=9)
+                                                       trc_inmask = (flux_med.T > trc_thresh), fwhm=fweight_boost*fwhm, niter=9, show_fits=True)
         trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff,
                                                        trc_inmask = (flux_med.T > trc_thresh), fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight

@@ -1292,14 +1292,14 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
             for iobj in range(nobj):
                 nomask = (tracemask1[:,iobj]==0)
                 plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label=title_text + ' Centroid')
-                plt.plot(spec_vec,xinit[:,iobj],c='g', zorder = 20, linewidth=2.0,linestyle='--', label='initial guess')
-                plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=10,linewidth = 2.0, label ='fit to trace')
+                plt.plot(spec_vec,xinit[:,iobj],c='g', zorder = 25, linewidth=2.0,linestyle='--', label='initial guess')
+                plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=30,linewidth = 2.0, label ='fit to trace')
                 if np.any(~nomask):
                     plt.plot(spec_vec[np.invert(nomask)],xfit1[np.invert(nomask),iobj], c='blue',marker='+',
                              markersize=5.0,linestyle='None',zorder= 20, label='masked points, set to init guess')
                 if np.any(~trc_inmask_out):
                     plt.plot(spec_vec[np.invert(trc_inmask_out[:,iobj])],xfit1[np.invert(trc_inmask_out[:,iobj]),iobj],
-                             c='orange',marker='s',markersize=5.0,linestyle='None',zorder= 20, label='input masked points, not fit')
+                             c='orange',marker='s',markersize=3.0,linestyle='None',zorder= 20, label='input masked points, not fit')
                 try:
                     plt.title(title_text + ' Centroid to object {:s}.'.format(idx[iobj]))
                 except TypeError:

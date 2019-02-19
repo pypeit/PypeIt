@@ -797,7 +797,7 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
 
 
 def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None, cont_subtract=True,
-                 cont_frac_fwhm=1.0, max_frac_fwhm=3.0, cont_samp=30, nonlinear_counts=1e10, niter_cont=3, nfind=None,
+                 cont_frac_fwhm=1.0, max_frac_fwhm=3.0, min_pkdist_frac_fwhm = 0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3, nfind=None,
                  verbose=False, debug=False, debug_peak_find=False):
     """
     Extract an arc down the center of the chip and identify
@@ -830,6 +830,9 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     max_frac_fwhm:  float, default = 2.5
        maximum width allowed for usable arc lines expressed relative to the fwhm.
+
+    min_pkdist_frac_fwhm: float, default = 0.75
+       minimum allowed separation between peaks expressed relative to the fwhm.
 
     cont_frac_fwhm float, default = 1.0
        width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
@@ -914,7 +917,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
         else:
             msgs.error('Unrecognized value for thresh')
         stddev = 1.0
-    pixt = detect_peaks(arc, mph=thresh, mpd=fwhm*0.75, show=debug_peak_find)
+    pixt = detect_peaks(arc, mph=thresh, mpd=fwhm*min_pkdist_frac_fwhm, show=debug_peak_find)
     nfitpix = np.round(fit_frac_fwhm*fwhm).astype(int)
     fwhm_max = max_frac_fwhm*fwhm
     tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
