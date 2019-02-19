@@ -3128,15 +3128,18 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
         trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
         msgs.info('Iteratively tracing {:s} edges'.format(key))
-        flux_tmp = extract.extract_boxcar(np.fmax(sign*filt_image, -1.0*sign), trace_crutch,  fwhm)
-        flux_med = signal.medfilt(flux_tmp, kernel_size=(1,kernel_size))
-        #bg_tmp   = extract.extract_boxcar(np.fmax(sign*filt_image, -1.0*sign), trace_crutch + sign*5.0, 3.0)
-        #bg_med   = signal.medfilt(bg_tmp, kernel_size=(1,21))
-        #ext_med = (flux_med - bg_med).T
+        # Extract a flux about the trace_crutch to mask out pixels that have no signal
+        flux_fw = extract.extract_boxcar(np.fmax(sign*filt_image, -1.0*sign), trace_crutch,  fwhm)
+        flux_fw_med = signal.medfilt(flux_fw, kernel_size=(1,kernel_size))
+        trc_inmask_fw = (flux_fw_med.T > trc_thresh) & (trace_crutch > 0) & (trace_crutch < (nspat-1))
         trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff,
-                                                       trc_inmask = (flux_med.T > trc_thresh), fwhm=fweight_boost*fwhm, niter=9)
+                                                       trc_inmask = trc_inmask_fw, fwhm=fweight_boost*fwhm, niter=9)
+        # Extract a flux about the trace_fweight to mask out pixels that have no signal
+        flux_gw = extract.extract_boxcar(np.fmax(sign*filt_image, -1.0*sign), trace_fweight,  fwhm)
+        flux_gw_med = signal.medfilt(flux_gw, kernel_size=(1,kernel_size))
+        trc_inmask_gw = (flux_gw_med.T > trc_thresh) & (trace_fweight > 0) & (trace_fweight < (nspat-1))
         trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff,
-                                                       trc_inmask = (flux_med.T > trc_thresh), fwhm=fwhm,gweight=True, niter=6)
+                                                       trc_inmask = trc_inmask_gw, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 
     color = dict(left='green', right='red')
