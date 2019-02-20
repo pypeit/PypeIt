@@ -401,7 +401,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     else:
         # Init bspline class
         sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
-                       funcname='Bspline longslit special', **kwargs_bspline)
+                                funcname='Bspline longslit special', **kwargs_bspline)
         if maskwork.sum() < sset.nord:
             msgs.warn('Number of good data points fewer than nord.')
             exit_status = 4

@@ -650,7 +650,7 @@ class TraceSlits(masterframe.MasterFrame):
                     self.siglev, slit_in, mask_in, npca=None, ncoeff=self.par['trace_npoly'],
                     pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
                     sigthresh=self.par['sigdetect'], smash_range=self.par['smash_range'],
-                    debug=debug)
+                    trc_thresh = -np.inf, debug=debug)
                 # Prep for round 2+
                 slit_in = np.append(edges_dict['left']['trace'],
                                     edges_dict['right']['trace'], axis=1)
@@ -671,8 +671,8 @@ class TraceSlits(masterframe.MasterFrame):
                                                         ncoeff=self.par['trace_npoly'],
                                                         pca_explained_var=99.8, coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
                                                         sigthresh=self.par['sigdetect'],
-                                                        smash_range=self.par['smash_range'],
-                                            debug=debug, maxrej=1)
+                                                        smash_range=self.par['smash_range'], trc_thresh=10.0,
+                                                        debug=debug, maxrej=1)
                 slit_in = trace_dict_l['left']['trace']
                 mask_in = np.ones_like(slit_in, dtype=bool)
                 iter += 1
@@ -691,7 +691,8 @@ class TraceSlits(masterframe.MasterFrame):
                 trace_dict_r = trace_slits.trace_refine(self.siglev, slit_in, mask_in, npca=None,
                                                         ncoeff=self.par['trace_npoly'], pca_explained_var=99.8,
                                                         coeff_npoly_pca=coeff_npoly_pca, fwhm=3.0,
-                                                        sigthresh=self.par['sigdetect'], debug=debug, maxrej=1)
+                                                        sigthresh=self.par['sigdetect'], trc_thresh=10.0,
+                                                        debug=debug, maxrej=1)
                 slit_in = trace_dict_r['right']['trace']
                 mask_in = np.ones_like(slit_in, dtype=bool)
                 iter += 1
