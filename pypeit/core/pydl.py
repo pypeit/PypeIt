@@ -302,7 +302,7 @@ class bspline(object):
                     else:
                         raise ValueError('No information for bkpts.')
                 # JFH added this new code, because bkpt.size = 1 implies fullbkpt has only 2*(nord-1) + 1 elements.
-                # This will cause a crash in action because nbkpt < 2*nord, i.e. for bkpt = 1, nord = 7 fullbkpt has
+                # This will cause a crash in action because nbkpt < 2*nord, i.e. for bkpt = 1, nord = 4 fullbkpt has
                 # seven elements which is less than 2*nord = 8. The codes above seem to require nbkpt >=2, so I'm implementing
                 # this requirement. Note that the previous code before this fix simply sets bkpt to bkpt[imax] =x.max()
                 # which is equally arbitrary, but still results in a crash. By requiring at least 2 bkpt, fullbkpt will
@@ -329,17 +329,25 @@ class bspline(object):
                 # bkpt to have at least two elements. Not sure why this was even allowed, since bkpt.size = 1
                 #  basically results in action crashing as described above.
                 if nshortbkpt == 1:
-                    bkspace = np.float32(bkspread)
+                    bkspace = bkspread
                 else:
-                    bkspace = (bkpt1[1] - bkpt1[0]) * np.float32(bkspread)
-                for i in np.arange(1, nord, dtype=np.float32):
+                    bkspace = (bkpt1[1] - bkpt1[0])*bkspread
+                for i in np.arange(1, nord):
                     fullbkpt1 = np.insert(fullbkpt1, 0, bkpt1[0]-bkspace*i)
                     fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
                                          bkpt1[nshortbkpt-1] + bkspace*i)
 
-            #
-            # Set the attributes
-            #
+
+            # JFH added this to fix bug in cases where fullbkpt is passed in but has < 2*nord elements
+            if fullbkpt1.size < 2*nord:
+                fullbkpt_init = fullbkpt1.copy()
+                nshortbkpt = fullbkpt_init.size
+                bkspace = (fullbkpt_init[1] - fullbkpt_init[0])*bkspread
+                for i in np.arange(1, nord):
+                    fullbkpt1 = np.insert(fullbkpt1, 0, fullbkpt_init[0] - bkspace * i)
+                    fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
+                                          fullbkpt_init[nshortbkpt - 1] + bkspace * i)
+
             nc = fullbkpt1.size - nord
             self.breakpoints = fullbkpt1
             self.nord = nord
