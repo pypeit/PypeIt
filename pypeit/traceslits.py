@@ -599,6 +599,7 @@ class TraceSlits(masterframe.MasterFrame):
         Returns:
 
         """
+        debug=True
         nspec, nspat = self.siglev.shape
 
         # Fuss with parameters here

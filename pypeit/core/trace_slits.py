@@ -3120,7 +3120,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     for key,sign in zip(['left','right'], [1., -1.]):
         ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
             sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh=sigthresh,
-            max_frac_fwhm = 4.0*fwhm, min_pkdist_frac_fwhm=5.0*fwhm, debug=debug)
+            max_frac_fwhm = 4.0, min_pkdist_frac_fwhm=5.0, debug=debug)
         # ToDO add error catching here if there are no peaks found!
         trace_dict[key] = {}
         trace_dict[key]['start'] = edge_start[igd]
