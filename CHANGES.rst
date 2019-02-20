@@ -24,6 +24,7 @@
 - Fixed and tuned up fluxing script and fluxing routines.
 - Introduce sky_sigrej parameter
 - Better handling of ManualExtraction
+- Add template for LRISr 600/5000 wavelengths
 
 
 0.9.1 (4 Feb 2019)

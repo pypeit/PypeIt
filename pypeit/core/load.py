@@ -89,7 +89,7 @@ def load_specobjs(fname,order=None):
     head0
     """
     sobjs = specobjs.SpecObjs()
-    speckeys = ['WAVE', 'WAVE_GRID','WAVE_GRID_MIN','WAVE_GRID_MAX', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG',
+    speckeys = ['WAVE', 'WAVE_GRID_MASK', 'WAVE_GRID','WAVE_GRID_MIN','WAVE_GRID_MAX', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG',
                 'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
     # sobjs_keys gives correspondence between header cards and sobjs attribute name
     sobjs_key = specobjs.SpecObj.sobjs_key()

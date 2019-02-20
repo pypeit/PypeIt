@@ -18,6 +18,28 @@ from bisect import insort, bisect_left
 from pypeit.core import pydl
 from pypeit import msgs
 
+def wavegrid(wave_min, wave_max, dwave, osamp=1.0):
+    """
+    Utility routine to generate a uniform grid of wavelengths
+    Args:
+        wave_min: float
+           Mininum wavelength. Can be in linear or log.
+        wave_max: float
+           Maximum wavelength. Can be in linear or log.
+        dwave: float
+           Delta wavelength interval
+        osamp: float
+           Oversampling factor
+
+    Returns:
+        wave_grid: float ndarray
+           Wavelength grid
+    """
+
+    ngrid = int(np.ceil((wave_max - wave_min) /dwave))
+    wave_grid = wave_min + (dwave/osamp)*np.arange(int(np.ceil(osamp*ngrid)))
+    return wave_grid
+
 
 def rebin(a, newshape):
     '''Rebin an array to a new shape using slicing. This routine is taken from:

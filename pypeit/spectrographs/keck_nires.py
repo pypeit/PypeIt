@@ -343,6 +343,14 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #binspatial, binspectral = parse.parse_binning(binning)
         return np.full(5, 0.15)
 
+
+    @property
+    def dloglam(self):
+        # This number was determined using the resolution and sampling quoted on the NIRES website
+        R = 2700.0 * 2.7
+        dloglam = 1.0 / R / np.log(10.0)
+        return dloglam
+
     # JFH This function should probably take a disperser name or something for other instruments??
     def wavegrid(self, binning=None):
         """
@@ -355,13 +363,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
 
         # Define the grid for NIRES
-        R = 2700.0 * 2.7
-        dloglam = 1.0 / R / np.log(10.0)
         logmin = np.log10(9400.0)
         logmax = np.log10(26000)
-        ngrid = int(np.ceil((logmax - logmin) / dloglam))
+        ngrid = int(np.ceil((logmax - logmin) /self.dloglam))
         osamp = 1.0
-        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+        loglam_grid = logmin + (self.dloglam /osamp)*np.arange(int(np.ceil(osamp * ngrid)))
 
         return np.power(10.0,loglam_grid)
 

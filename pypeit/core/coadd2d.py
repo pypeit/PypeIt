@@ -680,6 +680,7 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
     nused_psuedo = np.zeros(shape_psuedo, dtype=int)
     inmask_psuedo = np.zeros(shape_psuedo, dtype=bool)
     wave_mid = np.zeros((nspec_psuedo, nslits))
+    wave_mask = np.zeros((nspec_psuedo, nslits),dtype=bool)
     wave_min = np.zeros((nspec_psuedo, nslits))
     wave_max = np.zeros((nspec_psuedo, nslits))
     dspat_mid = np.zeros((nspat_psuedo, nslits))
@@ -703,6 +704,7 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
         spat_psuedo[ispec, ispat] = image_temp
         nused_psuedo[ispec, ispat] = coadd_dict['nused']
         wave_mid[ispec, islit] = coadd_dict['wave_mid']
+        wave_mask[ispec, islit] = True
         wave_min[ispec, islit] = coadd_dict['wave_min']
         wave_max[ispec, islit] = coadd_dict['wave_max']
 
@@ -711,6 +713,9 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
         slit_righ[:,islit] = np.full(nspec_psuedo, spat_righ)
         spec_max1[islit] = nspec_vec[islit]-1
         spat_left = spat_righ + nspat_pad
+
+    from IPython import embed
+    embed()
 
     slitcen = (slit_left + slit_righ)/2.0
     tslits_dict_psuedo = dict(slit_left=slit_left, slit_righ=slit_righ, slitcen=slitcen,
@@ -767,10 +772,12 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
 
     # Add the information about the fixed wavelength grid to the sobjs
     for spec in sobjs:
+        spec.boxcar['WAVE_GRID_MASK'] = wave_mask[:,spec.slitid]
         spec.boxcar['WAVE_GRID'] = wave_mid[:,spec.slitid]
         spec.boxcar['WAVE_GRID_MIN'] = wave_min[:,spec.slitid]
         spec.boxcar['WAVE_GRID_MAX'] = wave_max[:,spec.slitid]
 
+        spec.optimal['WAVE_GRID_MASK'] = wave_mask[:,spec.slitid]
         spec.optimal['WAVE_GRID'] = wave_mid[:,spec.slitid]
         spec.optimal['WAVE_GRID_MIN'] = wave_min[:,spec.slitid]
         spec.optimal['WAVE_GRID_MAX'] = wave_max[:,spec.slitid]
