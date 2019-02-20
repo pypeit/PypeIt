@@ -36,7 +36,7 @@ def wavegrid(wave_min, wave_max, dwave, osamp=1.0):
            Wavelength grid
     """
 
-    ngrid = int(np.ceil((wave_max - wave_min) /dwave))
+    ngrid = int(np.ceil((wave_max - wave_min)/dwave))
     wave_grid = wave_min + (dwave/osamp)*np.arange(int(np.ceil(osamp*ngrid)))
     return wave_grid
 

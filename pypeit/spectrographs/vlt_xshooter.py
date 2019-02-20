@@ -12,6 +12,7 @@ from astropy import units
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
+from pypeit import utils
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -501,21 +502,23 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         return slitmask
 
 
-
     @property
     def dloglam(self):
         # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
         # loglam across the orders deviates from this value by +-6% from this first to final order
         return 1.93724e-5
 
-    def wavegrid(self, binning=None):
+    @property
+    def loglam_minmax(self):
+        return np.log10(9500.0), np.log10(26000)
+
+    def wavegrid(self, binning=None, midpoint=False):
 
         # Define the grid for VLT-XSHOOTER NIR
-        logmin = np.log10(9500.0)
-        logmax = np.log10(26000)
-        ngrid = int(np.ceil((logmax - logmin) /self.dloglam))
-        osamp = 1.0
-        loglam_grid = logmin + (self.dloglam/osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+        logmin, logmax = self.loglam_minmax
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
+        if midpoint:
+            loglam_grid = loglam_grid + self.dloglam/2.0
 
         return np.power(10.0,loglam_grid)
 

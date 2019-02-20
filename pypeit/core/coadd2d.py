@@ -646,6 +646,7 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
 
     # Grab the wavelength grid that we will rectify onto
     wave_grid = spectrograph.wavegrid()
+    wave_grid_mid = spectrograph.wavegrid(midpoint=True)
 
     coadd_list = []
     nspec_vec = np.zeros(nslits,dtype=int)
@@ -690,6 +691,9 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
     slit_righ = np.zeros((nspec_psuedo, nslits))
     spec_min1 = np.zeros(nslits)
     spec_max1 = np.zeros(nslits)
+
+
+
     for islit, coadd_dict in enumerate(coadd_list):
         spat_righ = spat_left + nspat_vec[islit]
         ispec = slice(0,nspec_vec[islit])
@@ -703,10 +707,15 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
         image_temp = (coadd_dict['dspat'] -  coadd_dict['dspat_mid'][0] + spat_left)*coadd_dict['outmask']
         spat_psuedo[ispec, ispat] = image_temp
         nused_psuedo[ispec, ispat] = coadd_dict['nused']
-        wave_mid[ispec, islit] = coadd_dict['wave_mid']
-        wave_mask[ispec, islit] = True
         wave_min[ispec, islit] = coadd_dict['wave_min']
         wave_max[ispec, islit] = coadd_dict['wave_max']
+        wave_mid[ispec, islit] = coadd_dict['wave_mid']
+        wave_mask[ispec, islit] = True
+        # Fill in the rest of the wave_mid with the corresponding points in the wave_grid
+        wave_this = wave_mid[wave_mask[:,islit], islit]
+        ind_upper = np.argmin(np.abs(wave_grid_mid - np.max(wave_this.max()))) + 1
+        if nspec_vec[islit] != nspec_psuedo:
+            wave_mid[nspec_vec[islit]:, islit] = wave_grid_mid[ind_upper:ind_upper + (nspec_psuedo-nspec_vec[islit])]
 
         dspat_mid[ispat, islit] = coadd_dict['dspat_mid']
         slit_left[:,islit] = np.full(nspec_psuedo, spat_left)
@@ -714,8 +723,6 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
         spec_max1[islit] = nspec_vec[islit]-1
         spat_left = spat_righ + nspat_pad
 
-    from IPython import embed
-    embed()
 
     slitcen = (slit_left + slit_righ)/2.0
     tslits_dict_psuedo = dict(slit_left=slit_left, slit_righ=slit_righ, slitcen=slitcen,
