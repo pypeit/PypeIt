@@ -645,7 +645,8 @@ class FluxCalibrationPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 star_type=None, star_mag=None, multi_det=None, telluric=None, poly_norder=None, polycorrect=None):
+                 telluric_correct=None, star_type=None, star_mag=None, multi_det=None, telluric=None,
+                 poly_norder=None, polycorrect=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -684,6 +685,12 @@ class FluxCalibrationPar(ParSet):
                                    'extinction correct the data below 10000A. Note that this correction makes no ' \
                                    'sense if one is telluric correcting and this shold be set to False'
 
+
+        defaults['telluric_correct'] = False
+        dtypes['telluric_correct'] = bool
+        descr['telluric_correct'] = "If telluric_correct=True the code will grab the sens_dict['telluric'] tag from the " \
+                                    "sensfunc dictionary and apply it to the data."
+
         defaults['telluric'] = False
         dtypes['telluric'] = bool
         descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
@@ -714,7 +721,7 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'std_file', 'std_obj_id',
+        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
                    'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect']
         kwargs = {}
         for pk in parkeys:

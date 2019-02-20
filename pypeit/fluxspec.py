@@ -403,7 +403,8 @@ class MultiSlit(FluxSpec):
         # Run
         for sci_obj in self.sci_specobjs:
             flux.apply_sensfunc(sci_obj, self.sens_dict['0'], self.sci_header['AIRMASS'],
-                                self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
+                                self.sci_header['EXPTIME'], telluric_correct=self.par['telluric_correct'],
+                                extinct_correct=self.par['extinct_correct'],
                                 longitude=self.spectrograph.telescope['longitude'],
                                 latitude=self.spectrograph.telescope['latitude'])
         self.steps.append(inspect.stack()[0][3])

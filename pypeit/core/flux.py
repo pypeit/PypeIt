@@ -33,8 +33,8 @@ MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
-def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
-                   extinct_correct=True, longitude=None, latitude=None):
+def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
+                   longitude=None, latitude=None):
     """ Apply the sensitivity function to the data
     We also correct for extinction.
 
@@ -67,13 +67,17 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime,
             wave = np.copy(np.array(extract['WAVE']))
         wave_sens = sens_dict['wave']
         sensfunc = sens_dict['sensfunc'].copy()
-        # Is there a separate telluric key in this dict, if so sensfunc and telluric were computed separately
-        try:
-            telluric = sens_dict['telluric']
-        except KeyError:
-            pass
-        else:
-            sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
+
+        # Did the user request a telluric correction from the same file?
+        if telluric_correct:
+            # This assumes there is a separate telluric key in this dict.
+            try:
+                telluric = sens_dict['telluric']
+            except KeyError:
+                msgs.error('The sens_dict does not contain a telluric correction')
+            else:
+                msgs.info('Applying telluric correction')
+                sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
 
         sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
 
