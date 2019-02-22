@@ -10,6 +10,7 @@
 - Generated a new spectrograph child for LRISr in long-slit read-out mode (only 2 amps, 1 per detector)
 - Require astropy >=3.1  [required for coadding at the least]
 - Add template for LRISr 600/5000 wavelengths
+- PYDL LICENSE and licenses folder
 
 
 0.9.1 (4 Feb 2019)
