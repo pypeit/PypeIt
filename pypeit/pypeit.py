@@ -74,7 +74,8 @@ class PypeIt(object):
                  show=False, redux_path=None):
 
         # Load
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file, runtime=True)
+        cfg_lines, data_files, frametype, usrdata, setups \
+                = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
 
         # Spectrograph
@@ -83,15 +84,13 @@ class PypeIt(object):
         self.spectrograph = load_spectrograph(spectrograph_name)
 
         # Par
-        # Defaults
-        spectrograph_def_par = self.spectrograph.default_pypeit_par()
         # Grab a science file for configuration specific parameters
         for idx, row in enumerate(usrdata):
             if 'science' in row['frametype']:
                 sci_file = data_files[idx]
                 break
         # Set
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
         # Fitstbl

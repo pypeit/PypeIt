@@ -392,21 +392,29 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return par
 
-    def config_specific_par(self, par, scifile):
+    def config_specific_par(self, scifile, inp_par=None):
         """
-        Set par values according to the specific frame
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
 
-        Here, we only fuss with parameters related to CR rejection
+        .. todo::
+            Document the changes made!
 
         Args:
-            par:  ParSet
-            scifile: str
-              Name of the science file to use
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
 
         Returns:
-            par
-
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
         """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
@@ -593,21 +601,29 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
         return par
 
-    def config_specific_par(self, par, scifile):
+    def config_specific_par(self, scifile, inp_par=None):
         """
-        Set par values according to the specific frame
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
 
-        Here, we only fuss with parameters related to CR rejection
+        .. todo::
+            Document the changes made!
 
         Args:
-            par:  ParSet
-            scifile: str
-              Name of the science file to use
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
 
         Returns:
-            par
-
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
         """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+
         # Lacosmic CR settings
         #   Grab the defaults for LRISr
         binning = self.get_meta_value(scifile, 'binning')
