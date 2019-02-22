@@ -106,7 +106,7 @@ def test_load_vlt_xshooter_vis():
 
     root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER')
     files = [ os.path.join(root, 'VIS_1x1/XSHOO.2010-04-28T05:34:37.853.fits.gz'),
-              os.path.join(root, 'VIS_1x2/XSHOO.2016-08-02T08:45:46.510.fits.gz'),
+              os.path.join(root, 'VIS_2x1/XSHOO.2016-08-02T08:45:46.510.fits.gz'),
               os.path.join(root, 'VIS_2x2/XSHOO.2016-10-08T00:51:04.703.fits.gz') ]
 
     proc = ProcessImages('vlt_xshooter_vis', par, None)

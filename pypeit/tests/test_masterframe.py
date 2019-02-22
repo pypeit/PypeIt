@@ -21,8 +21,8 @@ def test_master_name():
     for isuff,itype in zip(suff,types):
         if itype == 'wv_calib':
             exten = '.json'
-        elif itype == 'trace':
-            exten = ''
+#        elif itype == 'trace':
+#            exten = ''
         else:
             exten = '.fits'
         assert masterframe.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01{:s}'.format(isuff,exten)

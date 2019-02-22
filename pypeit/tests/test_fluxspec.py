@@ -31,6 +31,7 @@ def deimos_files():
                          'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')]
 
 
+# TODO: These aren't in the current Cooked
 @pytest.fixture
 @dev_suite_required
 def kast_blue_files():
