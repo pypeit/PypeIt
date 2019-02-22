@@ -184,7 +184,7 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
 def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,orderscale='median',mergeorder=True,
               wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
               scale_method='auto', do_offset=False, sigrej_final=3.,do_var_corr=False,
-              SN_MIN_MEDSCALE = 0.5, overlapfrac = 0.03, num_min_pixels=50,phot_scale_dicts=None,
+              SN_MIN_MEDSCALE = 0.5, overlapfrac = 0.01, num_min_pixels=10,phot_scale_dicts=None,
               qafile=None, outfile=None,do_cr=True, debug=False,**kwargs):
     """
     routines for coadding spectra observed with echelle spectrograph.
