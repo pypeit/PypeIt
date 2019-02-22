@@ -16,7 +16,6 @@ from astropy.extern.six import string_types
 """This module corresponds to the image directory in idlutils.
 """
 
-
 def djs_maskinterp1(yval, mask, xval=None, const=False):
     """Interpolate over a masked, 1-d array.
 
