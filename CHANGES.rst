@@ -15,6 +15,7 @@
   mode (only 2 amps, 1 per detector)
 - Require astropy >=3.1  [required for coadding at the least]
 - Add template for LRISr 600/5000 wavelengths
+- PYDL LICENSE and licenses folder
 - Streamline some of the instantiation at the beginning of
   PypeIt.__init__.
     - Moves the call to default_pypeit_par into config_specific_par.
