@@ -107,13 +107,6 @@ class PypeIt(object):
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
 
-#        if 'setup' not in self.fitstbl.keys():
-#            self.fitstbl['setup'] = setups[0]
-#        self.fitstbl.get_frame_types(user=frametype)  # This sets them using the user inputs
-#        self.fitstbl.set_defaults()  # Only does something if values not set in PypeIt file
-#        self.fitstbl._set_calib_group_bits()
-#        self.fitstbl._check_calib_groups()
-
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)

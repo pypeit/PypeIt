@@ -428,13 +428,11 @@ class PypeItSetup(object):
         # Assign frames to calibration groups
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
-        # Set default comb_id (only done if needed)
-#        self.fitstbl.set_defaults()
+        # Set default comb_id
         self.fitstbl.set_combination_groups()
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)
-        #self.fitstbl.calib_to_science()
         self.fitstbl['failures'] = False                    # TODO: placeholder
 
         if setup_only:

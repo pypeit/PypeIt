@@ -1310,23 +1310,6 @@ class PypeItMetaData:
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
 
-#    def set_defaults(self):
-#        """
-#        Set default values for comb_id and calib
-#        columns of the fitstbl
-#
-#        self.table is modified in place
-#
-#        """
-#        # Set comb_id
-#        if not np.any(self['comb_id'] >= 0):
-#            sci_std_idx = np.where(np.any([self.find_frames('science'),
-#                                           self.find_frames('standard')], axis=0))[0]
-#            self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
-#        # calib
-#        if 'calib' not in self.keys():
-#            self['calib'] = str(0)
-
     def write_setups(self, ofile, overwrite=True, ignore=None):
         """
         Write the *.setups file.
