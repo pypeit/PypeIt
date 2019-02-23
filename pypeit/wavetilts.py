@@ -350,7 +350,7 @@ class WaveTilts(masterframe.MasterFrame):
             spat_order = hdu[3].data
             spec_order = hdu[4].data
             tilts_dict = {'tilts':tilts, 'coeffs':coeffs, 'slitcen':slitcen,
-                          'func2d':hdu[1].header['FUNC2D'], 'nslit':hdu[1].header['NSLIT'],
+                          'func2d':hdu[0].header['FUNC2D'], 'nslit':hdu[0].header['NSLIT'],
                           'spat_order':spat_order, 'spec_order':spec_order}
             return tilts_dict, head0
 
