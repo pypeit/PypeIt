@@ -54,14 +54,4 @@ def test_findobj():
     #assert mtch_obj2[0] == 'O968-S5387-D01-I0026'
 
 
-def test_instr_config():
-    # Make dummy fitsdict
-    fitsdict = {'slitwid': [0.5], 'dichroic': ['d55'],
-                 'dispname': ['B600/400'], 'dispangle': [11000.]}
-    fitstbl = Table(fitsdict)
-    det, scidx = 1, 0
-    #
-    config = specobjs.instconfig(fitstbl[scidx])
-    # Test
-    assert config == 'S05-D55-G600400-T110000-B11'
 

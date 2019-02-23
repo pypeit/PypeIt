@@ -23,55 +23,44 @@ import copy
 class WaveTilts(masterframe.MasterFrame):
     """Class to guide slit/order tracing
 
-    Parameters
-    ----------
-    msarc : ndarray
-      Arc image
-    tslits_dict : dict
-      Input from TraceSlits
-    settings_det : dict
-      Detector settings -- Needed for arc line saturation
-    det : int
-      Detector index
-    settings : dict
-      Tilts settings
+    Args:
+        msarc (ndarray): Arc image
+        tslits_dict (dict): dict from TraceSlits class (e.g. slitpix)
+        par (:class:`pypeit.par.pypeitpar.WaveTiltsPar`):
+            The parameters used to fuss with the tilts
+        wavepar (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
+            The parameters used for the wavelength solution
+        det (int): Detector index
 
-    Attributes
-    ----------
-    frametype : str
-      Hard-coded to 'tilts'
-    steps : list
-    mask : ndarray, bool
-      True = Ignore this slit
-    all_trcdict : list of dict
-      All trace dict's
-    tilts : ndarray
-      Tilts for a single slit/order
-    all_ttilts : list of tuples
-      Tuple of tilts ndarray's
-    final_tilts : ndarray
-      Final tilts image
+    Attributes:
+        frametype : str
+          Hard-coded to 'tilts'
+        steps : list
+        mask : ndarray, bool
+          True = Ignore this slit
+        all_trcdict : list of dict
+          All trace dict's
+        tilts : ndarray
+          Tilts for a single slit/order
+        all_ttilts : list of tuples
+          Tuple of tilts ndarray's
+        final_tilts : ndarray
+          Final tilts image
 
     """
     
     # Frametype is a class attribute
     frametype = 'tilts'
 
-    def __init__(self, msarc, tslits_dict, binning = None, spectrograph=None, par=None, wavepar = None, det=1,
+    def __init__(self, msarc, tslits_dict, spectrograph, par, wavepar, det=1,
                  master_key=None, master_dir=None, reuse_masters=False, redux_path=None, bpm=None):
 
-        # Instantiate the spectograph
-        # TODO: (KBW) Do we need this?  It's only used to get the
-        # non-linear counts and the name of the master directory
-
-        self.spectrograph = load_spectrograph(spectrograph)
-        self.par = pypeitpar.WaveTiltsPar() if par is None else par
-        self.wavepar = pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
-        self.binning = binning
+        self.spectrograph = spectrograph
+        self.par = par # pypeitpar.WaveTiltsPar() if par is None else par
+        self.wavepar = wavepar # pypeitpar.WavelengthSolutionPar() if wavepar is None else wavepar
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir=master_dir, reuse_masters=reuse_masters)
-
+                                         master_dir, reuse_masters=reuse_masters)
 
         # Parameters (but can be None)
         self.msarc = msarc
@@ -80,7 +69,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Optional parameters
         self.det = det
         self.redux_path = redux_path
-        # TODO this code is duplicated verbatim in wavetilts. Should it be a function
+        #
         if self.spectrograph.detector is not None:
             self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
         else:
@@ -109,8 +98,6 @@ class WaveTilts(masterframe.MasterFrame):
             self.slitmask = None
             self.inmask = None
 
-
-
         # Key Internals
         self.mask = None
         self.all_trace_dict = [None]*self.nslits
@@ -130,21 +117,38 @@ class WaveTilts(masterframe.MasterFrame):
 
         Wrapper to arc.get_censpec()
 
-        Returns
-        -------
-        (self.arccen, self.arc_maskslit_
-           self.arccen: ndarray, (nspec, nslit)
-              arc spectrum for all slits
-            self.arc_maskslit: ndarray, bool (nsit)
-              boolean array containing a mask indicating which slits are good
+        Args:
+            slitcen (ndarray): Image for tracing
+            slitmask (ndarray):
+            msarc (ndarray):
+            inmask (ndarray):
+
+        Returns:
+            ndarray, ndarray:  Extracted arcs
 
         """
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask = inmask, nonlinear_counts=self.nonlinear_counts)
+        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc,
+                                               inmask=inmask, nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
 
     def find_lines(self, arcspec, slit_cen, slit, debug=False):
+        """
+        Find the lines for tracing
+
+        Wrapper to tracewave.tilts_find_lines()
+
+        Args:
+            arcspec:
+            slit_cen:
+            slit (int):
+            debug:
+
+        Returns:
+            ndarray, ndarray:  Spectral, spatial positions of lines to trace
+
+        """
 
 
         if self.par['idsonly'] is not None:
@@ -167,18 +171,15 @@ class WaveTilts(masterframe.MasterFrame):
 
     def fit_tilts(self, trc_tilt_dict, thismask, slit_cen, spat_order, spec_order, slit, show_QA=False, doqa=True, debug=False):
         """
+        Fit the tilts
 
         Args:
-            trc_tilt_dict: dict
-                Contains information from tilt tracing
-            slit_cen: ndarray (nspec,)
-                Central trace for this slit
-            spat_order: int,
-                Order of the 2d polynomial fit for the spatial direction
-            spec_order: int,
-                Order of the 2d polytnomial fit for the spectral direction
-            slit: int,
-                integer index for the slit in question
+            trc_tilt_dict (dict): Contains information from tilt tracing
+            slit_cen (ndarray): (nspec,) Central trace for this slit
+            spat_order (int): Order of the 2d polynomial fit for the spatial direction
+            spec_order (int): Order of the 2d polytnomial fit for the spectral direction
+            slit (int): integer index for the slit in question
+
         Optional Args:
             show_QA: bool, default = False
                 show the QA instead of writing it out to the outfile
@@ -215,26 +216,21 @@ class WaveTilts(masterframe.MasterFrame):
 
     def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
         """
+        Trace the tilts
 
-        Args
-        ----------
-        arcimg: ndarray (nspec, nspat)
-           Arc image
-        lines_spec: ndarray (nlines)
-           Array containing the spectral pixel location of each line found for this slit
-        lines_spat: ndarray (nlines)
-           Array containing the spatial pixel location of each line, which is the slitcen evaluate at the spectral position position
-           of the line stored in lines_spec
-        thismask: ndarray, (nspec, nspat), type=bool
-           Image indicating which pixels lie on the slit in equation. True = on the slit. False = not on slit
-        slit : int
-           Itegner index indicating the slit in question
+        Args:
+            arcimg (ndarray): (nspec, nspat) Arc image
+            lines_spec (ndarray): (nlines) Array containing the spectral pixel location of each line found for this slit
+            lines_spat (ndarray): (nlines)
+               Array containing the spatial pixel location of each line, which is the slitcen evaluate at the spectral position position
+               of the line stored in lines_spec
+            thismask (ndarray): (nspec, nspat), type=bool
+               Image indicating which pixels lie on the slit in equation. True = on the slit. False = not on slit
+            slit (int): Integer index indicating the slit in question
 
 
-        Returns
-        -------
-        trace_dict : dict
-           Dictionary containing informatin on the traced tilts required to fit the filts.
+        Returns:
+            dict: Dictionary containing informatin on the traced tilts required to fit the filts.
 
         """
 
@@ -262,19 +258,15 @@ class WaveTilts(masterframe.MasterFrame):
                  iii.  2D Fit to the offset from slitcen
                  iv. Save
 
-            Parameters
-            ----------
-            maskslits : ndarray (bool), optional
-            doqa : bool
-            wv_calib : dict
-            gen_satmask : bool, optional
-              Generate a saturation mask?
+        Keyword Args:
+            maskslits (ndarray of bool, optional):
+            doqa (bool):
+            show (bool):
 
-            Returns
-            -------
-            self.final_tilts
-            maskslits
-            """
+        Returns:
+            dict, ndarray:  Tilts dict and maskslits array
+
+        """
 
         if maskslits is None:
             maskslits = np.zeros(self.nslits, dtype=bool)
@@ -327,7 +319,19 @@ class WaveTilts(masterframe.MasterFrame):
                            'nslit': self.nslits, 'spat_order': self.spat_order, 'spec_order': self.spec_order}
         return self.tilts_dict, maskslits
 
-    def load_master(self, filename, exten = 0, force = False):
+    def load_master(self, filename, exten=0, force=False):
+        """
+        Load the master frame
+
+        Args:
+            filename (str):  Master file
+            exten (int, optinal):
+            force (bool, optional):
+
+        Returns:
+            dict:  Tilts dict
+
+        """
 
 
         # Does the master file exist?
@@ -352,14 +356,14 @@ class WaveTilts(masterframe.MasterFrame):
 
     def save_master(self, tilts_dict, outfile=None, steps=None, overwrite=True):
         """
+        Save the tilts dict to a MasterFile
 
-        Parameters
-        ----------
-        outfile
-        use_tilts_as_final
+        Args:
+            tilts_dict (dict):  To be saved
+            outfile (str):
 
-        Returns
-        -------
+        Returns:
+
         """
 
 
@@ -394,8 +398,19 @@ class WaveTilts(masterframe.MasterFrame):
         hdulist.writeto(_outfile, clobber=True)
 
     def _parse_param(self, par, key, slit):
+        """
+        Grab a parameter for a given slit
 
-        # Find good lines for the tilts
+        Args:
+            par (ParSet):
+            key (str):
+            slit (int):
+
+        Returns:
+            object:  Value of the parameter
+
+        """
+
         param_in = par[key]
         if isinstance(param_in, (float, int)):
             param = param_in
@@ -495,22 +510,4 @@ class WaveTilts(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-
-
-#    def _qa(self, slit):
-#        """
-#        QA
-#          Wrapper to traceslits.slit_trace_qa()
-#
-#        Parameters
-#        ----------
-#        slit : int
-#
-#        Returns
-#        -------
-#
-#        """
-#        self.tiltsplot, self.ztilto, self.xdat = tracewave.prep_tilts_qa(
-#            self.msarc, self.all_ttilts[slit], self.tilts, self.all_trcdict[slit]['arcdet'],
-#            self.pixcen, slit)
 

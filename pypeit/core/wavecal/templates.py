@@ -305,6 +305,16 @@ def main(flg):
         build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles)
 
+    if flg & (2**12):  # R600/5000
+        # slits = [1-4]  # 5080 -- 7820
+        # slits = [1-7]  # 7820 -- 9170
+        binspec = 2
+        outroot='keck_lris_red_600_5000.fits'
+        slits = [4, 7]
+        lcut = [7820.]
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_5000', 'MasterWaveCalib_B_1_01.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+
 
 # Command line execution
 if __name__ == '__main__':
@@ -324,11 +334,12 @@ if __name__ == '__main__':
     # Keck/DEIMOS
     #flg += 2**7  # 600
     #flg += 2**8  # 830G
-    flg += 2**9  # 1200
+    #flg += 2**9  # 1200
 
     # Keck/LRISr
     #flg += 2**10  # R400
     #flg += 2**11  # R1200
+    flg += 2**12  # R600/5000
 
     # Shane/Kastr
     #  Need several arcs to proceed this way
