@@ -1,4 +1,29 @@
-""" Module to define the Spectrograph class
+"""
+Defines the abstract `Spectrograph` class, which is the parent class for
+all instruments served by PypeIt.
+
+The key functionality of this base class and its derived classes are to
+provide instrument-specific:
+    - file I/O routines
+    - detector properties (see
+      :class:`pypeit.par.pypeitpar.DetectorPar`)
+    - telescope properties (see
+      :class:`pypeit.par.pypeitpar.TelescopePar`)
+    - fits header keywords that are collated and injested into PypeIt's
+      metadata table that it uses throughout the reduction
+    - header keyword values to check to confirm a fits file has been
+      taken with the selected instrument
+    - default methods for automatically determining the type of each
+      exposure that PypeIt was asked to reduce
+    - header keywords to use when matching calibration frames to science
+      frames
+    - methods used to generate and/or read bad-pixel masks for an
+      exposure
+    - default parameters for PypeIt's algorithms
+    - method to access an archival sky spectrum
+
+
+
 """
 from __future__ import absolute_import, division, print_function
 
@@ -23,7 +48,8 @@ from pypeit import debugger
 
 class Spectrograph(object):
     """
-    Generic class for spectrograph-specific codes
+    Abstract class whose derived classes dictate instrument-specific
+    behavior in PypeIt.
 
     Attributes:
         spectrograph (str):

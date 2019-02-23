@@ -108,7 +108,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         for a given reduction.
 
         Returns:
-
             list: List of keywords of data pulled from file headers and
             used to constuct the :class:`pypeit.metadata.PypeItMetaData`
             object.
