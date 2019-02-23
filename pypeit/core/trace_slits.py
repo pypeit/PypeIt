@@ -11,6 +11,7 @@ import numpy as np
 
 from scipy import ndimage
 from scipy.special import erf
+from scipy import signal
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
@@ -3012,11 +3013,10 @@ def tc_indices(tc_dict):
     return left_idx, left_xval, right_idx, right_xval
 
 
-# ToDo 1) Add code to analyze the extracted filt_mean spectra to determine when the ordres are shorter.
-# ToDo 2) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
+# ToDo 1) Add an option where the user specifies the number of slits, and so it takes only the highest peaks
 # from detect_lines
 def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_explained_var = 99.8, coeff_npoly_pca = 3,
-                 fwhm=3.0, sigthresh=100.0, upper=2.0, lower=2.0, debug=False, fweight_boost=1.,
+                 fwhm=3.0, sigthresh=100.0, trc_thresh=10.0, trc_median_frac=0.01, upper=2.0, lower=2.0, debug=False, fweight_boost=1.,
                  maxrej=1, smash_range=(0, 1)):
     """
     Refines input trace using a PCA analysis
@@ -3027,7 +3027,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         edges: ndarray
           Current set of edges
         edges_mask: ndarray
-          Mask, o fedges;  1 = Good
+          Mask, of edges;  1 = Good
         ncoeff: int, optional
           Order of polynomial for fits
         npca: int, optional
@@ -3037,8 +3037,13 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         coeff_npoly_pca: int, optional
         fwhm: float, optional
           Size used for tracing (fweight and gweight)
-        sigthresh: float, optional
+        trc_thresh: float, optional
+          Threshold for masking pixels when the tracing is done with iter_tracefit. Basically we extract the filt_image
+          with a boxcar extraction, median filter it with a kernel that is trc_median_frac*nspec, and then mask all pixels
+          which have an extracted value < trc_thresh in the fitting.
+        fit: float, optional
           Threshold for an edge to be included
+
         upper: float, optional
         lower: float, optional
         debug:
@@ -3058,7 +3063,6 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
 
     # edges_mask True = Good, Bad = False
     # filt image has left as positive, right as negative
-
     nedges = edges.shape[1]
     nspec = filt_image.shape[0]
     nspat = filt_image.shape[1]
@@ -3110,11 +3114,13 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
 
     # Perform initial finding with a very liberal threshold
     # Put in Gaussian smoothing here?
+
+    kernel_size = int(np.ceil(nspec*trc_median_frac)//2 * 2 + 1)  # This ensure kernel_size is odd
     trace_dict = {}
     for key,sign in zip(['left','right'], [1., -1.]):
         ypeak, _, edge_start, sigma_pk, _, igd, _, _ = arc.detect_lines(
             sign*filt_smash_mean, cont_subtract=False, fwhm=fwhm, input_thresh=sigthresh,
-            max_frac_fwhm = 10.0, debug=debug)
+            max_frac_fwhm = 4.0, min_pkdist_frac_fwhm=5.0, debug=debug)
         # ToDO add error catching here if there are no peaks found!
         trace_dict[key] = {}
         trace_dict[key]['start'] = edge_start[igd]
@@ -3122,8 +3128,18 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
         msgs.info('Found {:d} {:s} slit edges'.format(len(edge_start[igd]),key))
         trace_crutch = trace_model[:, np.round(edge_start[igd]).astype(int)]
         msgs.info('Iteratively tracing {:s} edges'.format(key))
-        trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff, fwhm=fweight_boost*fwhm, niter=9)
-        trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff, fwhm=fwhm,gweight=True, niter=6)
+        # Extract a flux about the trace_crutch to mask out pixels that have no signal
+        flux_fw = extract.extract_boxcar(np.fmax(sign*filt_image, -1.0*sign), trace_crutch,  fwhm)
+        flux_fw_med = signal.medfilt(flux_fw, kernel_size=(1,kernel_size))
+        trc_inmask_fw = (flux_fw_med.T > trc_thresh) & (trace_crutch > 0) & (trace_crutch < (nspat-1))
+        trace_fweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_crutch, ncoeff,
+                                                       trc_inmask = trc_inmask_fw, fwhm=fweight_boost*fwhm, niter=9)
+        # Extract a flux about the trace_fweight to mask out pixels that have no signal
+        flux_gw = extract.extract_boxcar(np.fmax(sign*filt_image, -1.0*sign), trace_fweight,  fwhm)
+        flux_gw_med = signal.medfilt(flux_gw, kernel_size=(1,kernel_size))
+        trc_inmask_gw = (flux_gw_med.T > trc_thresh) & (trace_fweight > 0) & (trace_fweight < (nspat-1))
+        trace_gweight, _, _, _ = extract.iter_tracefit(np.fmax(sign*filt_image, -1.0*sign), trace_fweight, ncoeff,
+                                                       trc_inmask = trc_inmask_gw, fwhm=fwhm,gweight=True, niter=6)
         trace_dict[key]['trace'] = trace_gweight
 
     color = dict(left='green', right='red')

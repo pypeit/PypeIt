@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 
 import glob
-
+import os
 import numpy as np
 from astropy.io import fits
 
@@ -51,6 +51,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRATING')
         self.meta['dispangle'] = dict(ext=0, card='CENTWAVE', rtol=1e-5)
+        self.meta['dichroic'] = dict(ext=0, card='FILTER1')
+
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -64,7 +66,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         """
         if meta_key == 'binning':
-            binspatial, binspec = parse.parse_binning(headarr[0]['CCDSUM'])
+            binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
 
@@ -97,13 +99,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'OBJECT')
+            return good_exp & (fitstbl['target'] != 'CuAr') & (fitstbl['target'] != 'GCALflat') & (fitstbl['target'] != 'Bias')
+            #& (fitstbl['idname'] == 'OBJECT')
         if ftype == 'arc':
-            return good_exp & (fitstbl['idname'] == 'ARC')
+            return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
         if ftype == 'pixelflat' or ftype == 'trace':
-            return good_exp & (fitstbl['idname'] == 'FLAT')
+            return good_exp & (fitstbl['target'] == 'GCALflat')#& (fitstbl['idname'] == 'FLAT')
         if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'BIAS')
+            return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -116,7 +119,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 20.
-        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['trace_npoly'] = 3
         # TODO: No longer a parameter
 #        par['calibrations']['slits']['fracignore'] = 0.02
         par['calibrations']['slits']['pcapar'] = [3,2,1,0]
@@ -181,7 +184,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -200,10 +203,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         is defined directly.
 
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`):
+                String providing the file name to read.  Unlike the base
+                class, a file name *must* be provided.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
                 The section to return.  Should be either datasec or
                 oscansec, according to the :class:`DetectorPar`
@@ -217,7 +221,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             their order transposed.
         """
         # Read the file
-        temp, head0, secs = read_gmos(filename, det=det)
+        if inp is None:
+            msgs.error('Must provide Gemini GMOS file to get image section.')
+        elif not os.path.isfile(inp):
+            msgs.error('File {0} does not exist!'.format(inp))
+        temp, head0, secs = read_gmos(inp, det=det)
         if section == 'datasec':
             return secs[0], False, False, False
         elif section == 'oscansec':

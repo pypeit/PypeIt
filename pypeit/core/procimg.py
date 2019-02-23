@@ -10,6 +10,7 @@ from pypeit import utils
 from pypeit.core import parse
 
 
+from pypeit import debugger
 
 
 # TODO: Add sigdev to the high-level parameter set so that it can be
@@ -215,24 +216,33 @@ def sn_frame(slf, sciframe, idx):
 def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
-    settings_det : settings.spect[dnum]
-      Detector info
-
     Identify cosmic rays using the L.A.Cosmic algorithm
     U{http://www.astro.yale.edu/dokkum/lacosmic/}
     (article : U{http://arxiv.org/abs/astro-ph/0108003})
     This routine is mostly courtesy of Malte Tewes
 
-    :param grow: Once CRs are identified, grow each CR detection by all pixels within this radius
-    :return: mask of cosmic rays (0=no CR, 1=CR)
+    Args:
+        det:
+        sciframe:
+        saturation:
+        nonlinear:
+        varframe:
+        maxiter:
+        grow:
+        remove_compact_obj:
+        sigclip:
+        sigfrac:
+        objlim:
+
+    Returns:
+        ndarray: mask of cosmic rays (0=no CR, 1=CR)
+
     """
+
     dnum = parse.get_dnum(det)
 
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 #    msgs.work("Include these parameters in the settings files to be adjusted by the user")
-#    sigclip = 5.0
-#    sigfrac = 0.3
-#    objlim  = 5.0
     # Set the settings
     scicopy = sciframe.copy()
     crmask = np.cast['bool'](np.zeros(sciframe.shape))
@@ -254,7 +264,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     for i in range(1, maxiter+1):
         msgs.info("Convolving image with Laplacian kernel")
         # Subsample, convolve, clip negative values, and rebin to original size
-        #set_trace()
         subsam = utils.subsample(scicopy)
         conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
         cliped = conved.clip(min=0.0)
@@ -302,12 +311,12 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         msgs.info("Removing suspected compact bright objects")
 
         # Now we have our better selection of cosmics :
+
         if remove_compact_obj:
             cosmics = np.logical_and(candidates, sp/f > objlim)
         else:
             cosmics = candidates
         nbcosmics = np.sum(cosmics)
-        #debugger.set_trace()
 
         msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
 
@@ -822,8 +831,9 @@ def trim_frame(frame, mask):
 #        msgs.error("Cannot trim file")
 
 #ToDO JFH: I think we should have separate routines that create a raw variance frame and a model variance frame
+# TODO we should add "adderr" functionality here to set a maximum on the S/N ratio
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
-                   exptime=None, skyframe=None, objframe=None):
+                   exptime=None, skyframe=None, objframe=None, adderr = 0.01):
     """
     Calculate the variance image including detector noise.
 
@@ -849,6 +859,11 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
         ronoise (:obj:`float`, array-like):
 
         darkcurrent (:noise (:
+
+        adderr: float, default = 0.01
+            Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
+            S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
+
     objframe : ndarray, optional
       Model of object counts
     Returns
@@ -865,7 +880,9 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
         _darkcurr = 0 if darkcurr is None else darkcurr
         if exptime is not None:
             _darkcurr *= exptime/3600.
-        return np.abs(sciframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise + _darkcurr
+        var = np.abs(sciframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise + _darkcurr
+        var = var + adderr**2*(np.abs(sciframe))**2
+        return var
 
     # TODO: There's some complicated logic here.  Why is objframe
     # needed?  Can't a users just use objframe in place of sciframe and
@@ -874,7 +891,9 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
 
     # ToDO JFH: shouldn't dark current be added here as well??
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
-    return np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
+    var = np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
+    var = var + adderr ** 2 * (np.abs(sciframe)) ** 2
+    return
 
 
 

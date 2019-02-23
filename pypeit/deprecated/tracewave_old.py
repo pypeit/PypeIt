@@ -1982,6 +1982,330 @@ def fit2tilts_backup(shape, slit_cen, coeff2, func):
     return tilts
 
 
+# This should be deprecated, since there is another version in core.artraceslits
+#def trace_fweight(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3.,maskval=999999.9):
+def trace_fweight_deprecated(fimage, xinit, ltrace=None, rtraceinvvar=None, radius=3., maskval=999999.9):
+    """ Python port of trace_fweight.pro from IDLUTILS
+
+    Parameters:
+    -----------
+    fimage: 2D ndarray
+      Image for tracing
+    xinit: ndarray
+      Initial guesses for x-trace
+    invvar: ndarray, optional
+      Inverse variance array for the image
+    radius: float, optional
+      Radius for centroiding; default to 3.0
+    maskval : float, optional
+    """
+
+    # Init
+    nx = fimage.shape[1]
+    ny = fimage.shape[0]
+    ncen = len(xinit)
+    xnew = copy.deepcopy(xinit)
+    xerr = np.zeros(ncen) + maskval
+
+    ycen = np.arange(ny, dtype=int)
+    invvar = 0. * fimage + 1.
+    x1 = xinit - radius + 0.5
+    x2 = xinit + radius + 0.5
+    ix1 = np.floor(x1).astype(int)
+    ix2 = np.floor(x2).astype(int)
+
+    fullpix = int(np.maximum(np.min(ix2-ix1)-1, 0))
+    sumw = np.zeros(ny)
+    sumxw = np.zeros(ny)
+    sumwt = np.zeros(ny)
+    sumsx1 = np.zeros(ny)
+    sumsx2 = np.zeros(ny)
+    qbad = np.array([False]*ny)
+
+    if invvar is None:
+        invvar = np.zeros_like(fimage) + 1.
+
+    # Compute
+    for ii in range(0,fullpix+3):
+        spot = ix1 - 1 + ii
+        ih = np.clip(spot,0,nx-1)
+        xdiff = spot - xinit
+        #
+        wt = np.clip(radius - np.abs(xdiff) + 0.5,0,1) * ((spot >= 0) & (spot < nx))
+        sumw = sumw + fimage[ycen,ih] * wt
+        sumwt = sumwt + wt
+        sumxw = sumxw + fimage[ycen,ih] * xdiff * wt
+        var_term = wt**2 / (invvar[ycen,ih] + (invvar[ycen,ih] == 0))
+        sumsx2 = sumsx2 + var_term
+        sumsx1 = sumsx1 + xdiff**2 * var_term
+        #qbad = qbad or (invvar[ycen,ih] <= 0)
+        qbad = np.any([qbad, invvar[ycen,ih] <= 0], axis=0)
+
+    # Fill up
+    good = (sumw > 0) & (~qbad)
+    if np.sum(good) > 0:
+        delta_x = sumxw[good]/sumw[good]
+        xnew[good] = delta_x + xinit[good]
+        xerr[good] = np.sqrt(sumsx1[good] + sumsx2[good]*delta_x**2)/sumw[good]
+
+    bad = np.any([np.abs(xnew-xinit) > radius + 0.5, xinit < radius - 0.5, xinit > nx - 0.5 - radius], axis=0)
+    if np.sum(bad) > 0:
+        xnew[bad] = xinit[bad]
+        xerr[bad] = maskval
+
+    # Return
+    return xnew, xerr
+
+
+def echelle_tilt(slf, msarc, det, settings_argflag, settings_spect,
+                 pcadesc="PCA trace of the spectral tilts", maskval=-999999.9, doqa=True):
+    """ Determine the spectral tilts in each echelle order
+
+    Parameters
+    ----------
+    slf : Class instance
+      An instance of the Science Exposure class
+    msarc : numpy ndarray
+      Wavelength calibration frame that will be used to trace constant wavelength
+    det : int
+      Index of the detector
+    pcadesc : str (optional)
+      A description of the tilts
+    maskval : float (optional)
+      Mask value used in numpy arrays
+
+    Returns
+    -------
+    tilts : ndarray
+      Locations of the left slit edges (in physical pixel coordinates)
+    satmask : ndarray
+      Locations of the right slit edges (in physical pixel coordinates)
+    extrapord : ndarray
+      A boolean mask indicating if an order was extrapolated (True = extrapolated)
+    """
+    arccen, maskslit, satmask = arc.get_censpec(slf._lordloc[det-1], slf._rordloc[det-1],
+                                                      slf._pixlocn[det-1], msarc, det, settings_spect, gen_satmask=True)
+    # If the user sets no tilts, return here
+    if settings_argflag['trace']['slits']['tilts']['method'].lower() == "zero":
+        # Assuming there is no spectral tilt
+        tilts = np.outer(np.linspace(0.0, 1.0, msarc.shape[0]), np.ones(msarc.shape[1]))
+        return tilts, satmask, None
+    norders = maskslit.size
+
+    # Now model the tilt for each slit
+    tiltang, centval = None, None
+    slitcnt = 0
+    for o in range(norders):
+        if maskslit[o] == 1:
+            continue
+        # Determine the tilts for this slit
+        trcdict = trace_tilt(slf, det, msarc, o, censpec=arccen[:, o])
+        slitcnt += 1
+        if trcdict is None:
+            # No arc lines were available to determine the spectral tilt
+            continue
+        aduse = trcdict["aduse"]
+        arcdet = trcdict["arcdet"]
+        if tiltang is None:
+            tiltang = maskval * np.ones((aduse.size, norders))
+            centval = maskval * np.ones((aduse.size, norders))
+            totnum = aduse.size
+        else:
+            if aduse.size > totnum:
+                tiltang = np.append(tiltang, maskval * np.ones((aduse.size-totnum, norders)), axis=0)
+                centval = np.append(centval, maskval * np.ones((aduse.size-totnum, norders)), axis=0)
+                totnum = aduse.size
+        for j in range(aduse.size):
+            if not aduse[j]:
+                continue
+            lrdiff = slf._rordloc[det-1][arcdet[j], o] - slf._lordloc[det-1][arcdet[j], o]
+            xtfit = 2.0 * (trcdict["xtfit"][j]-slf._lordloc[det-1][arcdet[j], o])/lrdiff - 1.0
+            ytfit = trcdict["ytfit"][j]
+            wmask = trcdict["wmask"][j]
+            if wmask.size < settings_argflag['trace']['slits']['tilts']['order']+2:
+                maskslit[o] = 1
+                continue
+            null, tcoeff = utils.robust_polyfit(xtfit[wmask], ytfit[wmask],
+                                                  settings_argflag['trace']['slits']['tilts']['order'], sigma=2.0)
+            # Save the tilt angle
+            tiltang[j, o] = tcoeff[1]  # tan(tilt angle)
+            centval[j, o] = tcoeff[0]  # centroid of arc line
+
+    msgs.info("Fitting tilt angles")
+    tcoeff = np.ones((settings_argflag['trace']['slits']['tilts']['disporder'] + 1, tiltang.shape[1]))
+    maskord = np.where(maskslit == 1)[0]
+    extrap_ord = np.zeros(norders)
+    for o in range(norders):
+        if o in maskord:
+            extrap_ord[o] = 1
+            continue
+        w = np.where(tiltang[:, o] != maskval)
+        if np.size(w[0]) <= settings_argflag['trace']['slits']['tilts']['disporder'] + 2:
+            extrap_ord[o] = 1.0
+            maskord = np.append(maskord, o)
+        else:
+            null, tempc = utils.robust_polyfit(centval[:, o][w], tiltang[:, o][w],
+                                                 settings_argflag['trace']['slits']['tilts']['disporder'],
+                                                 function=settings_argflag['trace']['slits']['function'], sigma=2.0,
+                                                 minv=0.0, maxv=msarc.shape[0] - 1)
+            tcoeff[:, o] = tempc
+    # Sort which orders are masked
+    maskord.sort()
+    xv = np.arange(msarc.shape[0])
+    tiltval = utils.func_val(tcoeff, xv, settings_argflag['trace']['slits']['function'],
+                               minv=0.0, maxv=msarc.shape[0] - 1).T
+    ofit = settings_argflag['trace']['slits']['tilts']['params']
+    lnpc = len(ofit) - 1
+    if np.sum(1.0 - extrap_ord) > ofit[0] + 1:  # Only do a PCA if there are enough good orders
+        # Perform a PCA on the tilts
+        msgs.info("Performing a PCA on the spectral tilts")
+        ordsnd = np.arange(norders) + 1.0
+        xcen = xv[:, np.newaxis].repeat(norders, axis=1)
+        fitted, outpar = pca.basis(xcen, tiltval, tcoeff, lnpc, ofit, x0in=ordsnd, mask=maskord, skipx0=False,
+                                     function=settings_argflag['trace']['slits']['function'])
+        if doqa:
+            #pcadesc = "Spectral Tilt PCA"
+#            qa.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
+            pca.pca_plot(slf, outpar, ofit, 'Arc', pcadesc=pcadesc, addOne=False)
+        # Extrapolate the remaining orders requested
+        orders = 1.0 + np.arange(norders)
+        extrap_tilt, outpar = pca.extrapolate(outpar, orders, function=settings_argflag['trace']['slits']['function'])
+        tilts = extrap_tilt
+#        qa.pca_arctilt(slf, tiltang, centval, tilts)
+        pca.pca_arctilt(slf, tiltang, centval, tilts)
+    else:
+        outpar = None
+        msgs.warn("Could not perform a PCA when tracing the order tilts" + msgs.newline() +
+                  "Not enough well-traced orders")
+        msgs.info("Attempting to fit tilts by assuming the tilt is order-independent")
+        xtiltfit = np.array([])
+        ytiltfit = np.array([])
+        for o in range(tiltang.shape[1]):
+            w = np.where(tiltang[:, o] != -999999.9)
+            if np.size(w[0]) != 0:
+                xtiltfit = np.append(xtiltfit, centval[:, o][w])
+                ytiltfit = np.append(ytiltfit, tiltang[:, o][w])
+        if np.size(xtiltfit) > settings_argflag['trace']['slits']['tilts']['disporder'] + 2:
+            tcoeff = utils.func_fit(xtiltfit, ytiltfit, settings_argflag['trace']['slits']['function'],
+                                      settings_argflag['trace']['slits']['tilts']['disporder'],
+                                      minv=0.0, maxv=msarc.shape[0] - 1)
+            tiltval = utils.func_val(tcoeff, xv, settings_argflag['trace']['slits']['function'], minv=0.0,
+                                       maxv=msarc.shape[0] - 1)
+            tilts = tiltval[:, np.newaxis].repeat(tiltang.shape[1], axis=1)
+        else:
+            msgs.warn("There are still not enough detections to obtain a reliable tilt trace")
+            msgs.info("Assuming there is no tilt")
+            tilts = np.zeros_like(slf._lordloc)
+
+    # Generate tilts image
+    tiltsimg = tilts_image(tilts, slf._lordloc[det-1], slf._rordloc[det-1],
+                           settings_argflag['trace']['slits']['pad'], msarc.shape[1])
+
+    return tiltsimg, satmask, outpar
+
+
+'''
+def multislit_tilt(msarc, lordloc, rordloc, pixlocn, pixcen, slitpix, det,
+                   maskslits, tilt_settings, settings_spect, setup,
+                   maskval=-999999.9, doqa=False, wv_calib=None):
+    """ Determine the spectral tilt of each slit in a multislit image
+
+    Parameters
+    ----------
+    msarc : numpy ndarray
+      Wavelength calibration frame that will be used to trace constant wavelength
+    det : int
+      Index of the detector
+    maskval : float (optional)
+      Mask value used in numpy arrays
+    doqa : bool, optional
+      Output QA files.  These can be many files and slow for
+      lots of slits
+
+    Returns
+    -------
+    tilts : ndarray
+      Locations of the left slit edges (in physical pixel coordinates)
+    satmask : ndarray
+      Locations of the right slit edges (in physical pixel coordinates)
+    extrapord : ndarray
+      A boolean mask indicating if an order was extrapolated (True = extrapolated)
+    """
+    # tilt_settings['tilts']['order'] : settings.argflag['trace']['slits']['tilts']['order']
+    # ofit = settings.argflag['trace']['slits']['tilts']['params']
+    arccen, arc_maskslit, _ = arc.get_censpec(lordloc, rordloc, pixlocn, msarc, det,
+                                            settings_spect, gen_satmask=False)
+    satmask = np.zeros_like(pixcen)
+
+    ordcen = pixcen.copy()
+
+    # maskslit
+    if maskslits is not None:
+        mask = maskslits & (arc_maskslit==1)
+    else:
+        mask = arc_maskslit
+
+    # TODO -- NEED TO PASS THIS BACK!?
+    #slf._maskslits[det-1] = mask
+
+    gdslits = np.where(mask == 0)[0]
+
+    # Final tilts image
+    final_tilts = np.zeros_like(msarc)
+
+    # Now trace the tilt for each slit
+    for slit in gdslits:
+        # Determine the tilts for this slit
+        trcdict = trace_tilt(pixcen, rordloc, lordloc, det, msarc, slit, settings_spect,
+                             tilt_settings, censpec=arccen[:, slit], nsmth=3, wv_calib=wv_calib,
+                             tracethresh=tilt_settings['tilts']['tracethresh'])
+        if trcdict is None:
+            # No arc lines were available to determine the spectral tilt
+            continue
+        if doqa:
+            debugger.chk_arc_tilts(msarc, trcdict, sedges=(lordloc[:,slit], rordloc[:,slit]))
+            debugger.set_trace()
+
+        # Extract information from the trace dictionary
+        aduse = trcdict["aduse"]
+        arcdet = trcdict["arcdet"]
+
+        # Analyze spec lines
+        badlines, maskrows, tcoeff, all_tilts = analyze_spec_lines(msarc, slit, trcdict, ordcen, tilt_settings)
+        if badlines != 0:
+            msgs.warn("There were {0:d} additional arc lines that should have been traced".format(badlines) +
+                      msgs.newline() + "(perhaps lines were saturated?). Check the spectral tilt solution")
+
+        # Prepare polytilts
+        polytilts, outpar = prepare_polytilts(msarc, slit, maskrows, tcoeff, all_tilts, tilt_settings, setup=setup)
+
+        """
+        if tilt_settings['tilts']['method'].lower() == "interp":
+            tilts = tilts_interp(ordcen, slit, all_tilts, polytilts, arcdet, aduse, msarc)
+        elif tilt_settings['tilts']['method'].lower() == "spline":
+            tilts = tilts_spline(all_tilts, arcdet, aduse, polytilts, msarc)
+        elif tilt_settings['tilts']['method'].lower() == "spca":
+            tilts = tilts_spca(msarc, polytilts, ordcen, slit, arcdet, aduse, rordloc, lordloc)
+        elif tilt_settings['tilts']['method'].lower() == "pca":
+            tilts = polytilts.copy()
+        """
+
+        # Save into final_tilts
+        word = np.where(slitpix == slit+1)
+        #final_tilts[word] = tilts[word]
+        final_tilts[word] = polytilts[word]
+
+        # Now do the QA
+        if doqa:
+            tiltsplot, ztilto, xdat = prep_tilts_qa(msarc, all_tilts, tilts, arcdet, ordcen, slit, setup)
+            msgs.info("Plotting arc tilt QA")
+            plot_orderfits(setup, tiltsplot, ztilto, xdata=xdat, xmodl=np.arange(msarc.shape[1]),
+                   textplt="Arc line", maxp=9, desc="Arc line spectral tilts",
+                   maskval=maskval, slit=slit)
+    # Finish
+    return final_tilts, satmask, outpar
+'''
+
 
 #TODO this should be deleted, but I'm saving some it for now becasue I'm still testing.
 '''

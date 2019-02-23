@@ -432,7 +432,6 @@ class ProcessImages(object):
                     temp = procimg.trim_frame(temp, datasec_img < 1)
             else:
                 msgs.error('Could not subtract bias level with the input bias approach.')
-
             # Save
             if kk==0:
                 # Instantiate proc_images

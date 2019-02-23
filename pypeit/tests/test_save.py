@@ -54,6 +54,11 @@ def test_save2d_fits():
     sci_dict[0]['sciframe'] = dum
     sci_dict[0]['finalvar'] = dum * 2
     sci_dict[0]['finalsky'] = dum + 0.1
+
+    sci_dict['meta'] = {}
+    sci_dict['meta']['vel_corr'] = 0.
+    sci_dict['meta']['ir_redux'] = False
+
     basename = 'test'
     scidx = 5
     path = fitstbl['directory'][scidx]
@@ -64,11 +69,11 @@ def test_save2d_fits():
     # Create a dummy master_key_dict
     master_key_dict = dict(frame='', bpm='bpmkey',bias='',arc='',trace='',flat='')
     raw_hdr = fits.open(rawfile)[0].header
-    save.save_2d_images(sci_dict, raw_hdr, master_key_dict, master_dir, outfile)
+    save.save_2d_images(sci_dict, raw_hdr, spectrograph, master_key_dict, master_dir, outfile)
     # Read and test
     head0 = fits.getheader(data_path('spec2d_test.fits'))
     assert head0['PYPMFDIR'] == master_dir
-    assert head0['BPMMKEY'] == 'bpmkey'
+    assert head0['BPMMKEY'] == 'bpm'            # See save_2d_images; removes last 3 characters
     assert 'PYPEIT' in head0['PIPELINE']
 
 

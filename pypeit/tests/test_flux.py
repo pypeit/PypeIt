@@ -12,10 +12,10 @@ import sys
 import numpy as np
 import pytest
 
-try:
-    tsterror = FileExistsError
-except NameError:
-    FileExistsError = OSError
+#try:
+#    tsterror = FileExistsError
+#except NameError:
+#    FileExistsError = OSError
 
 from astropy import units
 
@@ -52,7 +52,7 @@ def test_gen_sensfunc():
     # Load a random spectrum for the sensitivity function
     sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
     specobjs = load.load_specobjs(sfile)
-    telescope = telescopes.ShaneTelescopePar()
+#    telescope = telescopes.ShaneTelescopePar()
     fitstbl = dummy_fitstbl()
     RA = '05:06:36.6'
     DEC = '52:52:01.0'
@@ -61,7 +61,8 @@ def test_gen_sensfunc():
     sens_dict = flux.generate_sensfunc(specobjs[0][0].boxcar['WAVE'],
                                       specobjs[0][0].boxcar['COUNTS'],
                                       specobjs[0][0].boxcar['COUNTS_IVAR'],
-                                      fitstbl['airmass'][4], fitstbl['exptime'][4], kastb,
+                                      fitstbl['airmass'][4], fitstbl['exptime'][4],
+                                      kastb.telescope['longitude'], kastb.telescope['latitude'],
                                       ra=RA, dec=DEC)
 
     # Test
@@ -77,7 +78,8 @@ def test_find_standard():
     std_dict = flux.find_standard_file(std_ra, std_dec)
     # Test
     assert std_dict['name'] == 'G191B2B'
-    assert std_dict['cal_file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
+#    assert std_dict['cal_file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
+    assert std_dict['cal_file'] == '/data/standards/calspec/g191b2b_stisnic_002.fits'
     assert std_dict['fmt'] == 1
     # Fail to find
     # near G191b2b

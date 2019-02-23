@@ -85,10 +85,10 @@ class MasterFrame(object):
         """
         # Are we loading master files from disk?
         if self.reuse_masters or prev_build:
-            self.msframe = self.load_master(self.ms_name)
-            return self.msframe
+            self.msframe, head = self.load_master(self.ms_name)
+            return self.msframe, head
         else:
-            return None
+            return None, None
 
     def load_master(self, filename, exten=0):
         """
@@ -107,7 +107,7 @@ class MasterFrame(object):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None
+            return None, None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
             hdu = fits.open(filename)
@@ -120,7 +120,7 @@ class MasterFrame(object):
                 if 'FRAME' in key:
                     file_list.append(head0[key])
             #return data , head0, file_list
-            return data
+            return data, head0
 
     def save_master(self, data, outfile=None, raw_files=None, steps=None, overwrite=True, extensions=None, names=None):
         """
@@ -194,7 +194,7 @@ def master_name(ftype, master_key, mdir):
     """
     name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, master_key),
                      badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, master_key),
-                     trace='{:s}/MasterTrace_{:s}'.format(mdir, master_key),   # Just a root as FITS+JSON are generated
+                     trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, master_key),
                      pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, master_key),
                      pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, master_key),
                      illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, master_key),

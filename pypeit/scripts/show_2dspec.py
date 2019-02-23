@@ -123,13 +123,13 @@ def main(args):
         mdir_base = os.path.basename(os.path.dirname(mdir)) + '/'
         msgs.warn('Master file dir: {:s}'.format(mdir) + ' does not exist. Using ./{:s}'.format(mdir_base))
         mdir=mdir_base
-    waveimg = masterframe.master_name('wave', head0['ARCMKEY'], mdir)
-    # Load Tslits
-    # THIS WILL BREAK WHEN PYPCALIB varies from calib type to calib type
-    tmp_key = '{:s}'.format(head0['TRACMKEY'])
-    master_key = tmp_key[0:-2] + '{:02d}'.format(args.det)
-    trc_file = masterframe.master_name('trace', master_key, mdir)
-    tslits_dict = traceslits.load_tslits_dict(trc_file)
+
+    wave_key = '{:s}'.format(head0['ARCMKEY']) +  '_{:02d}'.format(args.det)
+    waveimg = masterframe.master_name('wave', wave_key, mdir)
+
+    trace_key = '{:s}'.format(head0['TRACMKEY']) + '_{:02d}'.format(args.det)
+    trc_file = masterframe.master_name('trace', trace_key, mdir)
+    tslits_dict, _ = traceslits.load_tslits(trc_file)
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])

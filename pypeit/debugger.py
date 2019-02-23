@@ -12,7 +12,7 @@ try:
 except ImportError:  # Ginga is not yet required
     pass
 else:
-    from pypeit.ginga import chk_arc_tilts, clear_canvas
+    from pypeit.ginga import clear_canvas
 # Moved to the top and changed to only import set_trace
 from pdb import set_trace
 
