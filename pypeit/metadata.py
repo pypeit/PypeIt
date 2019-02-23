@@ -849,19 +849,19 @@ class PypeItMetaData:
         Set the calibration group bit based on the string values of the
         'calib' column.
         """
-        # Find the number groups.  The calibration frames essentially
-        # have no information; just search for the science frames with
-        # single calibration groups.  This is independent of whether or
-        # not science frames have been defined...
+        # Find the number groups by searching for the maximum number
+        # provided, regardless of whether or not a science frame is
+        # assigned to that group.
         ngroups = 0
         for i in range(len(self)):
-            if self['calib'][i] == 'all':
+            if self['calib'][i] in ['all', 'None']:
                 # No information, keep going
                 continue
-            if self['calib'][i].find(',') > -1 or self['calib'][i].find(':') > -1:
-                # Ignore calibration frames
-                continue
-            ngroups = max(int(self['calib'][i])+1, ngroups)
+            # Convert to a list of numbers
+            l = np.amax([ 0 if len(n) == 0 else int(n)
+                                for n in self['calib'][i].replace(':',',').split(',')])
+            # Check against current maximum
+            ngroups = max(l+1, ngroups)
 
         # Define the bitmask and initialize the bits
         self.calib_bitmask = BitMask(np.arange(ngroups))
@@ -878,11 +878,13 @@ class PypeItMetaData:
                 self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], gi)
                 continue
 
-            # Find the unique numbers and selected slices
-            # TODO: This lets the user be a bit sloppy
-            grp = np.unique([int(g) if g.find(':') == -1 else gi[parse.sec2slice(g)]
+            # Parse the calib string into a list of integers
+            grp = np.concatenate([[int(g)] if g.find(':') == -1 
+                                    else (gi[parse.sec2slice(g)]).tolist()
                                     for g in self['calib'][i].split(',')])
-            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], grp)
+
+            # Assign the group; ensure the integers are unique
+            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], np.unique(grp))
 
     def _check_calib_groups(self):
         """
@@ -972,8 +974,9 @@ class PypeItMetaData:
         # TODO: Science frames can only have one calibration group
 
         # Assign everything from the same configuration to the same
-        # calibration group
-        self.table['calib'] = 'None'
+        # calibration group; this needs to have dtype=object, otherwise
+        # any changes to the strings will be truncated at 4 characters.
+        self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
             self['calib'][(self['setup'] == configs[i]) & (self['framebit'] > 0)] = str(i)
         
