@@ -281,7 +281,7 @@ class PypeItMetaData:
         _files = files if hasattr(files, '__len__') else [files]
 
         # Build lists to fill
-        data = dict.fromkeys(self.spectrograph.meta.keys(), [])
+        data = {k:[] for k in self.spectrograph.meta.keys()}
         data['directory'] = ['None']*len(_files)
         data['filename'] = ['None']*len(_files)
 
@@ -297,9 +297,7 @@ class PypeItMetaData:
             data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
 
             # Grab Meta
-            for meta_key in data.keys():
-                if meta_key in ['directory', 'filename']:
-                    continue
+            for meta_key in self.spectrograph.meta.keys():
                 value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
                                                          required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
@@ -870,7 +868,7 @@ class PypeItMetaData:
         self['calibbit'] = 0
 
         # Set the calibration bits
-        gi = numpy.arange(ngroups)
+        gi = np.arange(ngroups)
         for i in range(len(self)):
             if self['calib'][i] == 'None':
                 # None to flag
@@ -882,8 +880,8 @@ class PypeItMetaData:
 
             # Find the unique numbers and selected slices
             # TODO: This lets the user be a bit sloppy
-            grp = numpy.unique([int(g) if g.find(':') == -1 else gi[parse.sec2slice(g)]
-                                            for g in self['calib'][i].split(',')])
+            grp = np.unique([int(g) if g.find(':') == -1 else gi[parse.sec2slice(g)]
+                                    for g in self['calib'][i].split(',')])
             self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], grp)
 
     def _check_calib_groups(self):
