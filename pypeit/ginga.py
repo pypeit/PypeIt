@@ -117,8 +117,6 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     # string and astropy.io.fits cannot read the image.
     img = fits.open(inp)[exten].data if isinstance(inp, basestring) else inp
 
-    import pdb; pdb.set_trace()
-
     # Instantiate viewer
     viewer = connect_to_ginga()
     if clear:
