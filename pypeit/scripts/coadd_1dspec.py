@@ -79,7 +79,7 @@ def main(args, unit_test=False, path=''):
     if 'extract' in coadd_dict.keys():
         ex_value = coadd_dict.pop('extract')
     else:
-        ex_value = 'opt'
+        ex_value = 'OPT'
     msgs.info("Using {:s} extraction".format(ex_value))
     # Fluxed data?
     if 'flux' in coadd_dict.keys():
@@ -98,6 +98,12 @@ def main(args, unit_test=False, path=''):
                 raise IOError("Input list of object names must have same length as files")
         #
         outfile = coadd_dict[key]['outfile']
+
+        # Scale
+        if 'scale' in coadd_dict[key]:
+            scale_dict = coadd_dict[key]['scale']
+        else:
+            scale_dict = None
 
         # Generate local keywords
         try:
@@ -125,18 +131,22 @@ def main(args, unit_test=False, path=''):
                 ind = files.index(fkey)
                 use_obj = iobj[ind]
             # Find object indices
-            mtch_obj, idx = specobjs.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
+            # FW: mtch_obj_to_objects will return None when no matching and raise TypeError: cannot unpack non-iterable NoneType object
+            try:
+                mtch_obj, idx = specobjs.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
+            except TypeError:
+                mtch_obj = None
             if mtch_obj is None:
-                print("No object {:s} in file {:s}".format(iobj, fkey))
+                msgs.info("No object {:s} in file {:s}".format(iobj, fkey))
             elif len(mtch_obj) == 1:
                 #Check if optimal extraction is present in all  objects.
                 # If not, warn the user and set ex_value to 'box'.
                 hdulist = fits.open(fkey)
                 try: #In case the optimal extraction array is a NaN array
                     if flux_value is True: # If we have a fluxed spectrum, look for flam
-                        obj_opt = hdulist[mtch_obj[0]].data['opt_flam']
+                        obj_opt = hdulist[mtch_obj[0]].data['OPT_FLAM']
                     else: # If not, look for counts
-                        obj_opt = hdulist[mtch_obj[0]].data['opt_counts']
+                        obj_opt = hdulist[mtch_obj[0]].data['OPT_COUNTS']
                     if any(isnan(obj_opt)):
                         msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                         ex_value = 'box'
@@ -144,9 +154,9 @@ def main(args, unit_test=False, path=''):
                     msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
                     try:
                         if flux_value is True: # If we have a fluxed spectrum, look for flam
-                            hdulist[mtch_obj[0]].data['box_flam']
+                            hdulist[mtch_obj[0]].data['BOX_FLAM']
                         else: # If not, look for counts
-                            hdulist[mtch_obj[0]].data['box_counts']
+                            hdulist[mtch_obj[0]].data['BOX_COUNTS']
                     except KeyError:
                         #In case the boxcar extract is also absent
                         msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))
@@ -165,6 +175,9 @@ def main(args, unit_test=False, path=''):
                                     extract=ex_value, flux=flux_value)
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
+
+
         # Coadd!
-        coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile, **gparam)
+        coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
+                            flux_scale=scale_dict, **gparam)
 

@@ -4,15 +4,13 @@
 # added here, or add them as submodule dependencies in extern/ directory
 #
 # Users
-numpy>=1.14
+numpy>=1.15.4
 scipy>=1.1
 matplotlib>=2.1
-astropy>=2.0.5
+astropy>=3.1
 PyYAML>=3.11
-future>=0.16.0
 configobj>=5.0.6
-
-# PyQt5>=5.10 ?
+scikit-learn>=0.20
 
 # linetools
 # arclines
@@ -22,7 +20,6 @@ numba>=0.39.0
 #ginga>=2.7.0
 h5py>=2.7.1
 pytest>=3.0.7
-# pickle?
 
 # Documentation
 #sphinx>=1.6

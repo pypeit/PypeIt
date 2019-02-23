@@ -16,16 +16,10 @@ import numpy as np
 from astropy.table import Table
 
 from pypeit import wavecalib
-from pypeit import bpmimage
-from pypeit import traceslits
-from pypeit import arcimage
 from pypeit.metadata import PypeItMetaData
-from pypeit.core import framematch
-from pypeit.core.wavecal import autoid
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit.spectrographs import util
 
-import json
-import h5py
 
 
 def data_path(filename):
@@ -54,25 +48,29 @@ def read_old_fitstbl(spectrograph, f):
 @dev_suite_required
 def test_user_redo():
     # Check for files
+    spectrograph = util.load_spectrograph('shane_kast_blue')
     wvcalib_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib',
                                 'MasterWaveCalib_ShaneKastBlue_A.json')
     assert os.path.isfile(wvcalib_file)
     # Instantiate
-    waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
-    waveCalib.load_wv_calib(wvcalib_file)
+    waveCalib = wavecalib.WaveCalib(None, None, spectrograph,
+                                    spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
+    wv_calib = waveCalib.load_master(wvcalib_file)
     # Setup
-    waveCalib.par['min_nsig'] = 5.
-    waveCalib.par['lowest_nsig'] = 5.
+    waveCalib.par['sigdetect'] = 5.
     nslit = 1
-    _ = waveCalib._make_maskslits(nslit)
+    _ = waveCalib.make_maskslits(nslit)
     npix = len(waveCalib.wv_calib['0']['spec'])
     waveCalib.arccen = np.zeros((npix,nslit))
     waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
     # Do it
-    new_wv_calib = waveCalib._build_wv_calib('arclines', skip_QA=True)
-    #new_wv_calib = waveCalib.calibrate_spec(0)
+    new_wv_calib = waveCalib.build_wv_calib(waveCalib.arccen, 'holy-grail', skip_QA=True)
     # Test
-    assert new_wv_calib['0']['rms'] < 0.1
+    assert new_wv_calib['0']['rms'] < 0.2
+    # Now also test the utility script that reads in the wavecalib
+    wv_calib_load, par = wavecalib.load_wv_calib(wvcalib_file)
+    assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
+
 
 '''
 @dev_suite_required

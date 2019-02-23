@@ -44,24 +44,25 @@ def test_instantiate(kast_blue_bias_files):
     bias_frame0 = biasframe.BiasFrame('shane_kast_blue')
     assert bias_frame0.nfiles == 0
     #
-    bias_frame1 = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files)
+    bias_frame1 = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files)
     assert bias_frame1.nfiles == 10
 
 @dev_suite_required
 def test_process(kast_blue_bias_files):
     # Instantiate
-    bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files)
+    bias_frame = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files)
     # Run
     bias_img = bias_frame.build_image()
     assert isinstance(bias_img, np.ndarray)
     assert isinstance(bias_frame.stack, np.ndarray)
     assert bias_frame.steps[-1] == 'combine'
 
+#test_traceimage.py
 
 @dev_suite_required
 def test_read_write(kast_blue_bias_files):
     # Instantiate
-    bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files)
+    bias_frame = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files)
     # Run
     bias_img = bias_frame.build_image()
     # Write
@@ -77,11 +78,11 @@ def test_read_write(kast_blue_bias_files):
 def test_run_and_master(kast_blue_bias_files):
 
     root_path = data_path('MF')
-    setup = 'A_01_aa'
+    master_key = 'A_1_01'
     # Instantiate
     master_dir = root_path+'_shane_kast_blue'
-    bias_frame = biasframe.BiasFrame('shane_kast_blue', file_list=kast_blue_bias_files,
-                                     setup=setup, master_dir=master_dir)
+    bias_frame = biasframe.BiasFrame('shane_kast_blue', files=kast_blue_bias_files,
+                                     master_key=master_key, master_dir=master_dir)
     assert bias_frame.frametype == 'bias'
 
     # Run
@@ -90,17 +91,15 @@ def test_run_and_master(kast_blue_bias_files):
     assert bias_frame.steps[-1] == 'combine'
 
     # Run with reuse (should simply load the file)
-    bias_frame2 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,
-                                      mode='reuse')
+    bias_frame2 = biasframe.BiasFrame('shane_kast_blue', master_key=master_key, master_dir=master_dir,reuse_masters=True)
     bias2 = bias_frame2.master()
-    assert isinstance(bias_frame2.stack, np.ndarray)
+    assert isinstance(bias_frame2.msframe, np.ndarray)
     assert len(bias_frame2.steps) == 0
 
     # Load (not kept in the Object!)
-    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', setup=setup, master_dir=master_dir,
-                                      mode='reuse')
-    bias3, _, _ = bias_frame3.load_master_frame()
-    assert bias_frame3.stack is None
+    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', master_key=master_key, master_dir=master_dir,reuse_masters=True)
+    bias3 = bias_frame3.load_master(bias_frame3.ms_name)
+    assert bias_frame3.msframe is None
     assert np.array_equal(bias2, bias3)
 
 # Should probably test overscan

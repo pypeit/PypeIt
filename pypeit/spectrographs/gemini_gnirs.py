@@ -9,6 +9,8 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.core import pixels
+
 
 from pypeit import debugger
 
@@ -27,14 +29,15 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         = 1,
-                            dispaxis        = 0,
-                            dispflip        = True,
+                            specaxis        = 0,
+                            specflip=True,
+                            spatflip=True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
                             platescale      = 0.15,
                             darkcurr        = 0.15,
-                            saturation      = 7000.,
+                            saturation      = 90000.,
                             nonlinear       = 0.71,
                             numamplifiers   = 1,
                             gain            = 13.5,
@@ -47,17 +50,17 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # self.sky_file = ?
     @property
     def pypeline(self):
-        return 'MultiSlit'
+        return 'Echelle'
 
-    @staticmethod
-    def default_pypeit_par():
+    @property
+    def norders(self):
+        return 6
+
+    def default_pypeit_par(self):
         """
         Set default parameters for Gemini GNIRS reductions.
         """
         par = pypeitpar.PypeItPar()
-        # TODO: Make self.spectrograph a class attribute?
-        # Use the ARMS pipeline
-        #par['rdx']['pipeline'] = 'ARMS'
         par['rdx']['spectrograph'] = 'gemini_gnirs'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
@@ -65,22 +68,47 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
-        # Bias
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
-        # Set slits and tilts parameters
-        par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10]
+
+        # Slits
+        par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['min_slit_width'] = 4.0
-        par['calibrations']['slits']['number'] = 6
-        par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['sigdetect'] = 300
-        par['calibrations']['slits']['pcapar'] = [4,3, 2, 1,0]
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+
+        # Wavelengths
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 2
+        par['calibrations']['wavelengths']['n_final'] = [1,3,3,3,3,3]
+
+        # Reidentification parameters
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.json'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        # Echelle parameters
+        # JFH This is provisional these IDs should be checked.
+        par['calibrations']['wavelengths']['echelle'] = True
+        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        # Tilts
+        par['calibrations']['tilts']['tracethresh'] = [5.0,10,10,10,10,10]
+        par['calibrations']['tilts']['sig_neigh'] = 5.0
+        par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+
+        # Flats
+        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+        # Extraction
+        par['scienceimage']['sig_thresh'] = 5.0
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
+
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing
@@ -88,57 +116,48 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['calibrations']['standardframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [30, None]
+
+        # Do not bias subtract
+        par['scienceframe']['useframe'] ='overscan'
+        # This is a hack for now until we can specify for each image type what to do. Bias currently
+        # controls everything
+        par['calibrations']['biasframe']['useframe'] = 'overscan'
+
+
+
         return par
 
-    def check_headers(self, headers):
+    def init_meta(self):
         """
-        Check headers match expectations for an LRISb exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'GNIRS',
-                               '1.NAXIS': 2 }
-        super(GeminiGNIRSSpectrograph, self).check_headers(headers,
-                                                           expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
+        Generate the meta data dict
+        Note that the children can add to this
 
         Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[0]['idname'] = 'OBSTYPE'
-#        hdr_keys[0]['time'] = 'MJD_OBS'
-        hdr_keys[0]['date'] = 'DATE'
-        hdr_keys[0]['ut'] = 'UT'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['slit'] = 'SLIT'
-        hdr_keys[0]['decker'] = 'DECKER'
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['hatch'] = 'COVER'
-        hdr_keys[0]['dispname'] = 'GRATING'
-        hdr_keys[0]['dispangle'] = 'GRATTILT'
-        hdr_keys[0]['wavecen'] = 'GRATWAVE'
-        hdr_keys[0]['spectrograph'] = 'INSTRUME'
-        return hdr_keys
+            self.meta: dict (generated in place)
 
-    def metadata_keys(self):
-        return super(GeminiGNIRSSpectrograph, self).metadata_keys() + ['dispangle', 'idname']
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['decker'] = dict(ext=0, card='DECKER')
+
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+        meta['mjd'] = dict(ext=0, card='MJD_OBS')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='GRATING')
+        meta['hatch'] = dict(ext=0, card='COVER')
+        meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
+
+        # Ingest
+        self.meta = meta
+
+    def configuration_keys(self):
+        return ['decker', 'dispname', 'dispangle']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -160,23 +179,158 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-  
+
+#    def parse_binning(self, inp, det=1):
+#        return '1,1'
+
+    def order_platescale(self, binning=None):
+
+
+        """
+        Returns the plate scale in arcseconds for each order
+
+        Parameters
+        ----------
+        None
+
+        Optional Parameters
+        --------------------
+        binning: str
+
+        Returns
+        -------
+        order_platescale: ndarray, float
+
+        """
+
+        # Right now I just assume a simple linear trend
+        return np.full(self.norders, 0.15)
+
+
+
+    def slit2order(self, islit):
+
+        """
+        Parameters
+        ----------
+        islit: int, float, or string, slit number
+
+        Returns
+        -------
+        order: int
+        """
+
+        if isinstance(islit, str):
+            islit = int(islit)
+        elif isinstance(islit, np.ndarray):
+            islit = islit.astype(int)
+        elif isinstance(islit, float):
+            islit = int(islit)
+        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
+            pass
+        else:
+            msgs.error('Unrecognized type for islit')
+
+        orders = np.arange(8,2,-1, dtype=int)
+        return orders[islit]
+
+
+    def order_vec(self):
+        return self.slit2order(np.arange(self.norders))
+
+
+    def slit_minmax(self, nslits, binspectral=1):
+
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        spec_max = np.asarray([1022,1022,1022,1022,1022,1022])
+        spec_min = np.asarray([512,280, 0, 0, 0, 0])
+
+        return spec_min, spec_max
+
+    def slitmask(self, tslits_dict, pad=None, binning=None):
+        """
+         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+         overload this function to implement instrument specific slitmask behavior, for example setting
+         where the orders on an echelle spectrograph end
+
+         Parameters
+         -----------
+         tslits_dict: dict
+            Trace slits dictionary with slit boundary information
+
+         Optional Parameters
+         pad: int or float
+            Padding of the slit boundaries
+         binning: tuple
+            Spectrograph binning in spectral and spatial directions
+
+         Returns
+         -------
+         slitmask: ndarray int
+            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+            indicating the slit number going from 0 to nslit-1 from left to right.
+
+         """
+
+        # These lines are always the same
+        pad = tslits_dict['pad'] if pad is None else pad
+        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+
+        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
+
+        nslits = tslits_dict['lcen'].shape[1]
+        if nslits != self.norders:
+            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas GNIRS has norders={:d}'.format(nslits,self.norders))
+        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+        order_max = [1022,1022,1022,1022,1022,1022]
+        order_min = [512,280, 0, 0, 0, 0]
+        # TODO add binning adjustments to these
+        for islit in range(nslits):
+            orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
+            slitmask[orderbad] = -1
+        return slitmask
+
+
+    def wavegrid(self, binning=None):
+
+        # Define the new wavelength grid for GNIRS
+        ngrid = 5000
+        dloglam = 0.000127888 # this is the average of the median dispersions
+        logmin = 3.777
+        osamp = 1.0
+        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+
+        return np.power(10.0,loglam_grid)
+
+
     def get_match_criteria(self):
-        """Set the general matching criteria for Shane Kast."""
+
+        """Set the general matching criteria for GNIRS. Copied from NIRES"""
         match_criteria = {}
         for key in framematch.FrameTypeBitMask().keys():
             match_criteria[key] = {}
 
         match_criteria['standard']['match'] = {}
+#        match_criteria['standard']['match']['naxis0'] = '=0'
+#        match_criteria['standard']['match']['naxis1'] = '=0'
+
+        match_criteria['bias']['match'] = {}
+#        match_criteria['bias']['match']['naxis0'] = '=0'
+#        match_criteria['bias']['match']['naxis1'] = '=0'
 
         match_criteria['pixelflat']['match'] = {}
+#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
+#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
 
         match_criteria['trace']['match'] = {}
+#        match_criteria['trace']['match']['naxis0'] = '=0'
+#        match_criteria['trace']['match']['naxis1'] = '=0'
 
         match_criteria['arc']['match'] = {}
+#        match_criteria['arc']['match']['naxis0'] = '=0'
+#        match_criteria['arc']['match']['naxis1'] = '=0'
 
         return match_criteria
-
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
@@ -206,45 +360,4 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return self.bpm_img
 
 
-
-    def setup_arcparam(self, arcparam, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            **null_kwargs:
-
-        Returns:
-
-        """
-        # ToDo need to parse the sigdetect parameter to be here for detect_lines function in arc.py
-        #      I force change sigdetect=5 for GNIRS.
-
-        arcparam['lamps'] = ['OH_triplespec'] # Line lamps on
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        arcparam['min_ampl'] = 5.       # Minimum amplitude
-        arcparam['lowest_ampl'] = 0.    #Todo there is a bug in arc.py, do not parse this value.
-        arcparam['wvmnx'] = [8500., 24000.] # Guess at wavelength range
-        arcparam['n_first'] = 1            # Order of polynomial for first fit
-        arcparam['n_final'] = 1            # Order of polynomial for final fit
-        arcparam['disp'] = 2.7  # Ang/unbinned pixel
-        arcparam['func'] = 'legendre'  # Function for fitting
-#        arcparam['llist'] = ''
-#        arcparam['disp'] = 2.              # Ang/unbinned pixel
-#        arcparam['b1'] = 0.                # Pixel fit term (binning independent)
-#        arcparam['b2'] = 0.                # Pixel fit term
-#        arcparam['wv_cen'] = 0.            # Estimate of central wavelength
-#        arcparam['disp_toler'] = 0.1       # 10% tolerance
-#        arcparam['match_toler'] = 3.       # Matching tolerance (pixels)
-#        arcparam['func'] = 'legendre'      # Function for fitting
-#        arcparam['n_first'] = 1            # Order of polynomial for first fit
-#        arcparam['n_final'] = 3            # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 2.          # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 2.0   # Number of sigma for rejection (final fit)
-#        arcparam['Nstrong'] = 13           # Number of lines for auto-analysis
 

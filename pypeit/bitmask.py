@@ -95,11 +95,11 @@ class BitMask:
         _keys = numpy.atleast_1d(_keys).ravel()
         _descr = None if descr is None else numpy.atleast_1d(descr).ravel()
 
-        if not numpy.all([isinstance(k, str) for k in _keys]):
-            raise TypeError('Input keys must have string type.')
+#        if not numpy.all([isinstance(k, str) for k in _keys]):
+#            raise TypeError('Input keys must have string type.')
         if _descr is not None:
             if not all([isinstance(d, str) for d in _descr]):
-                raise TypeError('Input keys must have string type.')
+                raise TypeError('Input descriptions must have string type.')
             if len(_descr) != len(_keys):
                 raise ValueError('Number of listed descriptions not the same as number of keys.')
 
@@ -110,7 +110,7 @@ class BitMask:
         # Allow for multiple NULL keys; but check the rest for
         # uniqueness
         diff = set(_keys) - set(['NULL'])
-        if len(diff) != numpy.unique(_keys[_keys != 'NULL']).size:
+        if len(diff) != numpy.unique(_keys[[k != 'NULL' for k in _keys]]).size:
             raise ValueError('All input keys must be unique.')
 
         # Initialize the attributes
@@ -124,14 +124,14 @@ class BitMask:
         # Flags must be a numpy array
         _flag = numpy.array(self.keys()) if flag is None else numpy.atleast_1d(flag).ravel()
         # NULL flags not allowed
-        if numpy.any(_flag == 'NULL'):
+        if numpy.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
         # Flags should be among the bitmask keys
         if numpy.any([f not in self.keys() for f in _flag]):
             raise ValueError('Some bit names not recognized.')
-        # Flags should be strings
-        if numpy.any([ not isinstance(f, str) for f in _flag ]):
-            raise TypeError('Provided bit names must be strings!')
+#        # Flags should be strings
+#        if numpy.any([ not isinstance(f, str) for f in _flag ]):
+#            raise TypeError('Provided bit names must be strings!')
         return _flag
 
     def keys(self):

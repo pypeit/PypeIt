@@ -8,14 +8,7 @@ import numpy as np
 import os
 
 from scipy import interpolate
-
-from matplotlib import pyplot as plt
-
-
 from pypeit import msgs
-
-from pypeit import utils
-#from pypeit import arparse as settings
 from pypeit.core import parse
 from pypeit.core import qa
 from pypeit.core import pca
@@ -26,6 +19,8 @@ from pypeit import debugger
 from pypeit import utils
 from pypeit.core import pydl
 from matplotlib import pyplot as plt
+import copy
+
 import scipy
 
 def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh, tweak_slits_maxfrac):
@@ -87,10 +82,9 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
     return slit_left_out, slit_righ_out, tweak_dict
 
 
-
-def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask = None,spec_samp_fine = 1.2, spec_samp_coarse = 50.0,
-             spat_samp = 5.0, spat_illum_thresh = 0.01, npoly = None, trim_edg = (3.0,3.0),
-             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.07, nonlinear_counts =1e10, debug = False):
+def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
+             spec_samp_fine = 1.2, spec_samp_coarse = 50.0, spat_samp = 5.0, npoly = None, trim_edg = (3.0,3.0), pad =5.0,
+             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug = False):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -104,16 +98,10 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     tilts_dict: dict
           Dictionary containing wavelength tilts image and other information indicating how wavelengths move across the slit
 
-    thismask_in:  boolean ndarray, shape (nspec, nspat)
-        Boolean mask image specifying the pixels which lie on the slit/order according to the initial slit/order bounadries.
-        The convention is: True = on the slit/order, False  = off the slit/order
-
-    slit_left_in:  float ndarray, shape  (nspec, 1) or (nspec)
-        Left boundary of slit/order to be extracted (given as floating pt pixels).
-
-    slit_righ_in:  float ndarray, shape  (nspec, 1) or (nspec)
-        Right boundary of slit/order to be extracted (given as floating pt pixels).
-
+    tslits_dict: dict
+          Dictionary with information on the slit boundaries
+    slit: int
+          Slit currently being considered
 
     Optional Parameters
     -------------------
@@ -132,12 +120,13 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
       determine the slit illumination function, and thus sets the minimum scale on which the illumination function will
       have features.
 
-    spat_illum_thresh: float, default = 0.01
-      Spatial illumination function threshold. If the slits have
-
     trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
       indicates how many pixels to trim from left and right slit edges for creating the edgemask, which is used to mask
       the edges from the initial (fine) spectroscopic fit to the blaze function.
+
+    pad: int, default = 5
+      Padding window used to create expanded slitmask images used for re-determining slit boundaries. Tilts are also
+      computed using this expanded slitmask in cases the slit boundaries need to be moved outward.
 
     npoly: int, default = None
       Order of polynomial for 2-d bspline-polynomial fit to flat field image residuals. The code determines the order of
@@ -149,31 +138,41 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
       Slit edges will be tweaked such the left and right bounadaries intersect the location where the illumination
       function falls below tweak_slits_thresh (see below) of its maximum value near the center (moving out from the center)
 
-    tweak_slits_thresh: float, default = 0.85
+    tweak_slits_thresh: float, default = 0.93
       If tweak_slits is True, this sets the illumination function threshold used to tweak the slits
 
-    tweak_slits_maxfrac: float, default = 0.05
+    tweak_slits_maxfrac: float, default = 0.10
       Maximum fractinoal amount (of slit width) allowed for each trimming the left and right slit boundaries, i.e. the
-      default is 5% which means slits would shrink by at most 10%.
+      default is 10% which means slits would shrink by at most 20% (10% on each side)
 
     debug: bool, default = False
       Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
 
-
-   TODO update for new behavior
     Returns
     -------
-    pixeflat:   ndarray with size = np.sum(thismask)
-      Pixelflat gives pixel-to-pixel variations of detector response. Values are centered about unity and
-      are returned at the locations where thismask == True
+    pixeflat:   ndarray with same shape as flat
+      Pixelflat gives pixel-to-pixel variations of detector response. Values are centered about unity.
 
-    illumflat:   ndarray with size = np.sum(thismask)
+    illumflat:  ndarray with same shape as flat
       Illumination flat gives variations of the slit illumination function across the spatial direction of the detect.
-      Values are centered about unity and are returned at the locations where thismask == True. The slit illumination
-      function is computed by dividing out the spectral response and collapsing out the spectral direction.
+      Values are centered about unity. The slit illumination function is computed by dividing out the spectral response and
+      collapsing out the spectral direction.
 
-    flat_model:  ndarray with size = np.sum(thismask)
+    flat_model:  ndarray with same shape as flat
       Full 2-d model image of the input flat image in units of electrons.  The pixelflat is defined to be flat/flat_model.
+
+    tilts: ndarray with same shape as flat
+      Tilts image fit for this slit evaluated using the new slit boundaries
+
+    thismask_out: ndarray with same shape as flat, bool
+       Boolean mask indicating which pixels are on the slit now with the new slit boundaries
+
+    slit_left_out: ndarray with shape (nspec,)
+       Tweaked left slit bounadries
+
+    slit_righ_out: ndarray with shape (nspec,)
+       Tweaked right slit bounadries
+
 
 
     Revision History
@@ -184,11 +183,13 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     """
 
     shape = flat.shape
-    if shape != tilts_dict['tilts'].shape:
-        msgs.error('Something is very wrong. Tilt image shape does not match flat field image shape')
-
     nspec = shape[0]
     nspat = shape[1]
+
+    # Get the thismask_in and input slit bounadries from the tslits_dict
+    slit_left_in = tslits_dict_in['slit_left'][:,slit]
+    slit_righ_in = tslits_dict_in['slit_righ'][:,slit]
+    thismask_in = pixels.tslits2mask(tslits_dict_in) == slit
 
     # Compute some things using the original slit boundaries and thismask_in
 
@@ -199,14 +200,8 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         npoly_in = 7
         npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
-    # Generate the edgemask using the original slit boundaries and thismask_in
+
     ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
-
-    # Create a tilts image that encompasses the whole image, rather than just the thismask_in slit pixels
-    tilts = tracewave.coeff2tilts(tilts_dict['coeffs'], shape, tilts_dict['func2D'], max_tilt=1.2, min_tilt=-0.2)
-    piximg = tilts * (nspec-1)
-    pixvec = np.arange(nspec)
-
     # Create a fractional position image ximg that encompasses the whole image, rather than just the thismask_in slit pixels
     spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
     slit_left_img = np.outer(slit_left_in, np.ones(nspat))   # left slit boundary replicated spatially
@@ -214,9 +209,13 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     ximg = (spat_img - slit_left_img)/slitwidth_img
 
     # Create a wider slitmask image with shift pixels padded on each side
-    pad = 5.0
-    slitmask_pad = pixels.slit_pixels(slit_left_in, slit_righ_in, shape, pad)
-    thismask = (slitmask_pad > 0) # mask enclosing the wider slit bounadries
+    slitmask_pad = pixels.tslits2mask(tslits_dict_in, pad = pad)
+    thismask = (slitmask_pad == slit) # mask enclosing the wider slit bounadries
+    # Create a tilts image using this padded thismask, rather than using the original thismask_in slit pixels
+    tilts = tracewave.fit2tilts(shape, tilts_dict['coeffs'], tilts_dict['func2d'])
+    piximg = tilts * (nspec-1)
+    pixvec = np.arange(nspec)
+
 
     if inmask is None:
         inmask = np.copy(thismask)
@@ -238,11 +237,10 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     msgs.info('Spectral fit of flatfield for {:}'.format(nfit_spec) + ' pixels')
 
     # ToDo Figure out how to deal with the fits going crazy at the edges of the chip in spec direction
-    spec_set_fine, outmask_spec, specfit, _ = utils.bspline_profile(pix_fit, log_flat_fit, log_ivar_fit,
-                                                                    np.ones_like(pix_fit), inmask = inmask_log_fit,
-                                                                    nord = 4, upper=logrej, lower=logrej,
-                                                                    kwargs_bspline = {'bkspace':spec_samp_fine},
-                                                                    kwargs_reject={'groupbadpix':True, 'maxrej': 5})
+    spec_set_fine, outmask_spec, specfit, _, exit_status = \
+        utils.bspline_profile(pix_fit, log_flat_fit, log_ivar_fit,np.ones_like(pix_fit), inmask = inmask_log_fit,
+        nord = 4, upper=logrej, lower=logrej,
+        kwargs_bspline = {'bkspace':spec_samp_fine},kwargs_reject={'groupbadpix':True, 'maxrej': 5})
 
     # Debugging/checking spectral fit
     if debug:
@@ -262,6 +260,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         plt.legend()
         plt.xlabel('Spectral Pixel')
         plt.ylabel('log(flat counts)')
+        plt.title('Spectral Fit for slit={:d}'.format(slit))
         plt.show()
 
     # Evaluate and save
@@ -280,7 +279,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     isrt_spat = np.argsort(ximg[fit_spat])
     ximg_fit = ximg[fit_spat][isrt_spat]
     norm_spec_fit = norm_spec[fit_spat][isrt_spat]
-    norm_spec_ivar = np.ones_like(norm_spec_fit)/(spat_illum_thresh**2)
+    #norm_spec_ivar = np.ones_like(norm_spec_fit)/(spat_illum_thresh**2)
     nfit_spat = np.sum(fit_spat)
 
     slitwidth = np.median(slit_righ_in - slit_left_in) # How many pixels wide is the slit at each Y?
@@ -303,8 +302,9 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     ximg_bsp  = np.fmax(ximg_1pix/10.0, ximg_samp*1.2)
     bsp_set = pydl.bspline(ximg_fit,nord=4, bkspace=ximg_bsp)
     fullbkpt = bsp_set.breakpoints
-    spat_set, outmask_spat, spatfit, _ = utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
-                                                               nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
+    spat_set, outmask_spat, spatfit, _, exit_status = \
+        utils.bspline_profile(ximg_fit, normimg, np.ones_like(normimg),np.ones_like(normimg),
+        nord=4,upper=5.0, lower=5.0,fullbkpt = fullbkpt)
 
     # Evaluate and save
     illumflat = np.ones_like(flat)
@@ -316,13 +316,17 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
                                                                     tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
-        slitmask_out = pixels.slit_pixels(slit_left_out, slit_righ_out, shape, 0)
-        thismask_out = (slitmask_out > 0)
+        tslits_dict_out = copy.deepcopy(tslits_dict_in)
+        tslits_dict_out['slit_left'][:,slit] = slit_left_out
+        tslits_dict_out['slit_righ'][:,slit] = slit_righ_out
+        slitmask_out = pixels.tslits2mask(tslits_dict_out)
+        thismask_out = (slitmask_out == slit)
         ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out, thismask_out, trim_edg=trim_edg)
         # Note that nothing changes with the tilts, since these were already extrapolated across the whole image.
     else:
-        slit_left_out = np.copy(slit_left)
-        slit_righ_out = np.copy(slit_righ)
+        # Generate the edgemask using the original slit boundaries and thismask_in
+        slit_left_out = np.copy(slit_left_in)
+        slit_righ_out = np.copy(slit_righ_in)
         thismask_out = thismask_in
         ximg_out = ximg_in
 
@@ -358,9 +362,10 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Normflat Spatial Profile')
+        plt.title('Illumination Function Fit for slit={:d}'.format(slit))
         plt.show()
 
-    msgs.info('Performing illumination + scattered light flat field fit')
+    msgs.info('Performing illumination + scattembedered light flat field fit')
 
     # Flat field pixels for fitting spectral direction
     isrt_spec = np.argsort(piximg[thismask_out])
@@ -378,11 +383,10 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     poly_basis = pydl.fpoly(2.0*ximg_twod - 1.0, npoly).T
 
     # Perform the full 2d fit now
-    twod_set, outmask_twod, twodfit, _ = utils.bspline_profile(pix_twod, norm_twod, norm_twod_ivar,poly_basis,
-                                                               inmask = fitmask, nord = 4,
-                                                               upper=sigrej_illum, lower=sigrej_illum,
-                                                               kwargs_bspline = {'bkspace':spec_samp_coarse},
-                                                               kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    twod_set, outmask_twod, twodfit, _ , exit_status = \
+        utils.bspline_profile(pix_twod, norm_twod, norm_twod_ivar,poly_basis,inmask = fitmask, nord = 4,
+        upper=sigrej_illum, lower=sigrej_illum,
+        kwargs_bspline = {'bkspace':spec_samp_coarse},kwargs_reject={'groupbadpix':True, 'maxrej': 10})
 
     if debug:
         resid = (norm_twod  - twodfit)
@@ -402,6 +406,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         plt.legend()
         plt.xlabel('Spectral Pixel')
         plt.ylabel('Residuals from pixelflat 2-d fit')
+        plt.title('Spectral Residuals for slit={:d}'.format(slit))
         plt.show()
 
         plt.clf()
@@ -420,6 +425,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
         plt.legend()
         plt.xlabel('Normalized Slit Position')
         plt.ylabel('Residuals from pixelflat 2-d fit')
+        plt.title('Spatial Residuals for slit={:d}'.format(slit))
         plt.show()
 
     # Evaluate and save
@@ -438,8 +444,7 @@ def fit_flat(flat, tilts_dict, thismask_in, slit_left_in, slit_righ_in, inmask =
     # Set the pixelflat to 1.0 wherever the flat was nonlinear
     pixelflat[flat >= nonlinear_counts] = 1.0
 
-    return pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out
-
+    return pixelflat, illumflat, flat_model, tilts, thismask_out, slit_left_out, slit_righ_out
 
 
 
@@ -473,21 +478,24 @@ def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe
 
     # Fold in the slit profile
     if illum_flat is not None:
-        msgs.info('Dividing by illumination flat')
-        flatframe *= illum_flat
+        if np.any(illum_flat != 1.0):
+            msgs.info('Dividing by illumination flat')
+            final_flat = flatframe * illum_flat  # Previous code was modifying flatframe!
+        else:
+            final_flat = flatframe.copy()
 
     # New image
     retframe = np.zeros_like(sciframe)
-    w = np.where(flatframe > 0.0)
-    retframe[w] = sciframe[w]/flatframe[w]
-    if w[0].size != flatframe.size:
-        ww = np.where(flatframe <= 0.0)
+    w = np.where(final_flat > 0.0)
+    retframe[w] = sciframe[w]/final_flat[w]
+    if w[0].size != final_flat.size:
+        ww = np.where(final_flat <= 0.0)
         bpix[ww] = 1.0
     # Variance?
     if varframe is not None:
         # This is risky -- Be sure your flat is well behaved!!
         retvar = np.zeros_like(sciframe)
-        retvar[w] = varframe[w]/flatframe[w]**2
+        retvar[w] = varframe[w]/final_flat[w]**2
         return retframe, retvar
     # Error image
     if snframe is None:
@@ -1172,180 +1180,3 @@ def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", 
     return
 
 
-'''
-def sn_frame(slf, sciframe, idx):
-    # Dark Current noise
-    dnoise = settings.spect['det']['darkcurr'] * float(slf._fitsdict["exptime"][idx])/3600.0
-    # The effective read noise
-    rnoise = np.sqrt(settings.spect['det']['ronoise']**2 + (0.5*settings.spect['det']['gain'])**2)
-    errframe = np.abs(sciframe) + rnoise + dnoise
-    # If there are negative pixels, mask them as bad pixels
-    w = np.where(errframe <= 0.0)
-    if w[0].size != 0:
-        msgs.warn("The error frame is negative for {0:d} pixels".format(w[0].size)+msgs.newline()+"Are you sure the bias frame is correct?")
-        msgs.info("Masking these {0:d} pixels".format(w[0].size))
-        errframe[w]  = 0.0
-        slf._bpix[w] = 1.0
-    w = np.where(errframe > 0.0)
-    snframe = np.zeros_like(sciframe)
-    snframe[w] = sciframe[w]/np.sqrt(errframe[w])
-    return snframe
-'''
-
-
-def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe=None):
-    """ Flat field the input image
-
-    .. todo::
-        - Is bpix required?
-
-    Parameters
-    ----------
-    sciframe : 2d image
-    flatframe : 2d image
-    illum_flat : 2d image, optional
-      slit profile image
-    snframe : 2d image, optional
-    det : int
-      Detector index
-    varframe : ndarray
-      variance image
-
-    Returns
-    -------
-    flat-field image
-    and updated sigma array if snframe is input
-    or updated variance array if varframe is input
-
-    """
-    if (varframe is not None) & (snframe is not None):
-        msgs.error("Cannot set both varframe and snframe")
-
-    # Fold in the slit profile
-    if illum_flat is not None:
-        msgs.info('Dividing by illumination flat')
-        flatframe *= illum_flat
-
-    # New image
-    retframe = np.zeros_like(sciframe)
-    w = np.where(flatframe > 0.0)
-    retframe[w] = sciframe[w]/flatframe[w]
-    if w[0].size != flatframe.size:
-        ww = np.where(flatframe <= 0.0)
-        bpix[ww] = 1.0
-    # Variance?
-    if varframe is not None:
-        # This is risky -- Be sure your flat is well behaved!!
-        retvar = np.zeros_like(sciframe)
-        retvar[w] = varframe[w]/flatframe[w]**2
-        return retframe, retvar
-    # Error image
-    if snframe is None:
-        return retframe
-    else:
-        errframe = np.zeros_like(sciframe)
-        wnz = np.where(snframe>0.0)
-        errframe[wnz] = retframe[wnz]/snframe[wnz]
-        return retframe, errframe
-
-
-'''
-def flatnorm(slf, det, msflat, bpix, maskval=-999999.9, overpix=6, plotdesc=""):
-    """ Normalize the flat-field frame
-
-    *** CAUTION ***  This function might be deprecated.
-
-    Parameters
-    ----------
-    slf : class
-      An instance of the Science Exposure class
-    det : int
-      Detector number
-    msflat : ndarray
-      Flat-field image
-    maskval : float
-      Global floating point mask value used throughout the code
-    overpix : int
-      overpix/2 = the number of pixels to extend beyond each side of the order trace
-    plotdesc : str
-      A title for the plotted QA
-
-    Returns
-    -------
-    msnormflat : ndarray
-      The normalized flat-field frame
-    msblaze : ndarray
-      A 2d array containing the blaze function for each slit
-    """
-    dnum = settings.get_dnum(det)
-
-    msgs.info("Normalizing the master flat field frame")
-    norders = slf._lordloc[det-1].shape[1]
-    # First, determine the relative scale of each amplifier (assume amplifier 1 has a scale of 1.0)
-    if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
-        sclframe = get_ampscale(slf, det, msflat)
-        # Divide the master flat by the relative scale frame
-        msflat /= sclframe
-    else:
-        sclframe = np.ones(msflat, dtype=np.float)
-    # Determine the blaze
-    polyord_blz = 2  # This probably doesn't need to be a parameter that can be set by the user
-    # Look at the end corners of the detector to get detector size in the dispersion direction
-    #xstr = slf._pixlocn[det-1][0,0,0]-slf._pixlocn[det-1][0,0,2]/2.0
-    #xfin = slf._pixlocn[det-1][-1,-1,0]+slf._pixlocn[det-1][-1,-1,2]/2.0
-    #xint = slf._pixlocn[det-1][:,0,0]
-    # Find which pixels are within the order edges
-    msgs.info("Identifying pixels within each order")
-
-    ordpix = order_pixels(slf._pixlocn[det-1], slf._lordloc[det-1], slf._rordloc[det-1])
-
-    msgs.info("Applying bad pixel mask")
-    ordpix *= (1-bpix.astype(np.int))
-    mskord = np.zeros(msflat.shape)
-    msgs.info("Rectifying the orders to estimate the background locations")
-    #badorders = np.zeros(norders)
-    msnormflat = maskval*np.ones_like(msflat)
-    msblaze = maskval*np.ones((msflat.shape[0],norders))
-    msgs.work("Must consider different amplifiers when normalizing and determining the blaze function")
-    msgs.work("Multiprocess this step to make it faster")
-    flat_ext1d = maskval*np.ones((msflat.shape[0],norders))
-    for o in range(norders):
-        if settings.argflag["reduce"]["flatfield"]["method"].lower() == "bspline":
-            msgs.info("Deriving blaze function of slit {0:d} with a bspline".format(o+1))
-            tilts = slf._tilts[det - 1].copy()
-            gdp = (msflat != maskval) & (ordpix == o + 1)
-            srt = np.argsort(tilts[gdp])
-            everyn = settings.argflag['reduce']['flatfield']['params'][0]
-            if everyn > 0.0 and everyn < 1.0:
-                everyn *= msflat.shape[0]
-                everyn = int(everyn + 0.5)
-            everyn *= slf._pixwid[det - 1][o]
-            if np.where(gdp)[0].size < 2*everyn:
-                msgs.warn("Not enough pixels in slit {0:d} to fit a bspline")
-                continue
-            bspl = utils.func_fit(tilts[gdp][srt], msflat[gdp][srt], 'bspline', 3, everyn=everyn)
-            model_flat = utils.func_val(bspl, tilts.flatten(), 'bspline')
-            model = model_flat.reshape(tilts.shape)
-            word = np.where(ordpix == o + 1)
-            msnormflat[word] = msflat[word] / model[word]
-            msblaze[:, o] = utils.func_val(bspl, np.linspace(0.0, 1.0, msflat.shape[0]), 'bspline')
-            mskord[word] = 1.0
-            flat_ext1d[:, o] = np.sum(msflat * mskord, axis=1) / np.sum(mskord, axis=1)
-            mskord *= 0.0
-        else:
-            msgs.error("Flatfield method {0:s} is not supported".format(settings.argflag["reduce"]["flatfield"]["method"]))
-    # Send the blaze away to be plotted and saved
-    if "2dpca" in settings.argflag["reduce"]["flatfield"].keys():
-        if settings.argflag["reduce"]["flatfield"]["2dpca"] >= 1:
-            msgs.info("Performing a 2D PCA on the blaze fits")
-            msblaze = arpca.pca2d(msblaze, settings.argflag["reduce"]["flatfield"]["2dpca"])
-    # Plot the blaze model
-    if not msgs._debug['no_qa']:
-        msgs.info("Saving blaze fits to QA")
-#        arqa.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
-        artrace.plot_orderfits(slf, msblaze, flat_ext1d, desc=plotdesc, textplt="Order")
-    # If there is more than 1 amplifier, apply the scale between amplifiers to the normalized flat
-    if (settings.spect[dnum]['numamplifiers'] > 1) & (norders > 1):
-        msnormflat *= sclframe
-    return msnormflat, msblaze
-'''

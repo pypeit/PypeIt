@@ -136,8 +136,8 @@ class Messages:
         self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
-#        self._log.write("PYPIT was last updated {0:s}\n".format(self._last_updated))
-        self._log.write("This log was generated with version {0:s} of PYPIT\n\n".format(
+#        self._log.write("PypeIt was last updated {0:s}\n".format(self._last_updated))
+        self._log.write("This log was generated with version {0:s} of PypeIt\n\n".format(
                                                                                     self._version))
         self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
         self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))

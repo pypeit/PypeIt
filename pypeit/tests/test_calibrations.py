@@ -13,11 +13,10 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit import metadata
 from pypeit import calibrations
 from pypeit.par import pypeitpar
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, dummy_fitstbl
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -26,11 +25,12 @@ def data_path(filename):
 @pytest.fixture
 def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
-        fitstbl = metadata.dummy_fitstbl(directory=data_path(''))
+        fitstbl = dummy_fitstbl(directory=data_path(''))
         fitstbl['filename'][1] = 'b1.fits.gz'
+        fitstbl['filename'][5] = 'b27.fits.gz'
         return fitstbl
 
-    fitstbl = metadata.dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
+    fitstbl = dummy_fitstbl(directory=os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
                                                            'Shane_Kast_blue', '600_4310_d55'))
     fitstbl['filename'][1] = 'b1.fits.gz'
     for ii in range(2,5):
@@ -44,35 +44,40 @@ def fitstbl():
 
 @pytest.fixture
 def multi_caliBrate(fitstbl):
-    setup = 'A_01_aa'
     det = 1
-    sci_ID = 1
     spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
+    # Par
+    def_par = spectrograph.default_pypeit_par()
+    # Grab a science file for configuration specific parameters
+    for idx, row in enumerate(fitstbl):
+        if 'science' in row['frametype']:
+            sci_file = os.path.join(row['directory'], row['filename'])
+            break
+    par = spectrograph.config_specific_par(def_par, sci_file)
+    #
+    calib_par = par['calibrations']
+    calib_par['badpix'] = False
+    calib_par['biasframe']['useframe'] = 'overscan'
 
-    # Only changing the defaults
-    calib_par = pypeitpar.CalibrationsPar(badpix=False,
-                                biasframe=pypeitpar.FrameGroupPar('bias', useframe='overscan'))
 
     redux_path = data_path('') if os.getenv('PYPEIT_DEV') is None \
                                 else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
 
-    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, spectrograph=spectrograph,
-                                                        par=calib_par, redux_path=redux_path,
+    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
+                                                        redux_path=redux_path,
                                                         save_masters=False, write_qa=False)
-    multi_caliBrate.reset(setup, det, sci_ID, calib_par)
+    # Find the first science row
+    frame = fitstbl.find_frames('science', index=True)[0]
+    # Set
+    multi_caliBrate.set_config(frame, det, par=calib_par)
     return multi_caliBrate
 
 
 def test_instantiate(fitstbl):
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl)
+    par = pypeitpar.PypeItPar()
+    spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph)
     print(caliBrate)
-
-
-def test_pixlocn(multi_caliBrate):
-    multi_caliBrate.shape = (2048,350)
-    pixlocn = multi_caliBrate.get_pixlocn()
-    # Test
-    assert pixlocn.shape == (2048,350,4)
 
 
 def test_bias(multi_caliBrate):
@@ -98,11 +103,11 @@ def test_bpm(multi_caliBrate):
 def test_slits(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
     # Run
-    tslits_dict, maskslits = multi_caliBrate.get_slits()
+    tslits_dict, maskslits = multi_caliBrate.get_slits(write_qa=False)
     # Test
     assert isinstance(tslits_dict, dict)
     assert isinstance(maskslits, np.ndarray)
@@ -112,16 +117,16 @@ def test_slits(multi_caliBrate):
 def test_wv_calib(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     # Run
     wv_calib, maskslits = multi_caliBrate.get_wv_calib()
     assert isinstance(wv_calib, dict)
     assert wv_calib['0'] is not None
-    assert wv_calib['0']['rms'] < 0.1
+    assert wv_calib['0']['rms'] < 0.2
     assert isinstance(maskslits, np.ndarray)
 
 
@@ -129,11 +134,11 @@ def test_wv_calib(multi_caliBrate):
 def test_tilts(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     # Run
     tilts_dict, maskslits = multi_caliBrate.get_tilts()
@@ -145,11 +150,11 @@ def test_tilts(multi_caliBrate):
 def test_flat(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()
     # Run
@@ -162,11 +167,11 @@ def test_flat(multi_caliBrate):
 def test_waveimg(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
-    multi_caliBrate.get_pixlocn()
+    #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.msbias = 'overscan'
-    multi_caliBrate.get_slits()
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()
     multi_caliBrate.get_flats()

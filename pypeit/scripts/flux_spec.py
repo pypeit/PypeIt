@@ -8,27 +8,80 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from configobj import ConfigObj
+import numpy as np
+from pypeit import par, msgs
+from pypeit.spectrographs.util import load_spectrograph
 import argparse
 
-# pypeit_flux_spec sensfunc --std_file=spec1d_Feige66_KASTb_2015May20T041246.96.fits  --instr=shane_kast_blue --sensfunc_file=tmp.yaml
-# pypeit_flux_spec flux --sci_file=spec1d_J1217p3905_KASTb_2015May20T045733.56.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# pypeit_flux_spec sensfunc --std_file=spec1d_G191b2b_KASTr_2015Jan23T024320.75.fits  --instr=shane_kast_red_ret --sensfunc_file=tmp.yaml --telluric
-# pypeit_flux_spec flux     --sci_file=spec1d_J0025-0312_KASTr_2015gen23T025323.85.fits --sensfunc_file=tmp.yaml --flux_file=tmp.fits
+# Echelle examples:
+## Generate sensfunc
+# pypeit_flux_spec sensfunc keck_nires --std_file=spec1d_HIP13917_V8p6_NIRES_2018Oct01T094225.598.fits
+#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --debug
+## flux calibrate your science.
+# pypeit_flux_spec flux keck_nires --sci_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698.fits
+#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml
+#         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
 
+
+def read_fluxfile(ifile):
+    """
+    Read a PypeIt flux file, akin to a standard PypeIt file
+
+    The top is a config block that sets ParSet parameters
+      The spectrograph is required
+
+    Args:
+        ifile: str
+          Name of the flux file
+
+    Returns:
+        spectrograph: Spectrograph
+        cfg_lines: list
+          Config lines to modify ParSet values
+        flux_dict: dict
+          Contains spec1d_files and flux_files
+          Empty if no flux block is specified
+
+    """
+    # Read in the pypeit reduction file
+    msgs.info('Loading the fluxcalib file')
+    lines = par.util._read_pypeit_file_lines(ifile)
+    is_config = np.ones(len(lines), dtype=bool)
+
+
+    # Parse the fluxing block
+    flux_dict = {}
+    s, e = par.util._find_pypeit_block(lines, 'flux')
+    if s >= 0 and e < 0:
+        msgs.error("Missing 'flux end' in {0}".format(ifile))
+    elif (s < 0) or (s==e):
+        msgs.warn("No flux block, you must be making the sensfunc only..")
+    else:
+        flux_dict['spec1d_files'] = []
+        flux_dict['flux_files'] = []
+        for line in lines[s:e]:
+            prs = line.split(' ')
+            flux_dict['spec1d_files'].append(prs[0])
+            flux_dict['flux_files'].append(prs[1])
+        is_config[s-1:e+1] = False
+
+    # Construct config to get spectrograph
+    cfg_lines = list(lines[is_config])
+    cfg = ConfigObj(cfg_lines)
+    spectrograph_name = cfg['rdx']['spectrograph']
+    spectrograph = load_spectrograph(spectrograph_name)
+
+    # Return
+    return spectrograph, cfg_lines, flux_dict
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
-    parser.add_argument("steps", type=str, help="Steps to perform [sensfunc,flux]")
-    parser.add_argument("--std_file", type=str, help="File containing the standard 1d spectrum")
-    parser.add_argument("--std_obj", type=str, help="Standard star identifier, e.g. O479-S5009-D01-I0023")
-    parser.add_argument("--sci_file", type=str, help="File containing the science 1d spectra")
-    parser.add_argument("--instr", type=str, help="Instrument name (required to generate sensfunc)")
-    parser.add_argument("--sensfunc_file", type=str, help="YAML file containing the sensitivity function (input or output)")
-    parser.add_argument("--flux_file", type=str, help="Output filename for fluxed science spectra")
+    parser.add_argument("flux_file", type=str, help="File to guide fluxing process")
+    parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
-    parser.add_argument("--multi_det", type=str, help="Multiple detectors (e.g. 3,7 for DEIMOS)")
-    parser.add_argument("--telluric", default=False, action="store_true", help="Correct for telluric absorptions?")
+    parser.add_argument("--par_outfile", default='fluxing.par', action="store_true", help="Output to save the parameters")
 
     if options is None:
         args = parser.parse_args()
@@ -41,64 +94,62 @@ def main(args, unit_test=False):
     """ Runs fluxing steps
     """
     import pdb
+    import os
+    import numpy as np
 
     from pypeit import fluxspec
+    from pypeit.core import flux
+    from pypeit.par import pypeitpar
 
-    # Parse the steps
-    steps = args.steps.split(',')
+    # Load the file
+    spectrograph, config_lines, flux_dict = read_fluxfile(args.flux_file)
 
-    # Multi detector?
-    if args.multi_det is not None:
-        multi_det = [int(det) for det in args.multi_det.split(',')]
-    else:
-        multi_det = None
+    # Parameters
+    spectrograph_def_par = spectrograph.default_pypeit_par()
+    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                             merge_with=config_lines)
 
-    # Checks
-    if 'sensfunc' in steps:
-        if args.instr is None:
-            raise IOError("You must set the instrument to generate the sensfunc")
-        if args.std_file is None:
-            raise IOError("You must input a spec1d file of the standard to generate the sensfunc")
-        if args.sensfunc_file is None:
-            raise IOError("You must give the output filename in --sensfunc_to generate the sensfunc")
-    if 'flux' in steps:
-        if args.sci_file is None:
-            raise IOError("You must input a spec1d file of the science spectra to flux them")
-        if args.flux_file is None:
-            raise IOError("You must give the output filename in --flux_file for the fluxed spectra")
-        if 'sensfunc' not in steps:
-            if args.sensfunc_file is None:
-                raise IOError("You must input a sensfunc in -sensfunc_file to flux.")
+    if unit_test:
+        path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
+        par['fluxcalib']['std_file'] = os.path.join(path, par['fluxcalib']['std_file'])
+        for kk, spec1d_file, flux_file in zip(np.arange(len(flux_dict['spec1d_files'])), flux_dict['spec1d_files'], flux_dict['flux_files']):
+            flux_dict['spec1d_files'][kk] = os.path.join(path, spec1d_file)
+            flux_dict['flux_files'][kk] = os.path.join(path, flux_file)
+
+    # Write the par to disk
+    print("Writing the parameters to {}".format(args.par_outfile))
+    par.to_config(args.par_outfile)
 
     # Instantiate
-    if 'sensfunc' in steps:
-        sfile = None  # Need to create it, not load it
+    if spectrograph.pypeline == 'Echelle':
+        # THIS MAY BE BROKEN
+        FxSpec = fluxspec.EchFluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
     else:
-        sfile = args.sensfunc_file
-    FxSpec = fluxspec.FluxSpec(std_spec1d_file=args.std_file,
-                               sci_spec1d_file=args.sci_file,
-                               spectrograph=args.instr,
-                               telluric=args.telluric,
-                               sens_file=sfile,
-                               multi_det=multi_det)
-    # Step through
-    if 'sensfunc' in steps:
-        # Find the star automatically?
-        if args.std_obj is None:
+        FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], debug=args.debug)
+
+    # Generate sensfunc??
+    if par['fluxcalib']['std_file'] is not None:
+        # Load standard
+        FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
+        # For echelle, the code will deal with the standard star in the ech_fluxspec.py
+        if not spectrograph.pypeline == 'Echelle':
+            # Find the star
             _ = FxSpec.find_standard()
-        else:
-            _ = FxSpec._set_std_obj(args.std_obj)
         # Sensitivity
         _ = FxSpec.generate_sensfunc()
         # Output
-        _ = FxSpec.save_master(outfile=args.sensfunc_file)
+        _ = FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=par['fluxcalib']['sensfunc'])
         # Show
         if args.plot:
             FxSpec.show_sensfunc()
 
-    if 'flux' in steps:
-        FxSpec.flux_science()
-        FxSpec.write_science(args.flux_file)
+    # Flux?
+    if len(flux_dict) > 0:
+        for spec1d_file, flux_file in zip(flux_dict['spec1d_files'], flux_dict['flux_files']):
+            FxSpec.flux_science(spec1d_file)
+            FxSpec.write_science(flux_file)
+
+
 
 
 
