@@ -367,8 +367,6 @@ class MultiSlit(FluxSpec):
             this_wave = self.std.optimal['WAVE_GRID']
         except KeyError:
             this_wave = self.std.optimal['WAVE']
-        from IPython import embed
-        embed()
         sens_dict_long = flux.generate_sensfunc(this_wave,
                                                self.std.optimal['COUNTS'],
                                                self.std.optimal['COUNTS_IVAR'],
