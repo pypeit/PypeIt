@@ -665,70 +665,6 @@ def parse_binning(binning):
     return binspectral, binspatial
 
 
-'''
-def dummy_settings(pypeitdir=None, nfile=10, spectrograph='shane_kast_blue',
-                   set_idx=True):
-    """ Generate default settings for use in tests.
-
-
-    Parameters
-    ----------
-    pypeitdir
-    nfile
-    spectrograph
-    set_idx : bool, optional
-      Set dummy index values for science and calibs
-
-    Returns
-    -------
-
-    """
-    # Dummy argflag
-    if spectrograph not in ['shane_kast_blue', 'keck_nirspec_low', 'keck_deimos', 'keck_nires',
-                            'keck_lris_red']:
-        msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
-    argf = get_argflag_class(("ARMS", spectrograph))
-    argf.init_param()
-    if pypeitdir is None:
-        pypeitdir = __file__[0:__file__.rfind('/')]
-    # Run specific
-    argf.set_param('run pypeitdir {0:s}'.format(pypeitdir))
-    argf.set_param('run spectrograph {:s}'.format(spectrograph))
-    argf.set_param('run directory science ./')
-    # Dummy spect
-    spect = get_spect_class(("ARMS", spectrograph, "dummy"))
-    lines = spect.load_file(base=True)  # Base spectrograph settings
-    spect.set_paramlist(lines)
-    lines = spect.load_file()
-    spect.set_paramlist(lines)
-    # If the instrument settings file sets some argflag settings, implement those changes now
-    if len(spect.__dict__['_settings']) != 0:
-        argf.set_paramlist(spect.__dict__['_settings'])
-    if set_idx:
-        for jj, key in enumerate(spect._spect.keys()):
-            if key in ['det']:
-                continue
-            if 'index' in spect._spect[key].keys():
-                if spectrograph == 'shane_kast_blue':  # Science frames from idx = 5 to 9
-                    assert nfile == 10
-                for kk in [5,6,7,8,9]:
-                    if key == 'science':
-                        spect._spect[key]['index'] += [np.array([kk])]
-                    elif key == 'arc':
-                        spect._spect[key]['index'] += [np.array([1])]
-                    elif key == 'standard':
-                        spect._spect[key]['index'] += [np.array([4])]
-                    elif key == 'bias':
-                        spect._spect[key]['index'] += [np.array([0])]
-                    elif key == 'trace':
-                        spect._spect[key]['index'] += [np.array([2,3])]
-                    elif key == 'pixelflat':
-                        spect._spect[key]['index'] += [np.array([2,3])]
-    init(argf, spect)
-    return
-'''
-
-
 def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False,
               binning=None):
     """
@@ -755,8 +691,8 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
             Transpose the order of the returned slices.  The
             following are equivalent::
                 
-                tslices = parse_sec2slice('[:10,10:]')[::-1]
-                tslices = parse_sec2slice('[:10,10:]', transpose=True)
+                tslices = parse.sec2slice('[:10,10:]')[::-1]
+                tslices = parse.sec2slice('[:10,10:]', transpose=True)
 
         binning (:obj:`str`, optional):
             The image binning.  The `subarray` string is always expected to be for an *unbinned* image.

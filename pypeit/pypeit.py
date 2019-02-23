@@ -83,37 +83,49 @@ class PypeIt(object):
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
 
-        # Par
-        # Grab a science file for configuration specific parameters
+        # --------------------------------------------------------------
+        # Get the full set of PypeIt parameters
+        #   - Grab a science file for configuration specific parameters
         for idx, row in enumerate(usrdata):
             if 'science' in row['frametype']:
                 sci_file = data_files[idx]
                 break
-        # Set
+        #   - Configuration specific parameters for the spectrograph
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
+        #   - Build the full set, merging with any user-provided
+        #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        # --------------------------------------------------------------
 
-        # Fitstbl
-        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
+        
+        # --------------------------------------------------------------
+        # Build the meta data
+        #   - Re-initilize based on the file data
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, files=data_files,
                                       usrdata=usrdata, strict=True)
-        # The following could be put in a prepare_to_run() method in PypeItMetaData
-        if 'setup' not in self.fitstbl.keys():
-            self.fitstbl['setup'] = setups[0]
-        self.fitstbl.get_frame_types(user=frametype)  # This sets them using the user inputs
-        self.fitstbl.set_defaults()  # Only does something if values not set in PypeIt file
-        self.fitstbl._set_calib_group_bits()
-        self.fitstbl._check_calib_groups()
-        # Write .calib file (For QA naming amongst other things)
+        #   - Interpret automated or user-provided data from the PypeIt
+        #   file
+        self.fitstbl.finalize_usr_build(frametype, setups[0])
+
+#        if 'setup' not in self.fitstbl.keys():
+#            self.fitstbl['setup'] = setups[0]
+#        self.fitstbl.get_frame_types(user=frametype)  # This sets them using the user inputs
+#        self.fitstbl.set_defaults()  # Only does something if values not set in PypeIt file
+#        self.fitstbl._set_calib_group_bits()
+#        self.fitstbl._check_calib_groups()
+
+        #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
-
 
         # Other Internals
         self.logname = logname
         self.overwrite = overwrite
-        # Currently the runtime argument determines the behavior for reuse_masters. There is also a reuse_masters
-        # parameter in the parset but it is currently ignored.
-        self.reuse_masters=reuse_masters
+
+        # Currently the runtime argument determines the behavior for
+        # reuse_masters. There is also a reuse_masters parameter in the
+        # parset but it is currently ignored.
+        self.reuse_masters = reuse_masters
         self.show = show
 
         # Make the output directories
@@ -125,7 +137,8 @@ class PypeIt(object):
 
         # Instantiate Calibrations class
         self.caliBrate \
-            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'], self.spectrograph,
+            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+                                                 self.spectrograph,
                                                  redux_path=self.par['rdx']['redux_path'],
                                                  reuse_masters=self.reuse_masters,
                                                  save_masters=True, write_qa=True,

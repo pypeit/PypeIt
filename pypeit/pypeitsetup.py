@@ -268,7 +268,7 @@ class PypeItSetup(object):
             :attr:`fitstbl` which is a :obj:`PypeItMetaData` object
         """
         # Build and sort the table
-        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, files=self.file_list,
                                       usrdata=self.usrdata, strict=strict)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
@@ -279,20 +279,6 @@ class PypeItSetup(object):
 
         # Return the table
         return self.fitstbl.table
-
-    def match_ABBA(self):
-        """
-        Matches science frames to their partner A/B frame
-        Mainly a wrapper to arsort.match_ABBA()
-
-        Returns:
-            :obj:`PypeItMetaData`: self.fitstbl -- Updated with 'AB_frame' column
-
-        """
-        self.fitstbl.match_ABBA()
-        self.steps.append(inspect.stack()[0][3])
-        return self.fitstbl
-
 
     def get_frame_types(self, flag_unknown=False, use_header_id=False):
         """
@@ -443,15 +429,13 @@ class PypeItSetup(object):
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
         # Set default comb_id (only done if needed)
-        self.fitstbl.set_defaults()
+#        self.fitstbl.set_defaults()
+        self.fitstbl.set_combination_groups()
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)
         #self.fitstbl.calib_to_science()
         self.fitstbl['failures'] = False                    # TODO: placeholder
-
-#        if self.par['scienceimage'] is not None and self.par['scienceimage']['nodding']:
-#            self.match_ABBA()
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
