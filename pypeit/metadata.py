@@ -298,6 +298,8 @@ class PypeItMetaData:
 
             # Grab Meta
             for meta_key in data.keys():
+                if meta_key in ['directory', 'filename']:
+                    continue
                 value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
                                                          required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
