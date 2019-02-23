@@ -155,7 +155,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     if tilts:
         wvTilts = wavetilts.WaveTilts(None, None, spectrograph, None, None, master_key=master_key,
                                       master_dir=master_dir, reuse_masters=reuse_masters)
-        tilts_dict = wvTilts.master()
+        tilts_dict, _ = wvTilts.master()
         ret.append(tilts_dict)
 
     if datasec:
