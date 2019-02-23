@@ -1,16 +1,27 @@
 0.9.2dev
 --------
+
 - Many doc string updates in top level routines (not core)
 - Updates to install and cookbook docs
-- Continued the process of requiring spectrograph and par in each base class
+- Continued the process of requiring spectrograph and par in each base
+  class
 - More doc + cleaning at top level, e.g. base classes
 - Eliminates BPM base class
-- Hot fix for flatfield;  illumflat was getting divided into the pixelflatnrm image
-- Modify -c in pypeit_setup to require a setup (or all) be specified when writing, e.g. 'all' or 'A,C'
-- Generated a new spectrograph child for LRISr in long-slit read-out mode (only 2 amps, 1 per detector)
+- Hot fix for flatfield;  illumflat was getting divided into the
+  pixelflatnrm image
+- Modify -c in pypeit_setup to require a setup (or all) be specified
+  when writing, e.g. 'all' or 'A,C'
+- Generated a new spectrograph child for LRISr in long-slit read-out
+  mode (only 2 amps, 1 per detector)
 - Require astropy >=3.1  [required for coadding at the least]
 - Add template for LRISr 600/5000 wavelengths
-
+- Streamline some of the instantiation at the beginning of
+  PypeIt.__init__.
+    - Moves the call to default_pypeit_par into config_specific_par.
+    - Adds a finalize_usr_build() function to PypeItMetaData to
+      consolidate the few opaque steps when finishing the meta data
+      build.
+- Allows for slice like syntax when defining calibration groups.
 
 0.9.1 (4 Feb 2019)
 ------------------
