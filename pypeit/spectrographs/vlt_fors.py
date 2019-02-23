@@ -157,7 +157,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
                                | (fitstbl['target'] == 'WAVE,LAMP'))
 

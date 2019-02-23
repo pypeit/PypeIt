@@ -77,6 +77,7 @@ from astropy.time import Time
 
 from pypeit.par.parset import ParSet
 from pypeit.par import util
+from pypeit.core.framematch import FrameTypeBitMask
 
 # Needs this to determine the valid spectrographs TODO: This causes a
 # circular import.  Spectrograph specific parameter sets and where they
@@ -125,6 +126,8 @@ class FrameGroupPar(ParSet):
         descr['frametype'] = 'Frame type.  ' \
                              'Options are: {0}'.format(', '.join(options['frametype']))
 
+        # TODO: Add overscan parameters for each frame type?
+
         dtypes['useframe'] = str
         descr['useframe'] = 'A master calibrations file to use if it exists.'
 
@@ -170,8 +173,9 @@ class FrameGroupPar(ParSet):
         """
         Return the list of valid frame types.
         """
-        return [ 'bias', 'dark', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science',
-                 'all' ]
+        return FrameTypeBitMask().keys()
+#        return [ 'bias', 'dark', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science',
+#                 'all' ]
 
     def validate(self):
         if self.data['useframe'] is None:
@@ -980,13 +984,15 @@ class WavelengthSolutionPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, reference=None, method=None,
-                 echelle = None, ech_fix_format = None, ech_nspec_coeff = None, ech_norder_coeff = None, ech_sigrej = None,
-                 lamps=None, nonlinear_counts = None,
-                 sigdetect=None, fwhm=None, reid_arxiv = None, nreid_min = None, cc_thresh = None, cc_local_thresh = None,
-                 nlocal_cc = None, rms_threshold=None,match_toler=None, func=None, n_first=None, n_final =None,
-                 sigrej_first=None, sigrej_final=None,wv_cen=None, disp=None,numsearch=None,nfitpix=None, IDpixels=None,
-                 IDwaves=None, medium=None, frame=None, nsnippet=None):
+    def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
+                 ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
+                 nonlinear_counts=None, sigdetect=None, fwhm=None, reid_arxiv=None,
+                 nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
+                 rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
+                 sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
+                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None,
+                 nsnippet=None):
+
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1213,13 +1219,12 @@ class WavelengthSolutionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'reference', 'method',
-                    'echelle', 'ech_fix_format', 'ech_nspec_coeff', 'ech_norder_coeff', 'ech_sigrej',
-                    'lamps', 'nonlinear_counts', 'sigdetect', 'fwhm',
-                    'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh', 'nlocal_cc',
-                    'rms_threshold', 'match_toler', 'func', 'n_first','n_final', 'sigrej_first', 'sigrej_final',
-                    'wv_cen', 'disp', 'numsearch', 'nfitpix','IDpixels', 'IDwaves', 'medium', 'frame',
-                    'nsnippet']
+        parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
+                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'nonlinear_counts', 'sigdetect',
+                   'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
+                   'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
+                   'IDpixels', 'IDwaves', 'medium', 'frame', 'nsnippet']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1237,7 +1242,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        return [ 'simple', 'semi-brute', 'basic','holy-grail', 'reidentify', 'full_template']
+        return [ 'simple', 'semi-brute', 'basic', 'holy-grail', 'reidentify', 'full_template']
 
     @staticmethod
     def valid_lamps():
@@ -1483,7 +1488,8 @@ class WaveTiltsPar(ParSet):
         previously `disporder`?  If so, I think I prefer the generality
         of `disporder`...
     """
-    def __init__(self, idsonly=None, tracethresh=None, sig_neigh=None, nfwhm_neigh=None, maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
+    def __init__(self, idsonly=None, tracethresh=None, sig_neigh=None, nfwhm_neigh=None,
+                 maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
                  func2d=None, maxdev2d=None, sigrej2d=None):
 
 
@@ -1603,7 +1609,8 @@ class WaveTiltsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace','nfwhm_neigh', 'spat_order', 'spec_order', 'func2d','maxdev2d', 'sigrej2d']
+        parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
+                   'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1626,213 +1633,7 @@ class WaveTiltsPar(ParSet):
 #            self.data['params'] = [self.data['params']]
 #        pass
 
-# TODO: JFH. This parameter class is now deprecated
-# From artrace.trace_objects_in_slit
-#       trim=2, triml=None, trimr=None, sigmin=2.0, bgreg=None
-class TraceObjectsPar(ParSet):
-    """
-    The parameter set used to hold arguments for tracing one or more
-    objects within a slit.
-    
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-    """
-    def __init__(self, function=None, order=None, find=None, nsmooth=None, xedge=None, method=None,
-                 params=None):
 
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        defaults['function'] = 'legendre'
-        options['function'] = TraceObjectsPar.valid_functions()
-        dtypes['function'] = str
-        descr['function'] = 'Function to use to trace the object in each slit.  ' \
-                            'Options are: {0}'.format(options['function'])
-
-        defaults['order'] = 2
-        dtypes['order'] = int
-        descr['order'] = 'Order of the function to use to fit the object trace in each slit'
-
-        defaults['find'] = 'standard'
-        options['find'] = TraceObjectsPar.valid_detection_algorithms()
-        dtypes['find'] = str
-        descr['find'] = 'Algorithm to use for finding objects.' \
-                        'Options are: {0}'.format(', '.join(options['find']))
-
-        defaults['nsmooth'] = 3
-        dtypes['nsmooth'] = [int, float]
-        descr['nsmooth'] = 'Parameter for Gaussian smoothing when find=nminima.'
-
-        defaults['xedge'] = 0.03
-        dtypes['xedge'] = float
-        descr['xedge'] = 'Ignore any objects within xedge of the edge of the slit'
-
-        defaults['method'] = 'pca'
-        options['method'] = TraceObjectsPar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method to use for tracing each object; only used with Echelle ' \
-                          'pipeline.  Options are: {0}'.format(', '.join(options['method']))
-
-        defaults['params'] = [1, 0]
-        dtypes['params'] = [int, list]
-        descr['params'] = 'Parameters for the requested method.  For pca, params is a list ' \
-                          'containing the order of the polynomials that should be used to fit ' \
-                          'the object trace principal components. For example, params = 1, 0 ' \
-                          'will fit 2 principal components, the first PC will be fit with a ' \
-                          'first order polynomial, the second PC will be fit with a zeroth ' \
-                          'order polynomial. TODO: What about the other methods?'
-
-        # Instantiate the parameter set
-        super(TraceObjectsPar, self).__init__(list(pars.keys()),
-                                              values=list(pars.values()),
-                                              defaults=list(defaults.values()),
-                                              options=list(options.values()),
-                                              dtypes=list(dtypes.values()),
-                                              descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'function', 'order', 'find', 'nsmooth', 'xedge', 'method', 'params' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    @staticmethod
-    def valid_functions():
-        """
-        Return the list of valid functions to use for object tracing.
-        """
-        return [ 'polynomial', 'legendre', 'chebyshev' ]
-
-    @staticmethod
-    def valid_detection_algorithms():
-        """
-        Return the list of valid algorithms for detecting objects.
-        """
-        return [ 'standard', 'nminima' ]
-
-    @staticmethod
-    def valid_methods():
-        """
-        Return the valid methods to use for tilt tracing.
-        """
-        return [ 'pca', 'spca', 'spline', 'interp', 'perp', 'zero' ]
-
-    def validate(self):
-        # Convert param to list
-        if isinstance(self.data['params'], int):
-            self.data['params'] = [self.data['params']]
-        pass
-
-# TODO JFH This parset is now deprecated.
-class ExtractObjectsPar(ParSet):
-    """
-    The parameter set used to hold arguments for extracting object
-    spectra.
-    
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-    """
-    def __init__(self, pixelmap=None, pixelwidth=None, reuse=None, profile=None, maxnumber=None,
-                 manual=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
-
-        # Check the manual input
-        if manual is not None:
-            if not isinstance(manual, (ParSet, dict, list)):
-                raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
-            _manual = [manual] if isinstance(manual, (ParSet,dict)) else manual
-            pars['manual'] = _manual
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['pixelmap'] = str
-        descr['pixelmap'] = 'If desired, a fits file can be specified (of the appropriate form)' \
-                            'to specify the locations of the pixels on the detector (in ' \
-                            'physical space).  TODO: Where is "appropriate form" specified?'
-
-        defaults['pixelwidth'] = 2.5
-        dtypes['pixelwidth'] = [int, float]
-        descr['pixelwidth'] = 'The size of the extracted pixels (as an scaled number of Arc ' \
-                              'FWHM), -1 will not resample'
-
-        defaults['reuse'] = False
-        dtypes['reuse'] = bool
-        descr['reuse'] = 'If the extraction has previously been performed and saved, load the ' \
-                         'previous result'
-
-        defaults['profile'] = 'gaussian'
-        options['profile'] = ExtractObjectsPar.valid_profiles()
-        dtypes['profile'] = str
-        descr['profile'] = 'Fitting function used to extract science data, only if the ' \
-                           'extraction is 2D.  NOTE: options with suffix \'func\' fits a ' \
-                           'function to the pixels whereas those without this suffix take into ' \
-                           'account the integration of the function over the pixel (and is ' \
-                           'closer to truth).   ' \
-                           'Options are: {0}'.format(', '.join(options['profile']))
-
-        dtypes['maxnumber'] = int
-        descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
-                             'None for no limit.'
-
-        dtypes['manual'] = list
-        descr['manual'] = 'List of manual extraction parameter sets'
-
-        # Instantiate the parameter set
-        super(ExtractObjectsPar, self).__init__(list(pars.keys()),
-                                                values=list(pars.values()),
-                                                defaults=list(defaults.values()),
-                                                options=list(options.values()),
-                                                dtypes=list(dtypes.values()),
-                                                descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'pixelmap', 'pixelwidth', 'reuse', 'profile', 'maxnumber' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
-        return cls(**kwargs)
-
-    @staticmethod
-    def valid_profiles():
-        """
-        Return the list of valid functions to use for object tracing.
-        """
-        return [ 'gaussian', 'gaussfunc', 'moffat', 'moffatfunc' ]
-
-    def validate(self):
-        pass
-
-# ToDO place holder to be updated by JFH
 class ScienceImagePar(ParSet):
     """
     The parameter set used to hold arguments for sky subtraction, object
@@ -1842,8 +1643,8 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None, model_full_slit=None,
-                 no_poly=None, manual=None):
+    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
+                 model_full_slit=None, no_poly=None, manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1912,7 +1713,8 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual']
+        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit',
+                   'no_poly', 'manual']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1934,8 +1736,8 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, caldir=None, reuse_masters=None, setup=None, trim=None, badpix=None,
-                 biasframe=None, darkframe=None, arcframe=None, pixelflatframe=None,
+    def __init__(self, caldir=None, setup=None, trim=None, badpix=None, biasframe=None,
+                 darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
                  wavelengths=None, slits=None, tilts=None):
 
@@ -1957,11 +1759,6 @@ class CalibrationsPar(ParSet):
         dtypes['caldir'] = str
         descr['caldir'] = 'Directory relative to calling directory to write master files.'
 
-        # JFH Currently this parameter does nothing, since it is controlled by the run_pypeit argument -m
-        options['reuse_masters'] = False #CalibrationsPar.allowed_master_options()
-        dtypes['reuse_masters'] = bool
-        descr['reuse_masters'] = 'If True PypeIt will reuse existing master frames rather than recreate them. If False, it will' \
-                                 '  recreate the master frames. '
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
@@ -1995,6 +1792,11 @@ class CalibrationsPar(ParSet):
                                              process=ProcessImagesPar(sigrej=-1))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
+
+        defaults['tiltframe'] = FrameGroupPar(frametype='tilt', number=1,
+                                              process=ProcessImagesPar(sigrej=-1))
+        dtypes['tiltframe'] = [ ParSet, dict ]
+        descr['tiltframe'] = 'The frames and combination rules for the wavelength tilts'
 
         defaults['traceframe'] = FrameGroupPar(frametype='trace', number=3)
         dtypes['traceframe'] = [ ParSet, dict ]
@@ -2035,7 +1837,7 @@ class CalibrationsPar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'caldir', 'reuse_masters', 'setup', 'trim', 'badpix' ]
+        parkeys = [ 'caldir', 'setup', 'trim', 'badpix' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2047,6 +1849,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('dark', cfg[pk]) if pk in k else None
         pk = 'arcframe'
         kwargs[pk] = FrameGroupPar.from_dict('arc', cfg[pk]) if pk in k else None
+        pk = 'tiltframe'
+        kwargs[pk] = FrameGroupPar.from_dict('tilt', cfg[pk]) if pk in k else None
         pk = 'pixelflatframe'
         kwargs[pk] = FrameGroupPar.from_dict('pixelflat', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
@@ -2065,11 +1869,6 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = WaveTiltsPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
-
-    #@staticmethod
-    #def allowed_master_options():
-    #    """Return the allowed handling methods for the master frames."""
-    #    return [ 'reuse', 'force' ]
 
     # TODO: Perform extensive checking that the parameters are valid for
     # the Calibrations class.  May not be necessary because validate will

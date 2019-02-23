@@ -57,34 +57,6 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [200, None]
         return par
 
-#    def header_keys(self):
-#        """
-#        Provide the relevant header keywords
-#        """
-#
-#        hdr_keys = {}
-#        hdr_keys[0] = {}
-#
-#        hdr_keys[0]['target'] = 'OBJECT'
-#        hdr_keys[0]['idname'] = 'IMAGETYP'
-#        hdr_keys[0]['time'] = 'MJD-OBS'
-#        hdr_keys[0]['utc'] = 'UTC-OBS'
-#        hdr_keys[0]['date'] = 'DATE-OBS'
-#        hdr_keys[0]['ra'] = 'OBJRA'
-#        hdr_keys[0]['dec'] = 'OBJDEC'
-#        hdr_keys[0]['airmass'] = 'AIRMASS'
-#        hdr_keys[0]['binning'] = 'CCDXBIN'
-#        hdr_keys[0]['exptime'] = 'EXPTIME'
-#        hdr_keys[0]['decker'] = 'MASKNAME'
-#        hdr_keys[0]['dichroic'] = 'FILTNAME'
-#        hdr_keys[0]['dispname'] = 'GRATNAME'
-#        hdr_keys[0]['spectrograph'] = 'INSTRUME'
-#
-#        hdr_keys[0]['naxis0'] = 'NAXIS2'
-#        hdr_keys[0]['naxis1'] = 'NAXIS1'
-#
-#        return hdr_keys
-
     def init_meta(self):
         """
         Generate the meta data dict
@@ -140,47 +112,11 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & ((fitstbl['idname'] == 'COMP') | (fitstbl['idname'] == 'OBJECT'))
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-#    def parse_binning(self, inp, det=1):
-#        """
-#        Get the pixel binning for an image.
-#        """
-#        return super(LBTMODSSpectrograph, self).parse_binning(inp, det=det, key='CCDXBIN')
-
-#    def get_match_criteria(self):
-#        """Set the general matching criteria for LBT MODS."""
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['naxis0'] = '=0'
-#        match_criteria['standard']['match']['naxis1'] = '=0'
-#
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['naxis0'] = '=0'
-#        match_criteria['bias']['match']['naxis1'] = '=0'
-#
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-#        match_criteria['pixelflat']['match']['decker'] = ''
-#
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['naxis0'] = '=0'
-#        match_criteria['trace']['match']['naxis1'] = '=0'
-#        match_criteria['trace']['match']['decker'] = ''
-#
-#        match_criteria['arc']['match'] = {}
-#        match_criteria['arc']['match']['naxis0'] = '=0'
-#        match_criteria['arc']['match']['naxis1'] = '=0'
-#
-#        return match_criteria
 
 
 class LBTMODS1RSpectrograph(LBTMODSSpectrograph):

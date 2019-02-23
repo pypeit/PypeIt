@@ -88,7 +88,7 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pixelflat' or ftype == 'trace':
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['idname'] == 'Flat') | (fitstbl['idname'] == 'IntFlat'))
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & (fitstbl['idname'] == 'Line')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -201,31 +201,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
         return self.datasec_img
-
-#    def get_match_criteria(self):
-#        # TODO: Matching needs to be looked at...
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#        #
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['binning'] = ''
-#        # Bias
-#        match_criteria['pixelflat']['number'] = 5
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['binning'] = ''
-#        # Pixelflat
-#        match_criteria['pixelflat']['number'] = 5
-#        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-#        # Traceflat
-#        match_criteria['pixelflat']['number'] = 5
-#        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-#        # Arc
-#        match_criteria['pixelflat']['number'] = 1
-#        match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
-#
-#        # Return
-#        return match_criteria
 
 
 class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):

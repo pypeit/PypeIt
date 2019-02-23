@@ -19,15 +19,15 @@ class FrameTypeBitMask(BitMask):
     standard, or trace.
     """
     def __init__(self):
-        frame_types = {         'arc': 'Arc lamp observation used for wavelength calibration',
-                               'bias': 'Bias readout for detector bias subtraction',
-                               'dark': 'Shuttered exposure to measure dark current',
-                            'pinhole': 'Pinhole observation used for tracing slit centers',
-                          'pixelflat': 'Flat-field exposure used for pixel-to-pixel response',
-                            'science': 'On-sky observation of a primary target',
-                           'standard': 'On-sky observation of a flux calibrator',
-                              'trace': 'High-count exposure used to trace slit positions',
-                               'tilt': 'Exposure used to trace the tilt in the wavelength solution'
+        frame_types = {      'arc': 'Arc lamp observation used for wavelength calibration',
+                            'bias': 'Bias readout for detector bias subtraction',
+                            'dark': 'Shuttered exposure to measure dark current',
+                         'pinhole': 'Pinhole observation used for tracing slit centers',
+                       'pixelflat': 'Flat-field exposure used for pixel-to-pixel response',
+                         'science': 'On-sky observation of a primary target',
+                        'standard': 'On-sky observation of a flux calibrator',
+                           'trace': 'High-count exposure used to trace slit positions',
+                            'tilt': 'Exposure used to trace the tilt in the wavelength solution'
                       }
         super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
                                                descr=list(frame_types.values()))

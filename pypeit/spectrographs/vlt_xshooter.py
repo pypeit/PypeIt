@@ -161,33 +161,11 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & (fitstbl['target'] == 'LAMP,WAVE')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-#    def get_match_criteria(self):
-#        # TODO: Matching needs to be looked at...
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#
-#        match_criteria['standard']['match'] = {}
-#        # Bias
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['binning'] = ''
-#        # Pixelflat
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['binning'] = ''
-#        # Traceflat
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['binning'] = ''
-#        # Arc
-#        match_criteria['arc']['match'] = {}
-#        # Return
-#        return match_criteria
-
 
     @property
     def norders(self):

@@ -198,63 +198,9 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & (fitstbl['idname'] == 'arc') & (fitstbl['lamps'] == 'Ne+Hg') \
                         & (fitstbl['dispname'] != 'OPEN')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        #
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-        # Pixelflat
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['dispname'] = ''
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['pixelflat']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = match_criteria['pixelflat']['match'].copy()
-
-        # Return
-        return match_criteria
-
-    def setup_arcparam(self, arcparam, disperser=None, msarc_shape=None,
-                       binspectral=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-            modify_dict: dict
-
-        """
-        arcparam['lamps'] = ['NeI', 'HgI']
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-
-        if disperser == 'LR-R':
-            arcparam['n_first'] = 2  # Too much curvature for 1st order
-            arcparam['disp'] = 2.61  # Ang per pixel (unbinned)
-            arcparam['disp_toler'] = 0.1  # Ang per pixel (unbinned)
-            arcparam['wvmnx'][0] = 4470.0
-            arcparam['wvmnx'][1] = 10073.0
-            arcparam['wv_cen'] = 7400.
-            arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0] / binspectral
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
