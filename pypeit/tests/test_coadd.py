@@ -295,7 +295,7 @@ def test_coadd():
 # TODO: This needs to be fixed.
 def test_coadd_with_fluxing():
     """ Test full coadd method with flux scaling"""
-    scale_dict = dict(filter='DES_r', mag=19.0, mag_type='AB')
+    scale_dict = dict(filter='DECAM-R', mag=19.0, mag_type='AB')
     # Setup
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
