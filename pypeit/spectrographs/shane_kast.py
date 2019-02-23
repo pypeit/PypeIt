@@ -259,8 +259,29 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         return par
 
-    def config_specific_par(self, par, scifile):
-        # Wavelength calibrations
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+        
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+
         if self.get_meta_value(scifile, 'dispname') == '600/4310':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
         else:

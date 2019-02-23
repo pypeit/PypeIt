@@ -1,10 +1,10 @@
 """
 Provides a class that handles the fits metadata required by PypeIt.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
+#from __future__ import print_function
+#from __future__ import absolute_import
+#from __future__ import division
+#from __future__ import unicode_literals
 
 import os
 import io
@@ -22,10 +22,10 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import framematch
 from pypeit.core import flux
+from pypeit.core import parse
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.bitmask import BitMask
-#from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
 
@@ -59,7 +59,7 @@ class PypeItMetaData:
             include in the table and specify any validation checks.
         par (:obj:`pypeit.par.pypeitpar.PypeItPar`):
             PypeIt parameters used to set the code behavior.
-        file_list (:obj:`list`, optional):
+        files (:obj:`str`, :obj:`list`, optional):
             The list of files to include in the table.
         data (table-like, optional):
             The data to incude in the table.  The type can be anything
@@ -98,26 +98,30 @@ class PypeItMetaData:
             use in the data reduction.
 
     """
-    def __init__(self, spectrograph, par, file_list=None, data=None, usrdata=None, strict=True):
-        if data is None and file_list is None:
-            msgs.warn('Both data and file_list are None in the instantiation of PypeItMetaData.'
+    def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, strict=True):
+
+        if data is None and files is None:
+            # Warn that table will be empty
+            msgs.warn('Both data and files are None in the instantiation of PypeItMetaData.'
                       '  The table will be empty!')
+
+        # Initialize internals
         self.spectrograph = spectrograph
         self.par = par
         if not isinstance(self.par, PypeItPar):
             raise TypeError('Input parameter set must be of type PypeItPar.')
         self.type_bitmask = framematch.FrameTypeBitMask()
-        self.table = table.Table(data if file_list is None 
-                                 else self._build(file_list, strict=strict, usrdata=usrdata))
-                        #else self._build(file_list, strict=strict))
+
+        # Build table
+        self.table = table.Table(data if files is None 
+                                 else self._build(files, strict=strict, usrdata=usrdata))
+
         # Sort on filename
         self.table.sort('filename')
-        #
+
+        # Merge with user data, if present
         if usrdata is not None:
             self.merge(usrdata)
-        # Instrument-specific validation of the header metadata. This
-        # alters self.table in place!
-        #self.spectrograph.validate_metadata(self.table)
 
         # Initialize internal attributes
         self.configs = None
@@ -139,8 +143,6 @@ class PypeItMetaData:
 
         Returns:
             core_meta: dict
-
-
         """
         core_meta = OrderedDict()  # Mainly to format output to PypeIt file
         # Filename
@@ -226,202 +228,88 @@ class PypeItMetaData:
         # Return
         return meta_data_model
 
-    def _add_bkg_pairs(self, data, bkg_pairs):
-        """
-        Add the background-pair columns to the table.
-        
-        This include two columns called `comb_id` and `bkg_id` that
-        identify object and background frame pairs.  The string
-        indicates how these these columns should be added::
+#    def _add_bkg_pairs(self, data, bkg_pairs):
+#        """
+#        Add the background-pair columns to the table.
+#        
+#        This include two columns called `comb_id` and `bkg_id` that
+#        identify object and background frame pairs.  The string
+#        indicates how these these columns should be added::
+#
+#            - `empty`: The columns are added but their values are all
+#              originally set to -1.  **This is currently the only
+#              option.**
+#
+#        Args:
+#            data (:obj:`dict`):
+#                The current data table.  *This is edited in place.*
+#            bkg_pairs (:obj:`str`):
+#                The method to use for including these pairs.
+#
+#        Raises:
+#            PypeItError:
+#                Raised if the method selected to add the pairs is not
+#                defined.
+#        """
+#        numfiles = len(data['filename'])
+#        if bkg_pairs == 'empty':
+#            data['comb_id'] = [-1]*numfiles
+#            data['bkg_id'] = [-1]*numfiles
+#            return
+#        msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
 
-            - `empty`: The columns are added but their values are all
-              originally set to -1.  **This is currently the only
-              option.**
+    def _build(self, files, strict=True, usrdata=None):
+        """
+        Generate the fitstbl that will be at the heart of PypeItMetaData.
 
         Args:
-            data (:obj:`dict`):
-                The current data table.  *This is edited in place.*
-            bkg_pairs (:obj:`str`):
-                The method to use for including these pairs.
-
-        Raises:
-            PypeItError:
-                Raised if the method selected to add the pairs is not
-                defined.
-        """
-        numfiles = len(data['filename'])
-        if bkg_pairs == 'empty':
-            data['comb_id'] = [-1]*numfiles
-            data['bkg_id'] = [-1]*numfiles
-            return
-        msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
-
-    def _build(self, file_list, strict=True, usrdata=None):
-        """
-        Generate the fitstbl that will be at the heart of PypeItMetaData
-
-        Args:
-            file_list:
-            strict:
-            usrdata: Table, optional
-              Parsed for frametype for a few instruments (e.g. VLT) where meta data may not be required
+            files (:obj:`str`, :obj:`list`):
+                One or more files to use to build the table.
+            strict (:obj:`bool`, optional):
+                Function will fault if :func:`fits.getheader` fails to
+                read any of the headers.  Set to False to report a
+                warning and continue.
+            usrdata (astropy.table.Table, optional):
+                Parsed for frametype for a few instruments (e.g. VLT)
+                where meta data may not be required
 
         Returns:
-            data: Table
+            dict: Dictionary with the data to assign to :attr:`table`.
 
         """
-        required_meta = self.spectrograph.meta
+        # Allow for single files
+        _files = files if hasattr(files, '__len__') else [files]
 
         # Build lists to fill
-        data = {k:[] for k in required_meta.keys()}
+        data = {k:[] for k in self.spectrograph.meta.keys()}
+        data['directory'] = ['None']*len(_files)
+        data['filename'] = ['None']*len(_files)
 
-        ds, fs = [], []
-        for idx, ifile in enumerate(file_list):
+        # Build the table
+        for idx, ifile in enumerate(_files):
             # User data (for frame type)
-            if usrdata is not None:
-                usr_row = usrdata[idx]
-            else:
-                usr_row = None
+            usr_row = None if usrdata is None else usrdata[idx]
+
             # Read the fits headers
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+
             # Add the directory and file name to the table
-            d,f = os.path.split(ifile)
-            ds.append(d)
-            fs.append(f)
+            data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
+
             # Grab Meta
-            for meta_key in data.keys():
-                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr, required=strict,
-                                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'],
-                                                         usr_row=usr_row)
+            for meta_key in self.spectrograph.meta.keys():
+                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
+                                                         required=strict, usr_row=usr_row,
+                                        ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 data[meta_key].append(value)
-        # File info
-        data['directory'] = ds
-        data['filename'] = fs
-        # Additional bits and pieces
-        self._add_bkg_pairs(data, 'empty')
+
+#        # Additional bits and pieces
+#        self._add_bkg_pairs(data, 'empty')
+
         # Validate
-        _ = time.Time(data['mjd'], format='mjd')
+        time.Time(data['mjd'], format='mjd')
+
         # Return
-        return data
-
-    def _old_build(self, file_list, strict=True, bkg_pairs='empty'):
-        """
-        Returns a dictionary with the data to be included in the table.
-        """
-        # Get the header keywords specific to the provided spectrograph.
-        # head_keys is a nested dictionary listing the header keywords
-        # for each extension in the file.  The top-level dictionary key
-        # is just the 0-indexed number of the extension
-        head_keys = self.spectrograph.header_keys()
-
-        # The table is declared based on this input dictionary: The
-        # directory, filename, instrument are always included
-        data = {k:[] for k in PypeItMetaData.default_keys()}
-
-        # Add columns to the output table for each keyword.  The
-        # keywords from all extensions must be unique.
-        ext = {}
-        for i in head_keys.keys():
-            for k in head_keys[i].keys():
-                if k in data.keys():
-                    raise ValueError('Keywords are not unique across all extensions!')
-                ext[k] = i
-                data[k] = []
-
-        # TODO: Stopgap for required keys in fitstbl used by other parts of
-        # the code.  Need to decide how to handle these.
-        required_columns = ['time', 'date', 'target']
-        required_for_ABBA = ['ra', 'dec'] # and for standards?
-        if any([ c not in data.keys() for c in required_columns]):
-            msgs.warn('Columns are missing.')
-
-        # Number of files to read
-        numfiles = len(file_list)
-
-        # Loop on files
-        for ifile in file_list:
-
-            # Read the fits headers
-            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
-
-            # Check that the header is valid
-            # TODO: The check_headers function needs to be implemented
-            # for each instrument.  spectrograph.check_headers() should
-            # raise an exception with an appropriate message.
-            try:
-                # TODO: Move this into spectrograph.validate_fitstbl()
-                self.spectrograph.check_headers(headarr)
-            except Exception as e:
-                msgs.warn('Reading of headers from file:' + msgs.newline() + ifile
-                          + msgs.newline() + 'failed with the following exception'
-                          + msgs.newline() + e.__repr__() + msgs.newline() +
-                          'Please check that the file was taken with the provided instrument:'
-                          + msgs.newline() + '{0}'.format(self.spectrograph.spectrograph)
-                          + msgs.newline() + 'Then either change the instrument or remove/skip '
-                          + 'the file.' + msgs.newline()+ 'Continuing by ignoring this file...')
-                numfiles -= 1
-                continue
-
-            # Add the directory, file name, and instrument to the table
-            d,f = os.path.split(ifile)
-            data['directory'].append(d)
-            data['filename'].append(f)
-            data['instrume'].append(self.spectrograph.spectrograph)
-
-            # Now get the rest of the keywords
-            for key in data.keys():
-                if key in PypeItMetaData.default_keys():
-                    continue
-
-                # Try to read the header item
-                try:
-                    value = headarr[ext[key]][head_keys[ext[key]][key]]
-                except KeyError:
-                    # Keyword not found in header
-                    msgs.warn("{0} keyword not in header. Setting to None".format(key))
-                    value = 'None'
-                except TypeError:
-                    # TODO: This should throw an error
-                    import pdb; pdb.set_trace()
-
-                # Convert the time to days
-                # TODO: Done here or as a method in Spectrograph?
-                if key == 'time' and value != 'None':
-                    # HERE IS A KULDGE
-                    if 'date' in data.keys():
-                        idate = headarr[ext['date']][head_keys[ext['date']]['date']]
-                    else:
-                        idate = None
-                    value = self.convert_time(value, date=idate)
-
-                # Set the value
-                vtype = type(value)
-                if np.issubdtype(vtype, np.str_):
-                    value = value.strip()
-                if np.issubdtype(vtype, np.integer) or np.issubdtype(vtype, np.floating) \
-                        or np.issubdtype(vtype, np.str_) or np.issubdtype(vtype, np.bool_):
-                    data[key].append(value)
-                else:
-                    msgs.bug('Unexpected type, {1}, for key {0}'.format(key,
-                             vtype).replace('<type ','').replace('>',''))
-
-            msgs.info('Successfully loaded headers for file:' + msgs.newline() + ifile)
-
-        # Report
-        msgs.info("Headers loaded for {0:d} files successfully".format(numfiles))
-        if numfiles != len(file_list):
-            msgs.warn("Headers were not loaded for {0:d} files".format(len(file_list) - numfiles))
-        if numfiles == 0:
-            msgs.error("The headers could not be read from the input data files."
-                       + msgs.newline() + "Please check that the settings file matches the data.")
-
-#        # Add the index column
-#        data['index'] = np.arange(numfiles).tolist()
-
-        # Add the background_index column
-        #if bkg_pairs is not None:
-        self._add_bkg_pairs(data, bkg_pairs)
-
         return data
 
     # TODO:  In this implementation, slicing the PypeItMetaData object
@@ -513,44 +401,49 @@ class PypeItMetaData:
         for key in usrdata.keys():
             self.table[key] = usrdata[key][srt]
 
-    '''
-    def convert_time(self, in_time, date=None):
+    def finalize_usr_build(self, frametype, setup):
         """
-        Convert the time read from a file header to MJD for all spectrographs.
-    
+        Finalize the build of the table based on user-provided data,
+        typically pulled from the PypeIt file.
+
+        This function:
+            - sets the frame types based on the provided object
+            - sets all the configurations to the provided `setup`
+            - assigns all frames to a single calibration group, if the
+              'calib' column does not exist
+            - if the 'comb_id' column does not exist, this sets the
+              combination groups to be either undefined or to be unique
+              for each science or standard frame, see
+              :func:`set_combination_groups`.
+
+        .. note::
+            This should only be run if all files are from a single
+            instrument configuration.  :attr:`table` is modified
+            in-place.
+
+        See also: :func:`pypeit.pypeitsetup.PypeItSetup.run`.
+
+        .. todo::
+            - Why isn't frametype just in the user-provided data?  It
+              may be (see get_frame_types) and I'm just not using it...
+
         Args:
-            in_time (str):
-                The time read from the file header
-            date (str, optional):
-                The date read from the file header
-
-        Returns:
-            float: The MJD time
+            frametype (:obj:`dict`):
+                A dictionary with the types designated by the user.  The
+                file name and type are expected to be the key and value
+                of the dictionary, respectively.  The number of keys
+                therefore *must* match the number of files in
+                :attr:`table`.  For frames that have multiple types, the
+                types should be provided as a string with
+                comma-separated types.
+            setup (:obj:`str`):
+                If the 'setup' columns does not exist, fill the
+                configuration setup columns with this single identifier.
         """
-        # Convert seconds to hours
-        if self.spectrograph.timeunit == 's':
-            msgs.error("SHOULD NOT GET HERE")
-            return float(in_time)/3600.0
-    
-        # Convert minutes to hours
-        if self.spectrograph.timeunit == 'm':
-            msgs.error("SHOULD NOT GET HERE")
-            return float(in_time)/60.0
-
-        # Convert from an astropy.Time format
-        if self.spectrograph.timeunit in time.Time.FORMATS.keys():
-            if date is not None:
-                if 'T' not in date:
-                    in_time = date+'T'+in_time
-                else:
-                    in_time = date
-            ival = float(in_time) if self.spectrograph.timeunit == 'mjd' else in_time
-            tval = time.Time(ival, scale='tt', format=self.spectrograph.timeunit)
-            # Put MJD
-            return tval.mjd
-        
-        msgs.error('Bad time unit')
-    '''
+        self.get_frame_types(user=frametype)
+        self.set_configurations(fill=setup)
+        self.set_calibration_groups(default=True)
+        self.set_combination_groups()
 
     def get_configuration(self, indx, cfg_keys=None):
         """
@@ -887,7 +780,7 @@ class PypeItMetaData:
         msgs.info('Found {0} unique configurations.'.format(len(self.configs)))
         return self.configs
 
-    def set_configurations(self, configs=None, force=False, ignore_frames=None):
+    def set_configurations(self, configs=None, force=False, ignore_frames=None, fill=None):
         """
         Assign each frame to a configuration (setup) and include it in
         the metadata table.
@@ -908,6 +801,13 @@ class PypeItMetaData:
                 If None, this is set by :func:`unique_configurations`. 
             force (:obj:`bool`, optional):
                 Force the configurations to be reset.
+            ignore_frames (:obj:`str`, :obj:`list`, optional):
+                A string or list of strings identifying frame types that
+                should be ignored when assigning the configurations.
+            fill (:obj:`str`, optional):
+                If the 'setup' columns does not exist, fill the
+                configuration setup columns with this single identifier.
+                Ignores other inputs.
 
         Raises:
             PypeItError:
@@ -916,6 +816,10 @@ class PypeItMetaData:
         """
         # Configurations have already been set
         if 'setup' in self.keys() and not force:
+            return
+
+        if 'setup' not in self.keys() and fill is not None:
+            self['setup'] = fill
             return
 
         _configs = self.unique_configurations() if configs is None else configs
@@ -933,27 +837,54 @@ class PypeItMetaData:
         #  For now, we set them to setup=A
         not_setup = self.table['setup'] == 'None'
         if np.any(not_setup) and (ignore_frames is not None):
+            _ignore_frames = ignore_frames if hasattr(ignore_frames, '__len__') \
+                                            else [ignore_frames]
             ckey = list(_configs.keys())[0]
             for idx in np.where(not_setup)[0]:
-                if self.table['frametype'][idx] in ignore_frames:
+                if self.table['frametype'][idx] in _ignore_frames:
                     self.table['setup'][idx] = ckey
 
     def _set_calib_group_bits(self):
-        grp = np.empty(len(self), dtype=object)
+        """
+        Set the calibration group bit based on the string values of the
+        'calib' column.
+        """
+        # Find the number groups by searching for the maximum number
+        # provided, regardless of whether or not a science frame is
+        # assigned to that group.
         ngroups = 0
         for i in range(len(self)):
-            if self['calib'][i] == 'None':
+            if self['calib'][i] in ['all', 'None']:
+                # No information, keep going
                 continue
-            grp[i] = eval('['+self['calib'][i]+']') if self['calib'][i].find(',') > -1 \
-                        else [int(self['calib'][i])]
-            ngroups = np.amax(np.append(np.array(grp[i])+1,ngroups))
-        
+            # Convert to a list of numbers
+            l = np.amax([ 0 if len(n) == 0 else int(n)
+                                for n in self['calib'][i].replace(':',',').split(',')])
+            # Check against current maximum
+            ngroups = max(l+1, ngroups)
+
+        # Define the bitmask and initialize the bits
         self.calib_bitmask = BitMask(np.arange(ngroups))
         self['calibbit'] = 0
+
+        # Set the calibration bits
+        gi = np.arange(ngroups)
         for i in range(len(self)):
             if self['calib'][i] == 'None':
+                # None to flag
                 continue
-            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], grp[i])
+            if self['calib'][i] == 'all':
+                # Flag 'em all!
+                self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], gi)
+                continue
+
+            # Parse the calib string into a list of integers
+            grp = np.concatenate([[int(g)] if g.find(':') == -1 
+                                    else (gi[parse.sec2slice(g)]).tolist()
+                                    for g in self['calib'][i].split(',')])
+
+            # Assign the group; ensure the integers are unique
+            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], np.unique(grp))
 
     def _check_calib_groups(self):
         """
@@ -976,7 +907,7 @@ class PypeItMetaData:
     def n_calib_groups(self):
         return None if self.calib_bitmask is None else self.calib_bitmask.nbits
                 
-    def set_calibration_groups(self, global_frames=None, force=False):
+    def set_calibration_groups(self, global_frames=None, default=False, force=False):
         """
         Group calibration frames into sets.
         
@@ -995,6 +926,9 @@ class PypeItMetaData:
             global_frames (:obj:`list`, optional):
                 A list of strings with the frame types to use in all
                 calibration groups (e.g., ['bias', 'dark']).
+            default (:obj:`bool`, optional):
+                If the 'calib' column is not present, set a single
+                calibration group *for all rows*.
             force (:obj:`bool`, optional):
                 Force the calibration groups to be reconstructed if
                 the 'calib' column already exists.
@@ -1005,6 +939,13 @@ class PypeItMetaData:
                 `global_frames` is provided but the frame types have not
                 been defined yet.
         """
+        # Set the default if requested and 'calib' doesn't exist yet
+        if 'calib' not in self.keys() and default:
+            self['calib'] = '0'
+            # Make sure the calibbit column does not exist
+            if 'calibbit' in self.keys():
+                del self['calibbit']
+
         # Groups have already been set
         if 'calib' in self.keys() and 'calibbit' in self.keys() and not force:
             return
@@ -1033,8 +974,9 @@ class PypeItMetaData:
         # TODO: Science frames can only have one calibration group
 
         # Assign everything from the same configuration to the same
-        # calibration group
-        self.table['calib'] = 'None'
+        # calibration group; this needs to have dtype=object, otherwise
+        # any changes to the strings will be truncated at 4 characters.
+        self.table['calib'] = np.full(len(self), 'None', dtype=object)
         for i in range(n_cfg):
             self['calib'][(self['setup'] == configs[i]) & (self['framebit'] > 0)] = str(i)
         
@@ -1215,9 +1157,9 @@ class PypeItMetaData:
                 A dictionary with the types designated by the user.  The
                 file name and type are expected to be the key and value
                 of the dictionary, respectively.  The number of keys
-                therefore *must* match the number of files in the
-                provided `fitstbl`.  For frames that have multiple
-                types, the types should be provided as a string with
+                therefore *must* match the number of files in
+                :attr:`table`.  For frames that have multiple types, the
+                types should be provided as a string with
                 comma-separated types.
             useIDname (:obj:`bool`, optional):
                 Use ID name in the Header to image type
@@ -1344,22 +1286,29 @@ class PypeItMetaData:
         # Return
         return output_cols
 
-    def set_defaults(self):
+    def set_combination_groups(self):
         """
-        Set default values for comb_id and calib
-        columns of the fitstbl
+        Set combination groups.
 
-        self.table is modified in place
+        If the 'comb_id' or 'bkg_id' columns do not exist, they're set to -1.
+
+        If none of the 'comb_id' values are other then -1, the
+        combination groups are set to be unique for each standard and
+        science frame.
+
+        :attr:`table` is edited in place.
 
         """
-        # Set comb_id
+        if 'comb_id' not in self.keys():
+            self['comb_id'] = -1
+        if 'bkg_id' not in self.keys():
+            self['bkg_id'] = -1
         if not np.any(self['comb_id'] >= 0):
+            # find_frames will throw an exception if framebit is not
+            # set...
             sci_std_idx = np.where(np.any([self.find_frames('science'),
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
-        # calib
-        if 'calib' not in self.keys():
-            self['calib'] = str(0)
 
     def write_setups(self, ofile, overwrite=True, ignore=None):
         """
