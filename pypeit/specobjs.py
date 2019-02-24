@@ -1,7 +1,5 @@
 """ Module for the SpecObjs and SpecObj classes
 """
-from __future__ import absolute_import, division, print_function
-
 import copy
 import re
 from collections import OrderedDict

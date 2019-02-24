@@ -56,12 +56,6 @@ assuming you want it to be accessed throughout the code.
 
 ----
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import os
 import glob
 import warnings

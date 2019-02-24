@@ -1,3 +1,6 @@
+"""
+Module to run tests on sort and arsetup
+"""
 import pytest
 
 import numpy as np

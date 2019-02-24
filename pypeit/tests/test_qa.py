@@ -1,9 +1,6 @@
-# Module to run tests on arqa
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to run tests on arqa
+"""
 from pypeit import msgs
 from pypeit.core import qa
 

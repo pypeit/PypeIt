@@ -1,7 +1,5 @@
 """ Module for finding patterns in arc line spectra
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 from scipy.ndimage.filters import gaussian_filter
 from scipy.spatial import cKDTree
 import itertools

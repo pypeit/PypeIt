@@ -1,10 +1,6 @@
 '''
 Implements DEIMOS-specific functions, including reading in slitmask design files.
 '''
-
-## ToDo: TBD by Feige
-from __future__ import absolute_import, division, print_function
-
 import glob
 import re
 import numpy as np

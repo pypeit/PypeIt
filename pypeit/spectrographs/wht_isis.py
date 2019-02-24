@@ -1,7 +1,5 @@
 """ Module for Shane/Kast specific codes
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
 from astropy.io import fits
