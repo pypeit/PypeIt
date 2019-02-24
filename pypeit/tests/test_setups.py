@@ -60,7 +60,7 @@ def test_setup_made_pypeit_file():
     cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file)
     # Test
     assert len(data_files) == 2
-    assert frametype['b1.fits.gz'] == 'arc'
+    assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
     assert setups[0] == 'A'
 
 
