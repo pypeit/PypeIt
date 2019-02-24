@@ -1,12 +1,7 @@
-# Module to run tests on PypeItSetup class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on PypeItSetup class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest

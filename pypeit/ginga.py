@@ -1,12 +1,5 @@
 """ Module for ginga routines.  Mainly for debugging
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
-try:
-    basestring
-except NameError:
-    basestring = str
-
 import os
 import numpy as np
 import time

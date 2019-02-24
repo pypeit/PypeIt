@@ -37,12 +37,6 @@ Base class for handling bit masks.
         functionality of instantiating a bitmask from a file, code
         update, and slight doc changes.
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import numpy
 import os
 import textwrap

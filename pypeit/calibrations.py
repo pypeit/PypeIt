@@ -1,7 +1,5 @@
 """ Class for guiding calibration object generation in PypeIt
 """
-from __future__ import absolute_import, division, print_function
-
 import os
 import numpy as np
 

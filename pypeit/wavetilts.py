@@ -1,6 +1,6 @@
-# Module for guiding Arc/Sky line tracing
-from __future__ import absolute_import, division, print_function
-
+"""
+Module for guiding Arc/Sky line tracing
+"""
 import os
 import inspect
 import numpy as np

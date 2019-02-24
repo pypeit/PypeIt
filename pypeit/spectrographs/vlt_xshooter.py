@@ -1,7 +1,5 @@
 """ Module for VLT X-Shooter
 """
-from __future__ import absolute_import, division, print_function
-
 import glob
 
 import numpy as np

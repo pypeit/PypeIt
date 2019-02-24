@@ -1,8 +1,6 @@
 """ Abstract class for Master Image frames
       This could go inside masters.py
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
 import warnings

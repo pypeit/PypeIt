@@ -1,6 +1,6 @@
-# Module for guiding 1D Wavelength Calibration
-from __future__ import absolute_import, division, print_function
-
+"""
+Module for guiding 1D Wavelength Calibration
+"""
 import os
 import inspect
 import numpy as np

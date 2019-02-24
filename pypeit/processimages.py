@@ -1,7 +1,6 @@
-# Module for Processing Images, e.g. bias frames, arc frames
-
-from __future__ import absolute_import, division, print_function
-
+"""
+Module for Processing Images, e.g. bias frames, arc frames
+"""
 import inspect
 import numpy as np
 import os

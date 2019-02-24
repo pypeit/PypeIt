@@ -1,8 +1,6 @@
 '''
 Implements HIRES-specific functions, including reading in slitmask design files.
 '''
-from __future__ import absolute_import, division, print_function
-
 import glob
 import re
 import os

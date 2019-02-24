@@ -1,7 +1,5 @@
 """ Module for VLT FORS (1 and 2)
 """
-from __future__ import absolute_import, division, print_function
-
 import glob
 
 import numpy as np

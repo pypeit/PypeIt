@@ -1,7 +1,5 @@
 """ Module for Keck/NIRES specific codes
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
 from pypeit import msgs

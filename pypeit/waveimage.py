@@ -1,6 +1,6 @@
-# Module for guiding construction of the Wavelength Image
-from __future__ import absolute_import, division, print_function
-
+"""
+Module for guiding construction of the Wavelength Image
+"""
 import inspect
 import numpy as np
 import os

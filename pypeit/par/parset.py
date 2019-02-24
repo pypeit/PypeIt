@@ -40,23 +40,12 @@ Define a utility base class used to hold parameters.
 .. _isinstance: https://docs.python.org/2/library/functions.html#isinstance
 
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import os
 import warnings
 import textwrap
 import sys
 if sys.version > '3':
     long = int
-
-try:
-    basestring
-except NameError:
-    basestring = str
 
 import numpy
 
