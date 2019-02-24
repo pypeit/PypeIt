@@ -125,7 +125,7 @@ class ParSet(object):
         if not isinstance(pars, list):
             raise TypeError('Input parameter keys must be provided as a list.')
         for key in pars:
-            if not isinstance(key, basestring):
+            if not isinstance(key, str):
                 raise TypeError('Input parameter keys must be strings.')
 
         # Get the length of the parameter list and make sure the list
@@ -356,7 +356,7 @@ class ParSet(object):
             data (object):
                 The object to stringify.
         """
-        if isinstance(data, basestring):
+        if isinstance(data, str):
             return data if not verbatum else '``' + data + '``'
         if hasattr(data, '__len__'):
             return '[]' if isinstance(data, list) and len(data) == 0 \
@@ -831,7 +831,7 @@ class ParDatabase(object):
                     or inp[i].dtype[k] == numpy.ndarray:
                 _inp = numpy.asarray(inp[i][k])
                 dtypes += [(k,_inp.dtype,_inp.shape)]
-            elif isinstance(inp[i][k], basestring):
+            elif isinstance(inp[i][k], str):
                 if any([ _inp[k] is None for _inp in inp]):
                     dtypes += [(k, object)]
                 else:

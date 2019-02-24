@@ -638,7 +638,7 @@ def parse_binning(binning):
 
     """
     # comma separated format
-    if isinstance(binning, basestring):
+    if isinstance(binning, str):
         if ',' in binning:
             binspectral, binspatial = [int(item) for item in binning.split(',')]  # Keck standard, I think
         elif 'x' in binning:
@@ -705,7 +705,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
             slice.
     """
     # Check it's a string
-    if not isinstance(subarray, basestring):
+    if not isinstance(subarray, str):
         raise TypeError('Can only parse string-based subarray sections.')
     # Remove brackets if they're included
     sections = subarray.strip('[]').split(',')
@@ -745,20 +745,45 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     return tuple(slices[::-1] if transpose else slices)
 
 
+def str2list(inp, length):
+    """
+    Expand a string with a comma-separated set of integers and slices
+    into a list of the relevant integers.
 
+    Setting a maximum length of the list to 10, examples of the allowed
+    syntax and result are:
 
+        - 'all': [0,1,2,3,4,5,6,7,8,9]
+        - ':4': [0,1,2,3]
+        - '3:5,8:': [3,4,8,9]
+        - '3,1:5,6': [1,2,3,4,6]
 
+    Note the function removes any non-unique integers (see the last
+    example).
 
+    Args:
+        inp (:obj:`str`):
+            String with a comma-separated set of integers and slices;
+            can also be 'all'.
+        length (:obj:`int`):
+            Maximum length of the list, which is needed to allow for
+            open slices (e.g., '8:').
+    
+    Returns:
+        list: List of parsed integers.
+    """
+    if inp == 'None':
+        return None
 
+    gi = np.arange(length)
+    if inp == 'all':
+        # Flag 'em all!
+        return gi.tolist()
 
+    # Parse the input string into a list of integers
+    grp = np.concatenate([[int(g)] if g.find(':') == -1 else (gi[sec2slice(g)]).tolist()
+                                for g in inp.split(',')])
 
-
-
-
-
-
-
-
-
-
+    # Return the list, and ensure the integers are unique
+    return np.unique(grp).tolist()
 

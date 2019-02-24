@@ -863,23 +863,14 @@ class PypeItMetaData:
         self['calibbit'] = 0
 
         # Set the calibration bits
-        gi = np.arange(ngroups)
         for i in range(len(self)):
-            if self['calib'][i] == 'None':
-                # None to flag
+            # Convert the string to the group list
+            grp = parse.str2list(self['calib'][i], ngroups)
+            if grp is None:
+                # No group selected
                 continue
-            if self['calib'][i] == 'all':
-                # Flag 'em all!
-                self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], gi)
-                continue
-
-            # Parse the calib string into a list of integers
-            grp = np.concatenate([[int(g)] if g.find(':') == -1 
-                                    else (gi[parse.sec2slice(g)]).tolist()
-                                    for g in self['calib'][i].split(',')])
-
             # Assign the group; ensure the integers are unique
-            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], np.unique(grp))
+            self['calibbit'][i] = self.calib_bitmask.turn_on(self['calibbit'][i], grp)
 
     def _check_calib_groups(self):
         """

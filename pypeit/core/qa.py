@@ -13,11 +13,6 @@ from pypeit import debugger
 #  THE HTML GENERATION OCCURS FROM msgs
 #from pypeit import msgs
 
-#try:
-#    basestring
-#except NameError:  # For Python 3
-#    basestring = str
-
 def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None):
     """
     Parameters
