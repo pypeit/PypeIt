@@ -114,6 +114,7 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, 
 def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     '''
     Get the standard spetrum using given information of your standard/telluric star.
+
     Parameters:
       star_type: str
          Spectral type of your standard/telluric star
@@ -123,8 +124,8 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
       dec: str
         Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
-    Return:
-        A dict contains the information you provided and the standard/telluric spectrum.
+    Return: dict
+        Dictionary containing the information you provided and the standard/telluric spectrum.
     '''
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):

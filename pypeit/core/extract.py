@@ -583,6 +583,35 @@ def qa_fit_profile(x_tot,y_tot, model_tot, l_limit = None, r_limit = None, ind =
 def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
                     ind = None, l_limit = None, r_limit=None, xlim = None, xtrunc = 1e6):
 
+    """
+    Utility function to return Gaussian object profile in the case of low S/N ratio or too many rejected pixels.
+    Args:
+        sigma_x: ndarray (nspec, nspat)
+            Spatial of gaussian
+        norm_obj: ndarray (nspec, nspat)
+            Normalized 2-d spectrum.
+        fwhm: float
+            FWHM parameter for Gaussian profile
+        med_sn2: float
+            Median (S/N)^2 used only for QA
+        obj_string: str
+            String identifying object. Used only for QA.
+        show_profile: bool
+            Is set, qa plot will be shown to screen
+        ind: array, int
+            Good indices in object profile. Used by QA routine.
+        l_limit: float
+            Left limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
+        r_limit: float
+            Right limit of profile fit where derivative is evaluated for Gaussian apodization. Used by QA routine.
+        xlim: float
+            Spatial location to trim object profile for plotting in QA routine.
+        xtrunc: float
+            Spatial nsigma to truncate object profile for plotting in QA routine.
+    Returns:
+
+    """
+
     profile_model = np.exp(-0.5*sigma_x**2)/np.sqrt(2.0 * np.pi)*(sigma_x ** 2 < 25.)
     info_string = "FWHM=" + "{:6.2f}".format(fwhm) + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2))
     title_string = obj_string + ', ' + info_string
@@ -605,9 +634,9 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 
 def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
-                inmask = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, #, wvmnx = (2900.0,30000.0),
-                maskwidth = None, prof_nsigma = None, no_deriv = False, gauss=False, obj_string = '',
-                show_profile = False):
+                inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, #, wvmnx = (2900.0,30000.0),
+                maskwidth=None, prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
+                show_profile=False):
 
     """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
     fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
@@ -685,7 +714,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     nspec = image.shape[0]
 
     # dspat is the spatial position along the image centered on the object trace
-    dspat = (spat_img - np.outer(trace_in, np.ones(nspat)))
+    dspat = spat_img - np.outer(trace_in, np.ones(nspat))
     # create some images we will need
     sn2_img = np.zeros((nspec,nspat))
     spline_img = np.zeros((nspec,nspat))
