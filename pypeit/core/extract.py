@@ -605,9 +605,9 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 
 def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
-                inmask = None, thisfwhm=4.0, max_trace_corr = 2.0, sn_gauss = 4.0, #, wvmnx = (2900.0,30000.0),
-                maskwidth = None, prof_nsigma = None, no_deriv = False, gauss=False, obj_string = '',
-                show_profile = False):
+                inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, #, wvmnx = (2900.0,30000.0),
+                maskwidth=None, prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
+                show_profile=False):
 
     """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
     fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
