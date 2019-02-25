@@ -53,8 +53,8 @@ class TraceSlits(masterframe.MasterFrame):
 
     Attributes:
         frametype (str): Hard-coded to 'trace'
-        lcen (ndarray [nrow, nslit]): Left edges, in physical space
-        rcen (ndarray [nrow, nslit]): Right edges, in physical space
+        slit_left (ndarray [nrow, nslit]): Left edges, in physical space
+        slit_righ (ndarray [nrow, nslit]): Right edges, in physical space
         slitpix (ndarray): Image specifying which pixels are in which slit
         slitcen : ndarray [nrow, nslit]
           Pixel values down the center of the slit
@@ -120,8 +120,8 @@ class TraceSlits(masterframe.MasterFrame):
             self.input_msbpm = True
 
         # Main outputs
-        self.lcen = None     # narray
-        self.rcen = None     # narray
+        self.slit_left = None     # narray
+        self.slit_righ = None     # narray
         self.tc_dict = None  # dict
         self.edgearr = None  # ndarray
         self.siglev = None   # ndarray
@@ -129,8 +129,8 @@ class TraceSlits(masterframe.MasterFrame):
         self.extrapord = None
         self.slitcen = None
         self.slitpix = None
-        self.lcen_tweak = None   # Place holder for tweaked slit boundaries from flat fielding routine.
-        self.rcen_tweak = None
+        self.slit_left_tweak = None   # Place holder for tweaked slit boundaries from flat fielding routine.
+        self.slit_righ_tweak = None
 
         # Key Internals
         if mstrace is not None:
@@ -194,7 +194,7 @@ class TraceSlits(masterframe.MasterFrame):
         slf.binning = ts_dict['binning']
 
         # Others
-        for key in ['LCEN', 'RCEN', 'EDGEARR', 'SIGLEV']:
+        for key in ['SLIT_LEFT', 'SLIT_RIGH', 'EDGEARR', 'SIGLEV']:
             if key in fits_dict.keys():
                 setattr(slf, key.lower(), fits_dict[key])
         # dict
@@ -215,10 +215,10 @@ class TraceSlits(masterframe.MasterFrame):
             int: Number of slits currently identified
 
         """
-        if self.lcen is None:
+        if self.slit_left is None:
             return 0
         else:
-            return self.lcen.shape[1]
+            return self.slit_left.shape[1]
 
     def _edgearr_from_binarr(self):
         """
@@ -296,7 +296,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         Wrapper to trace_slits.add_user_edges()
 
-        self.lcen and self.rcen modified in place
+        self.slit_left and self.slit_righ modified in place
 
         Args:
             user_slits (list):
@@ -305,7 +305,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Reset (if needed) -- For running after PyepIt took a first pass
         #self.reset_edgearr_ednum()
         # Add user input slits
-        self.lcen, self.rcen = trace_slits.add_user_edges(self.lcen, self.rcen, user_slits)
+        self.slit_left, self.slit_righ = trace_slits.add_user_edges(self.slit_left, self.slit_righ, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -361,11 +361,11 @@ class TraceSlits(masterframe.MasterFrame):
                 msgs.info("Only one slit was identified. Should be a longslit.")
                 xint = self.pixlocn[:, 0, 0]
                 # Finish
-                self.lcen = np.zeros((self.mstrace.shape[0], 1))
-                self.rcen = np.zeros((self.mstrace.shape[0], 1))
-                self.lcen[:, 0] = utils.func_val(self.lcoeff[:, 0], xint, self.par['function'],
+                self.slit_left = np.zeros((self.mstrace.shape[0], 1))
+                self.slit_righ = np.zeros((self.mstrace.shape[0], 1))
+                self.slit_left[:, 0] = utils.func_val(self.lcoeff[:, 0], xint, self.par['function'],
                                                    minx=minvf, maxx=maxvf)
-                self.rcen[:, 0] = utils.func_val(self.rcoeff[:, 0], xint, self.par['function'],
+                self.slit_righ[:, 0] = utils.func_val(self.rcoeff[:, 0], xint, self.par['function'],
                                                    minx=minvf, maxx=maxvf)
                 return True
             else:
@@ -399,18 +399,18 @@ class TraceSlits(masterframe.MasterFrame):
         self.tslits_dict = {}
         # Have the slit boundaries been tweaked? If so use the tweaked boundaries
         # TODO -- Have the dict keys have the same name as the attribute
-        self.tslits_dict['slit_left_orig'] = self.lcen
-        self.tslits_dict['slit_righ_orig'] = self.rcen
+        self.tslits_dict['slit_left_orig'] = self.slit_left
+        self.tslits_dict['slit_righ_orig'] = self.slit_righ
 
-        if self.lcen_tweak is not None:
-            self.tslits_dict['slit_left_tweak'] = self.lcen_tweak
-            self.tslits_dict['slit_righ_tweak'] = self.rcen_tweak
+        if self.slit_left_tweak is not None:
+            self.tslits_dict['slit_left_tweak'] = self.slit_left_tweak
+            self.tslits_dict['slit_righ_tweak'] = self.slit_righ_tweak
 
-            self.tslits_dict['slit_left'] = self.lcen_tweak
-            self.tslits_dict['slit_righ'] = self.rcen_tweak
+            self.tslits_dict['slit_left'] = self.slit_left_tweak
+            self.tslits_dict['slit_righ'] = self.slit_righ_tweak
         else:
-            self.tslits_dict['slit_left'] = self.lcen
-            self.tslits_dict['slit_righ'] = self.rcen
+            self.tslits_dict['slit_left'] = self.slit_left
+            self.tslits_dict['slit_righ'] = self.slit_righ
 
         # Fill in the rest of the keys that were generated by make_pixel_arrays from the slit boundaries. This was
         # done with tweaked boundaries if they exist.
@@ -421,7 +421,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.tslits_dict['slitcen'] = self.slitcen
         self.tslits_dict['nspec'] = self.mstrace.shape[0]
         self.tslits_dict['nspat'] = self.mstrace.shape[1]
-        self.tslits_dict['nslits'] = self.lcen.shape[1]
+        self.tslits_dict['nslits'] = self.slit_left.shape[1]
         self.tslits_dict['pad'] = self.par['pad']
         binspectral, binspatial = parse.parse_binning(self.binning)
         self.tslits_dict['binspectral'] = binspectral
@@ -464,21 +464,21 @@ class TraceSlits(masterframe.MasterFrame):
         Returns:
 
         """
-        if self.lcen_tweak is not None:
+        if self.slit_left_tweak is not None:
             msgs.info("Using tweaked slit boundaries determined from IllumFlat")
-            lcen = self.lcen_tweak
-            rcen = self.rcen_tweak
+            slit_left = self.slit_left_tweak
+            slit_righ = self.slit_righ_tweak
         else:
-            lcen = self.lcen
-            rcen = self.rcen
+            slit_left = self.slit_left
+            slit_righ = self.slit_righ
         # Convert physical traces into a pixel trace
         msgs.info("Converting physical trace locations to nearest pixel")
 
         # Notice that the slitcen is always defined relative to the untweaked boundaries. This guarantees
         # that the reference location along the slit that we use for wavelength calibration and for tilts is always
         # at a fixed unchanging location.
-        self.slitcen = 0.5*(self.lcen+self.rcen)
-        #self.pixwid = (rcen-lcen).mean(0).astype(np.int)
+        self.slitcen = 0.5*(self.slit_left+self.slit_righ)
+        #self.pixwid = (slit_righ-slit_left).mean(0).astype(np.int)
 
     def _make_binarr(self):
         """
@@ -726,14 +726,14 @@ class TraceSlits(masterframe.MasterFrame):
 
         Wrapper to trace_slits.rm_user_edges()
 
-        self.lcen, self.rcen modified in-place
+        self.slit_left, self.slit_righ modified in-place
 
         Args:
             user_slits (list):  List of user slits to remove
 
         """
         # Remove user input slits
-        self.lcen, self.rcen = trace_slits.rm_user_edges(self.lcen, self.rcen, user_slits)
+        self.slit_left, self.slit_righ = trace_slits.rm_user_edges(self.slit_left, self.slit_righ, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -744,8 +744,8 @@ class TraceSlits(masterframe.MasterFrame):
           Or have width less than fracignore
 
         Modified internally
-            self.lcen  : ndarray (internal)
-            self.rcen  : ndarray (internal)
+            self.slit_left  : ndarray (internal)
+            self.slit_righ  : ndarray (internal)
 
         Args:
             trim_slits: bool, optional
@@ -758,12 +758,12 @@ class TraceSlits(masterframe.MasterFrame):
 
         # JFH ToDo In principle we could make this trim_slits function a method in the generic spectrograph function, which could then be
         # overloaded by the echelle spectrographs
-        nslit = self.lcen.shape[1]
+        nslit = self.slit_left.shape[1]
         nspat = self.mstrace.shape[1]
         mask = np.ones(nslit,dtype=bool)
 
-        min_val = np.min(self.lcen,axis=0)
-        max_val = np.max(self.rcen,axis=0)
+        min_val = np.min(self.slit_left,axis=0)
+        max_val = np.max(self.slit_righ,axis=0)
 
         off_detector = (min_val > nspat) | (max_val < 0)
         mask[off_detector] = False
@@ -773,7 +773,7 @@ class TraceSlits(masterframe.MasterFrame):
             msgs.info('Slit {0:d} is off the detector - ignoring this slit'.format(islit))
 
         if trim_slits:
-            slit_width = np.median((self.rcen - self.lcen) * plate_scale, axis=0)
+            slit_width = np.median((self.slit_righ - self.slit_left) * plate_scale, axis=0)
             if self.spectrograph.pypeline == 'MultiSlit':
                 too_short = slit_width < self.par['min_slit_width']
                 ishort = np.where(too_short)[0]
@@ -794,8 +794,8 @@ class TraceSlits(masterframe.MasterFrame):
                     slit_width[islit]) + ' arcseconds, which is not within ech_slit_tol = {:}%'.format(100.0*ech_slit_tol) +
                     ' of the median order width of {:5.3f}'.format(med_width) + ' arcseconds - ignoring this order')
         # Trim
-        self.lcen = self.lcen[:, mask]
-        self.rcen = self.rcen[:, mask]
+        self.slit_left = self.slit_left[:, mask]
+        self.slit_righ = self.slit_righ[:, mask]
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -817,8 +817,8 @@ class TraceSlits(masterframe.MasterFrame):
         """
         if attr == 'edges':
             viewer, ch = ginga.show_image(self.mstrace, chname='edges')
-            if self.lcen is not None:
-                ginga.show_slits(viewer, ch, self.lcen, self.rcen, slit_ids=(np.arange(self.lcen.shape[1]).astype(int) + 1).tolist(),
+            if self.slit_left is not None:
+                ginga.show_slits(viewer, ch, self.slit_left, self.slit_righ, slit_ids=(np.arange(self.slit_left.shape[1]).astype(int) + 1).tolist(),
                                  pstep=pstep)
         elif attr == 'binarr':
             ginga.show_image(self.binarr, chname='binarr')
@@ -908,8 +908,8 @@ class TraceSlits(masterframe.MasterFrame):
 
         Returns:
             dict or None (if no slits): Primary keys are --
-              'lcen'
-              'rcen'
+              'slit_left'
+              'slit_righ'
               'slitcen'
               'extrapord'
               'slitpix'
@@ -953,12 +953,12 @@ class TraceSlits(masterframe.MasterFrame):
             # Synchronize and add in edges
             self._mslit_sync()
 
-        # Set lcen and rcen, lmin, lmax
-        self.lcen = self.tc_dict['left']['traces']
-        self.rcen = self.tc_dict['right']['traces']
-        self.lmin, self.lmax = 0, self.lcen.shape[1]
-        self.rmin, self.rmax = 0, self.rcen.shape[1]
-        self.extrapord = np.zeros(self.lcen.shape[1], dtype=np.bool)
+        # Set slit_left and slit_righ, lmin, lmax
+        self.slit_left = self.tc_dict['left']['traces']
+        self.slit_righ = self.tc_dict['right']['traces']
+        self.lmin, self.lmax = 0, self.slit_left.shape[1]
+        self.rmin, self.rmax = 0, self.slit_righ.shape[1]
+        self.extrapord = np.zeros(self.slit_left.shape[1], dtype=np.bool)
 
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
@@ -966,8 +966,8 @@ class TraceSlits(masterframe.MasterFrame):
         self._trim_slits(trim_slits=trim_slits, plate_scale=plate_scale)
 
         # Adjust slit edges
-        self.lcen += self.par['trim'][0]
-        self.rcen -= self.par['trim'][1]
+        self.slit_left += self.par['trim'][0]
+        self.slit_righ -= self.par['trim'][1]
 
         # These need to be done last!
         # Add user input slits
@@ -1000,8 +1000,8 @@ class TraceSlits(masterframe.MasterFrame):
 
         """
         slitmask = pixels.tslits2mask(self.tslits_dict)
-        trace_slits.slit_trace_qa(self.mstrace, self.lcen,
-                                   self.rcen, slitmask, self.extrapord, self.master_key,
+        trace_slits.slit_trace_qa(self.mstrace, self.slit_left,
+                                   self.slit_righ, slitmask, self.extrapord, self.master_key,
                                    desc="Trace of the slit edges D{:02d}".format(self.det),
                                    use_slitid=use_slitid, out_dir=self.redux_path)
 
