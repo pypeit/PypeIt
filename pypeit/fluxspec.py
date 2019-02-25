@@ -454,7 +454,7 @@ class Echelle(FluxSpec):
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
             try:
-                wavemask = std.optimal['WAVE_GRID'] > 0.0*units.AA
+                wavemask = std.optimal['WAVE_GRID'] > 0.0 #*units.AA
             except KeyError:
                 wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
                 this_wave = std.optimal['WAVE'][wavemask]
