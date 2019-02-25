@@ -398,6 +398,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         self.tslits_dict = {}
         # Have the slit boundaries been tweaked? If so use the tweaked boundaries
+        # TODO -- Have the dict keys have the same name as the attribute
         self.tslits_dict['slit_left_orig'] = self.lcen
         self.tslits_dict['slit_righ_orig'] = self.rcen
 
@@ -1017,7 +1018,7 @@ class TraceSlits(masterframe.MasterFrame):
         return txt
 
 
-    def save_master(self, tslits_dict, mstrace = None, outfile=None, overwrite=True):
+    def save_master(self, tslits_dict, mstrace=None, outfile=None, overwrite=True):
         """
         Write the main pieces of TraceSlits to the hard drive as a MasterFrame
           FITS -- tslits_dict
@@ -1047,6 +1048,7 @@ class TraceSlits(masterframe.MasterFrame):
         hdu_trc.header['BINSPEC'] = tslits_dict['binspectral']
         hdu_trc.header['BINSPAT'] = tslits_dict['binspatial']
         hdu_trc.header['SPECTROG'] = tslits_dict['spectrograph']
+        hdu_trc.header['DET'] = self.det
         hdu_all = [hdu_trc]
         # left slit boundaries
         hdu_left = fits.ImageHDU(tslits_dict['slit_left'])
@@ -1131,6 +1133,7 @@ class TraceSlits(masterframe.MasterFrame):
             tslits_dict['binspectral'] = head0['BINSPEC']
             tslits_dict['binspatial'] = head0['BINSPAT']
             tslits_dict['spectrograph'] = head0['SPECTROG']
+            #tslits_dict['det'] = head0['DET']   #
             return tslits_dict, mstrace
 
 

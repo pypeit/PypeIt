@@ -1,7 +1,7 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Licensed under a 3-clause BSD style license - see PYDL_LICENSE.rst
 # -*- coding: utf-8 -*-
-""" Methods taken from pydl
-"""
+# Also cite https://doi.org/10.5281/zenodo.1095150 when referencing PYDL
+
 from __future__ import (print_function, absolute_import, division, unicode_literals)
 
 import numpy as np
@@ -12,11 +12,9 @@ from pypeit import debugger
 from pypeit import utils
 import copy
 from astropy.extern.six import string_types
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
-# -*- coding: utf-8 -*-
+
 """This module corresponds to the image directory in idlutils.
 """
-
 
 def djs_maskinterp1(yval, mask, xval=None, const=False):
     """Interpolate over a masked, 1-d array.

@@ -25,6 +25,7 @@
 - Introduce sky_sigrej parameter
 - Better handling of ManualExtraction
 - Add template for LRISr 600/5000 wavelengths
+- PYDL LICENSE and licenses folder
 
 
 0.9.1 (4 Feb 2019)

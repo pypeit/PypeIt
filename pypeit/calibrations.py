@@ -562,7 +562,6 @@ class Calibrations(object):
                                                        write_qa=write_qa)
             except:
                 self.traceSlits.save_master(self.tslits_dict)
-                # TODO why do we have this error method here but nowhere else?
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
             # No slits?
             if self.tslits_dict is None:

@@ -853,7 +853,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Adjustments to slit and tilts for UVB
         par['calibrations']['slits']['sigdetect'] = 8.
         par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['polyorder'] = 5
+        # TODO: polyorder disappeared; check that this doesn't cause
+        # problems.
+#        par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = -1
 

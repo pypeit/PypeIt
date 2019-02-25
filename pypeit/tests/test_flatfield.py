@@ -48,7 +48,8 @@ def data_path(filename):
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
-
+# TODO: Need to fix TraceSlits.save_master() and
+# TraceSlits.load_master()?
 @dev_suite_required
 def test_run():
     # Masters
