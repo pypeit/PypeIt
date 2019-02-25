@@ -14,7 +14,6 @@ from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from pkg_resources import resource_filename
 
-## ToDo: change it to a CLASS and modify coadd_1dspec.py
 
 # setting plot parameters
 plt.rcdefaults()
