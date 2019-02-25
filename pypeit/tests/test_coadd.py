@@ -300,7 +300,6 @@ def test_coadd_with_fluxing():
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    # JFH TODO Commenting out for now. This tests needs to be rewritten.
     spec1d = coadd.coadd_spectra(dspec, wave_grid_method='concatenate', flux_scale=scale_dict)
     # Test
     assert np.median(spec1d.flux.value) > 6.61
