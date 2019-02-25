@@ -19,7 +19,8 @@ def skysub_npoly(thismask):
     Utility routine used by global_skysub and local_skysub_extract. Determine the order for the spatial
     polynomial for global sky subtraction and local sky subtraction.
     Args:
-        thismask:
+       thismask : ndarray, bool, shape (nspec, nspat)
+         Specifies pixels in the slit in question
 
     Returns:
         npoly: int
@@ -636,12 +637,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
     if spat_pix is None:
         spat_pix = spat_img
-
-    #spec_img = np.outer(np.arange(nspec), np.ones(nspat))
-    #spat_min = spat_img[thismask].min()
-    #spat_max = spat_img[thismask].max()
-    #spec_min = spec_img[thismask].min()
-    #spec_max = spec_img[thismask].max()
 
     xsize = slit_righ - slit_left
     # TODO Can this be simply replaced with spat_img above (but not spat_pix since that could have holes)

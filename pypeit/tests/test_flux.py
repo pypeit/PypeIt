@@ -78,8 +78,8 @@ def test_find_standard():
     std_dict = flux.find_standard_file(std_ra, std_dec)
     # Test
     assert std_dict['name'] == 'G191B2B'
-#    assert std_dict['cal_file'] == '/data/standards/calspec/g191b2b_mod_005.fits'
-    assert std_dict['cal_file'] == '/data/standards/calspec/g191b2b_stisnic_002.fits'
+#    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_mod_005.fits'
+    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_stisnic_002.fits'
     assert std_dict['fmt'] == 1
     # Fail to find
     # near G191b2b

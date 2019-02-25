@@ -48,9 +48,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 50.
-        # TODO: polyorder disappeared; check that this doesn't cause
-        # problems.
-#        par['calibrations']['slits']['polyorder'] = 3
+        par['calibrations']['slits']['trace_npoly'] = 3
         par['calibrations']['slits']['maxshift'] = 0.5
 
         # Tilt parameters

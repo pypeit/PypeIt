@@ -49,9 +49,9 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, 
     exptime : float
       Exposure time in seconds
     longitude : float
-      longitude for observatory
+      longitude in degree for observatory
     latitude: float
-      latitude for observatory
+      latitude in degree for observatory
       Used for extinction correction
     """
 
@@ -114,6 +114,7 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, 
 def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     '''
     Get the standard spetrum using given information of your standard/telluric star.
+
     Parameters:
       star_type: str
          Spectral type of your standard/telluric star
@@ -123,8 +124,8 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
         Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
       dec: str
         Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
-    Return:
-        A dict contains the information you provided and the standard/telluric spectrum.
+    Return: dict
+        Dictionary containing the information you provided and the standard/telluric spectrum.
     '''
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
@@ -329,10 +330,11 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
 def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BALM_MASK_WID=10., trans_thresh=0.9):
     '''
     Get couple of masks from your observed standard spectrum.
-    Parameters:
-      wave_star: array
+    Parameters
+    ----------
+      wave_star: numpy array
         wavelength array of your spectrum
-      flux_star: array
+      flux_star: numpy array
         flux array of your spectrum
       ivar_star:
         ivar array of your spectrum
@@ -342,10 +344,14 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BAL
         whether you need to mask telluric region. If False, the returned msk_tell are all good.
       trans_thresh: float
         parameter for selecting telluric regions.
-    returns:
-        msk_bad: mask for bad pixels.
-        msk_star: mask for recombination lines in star spectrum.
-        msk_tell: mask for telluric regions.
+    returns
+    ----------
+      msk_bad: bool type numpy array
+        mask for bad pixels.
+      msk_star: bool type numpy array
+        mask for recombination lines in star spectrum.
+      msk_tell: bool type numpy array
+        mask for telluric regions.
     '''
 
     # Mask (True = good pixels)
@@ -725,7 +731,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
     # Priority
     std_sets = [load_calspec, load_esofil, load_xshooter]
-    std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format
+    std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format; 3= XSHOOTER ASCII format.
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
@@ -787,7 +793,7 @@ def load_calspec():
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    calspec_path = '/data/standards/calspec/'
+    calspec_path = 'data/standards/calspec/'
     calspec_file = resource_filename('pypeit', calspec_path + 'calspec_info.txt')
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
@@ -808,7 +814,7 @@ def load_esofil():
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    esofil_path = '/data/standards/ESOFIL/'
+    esofil_path = 'data/standards/ESOFIL/'
     esofil_file = resource_filename('pypeit', esofil_path + 'esofil_info.txt')
     esofil_stds = Table.read(esofil_file, comment='#', format='ascii')
     # Return
@@ -829,7 +835,7 @@ def load_xshooter():
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    xshooter_path = '/data/standards/xshooter/'
+    xshooter_path = 'data/standards/xshooter/'
     xshooter_file = resource_filename('pypeit', xshooter_path + 'xshooter_info.txt')
     xshooter_stds = Table.read(xshooter_file, comment='#', format='ascii')
     # Return
@@ -937,6 +943,7 @@ def load_standard_file(std_dict):
 
       fmt==1  Calsepec
       fmt==2  ESO files
+      fmt==3  XSHOOTER files
 
     Returns
     -------
