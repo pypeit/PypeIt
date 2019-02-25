@@ -26,6 +26,7 @@
 - Better handling of ManualExtraction
 - Add template for LRISr 600/5000 wavelengths
 - PYDL LICENSE and licenses folder
+- Updates for new Cooked (v1.0)
 
 
 0.9.1 (4 Feb 2019)
