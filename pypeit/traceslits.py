@@ -1,21 +1,26 @@
 """
 Module for guiding Slit/Order tracing
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
 """
-import inspect
-import numpy as np
 import os
-from subprocess import Popen
+import inspect
+#from subprocess import Popen
+#from importlib import reload
+
+import numpy as np
 
 from scipy import ndimage
 
-from importlib import reload
-
 from astropy.io import fits
 
+# TODO: I'd rather we not do this...
 from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit.core import parse, trace_slits, extract, pixels
+from pypeit.core import io
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
@@ -29,29 +34,36 @@ class TraceSlits(masterframe.MasterFrame):
     """Class to guide slit/order tracing
 
     Args:
-        mstrace (ndarray): Trace image
+        mstrace (`numpy.ndarray`_):
+            Trace image
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The `Spectrograph` instance that sets the
-            instrument used to take the observations.  Used to set
-            :attr:`spectrograph`.
+            The `Spectrograph` instance that sets the instrument used to
+            take the observations.  Used to set :attr:`spectrograph`.
         par (:class:`pypeit.par.pypeitpar.TraceSlitsPar`):
             The parameters used to guide slit tracing
-        msbpm (ndarray, optional): Bad pixel mask
-          If not provided, a dummy array with no masking is generated
-        settings : dict, optional
-          Settings for trace slits
+        binning (:obj:`str`, optional):
+            A comma-separated string with the pixel binning in each
+            dimension.  Order *must* follow the PypeIt convention of
+            spectral then spatial binning to match the orientation of
+            images in PypeIt; see [this doc].  If None, assumed to be
+            '1,1'.
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
-        redux_path : str, optional
-          Used for QA output
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (str, optional): Path to master frames
-        reuse_masters (bool, optional): Load from disk if possible
+        master_dir (:obj:`str`, optional):
+            Path to master frames.
+        redux_path (:obj:`str`, optional):
+            Directory for QA output.
+        reuse_masters (:obj:`bool`, optional):
+            Load master files from disk, if possible.
+        msbpm (`numpy.ndarray`_, optional):
+            Bad pixel mask.  If not provided, a dummy array with no
+            masking is generated.
 
     Attributes:
-        frametype (str): Hard-coded to 'trace'
+        TODO: Come back to these...
         lcen (ndarray [nrow, nslit]): Left edges, in physical space
         rcen (ndarray [nrow, nslit]): Right edges, in physical space
         slitpix (ndarray): Image specifying which pixels are in which slit
@@ -93,15 +105,14 @@ class TraceSlits(masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'trace'
 
-    def __init__(self, mstrace, spectrograph, par, binning=None,
-                 det=1, master_key=None, master_dir=None,
-                 redux_path=None, reuse_masters=False, msbpm=None):
+    def __init__(self, mstrace, spectrograph, par, binning=None, det=1, master_key=None,
+                 master_dir=None, redux_path=None, reuse_masters=False, msbpm=None):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir,
                                          reuse_masters=reuse_masters)
 
-        # Required parameters (but can be None)
+        # Required parameters
         self.mstrace = mstrace
         self.spectrograph = spectrograph
         self.par = par
@@ -942,8 +953,9 @@ class TraceSlits(masterframe.MasterFrame):
         # TODO None of our other masters are compressed so why do we gzip these?
         if gzip:
             msgs.info("gzip compressing {:s}".format(outfile))
-            command = ['gzip', '-f', outfile]
-            Popen(command)
+            io.compress_file(outfile)
+#            command = ['gzip', '-f', outfile]
+#            Popen(command)
 
         # dict of steps, settings and more
         out_dict = {}

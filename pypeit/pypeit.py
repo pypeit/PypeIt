@@ -37,7 +37,8 @@ class PypeIt(object):
     This class runs the primary calibration and extraction in PypeIt
 
     Args:
-        pypeit_file (:obj:`str`):  PypeIt filename
+        pypeit_file (:obj:`str`):
+            PypeIt filename.
         verbosity (:obj:`int`, optional):
             Verbosity level of system output.  Can be::
                 - 0: No output
@@ -45,18 +46,20 @@ class PypeIt(object):
                 - 2: All output
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
-        reuse_masters (bool, optional): Reuse any pre-existing calibration files
+        reuse_masters (:obj:`bool`, optional):
+            Reuse any pre-existing calibration files
         logname (:obj:`str`, optional):
             The name of an ascii log file with the details of the
             reduction.
-        redux_path (:obj:`str`, optional):
-            Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
             remote control ginga session via "ginga --modules=RC &"
+        redux_path (:obj:`str`, optional):
+            Over-ride reduction path in PypeIt file (e.g. Notebook usage)
 
     Attributes:
+        TODO: Come back to this...
         pypeit_file (:obj:`str`):
             Name of the pypeit file to read.  PypeIt files have a specific
             set of valid formats. A description can be found `here`_
@@ -92,7 +95,6 @@ class PypeIt(object):
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
         # --------------------------------------------------------------
 
-        
         # --------------------------------------------------------------
         # Build the meta data
         #   - Re-initilize based on the file data
@@ -101,6 +103,7 @@ class PypeIt(object):
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
+        # --------------------------------------------------------------
 
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
@@ -111,8 +114,7 @@ class PypeIt(object):
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
-        # reuse_masters. There is also a reuse_masters parameter in the
-        # parset but it is currently ignored.
+        # reuse_masters.
         self.reuse_masters = reuse_masters
         self.show = show
 
