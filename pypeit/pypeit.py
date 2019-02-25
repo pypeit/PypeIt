@@ -247,7 +247,6 @@ class PypeIt(object):
 
         # Iterate over each calibration group again and reduce the science frames
         for i in range(self.fitstbl.n_calib_groups):
-
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
 
