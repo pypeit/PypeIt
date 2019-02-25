@@ -607,7 +607,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
         xlim: float
             Spatial location to trim object profile for plotting in QA routine.
         xtrunc: float
-            Spatial nsigma to truncate object profile for plotting in QA routine. 
+            Spatial nsigma to truncate object profile for plotting in QA routine.
     Returns:
 
     """
