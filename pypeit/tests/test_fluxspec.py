@@ -91,7 +91,7 @@ def test_script():
     flux_spec.main(pargs, unit_test=True)
 
     # Check for output
-    assert os.path.isfile('test_sensfunc.fits')
+    assert os.path.isfile('test_sensfunc.json')
 
 
     # DEIMOS (multi-det)
