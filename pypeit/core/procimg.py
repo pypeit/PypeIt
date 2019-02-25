@@ -830,8 +830,6 @@ def trim_frame(frame, mask):
 #        debugger.set_trace()
 #        msgs.error("Cannot trim file")
 
-#ToDO JFH: I think we should have separate routines that create a raw variance frame and a model variance frame
-# TODO we should add "adderr" functionality here to set a maximum on the S/N ratio
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None, adderr = 0.01):
     """
