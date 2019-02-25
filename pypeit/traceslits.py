@@ -398,6 +398,7 @@ class TraceSlits(masterframe.MasterFrame):
         """
         self.tslits_dict = {}
         # Have the slit boundaries been tweaked? If so use the tweaked boundaries
+        # TODO -- Have the dict keys have the same name as the attribute
         self.tslits_dict['slit_left_orig'] = self.lcen
         self.tslits_dict['slit_righ_orig'] = self.rcen
 
