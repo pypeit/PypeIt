@@ -69,15 +69,11 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, 
         sensfunc = sens_dict['sensfunc'].copy()
 
         # Did the user request a telluric correction from the same file?
-        if telluric_correct:
+        if telluric_correct and 'telluric' in sens_dict.keys():
             # This assumes there is a separate telluric key in this dict.
-            try:
-                telluric = sens_dict['telluric']
-            except KeyError:
-                msgs.error('The sens_dict does not contain a telluric correction')
-            else:
-                msgs.info('Applying telluric correction')
-                sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
+            telluric = sens_dict['telluric']
+            msgs.info('Applying telluric correction')
+            sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
 
         sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
 

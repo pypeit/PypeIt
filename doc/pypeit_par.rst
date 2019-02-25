@@ -1438,6 +1438,7 @@ Alterations to the default parameters are::
       [[slits]]
           maxshift = 0.5
           sigdetect = 50.0
+          trace_npoly = 3
       [[tilts]]
           tracethresh = 25.0
   [flexure]
