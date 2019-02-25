@@ -556,13 +556,13 @@ class Calibrations(object):
             add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
             # Now we go forth
+            debugger.set_trace()
             try:
                 self.tslits_dict = self.traceSlits.run(plate_scale=plate_scale, show=self.show,
                                                        add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
                                                        write_qa=write_qa)
             except:
                 self.traceSlits.save_master(self.tslits_dict)
-                # TODO why do we have this error method here but nowhere else?
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
             # No slits?
             if self.tslits_dict is None:

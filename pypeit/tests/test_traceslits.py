@@ -22,11 +22,11 @@ def chk_for_files(root):
     files = glob.glob(root+'*')
     return len(files) != 0
 
-def instantiate(mstrace, tslits_dict):
+def instantiate(mstrace, tslits_dict, det=None):
     # Instantiate
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
     par = spectrograph.default_pypeit_par()
-    msbpm = spectrograph.bpm(shape=mstrace.shape)
+    msbpm = spectrograph.bpm(shape=mstrace.shape, det=det)
     binning = tslits_dict['binspectral'], tslits_dict['binspatial']
     traceSlits = traceslits.TraceSlits(mstrace, spectrograph, par['calibrations']['slits'],
                                        msbpm=msbpm, binning=binning)
@@ -34,8 +34,7 @@ def instantiate(mstrace, tslits_dict):
 
 @dev_suite_required
 def test_addrm_slit():
-    # TODO This TEST needs to be rewritten becuase from_master_files is defunct. THe master only includes
-    # the master file and not the entire history of the code as before.
+    """ This tests the add and remove methods for user-supplied slit fussing. """
 
     # Check for files
     mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
@@ -46,27 +45,27 @@ def test_addrm_slit():
     # Instantiate
     _, traceSlits = instantiate(mstrace, tslits_dict)
     traceSlits.lcen = tslits_dict['slit_left']
-    traceSlits.rcen = tslits_dict['slit_right']
+    traceSlits.rcen = tslits_dict['slit_righ']
 
     #  Add dummy slit
     #  y_spec, left edge, right edge on image
     add_user_slits = [[1024, 140, 200]]
-    pytest.set_trace()
-    #traceSlits.lcen, traceSlits.rcen = trace_slits.add_user_edges(
-    #    traceSlits.lcen, traceSlits.rcen, add_user_slits)
+    traceSlits.lcen, traceSlits.rcen = trace_slits.add_user_edges(
+        traceSlits.lcen, traceSlits.rcen, add_user_slits)
     # Test
-    #assert traceSlits.nslit == (norig+1)
-    #xcen0 = np.median((traceSlits.lcen[:,0] + traceSlits.rcen[:,0])/2.)
-    #assert np.abs(xcen0-170) < 3
+    assert traceSlits.nslit == (norig+1)
+    xcen0 = np.median((traceSlits.lcen[:,0] + traceSlits.rcen[:,0])/2.)
+    assert np.abs(xcen0-170) < 3
 
     # Remove it
-    #rm_user_slits = [[1024, 170]]
-    #traceSlits.lcen, traceSlits.rcen = trace_slits.rm_user_edges(
-    #    traceSlits.lcen, traceSlits.rcen, rm_user_slits)
-    #assert traceSlits.nslit == norig
+    rm_user_slits = [[1024, 170]]
+    traceSlits.lcen, traceSlits.rcen = trace_slits.rm_user_edges(
+        traceSlits.lcen, traceSlits.rcen, rm_user_slits)
+    assert traceSlits.nslit == norig
 
 @dev_suite_required
 def test_chk_kast_slits():
+    """ This tests finding the longslit for Kast blue """
     # Red, blue
     for root in ['MasterTrace_ShaneKastred_600_7500_d55.fits', 'MasterTrace_ShaneKastblue_600_4310_d55.fits']:
         # Load
@@ -83,6 +82,7 @@ def test_chk_kast_slits():
 
 @dev_suite_required
 def test_chk_lris_blue_slits():
+    """ This tests slit finding for LRISb """
     for nslit, binning, det, root in zip([1, 14, 15],
                                          [(2,2), (2,2), (2,2)],
                                          [2,1,2],
@@ -94,7 +94,8 @@ def test_chk_lris_blue_slits():
         assert chk_for_files(mstrace_file)
         # Instantiate
         tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-        spectrograph, traceSlits = instantiate(mstrace, tslits_dict)
+        ipos = mstrace_file.find('det')  # Update to using the trace dict eventually
+        spectrograph, traceSlits = instantiate(mstrace, tslits_dict, det=int(mstrace_file[ipos+3]))
         norig = tslits_dict['nslits']
         #assert norig == nslit
         # Run me
@@ -105,6 +106,7 @@ def test_chk_lris_blue_slits():
 
 @dev_suite_required
 def test_chk_lris_red_slits():
+    """ This tests slit finding for LRISr """
     for nslit, binning, det, root in zip([1, 13, 14],
                                          [(2,2), (2,2), (2,2)],
                                          [2,1,2],
@@ -128,6 +130,7 @@ def test_chk_lris_red_slits():
 
 @dev_suite_required
 def test_chk_deimos_slits():
+    """ This tests slit finding for DEIMOS """
     for nslit, binning, det, root in zip([27],
                                          [(1,1)],
                                          [3],
@@ -137,7 +140,8 @@ def test_chk_deimos_slits():
         assert chk_for_files(mstrace_file)
         # Instantiate
         tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-        spectrograph, traceSlits = instantiate(mstrace, tslits_dict)
+        ipos = mstrace_file.find('det')  # Update to using the trace dict eventually
+        spectrograph, traceSlits = instantiate(mstrace, tslits_dict, det=int(mstrace_file[ipos+3]))
         norig = tslits_dict['nslits']
         assert norig == nslit
         # Run me
@@ -145,22 +149,4 @@ def test_chk_deimos_slits():
         traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
         # Test
         assert traceSlits.nslit == norig
-
-
-#@dev_suite_required
-#def test_remove_slit():
-#    # Check for files
-#    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-#                                'MasterTrace_KeckLRISr_20160110_A')
-#    assert chk_for_files(mstrace_root)
-#    # Load
-#    traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
-#    norig = traceSlits.nslit
-#    # Setup slit to remove --  xleft, yleft at yrow=nrow/2
-#    rm_slits = [[229, 380]]
-#    # Remove
-#    traceSlits.remove_slit(rm_slits)
-#    assert traceSlits.nslit == (norig-1)
-
-
 
