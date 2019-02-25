@@ -62,9 +62,6 @@ def test_run():
     flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
                                     tslits_dict=tslits_dict.copy())
 
-    # TODO mstrace is no longer stored in the master file so this needs to be run from an input file which must
-    # be added to the cooked directory. Assigning this one to @profx.  Disabling until it is fixed.
-
     # Use mstrace
     #flatField.rawflatimg = tslits_dict['mstrace'].copy()
     #mspixelflatnrm, msillumflat = flatField.run()

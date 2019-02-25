@@ -7,6 +7,7 @@ from __future__ import unicode_literals
 import os
 import pytest
 import numpy as np
+import copy
 
 from astropy import time
 
@@ -173,3 +174,29 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
 
     # Return
     return ret
+
+def instant_traceslits(mstrace_file, det=None):
+    """
+    Instantiate a TraceSlits object from the master file
+
+    The loaded tslits_dict is set as the atribute
+
+    Args:
+        mstrace_file (str):
+        det (int, optional):
+
+    Returns:
+        Spectrograph, TraceSlits:
+
+    """
+    # Load
+    tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
+    # Instantiate
+    spectrograph = load_spectrograph(tslits_dict['spectrograph'])
+    par = spectrograph.default_pypeit_par()
+    msbpm = spectrograph.bpm(shape=mstrace.shape, det=det)
+    binning = tslits_dict['binspectral'], tslits_dict['binspatial']
+    traceSlits = traceslits.TraceSlits(mstrace, spectrograph, par['calibrations']['slits'],
+                                       msbpm=msbpm, binning=binning)
+    traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
+    return spectrograph, traceSlits
