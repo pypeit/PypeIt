@@ -3,16 +3,10 @@
 # See top-level LICENSE file for Copyright information
 #
 # -*- coding: utf-8 -*-
-
 """
 This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import argparse
 from astropy.table import Table
 from pypeit import ginga

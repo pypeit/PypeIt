@@ -2,8 +2,6 @@
 Version checking.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import pkg_resources
 
 requirements_file = pkg_resources.resource_filename('pypeit', 'requirements.txt')

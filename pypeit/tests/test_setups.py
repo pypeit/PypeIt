@@ -1,9 +1,6 @@
-# Module to run tests on scripts
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to run tests on scripts
+"""
 import os
 import glob
 import shutil
@@ -63,7 +60,7 @@ def test_setup_made_pypeit_file():
     cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file)
     # Test
     assert len(data_files) == 2
-    assert frametype['b1.fits.gz'] == 'arc'
+    assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
     assert setups[0] == 'A'
 
 

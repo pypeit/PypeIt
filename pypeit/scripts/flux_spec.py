@@ -1,13 +1,7 @@
 #!/usr/bin/env python
-
 """
 Script for fluxing PYPEIT 1d spectra
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs

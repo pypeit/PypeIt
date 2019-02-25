@@ -1,7 +1,5 @@
 """ Module for Shane/Kast specific codes
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
 from pkg_resources import resource_filename
@@ -125,7 +123,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -164,39 +162,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
-
-#    def parse_binning(self, inp, det=1):
-#        return '1,1'
-
-#    def get_match_criteria(self):
-#        """Set the general matching criteria for Shane Kast."""
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['naxis0'] = '=0'
-#        match_criteria['standard']['match']['naxis1'] = '=0'
-#
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['naxis0'] = '=0'
-#        match_criteria['bias']['match']['naxis1'] = '=0'
-#
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-#        match_criteria['pixelflat']['match']['decker'] = ''
-#
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['naxis0'] = '=0'
-#        match_criteria['trace']['match']['naxis1'] = '=0'
-#        match_criteria['trace']['match']['decker'] = ''
-#
-#        match_criteria['arc']['match'] = {}
-#        match_criteria['arc']['match']['naxis0'] = '=0'
-#        match_criteria['arc']['match']['naxis1'] = '=0'
-#
-#        return match_criteria
 
 
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
@@ -531,14 +496,4 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
-
-#    def get_match_criteria(self):
-#        # Get the parent matching criteria ...
-#        match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
-#        # ... add more
-#        match_criteria['standard']['match']['dispangle'] = '|<=20'
-#        match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
-#        match_criteria['arc']['match']['dispangle'] = '|<=10'
-#        match_criteria['arc']['match']['decker'] = 'any'
-#        return match_criteria
 

@@ -1,8 +1,6 @@
 '''
 Implements DEIMOS-specific functions, including reading in slitmask design files.
 '''
-from __future__ import absolute_import, division, print_function
-
 import glob
 import re
 import os
@@ -362,7 +360,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole' or ftype == 'dark':
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & (fitstbl['lampstat01'] == 'Kr Xe Ar Ne') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -385,6 +383,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         # TODO: Fill in the rest of these.
         name = { 'arc': 'Line',
+                 'tilt': None,
                  'bias': None,
                  'dark': None,
                  'pinhole': None,
@@ -414,28 +413,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         raw_img, head0, _ = read_deimos(raw_file, det=det)
 
         return raw_img, head0
-
-#    def get_match_criteria(self):
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#        # Standard
-#        # Can be over-ruled by flux calibrate = False
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['decker'] = ''
-#        match_criteria['standard']['match']['binning'] = ''
-#        match_criteria['standard']['match']['filter1'] = ''
-#        # Bias
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['binning'] = ''
-#        # Pixelflat
-#        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-#        # Traceflat
-#        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-#        # Arc
-#        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-#        # Return
-#        return match_criteria
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
@@ -590,61 +567,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.bpm_img[:,931:934] = 1
 
         return self.bpm_img
-
-#    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
-#                       msarc_shape=None, **null_kwargs):
-#        """
-#
-#        Args:
-#            arcparam:
-#            disperser:
-#            fitstbl:
-#            arc_idx:
-#            msarc_shape:
-#            binspectral:
-#            **null_kwargs:
-#
-#        Returns:
-#
-#        """
-#        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
-#        # TODO -- Should set according to the lamps that were on
-#        #arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
-#        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
-#        # detector and there is no mechanism in place to create that yet
-#
-#        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-##        arcparam['min_nsig'] = 30.  # Minimum signififance
-#        arcparam['sigdetect'] = 10.0      # Min significance for arc lines to be used
-#        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
-#        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-#        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
-#        arcparam['func'] = 'legendre'  # Function for fitting
-#        arcparam['n_first'] = 2  # Order of polynomial for first fit
-#        arcparam['n_final'] = 4  # Order of polynomial for final fit
-#        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
-#        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
-#
-#        arcparam['min_ampl'] = 1000.  # Lines tend to be very strong
-#        arcparam['wvmnx'][0] = 4000.
-#        arcparam['wvmnx'][1] = 11000.
-#
-#    #        if disperser == '830G': # Blaze 8640
-#            arcparam['n_first']=2 # Too much curvature for 1st order
-#            arcparam['disp']=0.47 # Ang per pixel (unbinned)
-#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
-#            arcparam['wvmnx'][0] = 550.
-#            arcparam['wvmnx'][1] = 11000.
-#            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
-#        elif disperser == '1200G': # Blaze 7760
-#            arcparam['n_first']=2 # Too much curvature for 1st order
-#            arcparam['disp']=0.32 # Ang per pixel (unbinned)
-#            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
-#            arcparam['wvmnx'][0] = 550.
-#            arcparam['wvmnx'][1] = 11000.
-#            arcparam['min_ampl'] = 2000.  # Lines tend to be very strong
-#        else:
-#            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
     def get_slitmask(self, filename):
         hdu = fits.open(filename)

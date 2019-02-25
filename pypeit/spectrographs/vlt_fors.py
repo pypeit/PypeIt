@@ -1,7 +1,5 @@
 """ Module for VLT FORS (1 and 2)
 """
-from __future__ import absolute_import, division, print_function
-
 import glob
 
 import numpy as np
@@ -157,7 +155,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype == 'arc' or ftype == 'tilt':
             return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
                                | (fitstbl['target'] == 'WAVE,LAMP'))
 

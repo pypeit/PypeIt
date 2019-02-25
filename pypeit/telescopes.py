@@ -2,12 +2,6 @@
 """
 Define the telescopes parameters used by Pypit.
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from pypeit.par.pypeitpar import TelescopePar
 
 #TODO: Remove 'Par' from class name?

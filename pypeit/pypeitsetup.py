@@ -1,12 +1,10 @@
-#  Class for organizing PypeIt setup
-from __future__ import absolute_import, division, print_function
-
+"""
+Class for organizing PypeIt setup
+"""
 import os
 import inspect
 import datetime
 import numpy as np
-
-#from importlib import reload
 
 from astropy.table import hstack, Table
 

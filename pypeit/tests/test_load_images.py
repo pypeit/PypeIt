@@ -1,10 +1,7 @@
-# Module to run loading images for different images served using the
-# ProcessImages class
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to run loading images for different images served using the
+ProcessImages class
+"""
 import os
 
 import pytest
