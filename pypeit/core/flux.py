@@ -330,10 +330,11 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
 def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BALM_MASK_WID=10., trans_thresh=0.9):
     '''
     Get couple of masks from your observed standard spectrum.
-    Parameters:
-      wave_star: array
+    Parameters
+    ----------
+      wave_star: numpy array
         wavelength array of your spectrum
-      flux_star: array
+      flux_star: numpy array
         flux array of your spectrum
       ivar_star:
         ivar array of your spectrum
@@ -343,10 +344,14 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BAL
         whether you need to mask telluric region. If False, the returned msk_tell are all good.
       trans_thresh: float
         parameter for selecting telluric regions.
-    returns:
-        msk_bad: mask for bad pixels.
-        msk_star: mask for recombination lines in star spectrum.
-        msk_tell: mask for telluric regions.
+    returns
+    ----------
+      msk_bad: bool type numpy array
+        mask for bad pixels.
+      msk_star: bool type numpy array
+        mask for recombination lines in star spectrum.
+      msk_tell: bool type numpy array
+        mask for telluric regions.
     '''
 
     # Mask (True = good pixels)
