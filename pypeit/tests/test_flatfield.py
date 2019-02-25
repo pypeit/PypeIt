@@ -48,8 +48,6 @@ def data_path(filename):
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
-# TODO: Need to fix TraceSlits.save_master() and
-# TraceSlits.load_master()?
 @dev_suite_required
 def test_run():
     # Masters
@@ -63,7 +61,7 @@ def test_run():
                                     tslits_dict=tslits_dict.copy())
 
     # Use mstrace
-    #flatField.rawflatimg = tslits_dict['mstrace'].copy()
-    #mspixelflatnrm, msillumflat = flatField.run()
-    #assert np.isclose(np.median(mspixelflatnrm), 1.0)
+    flatField.rawflatimg = tslits_dict['mstrace'].copy()
+    mspixelflatnrm, msillumflat = flatField.run()
+    assert np.isclose(np.median(mspixelflatnrm), 1.0)
 
