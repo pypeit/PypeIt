@@ -726,7 +726,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
     # Priority
     std_sets = [load_calspec, load_esofil, load_xshooter]
-    std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format
+    std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format; 3= XSHOOTER ASCII format.
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
@@ -938,6 +938,7 @@ def load_standard_file(std_dict):
 
       fmt==1  Calsepec
       fmt==2  ESO files
+      fmt==3  XSHOOTER files
 
     Returns
     -------
