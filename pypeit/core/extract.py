@@ -685,7 +685,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     nspec = image.shape[0]
 
     # dspat is the spatial position along the image centered on the object trace
-    dspat = (spat_img - np.outer(trace_in, np.ones(nspat)))
+    dspat = spat_img - np.outer(trace_in, np.ones(nspat))
     # create some images we will need
     sn2_img = np.zeros((nspec,nspat))
     spline_img = np.zeros((nspec,nspat))
