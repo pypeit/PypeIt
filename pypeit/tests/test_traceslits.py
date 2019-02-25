@@ -29,9 +29,8 @@ def test_addrm_slit():
 
     # Check for files
     mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-                                'MasterTrace_KeckLRISr_400_8500_det1.fits.gz')
-    tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-    pytest.set_trace()
+                                'MasterTrace_KeckLRISr_400_8500_det1.fits')
+    #tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
     # Load
     #traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
     #norig = traceSlits.nslit
@@ -55,17 +54,25 @@ def test_addrm_slit():
 @dev_suite_required
 def test_chk_kast_slits():
     # Red, blue
-    for root in ['MasterTrace_ShaneKastred_600_7500_d55', 'MasterTrace_ShaneKastblue_600_4310_d55']:
-        mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
-        assert chk_for_files(mstrace_root)
+    for root in ['MasterTrace_ShaneKastred_600_7500_d55.fits', 'MasterTrace_ShaneKastblue_600_4310_d55.fits']:
+        # Load
+        mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
+        assert chk_for_files(mstrace_file)
         # TODO This TEST needs to be rewritten becuase from_master_files is defunct. THe master only includes
         #     # the master file and not the entire history of the code as before.
-        #traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
-        #norig = traceSlits.nslit
+        tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
+        norig = tslits_dict['nslits']
+        # Instantiate
+        spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
+        par = spectrograph.default_pypeit_par()
+        msbpm = spectrograph.bpm(shape=mstrace.shape)
+        binning = tslits_dict['binspectral'], tslits_dict['binspatial']
+        traceSlits = traceslits.TraceSlits(mstrace, spectrograph, par['calibrations']['slits'],
+                                           msbpm=msbpm, binning=binning)
         # Run me
-        #traceSlits.run(trim_slits=False, write_qa=False)  # Don't need plate_scale for longslit
+        traceSlits.run(trim_slits=False, write_qa=False)  # Don't need plate_scale for longslit
         # Test
-        #assert traceSlits.nslit == norig
+        assert traceSlits.nslit == norig
 
 @dev_suite_required
 def test_chk_lris_blue_slits():
