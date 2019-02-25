@@ -28,9 +28,10 @@ def test_addrm_slit():
     # the master file and not the entire history of the code as before.
 
     # Check for files
-    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-                                'MasterTrace_KeckLRISr_400_8500_det1')
-    assert chk_for_files(mstrace_root)
+    mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
+                                'MasterTrace_KeckLRISr_400_8500_det1.fits.gz')
+    tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
+    pytest.set_trace()
     # Load
     #traceSlits = traceslits.TraceSlits.from_master_files(mstrace_root)
     #norig = traceSlits.nslit
