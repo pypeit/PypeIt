@@ -788,7 +788,7 @@ def load_calspec():
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    calspec_path = '/data/standards/calspec/'
+    calspec_path = 'data/standards/calspec/'
     calspec_file = resource_filename('pypeit', calspec_path + 'calspec_info.txt')
     calspec_stds = Table.read(calspec_file, comment='#', format='ascii')
     # Return
@@ -809,7 +809,7 @@ def load_esofil():
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    esofil_path = '/data/standards/ESOFIL/'
+    esofil_path = 'data/standards/ESOFIL/'
     esofil_file = resource_filename('pypeit', esofil_path + 'esofil_info.txt')
     esofil_stds = Table.read(esofil_file, comment='#', format='ascii')
     # Return
@@ -830,7 +830,7 @@ def load_xshooter():
       astropy Table of the calspec standard stars (file, Name, RA, DEC)
     """
     # Read
-    xshooter_path = '/data/standards/xshooter/'
+    xshooter_path = 'data/standards/xshooter/'
     xshooter_file = resource_filename('pypeit', xshooter_path + 'xshooter_info.txt')
     xshooter_stds = Table.read(xshooter_file, comment='#', format='ascii')
     # Return
