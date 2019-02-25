@@ -49,9 +49,9 @@ def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, 
     exptime : float
       Exposure time in seconds
     longitude : float
-      longitude for observatory
+      longitude in degree for observatory
     latitude: float
-      latitude for observatory
+      latitude in degree for observatory
       Used for extinction correction
     """
 
