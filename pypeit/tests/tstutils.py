@@ -7,6 +7,7 @@ from __future__ import unicode_literals
 import os
 import pytest
 import numpy as np
+import copy
 
 from astropy import time
 
@@ -141,20 +142,21 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     master_key = 'A_1_01'
     if aimg:
         AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir, reuse_masters=reuse_masters)
-        msarc = AImg.load_master(AImg.ms_name)
+        msarc, _ = AImg.load_master(AImg.ms_name)
         ret.append(msarc)
 
     if tslits:
         traceSlits = traceslits.TraceSlits(None,spectrograph,None)
-        tslits_dict = traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01'))
+        # TODO: Should this be json now?
+        tslits_dict, mstrace = traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01.fits'))
         # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
-        tslits_dict['mstrace'] = traceSlits.mstrace
+        tslits_dict['mstrace'] = mstrace
         ret.append(tslits_dict)
 
     if tilts:
         wvTilts = wavetilts.WaveTilts(None, None, spectrograph, None, None, master_key=master_key,
                                       master_dir=master_dir, reuse_masters=reuse_masters)
-        tilts_dict = wvTilts.master()
+        tilts_dict, _ = wvTilts.master()
         ret.append(tilts_dict)
 
     if datasec:
@@ -166,9 +168,35 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
                                         spectrograph.default_pypeit_par()['calibrations']['wavelengths'],
                                         master_key=master_key,
                                         master_dir=master_dir, reuse_masters=reuse_masters)
-        wv_calib = Wavecalib.master()
+        wv_calib, _ = Wavecalib.master()
         ret.append(wv_calib)
 
 
     # Return
     return ret
+
+def instant_traceslits(mstrace_file, det=None):
+    """
+    Instantiate a TraceSlits object from the master file
+
+    The loaded tslits_dict is set as the atribute
+
+    Args:
+        mstrace_file (str):
+        det (int, optional):
+
+    Returns:
+        Spectrograph, TraceSlits:
+
+    """
+    # Load
+    tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
+    # Instantiate
+    spectrograph = load_spectrograph(tslits_dict['spectrograph'])
+    par = spectrograph.default_pypeit_par()
+    msbpm = spectrograph.bpm(shape=mstrace.shape, det=det)
+    binning = tslits_dict['binspectral'], tslits_dict['binspatial']
+    traceSlits = traceslits.TraceSlits(mstrace, spectrograph, par['calibrations']['slits'],
+                                       msbpm=msbpm, binning=binning)
+    traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
+    return spectrograph, traceSlits

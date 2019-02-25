@@ -48,7 +48,6 @@ def data_path(filename):
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
-
 @dev_suite_required
 def test_run():
     # Masters
@@ -60,6 +59,7 @@ def test_run():
     par = pypeitpar.FrameGroupPar(frametype)
     flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
                                     tslits_dict=tslits_dict.copy())
+
     # Use mstrace
     flatField.rawflatimg = tslits_dict['mstrace'].copy()
     mspixelflatnrm, msillumflat = flatField.run()

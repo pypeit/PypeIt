@@ -13,6 +13,8 @@ from astropy.table import Table
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
+import linetools.utils
+
 
 from pypeit import msgs
 from pypeit import specobjs
@@ -87,7 +89,8 @@ def load_specobjs(fname,order=None):
     head0
     """
     sobjs = specobjs.SpecObjs()
-    speckeys = ['WAVE', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG', 'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
+    speckeys = ['WAVE', 'WAVE_GRID_MASK', 'WAVE_GRID','WAVE_GRID_MIN','WAVE_GRID_MAX', 'SKY', 'MASK', 'FLAM', 'FLAM_IVAR', 'FLAM_SIG',
+                'COUNTS_IVAR', 'COUNTS', 'COUNTS_SIG']
     # sobjs_keys gives correspondence between header cards and sobjs attribute name
     sobjs_key = specobjs.SpecObj.sobjs_key()
     hdulist = fits.open(fname)
@@ -273,15 +276,6 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     spec : XSpectrum1D
 
     """
-    # Keywords for Table
-    rsp_kwargs = {}
-    rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
-    if flux:
-        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
-        rsp_kwargs['sig_tag'] = '{:s}_FLAM_SIG'.format(extract)
-    else:
-        rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
-        rsp_kwargs['sig_tag'] = '{:s}_COUNTS_SIG'.format(extract)
 
     # Identify extension from objname?
     if objname is not None:
@@ -291,8 +285,24 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
         if exten < 0:
             msgs.error("Bad input object name: {:s}".format(objname))
 
+    # Keywords for Table
+    rsp_kwargs = {}
+    if flux:
+        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_FLAM_SIG'.format(extract)
+    else:
+        rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
+        rsp_kwargs['sig_tag'] = '{:s}_COUNTS_SIG'.format(extract)
+
+    # Use the WAVE_GRID (for 2d coadds) if it exists, otherwise use WAVE
+    rsp_kwargs['wave_tag'] = '{:s}_WAVE_GRID'.format(extract)
     # Load
-    spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
+    try:
+        spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
+    except ValueError:
+        rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
+        spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
+
     # Return
     return spec
 
@@ -305,11 +315,49 @@ def load_std_trace(spec1dfile, det):
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
             # TODO what is the data model for echelle standards? This routine needs to distinguish between echelle and longslit
-            from IPython import embed
-            embed()
             trace = tbl['TRACE']
 
     return trace
+
+
+
+def load_sens_dict(filename):
+    """
+    Load a full (all slit) wv_calib dict
+
+    Includes converting the JSON lists of particular items into ndarray
+
+    Fills self.wv_calib and self.par
+
+    Args:
+        filename (str): Master file
+
+    Returns:
+        dict or None: self.wv_calib
+
+    """
+
+
+    # Does the master file exist?
+    if not os.path.isfile(filename):
+        msgs.warn("No sensfunc file found with filename {:s}".format(filename))
+        return None
+    else:
+        msgs.info("Loading sensfunc from file {:s}".format(filename))
+        sens_dict = linetools.utils.loadjson(filename)
+        # Recast a few items as arrays
+        for key in sens_dict.keys():
+            try:
+                int(key)
+            except ValueError:
+                continue
+            else:
+                for tkey in sens_dict[key].keys():
+                    if isinstance(sens_dict[key][tkey], list):
+                        sens_dict[key][tkey] = np.array(sens_dict[key][tkey])
+
+        return sens_dict
+
 
 
 def waveids(fname):

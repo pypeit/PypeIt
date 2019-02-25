@@ -86,10 +86,12 @@ class PypeIt(object):
         # Defaults
         spectrograph_def_par = self.spectrograph.default_pypeit_par()
         # Grab a science file for configuration specific parameters
+        sci_file = None
         for idx, row in enumerate(usrdata):
             if 'science' in row['frametype']:
                 sci_file = data_files[idx]
                 break
+
         # Set
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
@@ -97,6 +99,7 @@ class PypeIt(object):
         # Fitstbl
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
                                       usrdata=usrdata, strict=True)
+
         # The following could be put in a prepare_to_run() method in PypeItMetaData
         if 'setup' not in self.fitstbl.keys():
             self.fitstbl['setup'] = setups[0]
@@ -107,7 +110,6 @@ class PypeIt(object):
         # Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
-
 
         # Other Internals
         self.logname = logname
@@ -311,11 +313,14 @@ class PypeIt(object):
         # Save the frame
         self.frames = frames
         self.bg_frames = bg_frames
+        # Is this an IR reduction?
+        self.ir_redux = True if len(bg_frames) > 0 else False
 
         # JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
+        sci_dict['meta']['ir_redux'] = self.ir_redux
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
@@ -340,7 +345,6 @@ class PypeIt(object):
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
             sci_dict[self.det] = {}
-
             # Calibrate
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
@@ -443,7 +447,6 @@ class PypeIt(object):
         else:
             msgs.error('Unrecognized objtype')
         setup = self.fitstbl.master_key(frame, det=det)
-
         return objtype_out, setup, obstime, basename, binning
 
     def get_std_trace(self, std_redux, det, std_outfile):
@@ -509,14 +512,13 @@ class PypeIt(object):
         """
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
-        # Is this an IR reduction
-        self.ir_redux = True if len(bg_frames) > 0 else False
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, self.fitstbl.frame_paths(frames),
+        sci_files = self.fitstbl.frame_paths(frames)
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_files,
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
                                               par=self.par['scienceframe'],
@@ -533,15 +535,21 @@ class PypeIt(object):
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
 
-        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
-                                           ir_redux = self.ir_redux,par=self.par,
-                                           objtype=self.objtype, det=det, binning=self.binning)
+        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict,
+                                           self.mask, self.par,
+                                           ir_redux = self.ir_redux,
+                                           objtype=self.objtype, setup=self.setup,
+                                           det=det, binning=self.binning)
+
+        # Prep for manual extraction (if requested)
+        manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(self.sciimg, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace,maskslits=self.maskslits,
-                                    show = self.show & (not self.std_redux))
+                                    show=self.show & (not self.std_redux),
+                                    manual_extract_dict=manual_extract_dict)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
@@ -552,7 +560,8 @@ class PypeIt(object):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(self.sciimg - self.initial_sky, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
-                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show)
+                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show,
+                                        manual_extract_dict=manual_extract_dict)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
@@ -595,6 +604,8 @@ class PypeIt(object):
             # Set to inmask in case on objects were found
             self.outmask = self.mask
             # empty specobjs object from object finding
+            if self.ir_redux:
+                self.sobjs_obj.purge_neg()
             self.sobjs = self.sobjs_obj
             self.vel_corr = None
 

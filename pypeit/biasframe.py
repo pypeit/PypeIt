@@ -2,18 +2,10 @@
 """
 from __future__ import absolute_import, division, print_function
 
-import inspect
-import os
-import numpy as np
-
-
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
-
-from pypeit import debugger
-
 
 class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     """
@@ -114,6 +106,6 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         # 3) User wants bias subtractions, use a Master biasframe?
         elif self.par['useframe'] in ['bias', 'dark']:
             # Load the MasterFrame if it exists and user requested one to load it
-            self.msbias = self.master(prev_build=prev_build)
+            self.msbias, _ = self.master(prev_build=prev_build)
 
         return self.msbias

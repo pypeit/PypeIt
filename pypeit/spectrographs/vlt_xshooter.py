@@ -12,6 +12,7 @@ from astropy import units
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
+from pypeit import utils
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -224,8 +225,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
                             nonlinear       = 0.86,
                             numamplifiers   = 1,
-                            gain            = 2.12,
-                            ronoise         = 8.0, # ?? more precise value?
+                            gain            = 2.12, #
+                            ronoise         = 8.0, # ?? more precise value? #TODO the read noise is exposure time  dependent and should be grabbed from header
                             datasec         = '[4:,4:2044]', # These are all unbinned pixels
                             # EMA: No real overscan for XSHOOTER-NIR: 
                             # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
@@ -250,9 +251,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 120.
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'order'
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  25.0
@@ -271,6 +271,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -289,10 +291,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
+        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
+        par['scienceimage']['trace_npoly'] = 8
+
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
@@ -496,17 +502,23 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         return slitmask
 
 
-    def wavegrid(self, binning=None):
-
-        # Define the grid for VLT-XSHOOTER NIR
-        dloglam = 1.93724e-5
+    @property
+    def dloglam(self):
         # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
         # loglam across the orders deviates from this value by +-6% from this first to final order
-        logmin = np.log10(9500.0)
-        logmax = np.log10(26000)
-        ngrid = int(np.ceil((logmax - logmin) / dloglam))
-        osamp = 1.0
-        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+        return 1.93724e-5
+
+    @property
+    def loglam_minmax(self):
+        return np.log10(9500.0), np.log10(26000)
+
+    def wavegrid(self, binning=None, midpoint=False):
+
+        # Define the grid for VLT-XSHOOTER NIR
+        logmin, logmax = self.loglam_minmax
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
+        if midpoint:
+            loglam_grid = loglam_grid + self.dloglam/2.0
 
         return np.power(10.0,loglam_grid)
 
@@ -537,9 +549,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             nonlinear       = 0.86,
                             numamplifiers   = 1,
                             gain            = 0.595,
-                            ronoise         = 3.1,
-                            datasec         = '[11:2058,1:]', #'[29:1970,1:]',
-                            oscansec        = '[2059:2106,1:]',
+                            ronoise         = 3.1, # raw unbinned images are (4000,2106) (spec, spat)
+                            datasec='[11:2058,1:]',  # pre and oscan are in the spatial direction
+                            oscansec='[2059:2106,1:]',
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
@@ -566,8 +578,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # TODO THIS IS STUPID. biasframe currently determines behvior for everyone. See Issue # 554
 
         par['calibrations']['slits']['sigdetect'] = 8.0
-        par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['polyorder'] = 6
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = -1
         #par['calibrations']['slits']['fracignore'] = 0.01
@@ -604,6 +615,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
+        par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
@@ -821,7 +833,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Adjustments to slit and tilts for UVB
         par['calibrations']['slits']['sigdetect'] = 8.
         par['calibrations']['slits']['pcatype'] = 'pixel'
-        par['calibrations']['slits']['polyorder'] = 5
+        # TODO: polyorder disappeared; check that this doesn't cause
+        # problems.
+#        par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['number'] = -1
 

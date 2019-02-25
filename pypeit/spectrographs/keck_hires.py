@@ -295,7 +295,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 600.
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['tilts']['tracethresh'] = 20

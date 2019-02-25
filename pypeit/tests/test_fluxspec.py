@@ -31,6 +31,7 @@ def deimos_files():
                          'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')]
 
 
+# TODO: These aren't in the current Cooked
 @pytest.fixture
 @dev_suite_required
 def kast_blue_files():
@@ -48,16 +49,17 @@ def test_gen_sensfunc(kast_blue_files):
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
     # Instantiate
-    FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'])
+    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'])
     assert FxSpec.frametype == 'sensfunc'
     # Find the standard
     FxSpec.load_objs(std_file, std=True)
     std = FxSpec.find_standard()
     # Generate the sensitivity function
+
     sens_dict = FxSpec.generate_sensfunc()
     #
     assert isinstance(sens_dict, dict)
-    assert 'FEIGE66' in sens_dict['std_name']
+    assert 'FEIGE66' in sens_dict['0']['std_name']
     assert FxSpec.steps[-1] == 'generate_sensfunc'
     # Master
     FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=data_path('sensfunc.fits'))
@@ -71,8 +73,9 @@ def test_from_sens_func(kast_blue_files ):
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
     # Instantiate
-    FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'], sens_file=data_path('sensfunc.fits'))
-    assert 'FEIGE66' in FxSpec.sens_dict['std_name']
+    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'], sens_file=data_path('sensfunc.fits'))
+    #FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'],
+    assert 'FEIGE66' in FxSpec.sens_dict['0']['std_name']
     # Flux me some science
     FxSpec.flux_science(sci_file)
     assert 'FLAM' in FxSpec.sci_specobjs[0].optimal.keys()
@@ -88,7 +91,7 @@ def test_script():
     flux_spec.main(pargs, unit_test=True)
 
     # Check for output
-    assert os.path.isfile('test_sensfunc.fits')
+    assert os.path.isfile('test_sensfunc.json')
 
 
     # DEIMOS (multi-det)
