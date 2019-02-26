@@ -6,9 +6,7 @@ from pypeit import msgs
 from pypeit import processimages
 from pypeit import utils
 from pypeit import ginga
-from pypeit.core import coadd2d, pixels
-
-from pypeit import debugger
+from pypeit.core import coadd2d
 
 
 class ScienceImage(processimages.ProcessImages):
