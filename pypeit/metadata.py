@@ -289,6 +289,9 @@ class PypeItMetaData:
             # Add the directory and file name to the table
             data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
 
+            # Read the fits headers
+            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
+
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
                 value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
