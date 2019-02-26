@@ -1296,7 +1296,7 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
 
     return collate(spectra_list_new)
 
-def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pixels=50, SN_MIN_MEDSCALE=0.5, debug=False):
+def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pixels=50, SN_MIN_MEDSCALE=5.0, debug=False):
     '''
     Scale different orders using the median of overlap regions. It starts from the reddest order, i.e. scale H to K,
       and then scale J to H+K, etc.
@@ -1328,21 +1328,25 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
         sn_iord_scale = fluxes[iord - 1] * (1. / sigs[iord - 1])
         allok = (sigs[iord - 1, :] > 0) & (sigs[iord, :] > 0) & (sn_iord_iref > SN_MIN_MEDSCALE) & (
         sn_iord_scale > SN_MIN_MEDSCALE)
+
         if sum(allok) > np.maximum(num_min_pixels, len(wave) * overlapfrac):
             # Ratio
             med_flux = spectra.data['flux'][iord, allok] / spectra.data['flux'][iord - 1, allok]
             # Clip
             mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
-            med_scale = np.minimum(med_scale, 5.0)
+            med_scale = np.maximum(np.minimum(med_scale, 1.5),0.5)
             spectra.data['flux'][iord - 1, :] *= med_scale
             spectra.data['sig'][iord - 1, :] *= med_scale
             msgs.info('Scaled %s order by a factor of %s'%(iord,str(med_scale)))
 
             if debug:
+                allok_iord = sigs[iord, :] > 0
+                allok_iordm1 = sigs[iord-1, :] > 0
                 plt.figure(figsize=(12, 6))
-                plt.plot(wave, spectra.data['flux'][iord], 'r-', label='reference spectrum')
-                plt.plot(wave, fluxes_raw[iord - 1], 'k-', label='raw spectrum')
-                plt.plot(spectra.data['wave'][iord - 1, :], spectra.data['flux'][iord - 1, :], 'b-',
+                plt.plot(wave[allok], spectra.data['flux'][iord, allok], '-',lw=10,color='0.7', label='Scale region')
+                plt.plot(wave[allok_iord], spectra.data['flux'][iord,allok_iord], 'r-', label='reference spectrum')
+                plt.plot(wave[allok_iordm1], fluxes_raw[iord - 1,allok_iordm1], 'k-', label='raw spectrum')
+                plt.plot(spectra.data['wave'][iord - 1, allok_iordm1], spectra.data['flux'][iord - 1, allok_iordm1], 'b-',
                          label='scaled spectrum')
                 mny, medy, stdy = stats.sigma_clipped_stats(fluxes[iord, allok], sigma=nsig, iters=niter)
                 plt.ylim([0.1 * medy, 4.0 * medy])
@@ -1357,7 +1361,7 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
 def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,orderscale='median',mergeorder=True,
               wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
               scale_method='auto', do_offset=False, sigrej_final=3.,do_var_corr=False,
-              SN_MIN_MEDSCALE = 0.5, overlapfrac = 0.01, num_min_pixels=10,phot_scale_dicts=None,
+              SN_MIN_MEDSCALE = 5.0, overlapfrac = 0.01, num_min_pixels=10,phot_scale_dicts=None,
               qafile=None, outfile=None,do_cr=True, debug=False,**kwargs):
     """
     routines for coadding spectra observed with echelle spectrograph.
@@ -1477,7 +1481,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
             #sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
             ## scaling different orders
             order_median_scale(spectra_coadd_rebin, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
-                               num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
+                               num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=True)
         else:
             msgs.warn('No any scaling is performed between different orders.')
 
