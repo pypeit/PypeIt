@@ -278,20 +278,27 @@ class Spectrograph(object):
             # Get the image shape
             raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-            binning = self.get_meta_value(filename, 'binning')
-#            binning = self.parse_binning(filename)
+            binning_pypeit = self.get_meta_value(filename, 'binning')
 
             data_sections, one_indexed, include_end, transpose \
                     = self.get_image_section(filename, det, section='datasec')
+            if transpose:
+               binning_raw = (',').join(binning_pypeit.split(',')[::-1])
+            else:
+               binning_raw = binning_pypeit
+
             # Initialize the image (0 means no amplifier)
             self.datasec_img = np.zeros(raw_naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                           include_end=include_end, require_dim=2,
-                                          transpose=transpose, binning=binning)
+                                          transpose=transpose, binning=binning_raw)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
+
+        from IPython import embed
+        embed()
         return self.datasec_img
 
     def get_raw_image_shape(self, filename, det=None, force=True):
