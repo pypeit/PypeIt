@@ -286,7 +286,7 @@ class Spectrograph(object):
             #--------------------
             # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
             # binning_raw = the binning in the format of the raw data.
-            # In other words: PypeIt requires spec to be the first dimension of the file as read into python. If the
+            # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
             # files are stored the other way with spat as the first dimension (as read into python), then the transpose
             # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
             # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
