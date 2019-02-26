@@ -1,15 +1,16 @@
 
 import inspect
 import numpy as np
+import os
+import copy
 
 from astropy import stats
 from abc import ABCMeta
 
 from pypeit import ginga, utils, msgs, processimages, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
-from pypeit.par import pypeitpar
-from matplotlib import pyplot as plt
 
+from pypeit import debugger
 
 class Reduce(object):
     """
@@ -81,12 +82,13 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, tslits_dict, mask, ir_redux=False, det=1, objtype='science',
-                 binning=None, setup=None, par=None, maskslits=None):
+    def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1,
+                 objtype='science', binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype
-        self.par = spectrograph.default_pypeit_par() if par is None else par
+        self.par = par
+        # TODO -- I find it very confusing to break apart the main parset
         self.proc_par = self.par['scienceframe']['process']
         # TODO Rename the scienceimage arset to reduce.
         self.redux_par = self.par['scienceimage']
@@ -160,18 +162,59 @@ class Reduce(object):
                 return False
         return True
 
+    def parse_manual_dict(self, manual_dict, neg=False):
+        """
+        Parse the manual dict
+        This method is here mainly to deal with negative images
+
+        Args:
+            manual_dict (dict or None):
+            neg (bool, optional):
+
+        Returns:
+            None or dict:  None if no matches; dict if there are for manual extraction
+
+        """
+        if manual_dict is None:
+            return None
+        #
+        dets = manual_dict['hand_extract_det']
+        # Grab the ones we want
+        gd_det = dets > 0
+        if neg:
+            gd_det = np.invert(gd_det)
+        # Any?
+        if not np.any(gd_det):
+            return None
+        # Fill
+        manual_extract_dict = {}
+        for key in manual_dict.keys():
+            sgn = 1
+            if key == 'hand_extract_det':
+                sgn = -1
+            manual_extract_dict[key] = sgn*manual_dict[key][gd_det]
+        # Return
+        return manual_extract_dict
 
     def find_objects(self, image, ivar, std=False, ir_redux=False, std_trace=None, maskslits=None,
-                          show_peaks=False, show_fits=False, show_trace=False, show=False):
+                          show_peaks=False, show_fits=False, show_trace=False, show=False,
+                     manual_extract_dict=None):
 
+        # Positive image
+        parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_init, nobj_init, skymask_pos = \
             self.find_objects_pypeline(image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
-                                   show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
+                                   show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
+                                       manual_extract_dict=parse_manual)
 
+        # For nobj we take only the positive objects
         if ir_redux:
+            # Parses
+            parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
-                show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace)
+                show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
+                                           manual_extract_dict=parse_manual)
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
@@ -180,11 +223,13 @@ class Reduce(object):
         if show:
             self.show('image', image=image*(self.mask == 0), chname='objfind',sobjs=sobjs_obj_init, slits=True)
 
-        return sobjs_obj_init, len(sobjs_obj_init), skymask
+        # For nobj we take only the positive objects
+        return sobjs_obj_init, nobj_init, skymask
 
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace=None, maskslits=None,
-                              show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False):
+                              show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False,
+                              manual_extract_dict=None):
 
         """
          Dummy method for object finding. Overloaded by class specific object finding.
@@ -219,6 +264,13 @@ class Reduce(object):
             global_sky: (numpy.ndarray) image of the the global sky model
         """
 
+
+        # Prep
+        self.global_sky = np.zeros_like(sciimg)
+        if (std and not self.redux_par['global_sky_std']):
+            msgs.info('Skipping global sky-subtraction for standard star.')
+            return self.global_sky
+
         if std:
             sigrej = 7.0
             update_crmask = False
@@ -231,8 +283,6 @@ class Reduce(object):
         self.maskslits = self.maskslits if maskslits is None else maskslits
         gdslits = np.where(np.invert(self.maskslits))[0]
 
-        # Prep
-        self.global_sky = np.zeros_like(self.sciimg)
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciimg, dtype=bool)
@@ -474,12 +524,13 @@ class MultiSlit(Reduce):
     Child of Reduce for Multislit and Longslit reductions
 
     """
-    def __init__(self, spectrograph, tslits_dict, mask, **kwargs):
-        super(MultiSlit, self).__init__(spectrograph, tslits_dict, mask, **kwargs)
+    def __init__(self, spectrograph, tslits_dict, mask, par, **kwargs):
+        super(MultiSlit, self).__init__(spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
+                              manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False):
         """
         Find objects in the slits. This is currently setup only for ARMS
@@ -528,7 +579,7 @@ class MultiSlit(Reduce):
             thismask = (self.slitmask == slit)
             inmask = (self.mask == 0) & thismask
             # Find objects
-            specobj_dict = {'setup': self.setup, 'slitid': slit,
+            specobj_dict = {'setup': self.setup, 'slitid': slit, 'orderindx': 999,
                             'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
@@ -536,9 +587,11 @@ class MultiSlit(Reduce):
             # is. This will be a png file(s) per slit.
 
             sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
+            #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],self.tslits_dict['slit_righ'][:,slit],
-                inmask=inmask, std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=self.redux_par['manual'],
+                inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
+                std_trace=std_trace, sig_thresh=sig_thresh, hand_extract_dict=manual_extract_dict, #self.redux_par['manual'],
                 specobj_dict=specobj_dict, show_peaks=show_peaks,show_fits=show_fits, show_trace=show_trace,
                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
@@ -557,7 +610,7 @@ class MultiSlit(Reduce):
     # being updated?
     def local_skysub_extract(self, sciimg, sciivar, tilts, waveimg, global_sky, rn2img, sobjs,
                              spat_pix=None, maskslits=None, model_noise=True, std = False,
-                             show_profile=False, show_resids=False, show=False):
+                             show_profile=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -616,18 +669,14 @@ class MultiSlit(Reduce):
                 inmask = (self.mask == 0) & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
-                    self.extractmask[thismask] \
-                        = skysub.local_skysub_extract(self.sciimg, self.sciivar, self.tilts,
-                                                      self.waveimg, self.global_sky, self.rn2img,
-                                                      thismask, self.tslits_dict['slit_left'][:,slit],
-                                                      self.tslits_dict['slit_righ'][:, slit],
-                                                      self.sobjs[thisobj], spat_pix=spat_pix,
-                                                      model_full_slit=self.redux_par['model_full_slit'],
-                                                      model_noise=model_noise,
-                                                      std = std, bsp=self.redux_par['bspline_spacing'],
-                                                      sn_gauss=self.redux_par['sn_gauss'],
-                                                      inmask=inmask, show_profile=show_profile,
-                                                      show_resids=show_resids)
+                    self.extractmask[thismask] = skysub.local_skysub_extract(
+                    self.sciimg, self.sciivar, self.tilts, self.waveimg, self.global_sky, self.rn2img,
+                    thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
+                    self.sobjs[thisobj], spat_pix=spat_pix, model_full_slit=self.redux_par['model_full_slit'],
+                    box_rad=self.redux_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
+                    sigrej=self.redux_par['sky_sigrej'],
+                    model_noise=model_noise, std=std, bsp=self.redux_par['bspline_spacing'],
+                    sn_gauss=self.redux_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
@@ -649,13 +698,14 @@ class Echelle(Reduce):
     Child of Reduce for Echelle reductions
 
     """
-    def __init__(self, spectrograph, tslits_dict, mask, **kwargs):
-        super(Echelle, self).__init__(spectrograph, tslits_dict, mask, **kwargs)
+    def __init__(self, spectrograph, tslits_dict, mask, par, **kwargs):
+        super(Echelle, self).__init__(spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
-                              show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False):
+                              show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
+                              manual_extract_dict=None):
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -663,15 +713,18 @@ class Echelle(Reduce):
         plate_scale = self.spectrograph.order_platescale(binning=self.binning)
         inmask = self.mask == 0
         # Find objects
-        specobj_dict = {'setup': self.setup, 'slitid': 999,
+        specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # ToDO implement parsets here!
         sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
-                                inmask=inmask, plate_scale=plate_scale, std_trace=std_trace,
+                                inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
+                                hand_extract_dict=manual_extract_dict,
+                                plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
-                                show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace, debug=debug)
+                                show_peaks=show_peaks, show_fits=show_fits,
+                                show_trace=show_trace, debug=debug)
 
 
 
@@ -714,10 +767,13 @@ class Echelle(Reduce):
         self.global_sky = global_sky
         self.rn2img = rn2img
         order_vec = self.spectrograph.order_vec()
+        plate_scale = self.spectrograph.order_platescale(binning=self.binning)
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
-            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp = self.redux_par['bspline_spacing'],
+            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.redux_par['bspline_spacing'],
+            box_rad_order=self.redux_par['boxcar_radius']/plate_scale,
+            sigrej=self.redux_par['sky_sigrej'],
             sn_gauss=self.redux_par['sn_gauss'], model_full_slit=self.redux_par['model_full_slit'],
             model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
@@ -733,7 +789,7 @@ class Echelle(Reduce):
 
 
 
-def instantiate_me(spectrograph, tslits_dict, mask, **kwargs):
+def instantiate_me(spectrograph, tslits_dict, mask, par, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -756,7 +812,7 @@ def instantiate_me(spectrograph, tslits_dict, mask, **kwargs):
     indx = [ c.__name__ == spectrograph.pypeline for c in Reduce.__subclasses__() ]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return Reduce.__subclasses__()[np.where(indx)[0][0]](spectrograph, tslits_dict, mask, **kwargs)
+    return Reduce.__subclasses__()[np.where(indx)[0][0]](spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 

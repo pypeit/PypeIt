@@ -5,6 +5,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit import utils
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
@@ -341,27 +342,28 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #binspatial, binspectral = parse.parse_binning(binning)
         return np.full(5, 0.15)
 
-    # JFH This function should probably take a disperser name or something for other instruments??
-    def wavegrid(self, binning=None):
-        """
-        For fixed format echelle spectrographs return the wavelength grid used for 2D coadds
-        Args:
-            binning:
 
-        Returns:
-
-        """
-
-        # Define the grid for NIRES
+    @property
+    def dloglam(self):
+        # This number was determined using the resolution and sampling quoted on the NIRES website
         R = 2700.0 * 2.7
         dloglam = 1.0 / R / np.log(10.0)
-        logmin = np.log10(9500.0)
-        logmax = np.log10(26000)
-        ngrid = int(np.ceil((logmax - logmin) / dloglam))
-        osamp = 1.0
-        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+        return dloglam
+
+    @property
+    def loglam_minmax(self):
+        return np.log10(9400.0), np.log10(26000)
+
+    def wavegrid(self, binning=None, midpoint=False):
+
+        # Define the grid for NIRES
+        logmin, logmax = self.loglam_minmax
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
+        if midpoint:
+            loglam_grid = loglam_grid + self.dloglam/2.0
 
         return np.power(10.0,loglam_grid)
+
 
 
 

@@ -29,7 +29,6 @@ def test_build_me():
     master_dir = root_path+'_'+spectrograph.spectrograph
     nslits = tslits_dict['slit_left'].shape[1]
     maskslits = np.zeros(nslits, dtype=bool)
-
     wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, maskslits,
                                 master_key=master_key, master_dir=master_dir, reuse_masters=True)
     # Build

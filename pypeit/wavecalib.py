@@ -8,15 +8,11 @@ import numpy as np
 #from importlib import reload
 
 from matplotlib import pyplot as plt
-
-from astropy.table import vstack
-
 import copy
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit.core import arc, wavecal, qa, pixels
-from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core import arc, qa, pixels
+from pypeit.core.wavecal import autoid, waveio
 import linetools.utils
 
 
@@ -163,7 +159,7 @@ class WaveCalib(masterframe.MasterFrame):
             #ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
             #llist = vstack([CuI, ArI, ArII])
             lines = self.par['lamps']
-            line_lists = wavecal.waveio.load_line_lists(lines)
+            line_lists = waveio.load_line_lists(lines)
 
             self.wv_calib = arc.simple_calib_driver(self.msarc, line_lists, arccen, ok_mask,
                                                     nfitpix=self.par['nfitpix'],
@@ -178,7 +174,7 @@ class WaveCalib(masterframe.MasterFrame):
                 self.par['wv_cen'] = 8670.
                 self.par['disp'] = 1.524
                 # ToDO remove these hacks and use the parset in semi_brute
-                best_dict, ifinal_fit = wavecal.autoid.semi_brute(arccen[:, slit],
+                best_dict, ifinal_fit = autoid.semi_brute(arccen[:, slit],
                                                                   self.par['lamps'], self.par['wv_cen'],
                                                                   (self)['disp'],match_toler=self.par['match_toler'],
                                                                   func=self.par['func'],n_first=self.par['n_first'],
@@ -192,24 +188,24 @@ class WaveCalib(masterframe.MasterFrame):
             final_fit = {}
             for slit in ok_mask:
                 status, ngd_match, match_idx, scores, ifinal_fit = \
-                    wavecal.autoid.basic(arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
+                    autoid.basic(arccen[:, slit], self.par['lamps'], self.par['wv_cen'], self.par['disp'],
                                  nonlinear_counts = self.nonlinear_counts)
                 final_fit[str(slit)] = ifinal_fit.copy()
                 if status != 1:
                     self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = wavecal.autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
+            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
-            arcfitter = wavecal.autoid.ArchiveReid(arccen, par=self.par, ok_mask=ok_mask)
+            arcfitter = autoid.ArchiveReid(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            final_fit = wavecal.autoid.full_template(arccen, self.par, ok_mask, self.det,
+            final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det,
                                                      self.binspectral,
                                                      nsnippet=self.par['nsnippet'])
 
@@ -226,7 +222,7 @@ class WaveCalib(masterframe.MasterFrame):
         if not skip_QA:
             for slit in ok_mask:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit, out_dir=self.redux_path)
-                wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
+                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -327,7 +323,7 @@ class WaveCalib(masterframe.MasterFrame):
         # Does the master file exist?
         if not os.path.isfile(filename):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
-            return None
+            return None, None
         else:
             msgs.info("Loading Master {0:s} frame:".format(self.frametype) + msgs.newline() + filename)
             self.wv_calib = linetools.utils.loadjson(filename)
@@ -341,7 +337,7 @@ class WaveCalib(masterframe.MasterFrame):
             # parset
             if 'par' in self.wv_calib.keys():
                 self.par = self.wv_calib['par'].copy()
-            return self.wv_calib
+            return self.wv_calib, None
 
     def save_master(self, data, outfile=None, raw_files=None, steps=None, overwrite=True, extensions=None, names=None):
         """
@@ -469,7 +465,7 @@ class WaveCalib(masterframe.MasterFrame):
             ax.set_ylabel('Counts')
             plt.show()
         elif item == 'fit':
-            wavecal.qa.arc_fit_qa(self.wv_calib[str(slit)])
+            autoid.arc_fit_qa(self.wv_calib[str(slit)])
 
     def __repr__(self):
         # Generate sets string
@@ -528,9 +524,8 @@ def load_wv_calib(filename):
         tuple (dict, parset): wv_calib dict, wavelengths parset
     """
 
-
     waveCalib = WaveCalib(None, None, None, None)
-    _ = waveCalib.load_master(filename)
-    return waveCalib.wv_calib, waveCalib.par
+    wv_calib, _ = waveCalib.load_master(filename)
+    return wv_calib, wv_calib['par'].copy()
 
 

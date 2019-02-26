@@ -70,7 +70,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.det = det
         self.redux_path = redux_path
         #
-        if self.spectrograph.detector is not None:
+        if self.spectrograph is not None:
             self.nonlinear_counts = self.spectrograph.detector[self.det-1]['saturation']*self.spectrograph.detector[self.det-1]['nonlinear']
         else:
             self.nonlinear_counts=1e10
@@ -339,20 +339,20 @@ class WaveTilts(masterframe.MasterFrame):
             msgs.warn("No Master frame found of type {:s}: {:s}".format(self.frametype, filename))
             if force:
                 msgs.error("Crashing out because reduce-masters-force=True:" + msgs.newline() + filename)
-            return None
+            return None, None
         else:
             msgs.info("Loading a pre-existing master calibration frame of type: {:}".format(self.frametype) + " from filename: {:}".format(filename))
             hdu = fits.open(filename)
             head0 = hdu[0].header
             tilts = hdu[0].data
-            head1 = hdu[1].header
             coeffs = hdu[1].data
             slitcen = hdu[2].data
             spat_order = hdu[3].data
             spec_order = hdu[4].data
-            tilts_dict = {'tilts':tilts,'coeffs':coeffs,'slitcen':slitcen,'func2d': head1['FUNC2D'], 'nslit': head1['NSLIT'],
+            tilts_dict = {'tilts':tilts, 'coeffs':coeffs, 'slitcen':slitcen,
+                          'func2d':hdu[0].header['FUNC2D'], 'nslit':hdu[0].header['NSLIT'],
                           'spat_order':spat_order, 'spec_order':spec_order}
-            return tilts_dict
+            return tilts_dict, head0
 
     def save_master(self, tilts_dict, outfile=None, steps=None, overwrite=True):
         """
@@ -378,11 +378,11 @@ class WaveTilts(masterframe.MasterFrame):
         msgs.info("Saving master {0:s} frame as:".format(self.frametype) + msgs.newline() + _outfile)
         hdu0 = fits.PrimaryHDU(tilts_dict['tilts'])
         hdu0.name='TILTS'
+        hdu0.header['FUNC2D'] = tilts_dict['func2d']
+        hdu0.header['NSLIT'] =  tilts_dict['nslit']
         hdul = [hdu0]
         hdu_coeff = fits.ImageHDU(tilts_dict['coeffs'])
         hdu_coeff.name='COEFFS'
-        hdu_coeff.header['FUNC2D'] = tilts_dict['func2d']
-        hdu_coeff.header['NSLIT'] = tilts_dict['nslit']
         hdul.append(hdu_coeff)
         hdu_slitcen = fits.ImageHDU(tilts_dict['slitcen'])
         hdu_slitcen.name = 'SLITCEN'
@@ -510,4 +510,22 @@ class WaveTilts(masterframe.MasterFrame):
         txt += '>'
         return txt
 
+
+
+def load_tilts(filename):
+    """
+    Utility function which enables one to load the tilts from a master file in one line of code without
+    instantiating the class.
+
+    Args:
+        filename (str): Master file name
+
+    Returns:
+        dict:  The trace slits dict
+
+    """
+
+    waveTilts = WaveTilts(None, None, None, None, None)
+    tilts_dict, _ = waveTilts.load_master(filename)
+    return tilts_dict['tilts']
 

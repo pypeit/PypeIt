@@ -32,8 +32,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.193,
                             darkcurr        = 0.8,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
+                            saturation      = 100000.,
+                            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
                             numamplifiers   = 1,
                             gain            = 5.8,
                             ronoise         = 23,
@@ -74,6 +74,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [1, None]
         # Lower the default threshold for tilts
         par['calibrations']['tilts']['tracethresh'] = 10.
+        # Slits
+        par['calibrations']['slits']['sigdetect'] = 200.
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1

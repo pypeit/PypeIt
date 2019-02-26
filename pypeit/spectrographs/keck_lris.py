@@ -576,7 +576,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 4.0
         # Tilts
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 25
@@ -644,6 +643,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+
 
         # Return
         return par

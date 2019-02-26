@@ -44,7 +44,7 @@ def test_show_1dspec():
 @dev_suite_required
 def test_chk_edges():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-                                'MasterTrace_KeckLRISr_400_8500_det1')
+                                'MasterTrace_KeckLRISr_400_8500_det1.fits')
     # Ginga needs to be open in RC mode
     ginga.connect_to_ginga(raise_err=True)
     #

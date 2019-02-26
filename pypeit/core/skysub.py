@@ -5,10 +5,38 @@ import sys, os
 
 from pypeit import msgs, utils, processimages, ginga
 from pypeit.core import pixels, extract, pydl
+from pypeit import debugger
+
 from matplotlib import pyplot as plt
 
 from scipy.special import ndtr
 import scipy
+
+def skysub_npoly(thismask):
+    """
+    Utility routine used by global_skysub and local_skysub_extract. Determine the order for the spatial
+    polynomial for global sky subtraction and local sky subtraction.
+    Args:
+       thismask : ndarray, bool, shape (nspec, nspat)
+         Specifies pixels in the slit in question
+
+    Returns:
+        npoly: int
+           Order of polynomial
+    """
+    slit_width = np.sum(thismask,axis=1)
+    med_slit_width = np.median(slit_width[slit_width > 0])
+    nspec_eff = np.sum(slit_width > 0.5*med_slit_width)
+    npercol = np.fmax(np.floor(np.sum(thismask)/nspec_eff), 1.0)
+    # Demand at least 10 pixels per row (on average) per degree of the polynomial
+    if npercol > 100:
+        npoly = 3
+    elif npercol > 40:
+        npoly = 2
+    else:
+        npoly = 1
+
+    return npoly
 
 
 
@@ -92,7 +120,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     (nspec, nspat) = image.shape
     piximg = tilts * (nspec-1)
     if inmask is None:
-        inmask = np.copy(thismask)
+        inmask = (ivar > 0.0) & thismask & np.isfinite(image) & np.isfinite(ivar)
 
 
     # Sky pixels for fitting
@@ -127,20 +155,10 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     # Include a polynomial basis?
     if no_poly:
         poly_basis = np.ones_like(sky)
-        npoly = 1
+        npoly_fit = 1
     else:
-        npercol = np.fmax(np.floor(np.sum(thismask) / nspec), 1.0)
-        # Demand at least 10 pixels per row (on average) per degree of the polynomial
-        if npoly is None:
-            #npoly_in = 7
-            #npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol / 10.)).astype(int)), 1)
-            if npercol > 100:
-                npoly = 3
-            elif npercol > 40:
-                npoly = 2
-            else:
-                npoly = 1
-        poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly).T
+        npoly_fit = skysub_npoly(thismask) if npoly is None else npoly
+        poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly_fit).T
 
     # Full fit now
     #full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp, npoly = npoly)
@@ -160,7 +178,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
     # chi^2
     if exit_status == 1:
-        msgs.warn('Maximum iterations reached in bspline_profile global sky-subtraction for npoly={:d}.'.format(npoly) +
+        msgs.warn('Maximum iterations reached in bspline_profile global sky-subtraction for npoly={:d}.'.format(npoly_fit) +
                   msgs.newline() +
                   'Redoing sky-subtraction without polynomial degrees of freedom')
         poly_basis = np.ones_like(sky)
@@ -209,8 +227,26 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
 
 
-# Utility routine used by local_bg_subtraction_slit
-def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial = None, fullbkpt = None):
+# TODO -- This needs JFH docs, desperately
+def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=None, fullbkpt=None):
+    """
+    Utility routine used by local_bg_subtraction_slit
+
+    Args:
+        wave:
+        data:
+        ivar:
+        oprof (ndarray): Flattened object profile in this slit
+        sortpix:
+        sigrej:
+        npoly:
+        spatial:
+        fullbkpt:
+
+    Returns:
+        ndarray, ndarray, ndarray:
+
+    """
 
 
     nx = data.size
@@ -257,9 +293,9 @@ def skyoptimal(wave,data,ivar, oprof, sortpix, sigrej = 3.0, npoly = 1, spatial 
     sigind = int(np.fmin(np.rint(gauss_prob * float(ngood)), ngood - 1))
     chi2_sigrej = chi2_srt[sigind]
     mask1 = (chi2 < chi2_sigrej)
+
     msgs.info('2nd round....')
     msgs.info('Iter     Chi^2     Rejected Pts')
-
     if np.any(mask1):
         sset, outmask_good, yfit, red_chi, exit_status = \
             utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :], inmask=mask1,
@@ -440,10 +476,10 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask, slit_left, slit_righ, sobjs,
-                         spat_pix = None, bsp = 0.6, inmask = None, extract_maskwidth = 4.0, trim_edg = (3,3), std = False, prof_nsigma = None,
-                         niter=4, box_rad = 7, sigrej = 3.5, bkpts_optimal=True, sn_gauss = 4.0,
-                         model_full_slit=False, model_noise = True,
-                         debug_bkpts = False, show_profile=False, show_resids=False):
+                         spat_pix=None, adderr=0.01, bsp=0.6, inmask=None, extract_maskwidth=4.0, trim_edg=(3,3),
+                         std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
+                         debug_bkpts=False,sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
+                         show_resids=False):
 
     """Perform local sky subtraction and  extraction
 
@@ -458,63 +494,95 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
      waveimg numpy float 2-d array (nspec, nspat)
          2-d wavelength map
      global_sky : ndarray (nspec, nspat)
-         Global sky model
+         Global sky model produced by global_skysub
      rn2_img:
          Image with the read noise squared per pixel
-         object trace
-     thismask:
-     slit_left:
-     slit_righ:
-     sobjs:
-
-     Optional Args:
-     spat_pix: float ndarray, shape (nspec, nspat)
-         Image containing the spatial location of pixels. If not input,
-         it will be computed via spat_img = np.outer(np.ones(nspec), np.arange(nspat))
-
-
-     bsp:
-     inmask:
+     thismask : numpy boolean array, shape (nspec, nspat)
+         Specifies pixels in the slit in question
+     slit_left: ndarray of shape (nspec, 1) or (nspec)
+         Left slit boundary in floating point pixels.
+     slit_righ: ndarray of shape (nspec, 1) or (nspec)
+          Right slit boundary in floating point pixels.
+     sobjs:   SpecoObjs object
+          Object containing the information about the objects found on the slit/order from objfind or ech_objfind
+     spat_pix: float ndarray, shape (nspec, nspat), default = None
+          Image containing the spatial location of pixels. If not input, it will be computed from
+          spat_img = np.outer(np.ones(nspec), np.arange(nspat)). This option should generally not be used unless one
+          is extracting 2d coadds for which a rectified image contains sub-pixel spatial information.
+     adderr: float, default = 0.01
+         Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
+         S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
+     bsp: float, default = 0.6
+         Break point spacing in pixels for the b-spline sky subtraction.
+     inmask: ndarray, bool, (nspec, nspat)
+         Input mask with True=Good, False=Bad
      extract_maskwidth: float, default = 4.0
-        This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
-        maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
-     trim_edg:
-     std:
-     prof_nsigma:
-     niter:
-     box_rad:
+         Determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
+         maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
+     trim_edg: tuple of ints of floats, default = (3,3)
+         Number of pixels to be ignored on the (left,right) edges of the slit in object/sky model fits.
+     std: bool, default = False
+         This should be set to True if the object being extracted is a standards star so that the reduction parameters
+         can be adjusted accordingly.
+     prof_nsigma: int or float, default = None
+         Number of sigmas that the object profile will be fit, i.e. the region extending from
+         -prof_nsigma to +prof_nsigma will be fit where sigma = FWHM/2.35. This option should only be used for bright
+         large extended source with tails in their light profile like elliptical galaxies. If prof_nsigma is set then
+         the profiles will no longer be apodized by an exponential at large distances from the trace.
+     niter: int, default = 4
+         Number of iterations for successive profile fitting and local sky-subtraction
+     box_rad: int or float, default = 7
+         Boxcar radius in *pixels* used for boxcar extraction.
      sigrej:
-     bkpts_optimal: bool, default True
-         bkpts_optimal = True:
-              The optimal break-point spacing will be determined directly using the optimal_bkpts function
-              by measuring how well we are sampling the sky  using the piximg = (nspec-1)*yilyd. The bsp parameter
-              in this case corresponds to the minimum distance between breakpoints which we allow.
+         Outlier rejection threshold for sky and object fitting
+     bkpts_optimal = bool, default = True
+         Parameter governing whether spectral direction breakpoints for b-spline sky/object modeling are determined
+         optimally. If:
+
+         bkpts_optima=True
+             The optimal break-point spacing will be determined directly using the optimal_bkpts function
+             by measuring how well we are sampling the sky  using the piximg = (nspec-1)*yilyd. The bsp parameter
+             in this case corresponds to the minimum distance between breakpoints which we allow.
          bkpts_optimal = False:
               The break-points will be chosen to have a uniform spacing in pixel units sets by the bsp parameter, i.e.
               using the bkspace functionality of the pydl bspline class:
 
-                  bset = pydl.bspline(piximg_values, nord=4, bkspace=bsp)
-                  fullbkpt = bset.breakpoints
-     sn_gauss:
+              bset = pydl.bspline(piximg_values, nord=4, bkspace=bsp)
+              fullbkpt = bset.breakpoints
+     debug_bkpts: bool, default=False
+          Make an interactive plot to the screen to indicate how the breakpoints are being chosen.
+     sn_gauss: int or float, default = 4.0
+          The signal to noise threshold above which optimal extraction with non-parametric b-spline fits to the objects
+          spatial profile will be performed. For objects with median S/N < sn_gauss, a Gaussian profile will simply
+          be assumed because there is not enough S/N to justify performing a more complicated fit.
      model_full_slit: bool, default = False
           Set the maskwidth of the objects to be equal to the slit width/2 such that the entire slit will be modeled
           by the local skysubtraction. This mode is recommended for echelle spectra with reasonably narrow slits.
-     model_noise:
-     debug_bkpts:
-     show_profile:
-     show_resids:
+     model_noise: bool, default = True
+          If True, the model of the object, sky will be combined with the rn2img to create (and iteratively update) a
+          model inverse variance image. If False, a variance model will not be created and instead the input sciivar
+          will always be taken to be the inverse variance. Note that in order for the noise model to make any sense
+          one needs to be subtracting the sky and *not* the sky residuals. In other words, for near-IR reductions
+          where difference imaging has been performed and this algorithm is used to fit out the sky residuals (but
+          not the sky itself) one should definitely set model_noise=False since otherwise the code will attempt to
+          create a noise model using sky residuals instead of the sky, which is incorrect (does not have the right count
+          levels). In principle this could be improved if the user could pass in a model of what the sky is for near-IR
+          difference imaging + residual subtraction
+    show_profile: bool, default=False
+          Show QA for the object profile fitting to the screen. Note that this will show interactive matplotlib plots
+          which will block the execution of the code until the window is closed.
+    show_resids:
+          Show the
+    Returns:
+        :func:`tuple`
+        (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
-     Returns:
-
-     :func:`tuple`
+        skyimage[thismask]: ndarray, float
+           sky model for the pixels
 
     """
-
     if inmask is None:
-        # These values are hard wired for the case where no inmask is provided
-        FULLWELL = 5e5
-        MINWELL = -1000.0,
-        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar) & (sciimg < FULLWELL) & (sciimg > MINWELL)
+        inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar)
 
     # Adjust maskwidths of the objects such that we will apply the local_skysub_extract to the entire slit
     if model_full_slit:
@@ -548,10 +616,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     # since super high S/N and low order profile models imply we will always have large outliers
     if std is True:
         chi2_sigrej = 100.0
-        sigrej_ceil = 1e10
+        #sigrej_ceil = 1e10
+        sigrej = 25.0
     else:
         chi2_sigrej = 6.0
-        sigrej_ceil = 10.0
+        #sigrej_ceil = 10.0
     # We will use this number later
     gauss_prob = 1.0 - 2.0 * ndtr(-sigrej)
 
@@ -563,17 +632,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     #varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     # TODO Add a line of code here that updates the modelivar using the global sky if nobj = 0 and simply returns
-    spec_img = np.outer(np.arange(nspec), np.ones(nspat))
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
     if spat_pix is None:
         spat_pix = spat_img
 
-    spat_min = spat_img[thismask].min()
-    spat_max = spat_img[thismask].max()
-    spec_min = spec_img[thismask].min()
-    spec_max = spec_img[thismask].max()
-
     xsize = slit_righ - slit_left
+    # TODO Can this be simply replaced with spat_img above (but not spat_pix since that could have holes)
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
 
     # Loop over objects and group them
@@ -592,6 +656,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 max_spat1 = np.minimum(np.maximum(righ_edge, max_spat1), slit_righ)
                 min_spat1 = np.maximum(np.minimum(left_edge, min_spat1), slit_left)
                 group = np.append(group, i2)
+        # Create the local mask which defines the pixels that will be updated by local sky subtraction
+        min_spat_img = np.outer(min_spat1, np.ones(nspat))
+        max_spat_img = np.outer(max_spat1, np.ones(nspat))
+        localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
+        npoly = skysub_npoly(localmask)
         # Keep for next iteration
         i1 = group.max() + 1
         # Some bookeeping to define the sub-image and make sure it does not land off the mask
@@ -606,13 +675,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         spec_vec = np.arange(nspec, dtype=np.intp)
         spat_vec = np.arange(min_spat, min_spat + nc, dtype=np.intp)
         ipix = np.ix_(spec_vec, spat_vec)
-        skymask = outmask & np.invert(edgmask)
-        if nc > 100:
-            npoly = 3
-        elif nc > 40:
-            npoly = 2
-        else:
-            npoly = 1
         obj_profiles = np.zeros((nspec, nspat, objwork), dtype=float)
         sigrej_eff = sigrej
         for iiter in range(1, niter + 1):
@@ -635,7 +697,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                               ycen=sobjs[iobj].trace_spec)
                     pixtot = extract.extract_boxcar(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, box_rad,
                                             ycen=sobjs[iobj].trace_spec)
-                    mask_box = (extract.extract_boxcar(~outmask, sobjs[iobj].trace_spat, box_rad,
+                    mask_box = (extract.extract_boxcar(np.invert(outmask), sobjs[iobj].trace_spat, box_rad,
                                                ycen=sobjs[iobj].trace_spec) != pixtot)
                     box_denom = extract.extract_boxcar(waveimg > 0.0, sobjs[iobj].trace_spat, box_rad,
                                                ycen=sobjs[iobj].trace_spec)
@@ -652,16 +714,18 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # If the extraction is bad do not update
                     if sobjs[iobj].optimal['MASK'].any():
                         flux = sobjs[iobj].optimal['COUNTS']
-                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR']
+                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR']*sobjs[iobj].optimal['MASK']
                         wave = sobjs[iobj].optimal['WAVE']
 
                 obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slitid) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
                     sign = sobjs[iobj].sign
-                    (profile_model, trace_new, fwhmfit, med_sn2) = extract.fit_profile(
-                        sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix],spat_pix[ipix], sobjs[iobj].trace_spat,
-                        wave, sign*flux, fluxivar, thisfwhm=sobjs[iobj].fwhm, maskwidth=sobjs[iobj].maskwidth,
-                        prof_nsigma=sobjs[iobj].prof_nsigma,sn_gauss=sn_gauss, obj_string = obj_string,
+                    # TODO This is "sticky" masking. Do we want it to be?
+                    profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
+                        sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].trace_spat,
+                        wave, sign*flux, fluxivar, inmask = outmask[ipix],
+                        thisfwhm=sobjs[iobj].fwhm, maskwidth=sobjs[iobj].maskwidth,
+                        prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
                         show_profile=show_profile)
                     #proc_list.append(show_proc)
 
@@ -685,18 +749,15 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             iterbsp = 0
             while (not sky_bmodel.any()) & (iterbsp <= 5):
                 bsp_now = (1.2 ** iterbsp) * bsp
-                ibool = (spec_img >= spec_min) & (spec_img <= spec_max) & \
-                        (spat_img >= spat_min) & (spat_img <= spat_max) & \
-                        (spat_img >= min_spat) & (spat_img <= max_spat) & \
-                        thismask
-                sampmask = (waveimg > 0.0) & ibool
-                fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, sampmask, debug=(debug_bkpts & (iiter == niter)),
+                fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
                                          skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
                 # check to see if only a subset of the image is used.
                 # if so truncate input pixels since this can result in singular matrices
-                isub, = np.where(ibool.flatten())
+                isub, = np.where(localmask.flatten())
                 sortpix = (piximg.flat[isub]).argsort()
                 obj_profiles_flat = obj_profiles.reshape(nspec * nspat, objwork)
+
+                skymask = outmask & np.invert(edgmask)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(piximg.flat[isub], sciimg.flat[isub],
                                                                  (modelivar * skymask).flat[isub],
                                                                  obj_profiles_flat[isub, :], sortpix,
@@ -719,11 +780,15 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 igood1 = skymask.flat[isub]
                 #  update the outmask for only those pixels that were fit. This prevents masking of slit edges in outmask
                 outmask.flat[isub[igood1]] = outmask_opt[igood1]
+                #from pypeit.ginga import show_image
+                #show_image(sciimg*outmask)
+                #debugger.set_trace()
                 #  For weighted co-adds, the variance of the image is no longer equal to the image, and so the modelivar
                 #  eqn. below is not valid. However, co-adds already have the model noise propagated correctly in sciivar,
                 #  so no need to re-model the variance.
                 if model_noise:
                     var = np.abs(sky_bmodel + obj_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
+                    var = var + adderr**2*(np.abs(sky_bmodel + obj_bmodel))**2
                     modelivar.flat[isub] = (var > 0.0) / (var + (var == 0.0))
                     #varnoobj.flat[isub] = var_no
                 # Now do some masking based on this round of model fits
@@ -737,7 +802,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     chi2_sigrej = chi2_srt[sigind]
                     sigrej_eff = np.fmax(np.sqrt(chi2_sigrej), sigrej)
                     #  Maximum sigrej is sigrej_ceil (unless this is a standard)
-                    sigrej_eff = np.fmin(sigrej_eff, sigrej_ceil)
+                    #sigrej_eff = np.fmin(sigrej_eff, sigrej_ceil)
                     msgs.info('Measured effective rejection from distribution of chi^2')
                     msgs.info('Instead of rejecting sigrej = {:5.2f}'.format(sigrej) +
                               ', use threshold sigrej_eff = {:5.2f}'.format(sigrej_eff))
@@ -817,10 +882,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
 
 def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, tslits_dict, sobjs, order_vec,
-                             spat_pix=None, fit_fwhm=False, min_snr=2.0,
-                             bsp = 0.6, extract_maskwidth = 4.0, trim_edg = (3,3), std=False, prof_nsigma=None,
-                             niter=4, box_rad = 7, sigrej=3.5, bkpts_optimal=True, sn_gauss=4.0,
-                             model_full_slit=False, model_noise=True, debug_bkpts=False,
+                             spat_pix=None, fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
+                             std=False, prof_nsigma=None, niter=4, box_rad_order=7, sigrej=3.5, bkpts_optimal=True,
+                             sn_gauss=4.0, model_full_slit=False, model_noise=True, debug_bkpts=False,
                              show_profile=False, show_resids=False, show_fwhm=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -965,7 +1029,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                 sciimg, sciivar, tilts, waveimg, global_sky,rn2img, thismask,
                 tslits_dict['slit_left'][:,iord],tslits_dict['slit_righ'][:, iord], sobjs[thisobj], spat_pix=spat_pix,
                 inmask=inmask,std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg,
-                prof_nsigma=prof_nsigma, niter=niter, box_rad=box_rad, sigrej=sigrej, bkpts_optimal=bkpts_optimal,
+                prof_nsigma=prof_nsigma, niter=niter, box_rad=box_rad_order[iord], sigrej=sigrej, bkpts_optimal=bkpts_optimal,
                 sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debug_bkpts,
                 show_resids=show_resids, show_profile=show_profile)
             # update the FWHM fitting vector for the brighest object

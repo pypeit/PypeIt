@@ -712,6 +712,10 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     # Check the dimensionality
     ndim = len(sections)
     _binning = [1]*ndim if binning is None else np.array(binning.split(',')).astype(int)
+    ## JFH This is a kludge to get this to work becuase I cannot understand the nonsense below. The binning
+    ## convention is now flipped relative to before and the code below appends to lists, so this is the
+    ## easiest fix
+    _binning = _binning[::-1]
     if len(_binning) != ndim:
         raise ValueError('Incorrect binning dimensions (found {0}, expected {1}).'.format(
                             len(_binning), ndim))

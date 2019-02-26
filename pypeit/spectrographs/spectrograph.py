@@ -285,7 +285,6 @@ class Spectrograph(object):
 
             data_sections, one_indexed, include_end, transpose \
                     = self.get_image_section(filename, det, section='datasec')
-
             # Initialize the image (0 means no amplifier)
             self.datasec_img = np.zeros(raw_naxis, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):

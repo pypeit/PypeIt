@@ -5,6 +5,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit import utils
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
@@ -35,7 +36,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.15,
                             darkcurr        = 0.15,
-                            saturation      = 90000.,
+                            saturation      = 150000.,
                             nonlinear       = 0.71,
                             numamplifiers   = 1,
                             gain            = 13.5,
@@ -69,7 +70,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Slits
         par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slits']['polyorder'] = 5
+        par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
 
         # Wavelengths
@@ -105,7 +106,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Extraction
         par['scienceimage']['sig_thresh'] = 5.0
         par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
+        par['scienceimage']['no_poly']  = True         # Do not use polynomial degree of freedom for global skysub
+
 
         # Do not correct for flexure
         par['flexure'] = None
@@ -289,15 +293,23 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return slitmask
 
 
-    def wavegrid(self, binning=None):
 
-        # Define the new wavelength grid for GNIRS
-        ngrid = 5000
+    @property
+    def dloglam(self):
         dloglam = 0.000127888 # this is the average of the median dispersions
-        logmin = 3.777
-        osamp = 1.0
-        loglam_grid = logmin + (dloglam / osamp) * np.arange(int(np.ceil(osamp * ngrid)))
+        return dloglam
 
+    @property
+    def loglam_minmax(self):
+        return np.log10(7000), np.log10(26000)
+
+    def wavegrid(self, binning=None, midpoint=False):
+
+        # Define the grid for GNIRS
+        logmin, logmax = self.loglam_minmax
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
+        if midpoint:
+            loglam_grid = loglam_grid + self.dloglam/2.0
         return np.power(10.0,loglam_grid)
 
 

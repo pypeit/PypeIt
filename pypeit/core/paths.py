@@ -2,7 +2,6 @@
 Functions that create/check the PypeIt directory paths.
 """
 import os
-import shutil
 from pypeit import msgs
 
 def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None, overwrite=False):
