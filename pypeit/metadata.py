@@ -383,8 +383,6 @@ class PypeItMetaData:
         return par
     '''
 
->>>>>>> master
-
     # TODO:  In this implementation, slicing the PypeItMetaData object
     # will return an astropy.table.Table, not a PypeItMetaData object.
     def __getitem__(self, item):
