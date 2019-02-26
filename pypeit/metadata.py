@@ -614,10 +614,11 @@ class PypeItMetaData:
         _obstime = self.construct_obstime(row) if obstime is None else obstime
         tiso = time.Time(_obstime, format='isot')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        return '{0}_{1}_{2}{3}'.format(self['target'][row].replace(" ", ""),
-                                       self.spectrograph.camera,
-                                       datetime.datetime.strftime(dtime, '%Y%b%dT'),
-                                       tiso.value.split("T")[1].replace(':',''))
+        return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
+                                           self['target'][row].replace(" ", ""),
+                                           self.spectrograph.camera,
+                                           datetime.datetime.strftime(dtime, '%Y%b%dT'),
+                                           tiso.value.split("T")[1].replace(':',''))
 
     def get_setup(self, row, det=None, config_only=False):
         """

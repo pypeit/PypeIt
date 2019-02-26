@@ -6,8 +6,6 @@ from pypeit import utils
 from pypeit import ginga
 from pypeit.core import coadd2d
 
-from pypeit import debugger
-
 
 class ScienceImage(processimages.ProcessImages):
     """

@@ -1,6 +1,12 @@
 0.9.3dev
 --------
 
+- Fixed a bug that was introduced when the binning was switched to the
+  PypeIt convention.
+- Fixed a bug whereby 2d images were not being saved if no objects were
+  detected.
+- Revamped the naming convention of output files to have the original
+  filename in it.
 - Streamline some of the instantiation at the beginning of
   PypeIt.__init__.
     - Moves the call to default_pypeit_par into config_specific_par.

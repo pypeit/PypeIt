@@ -246,7 +246,6 @@ class PypeIt(object):
 
         # Iterate over each calibration group again and reduce the science frames
         for i in range(self.fitstbl.n_calib_groups):
-
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
 
@@ -267,7 +266,7 @@ class PypeIt(object):
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_dict, self.basename)
                 else:
-                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                    msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
             msgs.info('Finished calibration group {0}'.format(i))
@@ -600,8 +599,8 @@ class PypeIt(object):
             self.objmodel = np.zeros_like(self.sciimg)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciivar)
-            # Set to inmask in case on objects were found
-            self.outmask = self.mask
+            # Set to the initial mask in case no objects were found
+            self.outmask = self.redux.mask
             # empty specobjs object from object finding
             if self.ir_redux:
                 self.sobjs_obj.purge_neg()
@@ -611,7 +610,7 @@ class PypeIt(object):
         return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
 
     # TODO: Why not use self.frame?
-    def save_exposure(self, frame, sci_dict, basename, only_1d=False):
+    def save_exposure(self, frame, sci_dict, basename):
         """
         Save the outputs from extraction for a given exposure
 
@@ -623,8 +622,6 @@ class PypeIt(object):
               Dictionary containing the primary outputs of extraction
             basename (:obj:`str`):
                 The root name for the output file.
-            only_1d (:obj:`bool`, optional):
-              Save only the 1D spectra?
 
         Returns:
             None or SpecObjs:  All of the objects saved to disk
@@ -644,7 +641,7 @@ class PypeIt(object):
         scipath = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
 
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir, self.spectrograph,
-                      head1d, head2d, scipath, basename, only_1d=only_1d, refframe=refframe,
+                      head1d, head2d, scipath, basename, refframe=refframe,
                       update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
         return
