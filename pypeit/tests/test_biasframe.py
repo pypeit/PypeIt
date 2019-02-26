@@ -86,14 +86,17 @@ def test_run_and_master(kast_blue_bias_files):
     assert bias_frame.steps[-1] == 'combine'
 
     # Run with reuse (should simply load the file)
-    bias_frame2 = biasframe.BiasFrame('shane_kast_blue', master_key=master_key, master_dir=master_dir,reuse_masters=True)
-    bias2 = bias_frame2.master()
+    bias_frame2 = biasframe.BiasFrame('shane_kast_blue', master_key=master_key,
+                                      master_dir=master_dir, reuse_masters=True)
+    bias2, head2 = bias_frame2.master()
     assert isinstance(bias_frame2.msframe, np.ndarray)
     assert len(bias_frame2.steps) == 0
 
     # Load (not kept in the Object!)
-    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', master_key=master_key, master_dir=master_dir,reuse_masters=True)
-    bias3 = bias_frame3.load_master(bias_frame3.ms_name)
+    bias_frame3 = biasframe.BiasFrame('shane_kast_blue', master_key=master_key,
+                                      master_dir=master_dir, reuse_masters=True)
+    bias3, head = bias_frame3.load_master(bias_frame3.ms_name)
+
     assert bias_frame3.msframe is None
     assert np.array_equal(bias2, bias3)
 

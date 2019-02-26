@@ -57,8 +57,8 @@ class WaveImage(masterframe.MasterFrame):
         self.tilts = tilts
         self.wv_calib = wv_calib
         self.spectrograph = spectrograph
-        self.slitmask = pixels.tslits2mask(self.tslits_dict)
-        self.par = wv_calib['par']
+        self.slitmask = pixels.tslits2mask(self.tslits_dict) if tslits_dict is not None else None
+        self.par = wv_calib['par'] if wv_calib is not None else None
 
         # Optional parameters
         self.maskslits = maskslits
@@ -107,6 +107,7 @@ class WaveImage(masterframe.MasterFrame):
                 tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts[thismask], iwv_calib['function'],
                                        minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
             self.wave[thismask] = tmpwv
+
         # Step
         self.steps.append(inspect.stack()[0][3])
         # Return
@@ -134,3 +135,22 @@ class WaveImage(masterframe.MasterFrame):
         return txt
 
 
+
+
+def load_waveimage(filename):
+    """
+    Utility function which enables one to load the waveimage from a master file in one line of code without
+    instantiating the class.
+
+    Args:
+        filename (str): Master file name
+
+    Returns:
+        dict:  The trace slits dict
+
+    """
+
+    waveImage = WaveImage(None, None, None, None, None)
+    waveimage, _ = waveImage.load_master(filename)
+
+    return waveimage

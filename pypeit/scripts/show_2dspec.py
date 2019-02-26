@@ -13,6 +13,18 @@ from pypeit import ginga
 from pypeit.spectrographs import util
 from pypeit.processimages import ProcessImagesBitMask as bitmask
 from pypeit.core import pixels
+import os
+import numpy as np
+import IPython
+
+from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
+
+from pypeit import msgs
+from pypeit import masterframe
+from pypeit.core.parse import get_dnum
+from pypeit.core import trace_slits
+from pypeit import traceslits
 
 def parser(options=None):
 
@@ -48,21 +60,6 @@ def show_trace(hdulist_1d, det_nm, viewer, ch):
 
 
 def main(args):
-
-    import os
-    import numpy as np
-    import pdb as debugger
-    import IPython
-
-    from astropy.io import fits
-    from astropy.stats import sigma_clipped_stats
-
-    from pypeit import msgs
-    from pypeit import masterframe
-    from pypeit.core.parse import get_dnum
-    from pypeit.core import trace_slits
-    from pypeit import traceslits
-
 
     # List only?
     hdu = fits.open(args.file)
@@ -117,14 +114,14 @@ def main(args):
         mdir_base = os.path.basename(os.path.dirname(mdir)) + '/'
         msgs.warn('Master file dir: {:s}'.format(mdir) + ' does not exist. Using ./{:s}'.format(mdir_base))
         mdir=mdir_base
-    waveimg = masterframe.master_name('wave', head0['ARCMKEY'], mdir)
-    # Load Tslits
-    # THIS WILL BREAK WHEN PYPCALIB varies from calib type to calib type
-    tmp_key = '{:s}'.format(head0['TRACMKEY'])
-    master_key = tmp_key[0:-2] + '{:02d}'.format(args.det)
-    trc_file = masterframe.master_name('trace', master_key, mdir)
-    tslits_dict = traceslits.load_tslits_dict(trc_file)
-    spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
+
+    wave_key = '{:s}'.format(head0['ARCMKEY']) +  '_{:02d}'.format(args.det)
+    waveimg = masterframe.master_name('wave', wave_key, mdir)
+
+    trace_key = '{:s}'.format(head0['TRACMKEY']) + '_{:02d}'.format(args.det)
+    trc_file = masterframe.master_name('trace', trace_key, mdir)
+    tslits_dict, _ = traceslits.load_tslits(trc_file)
+    #spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
     slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
@@ -136,8 +133,14 @@ def main(args):
         mask_in = None
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
-    hdulist_1d = fits.open(spec1d_file)
+
     det_nm = 'DET{:s}'.format(sdet)
+    if os.path.isfile(spec1d_file):
+        hdulist_1d = fits.open(spec1d_file)
+    else:
+        hdulist_1d = []
+        msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
+                  '                          No objects were extracted.')
 
     # Unpack the bitmask
     bitMask = bitmask()

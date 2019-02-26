@@ -237,46 +237,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
-    '''
-    def get_datasec_img(self, filename, det=1, force=True):
-        """
-        Create an image identifying the amplifier used to read each pixel.
 
-        Args:
-            filename (str):
-                Name of the file from which to read the image size.
-            det (:obj:`int`, optional):
-                Detector number (1-indexed)
-            force (:obj:`bool`, optional):
-                Force the image to be remade
-
-        Returns:
-            `numpy.ndarray`: Integer array identifying the amplifier
-            used to read each pixel.
-        """
-        if self.datasec_img is None or force:
-            # Check the detector is defined
-            self._check_detector()
-            # Get the image shape
-            raw_naxis = self.get_raw_image_shape(filename, det=det)
-
-            # Binning is not required because read_lris accounts for it
-#            binning = self.get_meta_value(filename, 'binning')
-
-            data_sections, one_indexed, include_end, transpose \
-                    = self.get_image_section(filename, det, section='datasec')
-
-            # Initialize the image (0 means no amplifier)
-            self.datasec_img = np.zeros(raw_naxis, dtype=int)
-            for i in range(self.detector[det-1]['numamplifiers']):
-                # Convert the data section from a string to a slice
-                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                          include_end=include_end, require_dim=2,
-                                          transpose=transpose) #, binning=binning)
-                # Assign the amplifier
-                self.datasec_img[datasec] = i+1
-        return self.datasec_img
-    '''
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """
@@ -523,7 +484,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 4.0
         # Tilts
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 25
@@ -591,6 +551,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # FWHM
+        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
+
 
         # Return
         return par

@@ -408,7 +408,6 @@ class ProcessImages(object):
         # If trimming, get the image identifying amplifier used for the
         # data section
         datasec_img = self.spectrograph.get_datasec_img(self.files[0], det=self.det)
-
         msgs.info("Bias subtracting your image(s)")
         # Reset proc_images -- Is there any reason we wouldn't??
         numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
@@ -421,7 +420,7 @@ class ProcessImages(object):
                     image = procimg.trim_frame(image, datasec_img < 1)
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
-                msgs.info("Using overscan to subtact")
+                msgs.info("Using overscan to subtract")
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec[kk],
                                                  self.oscansec[kk],
                                                  method=self.proc_par['overscan'],
@@ -431,7 +430,6 @@ class ProcessImages(object):
                     temp = procimg.trim_frame(temp, datasec_img < 1)
             else:
                 msgs.error('Could not subtract bias level with the input bias approach.')
-
             # Save
             if kk==0:
                 # Instantiate proc_images

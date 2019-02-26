@@ -62,7 +62,7 @@ class SpecObj(object):
     # Attributes
 
     def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None, idx=None,
-                 slitid=999, objtype='unknown', pypeline='unknown', spat_pixpos=None, config=None):
+                 slitid=999, orderindx=999, objtype='unknown', pypeline='unknown', spat_pixpos=None, config=None):
 
 
         #Assign from init parameters
@@ -95,7 +95,7 @@ class SpecObj(object):
 
         # Some things for echelle functionality
         self.ech_order = None
-        self.ech_orderindx = None
+        self.ech_orderindx = orderindx
         self.ech_objid = 999
         self.ech_snr = None
         self.ech_fracpos = None
@@ -400,8 +400,9 @@ class SpecObjs(object):
         self.add_sobj(sobjs_neg)
 
         # Sort objects according to their spatial location. Necessary for the extraction to properly work
-        spat_pixpos = self.spat_pixpos
-        self.specobjs = self.specobjs[spat_pixpos.argsort()]
+        if self.nobj > 0:
+            spat_pixpos = self.spat_pixpos
+            self.specobjs = self.specobjs[spat_pixpos.argsort()]
 
     def purge_neg(self):
         """
@@ -409,8 +410,9 @@ class SpecObjs(object):
 
         """
         # Assign the sign and the objids
-        index = (self.objid < 0) | (self.ech_objid < 0)
-        self.remove_sobj(index)
+        if self.nobj > 0:
+            index = (self.objid < 0) | (self.ech_objid < 0)
+            self.remove_sobj(index)
 
 
     def add_sobj(self, sobj):

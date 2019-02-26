@@ -20,6 +20,7 @@ from pypeit.core import flux
 from pypeit.core import parse
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
+from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
 
 from pypeit import debugger
@@ -285,11 +286,11 @@ class PypeItMetaData:
             # User data (for frame type)
             usr_row = None if usrdata is None else usrdata[idx]
 
-            # Read the fits headers
-            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
-
             # Add the directory and file name to the table
             data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
+
+            # Read the fits headers
+            headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
@@ -306,6 +307,84 @@ class PypeItMetaData:
 
         # Return
         return data
+
+    def get_manual_extract(self, frames, det):
+        """
+        Parse the manual_extract column for a given frame and detector
+
+        Args:
+            frames (list): List of frame indices;  can be one
+            det (int): Detector number
+
+        Returns:
+            None or dict: None if manual extraction is not set for this frame+det
+              otherwise a dict of the values
+
+        """
+
+        # Manual extract
+        if 'manual_extract' not in self.keys():
+            return None
+        # Warn me
+        if len(frames) > 1:
+            msgs.warn("Taking first science frame in stack for manual extraction")
+        frame = frames[0]
+        # Empty?
+        if self['manual_extract'][frame] == 'None':
+            return None
+
+        # Parse the input
+        manual_extract_dict = {}
+        items = self['manual_extract'][frame].split(',')
+        dets, spats, specs, fwhms = [], [], [], []
+        for item in items:
+            numbers = item.split(':')
+            det_in = int(numbers[0])
+            # Only keep those on this detector
+            if np.abs(det_in) != det:  # Allow for negative values for negative image
+                continue
+            # Save
+            dets.append(det_in)
+            specs.append(float(numbers[1]))
+            spats.append(float(numbers[2]))
+            fwhms.append(float(numbers[3]))
+
+        # Fill as arrays -- No more lists!
+        manual_extract_dict['hand_extract_spec'] = np.array(specs)
+        manual_extract_dict['hand_extract_spat'] = np.array(spats)
+        manual_extract_dict['hand_extract_det'] = np.array(dets)
+        manual_extract_dict['hand_extract_fwhm'] = np.array(fwhms)
+
+        return manual_extract_dict
+
+
+    '''
+    def update_par(self, par):
+
+        # Manual extract
+        if 'manual_extract' in self.keys():
+            mframes = np.where(self['manual_extract'] != 'None')[0]
+            # Loop
+            mext_list = []
+            for mframe in mframes:
+                # Parse the input
+                items = self['manual_extract'][mframe].split(';')
+                dets, spats, specs, fwhms = [], [], [], []
+                for item in items:
+                    numbers = item.split(',')
+                    dets.append(int(numbers[0]))
+                    specs.append(float(numbers[1]))
+                    spats.append(float(numbers[2]))
+                    fwhms.append(float(numbers[3]))
+                # Instantiate
+                mextpar = ManualExtractionPar(frame=self['filename'][mframe],
+                                              det=dets, spat=spats, spec=specs, fwhm=fwhms)
+                mext_list.append(mextpar)
+            #
+            par['scienceimage']['manual'] = mext_list
+        # Return
+        return par
+    '''
 
     # TODO:  In this implementation, slicing the PypeItMetaData object
     # will return an astropy.table.Table, not a PypeItMetaData object.
@@ -501,6 +580,7 @@ class PypeItMetaData:
                              self.spectrograph.spectrograph))
         return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
 
+
     def construct_obstime(self, row):
         """
         Construct the MJD of when the frame was observed.
@@ -534,10 +614,11 @@ class PypeItMetaData:
         _obstime = self.construct_obstime(row) if obstime is None else obstime
         tiso = time.Time(_obstime, format='isot')
         dtime = datetime.datetime.strptime(tiso.value, '%Y-%m-%dT%H:%M:%S.%f')
-        return '{0}_{1}_{2}{3}'.format(self['target'][row].replace(" ", ""),
-                                       self.spectrograph.camera,
-                                       datetime.datetime.strftime(dtime, '%Y%b%dT'),
-                                       tiso.value.split("T")[1].replace(':',''))
+        return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
+                                           self['target'][row].replace(" ", ""),
+                                           self.spectrograph.camera,
+                                           datetime.datetime.strftime(dtime, '%Y%b%dT'),
+                                           tiso.value.split("T")[1].replace(':',''))
 
     def get_setup(self, row, det=None, config_only=False):
         """
@@ -1374,6 +1455,7 @@ class PypeItMetaData:
             ff.write('Setup {:s}\n'.format(setup))
             ff.write(yaml.dump(utils.yamlify(cfg)))
             ff.write('#---------------------------------------------------------\n')
+            subtbl.sort(['mjd']) # JFH added this line so that the output reads like a log file
             subtbl.write(ff, format='ascii.fixed_width')
         ff.write('##end\n')
         ff.close()

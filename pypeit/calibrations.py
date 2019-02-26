@@ -231,7 +231,7 @@ class Calibrations(object):
                                           master_dir=self.master_dir, reuse_masters=self.reuse_masters)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.msarc = self.arcImage.master(prev_build=prev_build)
+        self.msarc, _ = self.arcImage.master(prev_build=prev_build)
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image()
@@ -409,9 +409,9 @@ class Calibrations(object):
         # --- Pixel flats
 
         # 1)  Try to load master files from disk (MasterFrame)?
-        self.mspixflatnrm = self.flatField.master(prev_build=prev_build1)
+        self.mspixflatnrm, _  = self.flatField.master(prev_build=prev_build1)
         if prev_build2:
-            self.msillumflat = self.flatField.load_master_illumflat()
+            self.msillumflat, _ = self.flatField.load_master_illumflat()
 
         # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
         if self.par['flatfield']['frame'] not in ['pixelflat']:
@@ -427,7 +427,7 @@ class Calibrations(object):
                 raise ValueError('Could not find user-defined flatfield master: {0}'.format(
                     self.par['flatfield']['frame']))
             msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
-            self.mspixflatnrm = self.flatField.load_master(mspixelflat_name, exten=self.det)
+            self.mspixflatnrm, _ = self.flatField.load_master(mspixelflat_name, exten=self.det)
 
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
@@ -454,9 +454,7 @@ class Calibrations(object):
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
                     # Add tweaked boundaries to the MasterTrace file
-                    self.traceSlits.slit_left_tweak = self.flatField.tslits_dict['slit_left']
-                    self.traceSlits.slit_righ_tweak = self.flatField.tslits_dict['slit_righ']
-                    self.traceSlits.save_master()
+                    self.traceSlits.save_master(self.flatField.tslits_dict)
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.tilts_dict = self.flatField.tilts_dict
@@ -474,7 +472,7 @@ class Calibrations(object):
         # illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
             # 2) If no illumination file is set yet, try to read it in from a master
-            self.msillumflat = self.flatField.load_master_illumflat()
+            self.msillumflat, _ = self.flatField.load_master_illumflat()
             # 3) If there is no master file, then set illumflat to unit
             # and war user that they are not illumflatting their data
             if self.msillumflat is None:
@@ -538,7 +536,7 @@ class Calibrations(object):
                                                 msbpm=self.msbpm)
 
         # Load via master, as desired
-        self.tslits_dict = self.traceSlits.master(prev_build=prev_build)
+        self.tslits_dict, _ = self.traceSlits.master(prev_build=prev_build)
         if self.tslits_dict is None:
             # Build the trace image first
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
@@ -551,6 +549,7 @@ class Calibrations(object):
             binspectral, binspatial = parse.parse_binning(self.binning)
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
+            # JFH Why is this stuff on user defined slits here and not in the class?
             # User-defined slits??
             add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
@@ -560,8 +559,7 @@ class Calibrations(object):
                                                        add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
                                                        write_qa=write_qa)
             except:
-                self.traceSlits.save_master()
-                # TODO why do we have this error method here but nowhere else?
+                self.traceSlits.save_master(self.tslits_dict)
                 msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
             # No slits?
             if self.tslits_dict is None:
@@ -570,7 +568,7 @@ class Calibrations(object):
             # Save to disk
             if self.save_masters:
                 # Master
-                self.traceSlits.save_master()
+                self.traceSlits.save_master(self.tslits_dict)
         else:
             msgs.info("TraceSlits master files loaded..")
             # Construct dictionary
@@ -621,7 +619,7 @@ class Calibrations(object):
                                              master_key=self.arc_master_key, master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)
         # Attempt to load master
-        self.mswave = self.waveImage.master(prev_build=prev_build)
+        self.mswave, _  = self.waveImage.master(prev_build=prev_build)
         if self.mswave is None:
             self.mswave = self.waveImage._build_wave()
         # Save to hard-drive
@@ -680,7 +678,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, msbpm=self.msbpm)
         # Load from disk (MasterFrame)?
-        self.wv_calib = self.waveCalib.master(prev_build=prev_build)
+        self.wv_calib, _ = self.waveCalib.master(prev_build=prev_build)
         # Build?
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
@@ -739,7 +737,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters,
                                              redux_path=self.redux_path, bpm=self.msbpm)
         # Master
-        self.tilts_dict = self.waveTilts.master(prev_build=prev_build)
+        self.tilts_dict, _ = self.waveTilts.master(prev_build=prev_build)
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \

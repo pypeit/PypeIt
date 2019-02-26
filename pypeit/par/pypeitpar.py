@@ -642,8 +642,9 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None,
-                 star_type=None, star_mag=None, multi_det=None, telluric=None):
+    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
+                 telluric_correct=None, star_type=None, star_mag=None, multi_det=None, telluric=None,
+                 poly_norder=None, polycorrect=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -675,16 +676,37 @@ class FluxCalibrationPar(ParSet):
         dtypes['sensfunc'] = str
         descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
 
+
+        defaults['extinct_correct'] = True
+        dtypes['extinct_correct'] = bool
+        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
+                                   'extinction correct the data below 10000A. Note that this correction makes no ' \
+                                   'sense if one is telluric correcting and this shold be set to False'
+
+
+        defaults['telluric_correct'] = False
+        dtypes['telluric_correct'] = bool
+        descr['telluric_correct'] = "If telluric_correct=True the code will grab the sens_dict['telluric'] tag from the " \
+                                    "sensfunc dictionary and apply it to the data."
+
         defaults['telluric'] = False
         dtypes['telluric'] = bool
-        descr['telluric'] = 'If telluric=True the code creates a sintetic standard star spectrum using the Kurucz models, ' \
+        descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
             'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
 
-        dtypes['star_type'] = float
+        dtypes['star_type'] = str
         descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
 
         dtypes['star_mag'] = float
         descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
+
+        defaults['poly_norder'] = 5
+        dtypes['poly_norder'] = int
+        descr['poly_norder'] = 'Polynomial order for sensfunc fitting'
+
+        defaults['polycorrect'] = True
+        dtypes['polycorrect'] = bool
+        descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
 
         # Instantiate the parameter set
         super(FluxCalibrationPar, self).__init__(list(pars.keys()),
@@ -697,8 +719,8 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['balm_mask_wid',  'sensfunc', 'std_file', 'std_obj_id',
-                   'star_type', 'star_mag', 'multi_det', 'telluric']
+        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
+                   'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -715,6 +737,8 @@ class FluxCalibrationPar(ParSet):
 
 class ManualExtractionPar(ParSet):
     """
+    DEPRECATED!!
+
     A parameter set holding the arguments for how to perform the
     manual extraction of a spectrum.
 
@@ -761,7 +785,7 @@ class ManualExtractionPar(ParSet):
         descr['spat'] = 'List of spatial positions to hand extract '
 
         dtypes['det'] = [list, int]
-        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list'
+        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list.  Negative values indicated negative images.'
         dtypes['fwhm'] = [list, int,float]
         descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will be used for all members of that list'
 
@@ -863,7 +887,8 @@ class ManualExtractionParOld(ParSet):
                                     self.data['frame']))
 
 
-
+# TODO The name of this should be changed to PypeItPar so that ReducePar can be used for what is now ScienceImagePar which
+# governs the ReduceClass
 class ReducePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
@@ -1271,11 +1296,11 @@ class TraceSlitsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, function=None, polyorder=None, medrep=None, number=None, trim=None,
+    def __init__(self, function=None, medrep=None, number=None, trim=None,
                  maxgap=None, maxshift=None, pad=None, sigdetect=None,
                  min_slit_width = None, add_slits=None, rm_slits=None,
                  diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
-                 pcaextrap=None, smash_range=None, mask_frac_thresh=None):
+                 pcaextrap=None, smash_range=None, trace_npoly=None, mask_frac_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1298,9 +1323,9 @@ class TraceSlitsPar(ParSet):
         descr['function'] = 'Function use to trace the slit center.  ' \
                             'Options are: {0}'.format(', '.join(options['function']))
 
-        defaults['polyorder'] = 3
-        dtypes['polyorder'] = int
-        descr['polyorder'] = 'Order of the function to use.'
+        #defaults['polyorder'] = 3
+        #dtypes['polyorder'] = int
+        #descr['polyorder'] = 'Order of the function to use.'
 
         defaults['medrep'] = 0
         dtypes['medrep'] = int
@@ -1351,6 +1376,10 @@ class TraceSlitsPar(ParSet):
         descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges. ' \
                              'If the spectrum covers only a portion of the image, use that range.'
 
+        defaults['trace_npoly'] = 5
+        dtypes['trace_npoly'] = int
+        descr['trace_npoly'] = 'Order of legendre polynomial fits to slit/order boundary traces.'
+
         defaults['min_slit_width'] = 6.0  # arcseconds!
         dtypes['min_slit_width'] = float
         descr['min_slit_width'] = 'If a slit spans less than this number of arcseconds over the spatial ' \
@@ -1377,18 +1406,21 @@ class TraceSlitsPar(ParSet):
         defaults['add_slits'] = []
         dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
-                             'each sub-list having syntax (all integers):  det:spat0:spat1:spec  ' \
-                             'where det=detector, spat=spatial pixel, spec=spectral pixel, ' \
-                             'For example,  2:2121:2322:2000,3:1201:1500:2000'
+                             'each sub-list having syntax (all integers):  det:spec:spat_left:spat_right' \
+                             'where det=detector, spec=spectral pixel, spat_left=spatial pixel of left slit boundary, ' \
+                             ' spat_righ=spatial pixel of right slit boundary.' \
+                             'For example,  2:2000:2121:2322,3:2000:1201:1500  will add a slit to detector 2 ' \
+                             'passing through spec=2000 extending spatially from 2121 to 2322 and another on detector 3 ' \
+                             'at spec=2000 extending from 1201 to 1500'
 
         defaults['rm_slits'] = []
         dtypes['rm_slits'] = [str, list]
         descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, ' \
-                            'with each sub-list having syntax (all integers):  det:spat:spec ' \
-                            'where det=detector, spat=spatial pixel, spec=spectral pixel, '\
-                            'for example,  2:2121:2000,3:1500:2000' \
+                            'with each sub-list having syntax (all integers):  det:spec:spat ' \
+                            'where det=detector, spec=spectral pixel, spat=spatial pixel.'\
+                            'for example,  2:2000:2121,3:2000:1500' \
                             'the slit tracing code will remove the slits on detector 2 that contain pixel ' \
-                            '(spat,spec)=(2121,2000) '
+                            '(spat,spec)=(2000,2121) and detector 3 which contain (2000,2121)'
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
@@ -1431,9 +1463,9 @@ class TraceSlitsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'function', 'polyorder', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
+        parkeys = [ 'function', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
                     'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
-                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range',
+                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly',
                     'mask_frac_thresh']
         kwargs = {}
         for pk in parkeys:
@@ -1637,8 +1669,9 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
-                 model_full_slit=None, no_poly=None, manual=None):
+    def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
+                 global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
+                 model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1666,9 +1699,24 @@ class ScienceImagePar(ParSet):
         dtypes['bspline_spacing'] = [int, float]
         descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
 
-        defaults['no_poly'] = False
-        dtypes['no_poly'] = bool
-        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+        defaults['sky_sigrej'] = 3.0
+        dtypes['sky_sigrej'] = float
+        descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
+
+        defaults['boxcar_radius'] = 1.5
+        dtypes['boxcar_radius'] = [int, float]
+        descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
+
+        defaults['trace_npoly'] = 5
+        dtypes['trace_npoly'] = int
+        descr['trace_npoly'] = 'Order of legendre polynomial fits to object traces.'
+
+        defaults['global_sky_std'] = True
+        dtypes['global_sky_std'] = bool
+        descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
+                                  'off for example for near-IR reductions with narrow slits, since bright standards can' \
+                                  'fill the slit causing global sky-subtraction to fail. In these situations we go ' \
+                                  'straight to local sky-subtraction since it is designed to deal with such situations'
 
         defaults['sig_thresh'] = 10.0
         dtypes['sig_thresh'] = [int, float]
@@ -1691,6 +1739,10 @@ class ScienceImagePar(ParSet):
                             'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
                             'observations using narrow slits or echelle observations with narrow slits'
 
+        defaults['no_poly'] = False
+        dtypes['no_poly'] = bool
+        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
@@ -1707,8 +1759,9 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit',
-                   'no_poly', 'manual']
+        parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
+                   'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
+                   'sky_sigrej']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

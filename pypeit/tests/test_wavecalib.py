@@ -50,7 +50,7 @@ def test_user_redo():
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, None, spectrograph,
                                     spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
-    wv_calib = waveCalib.load_master(wvcalib_file)
+    wv_calib, _ = waveCalib.load_master(wvcalib_file)
     # Setup
     waveCalib.par['sigdetect'] = 5.
     nslit = 1
