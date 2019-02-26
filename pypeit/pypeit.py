@@ -261,14 +261,13 @@ class PypeIt(object):
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
-                print(self.fitstbl['filename'][frames])
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
                     science_basename[j] = self.basename
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_dict, self.basename)
                 else:
-                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                    msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
             msgs.info('Finished calibration group {0}'.format(i))
@@ -612,7 +611,7 @@ class PypeIt(object):
         return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
 
     # TODO: Why not use self.frame?
-    def save_exposure(self, frame, sci_dict, basename, only_1d=False):
+    def save_exposure(self, frame, sci_dict, basename):
         """
         Save the outputs from extraction for a given exposure
 
@@ -624,8 +623,6 @@ class PypeIt(object):
               Dictionary containing the primary outputs of extraction
             basename (:obj:`str`):
                 The root name for the output file.
-            only_1d (:obj:`bool`, optional):
-              Save only the 1D spectra?
 
         Returns:
             None or SpecObjs:  All of the objects saved to disk
@@ -645,7 +642,7 @@ class PypeIt(object):
         scipath = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
 
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir, self.spectrograph,
-                      head1d, head2d, scipath, basename, only_1d=only_1d, refframe=refframe,
+                      head1d, head2d, scipath, basename, refframe=refframe,
                       update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
         return
