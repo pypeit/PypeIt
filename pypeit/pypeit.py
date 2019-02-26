@@ -270,8 +270,6 @@ class PypeIt(object):
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
-                    from IPython import embed
-                    embed()
 
             msgs.info('Finished calibration group {0}'.format(i))
 
