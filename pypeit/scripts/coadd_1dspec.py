@@ -194,6 +194,7 @@ def main(args, unit_test=False, path=''):
                 orderscale_value = gparam['orderscale']
             else:
                 orderscale_value = 'median'
+
             if (scale_dict is not None) and (orderscale_value=='photometry'):
                 if len(scale_dict) != norder:
                     raise IOError("You need to specifiy the photometric information for every order.")

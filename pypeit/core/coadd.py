@@ -1058,7 +1058,7 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Scale the flux??
     if flux_scale is not None:
-        spec1d = flux.scale_in_filter(spec1d, flux_scale)
+        spec1d, _ = flux.scale_in_filter(spec1d, flux_scale)
 
     # Write to disk?
     if outfile is not None:
@@ -1212,11 +1212,11 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
       spectra: XSpectrum1D spectra (longslit) or spectra list (echelle)
       phot_scale_dicts: A dict contains photometric information of each orders (if echelle).
         An example is given below.
-        phot_scale_dicts = {0: {'filter': None, 'mag': None, 'mag_type': None, 'masks': None},
-                            1: {'filter': 'UKIRT-Y', 'mag': 20.33, 'mag_type': 'AB', 'masks': None},
-                            2: {'filter': 'UKIRT-J', 'mag': 20.19, 'mag_type': 'AB', 'masks': None},
-                            3: {'filter': 'UKIRT-H', 'mag': 20.02, 'mag_type': 'AB', 'masks': None},
-                            4: {'filter': 'UKIRT-K', 'mag': 19.92, 'mag_type': 'AB', 'masks': None}}
+        phot_scale_dicts = {'0': {'filter': None, 'mag': None, 'mag_type': None, 'masks': None},
+                            '1': {'filter': 'UKIRT-Y', 'mag': 20.33, 'mag_type': 'AB', 'masks': None},
+                            '2': {'filter': 'UKIRT-J', 'mag': 20.19, 'mag_type': 'AB', 'masks': None},
+                            '3': {'filter': 'UKIRT-H', 'mag': 20.02, 'mag_type': 'AB', 'masks': None},
+                            '4': {'filter': 'UKIRT-K', 'mag': 19.92, 'mag_type': 'AB', 'masks': None}}
       Show QA plot if debug=True
     Return a new scaled XSpectrum1D spectra
     '''
@@ -1225,41 +1225,55 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
 
     norder = spectra.nspec
 
-    # scaling spectrum order by order.
+    # scaling spectrum order by order, also from red to blue to be consistent with median scale.
     spectra_list_new = []
-    for iord in range(norder):
-        phot_scale_dict = phot_scale_dicts[iord]
+    scales = np.ones(norder)
+    scale_success_flag = np.zeros(norder,dtype=bool)
+    for i in range(norder):
+        iord = norder - i - 1
+        phot_scale_dict = phot_scale_dicts[str(iord)]
         if (phot_scale_dict['filter'] is not None) & (phot_scale_dict['mag'] is not None):
-            speci = scale_in_filter(spectra[iord], phot_scale_dict)
+            speci, scale = scale_in_filter(spectra[iord], phot_scale_dict)
+            scale_success_flag[iord] = True
+            scales[iord] = scale
         else:
-            #ToDo: Think a better way to do the following
+            #First try to use the scale factor from redder order, then bluer order. If both failed then use the median
+            # scale factor.
+
             try:
-                spec0 = scale_in_filter(spectra[iord-1], phot_scale_dicts[iord-1])
-                speci = spectra[iord]
-                med_flux = spec0.data['flux'] / speci.data['flux']
-                mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
-                med_scale = np.minimum(med_scale, 5.0)
-                spectra.data['flux'] *= med_scale
-                spectra.data['sig'] *= med_scale
-                msgs.warn("Not enough photometric information given. Scaled order {:d} to order {:d}".format(iord, iord-1))
-            except KeyError:
-                msgs.warn("Not enough photometric information given. Scale order {:d} to order {:d} failed".format(iord, iord-1))
+                if scale_success_flag[iord+1]:
+                    med_scale = scales[iord+1]
+                else:
+                    phot_scale_dict = phot_scale_dicts[str(iord+1)]
+                    spec0 = spectra[iord + 1].copy()
+                    spec1, scale = scale_in_filter(spectra[iord+1], phot_scale_dict)
+                    med_scale = np.minimum(scale, 5.0)
+                msgs.info('Using the redder order scaling factor {:} for order {:}'.format(med_scale, iord))
+                speci = spectra[iord].copy()
+                speci.data['flux'] *= med_scale
+                speci.data['sig'] *= med_scale
+                scale_success_flag[iord] = True
+                scales[iord] = scale
+            except:
                 try:
-                    spec0 = scale_in_filter(spectra[iord + 1], phot_scale_dicts[iord + 1])
+                    phot_scale_dict = phot_scale_dicts[str(iord - 1)]
+                    spec0 = spectra[iord - 1].copy()
+                    spec1, scale = scale_in_filter(spectra[iord - 1], phot_scale_dict)
                     speci = spectra[iord]
-                    med_flux = spec0.data['flux'] / speci.data['flux']
-                    mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
-                    med_scale = np.minimum(med_scale, 5.0)
+                    med_scale = np.minimum(scale, 5.0)
+                    msgs.info('Using the bluer order scaling factor {:} for order {:}'.format(med_scale, iord))
                     speci.data['flux'] *= med_scale
                     speci.data['sig'] *= med_scale
-                    msgs.warn("Not enough photometric information given. Scaled order {:d} to order {:d}".format(iord, iord+1))
+                    scale_success_flag[iord] = True
+                    scales[iord] = scale
                 except:
-                    msgs.warn("Not enough photometric information given. No scaling on order {:d}".format(iord))
+                    msgs.warn('Was not able to scale order {:} based on photometry. Will use median scale factor at the end'.format(iord))
                     speci = spectra[iord]
         spectra_list_new.append(speci)
 
         if debug:
             gdp = speci.sig>0
+            plt.figure(figsize=(12, 6))
             plt.plot(spectra[iord].wavelength[gdp], spectra[iord].flux[gdp], 'k-', label='raw spectrum')
             plt.plot(speci.wavelength[gdp], speci.flux[gdp], 'b-',
                      label='scaled spectrum')
@@ -1269,6 +1283,16 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
             plt.xlabel('wavelength')
             plt.ylabel('Flux')
             plt.show()
+
+    # If any order failed above then use median scale factor from other orders to correct it.
+    if sum(scale_success_flag)<norder:
+        med_scale = np.median(scales[scale_success_flag > 0])
+        inds = np.where(scale_success_flag == 0)[0]
+        for i in range(len(inds)):
+            iord = inds[i]
+            spectra_list_new[iord].data['flux'] *= med_scale
+            spectra_list_new[iord].data['sig'] *= med_scale
+            msgs.info('Scaled order {:} by {:}'.format(iord,med_scale))
 
     return collate(spectra_list_new)
 
@@ -1440,7 +1464,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
             spectra_list_new.append(speci)
         spectra_coadd_rebin = collate(spectra_list_new)
 
-        ## Note
+        ## Scaling different orders
         if orderscale == 'photometry':
             # Only tested on NIRES.
             if phot_scale_dicts is not None:

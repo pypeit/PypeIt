@@ -1076,7 +1076,7 @@ def scale_in_filter(xspec, scale_dict):
     else:
         msgs.error("Need a magnitude for scaling")
 
-    return new_spec
+    return new_spec,scale
 
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.
