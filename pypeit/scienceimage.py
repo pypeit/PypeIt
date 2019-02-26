@@ -192,6 +192,7 @@ class ScienceImage(processimages.ProcessImages):
                             illum_flat=self.illum_flat, reject_cr=reject_cr, binning=self.binning)
 
         # ToDO The bitmask is not being properly propagated here!
+
         if nsci > 1:
             sci_list = [sciimg_stack]
             var_stack = utils.calc_ivar(sciivar_stack)

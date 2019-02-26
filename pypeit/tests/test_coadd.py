@@ -13,6 +13,9 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 from pypeit.core import coadd
 from pypeit import msgs
 
+import warnings
+warnings.simplefilter("ignore", UserWarning)
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
@@ -284,9 +287,10 @@ def test_coadd():
     assert np.isclose(np.median(spec1d.flux.value), 1., atol=0.003)
 
 
+# TODO: This needs to be fixed.
 def test_coadd_with_fluxing():
     """ Test full coadd method with flux scaling"""
-    scale_dict = dict(filter='DES_r', mag=19.0, mag_type='AB')
+    scale_dict = dict(filter='DECAM-R', mag=19.0, mag_type='AB')
     # Setup
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel

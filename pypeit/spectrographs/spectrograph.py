@@ -280,11 +280,25 @@ class Spectrograph(object):
             # Get the image shape
             raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-            binning = self.get_meta_value(filename, 'binning')
-#            binning = self.parse_binning(filename)
+            binning_pypeit = self.get_meta_value(filename, 'binning')
 
             data_sections, one_indexed, include_end, transpose \
                     = self.get_image_section(filename, det, section='datasec')
+            # Note on data format
+            #--------------------
+            # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
+            # binning_raw = the binning in the format of the raw data.
+            # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
+            # files are stored the other way with spat as the first dimension (as read into python), then the transpose
+            # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
+            # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
+            # and the datasec typically written to headers. However this flip is dealt with explicitly in the
+            # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
+            # TODO Add a blurb on the PypeIt data model.
+            if transpose:
+               binning_raw = (',').join(binning_pypeit.split(',')[::-1])
+            else:
+               binning_raw = binning_pypeit
 
             # Initialize the image (0 means no amplifier)
             self.datasec_img = np.zeros(raw_naxis, dtype=int)
@@ -292,9 +306,10 @@ class Spectrograph(object):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                           include_end=include_end, require_dim=2,
-                                          transpose=transpose, binning=binning)
+                                          transpose=transpose, binning=binning_raw)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
+
         return self.datasec_img
 
     def get_raw_image_shape(self, filename, det=None, force=True):

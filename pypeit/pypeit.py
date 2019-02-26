@@ -81,6 +81,7 @@ class PypeIt(object):
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
         #   - Grab a science file for configuration specific parameters
+        sci_file = None
         for idx, row in enumerate(usrdata):
             if 'science' in row['frametype']:
                 sci_file = data_files[idx]
@@ -245,7 +246,6 @@ class PypeIt(object):
 
         # Iterate over each calibration group again and reduce the science frames
         for i in range(self.fitstbl.n_calib_groups):
-
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
 
@@ -266,7 +266,7 @@ class PypeIt(object):
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_dict, self.basename)
                 else:
-                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                    msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
             msgs.info('Finished calibration group {0}'.format(i))
@@ -311,11 +311,14 @@ class PypeIt(object):
         # Save the frame
         self.frames = frames
         self.bg_frames = bg_frames
+        # Is this an IR reduction?
+        self.ir_redux = True if len(bg_frames) > 0 else False
 
         # JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
+        sci_dict['meta']['ir_redux'] = self.ir_redux
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
@@ -340,7 +343,6 @@ class PypeIt(object):
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
             sci_dict[self.det] = {}
-
             # Calibrate
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
@@ -443,7 +445,6 @@ class PypeIt(object):
         else:
             msgs.error('Unrecognized objtype')
         setup = self.fitstbl.master_key(frame, det=det)
-
         return objtype_out, setup, obstime, basename, binning
 
     def get_std_trace(self, std_redux, det, std_outfile):
@@ -509,14 +510,13 @@ class PypeIt(object):
         """
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
-        # Is this an IR reduction
-        self.ir_redux = True if len(bg_frames) > 0 else False
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, self.fitstbl.frame_paths(frames),
+        sci_files = self.fitstbl.frame_paths(frames)
+        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_files,
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
                                               par=self.par['scienceframe'],
@@ -533,15 +533,21 @@ class PypeIt(object):
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.maskslits.copy()
 
-        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict, self.mask,
-                                           ir_redux = self.ir_redux,par=self.par,
-                                           objtype=self.objtype, det=det, binning=self.binning)
+        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict,
+                                           self.mask, self.par,
+                                           ir_redux = self.ir_redux,
+                                           objtype=self.objtype, setup=self.setup,
+                                           det=det, binning=self.binning)
+
+        # Prep for manual extraction (if requested)
+        manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(self.sciimg, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace,maskslits=self.maskslits,
-                                    show = self.show & (not self.std_redux))
+                                    show=self.show & (not self.std_redux),
+                                    manual_extract_dict=manual_extract_dict)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
@@ -552,7 +558,8 @@ class PypeIt(object):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(self.sciimg - self.initial_sky, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
-                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show)
+                                  std_trace=std_trace,maskslits=self.maskslits,show=self.show,
+                                        manual_extract_dict=manual_extract_dict)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
@@ -592,16 +599,18 @@ class PypeIt(object):
             self.objmodel = np.zeros_like(self.sciimg)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciivar)
-            # Set to inmask in case on objects were found
-            self.outmask = self.mask
+            # Set to the initial mask in case no objects were found
+            self.outmask = self.redux.mask
             # empty specobjs object from object finding
+            if self.ir_redux:
+                self.sobjs_obj.purge_neg()
             self.sobjs = self.sobjs_obj
             self.vel_corr = None
 
         return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
 
     # TODO: Why not use self.frame?
-    def save_exposure(self, frame, sci_dict, basename, only_1d=False):
+    def save_exposure(self, frame, sci_dict, basename):
         """
         Save the outputs from extraction for a given exposure
 
@@ -613,8 +622,6 @@ class PypeIt(object):
               Dictionary containing the primary outputs of extraction
             basename (:obj:`str`):
                 The root name for the output file.
-            only_1d (:obj:`bool`, optional):
-              Save only the 1D spectra?
 
         Returns:
             None or SpecObjs:  All of the objects saved to disk
@@ -634,7 +641,7 @@ class PypeIt(object):
         scipath = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
 
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir, self.spectrograph,
-                      head1d, head2d, scipath, basename, only_1d=only_1d, refframe=refframe,
+                      head1d, head2d, scipath, basename, refframe=refframe,
                       update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
         return

@@ -3,9 +3,6 @@ Module to create models of arc lines.
 """
 
 import astropy
-import inspect
-import matplotlib
-import os
 import re
 import scipy
 
