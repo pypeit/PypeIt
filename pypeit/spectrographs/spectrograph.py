@@ -297,8 +297,6 @@ class Spectrograph(object):
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
 
-        from IPython import embed
-        embed()
         return self.datasec_img
 
     def get_raw_image_shape(self, filename, det=None, force=True):
