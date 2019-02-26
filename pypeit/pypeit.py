@@ -261,6 +261,7 @@ class PypeIt(object):
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                print(self.fitstbl[frames]['filename'])
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
                     science_basename[j] = self.basename
