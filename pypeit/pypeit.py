@@ -600,8 +600,8 @@ class PypeIt(object):
             self.objmodel = np.zeros_like(self.sciimg)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciivar)
-            # Set to inmask in case on objects were found
-            self.outmask = self.mask
+            # Set to the initial mask in case no objects were found
+            self.outmask = self.redux.mask
             # empty specobjs object from object finding
             if self.ir_redux:
                 self.sobjs_obj.purge_neg()
