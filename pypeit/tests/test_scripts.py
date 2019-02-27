@@ -40,7 +40,7 @@ def test_arcid_plot():
 @dev_suite_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                                'spec1d_J1217p3905_KASTb_2015May20T045733.560.fits')
+                                'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs, unit_test=True)
@@ -60,7 +60,7 @@ def test_chk_edges():
 def test_view_fits():
     """ Only test the list option
     """
-    spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list'])
 
 
