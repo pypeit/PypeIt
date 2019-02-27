@@ -644,9 +644,12 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
     spectrograph = util.load_spectrograph(stack_dict['spectrograph'])
     par = spectrograph.default_pypeit_par() if par is None else par
 
+    from IPython import embed
+    embed()
+    binning = np.array([stack_dict['tslits_dict']['binspectral'],stack_dict['tslits_dict']['binspatial']])
     # Grab the wavelength grid that we will rectify onto
-    wave_grid = spectrograph.wavegrid()
-    wave_grid_mid = spectrograph.wavegrid(midpoint=True)
+    wave_grid = spectrograph.wavegrid(binning=binning)
+    wave_grid_mid = spectrograph.wavegrid(midpoint=True,binning=binning)
 
     coadd_list = []
     nspec_vec = np.zeros(nslits,dtype=int)
@@ -760,7 +763,8 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
     mask = processimages.ProcessImages.build_mask(imgminsky_psuedo, sciivar_psuedo, np.invert(inmask_psuedo),
                                                   np.zeros_like(inmask_psuedo), slitmask=slitmask_psuedo)
 
-    redux = reduce.instantiate_me(spectrograph, tslits_dict_psuedo, mask, ir_redux=ir_redux, par=par, objtype = 'science')
+    redux = reduce.instantiate_me(spectrograph, tslits_dict_psuedo, mask, ir_redux=ir_redux, par=par,
+                                  objtype = 'science', binning=binning)
 
     if show:
         redux.show('image', image=imgminsky_psuedo*(mask == 0), chname = 'imgminsky', slits=True, clear=True)
