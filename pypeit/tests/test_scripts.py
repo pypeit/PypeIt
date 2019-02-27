@@ -46,8 +46,6 @@ def test_show_1dspec():
     show_1dspec.main(pargs, unit_test=True)
 
 
-# TODO: Need to fixed Cooked and/or TraceSlits.save_master(),
-# TraceSlits.load_master()
 @dev_suite_required
 def test_chk_edges():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',

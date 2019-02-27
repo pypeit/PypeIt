@@ -48,8 +48,6 @@ def data_path(filename):
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
-# TODO: Need to fix TraceSlits.save_master() and
-# TraceSlits.load_master()?
 @dev_suite_required
 def test_run():
     # Masters
@@ -62,11 +60,8 @@ def test_run():
     flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
                                     tslits_dict=tslits_dict.copy())
 
-    # TODO mstrace is no longer stored in the master file so this needs to be run from an input file which must
-    # be added to the cooked directory. Assigning this one to @profx.  Disabling until it is fixed.
-
     # Use mstrace
-    #flatField.rawflatimg = tslits_dict['mstrace'].copy()
-    #mspixelflatnrm, msillumflat = flatField.run()
-    #assert np.isclose(np.median(mspixelflatnrm), 1.0)
+    flatField.rawflatimg = tslits_dict['mstrace'].copy()
+    mspixelflatnrm, msillumflat = flatField.run()
+    assert np.isclose(np.median(mspixelflatnrm), 1.0)
 

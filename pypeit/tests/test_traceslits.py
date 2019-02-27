@@ -15,6 +15,7 @@ import numpy as np
 
 from pypeit import traceslits
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import instant_traceslits
 from pypeit.spectrographs import util
 from pypeit.core import trace_slits
 
@@ -22,15 +23,6 @@ def chk_for_files(root):
     files = glob.glob(root+'*')
     return len(files) != 0
 
-def instantiate(mstrace, tslits_dict, det=None):
-    # Instantiate
-    spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
-    par = spectrograph.default_pypeit_par()
-    msbpm = spectrograph.bpm(shape=mstrace.shape, det=det)
-    binning = tslits_dict['binspectral'], tslits_dict['binspatial']
-    traceSlits = traceslits.TraceSlits(mstrace, spectrograph, par['calibrations']['slits'],
-                                       msbpm=msbpm, binning=binning)
-    return spectrograph, traceSlits
 
 @dev_suite_required
 def test_addrm_slit():
@@ -40,27 +32,27 @@ def test_addrm_slit():
     mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                                 'MasterTrace_KeckLRISr_400_8500_det1.fits')
     assert chk_for_files(mstrace_file)
-    tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-    norig = tslits_dict['nslits']
+    #tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
     # Instantiate
-    _, traceSlits = instantiate(mstrace, tslits_dict)
-    traceSlits.lcen = tslits_dict['slit_left']
-    traceSlits.rcen = tslits_dict['slit_righ']
+    _, traceSlits = instant_traceslits(mstrace_file)
+    norig = traceSlits.tslits_dict['nslits']
+    traceSlits.slit_left = traceSlits.tslits_dict['slit_left'].copy()
+    traceSlits.slit_righ = traceSlits.tslits_dict['slit_righ'].copy()
 
     #  Add dummy slit
     #  y_spec, left edge, right edge on image
     add_user_slits = [[1024, 140, 200]]
-    traceSlits.lcen, traceSlits.rcen = trace_slits.add_user_edges(
-        traceSlits.lcen, traceSlits.rcen, add_user_slits)
+    traceSlits.slit_left, traceSlits.slit_righ = trace_slits.add_user_edges(
+        traceSlits.slit_left, traceSlits.slit_righ, add_user_slits)
     # Test
     assert traceSlits.nslit == (norig+1)
-    xcen0 = np.median((traceSlits.lcen[:,0] + traceSlits.rcen[:,0])/2.)
+    xcen0 = np.median((traceSlits.slit_left[:,0] + traceSlits.slit_righ[:,0])/2.)
     assert np.abs(xcen0-170) < 3
 
     # Remove it
     rm_user_slits = [[1024, 170]]
-    traceSlits.lcen, traceSlits.rcen = trace_slits.rm_user_edges(
-        traceSlits.lcen, traceSlits.rcen, rm_user_slits)
+    traceSlits.slit_left, traceSlits.slit_righ = trace_slits.rm_user_edges(
+        traceSlits.slit_left, traceSlits.slit_righ, rm_user_slits)
     assert traceSlits.nslit == norig
 
 @dev_suite_required
@@ -71,10 +63,9 @@ def test_chk_kast_slits():
         # Load
         mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_file)
-        tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-        norig = tslits_dict['nslits']
         # Instantiate
-        _, traceSlits = instantiate(mstrace, tslits_dict)
+        _, traceSlits = instant_traceslits(mstrace_file)
+        norig = traceSlits.tslits_dict['nslits']
         # Run me
         traceSlits.run(trim_slits=False, write_qa=False)  # Don't need plate_scale for longslit
         # Test
@@ -93,11 +84,9 @@ def test_chk_lris_blue_slits():
         mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_file)
         # Instantiate
-        tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-        ipos = mstrace_file.find('det')  # Update to using the trace dict eventually
-        spectrograph, traceSlits = instantiate(mstrace, tslits_dict, det=int(mstrace_file[ipos+3]))
-        norig = tslits_dict['nslits']
-        #assert norig == nslit
+        spectrograph, traceSlits = instant_traceslits(mstrace_file, det=det)
+        norig = traceSlits.tslits_dict['nslits']
+        assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
         traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
@@ -118,9 +107,8 @@ def test_chk_lris_red_slits():
         assert chk_for_files(mstrace_file)
 
         # Instantiate
-        tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-        spectrograph, traceSlits = instantiate(mstrace, tslits_dict)
-        norig = tslits_dict['nslits']
+        spectrograph, traceSlits = instant_traceslits(mstrace_file)  # , det=det)  This crashes with det
+        norig = traceSlits.tslits_dict['nslits']
         assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
@@ -139,14 +127,11 @@ def test_chk_deimos_slits():
         mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_file)
         # Instantiate
-        tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
-        ipos = mstrace_file.find('det')  # Update to using the trace dict eventually
-        spectrograph, traceSlits = instantiate(mstrace, tslits_dict, det=int(mstrace_file[ipos+3]))
-        norig = tslits_dict['nslits']
+        spectrograph, traceSlits = instant_traceslits(mstrace_file, det=det)
+        norig = traceSlits.tslits_dict['nslits']
         assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
         traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
         # Test
         assert traceSlits.nslit == norig
-
