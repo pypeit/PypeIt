@@ -1481,7 +1481,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
             #sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
             ## scaling different orders
             order_median_scale(spectra_coadd_rebin, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
-                               num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=True)
+                               num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
         else:
             msgs.warn('No any scaling is performed between different orders.')
 
