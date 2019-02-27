@@ -24,11 +24,11 @@ def data_path(filename):
 
 
 # TODO: Not used
-@pytest.fixture
-@dev_suite_required
-def deimos_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                         'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')]
+#@pytest.fixture
+#@dev_suite_required
+#def deimos_files():
+#    return [os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+#                         'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')]
 
 
 # TODO: These aren't in the current Cooked
@@ -36,9 +36,9 @@ def deimos_files():
 @dev_suite_required
 def kast_blue_files():
     std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_Feige66_KASTb_2015May20T041246.960.fits')
+                            'spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits')
     sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_J1217p3905_KASTb_2015May20T045733.560.fits')
+                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     return [std_file, sci_file]
 
 
