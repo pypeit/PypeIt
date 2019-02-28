@@ -758,7 +758,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def loglam_minmax(self):
-        return np.log10(5000.0), np.log10(10500)
+        return np.log10(5000.0), np.log10(11000)
 
     def wavegrid(self, binning=None, midpoint=False):
 

@@ -48,6 +48,7 @@ def read_coadd2d_file(ifile):
           Empty if no flux block is specified
 
     """
+
     # Read in the pypeit reduction file
     msgs.info('Loading the coadd2d file')
     lines = par.util._read_pypeit_file_lines(ifile)
@@ -204,7 +205,8 @@ def main(args):
         msgs.info("The following directory already exists:" + msgs.newline() + scipath)
     else:
         os.mkdir(scipath)
-    save.save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename)
+    binning = np.array([stack_dict['tslits_dict']['binspectral'], stack_dict['tslits_dict']['binspatial']])
+    save.save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,binning=binning)
 
 
 
