@@ -1,11 +1,11 @@
 0.9.3 (28 Feb 2019)
 -------------------
 - Fixed a bug that was introduced when the binning was switched to the
-PypeIt convention.
+  PypeIt convention.
 - Fixed a bug whereby 2d images were not being saved if no objects were
-detected.
+  detected.
 - Revamped the naming convention of output files to have the original
-filename in it.
+  filename in it.
 
 0.9.2 (25 Feb 2019)
 -------------------
