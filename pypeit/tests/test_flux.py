@@ -45,7 +45,7 @@ def test_gen_sensfunc():
     kastb = load_spectrograph('shane_kast_blue')
 
     # Load a random spectrum for the sensitivity function
-    sfile = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    sfile = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
     specobjs = load.load_specobjs(sfile)
 #    telescope = telescopes.ShaneTelescopePar()
     fitstbl = dummy_fitstbl()

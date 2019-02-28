@@ -726,6 +726,26 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         return slitmask
 
+    @property
+    def dloglam(self):
+        # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
+        # loglam across the orders deviates from this value by +-7% from this first to final order
+        return 1.69207e-5
+
+    @property
+    def loglam_minmax(self):
+        return np.log10(5000.0), np.log10(10500)
+
+    def wavegrid(self, binning=None, midpoint=False):
+
+        # Define the grid for VLT-XSHOOTER NIR
+        logmin, logmax = self.loglam_minmax
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
+        if midpoint:
+            loglam_grid = loglam_grid + self.dloglam/2.0
+
+        return np.power(10.0,loglam_grid)
+
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

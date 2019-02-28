@@ -1,12 +1,5 @@
-0.9.3dev
+0.9.4dev
 --------
-
-- Fixed a bug that was introduced when the binning was switched to the
-  PypeIt convention.
-- Fixed a bug whereby 2d images were not being saved if no objects were
-  detected.
-- Revamped the naming convention of output files to have the original
-  filename in it.
 - Streamline some of the instantiation at the beginning of
   PypeIt.__init__.
     - Moves the call to default_pypeit_par into config_specific_par.
@@ -16,6 +9,15 @@
 - Allows for slice like syntax when defining calibration groups.
 - Introduce 'tilt' frame type.  Not used yet.  Everything that's typed
   as an 'arc' is now also typed as a 'tilt'.
+
+0.9.3 (28 Feb 2019)
+-------------------
+- Fixed a bug that was introduced when the binning was switched to the
+  PypeIt convention.
+- Fixed a bug whereby 2d images were not being saved if no objects were
+  detected.
+- Revamped the naming convention of output files to have the original
+  filename in it.
 
 0.9.2 (25 Feb 2019)
 -------------------
