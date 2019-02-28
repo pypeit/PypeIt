@@ -131,7 +131,7 @@ class PypeIt(object):
         msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
         paths.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
                         self.par['rdx']['scidir'], self.par['rdx']['qadir'],
-                        overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
+                        redux_path=self.par['rdx']['redux_path'])
 
         # Instantiate Calibrations class
         self.caliBrate \

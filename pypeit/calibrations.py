@@ -16,7 +16,6 @@ from pypeit.core import pixels
 from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import biasframe
-#from pypeit import bpmimage
 from pypeit import flatfield
 from pypeit import traceimage
 from pypeit import traceslits
@@ -89,8 +88,8 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, par, spectrograph, redux_path=None, reuse_masters=False, save_masters=True,
-                 write_qa=True, show=False):
+    def __init__(self, fitstbl, par, spectrograph, redux_path=None, caldir=None, qadir=None,
+                 reuse_masters=False, save_masters=True, show=False):
 
         # Check the type of the provided fits table
         if not isinstance(fitstbl, PypeItMetaData):
@@ -100,7 +99,7 @@ class Calibrations(object):
         self.fitstbl = fitstbl
         self.save_masters = save_masters
         self.reuse_masters = reuse_masters
-        self.write_qa = write_qa
+        self.write_qa = qadir is not None
         self.show = show
 
         # Test par
@@ -113,10 +112,10 @@ class Calibrations(object):
 
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path
-        self.calib_path = self.get_path(redux_path=self.redux_path,
-                                        spectrograph=self.spectrograph.spectrograph,
-                                        caldir=self.par['caldir'])
-        self.qa_path = self.get_path(self.redux_path, caldir=self.par['qadir'])
+        self.master_dir = self.construct_path(redux_path=self.redux_path,
+                                              spectrograph=self.spectrograph.spectrograph,
+                                              subdir=self.par['caldir'])
+        self.qa_path = self.construct_path(self.redux_path, subdir=self.par['qadir'])
         
         os.getcwd() if redux_path is None else redux_path
 
@@ -135,9 +134,9 @@ class Calibrations(object):
         self._reset_internals()
 
     @staticmethod
-    def get_calib_path(redux_path=None, spectrograph=None, caldir=None):
+    def construct_path(redux_path=None, spectrograph=None, subdir=None):
         """
-        Get the path to the Calibration/Master directory
+        Get the full path to a Calibration/Master directory.
 
         Args:
             redux_path (:obj:`str`, optional):
@@ -148,20 +147,20 @@ class Calibrations(object):
                 limited to the valid spectrographs supported by PypeIt.
                 If None, the spectrograph is not included in the path
                 name.
-            caldir (:obj:`str`, optional):
-                Name for the calibrations directory.  If None, set to::
-
-                    pypeitpar.CalibrationsPar()['caldir']
+            subdir (:obj:`str`, optional):
+                Name for the subdirectory.  If None, just returns
+                `redux_path`, and `spectrograph` is ignored.
 
         Returns:
-            str: The full path to the calibrations directory that holds
-            all the master frames.
+            str: The full directory path.  Result is
+            `redux_path/subdir_spectrograph/`, with the caveats provided
+            in the argument description.
         """
         _redux_path = os.getcwd() if redux_path is None else redux_path
-        _caldir = pypeitpar.CalibrationsPar()['caldir'] if caldir is None else caldir
-        if spectrograph is not None:
-            _caldir += '_{0}'.format(spectrograph)
-        return os.path.join(_redux_path, _caldir)
+        if subdir is None:
+            return _redux_path
+        return os.path.join(_redux_path, subdir) if spectrograph is None \
+                        else os.path.join(_redux_path, '{0}_{1}'.format(subdir, spectrograph))
 
     def _reset_internals(self):
         """
