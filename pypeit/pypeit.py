@@ -1,11 +1,6 @@
 """
 Main driver class for PypeIt run
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import time
 #from abc import ABCMeta
 import os
@@ -74,7 +69,8 @@ class PypeIt(object):
                  show=False, redux_path=None):
 
         # Load
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file, runtime=True)
+        cfg_lines, data_files, frametype, usrdata, setups \
+                = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
 
         # Spectrograph
@@ -82,41 +78,43 @@ class PypeIt(object):
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
 
-        # Par
-        # Defaults
-        spectrograph_def_par = self.spectrograph.default_pypeit_par()
-        # Grab a science file for configuration specific parameters
+        # --------------------------------------------------------------
+        # Get the full set of PypeIt parameters
+        #   - Grab a science file for configuration specific parameters
         sci_file = None
         for idx, row in enumerate(usrdata):
             if 'science' in row['frametype']:
                 sci_file = data_files[idx]
                 break
-
-        # Set
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(spectrograph_def_par, sci_file).to_config()
+        #   - Configuration specific parameters for the spectrograph
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
+        #   - Build the full set, merging with any user-provided
+        #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        # --------------------------------------------------------------
 
-        # Fitstbl
-        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, file_list=data_files,
+        
+        # --------------------------------------------------------------
+        # Build the meta data
+        #   - Re-initilize based on the file data
+        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, files=data_files,
                                       usrdata=usrdata, strict=True)
+        #   - Interpret automated or user-provided data from the PypeIt
+        #   file
+        self.fitstbl.finalize_usr_build(frametype, setups[0])
 
-        # The following could be put in a prepare_to_run() method in PypeItMetaData
-        if 'setup' not in self.fitstbl.keys():
-            self.fitstbl['setup'] = setups[0]
-        self.fitstbl.get_frame_types(user=frametype)  # This sets them using the user inputs
-        self.fitstbl.set_defaults()  # Only does something if values not set in PypeIt file
-        self.fitstbl._set_calib_group_bits()
-        self.fitstbl._check_calib_groups()
-        # Write .calib file (For QA naming amongst other things)
+        #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
 
         # Other Internals
         self.logname = logname
         self.overwrite = overwrite
-        # Currently the runtime argument determines the behavior for reuse_masters. There is also a reuse_masters
-        # parameter in the parset but it is currently ignored.
-        self.reuse_masters=reuse_masters
+
+        # Currently the runtime argument determines the behavior for
+        # reuse_masters. There is also a reuse_masters parameter in the
+        # parset but it is currently ignored.
+        self.reuse_masters = reuse_masters
         self.show = show
 
         # Make the output directories
@@ -128,7 +126,8 @@ class PypeIt(object):
 
         # Instantiate Calibrations class
         self.caliBrate \
-            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'], self.spectrograph,
+            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+                                                 self.spectrograph,
                                                  redux_path=self.par['rdx']['redux_path'],
                                                  reuse_masters=self.reuse_masters,
                                                  save_masters=True, write_qa=True,
@@ -247,7 +246,6 @@ class PypeIt(object):
 
         # Iterate over each calibration group again and reduce the science frames
         for i in range(self.fitstbl.n_calib_groups):
-
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
 
@@ -268,7 +266,7 @@ class PypeIt(object):
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_dict, self.basename)
                 else:
-                    msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
+                    msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
             msgs.info('Finished calibration group {0}'.format(i))
@@ -601,8 +599,8 @@ class PypeIt(object):
             self.objmodel = np.zeros_like(self.sciimg)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciivar)
-            # Set to inmask in case on objects were found
-            self.outmask = self.mask
+            # Set to the initial mask in case no objects were found
+            self.outmask = self.redux.mask
             # empty specobjs object from object finding
             if self.ir_redux:
                 self.sobjs_obj.purge_neg()
@@ -612,7 +610,7 @@ class PypeIt(object):
         return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
 
     # TODO: Why not use self.frame?
-    def save_exposure(self, frame, sci_dict, basename, only_1d=False):
+    def save_exposure(self, frame, sci_dict, basename):
         """
         Save the outputs from extraction for a given exposure
 
@@ -624,8 +622,6 @@ class PypeIt(object):
               Dictionary containing the primary outputs of extraction
             basename (:obj:`str`):
                 The root name for the output file.
-            only_1d (:obj:`bool`, optional):
-              Save only the 1D spectra?
 
         Returns:
             None or SpecObjs:  All of the objects saved to disk
@@ -645,7 +641,7 @@ class PypeIt(object):
         scipath = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
 
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir, self.spectrograph,
-                      head1d, head2d, scipath, basename, only_1d=only_1d, refframe=refframe,
+                      head1d, head2d, scipath, basename, refframe=refframe,
                       update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
         return

@@ -1,10 +1,5 @@
 """ Module for ginga routines.  Mainly for debugging
 """
-try:
-    basestring
-except NameError:
-    basestring = str
-
 import os
 import numpy as np
 import time
@@ -115,7 +110,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
-    img = fits.open(inp)[exten].data if isinstance(inp, basestring) else inp
+    img = fits.open(inp)[exten].data if isinstance(inp, str) else inp
 
     # Instantiate viewer
     viewer = connect_to_ginga()

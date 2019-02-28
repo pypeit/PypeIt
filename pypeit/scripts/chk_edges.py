@@ -3,7 +3,6 @@
 # See top-level LICENSE file for Copyright information
 #
 # -*- coding: utf-8 -*-
-
 """
 This script displays the Trace image and the traces
 in an RC Ginga window (must be previously launched)

@@ -1,8 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 import glob
 import pytest
@@ -120,8 +115,8 @@ def test_lris_blue_pypeit_overwrite():
     # Read the fits table with and without the user data
     spectrograph = load_spectrograph('keck_lris_blue')
     par = spectrograph.default_pypeit_par()
-    fitstbl = PypeItMetaData(spectrograph, par, file_list=data_files)
-    fitstbl_usr = PypeItMetaData(spectrograph, par, file_list=data_files, usrdata=usrdata)
+    fitstbl = PypeItMetaData(spectrograph, par, files=data_files)
+    fitstbl_usr = PypeItMetaData(spectrograph, par, files=data_files, usrdata=usrdata)
 
     assert fitstbl['target'][0] == 'unknown', 'Grating name changed in file header'
     assert fitstbl_usr['target'][0] == 'test', 'Grating name changed in pypeit file'

@@ -1,11 +1,13 @@
 """ Module for image processing core methods
 """
+import os
+
+import numpy as np
+import scipy
 
 import astropy.stats
-import numpy as np
-import os
-import scipy
 from astropy.io import fits
+
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe

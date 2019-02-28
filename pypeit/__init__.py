@@ -5,11 +5,6 @@ The current main purpose of this is to provide package-level globals
 that can be imported by submodules.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 # Imports for signal and log handling
 import sys
 import signal

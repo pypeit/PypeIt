@@ -1,7 +1,5 @@
 """ Module for VLT X-Shooter
 """
-from __future__ import absolute_import, division, print_function
-
 import glob
 
 import numpy as np
@@ -548,7 +546,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             saturation      = 65535.,
                             nonlinear       = 0.86,
                             numamplifiers   = 1,
-                            gain            = 0.595,
+                            gain            = 0.595, # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
                             ronoise         = 3.1, # raw unbinned images are (4000,2106) (spec, spat)
                             datasec='[11:2058,1:]',  # pre and oscan are in the spatial direction
                             oscansec='[2059:2106,1:]',

@@ -1,14 +1,10 @@
 """ Module for the ScienceImage class"""
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 from pypeit import msgs
 from pypeit import processimages
 from pypeit import utils
 from pypeit import ginga
 from pypeit.core import coadd2d
-
-from pypeit import debugger
 
 
 class ScienceImage(processimages.ProcessImages):

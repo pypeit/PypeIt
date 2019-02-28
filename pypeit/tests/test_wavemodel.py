@@ -1,4 +1,6 @@
-# Module to run tests on wavemodel.py
+"""
+Module to run tests on wavemodel.py
+"""
 
 import numpy as np
 from pypeit import wavemodel

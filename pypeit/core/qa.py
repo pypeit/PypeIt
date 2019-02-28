@@ -1,7 +1,5 @@
 """ Module for QA in PypeIt
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import os
 import datetime
 import getpass
@@ -12,11 +10,6 @@ import yaml
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs
 #from pypeit import msgs
-
-#try:
-#    basestring
-#except NameError:  # For Python 3
-#    basestring = str
 
 def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None):
     """

@@ -1,8 +1,6 @@
 """
 Routines for matching frames to certain types or each other.
 """
-from __future__ import print_function, absolute_import, division, unicode_literals
-
 import os
 import re
 

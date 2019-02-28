@@ -1,6 +1,6 @@
-# Module for guiding Slit/Order tracing
-from __future__ import absolute_import, division, print_function
-
+"""
+Module for guiding Slit/Order tracing
+"""
 import inspect
 import copy
 import numpy as np
@@ -1154,3 +1154,4 @@ def load_tslits(filename):
     traceSlits = TraceSlits(None,None,None)
     tslits_dict, mstrace = traceSlits.load_master(filename)
     return tslits_dict, mstrace
+

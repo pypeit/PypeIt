@@ -1,6 +1,4 @@
 """ Module for generating the Arc image"""
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import os
 import inspect
 import numpy as np

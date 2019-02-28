@@ -3,14 +3,9 @@
 # See top-level LICENSE file for Copyright information
 #
 # -*- coding: utf-8 -*-
-
-
 """
 This script generates files to setup a PypeIt run
 """
-from __future__ import (print_function, absolute_import, division,
-                        unicode_literals)
-
 import argparse
 from pypeit.spectrographs.util import valid_spectrographs
 

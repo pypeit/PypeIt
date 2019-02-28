@@ -1,7 +1,5 @@
 """ Output for PYPEIT
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import os
 import datetime
 
@@ -20,7 +18,7 @@ from pypeit.core import parse
 
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
-                  only_1d=False, refframe='heliocentric', update_det=None, binning='None'):
+             refframe='heliocentric', update_det=None, binning='None'):
     """
     Routine to save PypeIt 1d and 2d outputs
     Args:
@@ -40,8 +38,6 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
             path to which the outputs should be written
         basename: str
             the object basename
-        only_1d: bool, default = False
-            Only write out the
         refframe: str, default = 'heliocentric'
             Reference frame for the wavelengths
         update_det : int or list, default=None
@@ -76,26 +72,14 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
             continue
 
     if len(all_specobjs) == 0:
-        msgs.warn('No objects to save!')
-        return
+        msgs.warn('No objects to save. Only writing spec2d files!')
+    else:
+        # Create the helio_dict
+        helio_dict = dict(refframe=refframe, vel_correction=vel_corr)
+        save_1d_spectra_fits(all_specobjs, head1d, spectrograph, outfile1d,helio_dict=helio_dict, update_det=update_det)
+        save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)
 
-    # Create the helio_dict
-    helio_dict = dict(refframe=refframe, vel_correction=vel_corr)
-
-    save_1d_spectra_fits(all_specobjs, head1d, spectrograph, outfile1d,helio_dict=helio_dict, update_det=update_det)
-
-    # 1D only?
-    if only_1d:
-        return
-    # Obj info
-    save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)
     # Write 2D images for the Science Frame
-
-    # TODO: Make sure self.det is correct!
-    # master_key = self.fitstbl.master_key(frame, det=self.det)
-    # TODO: Why is the raw file header needed?  Can the data be gotten from fitstbl?
-    #  If not, is it worth adding the relevant information to fitstbl?
-    # Original header
     save_2d_images(sci_dict, head2d, spectrograph.spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
 
     return

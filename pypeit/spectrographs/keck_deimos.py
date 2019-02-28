@@ -1,8 +1,6 @@
 '''
 Implements DEIMOS-specific functions, including reading in slitmask design files.
 '''
-from __future__ import absolute_import, division, print_function
-
 import glob
 import re
 import os
@@ -235,7 +233,28 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, par, scifile):
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+        
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
 
         # Templates
         if self.get_meta_value(scifile, 'dispname') == '600ZD':
@@ -463,45 +482,45 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return secs[1], False, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-    def get_datasec_img(self, filename, det=1, force=True):
-        """
-        Create an image identifying the amplifier used to read each pixel.
-
-        Args:
-            filename (str):
-                Name of the file from which to read the image size.
-            det (:obj:`int`, optional):
-                Detector number (1-indexed)
-            force (:obj:`bool`, optional):
-                Force the image to be remade
-
-        Returns:
-            `numpy.ndarray`: Integer array identifying the amplifier
-            used to read each pixel.
-        """
-        if self.datasec_img is None or force:
-            # Check the detector is defined
-            self._check_detector()
-            # Get the image shape
-            raw_naxis = self.get_raw_image_shape(filename, det=det)
-
-            # Binning is not required because read_deimos accounts for it
-#            binning = self.get_meta_value(filename, 'binning')
-
-            data_sections, one_indexed, include_end, transpose \
-                    = self.get_image_section(filename, det, section='datasec')
-
-            # Initialize the image (0 means no amplifier)
-            self.datasec_img = np.zeros(raw_naxis, dtype=int)
-            for i in range(self.detector[det-1]['numamplifiers']):
-                # Convert the data section from a string to a slice
-                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                          include_end=include_end, require_dim=2,
-                                          transpose=transpose) #, binning=binning)
-                # Assign the amplifier
-                self.datasec_img[datasec] = i+1
-        return self.datasec_img
+#
+#     def get_datasec_img(self, filename, det=1, force=True):
+#         """
+#         Create an image identifying the amplifier used to read each pixel.
+#
+#         Args:
+#             filename (str):
+#                 Name of the file from which to read the image size.
+#             det (:obj:`int`, optional):
+#                 Detector number (1-indexed)
+#             force (:obj:`bool`, optional):
+#                 Force the image to be remade
+#
+#         Returns:
+#             `numpy.ndarray`: Integer array identifying the amplifier
+#             used to read each pixel.
+#         """
+#         if self.datasec_img is None or force:
+#             # Check the detector is defined
+#             self._check_detector()
+#             # Get the image shape
+#             raw_naxis = self.get_raw_image_shape(filename, det=det)
+#
+#             # Binning is not required because read_deimos accounts for it
+# #            binning = self.get_meta_value(filename, 'binning')
+#
+#             data_sections, one_indexed, include_end, transpose \
+#                     = self.get_image_section(filename, det, section='datasec')
+#
+#             # Initialize the image (0 means no amplifier)
+#             self.datasec_img = np.zeros(raw_naxis, dtype=int)
+#             for i in range(self.detector[det-1]['numamplifiers']):
+#                 # Convert the data section from a string to a slice
+#                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+#                                           include_end=include_end, require_dim=2,
+#                                           transpose=transpose) #, binning=binning)
+#                 # Assign the amplifier
+#                 self.datasec_img[datasec] = i+1
+#         return self.datasec_img
 
     # WARNING: Uses Spectrograph default get_image_shape.  If no file
     # provided it will fail.  Provide a function like in keck_lris.py

@@ -1,7 +1,5 @@
 """ Module for methods related to tracing arc/sky lines across a slit/order
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import inspect
 import copy
 

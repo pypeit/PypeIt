@@ -1,12 +1,7 @@
-# Module to run tests on FlatField class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on FlatField class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest
@@ -46,14 +41,13 @@ def fitstbl():
 def multi_caliBrate(fitstbl):
     det = 1
     spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
-    # Par
-    def_par = spectrograph.default_pypeit_par()
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
         if 'science' in row['frametype']:
             sci_file = os.path.join(row['directory'], row['filename'])
             break
-    par = spectrograph.config_specific_par(def_par, sci_file)
+    # Par
+    par = spectrograph.config_specific_par(sci_file)
     #
     calib_par = par['calibrations']
     calib_par['badpix'] = False

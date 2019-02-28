@@ -1,6 +1,4 @@
 # Module for guiding Slit/Order tracing
-from __future__ import absolute_import, division, print_function
-
 import inspect
 import numpy as np
 import linetools

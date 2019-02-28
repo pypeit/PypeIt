@@ -1,8 +1,6 @@
 """ Module for core algorithms related to tracing slits/orders
 These should primarily be called by the TraceSlits class
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import inspect
 import copy
 from collections import Counter

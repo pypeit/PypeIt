@@ -3,7 +3,6 @@
 # See top-level LICENSE file for Copyright information
 #
 # -*- coding: utf-8 -*-
-
 """
 This script generates a sky spectrum from a LowRedux IDL save file
 """

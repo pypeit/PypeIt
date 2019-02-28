@@ -1,6 +1,5 @@
 """ Module for guiding Bias subtraction including generating a Bias image as desired
 """
-from __future__ import absolute_import, division, print_function
 
 from pypeit import msgs
 from pypeit import processimages
