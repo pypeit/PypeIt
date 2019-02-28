@@ -1,4 +1,8 @@
-""" Class for guiding calibration object generation in PypeIt
+"""
+Class for guiding calibration object generation in PypeIt
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
 """
 import os
 import numpy as np
@@ -109,7 +113,12 @@ class Calibrations(object):
 
         # Output dirs
         self.redux_path = os.getcwd() if redux_path is None else redux_path
-        self.master_dir = masterframe.set_master_dir(self.redux_path, self.spectrograph, self.par)
+        self.calib_path = self.get_path(redux_path=self.redux_path,
+                                        spectrograph=self.spectrograph.spectrograph,
+                                        caldir=self.par['caldir'])
+        self.qa_path = self.get_path(self.redux_path, caldir=self.par['qadir'])
+        
+        os.getcwd() if redux_path is None else redux_path
 
         # Attributes
         self.calib_dict = {}
@@ -125,6 +134,35 @@ class Calibrations(object):
         # Internals
         self._reset_internals()
 
+    @staticmethod
+    def get_calib_path(redux_path=None, spectrograph=None, caldir=None):
+        """
+        Get the path to the Calibration/Master directory
+
+        Args:
+            redux_path (:obj:`str`, optional):
+                Top-level reduction directory.  If None, use the current
+                directory.
+            spectrograph (:obj:`str`, optional):
+                Name of the spectrograph.  Expected to be but not
+                limited to the valid spectrographs supported by PypeIt.
+                If None, the spectrograph is not included in the path
+                name.
+            caldir (:obj:`str`, optional):
+                Name for the calibrations directory.  If None, set to::
+
+                    pypeitpar.CalibrationsPar()['caldir']
+
+        Returns:
+            str: The full path to the calibrations directory that holds
+            all the master frames.
+        """
+        _redux_path = os.getcwd() if redux_path is None else redux_path
+        _caldir = pypeitpar.CalibrationsPar()['caldir'] if caldir is None else caldir
+        if spectrograph is not None:
+            _caldir += '_{0}'.format(spectrograph)
+        return os.path.join(_redux_path, _caldir)
+
     def _reset_internals(self):
         """
         Reset all of the key internals to None or an empty object
@@ -138,39 +176,37 @@ class Calibrations(object):
         self.maskslits = None
         self.wavecalib = None
         self.tilts_dict = None
-        self.mspixflatnrm = None
+        self.mspixelflat = None
         self.msillumflat = None
         self.mswave = None
         self.cailb_ID = None
         self.master_key_dict = {}
 
-    def check_for_previous(self, ftype, master_key):
+    def check_for_previous(self, master_type, master_key):
         """
-        Check to see whether the master file(s) have been
-        built during this run of PypeIt.
-        If so, we will likely either load from memory or hard-drive
+        Check if the calibration frame is in memory.
 
-        calib_dict is nested as:
-           [master_key][ftype]
+        The image data is saved in memory as, e.g.::
 
-        If the ftype has not yet been generated, an empty dict is prepared
-           self.calib_dict[master_key][ftype] = {}
+           self.calib_dict[master_key][master_type] = {}
+
+        If the master has not yet been generated, an empty dict is
+        prepared::
+
+           self.calib_dict[master_key] = {}
 
         Args:
-            ftype (str): Type of calibration frame
+            master_type (str): Type of calibration frame
             master_key (str): Master key naming
 
         Returns:
              bool: True = Built previously
         """
-        previous = False
         if master_key in self.calib_dict.keys():
-            if ftype in self.calib_dict[master_key].keys():
-                previous = True
-        else:  # Prep for saving
-            self.calib_dict[master_key] = {}
-        # Return
-        return previous
+            if master_type in self.calib_dict[master_key].keys():
+                return True
+        self.calib_dict[master_key] = {}
+        return False
 
     def set_config(self, frame, det, par=None):
         """
@@ -215,33 +251,35 @@ class Calibrations(object):
         # Prep
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        self.arc_master_key = self.fitstbl.master_key(arc_rows[0], det=self.det)
-        self.master_key_dict['arc'] = self.arc_master_key
+        self.master_key_dict['arc'] \
+                = self.fitstbl.master_key(arc_rows[0] if len(arc_rows) > 0 else self.frame,
+                                          det=self.det)
 
-        prev_build = self.check_for_previous('arc', self.arc_master_key)
+        prev_build = self.check_for_previous('arc', self.master_key_dict['arc'])
         if prev_build:
             # Previously calculated
-            self.msarc = self.calib_dict[self.arc_master_key]['arc']
+            self.msarc = self.calib_dict[self.master_key_dict['arc']]['arc']
             return self.msarc
 
         # Instantiate with everything needed to generate the image (in case we do)
         self.arcImage = arcimage.ArcImage(self.spectrograph, files=self.arc_files,
                                           det=self.det, msbias=self.msbias,
-                                          par=self.par['arcframe'], master_key=self.arc_master_key,
-                                          master_dir=self.master_dir, reuse_masters=self.reuse_masters)
+                                          par=self.par['arcframe'],
+                                          master_key=self.master_key_dict['arc'],
+                                          master_dir=self.master_dir,
+                                          reuse_masters=self.reuse_masters)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.msarc, _ = self.arcImage.master(prev_build=prev_build)
+        self.msarc = self.arcImage.load()
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image()
             # Save to Masters
             if self.save_masters:
-                self.arcImage.save_master(self.msarc, raw_files=self.arcImage.files,
-                                          steps=self.arcImage.steps)
+                self.arcImage.save()
 
         # Save & return
-        self.calib_dict[self.arc_master_key]['arc'] = self.msarc
+        self.calib_dict[self.master_key_dict['arc']]['arc'] = self.msarc
         return self.msarc
 
     def get_bias(self):
@@ -262,39 +300,35 @@ class Calibrations(object):
         # Prep
         bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
         self.bias_files = self.fitstbl.frame_paths(bias_rows)
-        if len(bias_rows) > 0:
-            self.bias_master_key = self.fitstbl.master_key(bias_rows[0], det=self.det)
-        else:  # Allow for other bias modes
-            self.bias_master_key = self.fitstbl.master_key(self.frame, det=self.det)
-        self.master_key_dict['bias'] = self.bias_master_key
+
+        self.master_key_dict['bias'] \
+                = self.fitstbl.master_key(bias_rows[0] if len(bias_rows) > 0 else self.frame,
+                                          det=self.det)
 
         # Grab from internal dict (or hard-drive)?
-        prev_build = self.check_for_previous('bias', self.bias_master_key)
+        prev_build = self.check_for_previous('bias', self.master_key_dict['bias'])
         if prev_build:
-            self.msbias = self.calib_dict[self.bias_master_key]['bias']
+            self.msbias = self.calib_dict[self.master_key_dict['bias']]['bias']
             msgs.info("Reloading the bias from the internal dict")
             return self.msbias
 
         # Instantiate
         self.biasFrame = biasframe.BiasFrame(self.spectrograph, files=self.bias_files,
                                              det=self.det, par=self.par['biasframe'],
-                                             master_key=self.bias_master_key,
-                                             master_dir=self.master_dir, reuse_masters=self.reuse_masters)
+                                             master_key=self.master_key_dict['bias'],
+                                             master_dir=self.master_dir,
+                                             reuse_masters=self.reuse_masters)
 
-        # How are we treating biases: 1) No bias, 2) overscan, or 3) use
-        # bias subtraction. If use bias is there a master?
-        self.msbias = self.biasFrame.determine_bias_mode(prev_build=prev_build)
-        # This could be made more elegant, like maybe msbias should be
-        # set to 'none' analgous to how overscan is treated???
-        if (self.msbias is None) and (self.par['biasframe']['useframe'] != 'none'):
+        # Try to load the master bias
+        self.msbias = self.biasFrame.load()
+        if self.msbias is None:
             # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
-                self.biasFrame.save_master(self.msbias, raw_files=self.biasFrame.files,
-                                           steps=self.biasFrame.steps)
+                self.biasFrame.save()
 
         # Save & return
-        self.calib_dict[self.bias_master_key]['bias'] = self.msbias
+        self.calib_dict[self.master_key_bias['bias']]['bias'] = self.msbias
         return self.msbias
 
     def get_bpm(self):
@@ -317,122 +351,131 @@ class Calibrations(object):
         self._chk_set(['par', 'det'])
 
         # Generate a bad pixel mask (should not repeat)
-        self.bpm_master_key = self.fitstbl.master_key(self.frame, det=self.det)
-        self.master_key_dict['bpm'] = self.bpm_master_key
+        self.master_key_dict['bpm'] = self.fitstbl.master_key(self.frame, det=self.det)
 
-        prev_build = self.check_for_previous('bpm', self.bpm_master_key)
+        prev_build = self.check_for_previous('bpm', self.master_key_dict['bpm'])
         if prev_build:
-            self.msbpm = self.calib_dict[self.bpm_master_key]['bpm']
+            self.msbpm = self.calib_dict[self.master_key_dict['bpm']]['bpm']
             return self.msbpm
 
-        # Always use the shape!
-        #  But some instruments need the filename too, e.g. for binning
-        sci_image_files = [self.fitstbl.frame_paths(self.frame)]
-        # TODO JFH These lines below should either go into the spectrograph class or to the BPM image class, they
-        # do not belong here.
-        dsec_img = self.spectrograph.get_datasec_img(sci_image_files[0], det=self.det)
-        # Instantiate the shape here, based on the shape of the science image. This is the shape of most
-        # most calibrations, although we are allowing for arcs of different shape becuase of X-shooter etc.
+        # Build the data-section image
+        sci_image_file = self.fitstbl.frame_paths(self.frame)
+        dsec_img = self.spectrograph.get_datasec_img(sci_image_file, det=self.det)
+
+        # Instantiate the shape here, based on the shape of the science
+        # image. This is the shape of most calibrations, although we are
+        # allowing for arcs of different shape becuase of X-shooter etc.
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
 
         # Build it
-        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_files[0], det=self.det)
+        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_files,
+                                           det=self.det)
+
         # Record it
-        self.calib_dict[self.bpm_master_key]['bpm'] = self.msbpm
+        self.calib_dict[self.master_key_dict['bpm']]['bpm'] = self.msbpm
         # Return
         return self.msbpm
 
     def get_flats(self):
         """
-        Load or generate a normalized pixel flat
-          and slit profile
+        Load or generate a normalized pixel flat and slit illumination
+        flat.
 
-        Requirements:
-           tslits_dict
-           tilts_dict
-           det, par
+        Requires :attr:`tslits_dict`, :attr:`tilts_dict`, :attr:`det`,
+        :attr:`par`.
 
         Returns:
-            ndarray, ndarray: :attr:`mspixflatnrm` which is the normalized pixel flat image
-            and :attr:`msillumflat` which is the illumination flat.
-
+            `numpy.ndarray`_: Two arrays are returned, the normalized
+            pixel flat image (:attr:`mspixelflat`) and the slit
+            illumination flat (:attr:`msillumflat`).  If the user
+            requested the field flattening be skipped
+            (`FlatFieldPar['method'] == 'skip'`) or if the slit and tilt
+            traces are not provided, the function returns two None
+            objects instead.
         """
-
         if self.par['flatfield']['method'] is 'skip':
             # User does not want to flat-field
-            self.mspixflatnrm = None
+            self.mspixelflat = None
             self.msillumflat = None
             msgs.warning('Parameter calibrations.flatfield.method is set to skip. You are NOT '
                          'flatfielding your data!!!')
-            return self.mspixflatnrm, self.msillumflat
+            # TODO: Why does this not return unity arrays, like what's
+            # done below?
+            return self.mspixelflat, self.msillumflat
 
-        # Check for existing data necessary to build flats
+        # Slit and tilt traces are required to flat-field the data
         if not self._chk_objs(['tslits_dict', 'tilts_dict']):
             msgs.warning('Flats were requested, but there are quantities missing necessary to '
                          'create flats.  Proceeding without flat fielding....')
             # User cannot flat-field
-            self.mspixflatnrm = None
+            self.mspixelflat = None
             self.msillumflat = None
-            return self.mspixflatnrm, self.msillumflat
+            # TODO: Why does this not return unity arrays, like what's
+            # done below?
+            return self.mspixelflat, self.msillumflat
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
         pixflat_rows = self.fitstbl.find_frames('pixelflat', calib_ID=self.calib_ID, index=True)
         # TODO: Why aren't these set to self
+        #   KBW: They're kept in self.flatField.files
         pixflat_image_files = self.fitstbl.frame_paths(pixflat_rows)
-        if len(pixflat_rows) > 0:
-            self.pixflat_master_key = self.fitstbl.master_key(pixflat_rows[0], det=self.det)
-        else:  # Allow for user-supplied file (e.g. LRISb)
-            self.pixflat_master_key = self.fitstbl.master_key(self.frame, det=self.det)
+        # Allow for user-supplied file (e.g. LRISb)
+        self.master_key_dict['flat'] \
+                = self.fitstbl.master_key(pixflat_rows[0] if len(pixflat_rows) > 0 else self.frame,
+                                          det=self.det)
 
-        self.master_key_dict['flat'] = self.pixflat_master_key
         # Return already generated data
-        prev_build1 = self.check_for_previous('normpixelflat', self.pixflat_master_key)
-        prev_build2 = self.check_for_previous('illumflat', self.pixflat_master_key)
+        prev_build1 = self.check_for_previous('pixelflat', self.master_key_dict['flat'])
+        prev_build2 = self.check_for_previous('illumflat', self.master_key_dict['flat'])
         if np.all([prev_build1, prev_build2]):
-            self.mspixflatnrm = self.calib_dict[self.pixflat_master_key]['normpixelflat']
-            self.msillumflat = self.calib_dict[self.pixflat_master_key]['illumflat']
-            return self.mspixflatnrm, self.msillumflat
+            self.mspixelflat = self.calib_dict[self.master_key_dict['flat']]['pixelflat']
+            self.msillumflat = self.calib_dict[self.master_key_dict['flat']]['illumflat']
+            return self.mspixelflat, self.msillumflat
 
         # Instantiate
-        self.flatField = flatfield.FlatField(self.spectrograph,
-                                             self.par['pixelflatframe'],
-                                             files=pixflat_image_files,
-                                             det=self.det,
-                                             master_key=self.pixflat_master_key, master_dir=self.master_dir,
+        # TODO: This should automatically attempt to load and instatiate
+        # from a file if it exists.
+        self.flatField = flatfield.FlatField(self.spectrograph, self.par['pixelflatframe'],
+                                             files=pixflat_image_files, det=self.det,
+                                             master_key=self.master_key_dict['flat'],
+                                             master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
-                                             flatpar=self.par['flatfield'], msbias=self.msbias,
+                                             flatpar=self.par['flatfield'],
+                                             msbias=self.msbias,
+                                             # TODO: msbpm is not passed?
                                              tslits_dict=self.tslits_dict,
                                              tilts_dict=self.tilts_dict)
 
         # --- Pixel flats
 
         # 1)  Try to load master files from disk (MasterFrame)?
-        self.mspixflatnrm, _  = self.flatField.master(prev_build=prev_build1)
-        if prev_build2:
-            self.msillumflat, _ = self.flatField.load_master_illumflat()
+        _, self.mspixelflat, self.msillumflat = self.flatField.load()
 
         # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
-        if self.par['flatfield']['frame'] not in ['pixelflat']:
-            # First try to find directly, then try to find it in the
-            # masters directory, then fail
+        # TODO: We need to document this format for the user!
+        if self.par['flatfield']['frame'] != 'pixelflat':
+            # - Name is explicitly correct?
             if os.path.isfile(self.par['flatfield']['frame']):
-                mspixelflat_name = self.par['flatfield']['frame']
-            elif os.path.isfile(os.path.join(self.flatField.directory_path,
+                flat_file = self.par['flatfield']['frame']
+            # - Is it in the master directory?
+            elif os.path.isfile(os.path.join(self.flatField.master_dir,
                                              self.par['flatfield']['frame'])):
-                mspixelflat_name = os.path.join(self.flatField.directory_path,
-                                                self.par['flatfield']['frame'])
+                flat_file = os.path.join(self.flatField.master_dir, self.par['flatfield']['frame'])
             else:
-                raise ValueError('Could not find user-defined flatfield master: {0}'.format(
-                    self.par['flatfield']['frame']))
-            msgs.info('Found user-defined file: {0}'.format(mspixelflat_name))
-            self.mspixflatnrm, _ = self.flatField.load_master(mspixelflat_name, exten=self.det)
+                msgs.error('Could not find user-defined flatfield file: {0}'.format(
+                           self.par['flatfield']['frame']))
+            msgs.info('Using user-defined file: {0}'.format(flat_file))
+            hdu = fits.open(flat_file)
+            self.mspixelflat = hdu[self.det].data
+            hdu.close()
+            self.msillumflat = None
 
-        # 3) there is no master or no user supplied flat, generate the flat
-        if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
-            # Run
-            self.mspixflatnrm, self.msillumflat = self.flatField.run(show=self.show)
+        # 3) there is no master or no user supplied flat, so generate the flat
+        if self.mspixelflat is None and len(pixflat_image_files) != 0:
+            # Build the flat data
+            self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show)
 
             # If we tweaked the slits, update the tilts_dict and
             # tslits_dict to reflect new slit edges
@@ -443,14 +486,10 @@ class Calibrations(object):
 
             # Save to Masters
             if self.save_masters:
-                self.flatField.save_master(self.mspixflatnrm, raw_files=pixflat_image_files,
-                                           steps=self.flatField.steps)
-                if self.msillumflat is not None:
-                    self.flatField.save_master(self.msillumflat, raw_files=pixflat_image_files,
-                                               steps=self.flatField.steps,
-                                               outfile=masterframe.master_name('illumflat',
-                                               self.pixflat_master_key,self.master_dir))
+                self.flatField.save()
+
                 # If we tweaked the slits update the master files for tilts and slits
+                # TODO: These should be saved separately
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
                     # Add tweaked boundaries to the MasterTrace file
@@ -458,49 +497,42 @@ class Calibrations(object):
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.tilts_dict = self.flatField.tilts_dict
-                    self.waveTilts.save_master(self.flatField.tilts_dict, steps=self.waveTilts.steps)
+                    self.waveTilts.save_master(self.flatField.tilts_dict,
+                                               steps=self.waveTilts.steps)
 
-        # 4) If we still don't have a pixel flat, then just use unity
+        # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning
-        if self.mspixflatnrm is None:
-            self.mspixflatnrm = np.ones_like(self.tilts_dict['tilts'])
+        # TODO: These will barf if self.tilts_dict['tilts'] isn't
+        # defined.
+        if self.mspixelflat is None:
+            self.mspixelflat = np.ones_like(self.tilts_dict['tilts'])
             msgs.warn('You are not pixel flat fielding your data!!!')
-
-        # --- Illumination flats
-
-        # 1) If we ran the flat field algorithm above, then the
-        # illumination file was created. So check msillumflat is set
         if self.msillumflat is None:
-            # 2) If no illumination file is set yet, try to read it in from a master
-            self.msillumflat, _ = self.flatField.load_master_illumflat()
-            # 3) If there is no master file, then set illumflat to unit
-            # and war user that they are not illumflatting their data
-            if self.msillumflat is None:
-                self.msillumflat = np.ones_like(self.tilts_dict['tilts'])
-                msgs.warn('You are not illumination flat fielding your data!')
+            self.msillumflat = np.ones_like(self.tilts_dict['tilts'])
+            msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
-        self.calib_dict[self.pixflat_master_key]['normpixelflat'] = self.mspixflatnrm
+        self.calib_dict[self.pixflat_master_key]['pixelflat'] = self.mspixelflat
         self.calib_dict[self.pixflat_master_key]['illumflat'] = self.msillumflat
 
-        return self.mspixflatnrm, self.msillumflat
+        return self.mspixelflat, self.msillumflat
 
     def get_slits(self, redo=False, write_qa=True):
         """
-        Load or generate the slits.
-        First, a trace flat image is generated
+        Load or generate the definition of the slit boundaries.
 
-        Requirements:
-           det, par, master_key
+        Internals that must be available are :attr:`fitstbl`,
+        :attr:`calib_ID`, :attr:`det`.
 
         Args:
             redo (bool): Redo
-            write_qa: bool, optional
+            write_qa (bool, optional):
               Generate the QA?  Turn off for testing..
 
         Returns:
-            dict, ndarray: :attr:`tslits_dict` trace slits dict and :attr:`maskslits` array
-            of slit mask
+            Returns the trace-slits dictionary (also kept internally as
+            :attr:`tslits_dict`) and the slit mask array (numpy.ndarray;
+            also kept internally as :attr:`maskslits`)
 
         """
         # Check for existing data
@@ -515,35 +547,32 @@ class Calibrations(object):
         # Prep
         trace_rows = self.fitstbl.find_frames('trace', calib_ID=self.calib_ID, index=True)
         self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
-
-        self.trace_master_key = self.fitstbl.master_key(trace_rows[0], det=self.det)
-        self.master_key_dict['trace'] = self.trace_master_key
+        self.master_key_dict['trace'] \
+                = self.fitstbl.master_key(trace_rows[0] if len(trace_rows) > 0 else self.frame,
+                                          det=self.det)
 
         # Return already generated data
-        prev_build = self.check_for_previous('trace', self.trace_master_key)
-        if prev_build and (not redo):
-            self.tslits_dict = self.calib_dict[self.trace_master_key]['trace']
+        prev_build = self.check_for_previous('trace', self.master_key_dict['trace'])
+        if prev_build and not redo:
+            self.tslits_dict = self.calib_dict[self.master_key_dict['trace']]['trace']
             self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
             return self.tslits_dict, self.maskslits
 
-        # Instantiate (without mstrace)
-        self.traceSlits = traceslits.TraceSlits(None, self.spectrograph, self.par['slits'],
-                                                binning=self.binning,
-                                                det=self.det, master_key=self.trace_master_key,
-                                                master_dir=self.master_dir,
-                                                redux_path=self.redux_path,
-                                                reuse_masters=self.reuse_masters,
-                                                msbpm=self.msbpm)
-
-        # Load via master, as desired
-        self.tslits_dict, _ = self.traceSlits.master(prev_build=prev_build)
+        # Instantiate
+        self.traceSlits = traceslits.TraceSlits(self.spectrograph, self.par['slits'], det=self.det,
+                                                master_key=self.master_key_dict['trace'],
+                                                master_dir=self.master_dir, qa_path=self.qa_path,
+                                                reuse_masters=self.reuse_masters, msbpm=self.msbpm)
+   
+        # Load the MasterFrame (if it exists and is desired)?
+        self.tslits_dict, _ = self.traceSlits.load()
         if self.tslits_dict is None:
-            # Build the trace image first
-            self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
-                                           par=self.par['traceframe'])
-            # Load up and get ready
-            self.traceSlits.mstrace = self.traceImage.process(bias_subtract=self.msbias,
-                                                         trim=self.par['trim'], apply_gain=True)
+            # Build the trace image
+            self.traceImage = traceimage.TraceImage(self.spectrograph,
+                                                    files=self.trace_image_files, det=self.det,
+                                                    par=self.par['traceframe'])
+            self.traceImage.process(bias_subtract=self.msbias, trim=self.par['trim'],
+                                    apply_gain=True)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             binspectral, binspatial = parse.parse_binning(self.binning)
@@ -551,28 +580,30 @@ class Calibrations(object):
 
             # JFH Why is this stuff on user defined slits here and not in the class?
             # User-defined slits??
+            # TODO: this should move to TraceSlitsPar.validate()
             add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
-            rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det, rm=True)
+            rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det,
+                                                         rm=True)
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(plate_scale=plate_scale, show=self.show,
-                                                       add_user_slits=add_user_slits, rm_user_slits=rm_user_slits,
+                self.tslits_dict = self.traceSlits.run(self.traceImage.stack, self.binning,
+                                                       add_user_slits=add_user_slits,
+                                                       rm_user_slits=rm_user_slits,
+                                                       plate_scale=plate_scale, show=self.show,
                                                        write_qa=write_qa)
             except:
-                self.traceSlits.save_master(self.tslits_dict)
-                msgs.error("Crashed out of finding the slits. Have saved the work done to disk but it needs fixing..")
+                self.traceSlits.save(traceImage=self.traceImage)
+                msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
+                           'but it needs fixing.')
+
             # No slits?
             if self.tslits_dict is None:
                 self.maskslits = None
                 return self.tslits_dict, self.maskslits
+
             # Save to disk
             if self.save_masters:
-                # Master
-                self.traceSlits.save_master(self.tslits_dict)
-        else:
-            msgs.info("TraceSlits master files loaded..")
-            # Construct dictionary
-            #self.tslits_dict = self.traceSlits._fill_tslits_dict()
+                self.traceSlits.save(traceImage=self.traceImage)
 
         # Save, initialize maskslits, and return
         self.calib_dict[self.trace_master_key]['trace'] = self.tslits_dict
@@ -593,12 +624,12 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['tilts_dict','tslits_dict','wv_calib','maskslits']):
+        if not self._chk_objs(['tilts_dict', 'tslits_dict', 'wv_calib', 'maskslits']):
             self.mswave = None
             return self.mswave
 
         # Check internals
-        self._chk_set(['arc_master_key', 'det', 'par'])
+        self._chk_set(['det', 'par'])
 
         # Return existing data
         prev_build = self.check_for_previous('wave', self.arc_master_key)
@@ -608,27 +639,29 @@ class Calibrations(object):
 
         # No wavelength calibration requested
         if self.par['wavelengths']['reference'] == 'pixel':
+            msgs.warn('No wavelength calibration performed!')
             self.mswave = self.tilts_dict['tilts'] * (self.tilts_dict['tilts'].shape[0]-1.0)
             self.calib_dict[self.arc_master_key]['wave'] = self.mswave
             return self.mswave
 
         # Instantiate
-        # ToDO we are regenerating this mask a lot in this module. Could reduce that
-        self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'], self.wv_calib,
-                                             self.spectrograph, self.maskslits,
-                                             master_key=self.arc_master_key, master_dir=self.master_dir,
+        # TODO we are regenerating this mask a lot in this module. Could reduce that
+        self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'],
+                                             self.wv_calib, self.spectrograph, self.maskslits,
+                                             master_key=self.arc_master_key,
+                                             master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)
+
         # Attempt to load master
-        self.mswave, _  = self.waveImage.master(prev_build=prev_build)
+        self.mswave = self.waveImage.load()
         if self.mswave is None:
-            self.mswave = self.waveImage._build_wave()
+            self.mswave = self.waveImage.build_wave()
         # Save to hard-drive
         if self.save_masters:
-            self.waveImage.save_master(self.mswave, steps=self.waveImage.steps)
+            self.waveImage.save()
 
         # Save & return
         self.calib_dict[self.arc_master_key]['wave'] = self.mswave
-
         return self.mswave
 
     def get_wv_calib(self):
@@ -647,13 +680,15 @@ class Calibrations(object):
             msgs.error('dont have all the objects')
 
         # Check internals
-        self._chk_set(['arc_master_key', 'det', 'calib_ID', 'par'])
+        self._chk_set(['det', 'calib_ID', 'par'])
+        if 'arc' not in self.master_key_dict.keys():
+            msgs.error('Arc master key not set.  First run get_arc.')
 
         # Return existing data
-        prev_build = self.check_for_previous('wavecalib', self.arc_master_key)
+        prev_build = self.check_for_previous('wavecalib', self.master_key_dict['arc'])
         if prev_build:
-            self.wv_calib = self.calib_dict[self.arc_master_key]['wavecalib']
-            self.wv_maskslits = self.calib_dict[self.arc_master_key]['wvmask']
+            self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
+            self.wv_maskslits = self.calib_dict[self.master_key_dict['arc']]['wvmask']
             self.maskslits += self.wv_maskslits
             return self.wv_calib, self.maskslits
 
@@ -668,33 +703,34 @@ class Calibrations(object):
         # Grab arc binning (may be different from science!)
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(
-            self.arc_files[0], 'binning'))
+        binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
+                                                                                'binning'))
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, self.spectrograph, self.par['wavelengths'],
-                                             binspectral=binspec, det=self.det,
-                                             master_key=self.arc_master_key,
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, self.spectrograph,
+                                             self.par['wavelengths'], binspectral=binspec,
+                                             det=self.det, master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
-                                             redux_path=self.redux_path, msbpm=self.msbpm)
+                                             qa_path=self.qa_path, msbpm=self.msbpm)
         # Load from disk (MasterFrame)?
-        self.wv_calib, _ = self.waveCalib.master(prev_build=prev_build)
-        # Build?
+        self.wv_calib = self.waveCalib.load()
         if self.wv_calib is None:
             self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
-                self.waveCalib.save_master(self.waveCalib.wv_calib)
-        else:
-            self.waveCalib.wv_calib = self.wv_calib
+                self.waveCalib.save()
 
         # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
+        # TODO: This should either be done here or save as part of the
+        # master frame file.  As it is, if not loaded from the master
+        # frame file, mask_maskslits is run twice, once in run above and
+        # once here...
         self.wv_maskslits = self.waveCalib.make_maskslits(self.tslits_dict['slit_left'].shape[1])
         self.maskslits += self.wv_maskslits
 
         # Save & return
-        self.calib_dict[self.arc_master_key]['wavecalib'] = self.wv_calib
-        self.calib_dict[self.arc_master_key]['wvmask'] = self.wv_maskslits
+        self.calib_dict[self.master_key_dict['arc']]['wavecalib'] = self.wv_calib
+        self.calib_dict[self.master_key_dict['arc']]['wvmask'] = self.wv_maskslits
         # Return
         return self.wv_calib, self.maskslits
 
@@ -704,7 +740,7 @@ class Calibrations(object):
 
         Requirements:
            msarc, tslits_dict, wv_calib, maskslits
-           det, par, arc_master_key, spectrograph
+           det, par, spectrograph
 
         Returns:
             dict, ndarray: :attr:`tilts_dict` dictionary with tilts information (2D)
@@ -720,30 +756,34 @@ class Calibrations(object):
             return self.tilts_dict, self.maskslits
 
         # Check internals
-        self._chk_set(['arc_master_key', 'det', 'calib_ID', 'par'])
-
+        self._chk_set(['det', 'calib_ID', 'par'])
+        if 'arc' not in self.master_key_dict.keys():
+            msgs.error('Arc master key not set.  First run get_arc.')
+        
         # Return existing data
-        prev_build = self.check_for_previous('tilts_dict', self.arc_master_key)
+        prev_build = self.check_for_previous('tilts_dict', self.master_key_dict['arc'])
         if prev_build:
-            self.tilts_dict = self.calib_dict[self.arc_master_key]['tilts_dict']
-            self.wt_maskslits = self.calib_dict[self.arc_master_key]['wtmask']
+            self.tilts_dict = self.calib_dict[self.master_key_dict['arc']]['tilts_dict']
+            self.wt_maskslits = self.calib_dict[self.master_key_dict['arc']]['wtmask']
             self.maskslits += self.wt_maskslits
             return self.tilts_dict, self.maskslits
 
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, self.spectrograph,
-                                             self.par['tilts'], self.par['wavelengths'], det=self.det,
-                                             master_key=self.arc_master_key, master_dir=self.master_dir,
+                                             self.par['tilts'], self.par['wavelengths'],
+                                             det=self.det, master_key=self.arc_master_key,
+                                             master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
-                                             redux_path=self.redux_path, bpm=self.msbpm)
+                                             qa_path=self.qa_path, bpm=self.msbpm)
         # Master
-        self.tilts_dict, _ = self.waveTilts.master(prev_build=prev_build)
+        self.tilts_dict = self.waveTilts.load()
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \
-                    = self.waveTilts.run(maskslits=self.maskslits,doqa=self.write_qa, show=self.show)
+                    = self.waveTilts.run(maskslits=self.maskslits,doqa=self.write_qa,
+                                         show=self.show)
             if self.save_masters:
-                self.waveTilts.save_master(self.tilts_dict, steps=self.waveTilts.steps)
+                self.waveTilts.save()
         else:
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
 
@@ -815,11 +855,11 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.
     """
-    def __init__(self, fitstbl, par, spectrograph, redux_path=None, reuse_masters=False, save_masters=True,
-                 write_qa=True, show = False, steps=None):
-        Calibrations.__init__(self, fitstbl, par, spectrograph,
-                              redux_path=redux_path, reuse_masters=reuse_masters, save_masters=save_masters,
-                              write_qa=write_qa, show = show)
+    def __init__(self, fitstbl, par, spectrograph, redux_path=None, reuse_masters=False,
+                 save_masters=True, write_qa=True, show=False, steps=None):
+        Calibrations.__init__(self, fitstbl, par, spectrograph, redux_path=redux_path,
+                              reuse_masters=reuse_masters, save_masters=save_masters,
+                              write_qa=write_qa, show=show)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 
     @staticmethod
@@ -831,7 +871,6 @@ class MultiSlitCalibrations(Calibrations):
             list: Calibration steps, in order of execution
 
         """
-        return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts',
-                'flats', 'wave']
+        return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
 

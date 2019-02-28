@@ -80,6 +80,7 @@ class PypeIt(object):
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
@@ -90,15 +91,21 @@ class PypeIt(object):
                 sci_file = data_files[idx]
                 break
         #   - Configuration specific parameters for the spectrograph
+        if sci_file is not None:
+            msgs.info('Setting configuration-specific parameters using {0}'.format(
+                      os.path.split(sci_file)[1]))
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        msgs.info('Built full PypeIt parameter set.')
+        # TODO: Write the full parameter set here?
         # --------------------------------------------------------------
 
         # --------------------------------------------------------------
         # Build the meta data
         #   - Re-initilize based on the file data
+        msgs.info('Compiling metadata')
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, files=data_files,
                                       usrdata=usrdata, strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
@@ -297,26 +304,39 @@ class PypeIt(object):
         Args:
             frame (:obj:`int`):
                 0-indexed row in :attr:`fitstbl` with the frame to
-                reduce
-            bgframes (:obj:`list`, optional):
-                List of frame indices for the background
+                reduce.
+            bg_frames (:obj:`list`, optional):
+                List of frame indices for the background.
             std_outfile (:obj:`str`, optional):
-                the name of a file with a previously PypeIt-reduced standard spectrum.
+                File with a previously reduced standard spectrum from
+                PypeIt.
 
         Returns:
-            dict: The dictionary containing the primary outputs of extraction
+            dict: The dictionary containing the primary outputs of
+            extraction.
+
         """
+
+        # TODO:
+        # - bg_frames should be None by default
+        # - change doc string to reflect that more than one frame can be
+        #   provided
+
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
+            # TODO: Put this in a try/except block?
             ginga.clear_all()
 
-        # Save the frame
+        # Save the frames
+        # TODO: Should these be set to self?  They're not used elsewhere
+        # in the class or in run pypeit.
         self.frames = frames
         self.bg_frames = bg_frames
         # Is this an IR reduction?
+        # TODO: Why specific to IR?
         self.ir_redux = True if len(bg_frames) > 0 else False
 
-        # JFH Why does this need to be ordered?
+        # TODO: JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
@@ -324,6 +344,8 @@ class PypeIt(object):
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
+        # TODO: Print these when the frames are actually combined,
+        # backgrounds are used, etc?
         msgs_string += 'Combining frames:' + msgs.newline()
         for iframe in self.frames:
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
@@ -635,7 +657,7 @@ class PypeIt(object):
         head1d = self.fitstbl[frame]
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
-        head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext,)
+        head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
         refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
             self.caliBrate.par['wavelengths']['frame']
 

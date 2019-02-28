@@ -161,7 +161,6 @@ class ProcessImages(object):
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
         self.illum_flat = None        # passed as an argument to process(), flat_field()
 
-#    def _set_files(self, files, check=True):
     def _set_files(self, files, check=False):
         """
         Assign the provided files to :attr:`files`.
@@ -312,7 +311,6 @@ class ProcessImages(object):
 
             if self.binning[i] is None:
                 self.binning[i] = self.spectrograph.get_meta_value(self.files[i], 'binning')
-#                self.binning[i] = self.spectrograph.parse_binning(self.headers[i])
 
             # Get the data sections, one section per amplifier
             try:
@@ -466,8 +464,6 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack
-
-
 
     def flat_field(self, pixel_flat, bpm, illum_flat=None):
         """
@@ -808,6 +804,7 @@ class ProcessImages(object):
         # Show
         viewer, ch = ginga.show_image(img)
 
+    # TODO: Is this ever used?
     def write_stack_to_fits(self, outfile, overwrite=True):
         """
         Write the combined image to disk as a FITS file

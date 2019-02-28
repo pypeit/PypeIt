@@ -1,4 +1,9 @@
-""" Module for generating the Arc image"""
+"""
+Module for generating the Arc image.
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
+"""
 import os
 import inspect
 import numpy as np
@@ -34,12 +39,14 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         msbias (ndarray or str, optional): Guides bias subtraction
 
     Attributes:
-        stack (ndarray): Final output image
-
+        msbias (ndarray):
+            Bias image or bias-subtraction method; see
+            :func:`pypeit.processimages.ProcessImages.process`.
     """
 
     # Frametype is a class attribute
     frametype = 'arc'
+    master_type = 'Arc'
 
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False, msbias=None):
@@ -56,23 +63,56 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key, master_dir,
-                                         reuse_masters=reuse_masters)
+        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+                                         master_key=master_key, reuse_masters=reuse_masters)
 
+    # TODO: Allow trim to be a keyword argument?
     def build_image(self, overwrite=False):
-        """ Build the arc image from one or more arc files
+        """
+        Build the arc image from one or more arc files.
 
         Args:
             overwrite: (:obj: `bool`, optional):
                 Regenerate the stack image
 
         Returns:
-            ndarray: :attr:`stack` Combined, processed image
+            `numpy.ndarray`_: Combined, processed image
             
         """
-        # Combine
-        self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
-        #
-        return self.stack
+        return self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
 
+    def save(self, outfile=None, overwrite=True):
+        """
+        Save the arc master data.
+
+        Args:
+            outfile (:obj:`str`, optional):
+                Name for the output file.  Defaults to
+                :attr:`file_path`.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file.
+        """
+        super(ArcImage, self).save(self.stack, 'ARC', outfile=outfile, overwrite=overwrite,
+                                   raw_files=self.files, steps=self.steps)
+
+    # TODO: it would be better to have this instantiate the full class
+    # as a classmethod.
+    def load(self, ifile=None, return_header=False):
+        """
+        Load the arc frame data from a saved master frame.
+
+        Args:
+            ifile (:obj:`str`, optional):
+                Name of the master frame file.  Defaults to
+                :attr:`file_path`.
+            return_header (:obj:`bool`, optional):
+                Return the header
+
+        Returns:
+            tuple: Returns three `numpy.ndarray`_ objects with the raw
+            flat-field image, the normalized pixel flat, and the
+            illumination flat.  Also returns the primary header, if
+            requested.
+        """
+        return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header)
 

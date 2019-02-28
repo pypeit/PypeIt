@@ -69,9 +69,10 @@ class PypeItMetaData:
             `data` is also provided.  This functionality is only used
             when building the metadata from the fits files.
         strict (:obj:`bool`, optional):
-            Function will fault if :func:`fits.getheader` fails to read
-            any of the headers in the provided file list.  Set to False
-            to instead report a warning and continue.
+            Function will fault if there is a problem with the reading
+            the header for any of the provided files; see
+            :func:`pypeit.spectrographs.spectrograph.get_headarr`.  Set
+            to False to instead report a warning and continue.
 
     Attributes:
         spectrograph
@@ -298,6 +299,7 @@ class PypeItMetaData:
                                                          required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 data[meta_key].append(value)
+            msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
 #        # Additional bits and pieces
 #        self._add_bkg_pairs(data, 'empty')

@@ -26,13 +26,16 @@ from pypeit import masterframe
 #            exten = '.fits'
 #        assert masterframe.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01{:s}'.format(isuff,exten)
 
+def data_root():
+    return os.path.join(os.path.dirname(__file__), 'files')
+
 # Could break this into a bunch of separate tests...
 def test_master_io():
     """
     Test the save and load methods by saving a fake master and reading it back in.
     """
     # Init
-    master_dir = os.path.join(os.getcwd(), 'files')
+    master_dir = data_root()
     mf = masterframe.MasterFrame('Test', master_dir=master_dir, master_key='A_01_1',
                                  reuse_masters=True)
     # In case of previous test failure
@@ -63,7 +66,7 @@ def test_master_io():
     assert mf.parse_hdr_raw_files(_hdr) == raw_files, 'Did not correctly read files'
     # Loading if reuse_masters is false should yield None
     mf.reuse_masters = False
-    assert mf.load('JUNK') is None, 'Load when reuse_masters=True should return None'
+    assert mf.load('JUNK') is None, 'Load when reuse_masters=False should return None'
     # Clean up
     os.remove(mf.file_path)
 

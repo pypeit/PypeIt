@@ -104,6 +104,21 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
+    @property
+    def nonlinear_counts(self, det=1):
+        """
+        Return the counts at which the detector response becomes
+        non-linear.
+
+        Args:
+            det (:obj:`int`, optional):
+                1-indexed detector number.
+        
+        Returns:
+            float: Counts at which detector response becomes nonlinear.
+        """
+        return self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
@@ -638,18 +653,18 @@ class Spectrograph(object):
             list: Returns a list of :attr:`numhead` :obj:`fits.Header`
             objects with the extension headers.
         """
-        headarr = ['None']*self.numhead
-        for k in range(self.numhead):
-            try:
-                headarr[k] = fits.getheader(filename, ext=k)
-            except:
-                if strict:
-                    msgs.error("Header error in extension {0} in {1}.".format(k, filename))
-                else:
-                    msgs.warn('Bad header in extension {0} in {1}'.format(k, filename) 
-                              + msgs.newline() + 'Proceeding on the hopes this was a '
-                              + 'calibration file, otherwise consider removing.')
-        return headarr
+        # Faster to open the whole file and then assign the headers,
+        # particularly for gzipped files (e.g., DEIMOS)
+        try:
+            hdu = fits.open(filename)
+        except:
+            if strict:
+                msgs.error('Problem opening {0}.'.format(filename))
+            else:
+                msgs.warn('Problem opening {0}.'.format(filename) + msgs.newline()
+                          + 'Proceeding, but should consider removing this file!')
+                return ['None']*self.numhead
+        return [ hdu[k].header for k in range(self.numhead) ]
 
 #    def get_match_criteria(self):
 #        msgs.error("You need match criteria for your spectrograph.")

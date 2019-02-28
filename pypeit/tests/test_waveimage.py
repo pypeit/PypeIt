@@ -32,6 +32,6 @@ def test_build_me():
     wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, maskslits,
                                 master_key=master_key, master_dir=master_dir, reuse_masters=True)
     # Build
-    wave = wvImg._build_wave()
+    wave = wvImg.build_wave()
     assert int(np.max(wave)) > 5510
 
