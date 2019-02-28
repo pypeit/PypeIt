@@ -714,7 +714,6 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
         # Fill in the rest of the wave_mid with the corresponding points in the wave_grid
         wave_this = wave_mid[wave_mask[:,islit], islit]
         ind_upper = np.argmin(np.abs(wave_grid_mid - np.max(wave_this.max()))) + 1
-        #ind_lower,ind_upper = get_wave_ind(wave_grid_mid, wave_this.min(), wave_this.max())
         if nspec_vec[islit] != nspec_psuedo:
             wave_mid[nspec_vec[islit]:, islit] = wave_grid_mid[ind_upper:ind_upper + (nspec_psuedo-nspec_vec[islit])]
 
