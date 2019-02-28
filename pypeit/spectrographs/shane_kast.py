@@ -117,13 +117,13 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 #                                        for t in fitstbl['target']])
         if ftype == 'bias':
             return good_exp # & (fitstbl['target'] == 'Bias')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
-        if ftype == 'pinhole' or ftype == 'dark':
+        if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))

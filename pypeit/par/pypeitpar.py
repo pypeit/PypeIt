@@ -168,8 +168,6 @@ class FrameGroupPar(ParSet):
         Return the list of valid frame types.
         """
         return FrameTypeBitMask().keys()
-#        return [ 'bias', 'dark', 'pixelflat', 'arc', 'pinhole', 'trace', 'standard', 'science',
-#                 'all' ]
 
     def validate(self):
         if self.data['useframe'] is None:

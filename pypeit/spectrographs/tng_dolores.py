@@ -176,26 +176,18 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         Check for frames of the provided type.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype == 'science':
-            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
-
-    def check_frame_type(self, ftype, fitstbl, exprng=None):
-        """
-        Check for frames of the provided type.
-        """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'OBJECT') & (fitstbl['lamps'] == 'Parking') \
                         & (fitstbl['dispname'] != 'OPEN')
         if ftype == 'bias':
             return good_exp & (fitstbl['dispname'] == 'OPEN')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             return good_exp & (fitstbl['idname'] == 'CALIB') & (fitstbl['lamps'] == 'Halogen') \
                         & (fitstbl['dispname'] != 'OPEN')
-        if ftype == 'pinhole' or ftype == 'dark':
+        if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'arc') & (fitstbl['lamps'] == 'Ne+Hg') \
                         & (fitstbl['dispname'] != 'OPEN')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))

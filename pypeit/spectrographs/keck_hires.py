@@ -83,10 +83,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['idname'] == 'Flat') | (fitstbl['idname'] == 'IntFlat'))
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'Line')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))

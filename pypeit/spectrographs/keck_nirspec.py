@@ -203,7 +203,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
             is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \

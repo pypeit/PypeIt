@@ -166,7 +166,7 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)

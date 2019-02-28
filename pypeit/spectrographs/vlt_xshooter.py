@@ -152,7 +152,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['target'] == 'BIAS')
         if ftype == 'dark':
             return good_exp & (fitstbl['target'] == 'DARK')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
@@ -160,7 +160,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['target'] == 'LAMP,WAVE')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))

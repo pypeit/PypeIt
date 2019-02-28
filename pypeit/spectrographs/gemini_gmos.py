@@ -75,9 +75,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'science':
             return good_exp & (fitstbl['target'] != 'CuAr') & (fitstbl['target'] != 'GCALflat') & (fitstbl['target'] != 'Bias')
             #& (fitstbl['idname'] == 'OBJECT')
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             return good_exp & (fitstbl['target'] == 'GCALflat')#& (fitstbl['idname'] == 'FLAT')
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')

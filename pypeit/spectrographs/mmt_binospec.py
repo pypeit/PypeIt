@@ -346,13 +346,13 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['hatch'] == 'closed')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['lamps'] == 'Qz') & (fitstbl['hatch'] == 'closed')
-        if ftype == 'pinhole' or ftype == 'dark':
+        if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lamps'] == 'Kr Xe Ar Ne') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))

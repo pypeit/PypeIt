@@ -162,7 +162,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Telluric')
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'Science')
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'Science')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
