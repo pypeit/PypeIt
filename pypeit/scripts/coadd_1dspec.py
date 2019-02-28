@@ -59,6 +59,13 @@ def main(args, unit_test=False, path=''):
         msgs.error("No files match your input list")
     else:
         msgs.info("Coadding {:d} data frames".format(len(files)))
+        # figure out whether it is Echelle or Longslit
+        header0 = fits.getheader(files[0],0)
+        pypeline = header0['PYPELINE']
+        # also need norder for Echelle data
+        if pypeline == 'Echelle':
+            ext_final = fits.getheader(files[0], -1)
+            norder = ext_final['ECHORDER'] + 1
     fdict = {}
     for ifile in files:
         # Open file
@@ -130,54 +137,75 @@ def main(args, unit_test=False, path=''):
             else:
                 ind = files.index(fkey)
                 use_obj = iobj[ind]
-            # Find object indices
-            # FW: mtch_obj_to_objects will return None when no matching and raise TypeError: cannot unpack non-iterable NoneType object
-            try:
-                mtch_obj, idx = specobjs.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
-            except TypeError:
-                mtch_obj = None
-            if mtch_obj is None:
-                msgs.info("No object {:s} in file {:s}".format(iobj, fkey))
-            elif len(mtch_obj) == 1:
-                #Check if optimal extraction is present in all  objects.
-                # If not, warn the user and set ex_value to 'box'.
-                hdulist = fits.open(fkey)
-                try: #In case the optimal extraction array is a NaN array
-                    if flux_value is True: # If we have a fluxed spectrum, look for flam
-                        obj_opt = hdulist[mtch_obj[0]].data['OPT_FLAM']
-                    else: # If not, look for counts
-                        obj_opt = hdulist[mtch_obj[0]].data['OPT_COUNTS']
-                    if any(isnan(obj_opt)):
-                        msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
-                        ex_value = 'box'
-                except KeyError: #In case the array is absent altogether.
-                    msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
-                    try:
-                        if flux_value is True: # If we have a fluxed spectrum, look for flam
-                            hdulist[mtch_obj[0]].data['BOX_FLAM']
-                        else: # If not, look for counts
-                            hdulist[mtch_obj[0]].data['BOX_COUNTS']
-                    except KeyError:
-                        #In case the boxcar extract is also absent
-                        msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))
-                    ex_value = 'box'
+
+            if pypeline == 'Echelle':
                 gdfiles.append(fkey)
-                gdobj += mtch_obj
-                extensions.append(idx[0]+1)
+                gdobj += [use_obj]
             else:
-                raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj, fkey))
+                # Find object indices
+                # FW: mtch_obj_to_objects will return None when no matching and raise TypeError: cannot unpack non-iterable NoneType object
+                try:
+                    mtch_obj, idx = specobjs.mtch_obj_to_objects(use_obj, fdict[fkey], **local_kwargs)
+                except TypeError:
+                    mtch_obj = None
+                if mtch_obj is None:
+                    msgs.info("No object {:s} in file {:s}".format(iobj, fkey))
+                elif len(mtch_obj) == 1:
+                    #Check if optimal extraction is present in all objects.
+                    # If not, warn the user and set ex_value to 'box'.
+                    hdulist = fits.open(fkey)
+                    try: #In case the optimal extraction array is a NaN array
+                        if flux_value is True: # If we have a fluxed spectrum, look for flam
+                            obj_opt = hdulist[mtch_obj[0]].data['OPT_FLAM']
+                        else: # If not, look for counts
+                            obj_opt = hdulist[mtch_obj[0]].data['OPT_COUNTS']
+                        if any(isnan(obj_opt)):
+                            msgs.warn("Object {:s} in file {:s} has a NaN array for optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
+                            ex_value = 'box'
+                    except KeyError: #In case the array is absent altogether.
+                        msgs.warn("Object {:s} in file {:s} doesn't have an optimal extraction. Boxcar will be used instead.".format(mtch_obj[0],fkey))
+                        try:
+                            if flux_value is True: # If we have a fluxed spectrum, look for flam
+                                hdulist[mtch_obj[0]].data['BOX_FLAM']
+                            else: # If not, look for counts
+                                hdulist[mtch_obj[0]].data['BOX_COUNTS']
+                        except KeyError:
+                            #In case the boxcar extract is also absent
+                            msgs.error("Object {:s} in file {:s} doesn't have a boxcar extraction either. Co-addition cannot be performed".format(mtch_obj[0],fkey))
+                        ex_value = 'box'
+                    gdfiles.append(fkey)
+                    gdobj += mtch_obj
+                    extensions.append(idx[0]+1)
+                else:
+                    raise ValueError("Multiple matches to object {:s} in file {:s}".format(iobj, fkey))
 
         # Load spectra
         if len(gdfiles) == 0:
             msgs.error("No files match your input criteria")
 
-        spectra = coadd.load_spec(gdfiles, iextensions=extensions,
-                                    extract=ex_value, flux=flux_value)
+        # QA file name
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
 
+        if pypeline == 'Echelle':
 
-        # Coadd!
-        coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
-                            flux_scale=scale_dict, **gparam)
+            # Check whether the scale_dict is in the right shape.
+            if 'orderscale' in gparam.keys():
+                orderscale_value = gparam['orderscale']
+            else:
+                orderscale_value = 'median'
+
+            if (scale_dict is not None) and (orderscale_value=='photometry'):
+                if len(scale_dict) != norder:
+                    raise IOError("You need to specifiy the photometric information for every order.")
+
+            spec1d = coadd.ech_coadd(gdfiles, objids=gdobj, extract=ex_value, flux=flux_value, phot_scale_dicts=scale_dict,
+                                     outfile=outfile, qafile=qafile,**gparam)
+
+        else:
+            spectra = coadd.load_spec(gdfiles, iextensions=extensions,
+                                        extract=ex_value, flux=flux_value)
+            # Coadd!
+            coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
+                                flux_scale=scale_dict, **gparam)
 
