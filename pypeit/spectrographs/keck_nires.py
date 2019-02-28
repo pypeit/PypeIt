@@ -115,23 +115,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [20, None]
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for a Keck NIRES exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'NIRES',
-                               '1.NAXIS': 2,
-                              '1.NAXIS1': 2048,
-                              '1.NAXIS2': 1024 }
-        super(KeckNIRESSpectrograph, self).check_headers(headers, expected_values=expected_values)
-
     def init_meta(self):
         """
         Generate the meta data dict
@@ -171,6 +154,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         Check for frames of the provided type.
         """
+        # TODO: Arcs, tilts, darks?
         if ftype in ['pinhole', 'bias']:
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -179,44 +163,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         
         return (fitstbl['idname'] == 'object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-
-#    def parse_binning(self, inp, det=1):
-#        return '1,1'
-
-#    def get_match_criteria(self):
-#        """Set the general matching criteria for NIRES"""
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['naxis0'] = '=0'
-#        match_criteria['standard']['match']['naxis1'] = '=0'
-#
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['naxis0'] = '=0'
-#        match_criteria['bias']['match']['naxis1'] = '=0'
-#
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-#
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['naxis0'] = '=0'
-#        match_criteria['trace']['match']['naxis1'] = '=0'
-#
-#        match_criteria['arc']['match'] = {}
-#        match_criteria['arc']['match']['naxis0'] = '=0'
-#        match_criteria['arc']['match']['naxis1'] = '=0'
-#
-#        # OLD
-#        # Bias
-#        #match_criteria['bias']['match'] = {}
-#        #match_criteria['standard']['match'] = {}
-#        #match_criteria['pixelflat']['match'] = {}
-#        #match_criteria['trace']['match'] = {}
-#        #match_criteria['arc']['match'] = {}
-#        return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

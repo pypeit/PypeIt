@@ -67,29 +67,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
 
-#    def gemini_header_keys(self):
-#        def_keys = self.default_header_keys()
-#        def_keys[0]['time'] = 'OBSEPOCH'      # The time stamp of the observation (i.e. decimal MJD)
-#        def_keys[0]['dispname'] = 'GRATING'      # The time stamp of the observation (i.e. decimal MJD)
-#        def_keys[0]['idname'] = 'OBSTYPE'     # Frame type
-#        def_keys[0]['decker'] = 'MASKNAME'
-#        def_keys[0]['dispangle'] = 'CENTWAVE'
-#        def_keys[0]['exptime'] = 'EXPTIME'
-#        #
-#        def_keys[0]['date'] = 'DATE-OBS'
-#        def_keys[0]['time'] = 'TIME-OBS'
-#        def_keys[0]['airmass'] = 'AIRMASS'
-#        #
-#        def_keys[0]['target'] = 'OBJECT'
-#        def_keys[0]['ra'] = 'RA'    # deg
-#        def_keys[0]['dec'] = 'DEC'  # deg
-#        #
-#
-#        def_keys[1] = {}
-#        def_keys[1]['binning'] = 'CCDSUM'
-#        # Return
-#        return def_keys
-
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -98,9 +75,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if ftype == 'science':
             return good_exp & (fitstbl['target'] != 'CuAr') & (fitstbl['target'] != 'GCALflat') & (fitstbl['target'] != 'Bias')
             #& (fitstbl['idname'] == 'OBJECT')
-        if ftype == 'arc':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             return good_exp & (fitstbl['target'] == 'GCALflat')#& (fitstbl['idname'] == 'FLAT')
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')
@@ -270,92 +247,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 #                 self.datasec_img[datasec] = i+1
 #         return self.datasec_img
 
-#    def gemini_get_match_criteria(self):
-#        """
-#        Note: match the acs on central wavelengths for dithered spectra (chip gap avoidance).
-#        Does not match the flats so there could be some weirdness at the edges (MW).
-#
-#        Returns:
-#            dict: dict of header keywords to match the files on.
-#
-#        """
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#        # Science
-#        match_criteria['science']['number'] = 1
-#        # Standard
-#        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['decker'] = ''
-#        match_criteria['standard']['match']['dispangle'] = ''
-#        # Bias
-#        match_criteria['bias']['number'] = 5
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['decker'] = ''
-#        # Pixelflat
-#        match_criteria['pixelflat']['number'] = 1
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['decker'] = ''
-#        # Traceflat
-#        match_criteria['trace']['number'] = 1
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['decker'] = ''
-#        # Arc
-#        match_criteria['arc']['number'] = 1
-#        match_criteria['arc']['match'] = {}
-#        match_criteria['arc']['match']['decker'] = ''
-#        match_criteria['arc']['match']['dispangle'] = ''
-#
-#        # Return
-#        return match_criteria
-#
-#    def get_match_criteria(self):
-#        return self.gemini_get_match_criteria()
-#
-#    def metadata_keys(self):
-#        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker',
-#                'dispangle', 'setup', 'calib', 'obj_id', 'bkg_id' ]
-
-    '''
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        arcparam['lamps'] = ['CuI', 'ArI', 'ArII'] #  May be a handful of CuII lines too
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        if 'R150' in disperser:
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['wv_cen'] = 4000.
-        elif 'R400' in disperser:
-            arcparam['disp']=0.74 # Ang per pixel (unbinned) :: E2V  is 0.67
-            arcparam['min_ampl'] = 1000.0
-        elif 'B600' in disperser:
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][0] = 3800.
-            arcparam['wvmnx'][1] = 8000.
-            arcparam['wv_cen'] = 4000.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
-    '''
-
 
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
     """
@@ -416,10 +307,6 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
         ]
         self.numhead = 13
-
-#    def header_keys(self):
-#        head_keys = self.gemini_header_keys()
-#        return head_keys
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
@@ -560,10 +447,6 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
         self.telescope = telescopes.GeminiNTelescopePar()
         self.camera = 'GMOS-N'
 
-#    def header_keys(self):
-#        head_keys = self.gemini_header_keys()
-#        return head_keys
-
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     """
@@ -692,10 +575,6 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         super(GeminiGMOSNE2VSpectrograph, self).init_meta()
         self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
 
-#    def header_keys(self):
-#        head_keys = self.gemini_header_keys()
-#        head_keys[0]['exptime'] = 'EXPOSURE'
-#        return head_keys
 
 def read_gmos(raw_file, det=1):
     """

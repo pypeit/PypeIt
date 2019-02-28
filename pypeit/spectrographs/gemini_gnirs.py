@@ -170,13 +170,13 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'FLAT')
-        if ftype == 'pinhole' or ftype == 'dark' or ftype == 'bias':
+        if ftype in ['pinhole', 'dark', 'bias']:
             # Don't type pinhole, dark, or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'ARC')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -312,35 +312,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             loglam_grid = loglam_grid + self.dloglam/2.0
         return np.power(10.0,loglam_grid)
 
-
-    def get_match_criteria(self):
-
-        """Set the general matching criteria for GNIRS. Copied from NIRES"""
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['naxis0'] = '=0'
-#        match_criteria['standard']['match']['naxis1'] = '=0'
-
-        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['naxis0'] = '=0'
-#        match_criteria['bias']['match']['naxis1'] = '=0'
-
-        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-
-        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['naxis0'] = '=0'
-#        match_criteria['trace']['match']['naxis1'] = '=0'
-
-        match_criteria['arc']['match'] = {}
-#        match_criteria['arc']['match']['naxis0'] = '=0'
-#        match_criteria['arc']['match']['naxis1'] = '=0'
-
-        return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """

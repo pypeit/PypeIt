@@ -14,6 +14,8 @@
       consolidate the few opaque steps when finishing the meta data
       build.
 - Allows for slice like syntax when defining calibration groups.
+- Introduce 'tilt' frame type.  Not used yet.  Everything that's typed
+  as an 'arc' is now also typed as a 'tilt'.
 
 0.9.2 (25 Feb 2019)
 -------------------

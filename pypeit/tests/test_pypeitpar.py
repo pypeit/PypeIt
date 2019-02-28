@@ -51,12 +51,6 @@ def test_traceslits():
 def test_wavetilts():
     pypeitpar.WaveTiltsPar()
 
-def test_traceobjects():
-    pypeitpar.TraceObjectsPar()
-
-def test_extractobjects():
-    pypeitpar.ExtractObjectsPar()
-
 def test_calibrations():
     pypeitpar.CalibrationsPar()
 

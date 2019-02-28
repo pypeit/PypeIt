@@ -122,13 +122,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
-        if ftype == 'pinhole' or ftype == 'dark':
+        if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -254,29 +254,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self._check_detector()
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
-
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        #
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['dispname'] = ''
-        match_criteria['standard']['match']['dichroic'] = ''
-        match_criteria['standard']['match']['binning'] = ''
-        match_criteria['standard']['match']['decker'] = ''
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-
-        # Return
-        return match_criteria
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -405,35 +382,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # Return
         return par
-
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LRISb exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'LRISBLUE',
-                               '1.NAXIS': 2,
-                               '2.NAXIS': 2,
-                               '3.NAXIS': 2,
-                               '4.NAXIS': 2,
-                             '1.CCDGEOM': 'e2v (Marconi) CCD44-82',
-                             '1.CCDNAME': '00151-14-1' }
-        super(KeckLRISBSpectrograph, self).check_headers(headers, expected_values=expected_values)
-    '''
-
-    '''
-    def header_keys(self):
-        hdr_keys = super(KeckLRISBSpectrograph, self).header_keys()
-        hdr_keys[0]['filter1'] = 'BLUFILT'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
