@@ -286,14 +286,14 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
         # sensfunc = lblrtm_sensfunc() ???
         msgs.develop('fluxing and telluric correction based on LBLRTM model is under developing.')
     else:
-        sensfunc = standard_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, msk_bad=msk_bad, msk_star=msk_star,
+        sensfunc, mask_sens = standard_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, msk_bad=msk_bad, msk_star=msk_star,
                                 msk_tell=msk_tell, maxiter=35,upper=3.0, lower=3.0, poly_norder=poly_norder,
                                 BALM_MASK_WID=BALM_MASK_WID,nresln=nresln,telluric=telluric, resolution=resolution,
                                 polycorrect= polycorrect, debug=debug, show_QA=False)
 
     if debug:
-        plt.plot(wave_star.value, flux_true, color='k',lw=2,label='Reference Star')
-        plt.plot(wave_star.value, flux_star*sensfunc, color='r',label='Fluxed Observed Star')
+        plt.plot(wave_star.value[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')
+        plt.plot(wave_star.value[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r',label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)
@@ -315,6 +315,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
     sens_dict['std_name'] = std_dict['name']
     sens_dict['cal_file'] = std_dict['cal_file']
     sens_dict['flux_true'] = flux_true
+    sens_dict['mask_sens'] = mask_sens
     #sens_dict['std_dict'] = std_dict
     #sens_dict['msk_star'] = msk_star
     #sens_dict['mag_set'] = mag_set
@@ -412,7 +413,7 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BAL
                        ((wave_star >= 6850.00) & (wave_star <= 6960.00)), #O2 telluric band
                        ((wave_star >= 7580.00) & (wave_star <= 7750.00)), #O2 telluric band
                        ((wave_star >= 7160.00) & (wave_star <= 7340.00)), #H2O
-                       ((wave_star >= 8110.00) & (wave_star <= 8350.00))],axis=0) #H2O
+                       ((wave_star >= 8150.00) & (wave_star <= 8250.00))],axis=0) #H2O
         msk_tell[tell_opt] = False
         ## Mask near-infrared telluric region
         if np.max(wave_star)>9100.0:
@@ -539,9 +540,10 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
     if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):
         ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
         balmer_clean = np.zeros_like(wave_obs, dtype=bool)
-        lines_hydrogen = np.array([836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0, 6564.6, \
-                                   8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, 8667.4, \
-                                   8752.9, 8865.2, 9017.4, 9229.0, 10049.4, 10938.1, 12818.1, 21655.0])
+        # Commented out the bluest recombination lines since they are weak for spectroscopic standard stars.
+        #836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7,   \
+        lines_hydrogen = np.array([5407.0, 6564.6, 8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, \
+                                   8667.4, 8752.9, 8865.2, 9017.4, 9229.0, 10049.4, 10938.1, 12818.1, 21655.0])
         for line_hydrogen in lines_hydrogen:
             ihydrogen = np.abs(wave_obs - line_hydrogen) <= BALM_MASK_WID
             balmer_clean[ihydrogen] = True
@@ -633,17 +635,19 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
     if debug:
         plt.figure()
         magfunc_raw = logflux_std - logflux_obs
-        plt.plot(wave_obs,magfunc_raw , 'k-',lw=3,label='Raw Magfunc')
+        plt.plot(wave_obs[masktot],magfunc_raw[masktot] , 'k-',lw=3,label='Raw Magfunc')
+        plt.plot(wave_obs[masktot],magfunc_poly[masktot] , 'c-',lw=3,label='Polynomial Fit')
         plt.plot(wave_obs[np.invert(msk_tell)], magfunc_raw[np.invert(msk_tell)], 's',
                  color='0.7',label='Telluric Region')
-        plt.plot(wave_obs[np.invert(masktot)], magfunc_raw[np.invert(masktot)], 'r+',label='Masked Region')
-        plt.plot(wave_obs, magfunc,'b-',label='Final Magfunc')
+        plt.plot(wave_obs[np.invert(msk_star)], magfunc_raw[np.invert(msk_star)], 'r+',label='Recombination Line region')
+        plt.plot(wave_obs[masktot], magfunc[masktot],'b-',label='Final Magfunc')
         plt.legend(fancybox=True, shadow=True)
-        #plt.ylim([0.,1.2*np.max(magfunc)])
+        plt.xlim([0.995*np.min(wave_obs[masktot]),1.005*np.max(wave_obs[masktot])])
+        plt.ylim([0.,1.2*np.max(magfunc[masktot])])
         plt.show()
         plt.close()
 
-    return sensfunc
+    return sensfunc, masktot
 
 def extinction_correction(wave, airmass, extinct):
     """
@@ -954,7 +958,12 @@ def load_standard_file(std_dict):
         msgs.info("Loading standard star file: {:s}".format(fil))
         msgs.info("Fluxes are flambda, normalized to 1e-17")
 
-    if std_dict['fmt'] == 1: # Calspec
+    if std_dict['fmt'] == 3: # XSHOOTER files
+        std_spec = Table.read(fil, format='ascii')
+        # Load
+        std_dict['wave'] = std_spec['col1'] * units.AA
+        std_dict['flux'] = 10*std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
+    elif std_dict['fmt'] == 1: # Calspec
         std_spec = fits.open(fil)[1].data
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
@@ -964,11 +973,6 @@ def load_standard_file(std_dict):
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
         std_dict['flux'] = 10*std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 3: # XSHOOTER files
-        std_spec = Table.read(fil, format='ascii')
-        # Load
-        std_dict['wave'] = std_spec['col1'] * units.AA
-        std_dict['flux'] = 10*std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
     else:
         msgs.error("Bad Standard Star Format")
     return
@@ -1070,7 +1074,7 @@ def scale_in_filter(xspec, scale_dict):
     else:
         msgs.error("Need a magnitude for scaling")
 
-    return new_spec
+    return new_spec,scale
 
 def telluric_params(sptype):
     """Compute physical parameters for a given stellar type.
