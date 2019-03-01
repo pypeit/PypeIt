@@ -754,7 +754,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def dloglam(self):
         # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
         # loglam across the orders deviates from this value by +-7% from this first to final order
-        return 1.69207e-5
+        return 8.46035e-06   # 1.69207e-5, measured from a 2 by 1 data, divided by two.
 
     @property
     def loglam_minmax(self):
