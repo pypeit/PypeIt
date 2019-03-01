@@ -104,8 +104,7 @@ def parser(options=None):
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
-    parser.add_argument("--par_outfile", default='coadd2d.par', action="store_true",
-                        help="Output file to save the parameters")
+    parser.add_argument("--basename", type=str, default=None, help="Basename of files to save the parameters, spec1d, and spec2d")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
 
@@ -141,16 +140,22 @@ def main(args):
         msgs.info("Restricting reductions to detector={}".format(args.det))
         par['rdx']['detnum'] = int(args.det)
 
-    # Write the par to disk
-    print("Writing the parameters to {}".format(args.par_outfile))
-    par.to_config(args.par_outfile)
-
-    # Now run the coadds
+    # Get headers and base names
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
     head1d = fits.getheader(spec1d_files[0])
     head2d = fits.getheader(spec2d_files[0])
-    filename = os.path.basename(spec2d_files[0])
-    basename = filename.split('_')[1]
+    if args.basename is None:
+        filename = os.path.basename(spec2d_files[0])
+        basename = filename.split('_')[1]
+    else:
+        basename = args.basename
+
+    # Write the par to disk
+    par_outfile = basename+'_coadd2d.par'
+    print("Writing the parameters to {}".format(par_outfile))
+    par.to_config(par_outfile)
+
+    # Now run the coadds
 
     skysub_mode = head2d['SKYSUB']
     ir_redux = True if 'DIFF' in skysub_mode else False
