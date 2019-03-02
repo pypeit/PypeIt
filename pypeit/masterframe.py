@@ -31,7 +31,7 @@ class MasterFrame(object):
         master_key (str or None):
             Root of the MasterFrame names, e.g. 'A_1_01'.  If None, set
             to 'master'
-        format (:obj:`str`, optional):
+        file_format (:obj:`str`, optional):
             File format for the master frame.  Typically 'fits' or 'json'.
         reuse_masters (bool, optional):
             Reuse already created master files from disk.
@@ -43,23 +43,21 @@ class MasterFrame(object):
             See initialization arguments.
         master_key (:obj:`str`):
             See initialization arguments.
-        format (:obj:`str`):
-            See initialization arguments.
-        format (:obj:`str`):
+        file_format (:obj:`str`):
             See initialization arguments.
         reuse_masters (:obj:`bool`):
             See initialization arguments.
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, master_type, master_dir=None, master_key=None, format='fits',
+    def __init__(self, master_type, master_dir=None, master_key=None, file_format='fits',
                  reuse_masters=False):
 
         # Output names
         self.master_type = master_type
         self.master_dir = os.getcwd() if master_dir is None else master_dir
         self.master_key = 'master' if master_key is None else master_key
-        self.format = format
+        self.file_format = file_format
 
         # Other parameters
         self.reuse_masters = reuse_masters
@@ -69,7 +67,7 @@ class MasterFrame(object):
         """
         Name of the MasterFrame file.
         """
-        return 'Master{0}_{1}.{2}'.format(self.master_type, self.master_key, self.format)
+        return 'Master{0}_{1}.{2}'.format(self.master_type, self.master_key, self.file_format)
 
     @property
     def file_path(self):
