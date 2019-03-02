@@ -24,7 +24,6 @@ def parser(options=None) :
         args = parser.parse_args(options)
     return args
 
-
 def main(args):
     """
     Parameters
@@ -44,6 +43,8 @@ def main(args):
 
     from linetools.utils import loadjson
 
+    # TODO: This must be an out-dated script that is never used.
+    # Deprecate it?
     from pypeit import arqa
     from pypeit import msgs
     msgs.reset(verbosity=2)

@@ -388,18 +388,18 @@ class WaveTilts(masterframe.MasterFrame):
         #   - Set the master frame type
         hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
         #   - List the completed steps
-        hdr['STEPS'] = (','.join(steps), 'Completed reduction steps')
+        hdr['STEPS'] = (','.join(self.steps), 'Completed reduction steps')
         #   - Tilts metadata
-        hdr['FUNC2D'] = tilts_dict['func2d']
-        hdr['NSLIT'] =  tilts_dict['nslit']
+        hdr['FUNC2D'] = self.tilts_dict['func2d']
+        hdr['NSLIT'] =  self.tilts_dict['nslit']
         
         # Write the fits file
         fits.HDUList([fits.PrimaryHDU(header=hdr),
-                      fits.ImageHDU(data=tilts_dict['tilts'], name='TILTS'),
-                      fits.ImageHDU(data=tilts_dict['coeffs'], name='COEFFS'),
-                      fits.ImageHDU(data=tilts_dict['slitcen'], name='SLITCEN'),
-                      fits.ImageHDU(data=tilts_dict['spat_order'], name='SPAT_ORDER'),
-                      fits.ImageHDU(data=tilts_dict['spec_order'], name='SPEC_ORDER')
+                      fits.ImageHDU(data=self.tilts_dict['tilts'], name='TILTS'),
+                      fits.ImageHDU(data=self.tilts_dict['coeffs'], name='COEFFS'),
+                      fits.ImageHDU(data=self.tilts_dict['slitcen'], name='SLITCEN'),
+                      fits.ImageHDU(data=self.tilts_dict['spat_order'], name='SPAT_ORDER'),
+                      fits.ImageHDU(data=self.tilts_dict['spec_order'], name='SPEC_ORDER')
                      ]).writeto(_outfile, overwrite=True)
 
     def load(self, ifile=None, return_header=False):

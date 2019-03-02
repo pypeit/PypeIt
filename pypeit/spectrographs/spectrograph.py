@@ -104,7 +104,6 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    @property
     def nonlinear_counts(self, det=1):
         """
         Return the counts at which the detector response becomes

@@ -339,7 +339,7 @@ class WaveCalib(masterframe.MasterFrame):
         # jsonify has the annoying property that it modifies the objects
         # when it jsonifies them so make a copy, which converts lists to
         # arrays, so we make a copy
-        data_for_json = copy.deepcopy(data)
+        data_for_json = copy.deepcopy(self.wv_calib)
         gddict = linetools.utils.jsonify(data_for_json)
         linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
 
@@ -363,17 +363,18 @@ class WaveCalib(masterframe.MasterFrame):
         Returns:
             dict or None: self.wv_calib
         """
-        # Format the input and set the tuple for an empty return
-        _ifile = self.file_path if ifile is None else ifile
         if not self.reuse_masters:
             # User does not want to load masters
             msgs.warn('PypeIt will not reuse masters!')
-            return empty_return
+            return None
         
+        # Check the input path
+        _ifile = self.file_path if ifile is None else ifile
+
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
             msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
-            return empty_return
+            return None
 
         # Read and return
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))

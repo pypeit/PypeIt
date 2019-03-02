@@ -12,35 +12,11 @@ from astropy.table import Table
 
 from pypeit import wavecalib
 from pypeit.metadata import PypeItMetaData
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.spectrographs import util
 
 
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files/wavecalib')
-    return os.path.join(data_dir, filename)
-
-
-@pytest.fixture
-@dev_suite_required
-def master_dir():
-    # Any test that uses this directory also requires the DevSuite!
-#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
-    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
-
-
-def read_old_fitstbl(spectrograph, f):
-    fitstbl = PypeItMetaData(spectrograph, data=Table.read(f))
-    type_bits = np.zeros(len(fitstbl), dtype=fitstbl.bitmask.minimum_dtype())
-    for bit in fitstbl.bitmask.keys():
-        type_bits[fitstbl[bit]] = fitstbl.bitmask.turn_on(type_bits[fitstbl[bit]], flag=bit)
-    fitstbl.set_frame_types(type_bits)
-    return fitstbl
-
-
-@dev_suite_required
+@cooked_required
 def test_user_redo():
     # Check for files
     spectrograph = util.load_spectrograph('shane_kast_blue')
@@ -49,7 +25,7 @@ def test_user_redo():
     assert os.path.isfile(wvcalib_file)
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, None, spectrograph,
-                                    spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
+                                spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
     wv_calib, _ = waveCalib.load_master(wvcalib_file)
     # Setup
     waveCalib.par['sigdetect'] = 5.
@@ -68,6 +44,26 @@ def test_user_redo():
 
 
 '''
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files/wavecalib')
+    return os.path.join(data_dir, filename)
+
+
+@pytest.fixture
+@cooked_required
+def master_dir():
+    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+
+
+def read_old_fitstbl(spectrograph, f):
+    fitstbl = PypeItMetaData(spectrograph, data=Table.read(f))
+    type_bits = np.zeros(len(fitstbl), dtype=fitstbl.bitmask.minimum_dtype())
+    for bit in fitstbl.bitmask.keys():
+        type_bits[fitstbl[bit]] = fitstbl.bitmask.turn_on(type_bits[fitstbl[bit]], flag=bit)
+    fitstbl.set_frame_types(type_bits)
+    return fitstbl
+
+
 @dev_suite_required
 def test_step_by_step(master_dir):
     root_path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')

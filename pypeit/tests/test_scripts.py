@@ -15,7 +15,7 @@ from pypeit.scripts import coadd_1dspec
 from pypeit.scripts import view_fits
 from pypeit.scripts import chk_edges
 from pypeit.scripts import show_1dspec
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import cooked_required
 from pypeit import ginga
 
 def data_path(filename):
@@ -23,16 +23,14 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-"""
-def test_arcid_plot():
-    json_file = data_path('LRISb_600_WaveCalib_01.json')
-    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
-    # Run
-    arcid_plot.main(pargs)
-"""
+#def test_arcid_plot():
+#    json_file = data_path('LRISb_600_WaveCalib_01.json')
+#    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
+#    # Run
+#    arcid_plot.main(pargs)
 
 
-@dev_suite_required
+@cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                                 'spec1d_J1217p3905_KASTb_2015May20T045733.560.fits')
@@ -41,7 +39,7 @@ def test_show_1dspec():
     show_1dspec.main(pargs, unit_test=True)
 
 
-@dev_suite_required
+@cooked_required
 def test_chk_edges():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                                 'MasterTrace_KeckLRISr_400_8500_det1.fits')

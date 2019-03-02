@@ -169,7 +169,8 @@ class MasterFrame(object):
         #   - Set the master frame type
         hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
         #   - List the completed steps
-        hdr['STEPS'] = (','.join(steps), 'Completed reduction steps')
+        if steps is not None:
+            hdr['STEPS'] = (','.join(steps), 'Completed reduction steps')
         #   - Provide the file names
         if raw_files is not None:
             nfiles = len(raw_files)

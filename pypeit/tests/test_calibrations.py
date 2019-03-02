@@ -10,12 +10,14 @@ import numpy as np
 
 from pypeit import calibrations
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, dummy_fitstbl
+from pypeit.tests.tstutils import dev_suite_required, dummy_fitstbl
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 @pytest.fixture
 def fitstbl():
@@ -34,13 +36,11 @@ def fitstbl():
 
     return fitstbl
 
-#def chk_for_files(root):
-#    return len(glob.glob(root+'*')) != 0
 
 @pytest.fixture
 def multi_caliBrate(fitstbl):
     det = 1
-    spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
+    spectrograph = load_spectrograph('shane_kast_blue')
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
         if 'science' in row['frametype']:
@@ -53,13 +53,7 @@ def multi_caliBrate(fitstbl):
     calib_par['badpix'] = False
     calib_par['biasframe']['useframe'] = 'overscan'
 
-
-    redux_path = data_path('') if os.getenv('PYPEIT_DEV') is None \
-                                else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
-
-    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
-                                                        redux_path=redux_path,
-                                                        save_masters=False, write_qa=False)
+    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph)
     # Find the first science row
     frame = fitstbl.find_frames('science', index=True)[0]
     # Set
@@ -69,9 +63,8 @@ def multi_caliBrate(fitstbl):
 
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
-    spectrograph = load_kast_blue_masters(get_spectrograph=True)[0]
+    spectrograph = load_spectrograph('shane_kast_blue')
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph)
-    print(caliBrate)
 
 
 def test_bias(multi_caliBrate):

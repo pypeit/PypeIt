@@ -4,6 +4,7 @@ Functions that create/check the PypeIt directory paths.
 import os
 from pypeit import msgs
 
+# Moved to pypeit.pypeit.PypeIt
 # TODO: These should be created by the classes that actually need to use
 # them
 def make_dirs(spectrograph, caldir, scidir, qadir, redux_path=None)

@@ -11,6 +11,8 @@ import yaml
 #  THE HTML GENERATION OCCURS FROM msgs
 #from pypeit import msgs
 
+# TODO: Move these names to the appropriate class.  This always writes
+# to QA directory, even if the user sets something else...
 def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None):
     """
     Parameters
@@ -35,11 +37,13 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         out_dir = os.getcwd()
     #
     if method == 'slit_trace_qa':
-        outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
+#        outfile = 'QA/PNGs/Slit_Trace_{:s}.png'.format(root)
+        outfile = 'PNGs/Slit_Trace_{:s}.png'.format(root)
     elif method == 'slit_profile_qa':
         outfile = 'QA/PNGs/Slit_Profile_{:s}_'.format(root)
     elif method == 'arc_fit_qa':
-        outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
+#        outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
+        outfile = 'PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
     elif method == 'arc_fit2d_global_qa':
@@ -47,11 +51,14 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
     elif method == 'arc_fit2d_orders_qa':
         outfile = 'QA/PNGs/Arc_2dfit_orders_{:s}'.format(root)
     elif method == 'plot_tilt_spec':
-        outfile = 'QA/PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
+#        outfile = 'QA/PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
+        outfile = 'PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_tilt_spat':
-        outfile = 'QA/PNGs/Arc_tilts_spat_{:s}_S{:04d}.png'.format(root, slit)
+#        outfile = 'QA/PNGs/Arc_tilts_spat_{:s}_S{:04d}.png'.format(root, slit)
+        outfile = 'PNGs/Arc_tilts_spat_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_tilt_2d':
-        outfile = 'QA/PNGs/Arc_tilts_2d_{:s}_S{:04d}.png'.format(root, slit)
+#        outfile = 'QA/PNGs/Arc_tilts_2d_{:s}_S{:04d}.png'.format(root, slit)
+        outfile = 'PNGs/Arc_tilts_2d_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'pca_plot':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/{:s}_pca_{:s}_'.format(prefix, root)
     elif method == 'pca_arctilt':  # This is root for multiple PNGs

@@ -19,6 +19,10 @@ from pypeit.metadata import PypeItMetaData
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
                                         reason='test requires dev suite')
 
+cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
+                            not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
+                            reason='no dev-suite cooked directory')
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
@@ -103,7 +107,8 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
     return fitstbl
 
-
+# TODO: Need to split this into functions that do and do not require
+# cooked.  We should remove the get_spectrograph option.
 def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, tilts=False,
                            datasec=False, wvcalib=False):
     """
@@ -124,6 +129,7 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     spectrograph = load_spectrograph('shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
 
+    # TODO: This should always point to Cooked
     root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
                     else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
     master_dir = root_path+'_'+spectrograph.spectrograph

@@ -9,7 +9,7 @@ import glob
 import numpy as np
 
 from pypeit import traceslits
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import cooked_required
 from pypeit.tests.tstutils import instant_traceslits
 from pypeit.spectrographs import util
 from pypeit.core import trace_slits
@@ -19,7 +19,7 @@ def chk_for_files(root):
     return len(files) != 0
 
 
-@dev_suite_required
+@cooked_required
 def test_addrm_slit():
     """ This tests the add and remove methods for user-supplied slit fussing. """
 
@@ -50,7 +50,7 @@ def test_addrm_slit():
         traceSlits.slit_left, traceSlits.slit_righ, rm_user_slits)
     assert traceSlits.nslit == norig
 
-@dev_suite_required
+@cooked_required
 def test_chk_kast_slits():
     """ This tests finding the longslit for Kast blue """
     # Red, blue
@@ -66,7 +66,7 @@ def test_chk_kast_slits():
         # Test
         assert traceSlits.nslit == norig
 
-@dev_suite_required
+@cooked_required
 def test_chk_lris_blue_slits():
     """ This tests slit finding for LRISb """
     for nslit, binning, det, root in zip([1, 14, 15],
@@ -88,7 +88,7 @@ def test_chk_lris_blue_slits():
         # Test
         assert traceSlits.nslit == norig
 
-@dev_suite_required
+@cooked_required
 def test_chk_lris_red_slits():
     """ This tests slit finding for LRISr """
     for nslit, binning, det, root in zip([1, 13, 14],
@@ -111,7 +111,7 @@ def test_chk_lris_red_slits():
         # Test
         assert traceSlits.nslit == norig
 
-@dev_suite_required
+@cooked_required
 def test_chk_deimos_slits():
     """ This tests slit finding for DEIMOS """
     for nslit, binning, det, root in zip([27],

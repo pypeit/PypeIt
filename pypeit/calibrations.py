@@ -30,7 +30,7 @@ from pypeit.core import parse
 from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.spectrograph import Spectrograph
 
 from pypeit import debugger
 
@@ -54,20 +54,20 @@ class Calibrations(object):
             CalibrationsPar child.
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
-        redux_path (:obj:`str`, optional):
-            Top-level directory for PypeIt output.  If None, the current
-            working directory is used.
+        caldir (:obj:`str`, optional):
+            Path to write the output calibrations.  If None, calibration
+            data are not saved.
+        qadir (:obj:`str, optional):
+            Path for quality assessment output.  If not provided, no QA
+            plots are saved.
         reuse_masters (:obj:`bool`, optional):
             Load calibration files from disk if they exist
-        save_masters (:obj:`bool`, optional):
-            Save calibration files to disk (should always be True)
-        write_qa (:obj:`bool`, optional):
-            Create QA plots.
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
 
     Attributes:
+        TODO: Fix these
         fitstbl
         save_masters
         write_qa
@@ -83,41 +83,33 @@ class Calibrations(object):
             :attr:`fitstbl`.
         calib_ID (:obj:`int`):
             calib group ID of the current frame
-        arc_master_key
 
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, par, spectrograph, redux_path=None, caldir=None, qadir=None,
-                 reuse_masters=False, save_masters=True, show=False):
+    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
+                 show=False):
 
-        # Check the type of the provided fits table
+        # Check the types
         if not isinstance(fitstbl, PypeItMetaData):
             msgs.error('fitstbl must be an PypeItMetaData object')
+        if not isinstance(par, pypeitpar.CalibrationsPar):
+            msgs.error('Input parameters must be a CalibrationsPar instance.')
+        if not isinstance(spectrograph, Spectrograph):
+            msgs.error('Must provide Spectrograph instance to Calibrations.')
 
-        # Parameters unique to this Object
+        # Required inputs
         self.fitstbl = fitstbl
-        self.save_masters = save_masters
-        self.reuse_masters = reuse_masters
-        self.write_qa = qadir is not None
-        self.show = show
-
-        # Test par
         self.par = par
-        if not isinstance(self.par, pypeitpar.CalibrationsPar):
-            raise TypeError('Input parameters must be a CalibrationsPar instance.')
-
-        # Spectrometer class
         self.spectrograph = spectrograph
 
-        # Output dirs
-        self.redux_path = os.getcwd() if redux_path is None else redux_path
-        self.master_dir = self.construct_path(redux_path=self.redux_path,
-                                              spectrograph=self.spectrograph.spectrograph,
-                                              subdir=self.par['caldir'])
-        self.qa_path = self.construct_path(self.redux_path, subdir=self.par['qadir'])
-        
-        os.getcwd() if redux_path is None else redux_path
+        # Control flow
+        self.reuse_masters = reuse_masters
+        self.master_dir = caldir
+        self.save_masters = caldir is not None
+        self.qa_path = qadir
+        self.write_qa = qadir is not None
+        self.show = show
 
         # Attributes
         self.calib_dict = {}
@@ -132,35 +124,6 @@ class Calibrations(object):
 
         # Internals
         self._reset_internals()
-
-    @staticmethod
-    def construct_path(redux_path=None, spectrograph=None, subdir=None):
-        """
-        Get the full path to a Calibration/Master directory.
-
-        Args:
-            redux_path (:obj:`str`, optional):
-                Top-level reduction directory.  If None, use the current
-                directory.
-            spectrograph (:obj:`str`, optional):
-                Name of the spectrograph.  Expected to be but not
-                limited to the valid spectrographs supported by PypeIt.
-                If None, the spectrograph is not included in the path
-                name.
-            subdir (:obj:`str`, optional):
-                Name for the subdirectory.  If None, just returns
-                `redux_path`, and `spectrograph` is ignored.
-
-        Returns:
-            str: The full directory path.  Result is
-            `redux_path/subdir_spectrograph/`, with the caveats provided
-            in the argument description.
-        """
-        _redux_path = os.getcwd() if redux_path is None else redux_path
-        if subdir is None:
-            return _redux_path
-        return os.path.join(_redux_path, subdir) if spectrograph is None \
-                        else os.path.join(_redux_path, '{0}_{1}'.format(subdir, spectrograph))
 
     def _reset_internals(self):
         """
@@ -327,7 +290,7 @@ class Calibrations(object):
                 self.biasFrame.save()
 
         # Save & return
-        self.calib_dict[self.master_key_bias['bias']]['bias'] = self.msbias
+        self.calib_dict[self.master_key_dict['bias']]['bias'] = self.msbias
         return self.msbias
 
     def get_bpm(self):
@@ -367,8 +330,7 @@ class Calibrations(object):
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
 
         # Build it
-        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_files,
-                                           det=self.det)
+        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_file, det=self.det)
 
         # Record it
         self.calib_dict[self.master_key_dict['bpm']]['bpm'] = self.msbpm
@@ -492,12 +454,12 @@ class Calibrations(object):
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
                     # Add tweaked boundaries to the MasterTrace file
-                    self.traceSlits.save_master(self.flatField.tslits_dict)
+                    self.traceSlits.tslits_dict = self.flatField.tslits_dict
+                    self.traceSlits.save(traceImage=self.traceImage)
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.tilts_dict = self.flatField.tilts_dict
-                    self.waveTilts.save_master(self.flatField.tilts_dict,
-                                               steps=self.waveTilts.steps)
+                    self.waveTilts.save()
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning
@@ -511,11 +473,12 @@ class Calibrations(object):
             msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
-        self.calib_dict[self.pixflat_master_key]['pixelflat'] = self.mspixelflat
-        self.calib_dict[self.pixflat_master_key]['illumflat'] = self.msillumflat
+        self.calib_dict[self.master_key_dict['flat']]['pixelflat'] = self.mspixelflat
+        self.calib_dict[self.master_key_dict['flat']]['illumflat'] = self.msillumflat
 
         return self.mspixelflat, self.msillumflat
 
+    # TODO: if write_qa need to provide qa_path!
     def get_slits(self, redo=False, write_qa=True):
         """
         Load or generate the definition of the slit boundaries.
@@ -605,7 +568,7 @@ class Calibrations(object):
                 self.traceSlits.save(traceImage=self.traceImage)
 
         # Save, initialize maskslits, and return
-        self.calib_dict[self.trace_master_key]['trace'] = self.tslits_dict
+        self.calib_dict[self.master_key_dict['trace']]['trace'] = self.tslits_dict
         self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
 
         return self.tslits_dict, self.maskslits
@@ -631,23 +594,23 @@ class Calibrations(object):
         self._chk_set(['det', 'par'])
 
         # Return existing data
-        prev_build = self.check_for_previous('wave', self.arc_master_key)
+        prev_build = self.check_for_previous('wave', self.master_key_dict['arc'])
         if prev_build:
-            self.mswave = self.calib_dict[self.arc_master_key]['wave']
+            self.mswave = self.calib_dict[self.master_key_dict['arc']]['wave']
             return self.mswave
 
         # No wavelength calibration requested
         if self.par['wavelengths']['reference'] == 'pixel':
             msgs.warn('No wavelength calibration performed!')
             self.mswave = self.tilts_dict['tilts'] * (self.tilts_dict['tilts'].shape[0]-1.0)
-            self.calib_dict[self.arc_master_key]['wave'] = self.mswave
+            self.calib_dict[self.master_key_dict['arc']]['wave'] = self.mswave
             return self.mswave
 
         # Instantiate
         # TODO we are regenerating this mask a lot in this module. Could reduce that
         self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'],
                                              self.wv_calib, self.spectrograph, self.maskslits,
-                                             master_key=self.arc_master_key,
+                                             master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)
 
@@ -660,7 +623,7 @@ class Calibrations(object):
             self.waveImage.save()
 
         # Save & return
-        self.calib_dict[self.arc_master_key]['wave'] = self.mswave
+        self.calib_dict[self.master_key_dict['arc']]['wave'] = self.mswave
         return self.mswave
 
     def get_wv_calib(self):
@@ -669,7 +632,7 @@ class Calibrations(object):
 
         Requirements:
           msarc, msbpm, tslits_dict, maskslits
-          det, par, arc_master_key
+          det, par
 
         Returns:
             dict, ndarray: :attr:`wv_calib` calibration dict and the updated slit mask array
@@ -770,16 +733,16 @@ class Calibrations(object):
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, self.spectrograph,
                                              self.par['tilts'], self.par['wavelengths'],
-                                             det=self.det, master_key=self.arc_master_key,
+                                             det=self.det, master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
-                                             qa_path=self.qa_path, bpm=self.msbpm)
+                                             qa_path=self.qa_path, msbpm=self.msbpm)
         # Master
         self.tilts_dict = self.waveTilts.load()
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \
-                    = self.waveTilts.run(maskslits=self.maskslits,doqa=self.write_qa,
+                    = self.waveTilts.run(maskslits=self.maskslits, doqa=self.write_qa,
                                          show=self.show)
             if self.save_masters:
                 self.waveTilts.save()
@@ -787,8 +750,8 @@ class Calibrations(object):
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
 
         # Save & return
-        self.calib_dict[self.arc_master_key]['tilts_dict'] = self.tilts_dict
-        self.calib_dict[self.arc_master_key]['wtmask'] = self.wt_maskslits
+        self.calib_dict[self.master_key_dict['arc']]['tilts_dict'] = self.tilts_dict
+        self.calib_dict[self.master_key_dict['arc']]['wtmask'] = self.wt_maskslits
         self.maskslits += self.wt_maskslits
         return self.tilts_dict, self.maskslits
 
@@ -852,13 +815,14 @@ class Calibrations(object):
 class MultiSlitCalibrations(Calibrations):
     """
     Child of Calibrations class for performing multi-slit (and longslit)
-    calibrations.
+    calibrations.  See :class:`pypeit.calibrations.Calibrations` for
+    arguments.
     """
-    def __init__(self, fitstbl, par, spectrograph, redux_path=None, reuse_masters=False,
-                 save_masters=True, write_qa=True, show=False, steps=None):
-        Calibrations.__init__(self, fitstbl, par, spectrograph, redux_path=redux_path,
-                              reuse_masters=reuse_masters, save_masters=save_masters,
-                              write_qa=write_qa, show=show)
+    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
+                 show=False, steps=None):
+        super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
+                                                    qadir=qadir, reuse_masters=reuse_masters,
+                                                    show=show)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 
     @staticmethod
@@ -870,6 +834,7 @@ class MultiSlitCalibrations(Calibrations):
             list: Calibration steps, in order of execution
 
         """
+        # Order matters!
         return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
 

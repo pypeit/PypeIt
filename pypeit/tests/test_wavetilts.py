@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import wavetilts
 from pypeit.core import tracewave, pixels
 from pypeit.par import pypeitpar
@@ -20,15 +20,12 @@ def data_path(filename):
 
 
 @pytest.fixture
-@dev_suite_required
+@cooked_required
 def master_dir():
-    # Any test that uses this directory also requires the DevSuite!
-#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
     return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
 
-@dev_suite_required
+@cooked_required
 def test_step_by_step(master_dir):
     # Masters
     spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,tslits=True)
@@ -59,7 +56,7 @@ def test_step_by_step(master_dir):
     assert np.max(tilts) < 1.01
 
 
-@dev_suite_required
+@cooked_required
 def test_run(master_dir):
     # Masters
     spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,

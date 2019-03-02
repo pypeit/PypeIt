@@ -1045,7 +1045,7 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
     return slit_profiles, mstracenrm, extrap_blz
 
 
-
+# TODO: Is this ever called?
 def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", maxp=16, desc="",
                     setup=None, outroot=None):
     """ Generate a QA plot for the slit profile of each slit

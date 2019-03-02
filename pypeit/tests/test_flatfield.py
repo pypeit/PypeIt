@@ -9,14 +9,9 @@ import glob
 import numpy as np
 
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
 from pypeit.par import pypeitpar
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
-
 
 # TODO: Bring this test back in some way?
 #def test_step_by_step():
@@ -43,7 +38,7 @@ def data_path(filename):
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
-@dev_suite_required
+@cooked_required
 def test_run():
     # Masters
     spectrograph, tslits_dict, tilts_dict, datasec_img \
