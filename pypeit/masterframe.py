@@ -64,25 +64,6 @@ class MasterFrame(object):
         # Other parameters
         self.reuse_masters = reuse_masters
 
-#    @property
-#    def ms_name(self):
-#        """ Default filenames for MasterFrames
-#
-#        Returns:
-#            str:  Master filename
-#        """
-#        return master_name(self.frametype, self.master_key, self.master_dir)
-#
-#    @property
-#    def mdir(self):
-#        """
-#
-#        Returns:
-#            str: Master frames folder
-#
-#        """
-#        return self.master_dir
-
     @property
     def file_name(self):
         """
@@ -96,31 +77,6 @@ class MasterFrame(object):
         Full path to MasterFrame file.
         """
         return os.path.join(self.master_dir, self.file_name)
-
-# prev_build loads from memory, never from a file.  Use reuse_masters in
-# load()
-#    def master(self, prev_build=False):
-#        """
-#        Load the master frame from disk, as settings allows. This
-#        routine checks the the mode of master usage then calls the
-#        load_master method. This method should not be overloaded by
-#        children of this class. Instead one should overload the
-#        load_master method below.
-#
-#        Args:
-#            prev_build (bool, optional):
-#                If True, try to load master from disk
-#
-#        Returns:
-#            ndarray or None:  Master image
-#
-#        """
-#        # Are we loading master files from disk?
-#        if self.reuse_masters or prev_build:
-#            self.msframe, head = self.load_master(self.ms_name)
-#            return self.msframe, head
-#        else:
-#            return None, None
 
     def save(self, data, extnames, outfile=None, overwrite=True, raw_files=None, steps=None):
         """
@@ -186,6 +142,7 @@ class MasterFrame(object):
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     # TODO: have ext default to provide all extensions?
+    # TODO: Add a base-level staticmethod one-liner?
     def load(self, ext, ifile=None, return_header=False):
         """
         Generic master file reader.
@@ -264,67 +221,3 @@ class MasterFrame(object):
         # sorted list
         return [ raw_files[i] for i in range(max(raw_files.keys())+1) ]
     
-# Moved to each master frame child.  badpix, pinhole, sensfunc have no
-# masterframe child...
-#def master_name(ftype, master_key, mdir):
-#    """ Default filenames for MasterFrames
-#
-#    Args:
-#        ftype (str):
-#          Frame type
-#        master_key (str):
-#          Setup name, e.b. A_1_01
-#        mdir (str):
-#          Master directory
-#
-#    Returns:
-#        str: masterframe filename
-#    """
-#    name_dict = dict(bias='{:s}/MasterBias_{:s}.fits'.format(mdir, master_key),
-#                     badpix='{:s}/MasterBadPix_{:s}.fits'.format(mdir, master_key),
-#                     trace='{:s}/MasterTrace_{:s}.fits'.format(mdir, master_key),
-#                     pinhole='{:s}/MasterPinhole_{:s}.fits'.format(mdir, master_key),
-#                     pixelflat='{:s}/MasterPixelFlat_{:s}.fits'.format(mdir, master_key),
-#                     illumflat='{:s}/MasterIllumFlat_{:s}.fits'.format(mdir, master_key),
-#                     arc='{:s}/MasterArc_{:s}.fits'.format(mdir, master_key),
-#                     wave='{:s}/MasterWave_{:s}.fits'.format(mdir, master_key),
-#                     wv_calib='{:s}/MasterWaveCalib_{:s}.json'.format(mdir, master_key),
-#                     tilts='{:s}/MasterTilts_{:s}.fits'.format(mdir, master_key),
-#                     # sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.yaml'.format(mdir, master_key[0], master_key[-2:]),
-#                     sensfunc='{:s}/MasterSensFunc_{:s}_{:s}.fits'.format(mdir, master_key[0], master_key[-2:]),
-#                     )
-#    return name_dict[ftype]
-
-# Moved to calibrations.py
-#def set_master_dir(redux_path, spectrograph, par):
-#    """
-#    Set the master directory auto-magically
-#
-#    Args:
-#        redux_path: str or None
-#        spectrograph: Spectrograph or None
-#        par: ParSet or None
-#
-#    Returns:
-#        master_dir : str
-#          Path of the MasterFrame directory
-#
-#    """
-#    # Parameters
-#    if par is None:
-#        tmppar = pypeitpar.CalibrationsPar()
-#    else:
-#        if 'caldir' not in par.keys():
-#            tmppar = pypeitpar.CalibrationsPar()
-#        else:
-#            tmppar = par
-#    # Redux path
-#    if redux_path is None:
-#        redux_path = os.getcwd()
-#    master_dir = os.path.join(redux_path, tmppar['caldir'])
-#    # Spectrograph
-#    if spectrograph is not None:
-#        master_dir += '_'+spectrograph.spectrograph
-#    # Return
-#    return master_dir
-

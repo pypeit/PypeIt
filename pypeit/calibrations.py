@@ -540,9 +540,11 @@ class Calibrations(object):
             binspectral, binspatial = parse.parse_binning(self.binning)
             plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
 
-            # JFH Why is this stuff on user defined slits here and not in the class?
-            # User-defined slits??
-            # TODO: this should move to TraceSlitsPar.validate()
+            # JFH Why is this stuff on user defined slits here and not
+            # in the class?  User-defined slits??
+            # TODO: this should be done inside TraceSlits so that the
+            # call to run() or whatever has the same format as what the
+            # user sees in TraceSlitsPar
             add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
             rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det,
                                                          rm=True)

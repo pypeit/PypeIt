@@ -217,20 +217,19 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                'coeffs':self.tilts_dict['coeffs'][:,:,slit].copy(),
                                'slitcen':self.tilts_dict['slitcen'][:,slit].copy(),
                                'func2d':self.tilts_dict['func2d']}
-            nonlinear_counts = self.spectrograph.detector[self.det - 1]['nonlinear'] * \
-                               self.spectrograph.detector[self.det - 1]['saturation']
+            nonlinear_counts = self.spectrograph.nonlinear_counts(det=self.det)
 
             pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, \
-                    slit_righ_out = \
-                            flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict,
-                                          slit, inmask=inmask, nonlinear_counts=nonlinear_counts,
-                                          spec_samp_fine=self.flatpar['spec_samp_fine'],
-                                          spec_samp_coarse=self.flatpar['spec_samp_coarse'],
-                                          spat_samp=self.flatpar['spat_samp'],
-                                          tweak_slits=self.flatpar['tweak_slits'],
-                                          tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
-                                          tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],
-                                          debug=debug)
+                    slit_righ_out \
+                            = flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict,
+                                           slit, inmask=inmask, nonlinear_counts=nonlinear_counts,
+                                           spec_samp_fine=self.flatpar['spec_samp_fine'],
+                                           spec_samp_coarse=self.flatpar['spec_samp_coarse'],
+                                           spat_samp=self.flatpar['spat_samp'],
+                                           tweak_slits=self.flatpar['tweak_slits'],
+                                           tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
+                                           tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],
+                                           debug=debug)
 
             self.mspixelflat[thismask_out] = pixelflat[thismask_out]
             self.msillumflat[thismask_out] = illumflat[thismask_out]
