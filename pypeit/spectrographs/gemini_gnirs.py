@@ -170,13 +170,13 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'OBJECT')
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'FLAT')
-        if ftype == 'pinhole' or ftype == 'dark' or ftype == 'bias':
+        if ftype in ['pinhole', 'dark', 'bias']:
             # Don't type pinhole, dark, or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc' or ftype == 'tilt':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'ARC')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
