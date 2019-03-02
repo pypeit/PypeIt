@@ -8,7 +8,7 @@ Setup
 -----
 
  - You will need to install `twine` via pip on your machine.
- - Generate a .pypirc file in your home directory that looks like this
+ - Generate a .pypirc file in your home directory that looks like this::
 
     [distutils]
     index-servers = pypi

@@ -6,6 +6,7 @@
   detected.
 - Revamped the naming convention of output files to have the original
   filename in it.
+- Enable PyPI
 
 0.9.2 (25 Feb 2019)
 -------------------
