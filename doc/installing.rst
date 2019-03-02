@@ -135,3 +135,7 @@ To run the test::
 
 The test takes a while to run but should run without issue if all the packages have been properly installed. 
 
+PIP
+===
+
+For the developers, see :doc:`pyp_twine` for details on how to push a new build to PyPI.
