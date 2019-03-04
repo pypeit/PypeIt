@@ -1,13 +1,12 @@
-.. highlight:: rest
-
-****************
+*****************
 Installing PypeIt
-****************
+*****************
 
 This document will describe how to install PypeIt.
 
 Installing Dependencies
 =======================
+
 Though we have tried to keep the number of dependencies low,
 there are a few packages that need to be installed (various python packages
 and linetools).
@@ -35,7 +34,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * yaml -- You may need to install pyyaml
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
-* `IPython https://ipython.org>`_ -- version 7.2.0 or later
+* `IPython <https://ipython.org>`_ -- version 7.2.0 or later
 
 
 If you are using Anaconda, you can check the presence of these packages with::
@@ -64,29 +63,13 @@ To remind you, install via GitHub with a sequence like::
 This will push the code into your Python distribution.
 
 Installing PypeIt
-================
+=================
 
-We recommend that you grab the code from github::
+We recommend that you install PypeIt with `pip`::
 
-	#go to the directory where you would like to install PypeIt.
-	git clone https://github.com/pypeit/pypeit.git
+    pip install pypeit
 
-From there, you can build and install either with install or develop, e.g.::
-
-	cd PypeIt
-	python setup.py develop
-
-or::
-
-	cd PypeIt
-	python setup.py install
-
-This should compile all the necessary files, etc.
-
-If your python installation requires root access, you'll need to use sudo with the "-E" option to pass environment variables.
-
-	sudo -E python setup.py develop
-
+Nuff said.
 
 Tests
 =====
@@ -94,7 +77,7 @@ In order to assess whether PypeIt has been properly installed,
 we suggest you run the following tests:
 
 1. Ensure run_pypeit works
--------------------------
+--------------------------
 Go to a directory outside of the PypeIt directory (e.g. your home directory),
 then type run_pypeit.::
 
@@ -103,7 +86,7 @@ then type run_pypeit.::
 
 
 2. Run the PypeIt unit tests
----------------------------
+----------------------------
 
 Enter the PypeIt directory and do::
 
