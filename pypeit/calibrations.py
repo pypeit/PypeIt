@@ -111,6 +111,14 @@ class Calibrations(object):
         self.write_qa = qadir is not None
         self.show = show
 
+        # Check the directories exist
+        # TODO: This should be done when the masters ar saved
+        if self.save_masters and not os.path.isdir(self.master_dir):
+            os.makedirs(self.master_dir)
+        # TODO: This should be done when the qa plots are saved
+        if self.write_qa and not os.path.isdir(os.path.join(self.qa_path, 'PNGs')):
+            os.makedirs(os.path.join(self.qa_path, 'PNGs'))
+
         # Attributes
         self.calib_dict = {}
         self.det = None

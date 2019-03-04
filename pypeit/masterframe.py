@@ -26,8 +26,8 @@ class MasterFrame(object):
             Master frame type, used when constructing the output file
             name.  See :attr:`file_name`.
         master_dir (str or None):
-            Name of the MasterFrame folder, e.g. MF_keck_deimos. If
-            None, set to './'
+            Name of the MasterFrame folder. If None, set to current
+            working directory.
         master_key (str or None):
             Root of the MasterFrame names, e.g. 'A_1_01'.  If None, set
             to 'master'

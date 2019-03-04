@@ -1181,9 +1181,8 @@ class TraceSlits(masterframe.MasterFrame):
         Reads both the trace data and the trace image data.
         
         Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+            filename (:obj:`str`):
+                Name of the master frame file.
             return_header (:obj:`bool`, optional):
                 Return the header, which will include the TraceImage
                 metadata if available.
@@ -1226,11 +1225,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         return (tslits_dict, mstrace, hdu[0].header) if return_header else (tslits_dict, mstrace)
 
-# Here's your new one-liner:
-#
-# from pypeit.traceslits import TraceSlits
-# tslits_dict, mstrace = TraceSlits.load_from_file(filename)
-#
+# TODO: Use tslits_dict, mstrace = TraceSlits.load_from_file(filename)
 #def load_tslits(filename):
 #    """
 #    Utility function which enables one to load the tslits_dict from a master file in one line of code without

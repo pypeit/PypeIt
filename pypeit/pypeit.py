@@ -163,8 +163,7 @@ class PypeIt(object):
     @property
     def calibrations_path(self):
         """Return the path to the calibrations directory."""
-        return os.path.join(self.par['rdx']['redux_path'],
-                            self.par['calibrations']['caldir']+'_'+self.spectrograph.spectrograph)
+        return os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['caldir'])
         
     @property
     def qa_path(self):

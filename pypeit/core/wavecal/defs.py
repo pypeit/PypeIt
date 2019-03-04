@@ -2,7 +2,7 @@
 """
 from astropy.table import Table
 
-
+# TODO: This doesn't belong here.
 def instruments():
     """ Dict to convert instrument to bitwise flag
     WARNING: Modifying any of the following is a *bad* idea

@@ -317,7 +317,10 @@ class WaveCalib(masterframe.MasterFrame):
 
     def save(self, outfile=None, overwrite=True):
         """
-        Save the wavelength calibration data to a master frame
+        Save the wavelength calibration data to a master frame.
+
+        This is largely a wrapper for
+        :func:`pypeit.core.wavecal.waveio.save_wavelength_calibration`.
 
         Args:
             outfile (:obj:`str`, optional):
@@ -333,32 +336,21 @@ class WaveCalib(masterframe.MasterFrame):
                       + 'Set overwrite=True to overwrite it.')
             return
 
-        # Log
-        msgs.info('Saving master frame to {0}'.format(_outfile))
-
-        # jsonify has the annoying property that it modifies the objects
-        # when it jsonifies them so make a copy, which converts lists to
-        # arrays, so we make a copy
-        data_for_json = copy.deepcopy(self.wv_calib)
-        gddict = linetools.utils.jsonify(data_for_json)
-        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
-
+        # Report and save
+        waveio.save_wavelength_calibration(_outfile, self.wv_calib, overwrite=overwrite)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
         """
-        Load a full (all slit) wv_calib dict
-
-        Includes converting the JSON lists of particular items into ndarray
-
-        Fills self.wv_calib and self.par
+        Load a full (all slit) wavelength calibration.
         
+        This is largely a wrapper for
+        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
+
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
                 :attr:`file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header
 
         Returns:
             dict or None: self.wv_calib
@@ -376,22 +368,11 @@ class WaveCalib(masterframe.MasterFrame):
             msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
             return None
 
-        # Read and return
+        # Read, save it to self, return
+        # TODO: Need to save it to self?
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        self.wv_calib = self.load_from_file(_ifile)
+        self.wv_calib = waveio.load_wavelength_calibration(_ifile)
         return self.wv_calib
-
-    @staticmethod
-    def load_from_file(filename):
-        wv_calib = linetools.utils.loadjson(filename)
-        # Recast a few items as arrays
-        for key in wv_calib.keys():
-            if key in ['steps', 'par']:  # This isn't really necessary
-                continue
-            for tkey in wv_calib[key].keys():
-                if isinstance(wv_calib[key][tkey], list):
-                    wv_calib[key][tkey] = np.array(wv_calib[key][tkey])
-        return wv_calib
 
     def make_maskslits(self, nslit):
         """
@@ -499,23 +480,23 @@ class WaveCalib(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-# TODO: Use load_from_file
-def load_wv_calib(filename):
-    """
-    Utility function which enables one to load the wv_calib and parset from a master file one line
-    of code without instantiating the class.
-
-    Note:  This method instantiates without a Spectrograph
-
-    Args:
-        filename (str): Master file name
-
-    Returns:
-        tuple (dict, parset): wv_calib dict, wavelengths parset
-    """
-
-    waveCalib = WaveCalib(None, None, None, None)
-    wv_calib, _ = waveCalib.load_master(filename)
-    return wv_calib, wv_calib['par'].copy()
+# TODO: Use waveio.load_wavelength_calibration 
+#def load_wv_calib(filename):
+#    """
+#    Utility function which enables one to load the wv_calib and parset from a master file one line
+#    of code without instantiating the class.
+#
+#    Note:  This method instantiates without a Spectrograph
+#
+#    Args:
+#        filename (str): Master file name
+#
+#    Returns:
+#        tuple (dict, parset): wv_calib dict, wavelengths parset
+#    """
+#
+#    waveCalib = WaveCalib(None, None, None, None)
+#    wv_calib, _ = waveCalib.load_master(filename)
+#    return wv_calib, wv_calib['par'].copy()
 
 

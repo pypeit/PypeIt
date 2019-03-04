@@ -120,9 +120,29 @@ class PypeItMetaData:
         if usrdata is not None:
             self.merge(usrdata)
 
+        # Impose types on specific columns
+        self._impose_types(['comb_id', 'bkg_id'], [int, int])
+
         # Initialize internal attributes
         self.configs = None
         self.calib_bitmask = None
+
+    def _impose_types(self, columns, types):
+        """
+        Impose a set of types on certain columns.
+
+        .. note::
+            :attr:`table` is edited in place.
+
+        Args:
+            columns (:obj:`list`):
+                List of column names
+            types (:obj:`list`):
+                List of types
+        """
+        for c,t in zip(columns, types):
+            if c in self.keys():
+                self.table[c] = self.table[c].astype(t)
 
     @staticmethod
     def define_core_meta():
@@ -1355,24 +1375,32 @@ class PypeItMetaData:
         # Return
         return output_cols
 
-    def set_combination_groups(self):
+    def set_combination_groups(self, assign_objects=True):
         """
         Set combination groups.
 
-        If the 'comb_id' or 'bkg_id' columns do not exist, they're set to -1.
+        .. note::
+            :attr:`table` is edited in place.
 
-        If none of the 'comb_id' values are other then -1, the
-        combination groups are set to be unique for each standard and
-        science frame.
+        This function can be used to initialize the combination group
+        and background group columns, and/or to initialize the combination
+        groups to the set of objects (science or standard frames) to a
+        unique integer.
 
-        :attr:`table` is edited in place.
+        If the 'comb_id' or 'bkg_id' columns do not exist, they're set
+        to -1.
 
+        Args:
+            assign_objects (:obj:`bool`, optional):
+                If all of 'comb_id' values are less than 0 (meaning
+                they're unassigned), the combination groups are set to
+                be unique for each standard and science frame.
         """
         if 'comb_id' not in self.keys():
             self['comb_id'] = -1
         if 'bkg_id' not in self.keys():
             self['bkg_id'] = -1
-        if not np.any(self['comb_id'] >= 0):
+        if assign_objects and np.all(self['comb_id'] < 0):
             # find_frames will throw an exception if framebit is not
             # set...
             sci_std_idx = np.where(np.any([self.find_frames('science'),

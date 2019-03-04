@@ -9,6 +9,9 @@ from within PypeIt - it should be run as a standalone script, and
 it's only purpose is to generate a KD Tree with the desired patterns.
 """
 
+# TODO: Why not use scipy?: 
+# https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.KDTree.html
+
 from pypeit.core.wavecal import waveio
 from astropy.table import vstack
 import numba as nb

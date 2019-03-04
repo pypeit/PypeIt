@@ -26,7 +26,7 @@ def test_user_redo():
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, None, spectrograph,
                                 spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
-    wv_calib, _ = waveCalib.load_master(wvcalib_file)
+    wv_calib = waveCalib.load()
     # Setup
     waveCalib.par['sigdetect'] = 5.
     nslit = 1
@@ -39,7 +39,7 @@ def test_user_redo():
     # Test
     assert new_wv_calib['0']['rms'] < 0.2
     # Now also test the utility script that reads in the wavecalib
-    wv_calib_load, par = wavecalib.load_wv_calib(wvcalib_file)
+    wv_calib_load = wavecalib.WaveCalib.load_from_file(wvcalib_file)
     assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
 
 

@@ -47,9 +47,11 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
     elif method == 'arc_fit2d_global_qa':
-        outfile = 'QA/PNGs/Arc_2dfit_global_{:s}'.format(root)
+#        outfile = 'QA/PNGs/Arc_2dfit_global_{:s}'.format(root)
+        outfile = 'PNGs/Arc_2dfit_global_{:s}'.format(root)
     elif method == 'arc_fit2d_orders_qa':
-        outfile = 'QA/PNGs/Arc_2dfit_orders_{:s}'.format(root)
+#        outfile = 'QA/PNGs/Arc_2dfit_orders_{:s}'.format(root)
+        outfile = 'PNGs/Arc_2dfit_orders_{:s}'.format(root)
     elif method == 'plot_tilt_spec':
 #        outfile = 'QA/PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)
         outfile = 'PNGs/Arc_tilts_spec_{:s}_S{:04d}.png'.format(root, slit)

@@ -49,11 +49,16 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     Returns:
 
     """
+    # Check for the directory
+    if not os.path.isdir(scipath):
+        os.makedirs(scipath)
 
     # Filenames to write out
-    objinfofile = scipath + '/objinfo_{:s}.txt'.format(basename)
+    # TODO: These should be centrally defined so that they don't become
+    # out of sync with what's in pypeit.PypeIt
+    objinfofile = os.path.join(scipath, 'objinfo_{:s}.txt'.format(basename))
     outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
-    outfile2d = scipath + '/spec2d_{:s}.fits'.format(basename)
+    outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
 
     # TODO: Need some checks here that the exposure has been reduced
 

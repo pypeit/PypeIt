@@ -211,8 +211,6 @@ def _read_pypeit_file_lines(ifile):
 
 def _find_pypeit_block(lines, group):
     """
-    DEPRPECATED?
-
     Find the PypeIt group block
 
     Args:
@@ -553,9 +551,6 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         setup_lines (list, optional):
         sorted_files (list, optional):
         paths (list, optional): List of paths for slurping data files
-
-    Returns:
-
     """
     # Error checking
     if not isinstance(data_files, list):

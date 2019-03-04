@@ -36,6 +36,7 @@ def main(pargs):
 
     import subprocess
 
+    # TODO: THIS IS OUT OF DATE
     # Load up
     wTilts = wavetilts.WaveTilts.from_master_files(pargs.setup)
 

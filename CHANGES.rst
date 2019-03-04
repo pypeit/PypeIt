@@ -22,7 +22,10 @@
 - Add a pytest `skipif` that checks if the Cooked directory exists in
   the dev-suite.  Use this to run the tests that only need the raw image
   data or don't need the dev-suite at all.
-
+- Move wavelength calibration save/load out of `pypeit.wavecalib` into
+  `pypeit.core.wavecal.waveio.py`
+- Rename default directory for calibration masters to `Masters` and
+  removed inclusion of spectrograph name.
 
 0.9.3 (28 Feb 2019)
 -------------------
