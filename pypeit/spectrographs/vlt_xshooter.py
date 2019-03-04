@@ -760,12 +760,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(5000.0), np.log10(11000)
 
-    def wavegrid(self, binning=None, midpoint=False):
+    def wavegrid(self, binning=None, midpoint=False,coarse_grid=0.):
 
         binspectral, binspatial = parse.parse_binning(binning)
         # Define the grid for VLT-XSHOOTER VIS
         logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam*binspectral)
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam*binspectral*(1.0+coarse_grid/100.))
         if midpoint:
             loglam_grid = loglam_grid + self.dloglam*binspectral/2.0
 

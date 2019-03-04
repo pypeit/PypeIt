@@ -620,13 +620,15 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
-def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False, show=False, show_peaks=False):
+def extract_coadd2d(stack_dict, master_dir, coarse_grid=0.,ir_redux=False, par=None, std=False, show=False, show_peaks=False):
     """
     Main routine to run the extraction for 2d coadds. This performs 2d coadd specific tasks, and then also performs
     some of the tasks analogous to the pypeit.extract_one method. Docs coming soon....
     Args:
         stack_dict:
         master_dir:
+        coarse_grid (float or int): make the wavelength grid coarser by how many percentage. set it to zero is you have
+          many exposures. coarse_grid = 5-10 should works for few exposures.
         ir_redux:
         par:
         show:
@@ -646,8 +648,8 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
 
     binning = np.array([stack_dict['tslits_dict']['binspectral'],stack_dict['tslits_dict']['binspatial']])
     # Grab the wavelength grid that we will rectify onto
-    wave_grid = spectrograph.wavegrid(binning=binning)
-    wave_grid_mid = spectrograph.wavegrid(midpoint=True,binning=binning)
+    wave_grid = spectrograph.wavegrid(binning=binning,coarse_grid=coarse_grid)
+    wave_grid_mid = spectrograph.wavegrid(midpoint=True,binning=binning,coarse_grid=coarse_grid)
 
     coadd_list = []
     nspec_vec = np.zeros(nslits,dtype=int)
