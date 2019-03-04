@@ -614,7 +614,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
-        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['bspline_spacing'] = 0.5
         par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
