@@ -48,7 +48,7 @@ def save_wavelength_calibration(outfile, wv_calib, overwrite=True):
     # arrays, so we make a copy
     data_for_json = copy.deepcopy(wv_calib)
     gddict = linetools.utils.jsonify(data_for_json)
-    linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
+    linetools.utils.savejson(outfile, gddict, easy_to_read=True, overwrite=True)
 
 
 def load_wavelength_calibration(filename):
