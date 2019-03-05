@@ -19,7 +19,7 @@ from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit.core import parse, trace_slits, extract, pixels
-from pypeit.core import io
+#from pypeit.core import io
 from pypeit import utils
 from pypeit import masterframe
 from pypeit import ginga
