@@ -310,34 +310,39 @@ class ProcessImages(object):
                     = self.spectrograph.load_raw_frame(self.files[i], det=self.det)
 
             if self.binning[i] is None:
+                # This *always* returns spectral then spatial
                 self.binning[i] = self.spectrograph.get_meta_value(self.files[i], 'binning')
 
             # Get the data sections, one section per amplifier
             try:
-                datasec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                datasec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
                                                               section='datasec')
             except:
-                datasec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                datasec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='datasec')
             self.datasec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
-                                                include_end=include_end, require_dim=2,
-                                                transpose=transpose, binning=self.binning[i])
+                                               include_end=include_end, require_dim=2,
+                                               binning=self.binning[i])
                                     for sec in datasec]
             # Get the overscan sections, one section per amplifier
             try:
-                oscansec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                oscansec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
                                                               section='oscansec')
             except:
-                oscansec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                oscansec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='oscansec')
             # Parse, including handling binning
             self.oscansec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
-                                                 include_end=include_end, require_dim=2,
-                                                 transpose=transpose, binning=self.binning[i])
+                                                include_end=include_end, require_dim=2,
+                                                binning=self.binning[i])
                                     for sec in oscansec]
         # Include step
         self.steps.append(inspect.stack()[0][3])

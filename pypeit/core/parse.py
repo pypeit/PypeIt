@@ -658,8 +658,7 @@ def parse_binning(binning):
     return binspectral, binspatial
 
 
-def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False,
-              binning=None):
+def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, binning=None):
     """
     Convert a string representation of an array subsection (slice) into
     a list of slice objects.
@@ -680,17 +679,11 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         require_dim (:obj:`int`, optional):
             Test if the string indicates the slice along the proper
             number of dimensions.
-        transpose (:obj:`bool`, optional):
-            Transpose the order of the returned slices.  The
-            following are equivalent::
-                
-                tslices = parse.sec2slice('[:10,10:]')[::-1]
-                tslices = parse.sec2slice('[:10,10:]', transpose=True)
-
         binning (:obj:`str`, optional):
-            The image binning.  The `subarray` string is always expected to be for an *unbinned* image.
-            This binning keyword is used to adjust the slice for an image that is binned.
-            The string must be a comma-separated list of number providing the binning along the relevant axis.
+            Assume the slice is for an unbinned array and adjust the
+            returned slice for this binning in each dimension.  If two
+            dimensional, the format of this string must be, e.g., `1,2`
+            for unbinned rows and a factor of 2 binning along columns.
 
     Returns:
         tuple: A tuple of slice objects, one per dimension of the
@@ -712,12 +705,6 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     # Check the dimensionality
     ndim = len(sections)
     _binning = [1]*ndim if binning is None else np.array(binning.split(',')).astype(int)
-    ## JFH This is a kludge to get this to work becuase I cannot understand the nonsense below. The binning
-    ## convention is now flipped relative to before and the code below appends to lists, so this is the
-    ## easiest fix
-    #from IPython import embed
-    #embed()
-    #_binning = _binning[::-1]
     if len(_binning) != ndim:
         raise ValueError('Incorrect binning dimensions (found {0}, expected {1}).'.format(
                             len(_binning), ndim))
@@ -748,7 +735,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         # Append the new slice
         slices += [slice(*_s)]
 
-    return tuple(slices[::-1] if transpose else slices)
+    return tuple(slices)
 
 
 def str2list(inp, length):

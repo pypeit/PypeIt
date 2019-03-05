@@ -26,6 +26,10 @@
   `pypeit.core.wavecal.waveio.py`
 - Rename default directory for calibration masters to `Masters` and
   removed inclusion of spectrograph name.
+- Change `pypeit.spectrographs.spectrograph.get_image_section` to
+  *always* return the sections ordered spectral then spatial to match
+  the PypeIt convention to match how binning is returned.  Propagated to
+  get_datasec_img.
 
 0.9.3 (28 Feb 2019)
 -------------------

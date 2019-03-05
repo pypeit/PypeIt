@@ -22,7 +22,9 @@ provide instrument-specific:
     - default parameters for PypeIt's algorithms
     - method to access an archival sky spectrum
 
-
+.. _astropy.io.fits: http://docs.astropy.org/en/stable/io/fits/
+.. _astropy.io.fits.Header: http://docs.astropy.org/en/stable/io/fits/api/headers.html
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 
 """
 import os
@@ -65,10 +67,10 @@ class Spectrograph(object):
             detector image; often trimmmed.
         raw_naxis (tuple):
             A tuple with the lengths of the two axes for untrimmed detector image.
-        datasec_img (:obj:`numpy.ndarray`):
+        datasec_img (`numpy.ndarray`_):
             An image identifying the amplifier that reads each detector
             pixel.
-        bpm_img (:obj:`numpy.ndarray`):
+        bpm_img (`numpy.ndarray`_):
             The bad-pixel mask for the currently read detector.
     """
     __metaclass__ = ABCMeta
@@ -153,71 +155,93 @@ class Spectrograph(object):
             if not isinstance(d, pypeitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
 
-#    def _set_calib_par(self, user_supplied=None):
-#        pass
+    def load_raw_frame(self, raw_file, det=1):
+        r"""
+        Load the image and header for an exposure taken with this
+        spectrograph.
 
-    def load_raw_frame(self, raw_file, det=None):
-        """
-        Load the image (converted to np.float) and primary header of the input file
+        The returned image follows the PypeIt convention, which is
+        always oriented with spectra along rows and with wavelengths and
+        echelle orders increasing with increasing pixel number.  The
+        shape of the returned array is :math:`(N_{\rm spec}, N_{\rm
+        spat})`.
 
-        The image is transposed, as needed, so that the spectral dimension
-        runs along the columns
+        The transpose and flip operations needed to convert the raw
+        image data read using `astropy.io.fits`_ into the PypeIt-format
+        `numpy.ndarray`_ is as follows::
+            
+            - The orientation of the image in the file is expected to
+              follow the FITS convention.
+            - Because of different storage architecture, fits images
+              ready by `astropy.io.fits`_ have and automatically
+              transposed orientation.
+            - The image is then transposed again, if necessary according
+              to :attr:`detector[det-1]['specaxis']`, to ensure that
+              wavelengths are along rows.
+            - The image is then flipped along rows, if necessary
+              according to :attr:`detector[det-1]['specflip']`, to
+              ensure that wavelengths increase with increasing pixel
+              number.
+            - Finally, the image is flipped along columns, if necessary
+              according to :attr:`detector[det-1]['spatflip']`, to
+              ensure that echelle orders increase with increasing pixel
+              number.
 
         Args:
-            raw_file:  str, filename
-            dataext: int, optional
-              Extension in the FITS list for the data
-            det: int, optional
-              Desired detector
+            raw_file (:obj:`str`):
+                File with the image data.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
 
         Returns:
-            img: ndarray
-              Converted to np.float and transposed if necessary
-            head0: Header
-
+            Returns an `numpy.ndarray`_ with the image data and an
+            `astropy.io.fits.Header`_ object with the image and header
+            data, respectively.  The image data is always returned with
+            floating-point type.
         """
+        # Check the detector is defined
         self._check_detector()
-        _det = 1 if det is None else det
 
         # Load the raw image
-        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=self.detector[_det-1]['dataext'],
-                                                det=_det)
+        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=self.detector[det-1]['dataext'],
+                                                det=det)
 
         # Turn to float
-        img = raw_img.astype(np.float)
+        img = raw_img.astype(float)
+
         # Transpose?
-        if self.detector[_det-1]['specaxis'] == 1:
+        if self.detector[det-1]['specaxis'] == 1:
             img = img.T
-        if self.detector[_det-1]['specflip'] is True:
+        if self.detector[det-1]['specflip'] is True:
             img = np.flip(img, axis=0)
-        if self.detector[_det-1]['spatflip'] is True:
+        if self.detector[det-1]['spatflip'] is True:
             img = np.flip(img, axis=1)
 
         # Return
         return img, head0
 
-    def load_raw_img_head(self, raw_file, dataext, **null_kwargs):
+    def load_raw_img_head(self, raw_file, dataext=0, headext=0, **null_kwargs):
         """
         Generic raw image reader
 
         Args:
-            raw_file: str
-            dataext: int
+            raw_file (:obj:`str`):
+                File to read.
+            dataext (:obj:`str`, :obj:`int`, optional):
+                Fits extension with the image data.
+            headext (:obj:`str`, :obj:`int`, optional):
+                Fits extension with the header data to return.
             **null_kwargs:
               Captured and never used
 
         Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            head0: Header
-
+            Returns an `numpy.ndarray`_ with the image data and an
+            `astropy.io.fits.Header`_ object with the image and header
+            data, respectively.
         """
         # Open and go
-        hdulist = fits.open(raw_file)
-        raw_img = hdulist[dataext].data
-        head0 = hdulist[0].header
-        # Return
-        return raw_img, head0
+        hdu = fits.open(raw_file)
+        return hdu[dataext].data, hdu[headext].header
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
@@ -234,7 +258,7 @@ class Spectrograph(object):
         is defined directly.
         
         Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`, optional):
+            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
                 String providing the file name to read, or the relevant
                 header object.  Default is None, meaning that the
                 detector attribute must provide the image section
@@ -247,11 +271,13 @@ class Spectrograph(object):
                 :class:`pypeitpar.DetectorPar` keywords.
 
         Returns:
-            A list of string representations for the image sections, one
-            string per amplifier, followed by three booleans: if the
-            slices are one indexed, if the slices should include the
-            last pixel, and if the slice should have their order
-            transposed.
+            tuple: Returns three objects: (1) A list of string
+            representations for the image sections, one string per
+            amplifier.  The sections are *always* returned in PypeIt
+            order: spectral then spatial.  (2) Boolean indicating if the
+            slices are one indexed.  (3) Boolean indicating if the
+            slices should include the last pixel.  The latter two are
+            always returned as True following the FITS convention.
         """
         # Check the section is one of the detector keywords
         if section not in self.detector[det-1].keys():
@@ -287,9 +313,16 @@ class Spectrograph(object):
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
-        transpose = self.detector[det-1]['specaxis'] == 0
 
-        return image_sections, one_indexed, include_last, transpose
+        # Re-order so that the section is always returned as
+        # (spec,spat).  NOTE: This is different from load_raw_frame
+        # because of the added flip performed by just reading the image
+        # data.
+        if self.detector[det-1]['specaxis'] == 0:
+            image_sections = ['[{0}]'.format(','.join(s.strip('[]').split(',')[::-1]))
+                                for s in image_sections]
+
+        return image_sections, one_indexed, include_last
 
     def get_datasec_img(self, filename, det=1, force=True):
         """
@@ -320,25 +353,12 @@ class Spectrograph(object):
             # Get the image shape
             raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-            binning_pypeit = self.get_meta_value(filename, 'binning')
+            # This *always* returns spectral then spatial
+            binning = self.get_meta_value(filename, 'binning')
 
-            data_sections, one_indexed, include_end, transpose \
+            # This *always* returns spectral then spatial
+            data_sections, one_indexed, include_end \
                     = self.get_image_section(filename, det, section='datasec')
-            # Note on data format
-            #--------------------
-            # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
-            # binning_raw = the binning in the format of the raw data.
-            # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
-            # files are stored the other way with spat as the first dimension (as read into python), then the transpose
-            # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
-            # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
-            # and the datasec typically written to headers. However this flip is dealt with explicitly in the
-            # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
-            # TODO Add a blurb on the PypeIt data model.
-            if transpose:
-               binning_raw = (',').join(binning_pypeit.split(',')[::-1])
-            else:
-               binning_raw = binning_pypeit
 
             # Initialize the image (0 means no amplifier)
             self.datasec_img = np.zeros(raw_naxis, dtype=int)
@@ -346,13 +366,13 @@ class Spectrograph(object):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                           include_end=include_end, require_dim=2,
-                                          transpose=transpose, binning=binning_raw)
+                                          binning=binning)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
 
         return self.datasec_img
 
-    def get_raw_image_shape(self, filename, det=None, force=True):
+    def get_raw_image_shape(self, filename, det=None, force=False):
         """
         Get the *untrimmed* shape of the image data for a given detector using a
         file.  :attr:`detector` must be defined.
@@ -626,11 +646,13 @@ class Spectrograph(object):
         meta_data_model = PypeItMetaData.get_meta_data_model()
         # Check core
         for key in core_meta:
-            assert key in self.meta.keys(), 'key {:s} not defined in spectrograph meta!'.format(key)
+            assert key in self.meta.keys(), \
+                'key {:s} not defined in spectrograph meta!'.format(key)
         # Check for rtol for config keys that are type float
         for key in self.configuration_keys():
             if meta_data_model[key]['dtype'] in [float]:
-                assert 'rtol' in self.meta[key].keys(), 'rtol not set for key {:s} not defined in spectrograph meta!'.format(key)
+                assert 'rtol' in self.meta[key].keys(), \
+                    'rtol not set for key {:s} not defined in spectrograph meta!'.format(key)
         # Now confirm all meta are in the data model
         for key in self.meta.keys():
             if key not in self.meta_data_model.keys():

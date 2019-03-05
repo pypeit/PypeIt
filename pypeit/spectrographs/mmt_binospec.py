@@ -405,49 +405,49 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    def get_image_section(self, filename, det, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        Overwrites base class function to use :func:`read_deimos` to get
-        the image sections.
-
-        .. todo::
-            - It feels really ineffiecient to just get the image section
-              using the full :func:`read_deimos`.  Can we parse that
-              function into something that can give you the image
-              section directly?
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
-
-        Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
-            section (:obj:`str`, optional):
-                The section to return.  Should be either datasec or
-                oscansec, according to the :class:`DetectorPar`
-                keywords.
-
-        Returns:
-            list, bool: A list of string representations for the image
-            sections, one string per amplifier, followed by three
-            booleans: if the slices are one indexed, if the slices
-            should include the last pixel, and if the slice should have
-            their order transposed.
-        """
-        # Read the file
-        temp, head0, secs = read_deimos(filename, det)
-        if section == 'datasec':
-            return secs[0], False, False, False
-        elif section == 'oscansec':
-            return secs[1], False, False, False
-        else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
+#    def get_image_section(self, filename, det, section='datasec'):
+#        """
+#        Return a string representation of a slice defining a section of
+#        the detector image.
+#
+#        Overwrites base class function to use :func:`read_deimos` to get
+#        the image sections.
+#
+#        .. todo::
+#            - It feels really ineffiecient to just get the image section
+#              using the full :func:`read_deimos`.  Can we parse that
+#              function into something that can give you the image
+#              section directly?
+#
+#        This is done separately for the data section and the overscan
+#        section in case one is defined as a header keyword and the other
+#        is defined directly.
+#
+#        Args:
+#            filename (str):
+#                data filename
+#            det (int):
+#                Detector number
+#            section (:obj:`str`, optional):
+#                The section to return.  Should be either datasec or
+#                oscansec, according to the :class:`DetectorPar`
+#                keywords.
+#
+#        Returns:
+#            list, bool: A list of string representations for the image
+#            sections, one string per amplifier, followed by three
+#            booleans: if the slices are one indexed, if the slices
+#            should include the last pixel, and if the slice should have
+#            their order transposed.
+#        """
+#        # Read the file
+#        temp, head0, secs = read_deimos(filename, det)
+#        if section == 'datasec':
+#            return secs[0], False, False, False
+#        elif section == 'oscansec':
+#            return secs[1], False, False, False
+#        else:
+#            raise ValueError('Unrecognized keyword: {0}'.format(section))
 
     # WARNING: Uses Spectrograph default get_image_shape.  If no file
     # provided it will fail.  Provide a function like in keck_lris.py

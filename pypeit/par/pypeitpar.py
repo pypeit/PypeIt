@@ -2338,10 +2338,10 @@ class DetectorPar(ParSet):
     class, and an explanation of how to define a new instrument, see
     :ref:`instruments`.
     """
-    def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip = None, xgap=None, ygap=None, ysize=None,
-                 platescale=None, darkcurr=None, saturation=None, mincounts = None, nonlinear=None,
-                 numamplifiers=None, gain=None, ronoise=None, datasec=None, oscansec=None,
-                 suffix=None):
+    def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip=None, xgap=None,
+                 ygap=None, ysize=None, platescale=None, darkcurr=None, saturation=None,
+                 mincounts=None, nonlinear=None, numamplifiers=None, gain=None, ronoise=None,
+                 datasec=None, oscansec=None, suffix=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2366,20 +2366,23 @@ class DetectorPar(ParSet):
         options['specaxis'] = [ 0, 1]
         dtypes['specaxis'] = int
         descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
-                            '(first dimension for a numpy array shape) or 1 (second dimension for numpy array shape)'
+                            '(first dimension for a numpy array shape) or 1 (second dimension ' \
+                            'for numpy array shape)'
 
 
         defaults['specflip'] = False
         dtypes['specflip'] = bool
-        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by the specaxis) will be ' \
-                            'flipped so that wavelengths are always an increasing function of array index'
+        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by ' \
+                            'the specaxis) will be flipped.  PypeIt expects wavelengths to ' \
+                            'increase with increasing pixel number.  If this is not the case ' \
+                            'for this instrument, set specflip to True.'
 
         defaults['spatflip'] = False
         dtypes['spatflip'] = bool
-        descr['spatflip'] = 'If this is True then the spatial dimension will be ' \
-                            'flipped so that blue orders for echelle spectra will appear spatially on the ' \
-                            'left and wavelength will increase to the right'
-
+        descr['spatflip'] = 'If this is True then the spatial dimension will be flipped.  ' \
+                            'PypeIt expects echelle orders to increase with increasing pixel ' \
+                            'number.  I.e., setting spatflip=True can reorder images so that ' \
+                            'blue orders appear on the left and red orders on the right.'
 
         defaults['xgap'] = 0.0
         dtypes['xgap'] = [int, float]
@@ -2441,7 +2444,7 @@ class DetectorPar(ParSet):
         dtypes['datasec'] = [str, list]
         descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
                            'data sections can be obtained, one per amplifier. If defined ' \
-                           'explicitly should have the format of a numpy array slice'
+                           'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'
 
         # TODO: Allow for None, such that there is no overscan region
         defaults['oscansec'] = 'BIASSEC' if pars['numamplifiers'] is None \
@@ -2449,7 +2452,7 @@ class DetectorPar(ParSet):
         dtypes['oscansec'] = [str, list]
         descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
                             'data sections can be obtained, one per amplifier. If defined ' \
-                            'explicitly should have the format of a numpy array slice'
+                            'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'
 
         # TODO: Allow this to be None?
         defaults['suffix'] = ''
@@ -2468,9 +2471,9 @@ class DetectorPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize', 'platescale', 'darkcurr',
-                    'saturation', 'mincounts','nonlinear', 'numamplifiers', 'gain', 'ronoise', 'datasec',
-                    'oscansec', 'suffix' ]
+        parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
+                   'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
+                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

@@ -129,24 +129,28 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         This is done separately for the data section and the overscan
         section in case one is defined as a header keyword and the other
         is defined directly.
-        
+
         Args:
-            inp (:obj:`str`):
-                String providing the file name to read.  Unlike the base
-                class, a file name *must* be provided.
+            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+                String providing the file name to read, or the relevant
+                header object.  Default is None, meaning that the
+                detector attribute must provide the image section
+                itself, not the header keyword.
             det (:obj:`int`, optional):
                 1-indexed detector number.
             section (:obj:`str`, optional):
-                The section to return.  Should be either datasec or
-                oscansec, according to the :class:`DetectorPar`
-                keywords.
+                The section to return.  Should be either 'datasec' or
+                'oscansec', according to the
+                :class:`pypeitpar.DetectorPar` keywords.
 
         Returns:
-            list, bool: A list of string representations for the image
-            sections, one string per amplifier, followed by three
-            booleans: if the slices are one indexed, if the slices
-            should include the last pixel, and if the slice should have
-            their order transposed.
+            tuple: Returns three objects: (1) A list of string
+            representations for the image sections, one string per
+            amplifier.  The sections are *always* returned in PypeIt
+            order: spectral then spatial.  (2) Boolean indicating if the
+            slices are one indexed.  (3) Boolean indicating if the
+            slices should include the last pixel.  The latter two are
+            always returned as True following the FITS convention.
         """
         # Read the file
         if inp is None:
@@ -155,9 +159,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             msgs.error('File {0} does not exist!'.format(inp))
         temp, head0, secs = read_hires(inp, det)
         if section == 'datasec':
-            return secs[0], False, False, False
+            return secs[0], False, False
         elif section == 'oscansec':
-            return secs[1], False, False, False
+            return secs[1], False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 #

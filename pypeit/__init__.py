@@ -30,7 +30,7 @@ def signal_handler(signalnum, handler):
     """
     if signalnum == 2:
         msgs.info('Ctrl+C was pressed. Ending processes...')
-        close_qa(msgs.pypit_file)
+        close_qa(msgs.pypeit_file)
         msgs.close()
         sys.exit()
 
