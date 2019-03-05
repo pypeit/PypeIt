@@ -518,14 +518,14 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         numamplifiers (int):
             Number of amplifiers for this detector.
         datasec (list):
-            List of slices, one per amplifier, that contain the data in
-            the raw frame.  The slices must be lists of slice ojects.
-            See :func:`parse.sec2slice` to convert a string section (as
-            read from a file header) into a list of slices.
+            List of tuples, one per amplifier, with the slice along each
+            dimension that selects the data section of the provided raw
+            frame.  See :func:`parse.sec2slice` to convert a string
+            section (as read from a file header) into a list of slices.
         oscansec (list):
-            List of slices, one per amplifier, that contain the overscan
-            regions in the raw frame.  The slices must be lists of slice
-            ojects.  See :func:`parse.sec2slice` to convert a string
+            List of tuples, one per amplifier, with the slice along each
+            dimension that selects the overscan section of the provided
+            raw frame.  See :func:`parse.sec2slice` to convert a string
             section (as read from a file header) into a list of slices.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
@@ -545,9 +545,9 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         msgs.error('Number of amplifiers does not match provided image sections.')
 
     # If the input image sections are strings, convert them
-    if not isinstance(datasec[0], slice):
+    if not isinstance(datasec[0], tuple):
         msgs.error('Data section must be a list of slice objects.')
-    if not isinstance(oscansec[0], slice):
+    if not isinstance(oscansec[0], tuple):
         msgs.error('Overscan section must be a list of slice objects.')
     
     # Check that there are no overlapping data sections
