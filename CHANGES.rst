@@ -1,3 +1,8 @@
+0.9.4dev
+--------
+
+- Enable PyPI
+
 0.9.3 (28 Feb 2019)
 -------------------
 - Fixed a bug that was introduced when the binning was switched to the
