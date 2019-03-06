@@ -1,6 +1,7 @@
 0.9.4dev
 --------
 
+- Enable PyPI
 - Streamline some of the instantiation at the beginning of
   PypeIt.__init__.
     - Moves the call to default_pypeit_par into config_specific_par.
