@@ -9,6 +9,7 @@ import numpy as np
 
 from abc import ABCMeta
 
+from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import msgs
@@ -436,9 +437,8 @@ class Calibrations(object):
                 msgs.error('Could not find user-defined flatfield file: {0}'.format(
                            self.par['flatfield']['frame']))
             msgs.info('Using user-defined file: {0}'.format(flat_file))
-            hdu = fits.open(flat_file)
-            self.mspixelflat = hdu[self.det].data
-            hdu.close()
+            with fits.open(flat_file) as hdu:
+                self.mspixelflat = hdu[self.det].data
             self.msillumflat = None
 
         # 3) there is no master or no user supplied flat, so generate the flat
