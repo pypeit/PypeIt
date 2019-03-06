@@ -69,7 +69,15 @@ We recommend that you install PypeIt with `pip`::
 
     pip install pypeit
 
-Nuff said.
+Nuff said.  If you have not yet satisfied all the requirements, PypeIt will fail
+when you first attempt to run it.  You can grab all of them (except `ginga`) by
+doing::
+
+    pip install -r path/requirements.txt
+
+where path is to wherever `pip` installed the code.  Or you can download the
+`requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`_ file
+and run on it directly.
 
 Tests
 =====
