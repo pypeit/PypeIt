@@ -23,7 +23,6 @@ Submodules
    pypeit.core.framematch
    pypeit.core.load
    pypeit.core.parse
-   pypeit.core.paths
    pypeit.core.pca
    pypeit.core.pixels
    pypeit.core.plot
