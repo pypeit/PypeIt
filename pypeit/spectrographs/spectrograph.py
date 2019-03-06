@@ -173,7 +173,7 @@ class Spectrograph(object):
             - The orientation of the image in the file is expected to
               follow the FITS convention.
             - Because of different storage architecture, fits images
-              ready by `astropy.io.fits`_ have and automatically
+              ready by `astropy.io.fits`_ have an automatically
               transposed orientation.
             - The image is then transposed again, if necessary according
               to :attr:`detector[det-1]['specaxis']`, to ensure that
@@ -372,6 +372,9 @@ class Spectrograph(object):
 
         return self.datasec_img
 
+    # TODO: There *has* to be a better way to do this.  We're reading a
+    # file just to get the size of the image, likely when the image has
+    # already been read (likely multiple times).
     def get_raw_image_shape(self, filename, det=None, force=False):
         """
         Get the *untrimmed* shape of the image data for a given detector using a
@@ -406,42 +409,38 @@ class Spectrograph(object):
                 Raised if the image shape cannot be determined from the
                 input and available attributes.
         """
-
         # Use a file
         self._check_detector()
-        raw_naxis = (self.load_raw_frame(filename, det=det)[0]).shape
-        return raw_naxis
+        return (self.load_raw_frame(filename, det=det)[0]).shape
 
     def empty_bpm(self, shape=None, filename=None, det=1):
         """
-        Generate a generic (empty) BPM.
-        If shape is None, this requires a successful call to :func:`get_image_shape`.
+        Generate a generic (empty) bad-pixel mask.
 
-        .. todo::
-            Any reason this isn't returned as a boolean array?
+        Even though they are both optional, either the precise shape for
+        the image (`shape`) or an example file that can be read to get
+        the shape (`filename` using :func:`get_image_shape`) *must* be
+        provided.
 
         Args:
-            shape: tuple, REQUIRED
+            shape (:obj:`tuple`, optional):
+                The shape for the returned mask.
+            filename (:obj:`str`, optional):
+                An example file to use to get the image shape.
+            det (:obj:`int`, optional):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
 
         Returns:
-            bpm: ndarray, int
-              0=not masked; 1=masked
-
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-
-        # TODO The logic heere is botched. shape has to be set for the code not to crash so why is filename even
-        # an argument???
-        if shape is None:
-            msgs.error("THIS IS NOT GOING TO WORK")
-            # Check the detector is defined
-            self._check_detector()
-            # Get the image shape
-            _shape = self.get_raw_image_shape(filename, det=det)
-        else:
-            _shape = shape
-        # JFH I think all masks should be boolean aside from the bitmask.
+        if shape is None and filename is None:
+            msgs.error('Must provide either shape or filename.')
+        _shape = self.get_raw_image_shape(filename, det=det) if shape is None else shape
+        # TODO: Why are we saving this to self?
         self.bpm_img = np.zeros(_shape, dtype=np.int8)
-        # Return
         return self.bpm_img
 
     def bpm(self, shape=None, filename=None, det=1):
@@ -450,30 +449,26 @@ class Spectrograph(object):
 
         Currently identical to calling :func:`empty_bpm`.
 
+        Even though they are both optional, either the precise shape for
+        the image (`shape`) or an example file that can be read to get
+        the shape (`filename` using :func:`get_image_shape`) *must* be
+        provided.
+
         Args:
-            shape: tuple, REQUIRED
-            **null_kwargs:
+            shape (:obj:`tuple`, optional):
+                The shape for the returned mask.
+            filename (:obj:`str`, optional):
+                An example file to use to get the image shape.
+            det (:obj:`int`, optional):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
 
         Returns:
-            bpm: ndarray, int
-              0=not masked; 1=masked
-
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        ## JFH TODO Filename should not be an option since it can never be used in empty_bpm since the code crashes
-        # before that.
         return self.empty_bpm(shape=shape, filename=filename, det=det)
-
-    '''
-    # TODO: (KBW) I've removed all the defaults.  Should maybe revisit
-    # this
-    def default_header_keys(self):
-        def_head_keys = {}
-        def_head_keys[0] = {}
-        return def_head_keys
-
-    def header_keys(self):
-        return self.default_header_keys()
-    '''
 
     def configuration_keys(self):
         """

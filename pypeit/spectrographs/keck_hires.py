@@ -274,7 +274,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 600.
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
+#        par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['tilts']['tracethresh'] = 20
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'bias'

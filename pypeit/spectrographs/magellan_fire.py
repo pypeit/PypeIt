@@ -103,7 +103,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['sigdetect'] = 50
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
+#        par['calibrations']['slits']['pcatype'] = 'pixel'
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters

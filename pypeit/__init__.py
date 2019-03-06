@@ -45,6 +45,6 @@ warnings.simplefilter('ignore')
 # TODO: Need some way of selectively doing this.  Once you import
 # pypeit, this affects the behavior of pyplot for *anything* else you
 # plot in a given session.
-from matplotlib import pyplot
-pyplot.switch_backend('agg')
+#from matplotlib import pyplot
+#pyplot.switch_backend('agg')
 

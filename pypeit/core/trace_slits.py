@@ -1,5 +1,8 @@
 """ Module for core algorithms related to tracing slits/orders
 These should primarily be called by the TraceSlits class
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. _scipy.ndimage.sobel: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.sobel.html
 """
 import inspect
 import copy
@@ -1042,57 +1045,67 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
     # Return
     return new_edgarr, tc_dict.copy()
 
-
-def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
+# TODO: Rename this function.  Something like "detect_slit_edges"?
+def edgearr_from_binarr(img, mask=None, bad_col_flip=False, median_iterations=0, min_sqm=30.,
                         sobel_mode='nearest', sigdetect=30.):
-    """ Generate the edge array from an input, trace image (likely slightly filtered)
-    Primary algorithm is to run a Sobolev filter on the image and then
+    """
+    Find slit edges using the input image.
+
+    The input image is likely a slightly filtered flat-field image.  The
+    primary algorithm is to run a Sobel filter on the image and then
     trigger on all significant features.
 
     The bad pixel mask is also used to fuss with bad columns, etc.
 
-    Parameters
-    ----------
-    binarr : numpy ndarray
-      Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
-      Lightly filtered
-    binbpx : ndarray
-      Bad pixel max image
-    medrep : int, optional
-        Number of times to perform median smoothing on the mstrace
-        One uniform filter is always done
-        medrep = 0 is recommended for ARMLSD
-    sobel_mode : str, optional
-        ndimage.sobel mode;  default is 'nearest'
-    sigdetect : float, optional
-        threshold for edge detection
-    min_sqm : float, optional
-        Minimum error used when detecting a slit edge
+    Args:
+        img (`numpy.ndarray`_):
+            Calibration frame used to identify slit edges.  Likely a
+            flat-field image that has been lightly smoothed in the
+            spectral direction.  Its orientation *must* have spectra
+            dispersed along rows.
+        mask (`numpy.ndarray`_, optional):
+            A boolean or integer bad-pixel mask.  If None, all pixels
+            are assumed valid.
+        bad_col_flip (:obj:`bool`, optional):
+            Flip the axes of the input image before detecting and
+            replacing bad columns using the bad-pixel mask.  Use this
+            for instruments that provide data with spectra dispersed
+            along columns instead of rows.
+        median_iterations (:obj:`int`, optional):
+            Number of median smoothing iteration to perform on the trace
+            image.  The size of the smoothing is always (7,3).  For
+            long-slit data, we recommend `median_iterations=0`.
+        min_sqm (:obj:`float`, optional):
+            Minimum error used when detecting a slit edge.  TODO: This
+            needs a better description.
+        sobel_mode (:obj:`str`, optional):
+            Mode to use with the Sobel filter.  See
+            `scipy.ndimage.sobel`_.
+        sigdetect (:obj:`float`, optional):
+            Threshold for edge detection.
 
-    Returns
-    -------
-    siglev : ndarray
-    edgearr : ndarray
+    Returns:
+        tuple: Returns two `numpy.ndarray`_ objects: (1) The image of
+        the significance of the edge detection in sigma and (2) the
+        array isolating the slit edges.
     """
-    # Specify how many times to repeat the median filter
-    # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
-    msgs.info("Detecting slit edges in the mstrace image")
+    # Specify how many times to repeat the median filter.  Even better
+    # would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian
+    # near the maximum in each column
+    msgs.info("Detecting slit edges in the trace image")
 
     # Replace bad columns
-    #  TODO -- Should consider replacing bad 'rows' for rotated detectors (e.g. GMOS)
-    bad_cols = np.sum(binbpx, axis=0) > (binbpx.shape[0]//2)
-    if np.any(bad_cols):
-        ms2 = procimg.replace_columns(binarr, bad_cols)
-    else:
-        ms2 = binarr.copy()
+    axis = 1 if bad_col_flip else 0
+    bad_cols = np.sum(mask, axis=axis) > (mask.shape[axis]//2)
+    ms2 = procimg.replace_columns(img.T if bad_col_flip else img, bad_cols) \
+                if np.any(bad_cols) else img.copy()
 
     # Generate sqrt image
     sqmstrace = np.sqrt(np.abs(ms2))
 
-    # Median filter, as desired
-    # TODO -- Try size=(7,3) to bring up the edges instead of (3,7)
-    for ii in range(medrep):
-        #sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
+    # Median filter
+    # TODO: Add size to parameter list
+    for ii in range(median_iterations):
         sqmstrace = ndimage.median_filter(sqmstrace, size=(7, 3))
 
     # Make sure there are no spuriously low pixels
@@ -1101,12 +1114,12 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
 
     # Filter with a Sobel
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
-    filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
+    filt *= (1.0 - mask)  # Apply to the bad pixel mask
     # siglev
     siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
 
     # First edges assigned according to S/N
-    tedges = np.zeros(binarr.shape, dtype=np.float)
+    tedges = np.zeros(img.shape, dtype=np.float)
     wl = np.where(siglev > + sigdetect)  # A positive gradient is a left edge
     wr = np.where(siglev < - sigdetect)  # A negative gradient is a right edge
     tedges[wl] = -1.0
@@ -1121,8 +1134,8 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
 
     ######
     msgs.info("Applying bad pixel mask")
-    nedgear *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
-    siglev *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
+    nedgear *= (1-mask.astype(np.int))  # Apply the bad pixel mask
+    siglev *= (1-mask.astype(np.int))  # Apply the bad pixel mask
 
     # Return
     return siglev, nedgear

@@ -1294,11 +1294,10 @@ class TraceSlitsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, function=None, medrep=None, number=None, trim=None,
-                 maxgap=None, maxshift=None, pad=None, sigdetect=None,
-                 min_slit_width = None, add_slits=None, rm_slits=None,
-                 diffpolyorder=None, single=None, sobel_mode=None, pcatype=None, pcapar=None,
-                 pcaextrap=None, smash_range=None, trace_npoly=None, mask_frac_thresh=None):
+    def __init__(self, function=None, medrep=None, number=None, trim=None, maxgap=None,
+                 maxshift=None, pad=None, sigdetect=None, min_slit_length=None, add_slits=None,
+                 rm_slits=None, diffpolyorder=None, single=None, sobel_mode=None, pcaextrap=None,
+                 smash_range=None, trace_npoly=None, mask_frac_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1321,10 +1320,6 @@ class TraceSlitsPar(ParSet):
         descr['function'] = 'Function use to trace the slit center.  ' \
                             'Options are: {0}'.format(', '.join(options['function']))
 
-        #defaults['polyorder'] = 3
-        #dtypes['polyorder'] = int
-        #descr['polyorder'] = 'Order of the function to use.'
-
         defaults['medrep'] = 0
         dtypes['medrep'] = int
         descr['medrep'] = 'Number of times to median smooth a trace image prior to analysis ' \
@@ -1346,7 +1341,8 @@ class TraceSlitsPar(ParSet):
                 raise TypeError('Could not convert provided trim to a tuple.')
         defaults['trim'] = (0,0)
         dtypes['trim'] = tuple
-        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 or positive'
+        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
+                        'or positive'
 
         dtypes['maxgap'] = int
         descr['maxgap'] = 'Maximum number of pixels to allow for the gap between slits.  Use ' \
@@ -1355,7 +1351,8 @@ class TraceSlitsPar(ParSet):
 
         defaults['maxshift'] = 0.15
         dtypes['maxshift'] = [int, float]
-        descr['maxshift'] = 'Maximum shift in trace crude. Use a larger number for more curved slits/orders.'
+        descr['maxshift'] = 'Maximum shift in trace crude. Use a larger number for more curved ' \
+                            'slits/orders.'
 
         defaults['pad'] = 0
         dtypes['pad'] = int
@@ -1367,23 +1364,26 @@ class TraceSlitsPar(ParSet):
 
         defaults['mask_frac_thresh'] = 0.6
         dtypes['mask_frac_thresh'] = float
-        descr['mask_frac_thresh'] = 'Minimum fraction of the slit edge that was *not* masked to use in initial PCA.'
+        descr['mask_frac_thresh'] = 'Minimum fraction of the slit edge that was *not* masked ' \
+                                    'to use in initial PCA.'
 
         defaults['smash_range'] = [0., 1.]
         dtypes['smash_range'] = list
-        descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges. ' \
-                             'If the spectrum covers only a portion of the image, use that range.'
+        descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional ' \
+                               'units) to smash when searching for slit edges.  If the ' \
+                               'spectrum covers only a portion of the image, use that range.'
 
         defaults['trace_npoly'] = 5
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of legendre polynomial fits to slit/order boundary traces.'
 
-        defaults['min_slit_width'] = 6.0  # arcseconds!
-        dtypes['min_slit_width'] = float
-        descr['min_slit_width'] = 'If a slit spans less than this number of arcseconds over the spatial ' \
-                                  'direction of the detector, it will be ignored. Use this option to prevent the ' \
-                                  'of alignment (box) slits from multislit reductions, which typically cannot be reduced ' \
-                                  'without a significant struggle'
+        defaults['min_slit_length'] = 6.0  # arcseconds!
+        dtypes['min_slit_length'] = float
+        descr['min_slit_length'] = 'If a slit spans less than this number of arcseconds over ' \
+                                   'the spatial direction of the detector, it will be ignored.' \
+                                   '  Use this option to prevent the alignment (box) slits ' \
+                                   'from multislit reductions, which typically cannot be ' \
+                                   'reduced without a significant struggle.'
 
         defaults['diffpolyorder'] = 2
         dtypes['diffpolyorder'] = int
@@ -1391,34 +1391,33 @@ class TraceSlitsPar(ParSet):
                                  'spatial size of all orders.'
 
         # DEPRECATED
-        defaults['single'] = []
-        dtypes['single'] = list
-        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
-                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
-                          'the slit according to column values.  The second value (for the ' \
-                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
-                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
-                          'user-definition for the first detector but adds one for the second. ' \
-                          ' None means no user-level slits defined.'
+#        defaults['single'] = []
+#        dtypes['single'] = list
+#        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
+#                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
+#                          'the slit according to column values.  The second value (for the ' \
+#                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
+#                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
+#                          'user-definition for the first detector but adds one for the second. ' \
+#                          ' None means no user-level slits defined.'
 
-        defaults['add_slits'] = []
         dtypes['add_slits'] = [str, list]
-        descr['add_slits'] = 'Add one or more user-defined slits.  This is a list of lists, with ' \
-                             'each sub-list having syntax (all integers):  det:spec:spat_left:spat_right' \
-                             'where det=detector, spec=spectral pixel, spat_left=spatial pixel of left slit boundary, ' \
-                             ' spat_righ=spatial pixel of right slit boundary.' \
-                             'For example,  2:2000:2121:2322,3:2000:1201:1500  will add a slit to detector 2 ' \
-                             'passing through spec=2000 extending spatially from 2121 to 2322 and another on detector 3 ' \
-                             'at spec=2000 extending from 1201 to 1500'
+        descr['add_slits'] = 'Add one or more user-defined slits.  The syntax to define a ' \
+                             'slit to add is: \'det:spec:spat_left:spat_right\' where ' \
+                             'det=detector, spec=spectral pixel, spat_left=spatial pixel of ' \
+                             'left slit boundary, and spat_righ=spatial pixel of right slit ' \
+                             'boundary.  For example, \'2:2000:2121:2322,3:2000:1201:1500\' ' \
+                             'will add a slit to detector 2 passing through spec=2000 ' \
+                             'extending spatially from 2121 to 2322 and another on detector 3 ' \
+                             'at spec=2000 extending from 1201 to 1500.'
 
-        defaults['rm_slits'] = []
         dtypes['rm_slits'] = [str, list]
-        descr['rm_slits'] = 'Remove one or more user-specified slits.  This is a list of lists, ' \
-                            'with each sub-list having syntax (all integers):  det:spec:spat ' \
-                            'where det=detector, spec=spectral pixel, spat=spatial pixel.'\
-                            'for example,  2:2000:2121,3:2000:1500' \
-                            'the slit tracing code will remove the slits on detector 2 that contain pixel ' \
-                            '(spat,spec)=(2000,2121) and detector 3 which contain (2000,2121)'
+        descr['rm_slits'] = 'Remove one or more user-specified slits.  The syntax used to ' \
+                            'define a slit to remove is: \'det:spec:spat\' where det=detector, ' \
+                            'spec=spectral pixel, spat=spatial pixel.  For example, ' \
+                            '\'2:2000:2121,3:2000:1500\' will remove the slit on detector 2 ' \
+                            'that contains pixel (spat,spec)=(2000,2121) and on detector 3 ' \
+                            'that contains pixel (2000,2121).'
 
         defaults['sobel_mode'] = 'nearest'
         options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
@@ -1426,22 +1425,22 @@ class TraceSlitsPar(ParSet):
         descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\' but the ' \
                               'developers find \'constant\' works best for DEIMOS.'
 
-        # DEPRECATED
-        defaults['pcatype'] = 'pixel'
-        options['pcatype'] = TraceSlitsPar.valid_pca_types()
-        dtypes['pcatype'] = str
-        descr['pcatype'] = 'Select to perform the PCA using the pixel position (pcatype=pixel) ' \
-                           'or by spectral order (pcatype=order).  Pixel positions can be used ' \
-                           'for multi-object spectroscopy where the gap between slits is ' \
-                           'irregular.  Order is used for echelle spectroscopy or for slits ' \
-                           'with separations that are a smooth function of the slit number.'
-
-        # DEPRECATED
-        defaults['pcapar'] = [3, 2, 1, 0]
-        dtypes['pcapar'] = list
-        descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-                          'components.  The list length must be equal to or less than ' \
-                          'polyorder+1. TODO: Provide more explanation'
+#        # DEPRECATED
+#        defaults['pcatype'] = 'pixel'
+#        options['pcatype'] = TraceSlitsPar.valid_pca_types()
+#        dtypes['pcatype'] = str
+#        descr['pcatype'] = 'Select to perform the PCA using the pixel position (pcatype=pixel) ' \
+#                           'or by spectral order (pcatype=order).  Pixel positions can be used ' \
+#                           'for multi-object spectroscopy where the gap between slits is ' \
+#                           'irregular.  Order is used for echelle spectroscopy or for slits ' \
+#                           'with separations that are a smooth function of the slit number.'
+#
+#        # DEPRECATED
+#        defaults['pcapar'] = [3, 2, 1, 0]
+#        dtypes['pcapar'] = list
+#        descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
+#                          'components.  The list length must be equal to or less than ' \
+#                          'polyorder+1. TODO: Provide more explanation'
 
         defaults['pcaextrap'] = [0, 0]
         dtypes['pcaextrap'] = list
@@ -1461,10 +1460,10 @@ class TraceSlitsPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'function', 'medrep', 'number', 'trim', 'maxgap', 'maxshift',
-                    'pad', 'sigdetect', 'min_slit_width', 'diffpolyorder', 'single', 'sobel_mode',
-                    'pcatype', 'pcapar', 'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly',
-                    'mask_frac_thresh']
+        parkeys = ['function', 'medrep', 'number', 'trim', 'maxgap', 'maxshift', 'pad',
+                   'sigdetect', 'min_slit_length', 'diffpolyorder', 'sobel_mode', 
+                   'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly',
+                   'mask_frac_thresh']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
