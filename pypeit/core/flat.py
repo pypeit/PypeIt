@@ -21,9 +21,11 @@ import copy
 
 import scipy
 
-def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh, tweak_slits_maxfrac):
+def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh,
+                     tweak_slits_maxfrac):
 
-    slitwidth = np.median(slit_righ_in - slit_left_in) # How many pixels wide is the slit at each Y?
+    # How many pixels wide is the slit at each Y?
+    slitwidth = np.median(slit_righ_in - slit_left_in)
     # Determine the maximum at the left and right end of the slit
     ileft = (ximg_fit > 0.1) & (ximg_fit < 0.4)
     xleft = ximg_fit[ileft]
@@ -311,8 +313,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
 
     if tweak_slits:
-        slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
-                                                                    tweak_slits_thresh, tweak_slits_maxfrac)
+        slit_left_out, slit_righ_out, tweak_dict \
+                = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
+                                   tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
         tslits_dict_out['slit_left'][:,slit] = slit_left_out
