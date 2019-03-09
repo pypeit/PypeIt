@@ -14,9 +14,6 @@ from scipy import ndimage
 
 from astropy.io import fits
 
-# TODO: I'd rather we not use 'as' ...
-from linetools import utils as ltu
-
 from pypeit import msgs
 from pypeit.core import parse, trace_slits, extract, pixels
 #from pypeit.core import io
@@ -1059,7 +1056,7 @@ class TraceSlits(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-    def save(self, outfile=None, overwrite=True, traceImage=None):
+    def save(self, outfile=None, overwrite=True, traceImage=None, tslits_dict=None):
         """
         Save the main TraceSlits data as a MasterFrame.
 
@@ -1081,6 +1078,8 @@ class TraceSlits(masterframe.MasterFrame):
                       + 'Set overwrite=True to overwrite it.')
             return
 
+        _tslits_dict = self.tslits_dict if tslits_dict is None else tslits_dict
+
         # Log
         msgs.info('Saving master frame to {0}'.format(_outfile))
 
@@ -1100,31 +1099,31 @@ class TraceSlits(masterframe.MasterFrame):
         #   - Slit metadata
         # TODO: Provide header comments
         hdr['DET'] = self.det
-        hdr['NSPEC'] = self.tslits_dict['nspec']
-        hdr['NSPAT'] =  self.tslits_dict['nspat']
-        hdr['NSLITS'] =  self.tslits_dict['nslits']
-        hdr['PAD'] = self.tslits_dict['pad']
-        hdr['BINSPEC'] = self.tslits_dict['binspectral']
-        hdr['BINSPAT'] = self.tslits_dict['binspatial']
-        hdr['SPECTROG'] = self.tslits_dict['spectrograph']
+        hdr['NSPEC'] = _tslits_dict['nspec']
+        hdr['NSPAT'] =  _tslits_dict['nspat']
+        hdr['NSLITS'] =  _tslits_dict['nslits']
+        hdr['PAD'] = _tslits_dict['pad']
+        hdr['BINSPEC'] = _tslits_dict['binspectral']
+        hdr['BINSPAT'] = _tslits_dict['binspatial']
+        hdr['SPECTROG'] = _tslits_dict['spectrograph']
 
         # Collect data that may be None.  If they are None, no data will
         # be in the relevant extensions.
         mstrace = self.mstrace if traceImage is None else traceImage.stack
-        left_orig = None if 'slit_left_orig' not in self.tslits_dict.keys() \
-                        else self.tslits_dict['slit_left_orig']
-        righ_orig = None if 'slit_righ_orig' not in self.tslits_dict.keys() \
-                        else self.tslits_dict['slit_righ_orig']
+        left_orig = None if 'slit_left_orig' not in _tslits_dict.keys() \
+                        else _tslits_dict['slit_left_orig']
+        righ_orig = None if 'slit_righ_orig' not in _tslits_dict.keys() \
+                        else _tslits_dict['slit_righ_orig']
 
         # Write the file
         fits.HDUList([fits.PrimaryHDU(header=hdr),
                       fits.ImageHDU(data=mstrace, name='TRACEIMG'),
                       # TODO: These should be written to a BinaryTable
-                      fits.ImageHDU(data=self.tslits_dict['slit_left'], name='SLIT_LEFT'),
-                      fits.ImageHDU(data=self.tslits_dict['slit_righ'], name='SLIT_RIGH'),
-                      fits.ImageHDU(data=self.tslits_dict['slitcen'], name='SLITCEN'),
-                      fits.ImageHDU(data=self.tslits_dict['spec_min'], name='SPEC_MIN'),
-                      fits.ImageHDU(data=self.tslits_dict['spec_max'], name='SPEC_MAX'),
+                      fits.ImageHDU(data=_tslits_dict['slit_left'], name='SLIT_LEFT'),
+                      fits.ImageHDU(data=_tslits_dict['slit_righ'], name='SLIT_RIGH'),
+                      fits.ImageHDU(data=_tslits_dict['slitcen'], name='SLITCEN'),
+                      fits.ImageHDU(data=_tslits_dict['spec_min'], name='SPEC_MIN'),
+                      fits.ImageHDU(data=_tslits_dict['spec_max'], name='SPEC_MAX'),
                       fits.ImageHDU(data=left_orig, name='SLIT_LEFT_ORIG'),
                       fits.ImageHDU(data=righ_orig, name='SLIT_RIGH_ORIG')
                      ]).writeto(_outfile, overwrite=True)

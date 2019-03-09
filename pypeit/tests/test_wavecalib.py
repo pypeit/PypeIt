@@ -43,6 +43,8 @@ def test_user_redo():
     assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
 
 
+# TODO: Bring back some of these tests...
+
 '''
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files/wavecalib')

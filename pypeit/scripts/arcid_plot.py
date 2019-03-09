@@ -6,6 +6,12 @@
 
 """
 This script generates an ArcID plot from a Master WaveSoln file
+
+.. todo::
+
+    This script is out of date and will not function with the current
+    pypeit master branch.
+
 """
 import argparse
 

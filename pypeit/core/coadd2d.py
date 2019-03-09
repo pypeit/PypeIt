@@ -798,11 +798,15 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
 
     # Write out the psuedo master files to disk
     master_key_dict = stack_dict['master_key_dict']
+
+    # TODO: These saving operations are a temporary kludge
     waveImage = waveimage.WaveImage(None, None, None, None, None,
-                                      master_key=master_key_dict['arc'], master_dir=master_dir)
-    waveImage.save_master(waveimg_psuedo)
-    traceSlits = traceslits.TraceSlits(None, None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
-    traceSlits.save_master(tslits_dict_psuedo)
+                                    master_key=master_key_dict['arc'], master_dir=master_dir)
+    waveImage.save(mswave=waveimg_psuedo)
+
+    traceSlits = traceslits.TraceSlits(None, None, master_key=master_key_dict['trace'],
+                                       master_dir=master_dir)
+    traceSlits.save(tslits_dict=tslits_dict_psuedo)
 
     return imgminsky_psuedo, sciivar_psuedo, skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs
 

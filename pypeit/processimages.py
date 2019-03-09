@@ -804,41 +804,41 @@ class ProcessImages(object):
         # Show
         viewer, ch = ginga.show_image(img)
 
-    # TODO: Is this ever used?
-    def write_stack_to_fits(self, outfile, overwrite=True):
-        """
-        Write the combined image to disk as a FITS file
-
-        Parameters
-        ----------
-        outfile : str
-        overwrite
-
-        Returns
-        -------
-
-        """
-        if self.stack is None:
-            msgs.warn("You need to generate the stack before you can write it!")
-            return
-        #
-        hdu = fits.PrimaryHDU(self.stack)
-        # Add raw_files to header
-        for i in range(self.nfiles):
-            hdrname = "FRAME{0:03d}".format(i+1)
-            hdu.header[hdrname] = self.files[i]
-        # Spectrograph
-        hdu.header['INSTRUME'] = self.spectrograph.spectrograph
-        # Parameters
-        self.proc_par.to_header(hdu.header)
-        # Steps
-        steps = ','
-        hdu.header['STEPS'] = steps.join(self.steps)
-        # Finish
-        hlist = [hdu]
-        hdulist = fits.HDUList(hlist)
-        hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote stacked image to {:s}".format(outfile))
+#    # TODO: Is this ever used?
+#    def write_stack_to_fits(self, outfile, overwrite=True):
+#        """
+#        Write the combined image to disk as a FITS file
+#
+#        Parameters
+#        ----------
+#        outfile : str
+#        overwrite
+#
+#        Returns
+#        -------
+#
+#        """
+#        if self.stack is None:
+#            msgs.warn("You need to generate the stack before you can write it!")
+#            return
+#        #
+#        hdu = fits.PrimaryHDU(self.stack)
+#        # Add raw_files to header
+#        for i in range(self.nfiles):
+#            hdrname = "FRAME{0:03d}".format(i+1)
+#            hdu.header[hdrname] = self.files[i]
+#        # Spectrograph
+#        hdu.header['INSTRUME'] = self.spectrograph.spectrograph
+#        # Parameters
+#        self.proc_par.to_header(hdu.header)
+#        # Steps
+#        steps = ','
+#        hdu.header['STEPS'] = steps.join(self.steps)
+#        # Finish
+#        hlist = [hdu]
+#        hdulist = fits.HDUList(hlist)
+#        hdulist.writeto(outfile, overwrite=overwrite)
+#        msgs.info("Wrote stacked image to {:s}".format(outfile))
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,

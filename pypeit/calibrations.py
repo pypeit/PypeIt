@@ -153,9 +153,38 @@ class Calibrations(object):
         self.cailb_ID = None
         self.master_key_dict = {}
 
-    def check_for_previous(self, master_type, master_key):
+    def _update_cache(self, master_key, master_type, data):
         """
-        Check if the calibration frame is in memory.
+        Update or add new cached data held in memory.
+
+        Fundamentally just executes::
+
+            self.calib_dict[self.master_key_dict[master_key]][master_type] = data
+
+        Args:
+            master_key (:obj:`str`):
+                Keyword used to select the master key from
+                :attr:`master_key_dict`.
+            master_type (:obj:`str`, :obj:`tuple`):
+                One or more keywords setting the type of master frame
+                being saved to :attr:`calib_dict`.  E.g.
+                `master_type=bpm` for the data saved to
+                `self.calib_dict['A_01_1']['bpm'].
+            data (object, :obj:`tuple`):
+                One or more data objects to save to :attr:`calib_dict`.
+        """
+        # Handle a single entry
+        _master_type = master_type if isinstance(master_type, tuple) else (master_type,)
+        _data = data if isinstance(data, tuple) else (data,)
+        # Save the data
+        # TODO: Allow for copy option?  Do we now whether or not this is
+        # actually being done correctly as it is?
+        for key, d in zip(_master_type, _data):
+            self.calib_dict[self.master_key_dict[master_key]][key] = d
+
+    def _check_cache(self, master_type, master_key):
+        """
+        Check if the calibration frame data has been cached in memory.
 
         The image data is saved in memory as, e.g.::
 
@@ -226,7 +255,7 @@ class Calibrations(object):
                 = self.fitstbl.master_key(arc_rows[0] if len(arc_rows) > 0 else self.frame,
                                           det=self.det)
 
-        prev_build = self.check_for_previous('arc', self.master_key_dict['arc'])
+        prev_build = self._check_cache('arc', self.master_key_dict['arc'])
         if prev_build:
             # Previously calculated
             self.msarc = self.calib_dict[self.master_key_dict['arc']]['arc']
@@ -250,7 +279,7 @@ class Calibrations(object):
                 self.arcImage.save()
 
         # Save & return
-        self.calib_dict[self.master_key_dict['arc']]['arc'] = self.msarc
+        self._update_cache('arc', 'arc', self.msarc)
         return self.msarc
 
     def get_bias(self):
@@ -277,7 +306,7 @@ class Calibrations(object):
                                           det=self.det)
 
         # Grab from internal dict (or hard-drive)?
-        prev_build = self.check_for_previous('bias', self.master_key_dict['bias'])
+        prev_build = self._check_cache('bias', self.master_key_dict['bias'])
         if prev_build:
             self.msbias = self.calib_dict[self.master_key_dict['bias']]['bias']
             msgs.info("Reloading the bias from the internal dict")
@@ -299,7 +328,7 @@ class Calibrations(object):
                 self.biasFrame.save()
 
         # Save & return
-        self.calib_dict[self.master_key_dict['bias']]['bias'] = self.msbias
+        self._update_cache('bias', 'bias', self.msbias)
         return self.msbias
 
     def get_bpm(self):
@@ -324,7 +353,7 @@ class Calibrations(object):
         # Generate a bad pixel mask (should not repeat)
         self.master_key_dict['bpm'] = self.fitstbl.master_key(self.frame, det=self.det)
 
-        prev_build = self.check_for_previous('bpm', self.master_key_dict['bpm'])
+        prev_build = self._check_cache('bpm', self.master_key_dict['bpm'])
         if prev_build:
             self.msbpm = self.calib_dict[self.master_key_dict['bpm']]['bpm']
             return self.msbpm
@@ -342,7 +371,7 @@ class Calibrations(object):
         self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_file, det=self.det)
 
         # Record it
-        self.calib_dict[self.master_key_dict['bpm']]['bpm'] = self.msbpm
+        self._update_cache('bpm', 'bpm', self.msbpm)
         # Return
         return self.msbpm
 
@@ -397,8 +426,8 @@ class Calibrations(object):
                                           det=self.det)
 
         # Return already generated data
-        prev_build1 = self.check_for_previous('pixelflat', self.master_key_dict['flat'])
-        prev_build2 = self.check_for_previous('illumflat', self.master_key_dict['flat'])
+        prev_build1 = self._check_cache('pixelflat', self.master_key_dict['flat'])
+        prev_build2 = self._check_cache('illumflat', self.master_key_dict['flat'])
         if np.all([prev_build1, prev_build2]):
             self.mspixelflat = self.calib_dict[self.master_key_dict['flat']]['pixelflat']
             self.msillumflat = self.calib_dict[self.master_key_dict['flat']]['illumflat']
@@ -481,9 +510,7 @@ class Calibrations(object):
             msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
-        self.calib_dict[self.master_key_dict['flat']]['pixelflat'] = self.mspixelflat
-        self.calib_dict[self.master_key_dict['flat']]['illumflat'] = self.msillumflat
-
+        self._update_cache('flat', ('pixelflat','illumflat'), (self.mspixelflat,self.msillumflat))
         return self.mspixelflat, self.msillumflat
 
     # TODO: if write_qa need to provide qa_path!
@@ -522,7 +549,7 @@ class Calibrations(object):
                                           det=self.det)
 
         # Return already generated data
-        prev_build = self.check_for_previous('trace', self.master_key_dict['trace'])
+        prev_build = self._check_cache('trace', self.master_key_dict['trace'])
         if prev_build and not redo:
             self.tslits_dict = self.calib_dict[self.master_key_dict['trace']]['trace']
             self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
@@ -578,9 +605,10 @@ class Calibrations(object):
                 self.traceSlits.save(traceImage=self.traceImage)
 
         # Save, initialize maskslits, and return
-        self.calib_dict[self.master_key_dict['trace']]['trace'] = self.tslits_dict
+        # TODO: We're not caching self.mstrace.  And actually there is
+        # no mstrace in Calibrations anymore; only in TraceSlits?
+        self._update_cache('trace', 'trace', self.tslits_dict)
         self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
-
         return self.tslits_dict, self.maskslits
 
     def get_wave(self):
@@ -604,7 +632,7 @@ class Calibrations(object):
         self._chk_set(['det', 'par'])
 
         # Return existing data
-        prev_build = self.check_for_previous('wave', self.master_key_dict['arc'])
+        prev_build = self._check_cache('wave', self.master_key_dict['arc'])
         if prev_build:
             self.mswave = self.calib_dict[self.master_key_dict['arc']]['wave']
             return self.mswave
@@ -633,7 +661,7 @@ class Calibrations(object):
             self.waveImage.save()
 
         # Save & return
-        self.calib_dict[self.master_key_dict['arc']]['wave'] = self.mswave
+        self._update_cache('arc', 'wave', self.mswave)
         return self.mswave
 
     def get_wv_calib(self):
@@ -657,7 +685,7 @@ class Calibrations(object):
             msgs.error('Arc master key not set.  First run get_arc.')
 
         # Return existing data
-        prev_build = self.check_for_previous('wavecalib', self.master_key_dict['arc'])
+        prev_build = self._check_cache('wavecalib', self.master_key_dict['arc'])
         if prev_build:
             self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
             self.wv_maskslits = self.calib_dict[self.master_key_dict['arc']]['wvmask']
@@ -701,8 +729,7 @@ class Calibrations(object):
         self.maskslits += self.wv_maskslits
 
         # Save & return
-        self.calib_dict[self.master_key_dict['arc']]['wavecalib'] = self.wv_calib
-        self.calib_dict[self.master_key_dict['arc']]['wvmask'] = self.wv_maskslits
+        self._update_cache('arc', ('wavecalib','wvmask'), (self.wv_calib,self.wv_maskslits))
         # Return
         return self.wv_calib, self.maskslits
 
@@ -733,7 +760,7 @@ class Calibrations(object):
             msgs.error('Arc master key not set.  First run get_arc.')
         
         # Return existing data
-        prev_build = self.check_for_previous('tilts_dict', self.master_key_dict['arc'])
+        prev_build = self._check_cache('tilts_dict', self.master_key_dict['arc'])
         if prev_build:
             self.tilts_dict = self.calib_dict[self.master_key_dict['arc']]['tilts_dict']
             self.wt_maskslits = self.calib_dict[self.master_key_dict['arc']]['wtmask']
@@ -760,8 +787,7 @@ class Calibrations(object):
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
 
         # Save & return
-        self.calib_dict[self.master_key_dict['arc']]['tilts_dict'] = self.tilts_dict
-        self.calib_dict[self.master_key_dict['arc']]['wtmask'] = self.wt_maskslits
+        self._update_cache('arc', ('tilts_dict','wtmask'), (self.tilts_dict,self.wt_maskslits))
         self.maskslits += self.wt_maskslits
         return self.tilts_dict, self.maskslits
 

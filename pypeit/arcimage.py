@@ -109,10 +109,8 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
                 Return the header
 
         Returns:
-            tuple: Returns three `numpy.ndarray`_ objects with the raw
-            flat-field image, the normalized pixel flat, and the
-            illumination flat.  Also returns the primary header, if
-            requested.
+            Returns a `numpy.ndarray`_ with the arc master frame image.
+            Also returns the primary header, if requested.
         """
         return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header)
 

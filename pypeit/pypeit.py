@@ -353,11 +353,6 @@ class PypeIt(object):
             # TODO: Put this in a try/except block?
             ginga.clear_all()
 
-        # Save the frames
-        # TODO: Should these be set to self?  They're not used elsewhere
-        # in the class or in run pypeit.
-        self.frames = frames
-        self.bg_frames = bg_frames
         # Is this an IR reduction?
         # TODO: Why specific to IR?
         self.ir_redux = True if len(bg_frames) > 0 else False
@@ -369,16 +364,16 @@ class PypeIt(object):
         sci_dict['meta']['ir_redux'] = self.ir_redux
 
         # Print status message
-        msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
+        msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
         # TODO: Print these when the frames are actually combined,
         # backgrounds are used, etc?
         msgs_string += 'Combining frames:' + msgs.newline()
-        for iframe in self.frames:
+        for iframe in frames:
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
         msgs.info(msgs_string)
         if len(bg_frames) > 0:
             bg_msgs_string = ''
-            for iframe in self.bg_frames:
+            for iframe in bg_frames:
                 bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
             bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline() + bg_msgs_string
             msgs.info(bg_msgs_string)
@@ -395,16 +390,18 @@ class PypeIt(object):
             sci_dict[self.det] = {}
             # Calibrate
             #TODO Is the right behavior to just use the first frame?
-            self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
+            self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], sci_dict[self.det]['skymodel'], \
-                sci_dict[self.det]['objmodel'], sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
+            sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
+                sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
+                sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
                 sci_dict[self.det]['specobjs'], vel_corr \
-                    = self.extract_one(self.frames, self.det, bg_frames = self.bg_frames, std_outfile = std_outfile)
+                        = self.extract_one(frames, self.det, bg_frames=bg_frames,
+                                           std_outfile=std_outfile)
             if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
 

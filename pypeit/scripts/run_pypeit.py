@@ -61,9 +61,6 @@ def main(args):
     import sys
     import traceback
 
-    # This is done in the package level __init__; don't need to do it
-    # again here
-#    from pypeit import check_requirements
     from pypeit import pypeit
     from pypeit import pypeitsetup
     from pypeit import debugger
