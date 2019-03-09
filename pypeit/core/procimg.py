@@ -689,8 +689,140 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
 #    del xds, yds, xos, yos, oscan
 #    return frame
 
+# TODO: Provide a replace_pixels method that does this on a pixel by
+# pixel basis instead of full columns.
+def replace_columns(img, bad_cols, replace_with='mean', copy=False):
+    """
+    Replace bad image columns.
 
-def replace_columns(img, bad_cols, replace_with='mean'):
+    Args:
+        img (`numpy.ndarray`_):
+            A 2D array with image values to replace.
+        bad_cols (`numpy.ndarray`_):
+            Boolean array selecting bad columns in `img`.  Must have the
+            correct shape.
+        replace_with (:obj:`str`, optional):
+            Method to use for the replacements.  Can be 'mean' (see
+            :func:`replace_column_mean`) or 'linear' (see
+            :func:`replace_column_linear`).
+        copy (:obj:`bool`, optional):
+            Copy `img` to a new array before making any
+            modifications.  Otherwise, `img` is modified in-place.
+
+    Returns:
+        `numpy.ndarray`_: The modified image, which is either a new
+        array or points to the in-place modification of `img` according
+        to the value of `copy`.
+    """
+    # Check
+    if img.ndim != 2:
+        msgs.error('Images must be 2D!')
+    if bad_cols.size != img.shape[1]:
+        msgs.error('Bad column array has incorrect length!')
+    if np.all(bad_cols):
+        msgs.error('All columns are bad!')
+
+    _img = img.copy() if copy else img
+
+    if np.sum(bad_cols) == 0:
+        # No bad columns
+        return _img
+
+    # Find the starting/ending indices of adjacent bad columns
+    borders = np.zeros(img.shape[1], dtype=int)
+    borders[bad_cols] = 1
+    borders = borders - np.roll(borders,1)
+    if borders[0] == -1:
+        borders[0] = 0
+
+    # Get edge indices and deal with edge cases
+    lindx = borders == 1
+    ledges = np.where(lindx)[0] if np.any(lindx) else [0]
+    rindx = borders == -1
+    redges = np.where(rindx)[0] if np.any(rindx) else [img.shape[1]]
+    if ledges[0] > redges[0]:
+        ledges = np.append([0], ledges)
+    if ledges[-1] > redges[-1]:
+        redges = np.append(redges, [img.shape[1]])
+    # If this is tripped, there's a coding error
+    assert len(ledges) == len(redges), 'Problem in edge setup'
+
+    # Replace the image values
+    if replace_with == 'mean':
+        for l,r in zip(ledges, redges):
+            replace_column_mean(_img, l, r)
+    elif replace_with == 'linear':
+        for l,r in zip(ledges, redges):
+            replace_column_linear(_img, l, r)
+    else:
+        msgs.error('Unknown replace_columns method.  Must be mean or linear.')
+    return _img
+
+
+def replace_column_mean(img, left, right):
+    """
+    Replace the column values between left and right indices for all
+    rows by the mean of the columns just outside the region.
+
+    Columns at the end of the image with no left or right reference
+    column (`left==0` or `right==img.shape[1]`) are just replaced by the
+    closest valid column.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image with values to both use and replace.
+        left (:obj:`int`):
+            Inclusive starting column index.
+        right (:obj:`int`):
+            Exclusive ending column index.
+    """
+    if left == 0:
+        img[:,left:right] = img[:,right][:,None]
+        return
+    if right == img.shape[1]:
+        img[:,left:] = img[:,left-1][:,None]
+        return
+    img[:,left:right] = 0.5*(img[:,left-1]+img[:,right])[:,None]
+
+
+def replace_column_linear(img, left, right):
+    """
+    Replace the column values between left and right indices for all
+    rows by a linear interpolation between the columns just outside the
+    region.
+
+    If possible, extrapolation is used for columns at the end of the
+    image with no left or right reference column (`left==0` or
+    `right==img.shape[1]`) using the two most adjacent columns.
+    Otherwise, this function calls :func:`replace_column_mean`.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image with values to both use and replace.
+        left (:obj:`int`):
+            Inclusive starting column index.
+        right (:obj:`int`):
+            Exclusive ending column index.
+    """
+    if left == 0 and right > img.shape[1]-2 or right == img.shape[1] and left < 2:
+        # No extrapolation available so revert to mean
+        return replace_column_mean(img, left, right)
+    if left == 0:
+        # Extrapolate down
+        img[:,:right] = (img[:,right+1]-img[:,right])[:,None]*np.arange(right)[None,:] \
+                            + img[:,right][:,None]
+        return
+    if right == img.shape[1]:
+        # Extrapolate up
+        img[:,left:] = (img[:,left-1]-img[:,left-2])[:,None]*np.arange(right-left)[None,:] \
+                            + img[:,left-2][:,None]
+        return
+    # Interpolate
+    img[:,left:right] = np.divide(img[:,right]-img[:,left-1],right-left+1)[:,None] \
+                            * (np.arange(right-left)+1)[None,:] + img[:,left-1][:,None]
+
+
+def old_replace_columns(img, bad_cols, replace_with='mean'):
     """ Replace bad columns with values from the neighbors
 
     Parameters
@@ -766,6 +898,7 @@ def trim_frame(frame, mask):
         msgs.error('Data section is oddly shaped.  Trimming does not exclude all '
                    'pixels outside the data sections.')
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
+
 
 #def trim(frame, numamplifiers, datasec):
 #    """ Core method to trim an input image

@@ -210,15 +210,31 @@ class Spectrograph(object):
         img = raw_img.astype(float)
 
         # Transpose?
-        if self.detector[det-1]['specaxis'] == 1:
+        if self.raw_is_transposed(det):
             img = img.T
-        if self.detector[det-1]['specflip'] is True:
+        if self.detector[det-1]['specflip']:
             img = np.flip(img, axis=0)
-        if self.detector[det-1]['spatflip'] is True:
+        if self.detector[det-1]['spatflip']:
             img = np.flip(img, axis=1)
 
         # Return
         return img, head0
+
+    def raw_is_transposed(self, det=1):
+        """
+        Indicates that raw files read by `astropy.io.fits`_ yields an
+        image with the spatial dimension along rows, meaning that the
+        image must be transposed to match the uniform PypeIt format of
+        the spectral dimension along rows.
+
+        Args:
+            det (:obj:`int`, optional):
+                1-indexed detector number.
+        
+        Returns:
+            :obj:`bool`: Flat that transpose is required.
+        """
+        return self.detector[det-1]['specaxis'] == 1
 
     def load_raw_img_head(self, raw_file, dataext=0, headext=0, **null_kwargs):
         """
