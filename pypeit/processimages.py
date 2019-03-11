@@ -557,8 +557,6 @@ class ProcessImages(object):
         if pixel_flat is not None:
             self.stack = self.flat_field(pixel_flat, bpm, illum_flat=illum_flat)
 
-        from IPython import embed
-        embed()
         # Done
         return self.stack.copy()
 
