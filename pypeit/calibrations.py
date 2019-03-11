@@ -61,6 +61,8 @@ class Calibrations(object):
         qadir (:obj:`str, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
+        save_masters (:obj:`bool`, optional):
+            Save the calibration frames to disk.
         reuse_masters (:obj:`bool`, optional):
             Load calibration files from disk if they exist
         show (:obj:`bool`, optional):
@@ -88,8 +90,12 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False):
+    # TODO: I added back save_masters as a parameter because if you
+    # provide a caldir, you may just want to be reusing the masters.  I
+    # think the code won't save masters if they're reused, but allowing
+    # save_masters as an argument allows us to make this explicit.
+    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, save_masters=False,
+                 reuse_masters=False, show=False):
 
         # Check the types
         if not isinstance(fitstbl, PypeItMetaData):
@@ -107,7 +113,7 @@ class Calibrations(object):
         # Control flow
         self.reuse_masters = reuse_masters
         self.master_dir = caldir
-        self.save_masters = caldir is not None
+        self.save_masters = save_masters
         self.qa_path = qadir
         self.write_qa = qadir is not None
         self.show = show
@@ -664,9 +670,9 @@ class Calibrations(object):
         self.mswave = self.waveImage.load()
         if self.mswave is None:
             self.mswave = self.waveImage.build_wave()
-        # Save to hard-drive
-        if self.save_masters:
-            self.waveImage.save()
+            # Save to hard-drive
+            if self.save_masters:
+                self.waveImage.save()
 
         # Save & return
         self._update_cache('arc', 'wave', self.mswave)

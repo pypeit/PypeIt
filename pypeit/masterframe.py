@@ -184,7 +184,7 @@ class MasterFrame(object):
 
         # Read and return
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        return self.load_from_file(_ifile, _ext, return_header=return_header)
+        return MasterFrame.load_from_file(_ifile, _ext, return_header=return_header)
 
     @staticmethod
     def load_from_file(filename, ext, return_header=False):
