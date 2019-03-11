@@ -1120,11 +1120,11 @@ class TraceSlits(masterframe.MasterFrame):
         mstrace = self.mstrace
         if traceImage is not None:
             try:
-                self.mstrace = traceImage.stack
+                mstrace = traceImage.stack
             except:
                 # Assume it failed because it's not a TraceImage object
                 # and it's a numpy.ndarray to write.
-                self.mstrace = traceImage
+                mstrace = traceImage
         left_orig = None if 'slit_left_orig' not in _tslits_dict.keys() \
                         else _tslits_dict['slit_left_orig']
         righ_orig = None if 'slit_righ_orig' not in _tslits_dict.keys() \
