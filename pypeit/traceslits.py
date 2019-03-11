@@ -1056,6 +1056,9 @@ class TraceSlits(masterframe.MasterFrame):
         txt += '>'
         return txt
 
+    # TODO: Allowing traceImage to be passed, allowing it to be either
+    # a TraceImage or a numpy.ndarray, and allowing tslits_dict to be
+    # passed are all kludges.
     def save(self, outfile=None, overwrite=True, traceImage=None, tslits_dict=None):
         """
         Save the main TraceSlits data as a MasterFrame.
@@ -1068,8 +1071,10 @@ class TraceSlits(masterframe.MasterFrame):
                 :attr:`file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
-            traceImage (:class:`pypeit.traceimage.TraceImage`, optional):
-                Trace image object to include in master frame file.
+            traceImage (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`, optional):
+                An array with only the image data or the full
+                :class:`pypeit.traceimage.TraceImage` instance with the
+                data used to construct the slit traces.
         """
         _outfile = self.file_path if outfile is None else outfile
         # Check if it exists
@@ -1091,11 +1096,14 @@ class TraceSlits(masterframe.MasterFrame):
         hdr['STEPS'] = (','.join(self.steps), 'Completed reduction steps')
         #   - Provide the file names
         if traceImage is not None:
-            nfiles = len(traceImage.files)
-            ndig = int(np.log10(nfiles))+1
-            for i in range(nfiles):
-                hdr['F{0}'.format(i+1).zfill(ndig)] \
-                        = (traceImage.files[i], 'PypeIt: Processed raw file')
+            try:
+                nfiles = len(traceImage.files)
+                ndig = int(np.log10(nfiles))+1
+                for i in range(nfiles):
+                    hdr['F{0}'.format(i+1).zfill(ndig)] \
+                            = (traceImage.files[i], 'PypeIt: Processed raw file')
+            except:
+                msgs.warn('Master trace frame does not include list of source files.')
         #   - Slit metadata
         # TODO: Provide header comments
         hdr['DET'] = self.det
@@ -1109,7 +1117,14 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Collect data that may be None.  If they are None, no data will
         # be in the relevant extensions.
-        mstrace = self.mstrace if traceImage is None else traceImage.stack
+        mstrace = self.mstrace
+        if traceImage is not None:
+            try:
+                self.mstrace = traceImage.stack
+            except:
+                # Assume it failed because it's not a TraceImage object
+                # and it's a numpy.ndarray to write.
+                self.mstrace = traceImage
         left_orig = None if 'slit_left_orig' not in _tslits_dict.keys() \
                         else _tslits_dict['slit_left_orig']
         righ_orig = None if 'slit_righ_orig' not in _tslits_dict.keys() \

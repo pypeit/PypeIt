@@ -139,10 +139,15 @@ class Calibrations(object):
         Reset all of the key internals to None or an empty object
 
         """
+        # TODO: I think all of these should change to the relevant class
+        # objects, particularly if we're going to allow a class (e.g.,
+        # FlatField) to alter the internals of another classe (e.g.,
+        # TraceSlits)
         self.shape = None
         self.msarc = None
         self.msbias = None
         self.msbpm = None
+        self.mstrace = None
         self.tslits_dict = None
         self.maskslits = None
         self.wavecalib = None
@@ -364,7 +369,7 @@ class Calibrations(object):
 
         # Instantiate the shape here, based on the shape of the science
         # image. This is the shape of most calibrations, although we are
-        # allowing for arcs of different shape becuase of X-shooter etc.
+        # allowing for arcs of different shape because of X-shooter etc.
         self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
 
         # Build it
@@ -492,7 +497,10 @@ class Calibrations(object):
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
                     # Add tweaked boundaries to the MasterTrace file
                     self.traceSlits.tslits_dict = self.flatField.tslits_dict
-                    self.traceSlits.save(traceImage=self.traceImage)
+                    try:
+                        self.traceSlits.save(traceImage=self.traceImage)
+                    except:
+                        self.traceSlits.save(traceImage=self.mstrace)
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.tilts_dict = self.flatField.tilts_dict
