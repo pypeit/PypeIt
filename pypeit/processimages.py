@@ -323,8 +323,8 @@ class ProcessImages(object):
                                                               section='datasec')
             self.datasec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
                                                 include_end=include_end, require_dim=2,
-                                                transpose=transpose, binning=self.binning[i])
-                                    for sec in datasec]
+                                                transpose=transpose, binning_raw=self.binning[i][::-1])
+                               for sec in datasec]
             # Get the overscan sections, one section per amplifier
             try:
                 oscansec, one_indexed, include_end, transpose \
@@ -337,7 +337,7 @@ class ProcessImages(object):
             # Parse, including handling binning
             self.oscansec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
                                                  include_end=include_end, require_dim=2,
-                                                 transpose=transpose, binning=self.binning[i])
+                                                 transpose=transpose, binning_raw=self.binning[i][::-1])
                                     for sec in oscansec]
         # Include step
         self.steps.append(inspect.stack()[0][3])
@@ -557,6 +557,8 @@ class ProcessImages(object):
         if pixel_flat is not None:
             self.stack = self.flat_field(pixel_flat, bpm, illum_flat=illum_flat)
 
+        from IPython import embed
+        embed()
         # Done
         return self.stack.copy()
 
