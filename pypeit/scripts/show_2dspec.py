@@ -10,9 +10,10 @@ with extras.  Run above the Science/ folder.
 import argparse
 from astropy.table import Table
 from pypeit import ginga
-from pypeit.spectrographs import util
 from pypeit.processimages import ProcessImagesBitMask as bitmask
 from pypeit.core import pixels
+from pypeit.masterframe import MasterFrame
+from pypeit.traceslits import TraceSlits
 import os
 import numpy as np
 import IPython
@@ -116,12 +117,15 @@ def main(args):
         mdir=mdir_base
 
     wave_key = '{:s}'.format(head0['ARCMKEY']) +  '_{:02d}'.format(args.det)
-    waveimg = masterframe.master_name('wave', wave_key, mdir)
-
     trace_key = '{:s}'.format(head0['TRACMKEY']) + '_{:02d}'.format(args.det)
-    trc_file = masterframe.master_name('trace', trace_key, mdir)
-    tslits_dict, _ = traceslits.load_tslits(trc_file)
-    #spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
+
+
+    waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
+    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
+    #waveimg = masterframe.master_name('wave', wave_key, mdir)
+    #trc_file = masterframe.master_name('trace', trace_key, mdir)
+
+    tslits_dict, _ = TraceSlits.load_from_file(trc_file)
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
     slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
