@@ -11,13 +11,13 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import masterframe
+from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
 
 from pypeit import debugger
 
-class WaveImage(masterframe.MasterFrame):
+class WaveImage(MasterFrame):
     """
     Class to generate the Wavelength Image
 
@@ -55,7 +55,7 @@ class WaveImage(masterframe.MasterFrame):
 #                 master_key=None, master_dir=None, reuse_masters=False):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
 
         # Required parameters
@@ -201,7 +201,7 @@ class WaveImage(masterframe.MasterFrame):
         # syntax that works, but for now, I'm just going to call the
         # static method explicitly without using super().  See:
         # https://stackoverflow.com/questions/26788214/super-and-staticmethod-interaction
-        return MasterFrame.load_from_file('WAVE', filename, return_header=return_header)
+        return MasterFrame.load_from_file(filename, 'WAVE', return_header=return_header)
 
 # TODO: Use WaveImage.load_from_file(filename)
 #def load_waveimage(filename):

@@ -62,12 +62,22 @@ class MasterFrame(object):
         # Other parameters
         self.reuse_masters = reuse_masters
 
+    # TODO: Kludge to allow for a one-liner that gets the master frame
+    # file name
+    @staticmethod
+    def construct_file_name(master_type, master_key, file_format='fits'):
+        """
+        Name of the MasterFrame file.
+        """
+        return 'Master{0}_{1}.{2}'.format(master_type, master_key, file_format)
+
     @property
     def file_name(self):
         """
         Name of the MasterFrame file.
         """
-        return 'Master{0}_{1}.{2}'.format(self.master_type, self.master_key, self.file_format)
+        return MasterFrame.construct_file_name(self.master_type, self.master_key,
+                                               self.file_format)
 
     @property
     def file_path(self):

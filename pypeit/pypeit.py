@@ -310,18 +310,27 @@ class PypeIt(object):
         self.print_end_time()
 
 
-    def select_detectors(self):
+    # This is a static method to allow for use in coadding script 
+    @staticmethod
+    def select_detectors(detnum=None, ndet=1):
         """
         Return the 1-indexed list of detectors to reduce.
+
+        Args:
+            detnum (:obj:`int`, :obj:`list`, optional):
+                One or more detectors to reduce.  If None, return the
+                full list for the provided number of detectors (`ndet`).
+            ndet (:obj:`int`, optional):
+                The number of detectors for this instrument.  Only used
+                if `detnum is None`.
 
         Returns:
             list:  List of detectors to be reduced
 
         """
-        if self.par['rdx']['detnum'] is None:
-            return np.arange(self.spectrograph.ndet)+1
-        return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
-                    else self.par['rdx']['detnum']
+        if detnum is None:
+            return np.arange(1, ndet+1).tolist()
+        return [detnum] if isinstance(detnum, int) else detnum
 
     def reduce_exposure(self, frames, bg_frames=[], std_outfile=None):
         """
@@ -379,7 +388,8 @@ class PypeIt(object):
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-        detectors = self.select_detectors()
+        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+                                            ndet=self.spectrograph.ndet)
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
                                 set(np.arange(self.spectrograph.ndet))-set(detectors)])))
