@@ -94,7 +94,7 @@ class Calibrations(object):
     # provide a caldir, you may just want to be reusing the masters.  I
     # think the code won't save masters if they're reused, but allowing
     # save_masters as an argument allows us to make this explicit.
-    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, save_masters=False,
+    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, save_masters=True,
                  reuse_masters=False, show=False):
 
         # Check the types
