@@ -12,6 +12,7 @@ import numpy as np
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
 # TODO: Bring this test back in some way?
 #def test_step_by_step():
@@ -41,9 +42,9 @@ from pypeit.par import pypeitpar
 @cooked_required
 def test_run():
     # Masters
-    spectrograph, tslits_dict, tilts_dict, datasec_img \
-                = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True,
-                                         datasec=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    tslits_dict, mstrace, tilts_dict, datasec_img \
+                = load_kast_blue_masters(tslits=True, tilts=True, datasec=True)
     # Instantiate
     frametype = 'pixelflat'
     par = pypeitpar.FrameGroupPar(frametype)
@@ -51,7 +52,7 @@ def test_run():
                                     tslits_dict=tslits_dict.copy())
 
     # Use mstrace
-    flatField.rawflatimg = tslits_dict['mstrace'].copy()
+    flatField.rawflatimg = mstrace.copy()
     mspixelflatnrm, msillumflat = flatField.run()
     assert np.isclose(np.median(mspixelflatnrm), 1.0)
 

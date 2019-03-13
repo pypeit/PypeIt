@@ -118,8 +118,21 @@ class Calibrations(object):
         self.write_qa = qadir is not None
         self.show = show
 
+        # Check that the masters can be reused and/or saved 
+        if self.master_dir is None:
+            if self.save_masters:
+                # TODO: Default to current directory instead?
+                msgs.warn('To save masters, must provide the directory (caldir).  '
+                          'Masters will not be saved!')
+                self.save_masters = False
+            if self.reuse_masters:
+                # TODO: Default to current directory instead?
+                msgs.warn('To reuse masters, must provide the directory (caldir).  '
+                          'Masters will not be reused!')
+                self.reuse_masters = False
+
         # Check the directories exist
-        # TODO: This should be done when the masters ar saved
+        # TODO: This should be done when the masters are saved
         if self.save_masters and not os.path.isdir(self.master_dir):
             os.makedirs(self.master_dir)
         # TODO: This should be done when the qa plots are saved
