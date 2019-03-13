@@ -232,16 +232,7 @@ class MasterFrame(object):
             data = hdu[_ext[0]].data.astype(np.float)
             return (data, hdu[0].header) if return_header else data
         # Multiple extensions
-        data = ()
-        for k in _ext:
-            try:
-                data += (hdu[k].data.astype(np.float),)
-            except AttributeError:
-                data += (None,)
-
-        # JFH The above case deals with cases where a nUll image is stored to some extension, i.e. illumflats
-        # which were crashing the list comprehension below.
-        #data = tuple([ hdu[k].data.astype(np.float) for k in _ext ])
+        data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext ])
         return data + (hdu[0].header,) if return_header else data
 
     @staticmethod

@@ -15,7 +15,6 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.spectrographs import util
 
-
 @cooked_required
 def test_user_redo():
     # Check for files
@@ -23,6 +22,8 @@ def test_user_redo():
     wvcalib_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib',
                                 'MasterWaveCalib_ShaneKastBlue_A.json')
     assert os.path.isfile(wvcalib_file)
+
+
     # Instantiate
     waveCalib = wavecalib.WaveCalib(None, None, spectrograph,
                                 spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
@@ -30,7 +31,7 @@ def test_user_redo():
     # Setup
     waveCalib.par['sigdetect'] = 5.
     nslit = 1
-    _ = waveCalib.make_maskslits(nslit)
+    waveCalib.make_maskslits(nslit)
     npix = len(waveCalib.wv_calib['0']['spec'])
     waveCalib.arccen = np.zeros((npix,nslit))
     waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']

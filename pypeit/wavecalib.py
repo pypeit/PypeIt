@@ -373,6 +373,23 @@ class WaveCalib(masterframe.MasterFrame):
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
         self.wv_calib = waveio.load_wavelength_calibration(_ifile)
         return self.wv_calib
+    
+    @staticmethod
+    def load_from_file(filename):
+        """
+        Load a full (all slit) wavelength calibration.
+        
+        This simply executes
+        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the master frame file.
+
+        Returns:
+            dict: The wavelength calibration data.
+        """
+        return waveio.load_wavelength_calibration(filename)
 
     def make_maskslits(self, nslit):
         """
