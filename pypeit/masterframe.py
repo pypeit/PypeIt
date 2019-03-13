@@ -240,7 +240,7 @@ class MasterFrame(object):
                 data += (None,)
 
         # JFH The above case deals with cases where a nUll image is stored to some extension, i.e. illumflats
-        # which were crashing the list comprehension below. 
+        # which were crashing the list comprehension below.
         #data = tuple([ hdu[k].data.astype(np.float) for k in _ext ])
         return data + (hdu[0].header,) if return_header else data
 
