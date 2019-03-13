@@ -61,8 +61,8 @@ def test_step_by_step(master_dir):
 @cooked_required
 def test_run(master_dir):
     # Masters
-    spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,
-                                                         tslits=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
     # Instantiate
     master_key = 'A_1_01'
     spectrograph.detector[0]['saturation'] = 60000.

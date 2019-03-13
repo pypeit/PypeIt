@@ -165,7 +165,8 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, datasec=False,
 
     if wvcalib:
         calib_file = os.path.join(master_dir,
-                                  MasterFrame.construct_file_name('WaveCalib', master_key))
+                                  MasterFrame.construct_file_name('WaveCalib', master_key,
+                                                                  file_format='json'))
         wv_calib = waveio.load_wavelength_calibration(calib_file) 
         ret.append(wv_calib)
 
