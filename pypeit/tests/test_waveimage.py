@@ -8,8 +8,9 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import load_kast_blue_masters, cooked_required
 from pypeit import waveimage
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def data_path(filename):
@@ -17,21 +18,20 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-@dev_suite_required
+@cooked_required
 def test_build_me():
     # Masters
-    spectrograph, tslits_dict, tilts_dict, wv_calib \
-            = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True, wvcalib=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    tslits_dict, mstrace, tilts_dict, wv_calib \
+            = load_kast_blue_masters(tslits=True, tilts=True, wvcalib=True)
     # Instantiate
     master_key = 'A_01_aa'
-    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
-    master_dir = root_path+'_'+spectrograph.spectrograph
+    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
     nslits = tslits_dict['slit_left'].shape[1]
     maskslits = np.zeros(nslits, dtype=bool)
     wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib, spectrograph, maskslits,
                                 master_key=master_key, master_dir=master_dir, reuse_masters=True)
     # Build
-    wave = wvImg._build_wave()
+    wave = wvImg.build_wave()
     assert int(np.max(wave)) > 5510
 

@@ -6,6 +6,12 @@
 
 """
 This script generates an ArcID plot from a Master WaveSoln file
+
+.. todo::
+
+    This script is out of date and will not function with the current
+    pypeit master branch.
+
 """
 import argparse
 
@@ -23,7 +29,6 @@ def parser(options=None) :
     else:
         args = parser.parse_args(options)
     return args
-
 
 def main(args):
     """
@@ -44,6 +49,8 @@ def main(args):
 
     from linetools.utils import loadjson
 
+    # TODO: This must be an out-dated script that is never used.
+    # Deprecate it?
     from pypeit import arqa
     from pypeit import msgs
     msgs.reset(verbosity=2)

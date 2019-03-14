@@ -15,7 +15,6 @@ from pypeit import scienceimage
 from pypeit import specobjs
 from pypeit import ginga
 from pypeit import reduce
-from pypeit.core import paths
 from pypeit.core import qa
 from pypeit.core import wave
 from pypeit.core import save
@@ -37,7 +36,8 @@ class PypeIt(object):
     This class runs the primary calibration and extraction in PypeIt
 
     Args:
-        pypeit_file (:obj:`str`):  PypeIt filename
+        pypeit_file (:obj:`str`):
+            PypeIt filename.
         verbosity (:obj:`int`, optional):
             Verbosity level of system output.  Can be::
                 - 0: No output
@@ -45,18 +45,20 @@ class PypeIt(object):
                 - 2: All output
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
-        reuse_masters (bool, optional): Reuse any pre-existing calibration files
+        reuse_masters (:obj:`bool`, optional):
+            Reuse any pre-existing calibration files
         logname (:obj:`str`, optional):
             The name of an ascii log file with the details of the
             reduction.
-        redux_path (:obj:`str`, optional):
-            Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
             remote control ginga session via "ginga --modules=RC &"
+        redux_path (:obj:`str`, optional):
+            Over-ride reduction path in PypeIt file (e.g. Notebook usage)
 
     Attributes:
+        TODO: Come back to this...
         pypeit_file (:obj:`str`):
             Name of the pypeit file to read.  PypeIt files have a specific
             set of valid formats. A description can be found `here`_
@@ -77,6 +79,7 @@ class PypeIt(object):
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
@@ -87,21 +90,27 @@ class PypeIt(object):
                 sci_file = data_files[idx]
                 break
         #   - Configuration specific parameters for the spectrograph
+        if sci_file is not None:
+            msgs.info('Setting configuration-specific parameters using {0}'.format(
+                      os.path.split(sci_file)[1]))
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        msgs.info('Built full PypeIt parameter set.')
+        # TODO: Write the full parameter set here?
         # --------------------------------------------------------------
 
-        
         # --------------------------------------------------------------
         # Build the meta data
         #   - Re-initilize based on the file data
+        msgs.info('Compiling metadata')
         self.fitstbl = PypeItMetaData(self.spectrograph, self.par, files=data_files,
                                       usrdata=usrdata, strict=True)
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
+        # --------------------------------------------------------------
 
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
@@ -112,26 +121,28 @@ class PypeIt(object):
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
-        # reuse_masters. There is also a reuse_masters parameter in the
-        # parset but it is currently ignored.
+        # reuse_masters.
         self.reuse_masters = reuse_masters
         self.show = show
 
-        # Make the output directories
+        # Check the output paths are ready
         self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
-        msgs.info("Setting reduction path to {:s}".format(self.par['rdx']['redux_path']))
-        paths.make_dirs(self.spectrograph.spectrograph, self.par['calibrations']['caldir'],
-                        self.par['rdx']['scidir'], self.par['rdx']['qadir'],
-                        overwrite=self.overwrite, redux_path=self.par['rdx']['redux_path'])
+
+        # Report paths
+        msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
+        msgs.info('Master calibration data output to: {0}'.format(self.calibrations_path))
+        msgs.info('Science data output to: {0}'.format(self.science_path))
+        msgs.info('Quality assessment plots output to: {0}'.format(self.qa_path))
+        # TODO: Is anything written to the qa dir or only to qa/PNGs?
+        # Should we have separate calibration and science QA
+        # directories?
 
         # Instantiate Calibrations class
         self.caliBrate \
             = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                 self.spectrograph,
-                                                 redux_path=self.par['rdx']['redux_path'],
-                                                 reuse_masters=self.reuse_masters,
-                                                 save_masters=True, write_qa=True,
-                                                 show=self.show)
+                                                 self.spectrograph, caldir=self.calibrations_path,
+                                                 qadir=self.qa_path,
+                                                 reuse_masters=self.reuse_masters, show=self.show)
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used
@@ -144,12 +155,45 @@ class PypeIt(object):
         self.sciI = None
         self.obstime = None
 
+    @property
+    def science_path(self):
+        """Return the path to the science directory."""
+        return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
+        
+    @property
+    def calibrations_path(self):
+        """Return the path to the calibrations directory."""
+        return os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['caldir'])
+        
+    @property
+    def qa_path(self):
+        """Return the path to the top-level QA directory."""
+        return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+
     def build_qa(self):
         """
         Generate QA wrappers
         """
+        # TODO: pass qa path
         qa.gen_mf_html(self.pypeit_file)
         qa.gen_exp_html()
+
+    # TODO: This should go in a more relevant place
+    def spec_output_file(self, frame, twod=False):
+        """
+        Return the path to the spectral output data file.
+        
+        Args:
+            frame (:obj:`int`):
+                Frame index from :attr:`fitstbl`.
+            twod (:obj:`bool`):
+                Name for the 2D output file; 1D file otherwise.
+        
+        Returns:
+            :obj:`str`: The path for the output file
+        """
+        return os.path.join(self.science_path, 'spec{0}d_{1}.fits'.format('2' if twod else '1',
+                                                    self.fitstbl.construct_basename(frame)))
 
     def outfile_exists(self, frame):
         """
@@ -159,14 +203,9 @@ class PypeIt(object):
             frame (int): Frame index from fitstbl
 
         Returns:
-            bool: True if the 2d file exists
-                 False if it does not exist
+            bool: True if the 2d file exists, False if it does not exist
         """
-        # Check if the 2d output file exists
-        scidir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
-        basename = self.fitstbl.construct_basename(frame)
-        outfile = scidir + '/spec2d_{:s}.fits'.format(basename)
-        return os.path.isfile(outfile)
+        return os.path.isfile(self.spec_output_file(frame, twod=True))
 
     def get_std_outfile(self, standard_frames):
         """
@@ -179,7 +218,6 @@ class PypeIt(object):
 
         Returns:
             str: Full path to the standard spec1d output file
-
         """
         # TODO: Need to decide how to associate standards with
         # science frames in the case where there is more than one
@@ -190,13 +228,10 @@ class PypeIt(object):
         std_frame = None if len(standard_frames) == 0 else standard_frames[0]
         # Prepare to load up standard?
         if std_frame is not None:
-            std_outfile = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'],
-            'spec1d_{:s}.fits'.format(self.fitstbl.construct_basename(std_frame))) \
-            if isinstance(std_frame, (int,np.integer)) else None
-
+            std_outfile = self.spec_output_file(std_frame) \
+                            if isinstance(std_frame, (int,np.integer)) else None
         if std_outfile is not None and not os.path.isfile(std_outfile):
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
-
         return std_outfile
 
     def reduce_all(self):
@@ -275,18 +310,27 @@ class PypeIt(object):
         self.print_end_time()
 
 
-    def select_detectors(self):
+    # This is a static method to allow for use in coadding script 
+    @staticmethod
+    def select_detectors(detnum=None, ndet=1):
         """
         Return the 1-indexed list of detectors to reduce.
+
+        Args:
+            detnum (:obj:`int`, :obj:`list`, optional):
+                One or more detectors to reduce.  If None, return the
+                full list for the provided number of detectors (`ndet`).
+            ndet (:obj:`int`, optional):
+                The number of detectors for this instrument.  Only used
+                if `detnum is None`.
 
         Returns:
             list:  List of detectors to be reduced
 
         """
-        if self.par['rdx']['detnum'] is None:
-            return np.arange(self.spectrograph.ndet)+1
-        return [self.par['rdx']['detnum']] if isinstance(self.par['rdx']['detnum'], int) \
-                    else self.par['rdx']['detnum']
+        if detnum is None:
+            return np.arange(1, ndet+1).tolist()
+        return [detnum] if isinstance(detnum, int) else detnum
 
     def reduce_exposure(self, frames, bg_frames=[], std_outfile=None):
         """
@@ -295,46 +339,57 @@ class PypeIt(object):
         Args:
             frame (:obj:`int`):
                 0-indexed row in :attr:`fitstbl` with the frame to
-                reduce
-            bgframes (:obj:`list`, optional):
-                List of frame indices for the background
+                reduce.
+            bg_frames (:obj:`list`, optional):
+                List of frame indices for the background.
             std_outfile (:obj:`str`, optional):
-                the name of a file with a previously PypeIt-reduced standard spectrum.
+                File with a previously reduced standard spectrum from
+                PypeIt.
 
         Returns:
-            dict: The dictionary containing the primary outputs of extraction
+            dict: The dictionary containing the primary outputs of
+            extraction.
+
         """
+
+        # TODO:
+        # - bg_frames should be None by default
+        # - change doc string to reflect that more than one frame can be
+        #   provided
+
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
+            # TODO: Put this in a try/except block?
             ginga.clear_all()
 
-        # Save the frame
-        self.frames = frames
-        self.bg_frames = bg_frames
         # Is this an IR reduction?
+        # TODO: Why specific to IR?
         self.ir_redux = True if len(bg_frames) > 0 else False
 
-        # JFH Why does this need to be ordered?
+        # TODO: JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
         sci_dict['meta']['ir_redux'] = self.ir_redux
 
         # Print status message
-        msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][self.frames[0]]) + msgs.newline()
+        msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
+        # TODO: Print these when the frames are actually combined,
+        # backgrounds are used, etc?
         msgs_string += 'Combining frames:' + msgs.newline()
-        for iframe in self.frames:
+        for iframe in frames:
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
         msgs.info(msgs_string)
         if len(bg_frames) > 0:
             bg_msgs_string = ''
-            for iframe in self.bg_frames:
+            for iframe in bg_frames:
                 bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
             bg_msgs_string = msgs.newline() + 'Using background from frames:' + msgs.newline() + bg_msgs_string
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-        detectors = self.select_detectors()
+        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+                                            ndet=self.spectrograph.ndet)
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
                                 set(np.arange(self.spectrograph.ndet))-set(detectors)])))
@@ -345,16 +400,18 @@ class PypeIt(object):
             sci_dict[self.det] = {}
             # Calibrate
             #TODO Is the right behavior to just use the first frame?
-            self.caliBrate.set_config(self.frames[0], self.det, self.par['calibrations'])
+            self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], sci_dict[self.det]['skymodel'], \
-                sci_dict[self.det]['objmodel'], sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
+            sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
+                sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
+                sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
                 sci_dict[self.det]['specobjs'], vel_corr \
-                    = self.extract_one(self.frames, self.det, bg_frames = self.bg_frames, std_outfile = std_outfile)
+                        = self.extract_one(frames, self.det, bg_frames=bg_frames,
+                                           std_outfile=std_outfile)
             if vel_corr is not None:
                 sci_dict['meta']['vel_corr'] = vel_corr
 
@@ -380,6 +437,7 @@ class PypeIt(object):
                                          self.par['flexure']['spectrum'],
                                          mxshft=self.par['flexure']['maxshift'])
             # QA
+            # TODO: Need to fix these QA paths...
             wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
                             out_dir=self.par['rdx']['redux_path'])
         else:
@@ -527,7 +585,7 @@ class PypeIt(object):
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
         self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = \
-            self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixflatnrm.copy(),
+            self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixelflat.copy(),
                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                            show=self.show)
         # Object finding, first pass on frame without sky subtraction
@@ -633,20 +691,15 @@ class PypeIt(object):
         head1d = self.fitstbl[frame]
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
-        head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext,)
+        head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
         refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
             self.caliBrate.par['wavelengths']['frame']
 
         # Determine the paths/filenames
-        scipath = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
-
-        save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir, self.spectrograph,
-                      head1d, head2d, scipath, basename, refframe=refframe,
-                      update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
-
-        return
-
-
+        save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
+                      self.spectrograph, head1d, head2d, self.science_path, basename,
+                      refframe=refframe, update_det=self.par['rdx']['detnum'],
+                      binning=self.fitstbl['binning'][frame])
 
     def msgs_reset(self):
         """

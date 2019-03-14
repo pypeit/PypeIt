@@ -37,6 +37,14 @@ def signal_handler(signalnum, handler):
 signal.signal(signal.SIGINT, signal_handler)
 
 # Ignore all warnings given by python
+# TODO: I'd rather we not do this.  Is there a way we can redirect
+# warnings to pypeit.msgs ?
 warnings.resetwarnings()
 warnings.simplefilter('ignore')
+
+# TODO: Need some way of selectively doing this.  Once you import
+# pypeit, this affects the behavior of pyplot for *anything* else you
+# plot in a given session.
+from matplotlib import pyplot
+pyplot.switch_backend('agg')
 

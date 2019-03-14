@@ -21,9 +21,11 @@ import copy
 
 import scipy
 
-def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh, tweak_slits_maxfrac):
+def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh,
+                     tweak_slits_maxfrac):
 
-    slitwidth = np.median(slit_righ_in - slit_left_in) # How many pixels wide is the slit at each Y?
+    # How many pixels wide is the slit at each Y?
+    slitwidth = np.median(slit_righ_in - slit_left_in)
     # Determine the maximum at the left and right end of the slit
     ileft = (ximg_fit > 0.1) & (ximg_fit < 0.4)
     xleft = ximg_fit[ileft]
@@ -311,8 +313,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
 
     if tweak_slits:
-        slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
-                                                                    tweak_slits_thresh, tweak_slits_maxfrac)
+        slit_left_out, slit_righ_out, tweak_dict \
+                = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
+                                   tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
         tslits_dict_out['slit_left'][:,slit] = slit_left_out
@@ -1044,137 +1047,137 @@ def slit_profile_pca(mstrace, tilts, msblaze, extrap_slit, slit_profiles,
 
     return slit_profiles, mstracenrm, extrap_blz
 
-
-
-def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", maxp=16, desc="",
-                    setup=None, outroot=None):
-    """ Generate a QA plot for the slit profile of each slit
-
-    Parameters
-    ----------
-    mstrace : ndarray
-      trace frame
-    model : ndarray
-      model of slit profiles, same shape as frame.
-    lordloc : ndarray
-      left edge locations of all slits
-    rordloc : ndarray
-      right edge locations of all slits
-    msordloc : ndarray
-      An array the same size as frame that determines which pixels contain a given order.
-    textplt : str, optional
-      A string printed above each panel
-    maxp : int, (optional)
-      Maximum number of panels per page
-    desc : str, (optional)
-      A description added to the top of each page
-    setup : str, optional
-    outroot : str, optional
-    """
-
-    plt.rcdefaults()
-    plt.rcParams['font.family']= 'times new roman'
-
-    # Outfile
-    method = inspect.stack()[0][3]
-    if outroot is None:
-        outroot = qa.set_qa_filename(setup, method)
-
-    npix, nord = lordloc.shape
-    nbins = 40
-    bins = np.linspace(-0.25, 1.25, nbins+1)
-    pages, npp = qa.get_dimen(nord, maxp=maxp)
-    # Loop through all pages and plot the results
-    ndone = 0
-    axesIdx = True
-    for i in range(len(pages)):
-        f, axes = plt.subplots(pages[i][1], pages[i][0])
-        ipx, ipy = 0, 0
-        for j in range(npp[i]):
-            if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
-            elif pages[i][1] == 1: ind = (ipx,)
-            elif pages[i][0] == 1: ind = (ipy,)
-            else: ind = (ipy, ipx)
-            # Get data to be plotted
-            word = np.where(msordloc == ndone+j+1)
-            if word[0].size == 0:
-                msgs.warn("There are no pixels in slit {0:d}".format(ndone + j + 1))
-                # Delete the axis
-                if pages[i][1] == 1: ind = (ipx,)
-                elif pages[i][0] == 1: ind = (ipy,)
-                else: ind = (ipy, ipx)
-                f.delaxes(axes[ind])
-                ipx += 1
-                if ipx == pages[i][0]:
-                    ipx = 0
-                    ipy += 1
-                continue
-            spatval = (word[1] + 0.5 - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
-            fluxval = mstrace[word]
-            mxval = 1.25
-            modvals = np.zeros(nbins)
-            if axesIdx:
-                cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
-                groups = np.digitize(spatval, xedges)
-                modelw = model[word]
-                for mm in range(1, xedges.size):
-                    modvals[mm-1] = modelw[groups == mm].mean()
-                axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
-                axes[ind].plot([0.0, 0.0], [0.0, mxval], 'r-')
-                axes[ind].plot([1.0, 1.0], [0.0, mxval], 'r-')
-            else:
-                cnts, xedges, yedges, null = axes.hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
-                groups = np.digitize(spatval, xedges)
-                modelw = model[word]
-                for mm in range(1, xedges.size):
-                    modvals[mm-1] = modelw[groups == mm].mean()
-                axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
-                axes.plot([0.0, 0.0], [0.0, mxval], 'r-')
-                axes.plot([1.0, 1.0], [0.0, mxval], 'r-')
-            if axesIdx:
-                axes[ind].axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
-                axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
-                axes[ind].tick_params(labelsize=10)
-            else:
-                axes.axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
-                axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
-                axes.tick_params(labelsize=10)
-            ipx += 1
-            if ipx == pages[i][0]:
-                ipx = 0
-                ipy += 1
-        # Delete the unnecessary axes
-        if axesIdx:
-            for j in range(npp[i], axes.size):
-                if pages[i][1] == 1: ind = (ipx,)
-                elif pages[i][0] == 1: ind = (ipy,)
-                else: ind = (ipy, ipx)
-                f.delaxes(axes[ind])
-                ipx += 1
-                if ipx == pages[i][0]:
-                    ipx = 0
-                    ipy += 1
-        ndone += npp[i]
-        # Save the figure
-        if axesIdx: axsz = axes.size
-        else: axsz = 1.0
-        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axsz
-        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
-        f.set_size_inches(11.0, ypngsiz)
-        if desc != "":
-            pgtxt = ""
-            if len(pages) != 1:
-                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
-            f.suptitle(desc + pgtxt, y=1.02, size=16)
-        f.tight_layout()
-        outfile = outroot+'{:03d}.png'.format(i)
-        plt.savefig(outfile, dpi=200)
-        plt.close()
-        f.clf()
-    del f
-
-    plt.rcdefaults()
-
-    return
+# TODO: Think this is deprecated.  Leaving it commented until we
+# confirm.
+#def slit_profile_qa(mstrace, model, lordloc, rordloc, msordloc, textplt="Slit", maxp=16, desc="",
+#                    setup=None, outroot=None):
+#    """ Generate a QA plot for the slit profile of each slit
+#
+#    Parameters
+#    ----------
+#    mstrace : ndarray
+#      trace frame
+#    model : ndarray
+#      model of slit profiles, same shape as frame.
+#    lordloc : ndarray
+#      left edge locations of all slits
+#    rordloc : ndarray
+#      right edge locations of all slits
+#    msordloc : ndarray
+#      An array the same size as frame that determines which pixels contain a given order.
+#    textplt : str, optional
+#      A string printed above each panel
+#    maxp : int, (optional)
+#      Maximum number of panels per page
+#    desc : str, (optional)
+#      A description added to the top of each page
+#    setup : str, optional
+#    outroot : str, optional
+#    """
+#
+#    plt.rcdefaults()
+#    plt.rcParams['font.family']= 'times new roman'
+#
+#    # Outfile
+#    method = inspect.stack()[0][3]
+#    if outroot is None:
+#        outroot = qa.set_qa_filename(setup, method)
+#
+#    npix, nord = lordloc.shape
+#    nbins = 40
+#    bins = np.linspace(-0.25, 1.25, nbins+1)
+#    pages, npp = qa.get_dimen(nord, maxp=maxp)
+#    # Loop through all pages and plot the results
+#    ndone = 0
+#    axesIdx = True
+#    for i in range(len(pages)):
+#        f, axes = plt.subplots(pages[i][1], pages[i][0])
+#        ipx, ipy = 0, 0
+#        for j in range(npp[i]):
+#            if pages[i][0] == 1 and pages[i][1] == 1: axesIdx = False
+#            elif pages[i][1] == 1: ind = (ipx,)
+#            elif pages[i][0] == 1: ind = (ipy,)
+#            else: ind = (ipy, ipx)
+#            # Get data to be plotted
+#            word = np.where(msordloc == ndone+j+1)
+#            if word[0].size == 0:
+#                msgs.warn("There are no pixels in slit {0:d}".format(ndone + j + 1))
+#                # Delete the axis
+#                if pages[i][1] == 1: ind = (ipx,)
+#                elif pages[i][0] == 1: ind = (ipy,)
+#                else: ind = (ipy, ipx)
+#                f.delaxes(axes[ind])
+#                ipx += 1
+#                if ipx == pages[i][0]:
+#                    ipx = 0
+#                    ipy += 1
+#                continue
+#            spatval = (word[1] + 0.5 - lordloc[:, ndone+j][word[0]]) / (rordloc[:, ndone+j][word[0]] - lordloc[:, ndone+j][word[0]])
+#            fluxval = mstrace[word]
+#            mxval = 1.25
+#            modvals = np.zeros(nbins)
+#            if axesIdx:
+#                cnts, xedges, yedges, null = axes[ind].hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
+#                groups = np.digitize(spatval, xedges)
+#                modelw = model[word]
+#                for mm in range(1, xedges.size):
+#                    modvals[mm-1] = modelw[groups == mm].mean()
+#                axes[ind].plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
+#                axes[ind].plot([0.0, 0.0], [0.0, mxval], 'r-')
+#                axes[ind].plot([1.0, 1.0], [0.0, mxval], 'r-')
+#            else:
+#                cnts, xedges, yedges, null = axes.hist2d(spatval, fluxval, bins=bins, cmap=plt.cm.gist_heat_r)
+#                groups = np.digitize(spatval, xedges)
+#                modelw = model[word]
+#                for mm in range(1, xedges.size):
+#                    modvals[mm-1] = modelw[groups == mm].mean()
+#                axes.plot(0.5*(xedges[1:]+xedges[:-1]), modvals, 'b-', linewidth=2.0)
+#                axes.plot([0.0, 0.0], [0.0, mxval], 'r-')
+#                axes.plot([1.0, 1.0], [0.0, mxval], 'r-')
+#            if axesIdx:
+#                axes[ind].axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
+#                axes[ind].set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+#                axes[ind].tick_params(labelsize=10)
+#            else:
+#                axes.axis([xedges[0], xedges[-1], 0.0, 1.1*mxval])
+#                axes.set_title("{0:s} {1:d}".format(textplt, ndone+j+1))
+#                axes.tick_params(labelsize=10)
+#            ipx += 1
+#            if ipx == pages[i][0]:
+#                ipx = 0
+#                ipy += 1
+#        # Delete the unnecessary axes
+#        if axesIdx:
+#            for j in range(npp[i], axes.size):
+#                if pages[i][1] == 1: ind = (ipx,)
+#                elif pages[i][0] == 1: ind = (ipy,)
+#                else: ind = (ipy, ipx)
+#                f.delaxes(axes[ind])
+#                ipx += 1
+#                if ipx == pages[i][0]:
+#                    ipx = 0
+#                    ipy += 1
+#        ndone += npp[i]
+#        # Save the figure
+#        if axesIdx: axsz = axes.size
+#        else: axsz = 1.0
+#        if pages[i][1] == 1 or pages[i][0] == 1: ypngsiz = 11.0/axsz
+#        else: ypngsiz = 11.0*axes.shape[0]/axes.shape[1]
+#        f.set_size_inches(11.0, ypngsiz)
+#        if desc != "":
+#            pgtxt = ""
+#            if len(pages) != 1:
+#                pgtxt = ", page {0:d}/{1:d}".format(i+1, len(pages))
+#            f.suptitle(desc + pgtxt, y=1.02, size=16)
+#        f.tight_layout()
+#        outfile = outroot+'{:03d}.png'.format(i)
+#        plt.savefig(outfile, dpi=200)
+#        plt.close()
+#        f.clf()
+#    del f
+#
+#    plt.rcdefaults()
+#
+#    return
 
 

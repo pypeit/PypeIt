@@ -12,12 +12,18 @@ from pypeit import arcimage
 from pypeit import traceslits
 from pypeit import wavecalib
 from pypeit import wavetilts
+from pypeit.masterframe import MasterFrame
+from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 
 # Create a decorator for tests that require the PypeIt dev suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
                                         reason='test requires dev suite')
+
+cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
+                            not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
+                            reason='no dev-suite cooked directory')
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -103,9 +109,9 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
     return fitstbl
 
-
-def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, tilts=False,
-                           datasec=False, wvcalib=False):
+# TODO: Need to split this into functions that do and do not require
+# cooked.  We should remove the get_spectrograph option.
+def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, datasec=False, wvcalib=False):
     """
     Load up the set of shane_kast_blue master frames
 
@@ -124,36 +130,33 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
     spectrograph = load_spectrograph('shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
 
-    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
-    master_dir = root_path+'_'+spectrograph.spectrograph
+    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
+#    master_dir = root_path+'_'+spectrograph.spectrograph
 
     reuse_masters = True
 
     # Load up the Masters
     ret = []
 
-    if get_spectrograph:
-        ret.append(spectrograph)
+#    if get_spectrograph:
+#        ret.append(spectrograph)
 
     master_key = 'A_1_01'
     if aimg:
-        AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir, reuse_masters=reuse_masters)
-        msarc, _ = AImg.load_master(AImg.ms_name)
+        AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir,
+                                 reuse_masters=reuse_masters)
+        msarc = AImg.load()
         ret.append(msarc)
 
     if tslits:
-        traceSlits = traceslits.TraceSlits(None,spectrograph,None)
-        # TODO: Should this be json now?
-        tslits_dict, mstrace = traceSlits.load_master(os.path.join(master_dir,'MasterTrace_A_1_01.fits'))
-        # This is a bit of a hack, but I'm adding the mstrace to the dict since we need it in the flat field test
-        tslits_dict['mstrace'] = mstrace
+        trace_file = os.path.join(master_dir, MasterFrame.construct_file_name('Trace', master_key))
+        tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(trace_file)
         ret.append(tslits_dict)
+        ret.append(mstrace)
 
     if tilts:
-        wvTilts = wavetilts.WaveTilts(None, None, spectrograph, None, None, master_key=master_key,
-                                      master_dir=master_dir, reuse_masters=reuse_masters)
-        tilts_dict, _ = wvTilts.master()
+        tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))
+        tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
         ret.append(tilts_dict)
 
     if datasec:
@@ -161,13 +164,11 @@ def load_kast_blue_masters(get_spectrograph=False, aimg=False, tslits=False, til
         ret.append(datasec_img)
 
     if wvcalib:
-        Wavecalib = wavecalib.WaveCalib(None, None, spectrograph,
-                                        spectrograph.default_pypeit_par()['calibrations']['wavelengths'],
-                                        master_key=master_key,
-                                        master_dir=master_dir, reuse_masters=reuse_masters)
-        wv_calib, _ = Wavecalib.master()
+        calib_file = os.path.join(master_dir,
+                                  MasterFrame.construct_file_name('WaveCalib', master_key,
+                                                                  file_format='json'))
+        wv_calib = waveio.load_wavelength_calibration(calib_file) 
         ret.append(wv_calib)
-
 
     # Return
     return ret
@@ -187,13 +188,14 @@ def instant_traceslits(mstrace_file, det=None):
 
     """
     # Load
-    tslits_dict, mstrace = traceslits.load_tslits(mstrace_file)
+    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(mstrace_file)
     # Instantiate
     spectrograph = load_spectrograph(tslits_dict['spectrograph'])
     par = spectrograph.default_pypeit_par()
     msbpm = spectrograph.bpm(shape=mstrace.shape, det=det)
-    binning = tslits_dict['binspectral'], tslits_dict['binspatial']
-    traceSlits = traceslits.TraceSlits(mstrace, spectrograph, par['calibrations']['slits'],
-                                       msbpm=msbpm, binning=binning)
+    #binning = tslits_dict['binspectral'], tslits_dict['binspatial']
+    traceSlits = traceslits.TraceSlits(spectrograph, par['calibrations']['slits'],
+                                       msbpm=msbpm)
+    traceSlits.mstrace = copy.deepcopy(mstrace)
     traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
     return spectrograph, traceSlits
