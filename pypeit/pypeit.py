@@ -268,6 +268,7 @@ class PypeIt(object):
 
             # Reduce all the standard frames, loop on unique comb_id
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
+
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
@@ -308,7 +309,6 @@ class PypeIt(object):
 
         # Finish
         self.print_end_time()
-
 
     # This is a static method to allow for use in coadding script 
     @staticmethod
