@@ -8,7 +8,7 @@ import pytest
 
 from pypeit import fluxspec
 from pypeit.scripts import flux_spec
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import cooked_required
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -16,19 +16,15 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
-
-# TODO: Not used
+## TODO: Not used
 #@pytest.fixture
 #@dev_suite_required
 #def deimos_files():
 #    return [os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
 #                         'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')]
 
-
-# TODO: These aren't in the current Cooked
 @pytest.fixture
-@dev_suite_required
+@cooked_required
 def kast_blue_files():
     std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                             'spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits')
@@ -37,7 +33,7 @@ def kast_blue_files():
     return [std_file, sci_file]
 
 
-@dev_suite_required
+@cooked_required
 def test_gen_sensfunc(kast_blue_files):
     # Get it started
     spectrograph = load_spectrograph('shane_kast_blue')
@@ -60,15 +56,16 @@ def test_gen_sensfunc(kast_blue_files):
     FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=data_path('sensfunc.fits'))
 
 
-@dev_suite_required
-def test_from_sens_func(kast_blue_files ):
+@cooked_required
+def test_from_sens_func(kast_blue_files):
     """ This test will fail if the previous one does as it need its output
     """
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
     # Instantiate
-    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'], sens_file=data_path('sensfunc.fits'))
+    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'],
+                                     sens_file=data_path('sensfunc.fits'))
     #FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'],
     assert 'FEIGE66' in FxSpec.sens_dict['0']['std_name']
     # Flux me some science
@@ -78,7 +75,7 @@ def test_from_sens_func(kast_blue_files ):
     FxSpec.write_science(data_path('tmp.fits'))
 
 
-@dev_suite_required
+@cooked_required
 def test_script():
     # Sensitivity function
     pargs = flux_spec.parser([data_path('test.flux')])

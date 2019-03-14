@@ -199,7 +199,7 @@ class PypeItSetup(object):
         # Set the output directory
         outdir = os.path.join(os.getcwd(), 'setup_files') if output_path is None else output_path
         if not os.path.isdir(outdir):
-            os.mkdir(outdir)
+            os.makedirs(outdir)
         # Set the output file name
         date = str(datetime.date.today().strftime('%Y-%b-%d'))
         pypeit_file = os.path.join(outdir, '{0}_{1}.pypeit'.format(spectrograph, date))

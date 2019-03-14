@@ -557,7 +557,7 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
             _oscansec[i] = parse.sec2slice(oscansec[i], require_dim=2)
     else:
         _oscansec = oscansec
-    
+
     # Check that there are no overlapping data sections
     testframe = np.zeros_like(rawframe, dtype=int)
     for i in range(numamplifiers):

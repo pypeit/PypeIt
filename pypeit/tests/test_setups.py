@@ -82,7 +82,6 @@ def test_setup_keck_lris_red():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('keck_lris_red.pypeit')
 
 
 @dev_suite_required
@@ -104,7 +103,6 @@ def test_setup_keck_lris_blue():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('keck_lris_blue.pypeit')
 
 @dev_suite_required
 def test_setup_shane_kast_blue():
@@ -125,7 +123,6 @@ def test_setup_shane_kast_blue():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('shane_kast_blue.pypeit')
 
 @dev_suite_required
 def test_setup_shane_kast_red():
@@ -146,7 +143,6 @@ def test_setup_shane_kast_red():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('shane_kast_red.pypeit')
 
 # TODO: We need a test data set for shane_kast_red_ret
 
@@ -170,7 +166,6 @@ def test_setup_keck_deimos():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('keck_deimos.pypeit')
 
 @dev_suite_required
 def test_setup_keck_nires():
@@ -191,7 +186,6 @@ def test_setup_keck_nires():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('keck_nires.pypeit')
 
 @dev_suite_required
 def test_setup_keck_nirspec():
@@ -212,7 +206,6 @@ def test_setup_keck_nirspec():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('keck_nirspec_low.pypeit')
 
 @dev_suite_required
 def test_setup_wht_isis_blue():
@@ -233,7 +226,6 @@ def test_setup_wht_isis_blue():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('wht_isis_blue.pypeit')
 
 @dev_suite_required
 def test_setup_vlt_xshooter_uvb():
@@ -254,7 +246,6 @@ def test_setup_vlt_xshooter_uvb():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('vlt_xshooter_uvb.pypeit')
 
 @dev_suite_required
 def test_setup_vlt_xshooter_vis():
@@ -275,7 +266,6 @@ def test_setup_vlt_xshooter_vis():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('vlt_xshooter_vis.pypeit')
 
 @dev_suite_required
 def test_setup_vlt_xshooter_nir():
@@ -296,7 +286,6 @@ def test_setup_vlt_xshooter_nir():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('vlt_xshooter_nir.pypeit')
 
 @dev_suite_required
 def test_setup_gemini_gnirs():
@@ -317,7 +306,6 @@ def test_setup_gemini_gnirs():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-    #os.remove('gemini_gnirs.pypeit')
 
 # TODO: Add other instruments!
 

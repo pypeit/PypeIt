@@ -1,24 +1,82 @@
 """ Module for I/O in arclines
 """
-import numpy as np
 import os
 import datetime
-
+import copy
 from pkg_resources import resource_filename
+
+import numpy as np
 
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
-from linetools import utils as ltu
-from pypeit import wavecalib
-from pypeit import msgs
+
+import linetools.utils
+
 import pypeit  # For path
+from pypeit import msgs
 from pypeit.core.wavecal import defs
 
 from pypeit import debugger
 
+# TODO: These should not be declared here
 line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
 nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
 reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
+
+def save_wavelength_calibration(outfile, wv_calib, overwrite=True):
+    """
+    Save a wavelength solution to a file.
+
+    Args:
+        outfile (:obj:`str`):
+            Name for the output file.
+        wv_calib (:obj:`dict`):
+            Dictionary with the wavelength solution.  TODO: Document
+            the format of this dictionary!
+        overwrite (:obj:`bool`, optional):
+            Overwrite any existing file.
+    """
+    # Check if it exists
+    if os.path.exists(outfile) and not overwrite:
+        # TODO: Should this throw an error instead?
+        msgs.warn('File exists: {0}'.format(outfile) + msgs.newline()
+                  + 'Set overwrite=True to overwrite it.')
+        return
+    
+    # jsonify has the annoying property that it modifies the objects
+    # when it jsonifies them so make a copy, which converts lists to
+    # arrays, so we make a copy
+    data_for_json = copy.deepcopy(wv_calib)
+    gddict = linetools.utils.jsonify(data_for_json)
+    linetools.utils.savejson(outfile, gddict, easy_to_read=True, overwrite=True)
+
+
+def load_wavelength_calibration(filename):
+    """
+    Load the wavelength calibration data from a file.
+        
+    Args:
+        filename (:obj:`str`):
+            Name of the json file.
+
+    Returns:
+        :obj:`dict`: Returns the wavelength calibration dictionary.
+        Lists read from the json file are returnes as numpy arrays.
+    """
+    if not os.path.isfile(filename):
+        msgs.error('File does not exist: {0}'.format(filename))
+        
+    wv_calib = linetools.utils.loadjson(filename)
+
+    # Recast a few items as arrays
+    for key in wv_calib.keys():
+        if key in ['steps', 'par']:  # This isn't really necessary
+            continue
+        for tkey in wv_calib[key].keys():
+            if isinstance(wv_calib[key][tkey], list):
+                wv_calib[key][tkey] = np.array(wv_calib[key][tkey])
+
+    return wv_calib
 
 
 def load_template(arxiv_file, det):
@@ -54,7 +112,8 @@ def load_template(arxiv_file, det):
 def load_reid_arxiv(arxiv_file):
     # ToDO put in some code to allow user specified files rather than everything in the main directory
     calibfile = os.path.join(reid_arxiv_path, arxiv_file)
-    wv_calib_arxiv, par = wavecalib.load_wv_calib(calibfile)
+    wv_calib_arxiv = load_wavelength_calibration(calibfile)
+    par = wv_calib_arxiv['par'].copy()
     # Pop out par and steps if they were inserted in this calibration dictionary
     try:
         wv_calib_arxiv.pop('steps')
@@ -396,7 +455,7 @@ def load_spectrum(spec_file, index=0):
         else:
             raise IOError("Not ready for this hdf5 file")
     elif 'json' in spec_file[iext:]:
-        jdict = ltu.loadjson(spec_file)
+        jdict = linetools.utils.loadjson(spec_file)
         try:
             spec = np.array(jdict['spec'])
         except KeyError:

@@ -659,7 +659,7 @@ def parse_binning(binning):
 
 
 def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False,
-              binning=None):
+              binning_raw=None):
     """
     Convert a string representation of an array subsection (slice) into
     a list of slice objects.
@@ -687,10 +687,12 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
                 tslices = parse.sec2slice('[:10,10:]')[::-1]
                 tslices = parse.sec2slice('[:10,10:]', transpose=True)
 
-        binning (:obj:`str`, optional):
-            The image binning.  The `subarray` string is always expected to be for an *unbinned* image.
-            This binning keyword is used to adjust the slice for an image that is binned.
-            The string must be a comma-separated list of number providing the binning along the relevant axis.
+        binning_raw (:obj:`str`, optional):
+            The image binning_raw.  The `subarray` string is always expected to be for an *unbinned* image.
+            This binning_raw keyword is used to adjust the slice for an image that is binned.
+            The string must be a comma-separated list of number providing the binning_raw along the relevant axis.
+            Note that since sec2slice works in the native fits coordinate system/convention that is written to the
+            image headers, this binning_raw is *FLIPPED* relative to PypeIt's binning conventions of specXspat
 
     Returns:
         tuple: A tuple of slice objects, one per dimension of the
@@ -711,13 +713,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     sections = subarray.strip('[]').split(',')
     # Check the dimensionality
     ndim = len(sections)
-    _binning = [1]*ndim if binning is None else np.array(binning.split(',')).astype(int)
-    ## JFH This is a kludge to get this to work becuase I cannot understand the nonsense below. The binning
-    ## convention is now flipped relative to before and the code below appends to lists, so this is the
-    ## easiest fix
-    #from IPython import embed
-    #embed()
-    #_binning = _binning[::-1]
+    _binning = [1]*ndim if binning_raw is None else np.array(binning_raw.split(',')).astype(int)
     if len(_binning) != ndim:
         raise ValueError('Incorrect binning dimensions (found {0}, expected {1}).'.format(
                             len(_binning), ndim))

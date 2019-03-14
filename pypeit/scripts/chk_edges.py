@@ -38,7 +38,7 @@ def main(pargs):
     import subprocess
 
     # Load up
-    tslits_dict, mstrace = traceslits.load_tslits(pargs.root)
+    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(pargs.root)
 
     try:
         ginga.connect_to_ginga(raise_err=True)

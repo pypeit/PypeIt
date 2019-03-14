@@ -1,4 +1,29 @@
-""" Module to define the Spectrograph class
+"""
+Defines the abstract `Spectrograph` class, which is the parent class for
+all instruments served by PypeIt.
+
+The key functionality of this base class and its derived classes are to
+provide instrument-specific:
+    - file I/O routines
+    - detector properties (see
+      :class:`pypeit.par.pypeitpar.DetectorPar`)
+    - telescope properties (see
+      :class:`pypeit.par.pypeitpar.TelescopePar`)
+    - fits header keywords that are collated and injested into PypeIt's
+      metadata table that it uses throughout the reduction
+    - header keyword values to check to confirm a fits file has been
+      taken with the selected instrument
+    - default methods for automatically determining the type of each
+      exposure that PypeIt was asked to reduce
+    - header keywords to use when matching calibration frames to science
+      frames
+    - methods used to generate and/or read bad-pixel masks for an
+      exposure
+    - default parameters for PypeIt's algorithms
+    - method to access an archival sky spectrum
+
+
+
 """
 import os
 import warnings
@@ -21,7 +46,8 @@ from pypeit import debugger
 
 class Spectrograph(object):
     """
-    Generic class for spectrograph-specific codes
+    Abstract class whose derived classes dictate instrument-specific
+    behavior in PypeIt.
 
     Attributes:
         spectrograph (str):
@@ -77,6 +103,20 @@ class Spectrograph(object):
     @staticmethod
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
+
+    def nonlinear_counts(self, det=1):
+        """
+        Return the counts at which the detector response becomes
+        non-linear.
+
+        Args:
+            det (:obj:`int`, optional):
+                1-indexed detector number.
+        
+        Returns:
+            float: Counts at which detector response becomes nonlinear.
+        """
+        return self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -306,7 +346,7 @@ class Spectrograph(object):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                           include_end=include_end, require_dim=2,
-                                          transpose=transpose, binning=binning_raw)
+                                          transpose=transpose, binning_raw=binning_raw)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
 
@@ -612,18 +652,18 @@ class Spectrograph(object):
             list: Returns a list of :attr:`numhead` :obj:`fits.Header`
             objects with the extension headers.
         """
-        headarr = ['None']*self.numhead
-        for k in range(self.numhead):
-            try:
-                headarr[k] = fits.getheader(filename, ext=k)
-            except:
-                if strict:
-                    msgs.error("Header error in extension {0} in {1}.".format(k, filename))
-                else:
-                    msgs.warn('Bad header in extension {0} in {1}'.format(k, filename) 
-                              + msgs.newline() + 'Proceeding on the hopes this was a '
-                              + 'calibration file, otherwise consider removing.')
-        return headarr
+        # Faster to open the whole file and then assign the headers,
+        # particularly for gzipped files (e.g., DEIMOS)
+        try:
+            hdu = fits.open(filename)
+        except:
+            if strict:
+                msgs.error('Problem opening {0}.'.format(filename))
+            else:
+                msgs.warn('Problem opening {0}.'.format(filename) + msgs.newline()
+                          + 'Proceeding, but should consider removing this file!')
+                return ['None']*self.numhead
+        return [ hdu[k].header for k in range(self.numhead) ]
 
 #    def get_match_criteria(self):
 #        msgs.error("You need match criteria for your spectrograph.")

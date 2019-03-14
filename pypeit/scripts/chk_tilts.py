@@ -6,6 +6,12 @@
 """
 This script displays the Arc image from and the traces
 in an RC Ginga window (must be previously launched)
+
+.. todo::
+
+    This script is out of date and will not function with the current
+    pypeit master branch.
+
 """
 import argparse
 

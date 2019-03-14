@@ -1,5 +1,7 @@
 0.9.4dev
 --------
+
+- Enable PyPI
 - Streamline some of the instantiation at the beginning of
   PypeIt.__init__.
     - Moves the call to default_pypeit_par into config_specific_par.
@@ -9,6 +11,22 @@
 - Allows for slice like syntax when defining calibration groups.
 - Introduce 'tilt' frame type.  Not used yet.  Everything that's typed
   as an 'arc' is now also typed as a 'tilt'.
+- Use matplotlib 'agg' backend to the top-level `__init__.py` to allow
+  for running the code under a screen; may need a better approach.
+- Numerous doc and style fixes
+- Add `master_type` to `MasterFrame` (and derived classes), which is
+  used to set the name of the master frame output file.
+- Significant edits to `MasterFrame` to streamline IO for derived
+  classes.  Lead to significant changes to `Calibrations`.
+- Main paths now set in `PypeIt`.
+- Allow `connect_to_ginga` to start up the ginga viewer.
+- Add a pytest `skipif` that checks if the Cooked directory exists in
+  the dev-suite.  Use this to run the tests that only need the raw image
+  data or don't need the dev-suite at all.
+- Move wavelength calibration save/load out of `pypeit.wavecalib` into
+  `pypeit.core.wavecal.waveio.py`
+- Rename default directory for calibration masters to `Masters` and
+  removed inclusion of spectrograph name.
 
 0.9.3 (28 Feb 2019)
 -------------------
