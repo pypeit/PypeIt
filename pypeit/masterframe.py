@@ -62,12 +62,22 @@ class MasterFrame(object):
         # Other parameters
         self.reuse_masters = reuse_masters
 
+    # TODO: Kludge to allow for a one-liner that gets the master frame
+    # file name
+    @staticmethod
+    def construct_file_name(master_type, master_key, file_format='fits'):
+        """
+        Name of the MasterFrame file.
+        """
+        return 'Master{0}_{1}.{2}'.format(master_type, master_key, file_format)
+
     @property
     def file_name(self):
         """
         Name of the MasterFrame file.
         """
-        return 'Master{0}_{1}.{2}'.format(self.master_type, self.master_key, self.file_format)
+        return MasterFrame.construct_file_name(self.master_type, self.master_key,
+                                               self.file_format)
 
     @property
     def file_path(self):
@@ -184,13 +194,45 @@ class MasterFrame(object):
 
         # Read and return
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        hdu = fits.open(_ifile)
+        return MasterFrame.load_from_file(_ifile, _ext, return_header=return_header)
+
+    @staticmethod
+    def load_from_file(filename, ext, return_header=False):
+        """
+        Generic static method to read a master file.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the master frame file.
+            ext (:obj:`str`, :obj:`int`, :obj:`list`):
+                One or more file extensions with data to return.  The
+                extension can be designated by its 0-indexed integer
+                number or its name.
+            return_header (:obj:`bool`, optional):
+                Return the header.
+
+        Returns:
+            tuple: Returns the image data from each provided extension.
+            If return_header is true, the primary header is also
+            returned.
+        """
+        # Check file exists
+        if not os.path.isfile(filename):
+            msgs.error('File does not exist: {0}'.format(filename))
+        
+        # Format the input and set the tuple for an empty return
+        _ext = ext if isinstance(ext, list) else [ext]
+        n_ext = len(_ext)
+
+        # Open the file
+        hdu = fits.open(filename)
+
         # Only one extension
         if n_ext == 1:
             data = hdu[_ext[0]].data.astype(np.float)
             return (data, hdu[0].header) if return_header else data
         # Multiple extensions
-        data = tuple([ hdu[k].data.astype(np.float) for k in _ext ])
+        data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext ])
         return data + (hdu[0].header,) if return_header else data
 
     @staticmethod
@@ -207,13 +249,22 @@ class MasterFrame(object):
             header.
         """
         raw_files = {}
+        # Header keyword prefix used to list the raw files
         prefix = 'F'
         for k, v in hdr.items():
+            # Check if this header keyword starts with the required
+            # prefix
             if k[:len(prefix)] == prefix:
                 try:
+                    # Try to convert the keyword without the prefix into
+                    # an integer.
                     i = int(k[len(prefix):])-1
                 except ValueError:
+                    # Assume the value is some other random keyword that
+                    # starts with the prefix but isn't a raw file
                     continue
+                # Assume we've found a raw file; assign it and keep
+                # trolling the header
                 raw_files[i] = v
         # Convert from dictionary with integer keys to an appropriately
         # sorted list

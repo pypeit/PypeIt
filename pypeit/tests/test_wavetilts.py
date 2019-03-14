@@ -12,6 +12,7 @@ from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, co
 from pypeit import wavetilts
 from pypeit.core import tracewave, pixels
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def data_path(filename):
@@ -22,13 +23,14 @@ def data_path(filename):
 @pytest.fixture
 @cooked_required
 def master_dir():
-    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
 
 
 @cooked_required
 def test_step_by_step(master_dir):
     # Masters
-    spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,tslits=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
     # Instantiate
     master_key = 'A_1_01'
     parset = spectrograph.default_pypeit_par()
@@ -59,8 +61,8 @@ def test_step_by_step(master_dir):
 @cooked_required
 def test_run(master_dir):
     # Masters
-    spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,
-                                                         tslits=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
     # Instantiate
     master_key = 'A_1_01'
     spectrograph.detector[0]['saturation'] = 60000.

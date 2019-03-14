@@ -12,6 +12,11 @@ from pypeit.tests.tstutils import cooked_required
 
 @cooked_required
 def test_cooked_version():
+    return
+
+    # TODO: Use pygit2 to both add the branch name when constructing
+    # Cooked and here to check that the branch is correct?
+
     # Load up the version
     v_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'version')
     with open(v_file) as f:

@@ -6,6 +6,8 @@ import os
 
 import pytest
 import glob
+import shutil
+
 import numpy as np
 
 from pypeit import calibrations
@@ -39,7 +41,6 @@ def fitstbl():
 
 @pytest.fixture
 def multi_caliBrate(fitstbl):
-    det = 1
     spectrograph = load_spectrograph('shane_kast_blue')
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
@@ -53,11 +54,24 @@ def multi_caliBrate(fitstbl):
     calib_par['badpix'] = False
     calib_par['biasframe']['useframe'] = 'overscan'
 
-    multi_caliBrate= calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph)
+    multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph)
+    return reset_calib(multi_caliBrate)
+
+
+def reset_calib(calib):
     # Find the first science row
-    frame = fitstbl.find_frames('science', index=True)[0]
+    frame = calib.fitstbl.find_frames('science', index=True)[0]
     # Set
-    multi_caliBrate.set_config(frame, det, par=calib_par)
+    det = 1
+    calib.set_config(frame, det)
+    return calib
+
+
+@pytest.fixture
+def multi_caliBrate_reuse(multi_caliBrate):
+    multi_caliBrate.reuse_masters=True
+    multi_caliBrate.master_dir = data_path('Masters')
+    multi_caliBrate.save_masters = True
     return multi_caliBrate
 
 
@@ -166,4 +180,59 @@ def test_waveimg(multi_caliBrate):
     mswave = multi_caliBrate.get_wave()
     assert mswave.shape == (2048,350)
 
+
+@dev_suite_required
+def test_reuse(multi_caliBrate_reuse):
+    """
+    Test that Calibrations appropriately reuses existing calibrations frames.
+    """
+    # In case of previous data or failures
+    if os.path.isdir(multi_caliBrate_reuse.master_dir):
+        shutil.rmtree(multi_caliBrate_reuse.master_dir)
+
+    os.makedirs(multi_caliBrate_reuse.master_dir)
+
+    # Perform the calibrations
+    multi_caliBrate_reuse.shape = (2048,350)
+    multi_caliBrate_reuse.get_bpm()
+    multi_caliBrate_reuse.msbias = 'overscan'
+    msarc = multi_caliBrate_reuse.get_arc()
+    multi_caliBrate_reuse.get_slits(write_qa=False)
+    multi_caliBrate_reuse.get_wv_calib()
+    multi_caliBrate_reuse.get_tilts()
+    multi_caliBrate_reuse.get_flats()
+    mswave = multi_caliBrate_reuse.get_wave()
+    assert mswave.shape == (2048,350)
+
+    # Reset
+    reset_calib(multi_caliBrate_reuse)
+    multi_caliBrate_reuse.save_masters = False  # Don't overwrite them
+
+    # Redo the calibrations
+    #   - These don't source a master file
+    multi_caliBrate_reuse.shape = (2048,350)
+    multi_caliBrate_reuse.get_bpm()
+    multi_caliBrate_reuse.msbias = 'overscan'
+    #   - The arc is the first sourced master
+    assert 'arc' not in multi_caliBrate_reuse.master_key_dict.keys(), \
+            'arc master key should not be defined yet'
+    _msarc = multi_caliBrate_reuse.get_arc()
+    assert multi_caliBrate_reuse._check_cache('arc',
+                    multi_caliBrate_reuse.master_key_dict['arc']), 'Should find cached data.'
+    assert os.path.isfile(multi_caliBrate_reuse.arcImage.file_path), \
+            'Should find master file.'
+    assert multi_caliBrate_reuse.arcImage.load() is not None, \
+            'Load should not return None'
+    # TODO: Not a great test because this should be true regardless of
+    # whether or not the master was actually reused...
+    assert np.array_equal(msarc, _msarc), 'Arrays not equal!'
+    #   - Make sure the rest of the steps complete
+    multi_caliBrate_reuse.get_slits(write_qa=False)
+    multi_caliBrate_reuse.get_wv_calib()
+    multi_caliBrate_reuse.get_tilts()
+    multi_caliBrate_reuse.get_flats()
+    mswave = multi_caliBrate_reuse.get_wave()
+
+    # Clean-up
+    shutil.rmtree(multi_caliBrate_reuse.master_dir)
 

@@ -15,22 +15,24 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.spectrographs import util
 
-
 @cooked_required
 def test_user_redo():
     # Check for files
     spectrograph = util.load_spectrograph('shane_kast_blue')
-    wvcalib_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib',
-                                'MasterWaveCalib_ShaneKastBlue_A.json')
-    assert os.path.isfile(wvcalib_file)
+
     # Instantiate
-    waveCalib = wavecalib.WaveCalib(None, None, spectrograph,
-                                spectrograph.default_pypeit_par()['calibrations']['wavelengths'])
+    par = spectrograph.default_pypeit_par()['calibrations']['wavelengths']
+    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib')
+    master_key = 'ShaneKastBlue_A'
+    waveCalib = wavecalib.WaveCalib(None, None, spectrograph, par, master_dir=master_dir,
+                                    master_key=master_key, reuse_masters=True)
+    assert os.path.isfile(waveCalib.file_path), 'Did not finde Cooked file.'
+
     wv_calib = waveCalib.load()
     # Setup
     waveCalib.par['sigdetect'] = 5.
     nslit = 1
-    _ = waveCalib.make_maskslits(nslit)
+    waveCalib.make_maskslits(nslit)
     npix = len(waveCalib.wv_calib['0']['spec'])
     waveCalib.arccen = np.zeros((npix,nslit))
     waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
@@ -39,9 +41,11 @@ def test_user_redo():
     # Test
     assert new_wv_calib['0']['rms'] < 0.2
     # Now also test the utility script that reads in the wavecalib
-    wv_calib_load = wavecalib.WaveCalib.load_from_file(wvcalib_file)
+    wv_calib_load = wavecalib.WaveCalib.load_from_file(waveCalib.file_path)
     assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
 
+
+# TODO: Bring back some of these tests...
 
 '''
 def data_path(filename):

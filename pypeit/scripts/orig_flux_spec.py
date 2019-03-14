@@ -2,7 +2,12 @@
 
 """
 Script for fluxing PYPEIT 1d spectra
+
+.. todo::
+    - This is deprecated in favor of scripts/flux_spec.py
+
 """
+# TODO: Make sure the above statement is correct!
 import argparse
 
 # pypeit_flux_spec sensfunc --std_file=spec1d_Feige66_KASTb_2015May20T041246.96.fits  --instr=shane_kast_blue --sensfunc_file=tmp.yaml

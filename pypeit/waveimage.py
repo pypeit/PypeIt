@@ -11,13 +11,13 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import masterframe
+from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
 
 from pypeit import debugger
 
-class WaveImage(masterframe.MasterFrame):
+class WaveImage(MasterFrame):
     """
     Class to generate the Wavelength Image
 
@@ -55,7 +55,7 @@ class WaveImage(masterframe.MasterFrame):
 #                 master_key=None, master_dir=None, reuse_masters=False):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
 
         # Required parameters
@@ -147,7 +147,7 @@ class WaveImage(masterframe.MasterFrame):
         txt = '<{:s}: >'.format(self.__class__.__name__)
         return txt
 
-    def save(self, outfile=None, overwrite=True):
+    def save(self, outfile=None, overwrite=True, mswave=None):
         """
         Save the master wavelength image.
 
@@ -158,7 +158,8 @@ class WaveImage(masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(WaveImage, self).save(self.mswave, 'WAVE', outfile=outfile, overwrite=overwrite,
+        _mswave = self.mswave if mswave is None else mswave
+        super(WaveImage, self).save(_mswave, 'WAVE', outfile=outfile, overwrite=overwrite,
                                     steps=self.steps)
 
     # TODO: it would be better to have this instantiate the full class
@@ -180,24 +181,44 @@ class WaveImage(masterframe.MasterFrame):
         """
         return super(WaveImage, self).load('WAVE', ifile=ifile, return_header=return_header)
 
-    
+    @staticmethod
+    def load_from_file(filename, return_header=False):
+        """
+        Load the wavelength image data from a saved master frame.
 
+        Args:
+            filename (:obj:`str`, optional):
+                Name of the master frame file.
+            return_header (:obj:`bool`, optional):
+                Return the header
 
-# TODO: Provide a staticmethod
-def load_waveimage(filename):
-    """
-    Utility function which enables one to load the waveimage from a master file in one line of code without
-    instantiating the class.
+        Returns:
+            tuple: Returns an `numpy.ndarray`_ with the wavelength
+            image.  Also returns the primary header, if requested.
+        """
+        # Use of super() to call staticmethods of the base class seems
+        # like a bit of a mess (bound vs. unbound methods).  There's a
+        # syntax that works, but for now, I'm just going to call the
+        # static method explicitly without using super().  See:
+        # https://stackoverflow.com/questions/26788214/super-and-staticmethod-interaction
+        return MasterFrame.load_from_file(filename, 'WAVE', return_header=return_header)
 
-    Args:
-        filename (str): Master file name
+# TODO: Use WaveImage.load_from_file(filename)
+#def load_waveimage(filename):
+#    """
+#    Utility function which enables one to load the waveimage from a master file in one line of code without
+#    instantiating the class.
+#
+#    Args:
+#        filename (str): Master file name
+#
+#    Returns:
+#        dict:  The trace slits dict
+#
+#    """
+#
+#    waveImage = WaveImage(None, None, None, None, None)
+#    waveimage, _ = waveImage.load_master(filename)
+#
+#    return waveimage
 
-    Returns:
-        dict:  The trace slits dict
-
-    """
-
-    waveImage = WaveImage(None, None, None, None, None)
-    waveimage, _ = waveImage.load_master(filename)
-
-    return waveimage

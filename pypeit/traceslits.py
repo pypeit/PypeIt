@@ -15,9 +15,6 @@ from scipy import ndimage
 
 from astropy.io import fits
 
-# TODO: I'd rather we not use 'as' ...
-from linetools import utils as ltu
-
 from pypeit import msgs
 from pypeit.core import parse, trace_slits, extract, pixels, procimg
 #from pypeit.core import io
@@ -1173,7 +1170,10 @@ class TraceSlits(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-    def save(self, outfile=None, overwrite=True, traceImage=None):
+    # TODO: Allowing traceImage to be passed, allowing it to be either
+    # a TraceImage or a numpy.ndarray, and allowing tslits_dict to be
+    # passed are all kludges.
+    def save(self, outfile=None, overwrite=True, traceImage=None, tslits_dict=None):
         """
         Save the main TraceSlits data as a MasterFrame.
 
@@ -1185,8 +1185,10 @@ class TraceSlits(masterframe.MasterFrame):
                 :attr:`file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
-            traceImage (:class:`pypeit.traceimage.TraceImage`, optional):
-                Trace image object to include in master frame file.
+            traceImage (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`, optional):
+                An array with only the image data or the full
+                :class:`pypeit.traceimage.TraceImage` instance with the
+                data used to construct the slit traces.
         """
         _outfile = self.file_path if outfile is None else outfile
         # Check if it exists
@@ -1194,6 +1196,8 @@ class TraceSlits(masterframe.MasterFrame):
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
                       + 'Set overwrite=True to overwrite it.')
             return
+
+        _tslits_dict = self.tslits_dict if tslits_dict is None else tslits_dict
 
         # Log
         msgs.info('Saving master frame to {0}'.format(_outfile))
@@ -1206,39 +1210,49 @@ class TraceSlits(masterframe.MasterFrame):
         hdr['STEPS'] = (','.join(self.steps), 'Completed reduction steps')
         #   - Provide the file names
         if traceImage is not None:
-            nfiles = len(traceImage.files)
-            ndig = int(np.log10(nfiles))+1
-            for i in range(nfiles):
-                hdr['F{0}'.format(i+1).zfill(ndig)] \
-                        = (traceImage.files[i], 'PypeIt: Processed raw file')
+            try:
+                nfiles = len(traceImage.files)
+                ndig = int(np.log10(nfiles))+1
+                for i in range(nfiles):
+                    hdr['F{0}'.format(i+1).zfill(ndig)] \
+                            = (traceImage.files[i], 'PypeIt: Processed raw file')
+            except:
+                msgs.warn('Master trace frame does not include list of source files.')
         #   - Slit metadata
         # TODO: Provide header comments
         hdr['DET'] = self.det
-        hdr['NSPEC'] = self.tslits_dict['nspec']
-        hdr['NSPAT'] =  self.tslits_dict['nspat']
-        hdr['NSLITS'] =  self.tslits_dict['nslits']
-        hdr['PAD'] = self.tslits_dict['pad']
-        hdr['BINSPEC'] = self.tslits_dict['binspectral']
-        hdr['BINSPAT'] = self.tslits_dict['binspatial']
-        hdr['SPECTROG'] = self.tslits_dict['spectrograph']
+        hdr['NSPEC'] = _tslits_dict['nspec']
+        hdr['NSPAT'] =  _tslits_dict['nspat']
+        hdr['NSLITS'] =  _tslits_dict['nslits']
+        hdr['PAD'] = _tslits_dict['pad']
+        hdr['BINSPEC'] = _tslits_dict['binspectral']
+        hdr['BINSPAT'] = _tslits_dict['binspatial']
+        hdr['SPECTROG'] = _tslits_dict['spectrograph']
 
         # Collect data that may be None.  If they are None, no data will
         # be in the relevant extensions.
-        mstrace = self.mstrace if traceImage is None else traceImage.stack
-        left_orig = None if 'slit_left_orig' not in self.tslits_dict.keys() \
-                        else self.tslits_dict['slit_left_orig']
-        righ_orig = None if 'slit_righ_orig' not in self.tslits_dict.keys() \
-                        else self.tslits_dict['slit_righ_orig']
+        mstrace = self.mstrace
+        if traceImage is not None:
+            try:
+                mstrace = traceImage.stack
+            except:
+                # Assume it failed because it's not a TraceImage object
+                # and it's a numpy.ndarray to write.
+                mstrace = traceImage
+        left_orig = None if 'slit_left_orig' not in _tslits_dict.keys() \
+                        else _tslits_dict['slit_left_orig']
+        righ_orig = None if 'slit_righ_orig' not in _tslits_dict.keys() \
+                        else _tslits_dict['slit_righ_orig']
 
         # Write the file
         fits.HDUList([fits.PrimaryHDU(header=hdr),
                       fits.ImageHDU(data=mstrace, name='TRACEIMG'),
                       # TODO: These should be written to a BinaryTable
-                      fits.ImageHDU(data=self.tslits_dict['slit_left'], name='SLIT_LEFT'),
-                      fits.ImageHDU(data=self.tslits_dict['slit_righ'], name='SLIT_RIGH'),
-                      fits.ImageHDU(data=self.tslits_dict['slitcen'], name='SLITCEN'),
-                      fits.ImageHDU(data=self.tslits_dict['spec_min'], name='SPEC_MIN'),
-                      fits.ImageHDU(data=self.tslits_dict['spec_max'], name='SPEC_MAX'),
+                      fits.ImageHDU(data=_tslits_dict['slit_left'], name='SLIT_LEFT'),
+                      fits.ImageHDU(data=_tslits_dict['slit_righ'], name='SLIT_RIGH'),
+                      fits.ImageHDU(data=_tslits_dict['slitcen'], name='SLITCEN'),
+                      fits.ImageHDU(data=_tslits_dict['spec_min'], name='SPEC_MIN'),
+                      fits.ImageHDU(data=_tslits_dict['spec_max'], name='SPEC_MAX'),
                       fits.ImageHDU(data=left_orig, name='SLIT_LEFT_ORIG'),
                       fits.ImageHDU(data=righ_orig, name='SLIT_RIGH_ORIG')
                      ]).writeto(_outfile, overwrite=True)

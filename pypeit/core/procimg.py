@@ -546,9 +546,9 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
 
     # If the input image sections are strings, convert them
     if not isinstance(datasec[0], tuple):
-        msgs.error('Data section must be a list of slice objects.')
+        msgs.error('Data section must be a tuple of slice objects.')
     if not isinstance(oscansec[0], tuple):
-        msgs.error('Overscan section must be a list of slice objects.')
+        msgs.error('Overscan section must be a tuple of slice objects.')
     
     # Check that there are no overlapping data sections
     testframe = np.zeros_like(rawframe, dtype=int)

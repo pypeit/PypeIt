@@ -214,8 +214,10 @@ def _find_pypeit_block(lines, group):
     Find the PypeIt group block
 
     Args:
-        lines (list): List of file lines
-        group (str): Name of group to parse
+        lines (:obj:`list`):
+            List of file lines
+        group (:obj:`str`):
+            Name of group to parse
 
     Returns:
         int, int: Starting,ending line of the block;  -1 if not present

@@ -9,8 +9,10 @@ from within PypeIt - it should be run as a standalone script, and
 it's only purpose is to generate a KD Tree with the desired patterns.
 """
 
-# TODO: Why not use scipy?: 
-# https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.KDTree.html
+# NOTE: No longer used.  Use KD tree in scikit-learn:
+#   https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KDTree.html
+# See benchmarks here:
+#   https://jakevdp.github.io/blog/2013/04/29/benchmarking-nearest-neighbor-searches-in-python/
 
 from pypeit.core.wavecal import waveio
 from astropy.table import vstack

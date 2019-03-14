@@ -54,15 +54,18 @@ def test_addrm_slit():
 def test_chk_kast_slits():
     """ This tests finding the longslit for Kast blue """
     # Red, blue
-    for root in ['MasterTrace_ShaneKastred_600_7500_d55.fits', 'MasterTrace_ShaneKastblue_600_4310_d55.fits']:
+    for root in ['MasterTrace_ShaneKastred_600_7500_d55.fits',
+                 'MasterTrace_ShaneKastblue_600_4310_d55.fits']:
         # Load
         mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_file)
         # Instantiate
         _, traceSlits = instant_traceslits(mstrace_file)
+        binning = traceSlits.tslits_dict['binspectral'], traceSlits.tslits_dict['binspatial']
         norig = traceSlits.tslits_dict['nslits']
         # Run me
-        traceSlits.run(trim_slits=False, write_qa=False)  # Don't need plate_scale for longslit
+        # Don't need plate_scale for longslit
+        traceSlits.run(traceSlits.mstrace, binning, trim_slits=False, write_qa=False)
         # Test
         assert traceSlits.nslit == norig
 
@@ -80,11 +83,13 @@ def test_chk_lris_blue_slits():
         assert chk_for_files(mstrace_file)
         # Instantiate
         spectrograph, traceSlits = instant_traceslits(mstrace_file, det=det)
+        binning = traceSlits.tslits_dict['binspectral'], traceSlits.tslits_dict['binspatial']
         norig = traceSlits.tslits_dict['nslits']
         assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
-        traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
+        traceSlits.run(traceSlits.mstrace, binning, show=False, plate_scale=plate_scale,
+                       write_qa=False)
         # Test
         assert traceSlits.nslit == norig
 
@@ -102,12 +107,14 @@ def test_chk_lris_red_slits():
         assert chk_for_files(mstrace_file)
 
         # Instantiate
-        spectrograph, traceSlits = instant_traceslits(mstrace_file)  # , det=det)  This crashes with det
+        spectrograph, traceSlits = instant_traceslits(mstrace_file)
+        binning = traceSlits.tslits_dict['binspectral'], traceSlits.tslits_dict['binspatial']
         norig = traceSlits.tslits_dict['nslits']
         assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
-        traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
+        traceSlits.run(traceSlits.mstrace, binning, show=False, plate_scale=plate_scale,
+                       write_qa=False)
         # Test
         assert traceSlits.nslit == norig
 
@@ -123,10 +130,13 @@ def test_chk_deimos_slits():
         assert chk_for_files(mstrace_file)
         # Instantiate
         spectrograph, traceSlits = instant_traceslits(mstrace_file, det=det)
+        binning = traceSlits.tslits_dict['binspectral'], traceSlits.tslits_dict['binspatial']
         norig = traceSlits.tslits_dict['nslits']
         assert norig == nslit
         # Run me
         plate_scale = binning[0]*spectrograph.detector[det-1]['platescale']
-        traceSlits.run(show=False, plate_scale=plate_scale, write_qa=False)
+        traceSlits.run(traceSlits.mstrace, binning, show=False, plate_scale=plate_scale,
+                       write_qa=False)
         # Test
         assert traceSlits.nslit == norig
+
