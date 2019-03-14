@@ -18,7 +18,8 @@ from bisect import insort, bisect_left
 from pypeit.core import pydl
 from pypeit import msgs
 
-def wavegrid(wave_min, wave_max, dwave, osamp=1.0):
+
+def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0):
     """
     Utility routine to generate a uniform grid of wavelengths
     Args:
@@ -28,16 +29,17 @@ def wavegrid(wave_min, wave_max, dwave, osamp=1.0):
            Maximum wavelength. Can be in linear or log.
         dwave: float
            Delta wavelength interval
-        osamp: float
-           Oversampling factor
+        samp_fact: float
+           sampling factor, samp_fact > 1.0 oversamples, samp_fact < 1.0 undersamples
 
     Returns:
         wave_grid: float ndarray
            Wavelength grid
     """
 
-    ngrid = int(np.ceil((wave_max - wave_min)/dwave))
-    wave_grid = wave_min + (dwave/osamp)*np.arange(int(np.ceil(osamp*ngrid)))
+    dwave_eff = dwave/samp_fact
+    ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
+    wave_grid = wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
     return wave_grid
 
 

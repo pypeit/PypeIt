@@ -729,24 +729,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     @property
     def dloglam(self):
         # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
-        # loglam across the orders deviates from this value by +-7% from this first to final order
-        return 8.46035e-06   # 1.69207e-5, measured from a 2 by 1 data, divided by two.
+        # loglam across the orders deviates from this value by +-7% from this first to final order. This is the
+        # unbinned value. It was actually measured  to be 1.69207e-5  from a 2x1 data and then divided by two.
+        return 8.46035e-06
 
     @property
     def loglam_minmax(self):
         return np.log10(5000.0), np.log10(11000)
-
-    def wavegrid(self, binning=None, midpoint=False,coarse_grid=0.):
-
-        binspectral, binspatial = parse.parse_binning(binning)
-        # Define the grid for VLT-XSHOOTER VIS
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam*binspectral*(1.0+coarse_grid/100.))
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam*binspectral/2.0
-
-        return np.power(10.0,loglam_grid)
-
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
