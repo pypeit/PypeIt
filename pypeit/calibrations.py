@@ -457,8 +457,8 @@ class Calibrations(object):
                                           det=self.det)
 
         # Return already generated data
-        if self._cached('pixelflat', self.master_key_dict['flat']) and \
-                self._cached('illumflat', self.master_key_dict['flat']):
+        if self._cached('pixelflat', self.master_key_dict['flat']) \
+                and self._cached('illumflat', self.master_key_dict['flat']):
             self.mspixelflat = self.calib_dict[self.master_key_dict['flat']]['pixelflat']
             self.msillumflat = self.calib_dict[self.master_key_dict['flat']]['illumflat']
             return self.mspixelflat, self.msillumflat
@@ -717,7 +717,8 @@ class Calibrations(object):
             msgs.error('Arc master key not set.  First run get_arc.')
 
         # Return existing data
-        if self._cached('wavecalib', self.master_key_dict['arc']):
+        if self._cached('wavecalib', self.master_key_dict['arc']) \
+                and self._cached('wvmask', self.master_key_dict['arc']):
             self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
             self.wv_maskslits = self.calib_dict[self.master_key_dict['arc']]['wvmask']
             self.maskslits += self.wv_maskslits
@@ -791,7 +792,8 @@ class Calibrations(object):
             msgs.error('Arc master key not set.  First run get_arc.')
         
         # Return existing data
-        if self._cached('tilts_dict', self.master_key_dict['arc']):
+        if self._cached('tilts_dict', self.master_key_dict['arc']) \
+                and self._cached('wtmask', self.master_key_dict['arc']):
             self.tilts_dict = self.calib_dict[self.master_key_dict['arc']]['tilts_dict']
             self.wt_maskslits = self.calib_dict[self.master_key_dict['arc']]['wtmask']
             self.maskslits += self.wt_maskslits
