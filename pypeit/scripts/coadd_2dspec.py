@@ -84,7 +84,8 @@ def parser(options=None):
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
     parser.add_argument("--basename", type=str, default=None, help="Basename of files to save the parameters, spec1d, and spec2d")
-    parser.add_argument('--coarse_grid', default=0., type=float, help="Make the wavelength grid coarser by how many percentage")
+    parser.add_argument('--samp_fact', default=1.0, type=float, help="Make the wavelength grid finer (samp_fact > 1.0) "
+                                                                     "or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
@@ -182,7 +183,7 @@ def main(args):
                 sci_dict[det]['specobjs'] \
                         = coadd2d.extract_coadd2d(stack_dict, master_dir, ir_redux=ir_redux,
                                                   par=par, show=args.show, show_peaks=args.peaks,
-                                                  std=args.std, coarse_grid=args.coarse_grid)
+                                                  std=args.std, samp_fact=args.samp_fact)
 
     # Make the new Science dir
     # TODO: This needs to be defined by the user

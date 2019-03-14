@@ -488,17 +488,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(9500.0), np.log10(26000)
 
-    def wavegrid(self, binning=None, midpoint=False):
-
-        # Define the grid for VLT-XSHOOTER NIR
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam/2.0
-
-        return np.power(10.0,loglam_grid)
-
-
 
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):

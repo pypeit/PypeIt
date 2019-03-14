@@ -30,7 +30,8 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0):
         dwave: float
            Delta wavelength interval
         samp_fact: float
-           sampling factor, samp_fact > 1.0 oversamples, samp_fact < 1.0 undersamples
+           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
+           samp_fact < 1.0 undersamples (coarser)
 
     Returns:
         wave_grid: float ndarray
