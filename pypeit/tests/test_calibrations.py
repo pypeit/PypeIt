@@ -192,16 +192,37 @@ def test_reuse(multi_caliBrate_reuse):
 
     os.makedirs(multi_caliBrate_reuse.master_dir)
 
-    # Perform the calibrations
+    # Perform the calibrations and check that the data are correctly
+    # stored in memory
     multi_caliBrate_reuse.shape = (2048,350)
     multi_caliBrate_reuse.get_bpm()
-    multi_caliBrate_reuse.msbias = 'overscan'
+    assert list(multi_caliBrate_reuse.calib_dict.keys()) == ['A_1_01'], 'Incorrect master key'
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) == ['bpm'], \
+                'Incorrect list of master types in memory'
     msarc = multi_caliBrate_reuse.get_arc()
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) == ['bpm', 'arc'], \
+                'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_slits(write_qa=False)
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) == ['bpm', 'arc', 'trace'], \
+                'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_wv_calib()
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
+                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask'], \
+                'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_tilts()
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
+                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask'], \
+                'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_flats()
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
+                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask',
+                    'pixelflat', 'illumflat'], \
+                'Incorrect list of master types in memory'
     mswave = multi_caliBrate_reuse.get_wave()
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
+                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask',
+                    'pixelflat', 'illumflat', 'wave'], \
+                'Incorrect list of master types in memory'
     assert mswave.shape == (2048,350)
 
     # Reset
@@ -217,7 +238,7 @@ def test_reuse(multi_caliBrate_reuse):
     assert 'arc' not in multi_caliBrate_reuse.master_key_dict.keys(), \
             'arc master key should not be defined yet'
     _msarc = multi_caliBrate_reuse.get_arc()
-    assert multi_caliBrate_reuse._check_cache('arc',
+    assert multi_caliBrate_reuse._cached('arc',
                     multi_caliBrate_reuse.master_key_dict['arc']), 'Should find cached data.'
     assert os.path.isfile(multi_caliBrate_reuse.arcImage.file_path), \
             'Should find master file.'
