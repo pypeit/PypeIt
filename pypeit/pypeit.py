@@ -268,7 +268,6 @@ class PypeIt(object):
 
             # Reduce all the standard frames, loop on unique comb_id
             u_combid_std= np.unique(self.fitstbl['comb_id'][grp_standards])
-
             for j, comb_id in enumerate(u_combid_std):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
@@ -295,7 +294,12 @@ class PypeIt(object):
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                # Find all frames whose comb_id matches the current frames bkg_id
+                bg_frames = np.where(self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0])[0]
+                # JFH changed the syntax below to that above, which allows frames to be used more than once
+                # as a background image. The syntax below would require that we could somehow list multiple
+                # numbers for the bkg_id which is impossible without a comma separated list
+#                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
                     science_basename[j] = self.basename
