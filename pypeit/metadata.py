@@ -321,11 +321,22 @@ class PypeItMetaData:
                 data[meta_key].append(value)
             msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
-#        # Additional bits and pieces
-#        self._add_bkg_pairs(data, 'empty')
+        # JFH Changed the below to now crash if some files have None in their MJD. This is the desired behavior
+        # since if there are empty or corrupt files we still want this to run.
 
-        # Validate
-        time.Time(data['mjd'], format='mjd')
+        # Validate, print out a warning if there is problem
+        try:
+            time.Time(data['mjd'], format='mjd')
+        except ValueError:
+            mjd = np.asarray(data['mjd'])
+            filenames = np.asarray(data['filename'])
+            bad_files = filenames[mjd == None]
+            # Print status message
+            msgs_string = 'Validation of the time in your data failed for {:d} files'.format(len(bad_files)) + msgs.newline()
+            msgs_string += 'Continuing, but the following frames may be empty or have corrupt headers:' + msgs.newline()
+            for file in bad_files:
+                msgs_string += '{0:s}'.format(file) + msgs.newline()
+            msgs.warn(msgs_string)
 
         # Return
         return data
@@ -1302,7 +1313,6 @@ class PypeItMetaData:
             # TODO: Use & or | ?  Using idname above gets overwritten by
             # this if the frames to meet the other checks in this call.
             indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
-    
             # Turn on the relevant bits
             type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
     

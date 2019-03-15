@@ -87,10 +87,18 @@ def check_frame_exptime(exptime, exprng):
         return np.ones(len(exptime), dtype=bool)
     if len(exprng) != 2:
         raise ValueError('exprng must have two elements.')
-    indx = np.ones(len(exptime), dtype=bool) if exprng[0] is None \
-                else exptime > exprng[0]
+
+    # JFH This modification below is to prevent None values from corrupt/empty files from crashing this routine.
+    is_not_none = exptime != None
+    indx = is_not_none.copy()
+    if exprng[0] is not None:
+        indx[is_not_none] = exptime[is_not_none] > exprng[0]
+
+    #indx = np.ones(len(exptime), dtype=bool) if exprng[0] is None else exptime > exprng[0]
     if exprng[1] is not None:
-        indx &= (exptime < exprng[1])
+        indx[is_not_none] = exptime[is_not_none] < exprng[1]
+        #indx &= (exptime < exprng[1])
+
     return indx
 
 
