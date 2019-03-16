@@ -1294,36 +1294,43 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
 
     return collate(spectra_list_new)
 
-def order_median_scale(wave, fluxes_in, sigs_in, nsig=3.0, niter=5, min_overlap_frac=0.03, max_rescale_percent=50.0,
-                       num_min_pixels=50, sn_min_medscale=2.0, debug=False):
+def order_median_scale(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, niter=5, min_overlap_pix=21, min_overlap_frac=0.03,
+                       max_rescale_percent=50.0, sn_min=1.0, debug=False):
     '''
     Scale different orders using the median of overlap regions. It starts from the reddest order, i.e. scale H to K,
       and then scale J to H+K, etc.
     Parameters:
-      wave: float ndarray (nspec, norders)
-      fluxes_in: float ndarray (nspec, norders)
-      sigs_in: float ndarray (nsoec, norders)
 
-      nsig: float
-        sigma used for sigma_clipping median
-      niter: int
+    wave: float ndarray (nspec,)
+       Common wavelength grid for all the orders
+    wave_mask: bool ndarray (nspec,)
+       Boolean array indicating the wavelengths that are populated by each order. True = pixel covered, False= not covered
+    fluxes_in: float ndarray (nspec, norders)
+       Fluxes on the common wavelength grid
+    ivar_in: float ndarray (nspec, norders)
+       Inverse variance on the common wavelength grid
+    sigrej: float
+        outlier rejection threshold used for sigma_clipping to compute median
+    niter: int
         number of iterations for sigma_clipping median
-      min_overlap_frac: float
-        minmum overlap fraction (number of overlapped pixels devided by number of pixels of the whole spectrum) between orders.
-      max_rescale_percent: float
+    min_overlap_pix: float
+        minmum number of overlapping pixels required to compute the median and rescale. These are pixels
+        common to both the scaled spectrum and the reference spectrum.
+    min_overlap_frac: float
+        minmum fraction of the total number of good pixels in an order that need to be overlapping with the neighboring
+        order to perform rescaling.
+    max_rescale_percent: float
         maximum percentage to rescale by
-      num_min_pixels: int
-        minum required good pixels. The code only scale orders when the overlapped
-        pixels > max(num_min_pixels,overlapfrac*len(wave))
-      SN_MIN_MEDSCALE: float
-        Maximum RMS S/N allowed to automatically apply median scaling
+    sn_min: float
+        Only pixels with per pixel S/N ratio above this value are used in the median computation
+
       Show QA plot if debug=True
     Return:
         No return, but the spectra is already scaled after executing this function.
     '''
 
     fluxes_out = np.zeros_like(fluxes_in)
-    sigs_out = np.zeros_like(sigs_in)
+    ivar_out = np.zeros_like(ivar_in)
     norders = fluxes_in.shape[1]
 
     #fluxes_raw = fluxes.copy()
@@ -1334,22 +1341,26 @@ def order_median_scale(wave, fluxes_in, sigs_in, nsig=3.0, niter=5, min_overlap_
     # scaling spectrum order by order. We start from the reddest order and work towards the blue
     # as slit losses in redder orders are smaller.
     orders_rev = np.arange(norders-1)[::-1] # order indices in reverse order excluding the
-    for iord in orders_rev:
-        iord_ref = iord+1
-        allok_iord_ref = sigs_in[iord_ref, :] > 0
-        allok_iord_scl = sigs_in[iord, :] > 0
-
-        #wave_min_iord =
-        sn_iord_ref = (sigs_in[iord+1] == 0.0)*fluxes_in[iord_ref]/(sigs_in[iord_ref] + sigs_in[iord_ref] == 0.0)
-        sn_iord_scl = (sigs_in[iord] == 0.0)*fluxes_in[iord]/(sigs_in[iord] + sigs_in[iord] == 0.0)
-        allok = allok_iord_ref & allok_iord_scl & (sn_iord_ref > sn_min_medscale) & (sn_iord_scl > sn_min_medscale)
-        # Note that the sigmas are only non-zero for wavelengths covered by an order. So the allok above automatically
-        # selects the wavelength overlaps
-
-        if np.sum(allok) > np.maximum(num_min_pixels, len(wave)*min_overlap_frac):
+    for iord_scl in orders_rev:
+        iord_ref = iord_scl+1
+        good_scl = wave_mask[:, iord_scl] & (ivar_in[:, iord_scl] > 0)
+        good_ref = wave_mask[:, iord_ref] & (ivar_in[:, iord_ref] > 0)
+        overlap = good_scl & good_ref
+        noverlap = np.sum(overlap)
+        nscl = np.sum(good_scl)
+        nref = np.sum(good_ref)
+        # S/N in the overlap regions
+        sn_scl = fluxes_in[:, iord_scl]*np.sqrt(ivar_in[:, iord_scl])
+        sn_ref = fluxes_in[:, iord_ref]*np.sqrt(ivar_in[:, iord_ref])
+        sn_scl_mn, sn_scl_med, sn_scl_std = stats.sigma_clipped_stats(sn_scl[overlap], sigma=sigrej, iters=niter)
+        sn_ref_mn, sn_ref_med, sn_ref_std = stats.sigma_clipped_stats(sn_ref[overlap], sigma=sigrej, iters=niter)
+        rescale_criteria = (float(noverlap/nscl) > min_overlap_frac) & (float(noverlap/nref) > min_overlap_frac) & \
+                       (noverlap > min_overlap_pix) & (sn_scl_med > sn_min) & (sn_ref_med > sn_min)
+        if rescale_criteria:
             # Ratio
             #med_flux = fluxes_in[iord, allok]/fluxes_in[iord - 1, allok]
             # Determine medians using sigma clipping
+            usepix = overlap & (sn_scl > 0.0) &
             mn_iord_ref, med_iord_ref, std_iord_ref = \
                 stats.sigma_clipped_stats(fluxes_in[iord_ref, allok], sigma=nsig, iters=niter)
             # Determine medians using sigma clipping
