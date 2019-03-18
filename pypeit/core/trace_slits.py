@@ -663,319 +663,45 @@ def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
     # Return
     return
 
-class Trace:
-    def __init__(self, side):
-        self.side = side
-        self.flags = None
-        self.xini = None
-        self.xfit = None
-        self.xerr = None
-
-    def to_dict(self):
-        return {'xval': self.xval, 'uni_e': self.uni_e, 'flags': self.flags, 'xset': self.xset,
-                'xerr': self.xerr }
-
-    def clip_traces(self, traces):
-        for t in traces:
-            self.flags[self.traci_id == t] = -1
-            self.img[self.img == t] = 0
-
-    def clip_duplicates(yrow, traces, x, match_tolerance):
-        diff = np.min(np.absolute(x[:,None] - self.xfit[None,yrow,:]), axis=1)
-        is_duplicate = diff < match_tolerance
-        if np.all(is_duplicate):
-            return None, None
-        if not np.any(is_duplicate):
-            return traces, x
-        self.clip_traces(traces[is_duplicate])
-        return traces[np.invert(is_duplicate)], x[np.invert(is_duplicate)]
-
-    def select_traces(self, traces)
-        mask = np.invert((xerr < 999.) & numpy.invert(xset < 0) & (xset < self.nspec))
-        xset = numpy.ma.MaskedArray(self.xset[:,traces], mask=mask)
-        xerr = numpy.ma.MaskedArray(self.xerr[:,traces], mask=mask)
-        return xset, xerr
-
-    def assess_traces(self, traces, clip_matching=False):
-        _traces = traces.copy()
-        xset, xerr = select_traces(traces)
-
-        # Clip short traces (catches if the full trace is bad)
-        trace_len = np.sum(goodx, axis=0)
-        too_short = trace_len < int(minimum_length*nspec)
-        if len(traces) > 1 and np.any(too_short):
-            msgs.warn('Clipping traces {0}: span less than {} of the detector.'.format(
-                      _traces[too_short]))
-            self.clip_traces(self, _traces[too_short])
-            _traces = _traces[np.invert(too_short)]
-            xset, xerr, goodx = select_traces(_traces)
-        if len(_traces) == 0:
-            # No traces left!
-            return
-
-        # Clip right edges that touch the left edge of the detector
-        # at the center of the detector
-        # TODO: Why at the center
-        at_left_edge = np.round(xset[ycen,:]).astype(int) == 0
-        if self.side == 'right' and np.any(at_left_edge):
-            msgs.warn('Clipping traces {0}: right traces that hit left edge.'.format(
-                        _traces[at_left_edge]))
-            self.clip_traces(self, traces[at_left_edge])
-            _traces = _traces[np.invert(at_left_edge)]
-            xset, xerr, goodx = select_traces(_traces)
-        if len(_traces) == 0:
-            # No traces left!
-            return
-
-        # Clip left edges that touch the right edge of the detector
-        # at the center of the detector
-        at_right_edge = np.round(xset[ycen,:]).astype(int) == self.img.shape[0]
-        if self.side == 'left' and np.any(at_right_edge):
-            msgs.warn('Clipping traces {0}: left traces that hit right edge.'.format(
-                        _traces[at_right_edge]))
-            self.clip_traces(self, traces[at_right_edge])
-            _traces = _traces[np.invert(at_right_edge)]
-            xset, xerr, goodx = select_traces(_traces)
-        if len(_traces) == 0:
-            # No traces left!
-            return
-       
-        # Remove any duplicates
-        if clip_matching:
-            _traces, _ = self.clip_duplicates(img, yrow, xval[_traces], match_tolerance)
-            if _traces is None
-                # No traces left!
-                return
-
-    def input_traces(self):
-        # Get the coordinates of existing traces, excluding masked
-        # pixels ...
-        x, y = np.where((self.trace_img.data > 0) & np.invert(self.trace_img.mask))
-        # ... and the associated trace id
-        t = self.trace_img[x,y]
-        xini = np.zeros((self.nspec, self.ntrace), dtype=int)
-        for i in range(self.ntrace):
-            # Account for the possibility of multiple centroids of a
-            # single trace in a given row
-            ty, indx = np.unique(y[t == self.trace_id[i]], return_index=True)
-            xini[ty,self.trace_id[i]] = x[indx]
-        return xini
-            
-
-
-# TODO: This is the new edgearr_tcrude()
-def tweak_trace_centers(trace_img, sobel_sig, mask=None, match_tolerance=3., minimum_length=0.33,
-                        verbose=False, maxshift=0.15, skip_bad=True, copy=True):
+def boxcar_smooth(img, nave, wgt=None, mode='nearest'):
     """
-    Row-by-row tweak of the edge trace centers.
+    Boxcar smooth an image along rows.
 
-    Use trace_crude to refine slit edges.  It is also used to remove bad
-    slit edges and merge slit edges
+    Uses `scipy.ndimage.convolve`.
 
     Args:
-        trace_img (`numpy.ndarray`_):
-            Image with edge trace pixels numbered by their associated
-            trace.  Pixels with positive numbers follow right slit edges
-            and negative numbers follow left slit edges.  Its
-            orientation *must* have spectra dispersed along rows.
-        sobel_sig (`numpy.ndarray`_):
-            Image with the significance of the edge detection.  See
-            :func:`detect_slit_edges`.
-        mask (`numpy.ndarray`_, optional):
-            Integer (0 unmasked; 1 masked) or boolean array indicating
-            bad pixels in the image.  If None, all pixels are considered
-            good.
-        match_tolerance (:obj:`float`, optional):
-            Edges spatially separated by less than this value (in
-            pixels) will be matched (i.e., one is removed).
-        minimum_length (:obj:`float`, optional):
-            The minimum length to allow for a trace as a fraction of the
-            full spectral dimension of the image.  Traces below this
-            length are ignored (cf. `minimum_length` in
-            :func:`identify_traces`).
-        verbose (:obj:`bool`, optional):
-            Print the trace centers when finished.
-        maxshift (:obj:`float`, optional):
-            Maximum shift allowed between iterations of the recentering.
-        skip_bad (:obj:`bool`, optional):
-            # TODO: Need help on this description...
-            When traces disappear, the recentering can wind up hitting a
-            neighboring trace.  If `skip_bad` is `False`, we take only
-            the continuous good piece from the starting point.
-            Otherwise, this postprocessing of the traces is skipped.
-        copy (:obj:`bool`, optional):
-            Copy `trace_img` to a new array before making any
-            modifications.  Otherwise, `trace_img` is modified in-place.
-            
+        img (`numpy.ndarray`_):
+            Image to convolve.
+        nave (:obj:`int`):
+            Number of pixels along rows for smoothing.
+        wgt (`numpy.ndarray`_, optional):
+            Image providing weights for each pixel in `img`.  Uniform
+            weights are used if none are provided.
+        mode (:obj:`str`, optional):
+            See `scipy.ndimage.convolve`_.
+
     Returns:
-        Two objects are returned:
-            - `numpy.ndarray`_: The modified trace image, which is
-              either a new array or points to the in-place modification
-              of `trace_img` according to the value of `copy`. 
-            - :obj:`dict`: Results for the edge trace centers and other
-              book-keeping.  Top level dictionary selects left or right
-              edges; nested dictionaries provide:
-                - xval: Edge position at ycen (1/2 point on the
-                  detector); most useful parameter recorded.
-                - uni_idx: Unique edge numbers
-                - flags: Internal book-keeping on edge analysis: 0=not
-                  traced, 1=traced, -1=clipped.
-                - xset: trace set values; shape is (Nspec, Ntrace)
-                - xerr: trace set errors; shape is (Nspec, Ntrace)
+        `numpy.ndarray`_: The smoothed image
     """
+    # TODO: No checking is performed...
 
-    msgs.info("Crude tracing the edges")
+    # Construct the kernel
+    nave = np.fmin(nave,img.shape[0])
+    kernel = np.ones((nave, 1))/float(nave)
 
-    # Determine whether or not to edit the image in place
-    _trace_img = trace_img.copy() if copy else trace_img
+    if wgt is None:
+        # No weights so just smooth
+        return ndimage.convolve(img, kernel, mode='nearest')
 
-    left_traces = Trace('left')
-    left_traces.trace(np.clip(-_trace_img, 0, None), np.maximum(sobel_sig, -0.1))
+    # Weighted smoothing
+    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
+    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
+    # Don't divide by 0
+    indx = np.invert(wimg > 0)
+    wimg[indx] = 1.0
+    cimg[indx] = img[indx]
+    return cimg/wimg
 
-    right_traces = Trace('right')
-    right_traces.trace(np.clip(_trace_img, 0, None), np.maximum(-sobel_sig, -0.1))
-
-    tc_dict = {}
-    tc_dict['left'] = left_trace.to_dict()
-    tc_dict['right'] = right_trace.to_dict()
-
-    def trace(trace_img, signal_img, mask=None):
-
-        self.trace_img = numpy.ma.MaskedArray(trace_img)
-        self.mask = np.zeros_like(self.trace_img, dtype=bool) if mask is None else mask
-        self.trace_img[self.mask] = numpy.ma.masked
-        self.trace_id = np.unique(self.trace_img.data)
-
-        self.ntrace = len(self.trace_id)
-        self.nspec, self.nspat = self.trace_img.shape
-
-        self.flags = np.zeros(self.ntrace, dtype=int)
-
-        self.xini = self.initial_trace()
-        self.xfit = self.xini.astype(float) # This also copies the array
-        self.xerr = np.full((self.nspec, self.ntrace), 999, dtype=float)
-
-        self.signal_img = signal_img
-
-        niter = 0
-        while np.any(self.flags == 0):
-
-            # TODO: Why retrace everything?
-
-            # Get coordinates of traces
-            y, x = np.where(self.trace_img > 0)
-
-            # Find the row with the largest number of edge locations
-            # This helps speed up trace_crude.
-            yrow = Counter(y).most_common(1)[0][0]
-
-            # Grab the x values on that row
-            xinit = x[y == yrow]
-            traces = self.trace_img[yrow, xinit]
-
-            # Select coordinate of the *unique* traces in this row
-            traces, indx = np.unique(traces, return_index=True)
-            xinit = xinit[indx]
-
-            # If not first pass, look for duplicates
-            if niter > 0:
-                traces, xinit = self.clip_duplicates(yrow, xinit, match_tolerance)
-                if xinit is None:
-                    continue
-
-            # Trace using the first moment
-            self.xfit[:,traces], self.xerr[:,traces] \
-                    = trace_crude_init(np.maximum(sig, -0.1), xinit, yrow, maxshift=maxshift,
-                                       maxshift0=0.5, maxerr=0.2)
-
-            self.assess_traces(traces, check_matching==niter>0)
-
-            self.assign_traces()
-
-    def assign_traces(self, traces):
-        # Get the trace data
-        xfit, xerr = select_traces(traces)
-
-        # If this is the only trace, decide whether or not to keep the
-        # new data
-        if len(traces) == 1:
-            # Use longer of what was already traced or the new trace
-            if np.sum(goodx) < numpy.sum(numpy.invert(self.xini.mask[:,trace[0]])):
-                # Old trace is better
-                self.xfit[:,trace] = self.xini[:,trace]
-            return
-
-        # Traces can disappear and then the crude trace can wind up
-        # hitting a neighbor.  Therefore, take only the continuous good
-        # piece from the starting point
-        for i,t in enumerate(traces):
-            bad = np.where(xfit.mask[:,t])
-            if np.any(bad < yrow):
-                xfit[:np.max(bad[bad<yrow]),t] = numpy.ma.masked
-            if np.any(bad > yrow):
-                xfit[np.min(bad[bad>yrow])+1:,t] = numpy.ma.masked
-
-        # Clip bad traces
-        bad_traces = np.all(xfit.mask, axis=0)
-        self.clip_traces(traces[bad_traces])
-        traces = traces[np.invert(bad_traces)]
-
-        # Save the good ones
-        self.flags[traces] = 1
-        self.xval = fit
-                tc_dict[side]['flags'][uni_e == eval] = 1
-                # Save new_xval
-                tc_dict[side]['xval'][str(eval)] = new_xval
-                # Zero out edgearr
-                edgearr[edgearr==eval] = 0
-            # Next pass
-            niter += 1
-
-    # Reset edgearr values to run sequentially and update the dict
-    for side in ['left', 'right']:
-        if np.any(tc_dict[side]['flags'] == -1):
-            # Loop on good edges
-            gde = np.where(tc_dict[side]['flags'] == 1)[0]
-            for ss,igde in enumerate(gde):
-                if side == 'left':
-                    newval = -1*ednum - ss
-                else:
-                    newval = ednum + ss
-                oldval = tc_dict[side]['uni_idx'][igde]
-                pix = new_edgarr == oldval
-                new_edgarr[pix] = newval
-                # Reset the dict too..
-                if newval == 0:
-                    debugger.set_trace()
-                tc_dict[side]['xval'][str(newval)] = tc_dict[side]['xval'].pop(str(oldval))
-            # Remove bad traces
-            if len(gde) == 0:
-                msgs.warn("Side {} had no good edges;  Keeping one!".format(side))
-                # Keep 1 (this is mainly for Longslit)
-                xval = tc_dict[side]['xset'][ycen,:]
-                if side == 'left':
-                    idx = np.argmin(xval)
-                    tc_dict[side]['xval'][str(-1*ednum)] = xval[idx]
-                else:
-                    idx = np.argmax(xval)
-                    tc_dict[side]['xval'][str(ednum)] = xval[idx]
-                idx = np.array([idx]) # Needs to be an array for the shape
-                #
-                tc_dict[side]['xset'] = tc_dict[side]['xset'][:,idx]
-                tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,idx]
-            else:
-                tc_dict[side]['xset'] = tc_dict[side]['xset'][:,gde]
-                tc_dict[side]['xerr'] = tc_dict[side]['xerr'][:,gde]
-
-    # Remove uni_idx
-    for side in ['left', 'right']:
-        for key in ['uni_idx']:
-            tc_dict[side].pop(key)
-    if verbose:
-        print(tc_dict['left']['xval'])
-        print(tc_dict['right']['xval'])
-    # Return
-    return new_edgarr, tc_dict.copy()
 
 def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                    maxshift=0.15, bpm=None, skip_bad=True):
@@ -1054,6 +780,7 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
             yrow = cnt.most_common(1)[0][0]
 
             pdb.set_trace()
+
             # Grab the x values on that row
             xinit = all_e[1][all_e[0] == yrow]
             # Unique..
@@ -3073,46 +2800,36 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxsh
     ny = image.shape[0]
     xset = np.zeros((ny,ntrace))
     xerr = np.zeros((ny,ntrace))
+
     # Make copies of the image and the inverse variance image
     imgtemp = image.copy()
-    if invvar is None:
-        invtemp = np.zeros_like(image) + 1.
-    else:
-        invtemp = invvar.copy()
+    invtemp = np.ones_like(image) if invvar is None else invvar.copy()
 
-    # ToDo implement median filtering!
-
-    # Boxcar-sum the entire image along columns by NAVE rows
     if nave is not None:
-        nave = np.fmin(nave,ny)
-        # Boxcar sum the entire image weighted by inverse variance over nave spectral pixels
-        kernel = np.ones((nave, 1))/float(nave)
-        imgconv = ndimage.convolve(imgtemp*invtemp, kernel, mode='nearest')
-        # Add the weights
-        invtemp = ndimage.convolve(invtemp, kernel, mode='nearest')
-        # Look for pixels with infinite errors - replace with original values
-        ibad = invtemp == 0.0
-        invtemp[ibad] = 1.0
-        imgconv[ibad] = imgtemp[ibad]
-        # Renormalize the summed image by the weights
-        imgtemp = imgconv/invtemp
-
-    import pdb; pdb.set_trace()
-
-    # JFH It seems odd to me that one is passing invtemp to trace_fweight, i.e. this is not correct
-    # error propagation. While the image should be smoothed with inverse variance weights, the new noise
-    # of the smoothed image has changed, and proper error propagation would then give:
-    # var_convol = ndimage.convolve(1/invvar, kernel**2, mode='nearest')
-    # invvar_convol = 1.0/var_convol
-    # I have not implemented this for fear of breaking the behavior, and furthermore I think the desire was not
-    # to have trace_fweight operate on formally correct errors.
-
-
+        # TODO: Implement median filtering!
+        # Boxcar smooth the image along rows by NAVE columns
+        imgtemp = boxcar_smooth(imgtemp, nave, wgt=invtemp)
+        if invvar is not None:
+            # The inverse variance in the inverse-variance-weighted mean
+            # is sum(ivar).  This calculation ignores covariance.
+            invtemp = boxcar_smooth(invtemp, nave)
+    
     #  Recenter INITIAL Row for all traces simultaneously
     #
     iy = ypass * np.ones(ntrace,dtype=int)
 
+    from pypeit.new_trace import trace_fweight as tf
+    import pdb
+    pdb.set_trace()
+#    t = time.clock()
     xfit,xfiterr = trace_fweight(imgtemp, xinit, ycen = iy, invvar=invtemp, radius=radius)
+#    print(time.clock()-t)
+#    t = time.clock()
+    _xfit, _xfiterr = tf(imgtemp, xinit, invvar=invtemp, radius=radius, ycen=iy)
+#    print(time.clock()-t)
+    pdb.set_trace()
+
+
     # Shift
     xshift = np.clip(xfit-xinit, -1*maxshift0, maxshift0) * (xfiterr < maxerr)
     xset[ypass,:] = xinit + xshift
@@ -3147,33 +2864,25 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxsh
 def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
 
     ''' Routine to recenter a trace using flux-weighted centroiding.
-
     Python port of trace_fweight.pro from IDLUTILS
-
-
     Parameters
     ----------
     fimage: 2D ndarray
       Image for tracing which shape (nspec, nspat)
-
     xinit: ndarray
       Initial guesses for spatial direction trace. This can either be an 2-d  array with shape
          (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
-
     Optional Parameters:
     --------------------
     ycen: ndarray, default = None
       Optionally y-position of trace can be provided. It should be an integer array the same size as x-trace (nspec, nTrace). If
       not provided np.arange(nspec) will be assumed for each trace
-
     invvar: ndarray, default = None
          Inverse variance array for the image. Array with shape (nspec, nspat) matching fimage
-
     radius :  float or ndarray, default = 3.0
          Radius for centroiding in floating point pixels. This can be either be input as a scalar or as an array to perform
          centroiding with a varaible radius. If an array is input it must have the same size and shape as xinit_in, i.e.
          a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
-
     Returns
     -------
     xnew:   ndarray
@@ -3188,19 +2897,14 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
          centroid deviates from the input guess by  > radius, or 2)  the centering window falls off the image, or 3) where any masked
          pixels (invvar == 0.0) contribute to the centroiding. The xnew values for the pixels which have xerr = 999 are reset to
          that of the input trace. These should thus be masked in any fit using the condition (xerr < 999)
-
          TODO we should probably either output a mask or set this 999 to something else, since I could imagine this causing problems.
-
      Revision History
      ----------------
      Python port of trace_fweight.pro from IDLUTILS
      24-Mar-1999  Written by David Schlegel, Princeton.
      27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
     """
-
-
     '''
-    import pdb; pdb.set_trace()
 
     # Init
     nx = fimage.shape[1]

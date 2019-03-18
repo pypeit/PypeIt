@@ -1087,6 +1087,11 @@ class TraceSlits(masterframe.MasterFrame):
         # Assign a number to each edge trace
         self._identify_traces()
 
+        # TODO: Things to keep in self and write:
+        #   - binarr?
+        #   - siglev
+        #   - edgearr or just pixel coo and trace IDs
+
         # Handle single orphan edges and/or traces without any left or
         # right edges.
         if not self._handle_orphan_edge(user_set=self.user_set):
