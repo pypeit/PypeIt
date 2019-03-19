@@ -4,6 +4,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -12,6 +14,8 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
 from pypeit import debugger
+
+from IPython import embed
 
 class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     """
@@ -22,7 +26,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         super(MagellanMAGESpectrograph, self).__init__()
         self.spectrograph = 'magellan_mage'
         self.telescope = telescopes.MagellanTelescopePar()
-        self.camera = 'MAGE'
         self.numhead = 1
         self.detector = [
                 # Detector 1
@@ -177,20 +180,23 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             self.meta: dict (generated in place)
 
         """
-        self.meta = {}
+        meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
         #TODO: Check decker is correct
-        self.meta['decker'] = dict(ext=0, card='SLITENC')
-        self.meta['binning'] = dict(card=None, compound=True)
+        meta['decker'] = dict(ext=0, card='SLITENC')
+        meta['binning'] = dict(card=None, compound=True)
 #        self.meta['binning'] = dict(ext=0, card='BINNING')
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        meta['mjd'] = dict(ext=0, card=None, compound=True)
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='INSTR')
+        meta['dispname'] = dict(ext=0, card='INSTR')
+
+        # Ingest
+        self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -206,17 +212,25 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
+        elif meta_key == 'mjd':
+            time = '{:s}T{:s}'.format(headarr[0]['UT-DATE'], headarr[0]['UT-TIME'])
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
         """
-        if ftype in ['pinhole', 'bias']:
-            # No pinhole or bias frames
+        if ftype in ['pinhole', 'bias', 'dark']:
+            # No pinhole or bias or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['pixelflat', 'trace']:
+        elif ftype in ['pixelflat', 'trace']:
+            embed()
             return fitstbl['idname'] == 'domeflat'
-        
+
+        embed()
         return (fitstbl['idname'] == 'object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
