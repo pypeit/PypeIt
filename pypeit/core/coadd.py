@@ -1360,7 +1360,7 @@ def order_median_scale(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, niter=5,
             # Ratio
             #med_flux = fluxes_in[iord, allok]/fluxes_in[iord - 1, allok]
             # Determine medians using sigma clipping
-            usepix = overlap & (sn_scl > 0.0) &
+            usepix = overlap & (sn_scl > 0.0)
             mn_iord_ref, med_iord_ref, std_iord_ref = \
                 stats.sigma_clipped_stats(fluxes_in[iord_ref, allok], sigma=nsig, iters=niter)
             # Determine medians using sigma clipping
