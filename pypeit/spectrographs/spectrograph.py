@@ -307,6 +307,8 @@ class Spectrograph(object):
                                           transpose=transpose, binning=binning_raw)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
+            #from pypeit import ginga
+            #import pdb; pdb.set_trace()
 
         return self.datasec_img
 

@@ -165,40 +165,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
 
-#    def parse_binning(self, inp, det=1):
-#        return '1,1'
-
-#    def get_match_criteria(self):
-#        """Set the general matching criteria for Shane Kast."""
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['naxis0'] = '=0'
-#        match_criteria['standard']['match']['naxis1'] = '=0'
-#
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['naxis0'] = '=0'
-#        match_criteria['bias']['match']['naxis1'] = '=0'
-#
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-#        match_criteria['pixelflat']['match']['decker'] = ''
-#
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['naxis0'] = '=0'
-#        match_criteria['trace']['match']['naxis1'] = '=0'
-#        match_criteria['trace']['match']['decker'] = ''
-#
-#        match_criteria['arc']['match'] = {}
-#        match_criteria['arc']['match']['naxis0'] = '=0'
-#        match_criteria['arc']['match']['naxis1'] = '=0'
-#
-#        return match_criteria
-
-
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
     """
     Child to handle Shane/Kast blue specific code
@@ -268,36 +234,6 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Return
         return par
 
-#    def check_headers(self, headers):
-#        """
-#        Check headers match expectations for a Shane Kast blue exposure.
-#
-#        See also
-#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-#
-#        Args:
-#            headers (list):
-#                A list of headers read from a fits file
-#        """
-#        expected_values = {   '0.NAXIS': 2,
-#                            '0.DSENSOR': 'Fairchild CCD 3041 2Kx2K' }
-#        super(ShaneKastBlueSpectrograph, self).check_headers(headers,
-#                                                             expected_values=expected_values)
-
-    '''
-    def header_keys(self):
-        """
-        Header keys specific to shane_kast_blue
-
-        Returns:
-
-        """
-        hdr_keys = super(ShaneKastBlueSpectrograph, self).header_keys()
-        # Add the name of the dispersing element
-        # dispangle and filter1 are not defined for Shane Kast Blue
-        hdr_keys[0]['dispname'] = 'GRISM_N'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -323,6 +259,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # TODO: NEED TO CHECK ORIENTATION OF DATASEC AND OSCANSEC ARE
         # CORRECT!!!!
+        #datasec         = ['[:,2:511]', '[:,513:525]'],
+        #oscansec        = ['[:,527:625]', '[:,627:725]'],
 
         # Get it started
         super(ShaneKastRedSpectrograph, self).__init__()
@@ -344,8 +282,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.9, 1.9],
                             ronoise         = [3.8, 3.8],
-                            datasec         = ['[:,2:511]', '[:,513:525]'],
-                            oscansec        = ['[:,527:625]', '[:,627:725]'],
+                            datasec         = ['[40:102,:]', '[103:347,:]'],
+                            oscansec        = ['[425:522,:]', '[524:610,:]'],
                             suffix          = '_red'
                             )]
         self.numhead = 1
@@ -511,13 +449,4 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
 
-#    def get_match_criteria(self):
-#        # Get the parent matching criteria ...
-#        match_criteria = super(ShaneKastRedRetSpectrograph, self).get_match_criteria()
-#        # ... add more
-#        match_criteria['standard']['match']['dispangle'] = '|<=20'
-#        match_criteria['pixelflat']['match']['dispangle'] = '|<=20'
-#        match_criteria['arc']['match']['dispangle'] = '|<=10'
-#        match_criteria['arc']['match']['decker'] = 'any'
-#        return match_criteria
 
