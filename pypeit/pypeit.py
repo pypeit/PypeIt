@@ -294,8 +294,9 @@ class PypeIt(object):
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
-                # Find all frames whose comb_id matches the current frames bkg_id
-                bg_frames = np.where(self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0])[0]
+                # Find all frames whose comb_id matches the current frames bkg_id.
+                bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
+                                     (self.fitstbl['comb_id'] >= 0))[0]
                 # JFH changed the syntax below to that above, which allows frames to be used more than once
                 # as a background image. The syntax below would require that we could somehow list multiple
                 # numbers for the bkg_id which is impossible without a comma separated list
