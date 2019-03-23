@@ -25,12 +25,14 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(MagellanMAGESpectrograph, self).__init__()
         self.spectrograph = 'magellan_mage'
+        self.camera = 'magellan_mage'
         self.telescope = telescopes.MagellanTelescopePar()
         self.numhead = 1
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            specaxis        = 0,
+                            dataext         = 0,
+                            specaxis        = 1,
                             specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -46,7 +48,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             gain            = 1.02, # depends on the readout
                             ronoise         = 2.9, # depends on the readout
                             datasec         = '[1:2048,1:1024]',      # complementary to oscansec
-                            oscansec        = '[2049:2176,1025:1152]' # as taken from the header
+                            oscansec        = '[2049:2176,1:1024]' # as taken from the header
                             )]
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
         self.norders = 15 
@@ -64,12 +66,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'magellan_mage'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 3
-        par['calibrations']['traceframe']['number'] = 3
-        par['calibrations']['arcframe']['number'] = 1
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
@@ -102,6 +98,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
         par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the blue orders
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -116,60 +113,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [20, None]
         return par
 
-#    def check_headers(self, headers):
-#        """
-#        Check headers match expectations for a Magellan MagE exposure.
-#
-#        See also
-#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-#
-#        Args:
-#            headers (list):
-#                A list of headers read from a fits file
-#        """
-#        expected_values = { '0.INSTRUME': 'MagE',
-#                            '1.NAXIS': 2,
-#                            '1.NAXIS1': 2176,
-#                            '1.NAXIS2': 1152}
-#        super(MagellanMAGESpectrograph, self).check_headers(headers, expected_values=expected_values)
-#
-#    def header_keys(self):
-#        """
-#        Return a dictionary with the header keywords to read from the
-#        fits file.
-#
-#        Returns:
-#            dict: A nested dictionary with the header keywords to read.
-#            The first level gives the extension to read and the second
-#            level gives the common name for header values that is passed
-#            on to the PypeItMetaData object.
-#        """
-#        hdr_keys = {}
-#        hdr_keys[0] = {}
-#
-#        # Copied over defaults
-#        hdr_keys[0]['idname'] = 'EXPTYPE'
-#
-#        hdr_keys[0]['time'] = 'MJD-OBS'
-#
-#        hdr_keys[0]['date'] = 'UT-DATE'
-#        hdr_keys[0]['utc'] = 'UT-TIME'
-#        hdr_keys[0]['ra'] = 'RA'
-#        hdr_keys[0]['dec'] = 'DEC'
-#        hdr_keys[0]['airmass'] = 'AIRMASS'
-#        hdr_keys[0]['exptime'] = 'EXPTIME'
-#        hdr_keys[0]['target'] = 'OBJECT'
-#        hdr_keys[0]['naxis0'] = 'NAXIS2'
-#        hdr_keys[0]['naxis1'] = 'NAXIS1'
-#        hdr_keys[0]['binning'] = 'BINNING'
-#
-#        hdr_keys[0]['dispname'] = 'INSTR'  # Should be 'spec' if in the spectroscopy mode
-#
-#        return hdr_keys
-#
-#    def metadata_keys(self):
-#        return ['filename', 'date', 'frametype', 'target', 'exptime', 'setup', 'calib', 'obj_id',
-#                'bkg_id' ]
 
     def init_meta(self):
         """
@@ -193,7 +136,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='INSTR')
+        meta['dispname'] = dict(ext=0, card='INSTRUME')
+        meta['idname'] = dict(ext=0, card='EXPTYPE')
 
         # Ingest
         self.meta = meta
@@ -219,55 +163,25 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
+    def configuration_keys(self):
+        return []
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
         """
-        if ftype in ['pinhole', 'bias', 'dark']:
+        if ftype in ['pinhole', 'dark']:
             # No pinhole or bias or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
+        elif ftype in ['bias']:
+            return fitstbl['idname'] == 'Bias'
         elif ftype in ['pixelflat', 'trace']:
-            embed()
-            return fitstbl['idname'] == 'domeflat'
-
-        embed()
-        return (fitstbl['idname'] == 'object') \
+            return fitstbl['idname'] == 'Flat'
+        elif ftype in ['arc']:
+            return fitstbl['idname'] == 'ThAr-Lamp'
+        else:
+            return (fitstbl['idname'] == 'Object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-
-#    def get_match_criteria(self):
-#        """Set the general matching criteria for MAGE"""
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['naxis0'] = '=0'
-#        match_criteria['standard']['match']['naxis1'] = '=0'
-#
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['naxis0'] = '=0'
-#        match_criteria['bias']['match']['naxis1'] = '=0'
-#
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-#        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-#
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['naxis0'] = '=0'
-#        match_criteria['trace']['match']['naxis1'] = '=0'
-#
-#        match_criteria['arc']['match'] = {}
-#        match_criteria['arc']['match']['naxis0'] = '=0'
-#        match_criteria['arc']['match']['naxis1'] = '=0'
-#
-#        # OLD
-#        # Bias
-#        #match_criteria['bias']['match'] = {}
-#        #match_criteria['standard']['match'] = {}
-#        #match_criteria['pixelflat']['match'] = {}
-#        #match_criteria['trace']['match'] = {}
-#        #match_criteria['arc']['match'] = {}
-#        return match_criteria
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
