@@ -31,7 +31,7 @@ def data_path(filename):
 
 
 def test_load_specobjs():
-    spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    spec_file = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
     specobjs, head0 = load.load_specobjs(spec_file)
     # Test
     assert isinstance(specobjs, SpecObjs)
@@ -41,7 +41,7 @@ def test_load_specobjs():
 def test_load_1dspec():
     from linetools.spectra.xspectrum1d import XSpectrum1D
 
-    spec_file = data_path('spec1d_J0025-0312_KASTr_2015Jan23T025323.85.fits')
+    spec_file = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
     spec = load.load_1dspec(spec_file)
     # Test
     assert isinstance(spec, XSpectrum1D)
@@ -50,7 +50,7 @@ def test_load_1dspec():
     assert isinstance(spec, XSpectrum1D)
     # By objname
     #spec2 = load.load_1dspec(spec_file, objname='O473-S5473-D01-I0008')
-    spec2 = load.load_1dspec(spec_file, objname='SPAT0132-SLIT0001-DET01-SCI008')
+    spec2 = load.load_1dspec(spec_file, objname='SPAT0132-SLIT0000-DET01')
     assert isinstance(spec2, XSpectrum1D)
 
 
