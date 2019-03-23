@@ -2,6 +2,7 @@
 --------
 
 - Enable PyPI
+- Hack for Kastr
 
 0.9.3 (28 Feb 2019)
 -------------------
