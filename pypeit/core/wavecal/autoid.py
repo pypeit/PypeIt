@@ -9,7 +9,7 @@ from astropy import table
 import copy
 import numba as nb
 import numpy as np
-import pdb
+from IPython import embed
 
 from astropy.table import Table
 
@@ -392,7 +392,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
                                       best_dict=best_dict, pix_tol=pix_tol)
             # Lower minimum significance
             nsig = sigdetect
-            #pdb.set_trace()
             while(best_dict['nmatch'] < min_nmatch):
                 nsig /= 2.
                 if nsig < lowest_nsig:
@@ -401,8 +400,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                           best_dict=best_dict, pix_tol=pix_tol)#, nsig=nsig)
 
-        #if debug:
-        #    pdb.set_trace()
         # Save linelist?
         if best_dict['nmatch'] > sav_nmatch:
             best_dict['line_list'] = tot_list.copy()
@@ -428,7 +425,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
             best_dict['mask'][kk] = True
             best_dict['midx'][kk] = tmp_dict['midx'][kk]
             best_dict['nmatch'] += 1
-    #pdb.set_trace()
 
     if best_dict['nmatch'] == 0:
         msgs.info('---------------------------------------------------' + msgs.newline() +
@@ -479,7 +475,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
         full_NIST = waveio.load_line_lists(lines, NIST=True)
         # KLUDGE!!!!!
         keep = full_NIST['wave'] > 8800.
-        pdb.set_trace()
         line_lists = vstack([line_lists, full_NIST[keep]])
         '''
         #
@@ -1947,7 +1942,7 @@ class HolyGrail:
             plt.subplot(212)
             plt.plot(xplt, dplt, 'bx')
             plt.show()
-            pdb.set_trace()
+            embed()
 
         fact_nl = 1.2  # Non linear factor
         new_good_fit = np.zeros(self._nslit, dtype=np.bool)
@@ -1996,7 +1991,7 @@ class HolyGrail:
                 waves[:, slit] = utils.func_val(fitc, xv, func, minx=fmin, maxx=fmax)
 
         msgs.info("Performing a PCA on the order wavelength solutions")
-        pdb.set_trace()
+        embed()
         pca_wave, outpar = pca.basis(xcen, waves, coeffs, lnpc, ofit, x0in=ords, mask=maskord, skipx0=False, function=func)
 
         # Report the QA
@@ -2083,7 +2078,7 @@ class HolyGrail:
                 plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
-                pdb.set_trace()
+                embed()
 
         # debugging
         if self._debug:
@@ -2110,7 +2105,7 @@ class HolyGrail:
             plt.subplot(212)
             plt.plot(xplt, dplt, 'bx')
             plt.show()
-            pdb.set_trace()
+            embed()
 
         return new_bad_slits
 

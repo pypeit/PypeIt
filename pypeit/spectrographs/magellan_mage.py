@@ -71,14 +71,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['sigdetect']=5.0
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
 
         # Reidentification parameters
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_thar.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_mage.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -89,16 +91,14 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
-
+        par['scienceframe']['process']['satpix'] = 'nothing'
 
         # Set slits and tilts parameters
-#        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
         par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the blue orders
+        par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the bluest orders
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters

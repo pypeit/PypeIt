@@ -53,19 +53,44 @@ def load_template(arxiv_file, det):
     # Return
     return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
 
+
 def load_reid_arxiv(arxiv_file):
+    """
+    Load a REID arxiv file
+    Now there are 2 possible formats.  We need to consolidate
+
+    Args:
+        arxiv_file (str):
+
+    Returns:
+        dict, dict-like:
+
+    """
     # ToDO put in some code to allow user specified files rather than everything in the main directory
     calibfile = os.path.join(reid_arxiv_path, arxiv_file)
-    wv_calib_arxiv, par = wavecalib.load_wv_calib(calibfile)
-    # Pop out par and steps if they were inserted in this calibration dictionary
-    try:
-        wv_calib_arxiv.pop('steps')
-    except KeyError:
-        pass
-    try:
-        wv_calib_arxiv.pop('par')
-    except KeyError:
-        pass
+    # This is a hack as it will fail if we change the data model yet again for wavelength solutions
+    if calibfile[-4:] == 'json':
+        wv_calib_arxiv, par = wavecalib.load_wv_calib(calibfile)
+        # Pop out par and steps if they were inserted in this calibration dictionary
+        try:
+            wv_calib_arxiv.pop('steps')
+        except KeyError:
+            pass
+        try:
+            wv_calib_arxiv.pop('par')
+        except KeyError:
+            pass
+    elif calibfile[-4:] == 'fits':
+        # The following is a bit of a hack too
+        par = None
+        wv_tbl = Table.read(calibfile)
+        wv_calib_arxiv = {}
+        for irow, row in enumerate(wv_tbl):
+            wv_calib_arxiv[str(irow)] = {}
+            wv_calib_arxiv[str(irow)]['spec'] = row['flux'][irow]
+            wv_calib_arxiv[str(irow)]['wave_soln'] = row['wave'][irow]
+    else:
+        msgs.error("Not ready for this extension!")
 
     return wv_calib_arxiv, par
 

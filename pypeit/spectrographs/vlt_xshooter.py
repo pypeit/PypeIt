@@ -99,44 +99,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
-#    def parse_binning(self, inp, **kwargs):
-#        """
-#        Get the pixel binning for an image.
-#
-#        Args:
-#            inp (:obj:`str`, `astropy.io.fits.Header`):
-#                String providing the file name to read, or the relevant
-#                header object.
-#
-#        Returns:
-#            str: String representation of the binning.  The ordering is
-#            as provided in the header, regardless of which axis is
-#            designated as the dispersion axis.  It is expected that this
-#            be used with :func:`pypeit.core.parse.sec2slice` to setup
-#            the data and overscane sections of the image data.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if `inp` is not one of the accepted types.
-#        """
-#        # Get the header
-#        if isinstance(inp, str):
-#            hdu = fits.open(inp)
-#            hdr = hdu[0].header
-#        elif isinstance(inp, fits.Header):
-#            hdr = inp
-#        else:
-#            msgs.error('Input must be a filename or fits.Header object')
-#
-#        # TODO: This is a hack.  These two keywords don't exist for the
-#        # test NIR file in tests/test_load_images.py.  Can the NIR data
-#        # be binned?  What are the appropriate keywords?
-#        try:
-#            return '{0},{1}'.format(hdr['HIERARCH ESO DET WIN1 BINX'],
-#                                    hdr['HIERARCH ESO DET WIN1 BINY'])
-#        except:
-#            return '1,1'
-
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -167,28 +129,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-#    def get_match_criteria(self):
-#        # TODO: Matching needs to be looked at...
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#
-#        match_criteria['standard']['match'] = {}
-#        # Bias
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['binning'] = ''
-#        # Pixelflat
-#        match_criteria['pixelflat']['match'] = {}
-#        match_criteria['pixelflat']['match']['binning'] = ''
-#        # Traceflat
-#        match_criteria['trace']['match'] = {}
-#        match_criteria['trace']['match']['binning'] = ''
-#        # Arc
-#        match_criteria['arc']['match'] = {}
-#        # Return
-#        return match_criteria
-
 
     @property
     def norders(self):

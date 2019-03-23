@@ -478,37 +478,6 @@ class WaveCalib(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-    '''
-    def calibrate_spec(self, slit, method='arclines'):
-        """
-        TODO: Deprecate this function? It's only being used by the tests
-        User method to calibrate a given spectrum from a chosen slit
-
-        Wrapper to arc.simple_calib or arc.calib_with_arclines
-
-        Parameters
-        ----------
-        slit : int
-        method : str, optional
-          'simple' -- arc.simple_calib
-          'arclines' -- arc.calib_with_arclines
-
-        Returns
-        -------
-        iwv_calib : dict
-          Solution for that single slit
-
-        """
-        spec = self.wv_calib[str(slit)]['spec']
-        if method == 'simple':
-            iwv_calib = arc.simple_calib(self.msarc, self.par, self.arccen[:, slit])
-        elif method == 'arclines':
-            iwv_calib = arc.calib_with_arclines(self.par, spec.reshape((spec.size, 1)))
-        else:
-            msgs.error("Not an allowed method")
-        return iwv_calib
-    '''
-
 
 def load_wv_calib(filename):
     """

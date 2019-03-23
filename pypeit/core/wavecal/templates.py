@@ -2,6 +2,7 @@
 
 import os
 import numpy as np
+from IPython import embed
 
 from pkg_resources import resource_filename
 from scipy.io import readsav
@@ -32,7 +33,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
     Generate a full_template for a given instrument
 
     Args:
-        in_files:
+        in_files (list or str):
         slits:
         wv_cuts:
         binspec:
@@ -96,6 +97,7 @@ def pypeit_arcspec(in_file, slit):
     # Return
     return wv_vac, np.array(iwv_calib['spec'])
 
+
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
     tbl = Table()
     tbl['wave'] = nwwv
@@ -114,6 +116,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
     print("Wrote: {}".format(outfile))
 
 
+#####################################################################################################
+#####################################################################################################
 ## Low-Redux routines
 
 def fcheby(xnrm,order):
@@ -315,6 +319,31 @@ def main(flg):
         wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_5000', 'MasterWaveCalib_B_1_01.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
+    if flg & (2**13):  # Magellan/MagE
+        # Load
+        mase_path = os.path.join(os.getenv('XIDL_DIR'), 'Magellan', 'MAGE', 'mase', 'Calib')
+        sav_file = os.path.join(mase_path, 'MagE_wvguess_jfh.idl')
+        mase_dict = readsav(sav_file)
+        mase_sol = Table(mase_dict['all_arcfit'])
+        # Do it
+        all_wave = np.zeros((2048, 15))
+        all_flux = np.zeros_like(all_wave)
+        for order in np.arange(15):
+            all_flux[:,order] = mase_dict['sv_aspec'][order]
+            # Build the wavelengths
+            wv_air = cheby_val(mase_sol['FFIT'][order], np.arange(2048), mase_sol['NRM'][order],
+                                         mase_sol['NORD'][order])
+            all_wave[:,order] = airtovac(wv_air * units.AA).value
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave
+        tbl['flux'] = all_flux
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outroot='magellan_mage.fits'
+        outfile = os.path.join(outpath, outroot)
+        tbl.write(outfile, overwrite=True)
+
 
 # Command line execution
 if __name__ == '__main__':
@@ -339,10 +368,13 @@ if __name__ == '__main__':
     # Keck/LRISr
     #flg += 2**10  # R400
     #flg += 2**11  # R1200
-    flg += 2**12  # R600/5000
+    #flg += 2**12  # R600/5000
 
     # Shane/Kastr
     #  Need several arcs to proceed this way
+
+    # MagE
+    flg += 2**13
 
     main(flg)
 
