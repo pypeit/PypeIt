@@ -1429,7 +1429,7 @@ def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5,
         else:
             msgs.warn('No photometric information is provided. Will use median scale.')
             orderscale = 'median'
-    elif orderscale == 'median':
+    if orderscale == 'median':
         # rmask = spectra.data['sig'].filled(0.) > 0.
         # sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
         ## scaling different orders
@@ -1440,7 +1440,7 @@ def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5,
                                                       SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
         spectra = spec_from_array(wave*units.AA, fluxes_scale, sigs_scale)
 
-    else:
+    if orderscale not in ['photometry', 'median']:
         msgs.warn('No any scaling is performed between different orders.')
 
     ## Megering orders
