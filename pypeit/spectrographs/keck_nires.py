@@ -300,16 +300,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     def loglam_minmax(self):
         return np.log10(9400.0), np.log10(26000)
 
-    def wavegrid(self, binning=None, midpoint=False):
-
-        # Define the grid for NIRES
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam/2.0
-
-        return np.power(10.0,loglam_grid)
-
 
 
 

@@ -37,6 +37,7 @@ from astropy.io import fits
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
@@ -858,6 +859,36 @@ class Spectrograph(object):
     # This routine is only for echelle spectrographs. It returns the plate scale order by order
     def slit2order(self, slit):
         pass
+
+
+    @property
+    def dloglam(self):
+        pass
+
+    @property
+    def loglam_minmax(self):
+        pass
+
+    def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
+        """
+        Routine to generate a fixed wavelength grid in log_10 lambda. Mostly used by echelle spectrographs
+
+        Args:
+            binning:
+            midpoint:
+            samp_fact:
+
+        Returns:
+
+        """
+
+        binspectral, binspatial = parse.parse_binning(binning)
+        logmin, logmax = self.loglam_minmax
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
+        if midpoint:
+            loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
+
+        return np.power(10.0,loglam_grid)
 
 
     def __repr__(self):

@@ -488,17 +488,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(9500.0), np.log10(26000)
 
-    def wavegrid(self, binning=None, midpoint=False):
-
-        # Define the grid for VLT-XSHOOTER NIR
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam/2.0
-
-        return np.power(10.0,loglam_grid)
-
-
 
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
@@ -590,7 +579,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
-        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['bspline_spacing'] = 0.5
         par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
@@ -729,23 +718,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     @property
     def dloglam(self):
         # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
-        # loglam across the orders deviates from this value by +-7% from this first to final order
-        return 1.69207e-5
+        # loglam across the orders deviates from this value by +-7% from this first to final order. This is the
+        # unbinned value. It was actually measured  to be 1.69207e-5  from a 2x1 data and then divided by two.
+        return 8.46035e-06
 
     @property
     def loglam_minmax(self):
-        return np.log10(5000.0), np.log10(10500)
-
-    def wavegrid(self, binning=None, midpoint=False):
-
-        # Define the grid for VLT-XSHOOTER NIR
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam/2.0
-
-        return np.power(10.0,loglam_grid)
-
+        return np.log10(5000.0), np.log10(11000)
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """
