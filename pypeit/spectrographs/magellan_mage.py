@@ -81,7 +81,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_mage.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        par['calibrations']['wavelengths']['ech_fix_format'] = False  # Should be True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4

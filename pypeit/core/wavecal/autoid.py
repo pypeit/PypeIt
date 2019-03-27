@@ -1137,7 +1137,6 @@ class ArchiveReid:
         self.spec_arxiv = np.zeros((nspec_arxiv, narxiv))
         self.wave_soln_arxiv = np.zeros((nspec_arxiv, narxiv))
         self.det_arxiv = {}
-        xrng = np.arange(nspec_arxiv)
         for iarxiv in range(narxiv):
             self.spec_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['spec']
             self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
@@ -1159,16 +1158,19 @@ class ArchiveReid:
 
             sigdetect = self._parse_param(self.par, 'sigdetect', slit)
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
+            self.debug_reid = True
+            self.debug_xcorr = True
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
                            cc_local_thresh=self.cc_local_thresh, nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
-                           sigdetect=sigdetect, fwhm = self.fwhm, debug_peaks = self.debug_peaks, debug_xcorr=self.debug_xcorr,
-                           debug_reid = self.debug_reid)
+                           sigdetect=sigdetect, fwhm=self.fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
+                           debug_reid=self.debug_reid)
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = {}
                 self.bad_slits = np.append(self.bad_slits, slit)
+                embed()
                 continue
             # Perform the fit
 
@@ -1197,10 +1199,11 @@ class ArchiveReid:
             # Add the patt_dict and wv_calib to the output dicts
             self.wv_calib[str(slit)] = copy.deepcopy(final_fit)
             if self.debug_fits:
-                arc_fit_qa(self.wv_calib[str(slit)])
+                arc_fit_qa(self.wv_calib[str(slit)], title='Silt: {}'.format(str(slit)))
 
         # Print the final report of all lines
         self.report_final()
+        embed()
 
     def report_final(self):
         """Print out the final report of the wavelength calibration"""
@@ -1216,6 +1219,9 @@ class ArchiveReid:
                 msgs.warn(badmsg)
                 continue
             st = str(slit)
+            if len(self.wv_calib[st]) == 0:
+                print("Bad solution for slit: {}".format(st))
+                continue
             if self.all_patt_dict[st]['sign'] == +1:
                 signtxt = 'correlate'
             else:

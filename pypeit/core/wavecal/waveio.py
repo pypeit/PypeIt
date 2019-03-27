@@ -17,6 +17,7 @@ import pypeit  # For path
 from pypeit.core.wavecal import defs
 
 from pypeit import debugger
+from IPython import embed
 
 line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
 nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
@@ -85,10 +86,11 @@ def load_reid_arxiv(arxiv_file):
         par = None
         wv_tbl = Table.read(calibfile)
         wv_calib_arxiv = {}
-        for irow, row in enumerate(wv_tbl):
+        nrow = wv_tbl['wave'].shape[1]
+        for irow in np.arange(nrow):
             wv_calib_arxiv[str(irow)] = {}
-            wv_calib_arxiv[str(irow)]['spec'] = row['flux'][irow]
-            wv_calib_arxiv[str(irow)]['wave_soln'] = row['wave'][irow]
+            wv_calib_arxiv[str(irow)]['spec'] = wv_tbl['flux'][:,irow]
+            wv_calib_arxiv[str(irow)]['wave_soln'] = wv_tbl['wave'][:,irow]
     else:
         msgs.error("Not ready for this extension!")
 

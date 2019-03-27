@@ -343,6 +343,7 @@ def main(flg):
         outroot='magellan_mage.fits'
         outfile = os.path.join(outpath, outroot)
         tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
 
 
 # Command line execution
