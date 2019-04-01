@@ -75,8 +75,14 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'binning':
-            binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
-            binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
+            if 'HIERARCH ESO DET WIN1 BINX' in headarr[0]:
+                binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
+            else:
+                binspatial = 1
+            if 'HIERARCH ESO DET WIN1 BINY' in headarr[0]:
+                binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
+            else:
+                binspec = 1
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key in ['ra', 'dec']:
