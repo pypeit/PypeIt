@@ -541,7 +541,6 @@ class Calibrations(object):
         self.tslits_dict, _ = self.traceSlits.master(prev_build=prev_build)
         if self.tslits_dict is None:
             # Build the trace image first
-            #import pdb; pdb.set_trace()
             self.traceImage = traceimage.TraceImage(self.spectrograph,self.trace_image_files, det=self.det,
                                            par=self.par['traceframe'])
             # Load up and get ready

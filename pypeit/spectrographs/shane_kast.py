@@ -257,11 +257,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     """
     def __init__(self):
 
-        # TODO: NEED TO CHECK ORIENTATION OF DATASEC AND OSCANSEC ARE
-        # CORRECT!!!!
-        #datasec         = ['[:,2:511]', '[:,513:525]'],
-        #oscansec        = ['[:,527:625]', '[:,627:725]'],
-
         # Get it started
         super(ShaneKastRedSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_red'
