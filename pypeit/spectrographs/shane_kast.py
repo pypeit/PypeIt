@@ -229,6 +229,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '600/4310':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '452/3306':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_452.fits'
         else:
             msgs.error("NEED TO ADD YOUR GRISM HERE!")
         # Return
