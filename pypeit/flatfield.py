@@ -175,7 +175,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         return msframe, head
 
     # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
-    def run(self, debug=False, show=False):
+    def run(self, debug=False, show=False, maskslits=None):
         """
         Main driver to generate normalized flat field and illumination flats
 
@@ -190,11 +190,17 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         Args:
             debug (bool, optional):
             show (bool, optional):
+            maskslits (np.ndarray, optional):
+               Array specifying whether a slit is good.
+               True = bad
 
         Returns:
             ndarray, ndarray: self.mspixelflatnrm and self.slit_profiles
 
         """
+        # Mask
+        if maskslits is None:
+            maskslits = np.zeros(self.nslits, dtype=bool)
 
         # Build the pixel flat (as needed)
         if self.rawflatimg is None:
@@ -219,6 +225,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Loop on slits
         for slit in range(self.nslits):
+            # Is this a good slit??
+            if maskslits[slit]:
+                msgs.info('Skipping bad slit: {}'.format(slit))
+                continue
+            #
             msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
             if self.msbpm is not None:
                 inmask = np.invert(self.msbpm)

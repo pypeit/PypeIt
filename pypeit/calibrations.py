@@ -7,14 +7,12 @@ import numpy as np
 
 from abc import ABCMeta
 
-from astropy.table import Table
+import IPython
 
 from pypeit import msgs
-from pypeit.core import pixels
 from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import biasframe
-#from pypeit import bpmimage
 from pypeit import flatfield
 from pypeit import traceimage
 from pypeit import traceslits
@@ -29,9 +27,6 @@ from pypeit.core import parse
 from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
-
-from pypeit import debugger
 
 
 class Calibrations(object):
@@ -359,6 +354,9 @@ class Calibrations(object):
             and :attr:`msillumflat` which is the illumination flat.
 
         """
+        # Check for existing data
+        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib', 'maskslits']):
+            msgs.error('dont have all the objects')
 
         if self.par['flatfield']['method'] is 'skip':
             # User does not want to flat-field
@@ -434,7 +432,7 @@ class Calibrations(object):
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixflatnrm is None and len(pixflat_image_files) != 0:
             # Run
-            self.mspixflatnrm, self.msillumflat = self.flatField.run(show=self.show)
+            self.mspixflatnrm, self.msillumflat = self.flatField.run(show=self.show, maskslits=self.maskslits)
 
             # If we tweaked the slits, update the tilts_dict and
             # tslits_dict to reflect new slit edges
@@ -752,6 +750,7 @@ class Calibrations(object):
         # Save & return
         self.calib_dict[self.arc_master_key]['tilts_dict'] = self.tilts_dict
         self.calib_dict[self.arc_master_key]['wtmask'] = self.wt_maskslits
+        import IPython; IPython.embed()
         self.maskslits += self.wt_maskslits
         return self.tilts_dict, self.maskslits
 

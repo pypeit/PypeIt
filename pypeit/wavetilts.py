@@ -276,7 +276,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
-        gdslits = np.where(~self.mask)[0]
+        gdslits = np.where(np.invert(self.mask))[0]
 
         # Final tilts image
         self.final_tilts = np.zeros(self.shape_science,dtype=float)
