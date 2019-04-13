@@ -4,6 +4,11 @@ documentation visit:
 
 http://pypeit.readthedocs.io
 
+and/or see our HOWTO:
+
+https://tinyurl.com/pypeit-howto
+
+
 # Instruments Served
 * Keck/LRIS 
 * Lick/Kast 
