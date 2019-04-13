@@ -160,9 +160,9 @@ class WaveTilts(masterframe.MasterFrame):
 
         tracethresh = self._parse_param(self.par, 'tracethresh', slit)
         lines_spec, lines_spat = tracewave.tilts_find_lines(
-            arcspec, slit_cen, tracethresh=tracethresh, sig_neigh=self.par['sig_neigh'],
-            nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
-            nonlinear_counts=self.nonlinear_counts, debug_peaks=False, debug_lines = debug)
+                arcspec, slit_cen, tracethresh=tracethresh, sig_neigh=self.par['sig_neigh'],
+                nfwhm_neigh=self.par['nfwhm_neigh'],only_these_lines=only_these_lines, fwhm=self.wavepar['fwhm'],
+                nonlinear_counts=self.nonlinear_counts, debug_peaks=False, debug_lines=debug)
 
         self.steps.append(inspect.stack()[0][3])
         return lines_spec, lines_spat
@@ -276,7 +276,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
-        gdslits = np.where(self.mask == 0)[0]
+        gdslits = np.where(~self.mask)[0]
 
         # Final tilts image
         self.final_tilts = np.zeros(self.shape_science,dtype=float)
@@ -295,6 +295,10 @@ class WaveTilts(masterframe.MasterFrame):
             msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslits-1))
             # Identify lines for tracing tilts
             self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
+            if self.lines_spec is None:
+                self.mask[slit] = True
+                maskslits[slit] = True
+                continue
 
             thismask = self.slitmask == slit
             # Trace

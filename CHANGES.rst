@@ -5,6 +5,8 @@
 - Hack for Kastr
 - Turn on Shane Kastb grism wavelength solutions (not tested)
 - Started splitting Arc Line Templates Notebook into pieces
+- Fix oscan sec in read_lris()
+- Fix bad return in tracewave.tilts_find_lines()
 
 0.9.3 (28 Feb 2019)
 -------------------

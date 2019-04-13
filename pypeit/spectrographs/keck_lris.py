@@ -948,7 +948,8 @@ def read_lris(raw_file, det=None, TRIM=False):
             nxpost = buf[0]
             xs = nx - n_ext*postpix + kk*postpix
             xe = xs + nxpost 
-            section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
+            #section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
+            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)
             osec.append(section)
             '''
             if keyword_set(VERBOSITY) then begin
@@ -987,6 +988,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
+    #from IPython import embed; embed()
     return array.T, head0, (dsec, osec)
 
 
