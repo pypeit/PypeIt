@@ -3,6 +3,8 @@
 
 - Enable PyPI
 - Hack for Kastr
+- Turn on Shane Kastb grism wavelength solutions (not tested)
+- Started splitting Arc Line Templates Notebook into pieces
 
 0.9.3 (28 Feb 2019)
 -------------------
