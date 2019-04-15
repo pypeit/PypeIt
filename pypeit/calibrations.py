@@ -750,7 +750,6 @@ class Calibrations(object):
         # Save & return
         self.calib_dict[self.arc_master_key]['tilts_dict'] = self.tilts_dict
         self.calib_dict[self.arc_master_key]['wtmask'] = self.wt_maskslits
-        import IPython; IPython.embed()
         self.maskslits += self.wt_maskslits
         return self.tilts_dict, self.maskslits
 
