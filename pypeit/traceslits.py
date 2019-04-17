@@ -1134,6 +1134,7 @@ class TraceSlits(masterframe.MasterFrame):
             tslits_dict['binspatial'] = head0['BINSPAT']
             tslits_dict['spectrograph'] = head0['SPECTROG']
             #tslits_dict['det'] = head0['DET']   #
+            import pdb; pdb.set_trace()
             return tslits_dict, mstrace
 
 

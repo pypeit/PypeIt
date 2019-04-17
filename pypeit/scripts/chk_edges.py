@@ -40,6 +40,7 @@ def main(pargs):
 
     # Load up
     tslits_dict, mstrace = traceslits.load_tslits(pargs.root)
+    import pdb; pdb.set_trace()
 
     try:
         ginga.connect_to_ginga(raise_err=True)
