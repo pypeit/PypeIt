@@ -1,7 +1,5 @@
 """ Module for Shane/Kast specific codes
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import os
 from pkg_resources import resource_filename
@@ -119,13 +117,13 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 #                                        for t in fitstbl['target']])
         if ftype == 'bias':
             return good_exp # & (fitstbl['target'] == 'Bias')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
-        if ftype == 'pinhole' or ftype == 'dark':
+        if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs')#  & (fitstbl['target'] == 'Arcs')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -225,8 +223,29 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         return par
 
-    def config_specific_par(self, par, scifile):
-        # Wavelength calibrations
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+
         if self.get_meta_value(scifile, 'dispname') == '600/4310':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
         elif self.get_meta_value(scifile, 'dispname') == '452/3306':
@@ -447,5 +466,4 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
-
 

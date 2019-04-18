@@ -1,7 +1,30 @@
-""" Module to define the Spectrograph class
 """
-from __future__ import absolute_import, division, print_function
+Defines the abstract `Spectrograph` class, which is the parent class for
+all instruments served by PypeIt.
 
+The key functionality of this base class and its derived classes are to
+provide instrument-specific:
+    - file I/O routines
+    - detector properties (see
+      :class:`pypeit.par.pypeitpar.DetectorPar`)
+    - telescope properties (see
+      :class:`pypeit.par.pypeitpar.TelescopePar`)
+    - fits header keywords that are collated and injested into PypeIt's
+      metadata table that it uses throughout the reduction
+    - header keyword values to check to confirm a fits file has been
+      taken with the selected instrument
+    - default methods for automatically determining the type of each
+      exposure that PypeIt was asked to reduce
+    - header keywords to use when matching calibration frames to science
+      frames
+    - methods used to generate and/or read bad-pixel masks for an
+      exposure
+    - default parameters for PypeIt's algorithms
+    - method to access an archival sky spectrum
+
+
+
+"""
 import os
 import warnings
 
@@ -14,6 +37,7 @@ from astropy.io import fits
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
@@ -23,7 +47,8 @@ from pypeit import debugger
 
 class Spectrograph(object):
     """
-    Generic class for spectrograph-specific codes
+    Abstract class whose derived classes dictate instrument-specific
+    behavior in PypeIt.
 
     Attributes:
         spectrograph (str):
@@ -80,20 +105,38 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def config_specific_par(self, par, scifile):
+    def nonlinear_counts(self, det=1):
         """
-        Used to modify the ParSet from metadata
-        drawn from the input file
+        Return the counts at which the detector response becomes
+        non-linear.
 
         Args:
-            par: ParSet
-            scifile: str
+            det (:obj:`int`, optional):
+                1-indexed detector number.
+        
+        Returns:
+            float: Counts at which detector response becomes nonlinear.
+        """
+        return self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+        
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
 
         Returns:
-            par
-
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
         """
-        return par
+        return self.default_pypeit_par() if inp_par is None else inp_par
 
     def _check_telescope(self):
         # Check the detector
@@ -304,7 +347,7 @@ class Spectrograph(object):
                 # Convert the data section from a string to a slice
                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                           include_end=include_end, require_dim=2,
-                                          transpose=transpose, binning=binning_raw)
+                                          transpose=transpose, binning_raw=binning_raw)
                 # Assign the amplifier
                 self.datasec_img[datasec] = i+1
 
@@ -610,18 +653,18 @@ class Spectrograph(object):
             list: Returns a list of :attr:`numhead` :obj:`fits.Header`
             objects with the extension headers.
         """
-        headarr = ['None']*self.numhead
-        for k in range(self.numhead):
-            try:
-                headarr[k] = fits.getheader(filename, ext=k)
-            except:
-                if strict:
-                    msgs.error("Header error in extension {0} in {1}.".format(k, filename))
-                else:
-                    msgs.warn('Bad header in extension {0} in {1}'.format(k, filename) 
-                              + msgs.newline() + 'Proceeding on the hopes this was a '
-                              + 'calibration file, otherwise consider removing.')
-        return headarr
+        # Faster to open the whole file and then assign the headers,
+        # particularly for gzipped files (e.g., DEIMOS)
+        try:
+            hdu = fits.open(filename)
+        except:
+            if strict:
+                msgs.error('Problem opening {0}.'.format(filename))
+            else:
+                msgs.warn('Problem opening {0}.'.format(filename) + msgs.newline()
+                          + 'Proceeding, but should consider removing this file!')
+                return ['None']*self.numhead
+        return [ hdu[k].header for k in range(self.numhead) ]
 
 #    def get_match_criteria(self):
 #        msgs.error("You need match criteria for your spectrograph.")
@@ -816,6 +859,36 @@ class Spectrograph(object):
     # This routine is only for echelle spectrographs. It returns the plate scale order by order
     def slit2order(self, slit):
         pass
+
+
+    @property
+    def dloglam(self):
+        pass
+
+    @property
+    def loglam_minmax(self):
+        pass
+
+    def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
+        """
+        Routine to generate a fixed wavelength grid in log_10 lambda. Mostly used by echelle spectrographs
+
+        Args:
+            binning:
+            midpoint:
+            samp_fact:
+
+        Returns:
+
+        """
+
+        binspectral, binspatial = parse.parse_binning(binning)
+        logmin, logmax = self.loglam_minmax
+        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
+        if midpoint:
+            loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
+
+        return np.power(10.0,loglam_grid)
 
 
     def __repr__(self):

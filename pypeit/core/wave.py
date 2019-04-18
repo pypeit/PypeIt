@@ -1,7 +1,4 @@
 """ Routines related to flexure, air2vac, etc. """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
-
 import inspect
 
 import numpy as np

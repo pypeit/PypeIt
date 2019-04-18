@@ -1,23 +1,25 @@
-# Module for guiding construction of the Wavelength Image
-from __future__ import absolute_import, division, print_function
+"""
+Module for guiding construction of the Wavelength Image
 
-import inspect
-import numpy as np
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
+"""
 import os
+import inspect
 
-#from importlib import reload
+import numpy as np
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import masterframe
+from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
 
 from pypeit import debugger
 
-
-class WaveImage(masterframe.MasterFrame):
-    """Class to generate the Wavelength Image
+class WaveImage(MasterFrame):
+    """
+    Class to generate the Wavelength Image
 
     Args:
         tslits_dict (dict): dict from TraceSlits class (e.g. slitpix)
@@ -38,55 +40,61 @@ class WaveImage(masterframe.MasterFrame):
     Attributes:
         frametype : str
           Hard-coded to 'wave'
-        wave (ndarray): Wavelength image
+        mswave (ndarray): Wavelength image
         steps (list): List of the processing steps performed
 
     """
     # Frametype is a class attribute
-    frametype = 'wave'
+#    frametype = 'wave'
+    master_type = 'Wave'
 
     def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, maskslits,
                  master_key=None, master_dir=None, reuse_masters=False):
 
-        # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.frametype, master_key,
-                                         master_dir, reuse_masters=reuse_masters)
+#    def __init__(self, spectrograph, tslits_dict, tilts, wv_calib, maskslits,
+#                 master_key=None, master_dir=None, reuse_masters=False):
 
-        # Required parameters (but can be None)
+        # MasterFrame
+        MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+                                         master_key=master_key, reuse_masters=reuse_masters)
+
+        # Required parameters
+        self.spectrograph = spectrograph
+
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.wv_calib = wv_calib
-        self.spectrograph = spectrograph
         self.slitmask = pixels.tslits2mask(self.tslits_dict) if tslits_dict is not None else None
+        # TODO: only echelle is ever used.  Do we need to keep the whole
+        # thing?
         self.par = wv_calib['par'] if wv_calib is not None else None
 
-        # Optional parameters
         self.maskslits = maskslits
 
-        # Attributes
-        self.steps = [] # List to hold ouptut from inspect about what module create the image?
+        # List to hold ouptut from inspect about what module create the image?
+        self.steps = []
 
         # Main output
-        self.wave = None
+        self.mswave = None
 
-    def _build_wave(self):
+    def build_wave(self):
         """
         Main algorithm to build the wavelength image
 
         Returns:
-            ndarray: Wavelength image
+            `numpy.ndarray`_: The wavelength image.
 
         """
         # Loop on slits
         ok_slits = np.where(~self.maskslits)[0]
-        self.wave = np.zeros_like(self.tilts)
-        nspec =self.slitmask.shape[0]
+        self.mswave = np.zeros_like(self.tilts)
+        nspec = self.slitmask.shape[0]
 
         # Error checking on the wv_calib
         #if (nspec-1) != int(self.wv_calib[str(0)]['fmax']):
         #    msgs.error('Your wavelength fits used inconsistent normalization. Something is wrong!')
 
-        # Ff this is echelle print out a status message and do some error checking
+        # If this is echelle print out a status message and do some error checking
         if self.par['echelle']:
             msgs.info('Evaluating 2-d wavelength solution for echelle....')
             if len(self.wv_calib['fit2d']['orders']) != len(ok_slits):
@@ -98,20 +106,25 @@ class WaveImage(masterframe.MasterFrame):
             if self.par['echelle']:
                 order = self.spectrograph.slit2order(slit)
                 # evaluate solution
-                tmpwv = utils.func_val(self.wv_calib['fit2d']['coeffs'], self.tilts[thismask], self.wv_calib['fit2d']['func2d'],
-                                       x2=np.ones_like(self.tilts[thismask])*order,
-                                       minx=self.wv_calib['fit2d']['min_spec'], maxx=self.wv_calib['fit2d']['max_spec'],
-                                       minx2=self.wv_calib['fit2d']['min_order'], maxx2=self.wv_calib['fit2d']['max_order'])/order
+                self.mswave[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
+                                                       self.tilts[thismask],
+                                                       self.wv_calib['fit2d']['func2d'],
+                                                       x2=np.ones_like(self.tilts[thismask])*order,
+                                                       minx=self.wv_calib['fit2d']['min_spec'],
+                                                       maxx=self.wv_calib['fit2d']['max_spec'],
+                                                       minx2=self.wv_calib['fit2d']['min_order'],
+                                                       maxx2=self.wv_calib['fit2d']['max_order'])
+                self.mswave[thismask] /= order
             else:
                 iwv_calib = self.wv_calib[str(slit)]
-                tmpwv = utils.func_val(iwv_calib['fitc'], self.tilts[thismask], iwv_calib['function'],
-                                       minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
-            self.wave[thismask] = tmpwv
+                self.mswave[thismask] = utils.func_val(iwv_calib['fitc'], self.tilts[thismask],
+                                                       iwv_calib['function'],
+                                                       minx=iwv_calib['fmin'],
+                                                       maxx=iwv_calib['fmax'])
 
-        # Step
-        self.steps.append(inspect.stack()[0][3])
         # Return
-        return self.wave
+        self.steps.append(inspect.stack()[0][3])
+        return self.mswave
 
     def show(self, item='wave'):
         """
@@ -124,8 +137,8 @@ class WaveImage(masterframe.MasterFrame):
 
         """
         if item == 'wave':
-            if self.wave is not None:
-                ginga.show_image(self.wave)
+            if self.mswave is not None:
+                ginga.show_image(self.mswave)
         else:
             msgs.warn("Not able to show this type of image")
 
@@ -134,23 +147,78 @@ class WaveImage(masterframe.MasterFrame):
         txt = '<{:s}: >'.format(self.__class__.__name__)
         return txt
 
+    def save(self, outfile=None, overwrite=True, mswave=None):
+        """
+        Save the master wavelength image.
 
+        Args:
+            outfile (:obj:`str`, optional):
+                Name for the output file.  Defaults to
+                :attr:`file_path`.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file.
+        """
+        _mswave = self.mswave if mswave is None else mswave
+        super(WaveImage, self).save(_mswave, 'WAVE', outfile=outfile, overwrite=overwrite,
+                                    steps=self.steps)
 
+    # TODO: it would be better to have this instantiate the full class
+    # as a classmethod.
+    def load(self, ifile=None, return_header=False):
+        """
+        Load the wavelength image data from a saved master frame.
 
-def load_waveimage(filename):
-    """
-    Utility function which enables one to load the waveimage from a master file in one line of code without
-    instantiating the class.
+        Args:
+            ifile (:obj:`str`, optional):
+                Name of the master frame file.  Defaults to
+                :attr:`file_path`.
+            return_header (:obj:`bool`, optional):
+                Return the header
 
-    Args:
-        filename (str): Master file name
+        Returns:
+            tuple: Returns an `numpy.ndarray`_ with the wavelength
+            image.  Also returns the primary header, if requested.
+        """
+        return super(WaveImage, self).load('WAVE', ifile=ifile, return_header=return_header)
 
-    Returns:
-        dict:  The trace slits dict
+    @staticmethod
+    def load_from_file(filename, return_header=False):
+        """
+        Load the wavelength image data from a saved master frame.
 
-    """
+        Args:
+            filename (:obj:`str`, optional):
+                Name of the master frame file.
+            return_header (:obj:`bool`, optional):
+                Return the header
 
-    waveImage = WaveImage(None, None, None, None, None)
-    waveimage, _ = waveImage.load_master(filename)
+        Returns:
+            tuple: Returns an `numpy.ndarray`_ with the wavelength
+            image.  Also returns the primary header, if requested.
+        """
+        # Use of super() to call staticmethods of the base class seems
+        # like a bit of a mess (bound vs. unbound methods).  There's a
+        # syntax that works, but for now, I'm just going to call the
+        # static method explicitly without using super().  See:
+        # https://stackoverflow.com/questions/26788214/super-and-staticmethod-interaction
+        return MasterFrame.load_from_file(filename, 'WAVE', return_header=return_header)
 
-    return waveimage
+# TODO: Use WaveImage.load_from_file(filename)
+#def load_waveimage(filename):
+#    """
+#    Utility function which enables one to load the waveimage from a master file in one line of code without
+#    instantiating the class.
+#
+#    Args:
+#        filename (str): Master file name
+#
+#    Returns:
+#        dict:  The trace slits dict
+#
+#    """
+#
+#    waveImage = WaveImage(None, None, None, None, None)
+#    waveimage, _ = waveImage.load_master(filename)
+#
+#    return waveimage
+

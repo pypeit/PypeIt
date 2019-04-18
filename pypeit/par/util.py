@@ -2,25 +2,11 @@
 """
 Utility functions for PypeIt parameter sets
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import os
 import time
 import glob
 import warnings
 import textwrap
-import sys
-if sys.version > '3':
-    long = int
-
-try:
-    basestring
-except NameError:
-    basestring = str
 
 import numpy as np
 
@@ -225,13 +211,13 @@ def _read_pypeit_file_lines(ifile):
 
 def _find_pypeit_block(lines, group):
     """
-    DEPRPECATED?
-
     Find the PypeIt group block
 
     Args:
-        lines (list): List of file lines
-        group (str): Name of group to parse
+        lines (:obj:`list`):
+            List of file lines
+        group (:obj:`str`):
+            Name of group to parse
 
     Returns:
         int, int: Starting,ending line of the block;  -1 if not present
@@ -507,14 +493,15 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
         setups = _parse_setup_lines(lines[s:e])
         is_config[s-1:e+1] = False
 
+    # TODO: This should be moved to the PypeIt class
     # Running PypeIt?
     if runtime:
         for key in ['filename', 'frametype']:
             if key not in usrtbl.keys():
-                msgs.error("Need to add {:s} to your PypeIt file before using run_pypeit".format(key))
+                msgs.error("Add {:s} to your PypeIt file before using run_pypeit".format(key))
         # Setup
         if len(setups) != 1:
-            msgs.error("Need to add setup info to your PypeIt file in the setup block!")
+            msgs.error("Add setup info to your PypeIt file in the setup block!")
 
     msgs.info('Input file loaded successfully')
     return list(lines[is_config]), data_files, frametype, usrtbl, setups
@@ -552,7 +539,6 @@ def pypeit_config_lines(ifile):
     return list(lines[is_config])
     
 
-
 def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setup_mode=False,
                      setup_lines=None, sorted_files=None, paths=None):
     """
@@ -567,9 +553,6 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         setup_lines (list, optional):
         sorted_files (list, optional):
         paths (list, optional): List of paths for slurping data files
-
-    Returns:
-
     """
     # Error checking
     if not isinstance(data_files, list):
