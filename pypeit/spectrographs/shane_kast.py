@@ -163,7 +163,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
 
-
 class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
     """
     Child to handle Shane/Kast blue specific code
@@ -231,7 +230,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         .. todo::
             Document the changes made!
-        
+
         Args:
             scifile (str):
                 File to use when determining the configuration and how
@@ -249,41 +248,15 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
         if self.get_meta_value(scifile, 'dispname') == '600/4310':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '452/3306':  # NOT YET TESTED
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_452.fits'
+        elif self.get_meta_value(scifile, 'dispname') == '830/3460':  # NOT YET TESTED
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_830.fits'
         else:
             msgs.error("NEED TO ADD YOUR GRISM HERE!")
         # Return
         return par
 
-#    def check_headers(self, headers):
-#        """
-#        Check headers match expectations for a Shane Kast blue exposure.
-#
-#        See also
-#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-#
-#        Args:
-#            headers (list):
-#                A list of headers read from a fits file
-#        """
-#        expected_values = {   '0.NAXIS': 2,
-#                            '0.DSENSOR': 'Fairchild CCD 3041 2Kx2K' }
-#        super(ShaneKastBlueSpectrograph, self).check_headers(headers,
-#                                                             expected_values=expected_values)
-
-    '''
-    def header_keys(self):
-        """
-        Header keys specific to shane_kast_blue
-
-        Returns:
-
-        """
-        hdr_keys = super(ShaneKastBlueSpectrograph, self).header_keys()
-        # Add the name of the dispersing element
-        # dispangle and filter1 are not defined for Shane Kast Blue
-        hdr_keys[0]['dispname'] = 'GRISM_N'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -307,9 +280,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     """
     def __init__(self):
 
-        # TODO: NEED TO CHECK ORIENTATION OF DATASEC AND OSCANSEC ARE
-        # CORRECT!!!!
-
         # Get it started
         super(ShaneKastRedSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_red'
@@ -330,8 +300,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.9, 1.9],
                             ronoise         = [3.8, 3.8],
-                            datasec         = ['[:,2:511]', '[:,513:525]'],
-                            oscansec        = ['[:,527:625]', '[:,627:725]'],
+                            datasec         = ['[40:102,:]', '[103:347,:]'],
+                            oscansec        = ['[425:522,:]', '[524:610,:]'],
                             suffix          = '_red'
                             )]
         self.numhead = 1

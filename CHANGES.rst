@@ -8,6 +8,9 @@
     - Adds a finalize_usr_build() function to PypeItMetaData to
       consolidate the few opaque steps when finishing the meta data
       build.
+- Hack for Kastr
+- Turn on Shane Kastb grism wavelength solutions (not tested)
+- Started splitting Arc Line Templates Notebook into pieces
 - Allows for slice like syntax when defining calibration groups.
 - Introduce 'tilt' frame type.  Not used yet.  Everything that's typed
   as an 'arc' is now also typed as a 'tilt'.
