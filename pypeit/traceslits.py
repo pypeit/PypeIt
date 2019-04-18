@@ -7,6 +7,7 @@ Module for guiding Slit/Order tracing
 import os
 import inspect
 import copy
+import IPython
 
 import numpy as np
 
@@ -231,28 +232,6 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-#    def _edgearr_single_slit(self):
-#        """
-#        Generate the first edgearr from a user-supplied single slit
-#        Note this is different from add_user_slits (which is handled below)
-#
-#        Wrapper to trace_slits.edgearr_from_user
-#
-#        Returns
-#        -------
-#        self.edgearr : ndarray (internal)
-#        self.siglev : ndarray (internal)
-#
-#        """
-#        #  This trace slits single option is likely to be deprecated
-#        iledge, iredge = (self.det-1)*2, (self.det-1)*2+1
-#        self.edgearr = trace_slits.edgearr_from_user(self.mstrace.shape,
-#                                                      self.par['single'][iledge],
-#                                                      self.par['single'][iredge], self.det)
-#        self.siglev = None
-#        # Step
-#        self.steps.append(inspect.stack()[0][3])
-
     def _add_left_right(self):
         """
         Add left/right edges to edgearr
@@ -301,37 +280,6 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-#    def _assign_edges(self):
-#        """
-#        Assign slit edges by analyzing edgearr
-#        Single slits are handled trivially
-#
-#        Wrapper to trace_slits.assign_slits()
-#
-#        Returns
-#        -------
-#        self.edgearr : ndarray (internal)
-#
-#        """
-#
-#        # Assign left edges
-#        msgs.info("Assigning left slit edges")
-#        if self.lcnt == 1:
-#            self.edgearr[np.where(self.edgearr <= -2*self.ednum)] = -self.ednum
-#        else:
-#            trace_slits.assign_slits(self.binarr, self.edgearr, lor=-1,
-#                                      function=self.par['function'],
-#                                      polyorder=self.par['trace_npoly'])
-#        # Assign right edges
-#        msgs.info("Assigning right slit edges")
-#        if self.rcnt == 1:
-#            self.edgearr[np.where(self.edgearr >= 2*self.ednum)] = self.ednum
-#        else:
-#            trace_slits.assign_slits(self.binarr, self.edgearr, lor=+1,
-#                                      function=self.par['function'],
-#                                      polyorder=self.par['trace_npoly'])
-#        # Steps
-#        self.steps.append(inspect.stack()[0][3])
 
     def _chk_for_longslit(self, fwhm=3.):
         """
@@ -413,6 +361,7 @@ class TraceSlits(masterframe.MasterFrame):
         #    self.tslits_dict[key] = getattr(self, key)
         # add in the image size and some stuff to create the slitmask
 
+        self.tslits_dict['maskslits'] = self.maskslits
         self.tslits_dict['slitcen'] = self.slitcen
         self.tslits_dict['nspec'] = self.mstrace.shape[0]
         self.tslits_dict['nspat'] = self.mstrace.shape[1]
@@ -998,6 +947,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.lmin, self.lmax = 0, self.slit_left.shape[1]
         self.rmin, self.rmax = 0, self.slit_righ.shape[1]
         self.extrapord = np.zeros(self.slit_left.shape[1], dtype=np.bool)
+        self.maskslits = np.zeros(self.slit_left.shape[1], dtype=np.bool)
 
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
@@ -1140,7 +1090,8 @@ class TraceSlits(masterframe.MasterFrame):
                       fits.ImageHDU(data=_tslits_dict['spec_min'], name='SPEC_MIN'),
                       fits.ImageHDU(data=_tslits_dict['spec_max'], name='SPEC_MAX'),
                       fits.ImageHDU(data=left_orig, name='SLIT_LEFT_ORIG'),
-                      fits.ImageHDU(data=righ_orig, name='SLIT_RIGH_ORIG')
+                      fits.ImageHDU(data=righ_orig, name='SLIT_RIGH_ORIG'),
+                      fits.ImageHDU(data=_tslits_dict['maskslits'].astype(int), name='MASK'),  # int deals with bool
                      ]).writeto(_outfile, overwrite=True)
 
     def load(self, ifile=None, return_header=False):
@@ -1233,6 +1184,10 @@ class TraceSlits(masterframe.MasterFrame):
         tslits_dict['slitcen']   = hdu['SLITCEN'].data
         tslits_dict['spec_min']  = hdu['SPEC_MIN'].data
         tslits_dict['spec_max'] = hdu['SPEC_MAX'].data
+        # Kludge me
+        tmp = hdu['MASK'].data
+        tslits_dict['maskslits'] = tmp.astype(np.bool)
+        #
         for ext in ['SLIT_LEFT_ORIG', 'SLIT_RIGH_ORIG']:
             if hdu[ext].data is not None:
                 tslits_dict[ext.lower()] = hdu[ext].data
