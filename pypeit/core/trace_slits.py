@@ -100,7 +100,7 @@ def rm_user_edges(lcen, rcen, rm_slits):
     Remove one or more slits, as applicable
 
     Code compares exisiting slits (which must be sycnhronized)
-    against the input requeest and removes any that match.
+    against the input request and removes any that match.
 
     Args:
         lcen (np.ndarray): Left traces of slit/orders
