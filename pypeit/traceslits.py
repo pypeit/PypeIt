@@ -947,7 +947,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.lmin, self.lmax = 0, self.slit_left.shape[1]
         self.rmin, self.rmax = 0, self.slit_righ.shape[1]
         self.extrapord = np.zeros(self.slit_left.shape[1], dtype=np.bool)
-        self.maskslits = np.zeros(self.slit_left.shape[1], dtype=np.bool)
 
         # Remove any slits that are completely off the detector
         #   Also remove short slits here for multi-slit and long-slit (alignment stars)
@@ -968,6 +967,9 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Generate pixel arrays
         self._make_pixel_arrays()
+
+        # Mask
+        self.maskslits = np.zeros(self.slit_left.shape[1], dtype=np.bool)
 
         # fill dict for PypeIt
         self.tslits_dict = self._fill_tslits_dict()

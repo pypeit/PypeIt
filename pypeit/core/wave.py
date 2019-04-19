@@ -592,20 +592,19 @@ def vactoair(wave):
     return new_wave
 
 # TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
+#  AND THIS IS WHY THE CODE IS CRASHING
 def flexure_qa(specobjs, maskslits, basename, det, flex_list,
                slit_cen=False, out_dir=None):
-    """ QA on flexure measurement
+    """
 
-    Parameters
-    ----------
-    det
-    flex_list : list
-      list of dict containing flexure results
-    slit_cen : bool, optional
-      QA on slit center instead of objects
-
-    Returns
-    -------
+    Args:
+        specobjs:
+        maskslits (np.ndarray):
+        basename (str):
+        det (int):
+        flex_list (list):
+        slit_cen:
+        out_dir:
 
     """
     plt.rcdefaults()
