@@ -315,8 +315,35 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                     msgs.warn("Will used saved estimate from a previous slit/object")
                     fdict = copy.deepcopy(sv_fdict)
                 else:
-                    msgs.warn("No previous good solution.  Punting on this object")
-                    continue
+                    msgs.warn("No previous good solution.  Searching for the first good solution.")
+                    # find first "good" fdict (this case occurs if there are no previous good solutions)
+                    jfdict = None
+                    for jslit in gdslits:
+                        jindx = specobjs.slitid == jslit
+                        jthis_specobjs = specobjs[jindx]
+                        for jspecobj in jthis_specobjs:
+                            if jspecobj is None:
+                                continue
+                            if method in ['boxcar', 'slitcen']:
+                                jsky_wave = jspecobj.boxcar['WAVE']  # .to('AA').value
+                                jsky_flux = jspecobj.boxcar['COUNTS_SKY']
+                            else:
+                                msgs.error("Not ready for this flexure method: {}".format(method))
+                            # Generate 1D spectrum for object
+                            jobj_sky = xspectrum1d.XSpectrum1D.from_tuple((jsky_wave, jsky_flux))
+                            # Calculate the shift
+                            jfdict = flex_shift(jobj_sky, sky_spectrum, mxshft=mxshft)
+                            if jfdict is not None:
+                                fdict = copy.deepcopy(jfdict)
+                                sv_fdict = copy.deepcopy(fdict)
+                                break
+                        # Check
+                        if jfdict is not None:
+                            break
+                        else:
+                            import IPython; IPython.embed()
+                            msgs.error("There are no good solutions for this dataset.")
+
             else:
                 sv_fdict = copy.deepcopy(fdict)
 
