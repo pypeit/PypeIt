@@ -280,6 +280,10 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
     # Loop on objects
     flex_list = []
+
+    # Slit/objects to come back to
+    return_later_sobjs = []
+
     # Loop over slits, and then over objects here
     for slit in range(nslits):
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(slit))
@@ -293,7 +297,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
         if slit not in gdslits:
             flex_list.append(flex_dict.copy())
             continue
-        for specobj in this_specobjs:
+        for ss, specobj in enumerate(this_specobjs):
             if specobj is None:
                 continue
             msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.slitid))
@@ -309,43 +313,24 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
             # Calculate the shift
             fdict = flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
+            punt = False
             if fdict is None:
                 msgs.warn("Flexure shift calculation failed for this spectrum.")
                 if sv_fdict is not None:
                     msgs.warn("Will used saved estimate from a previous slit/object")
                     fdict = copy.deepcopy(sv_fdict)
                 else:
-                    msgs.warn("No previous good solution.  Searching for the first good solution.")
-                    # find first "good" fdict (this case occurs if there are no previous good solutions)
-                    jfdict = None
-                    for jslit in gdslits:
-                        jindx = specobjs.slitid == jslit
-                        jthis_specobjs = specobjs[jindx]
-                        for jspecobj in jthis_specobjs:
-                            if jspecobj is None:
-                                continue
-                            if method in ['boxcar', 'slitcen']:
-                                jsky_wave = jspecobj.boxcar['WAVE']  # .to('AA').value
-                                jsky_flux = jspecobj.boxcar['COUNTS_SKY']
-                            else:
-                                msgs.error("Not ready for this flexure method: {}".format(method))
-                            # Generate 1D spectrum for object
-                            jobj_sky = xspectrum1d.XSpectrum1D.from_tuple((jsky_wave, jsky_flux))
-                            # Calculate the shift
-                            jfdict = flex_shift(jobj_sky, sky_spectrum, mxshft=mxshft)
-                            if jfdict is not None:
-                                fdict = copy.deepcopy(jfdict)
-                                sv_fdict = copy.deepcopy(fdict)
-                                break
-                        # Check
-                        if jfdict is not None:
-                            break
-                        else:
-                            import IPython; IPython.embed()
-                            msgs.error("There are no good solutions for this dataset.")
-
+                    # One does not exist yet
+                    # Save it for later
+                    import IPython; IPython.embed()
+                    return_later_sobjs.add([slit, ss])
+                    punt = True
             else:
                 sv_fdict = copy.deepcopy(fdict)
+
+            # Punt?
+            if punt:
+                break
 
             # Simple interpolation to apply
             npix = len(sky_wave)
@@ -371,6 +356,12 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                 flex_dict[key].append(fdict[key])
             flex_dict['sky_spec'].append(new_sky)
         flex_list.append(flex_dict.copy())
+
+        # Do we need to go back?
+        for sobj in return_later_sobjs:
+            fdict = copy.deepcopy(sv_fdict)
+            # FINISH THIS
+
     return flex_list
 
 
