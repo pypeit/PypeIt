@@ -438,7 +438,6 @@ class PypeIt(object):
                                          mxshft=self.par['flexure']['maxshift'])
             # QA
             # TODO: Need to fix these QA paths...
-            IPython.embed()
             wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
                             out_dir=self.par['rdx']['redux_path'])
         else:

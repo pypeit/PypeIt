@@ -363,6 +363,18 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
 
 def flexure_interp(sky_wave, specobj, fdict):
+    """
+    Apply interpolation with the flexure
+
+    Args:
+        sky_wave (np.ndarray): Wavelengths of the extracted sky
+        specobj (SpecObj):
+        fdict (dict): Holds the various flexure items
+
+    Returns:
+        np.ndarray:  New sky spectrum (mainly for QA)
+
+    """
     # Simple interpolation to apply
     npix = len(sky_wave)
     x = np.linspace(0., 1., npix)
