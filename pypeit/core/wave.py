@@ -393,6 +393,8 @@ def flexure_interp(sky_wave, specobj, fdict):
     f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
     twave = f(x + fdict['shift']/(cut_sky.npix-1))*units.AA
     new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
+    # Save
+    specobj.flex_shift = fdict['shift']
     # Return
     return new_sky
 
