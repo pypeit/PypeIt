@@ -34,6 +34,7 @@
 - Fix bad return in tracewave.tilts_find_lines()
 - Several doc edits
 - Fix handling of maskslits
+- Fix flexure crashing
 
 0.9.3 (28 Feb 2019)
 -------------------
