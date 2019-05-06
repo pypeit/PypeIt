@@ -122,6 +122,23 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+
+            list: List of keywords of data pulled from meta
+        """
+        cfg_keys = super(GeminiGMOSSpectrograph, self).configuration_keys()
+        # Add grating tilt
+        return cfg_keys+['dispangle']
+
     def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for LRIS
