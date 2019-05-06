@@ -8,6 +8,10 @@ and/or see our HOWTO:
 
 https://tinyurl.com/pypeit-howto
 
+and/or join our PypeIt Users Slack 
+(the invite is recorded in this Issue:
+https://github.com/pypeit/PypeIt/issues/676)
+
 
 # Instruments Served
 * Keck/LRIS 
