@@ -933,7 +933,6 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Are we done, e.g. a simple longslit?
         #   Check if no further work is needed (i.e. there only exists one order)
-        #from IPython import embed; embed()
         if self._chk_for_longslit():
             pass
         else:  # No, not done yet
@@ -1188,7 +1187,6 @@ class TraceSlits(masterframe.MasterFrame):
         tslits_dict['spec_min']  = hdu['SPEC_MIN'].data
         tslits_dict['spec_max'] = hdu['SPEC_MAX'].data
         # Kludge me
-        #from IPython import embed; embed()
         tmp = hdu['MASK'].data
         tslits_dict['maskslits'] = tmp.astype(np.bool)
         #

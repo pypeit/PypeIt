@@ -415,7 +415,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Only defined for det=1
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on LRISb")
-            self.bpm_img[:, 0:8] = 1
+            self.bpm_img[:, 0:3] = 1
 
         return self.bpm_img
 
