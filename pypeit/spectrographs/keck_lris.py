@@ -737,7 +737,7 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         return raw_img.T, header
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
-        #
+        # Inp better be a string here!  Could check
         hdu = fits.open(inp)
         head0 = hdu[0].header
         binning = head0['BINNING']
