@@ -1,13 +1,7 @@
 #!/usr/bin/env python
-
 """
 Script for fluxing PYPEIT 1d spectra
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs
@@ -109,6 +103,7 @@ def main(args, unit_test=False):
     par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                              merge_with=config_lines)
 
+    # TODO: Remove this.  Put this in the unit test itself.
     if unit_test:
         path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
         par['fluxcalib']['std_file'] = os.path.join(path, par['fluxcalib']['std_file'])

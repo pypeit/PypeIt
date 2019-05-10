@@ -1,8 +1,6 @@
 """ Module for core algorithms related to tracing slits/orders
 These should primarily be called by the TraceSlits class
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import inspect
 import copy
 from collections import Counter
@@ -100,7 +98,7 @@ def rm_user_edges(lcen, rcen, rm_slits):
     Remove one or more slits, as applicable
 
     Code compares exisiting slits (which must be sycnhronized)
-    against the input requeest and removes any that match.
+    against the input request and removes any that match.
 
     Args:
         lcen (np.ndarray): Left traces of slit/orders
@@ -1105,6 +1103,7 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
     filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
     # siglev
+    #from IPython import embed; embed(header='1106 trace_slits.py')
     siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
 
     # First edges assigned according to S/N

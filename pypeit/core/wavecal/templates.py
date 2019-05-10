@@ -141,6 +141,18 @@ def cheby_val(coeff, x, nrm, order):
     return np.dot(leg, coeff)
 
 def poly_val(coeff, x, nrm):
+    """
+    IDL style function for polynomial
+
+    Args:
+        coeff (np.ndarray):  Polynomial coefficients
+        x (np.ndarray):  x array
+        nrm (np.ndarray): Normalization terms
+
+    Returns:
+        np.ndarray:  Same shape as x
+
+    """
     #
     xnrm = 2. * (x - nrm[0])/nrm[1]
     #

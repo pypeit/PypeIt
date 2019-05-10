@@ -1,7 +1,5 @@
 """ Module for the SpecObjs and SpecObj classes
 """
-from __future__ import absolute_import, division, print_function
-
 import copy
 import re
 from collections import OrderedDict
@@ -49,6 +47,7 @@ class SpecObj(object):
     Attributes:
         slitcen (float): Center of slit in fraction of total (trimmed) detector size at ypos
         objid (int): Identifier for the object (max=999)
+        flex_shift (float): Flexure correction in pixels
 
     Extraction dict's
         'WAVE' : wave_opt  # Optimally extracted wavelengths
@@ -94,6 +93,9 @@ class SpecObj(object):
         self.prof_nsigma = None
         self.fwhmfit = None
         self.smash_nsig = None
+
+        # Wavelength items
+        self.flex_shift = 0.
 
         # Some things for echelle functionality
         self.ech_order = None

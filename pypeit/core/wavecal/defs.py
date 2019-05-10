@@ -1,10 +1,8 @@
 """ Module for arcline definitions
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 from astropy.table import Table
 
-
+# TODO: This doesn't belong here.
 def instruments():
     """ Dict to convert instrument to bitwise flag
     WARNING: Modifying any of the following is a *bad* idea

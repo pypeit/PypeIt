@@ -1,7 +1,5 @@
 """ Module for image processing core methods
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import astropy.stats
 import numpy as np
 from scipy import signal, ndimage
@@ -559,7 +557,7 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
             _oscansec[i] = parse.sec2slice(oscansec[i], require_dim=2)
     else:
         _oscansec = oscansec
-    
+
     # Check that there are no overlapping data sections
     testframe = np.zeros_like(rawframe, dtype=int)
     for i in range(numamplifiers):
@@ -738,8 +736,12 @@ def replace_columns(img, bad_cols, replace_with='mean'):
         redges = np.concatenate([redges, np.array([bad_cols.size-1])])
     # Loop on em
     for kk, ledge in enumerate(ledges):
-        lval = img[:,ledge-1]
-        rval = img[:,redges[kk]]
+        if ledge == 0:
+            lval = img[:,redges[kk]+1]
+        else:
+            lval = img[:,ledge-1]
+        rval = img[:, redges[kk]]
+        # First columns?
         # Replace
         if replace_with == 'mean':
             mval = (lval+rval)/2.

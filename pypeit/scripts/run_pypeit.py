@@ -6,15 +6,11 @@
 """
 This script runs PypeIt
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
 import argparse
 
 from pypeit import msgs
 
+import warnings
 
 def parser(options=None):
 
@@ -65,7 +61,6 @@ def main(args):
     import sys
     import traceback
 
-    from pypeit import check_requirements
     from pypeit import pypeit
     from pypeit import pypeitsetup
     from pypeit import debugger
@@ -83,11 +78,12 @@ def main(args):
         msgs.error("Bad extension for PypeIt reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
-    # Load PypeIt file to get the spectrograph (might happen twice but that is ok)
-    pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
+#    # Load PypeIt file to get the spectrograph (might happen twice but that is ok)
+#    pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
 
-    pypeIt = pypeit.PypeIt(args.pypeit_file,verbosity=args.verbosity,reuse_masters=args.use_masters,
-                           overwrite=args.overwrite, logname=logname, show=args.show)
+    pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
+                           reuse_masters=args.use_masters, overwrite=args.overwrite,
+                           logname=logname, show=args.show)
 
     # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters
     # from the command line? Why do we have the PypeIt file then? This detector can be set in the pypeit file.

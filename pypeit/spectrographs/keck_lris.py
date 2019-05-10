@@ -1,7 +1,5 @@
 """ Module for LRIS specific codes
 """
-from __future__ import absolute_import, division, print_function
-
 import glob
 import os
 import numpy as np
@@ -108,7 +106,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         for a given reduction.
 
         Returns:
-
             list: List of keywords of data pulled from file headers and
             used to constuct the :class:`pypeit.metadata.PypeItMetaData`
             object.
@@ -124,13 +121,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
-        if ftype == 'pinhole' or ftype == 'dark':
+        if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -257,29 +254,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        #
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['dispname'] = ''
-        match_criteria['standard']['match']['dichroic'] = ''
-        match_criteria['standard']['match']['binning'] = ''
-        match_criteria['standard']['match']['decker'] = ''
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-
-        # Return
-        return match_criteria
-
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
@@ -353,19 +327,29 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return par
 
-    def config_specific_par(self, par, scifile):
+    def config_specific_par(self, scifile, inp_par=None):
         """
-        Set par values according to the specific frame
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
 
         Args:
-            par:  ParSet
-            scifile: str
-              Name of the science file to use
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
 
         Returns:
-            par
-
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
         """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
@@ -397,35 +381,6 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # Return
         return par
-
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LRISb exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'LRISBLUE',
-                               '1.NAXIS': 2,
-                               '2.NAXIS': 2,
-                               '3.NAXIS': 2,
-                               '4.NAXIS': 2,
-                             '1.CCDGEOM': 'e2v (Marconi) CCD44-82',
-                             '1.CCDNAME': '00151-14-1' }
-        super(KeckLRISBSpectrograph, self).check_headers(headers, expected_values=expected_values)
-    '''
-
-    '''
-    def header_keys(self):
-        hdr_keys = super(KeckLRISBSpectrograph, self).header_keys()
-        hdr_keys[0]['filter1'] = 'BLUFILT'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -460,7 +415,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Only defined for det=1
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on LRISb")
-            self.bpm_img[:, 0:2] = 1
+            self.bpm_img[:, 0:3] = 1
 
         return self.bpm_img
 
@@ -551,19 +506,29 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
         return par
 
-    def config_specific_par(self, par, scifile):
+    def config_specific_par(self, scifile, inp_par=None):
         """
-        Set par values according to the specific frame
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
 
         Args:
-            par:  ParSet
-            scifile: str
-              Name of the science file to use
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
 
         Returns:
-            par
-
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
         """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+
         # Lacosmic CR settings
         #   Grab the defaults for LRISr
         binning = self.get_meta_value(scifile, 'binning')
@@ -948,7 +913,8 @@ def read_lris(raw_file, det=None, TRIM=False):
             nxpost = buf[0]
             xs = nx - n_ext*postpix + kk*postpix
             xe = xs + nxpost 
-            section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
+            #section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
+            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)
             osec.append(section)
             '''
             if keyword_set(VERBOSITY) then begin
@@ -987,6 +953,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
+    #from IPython import embed; embed()
     return array.T, head0, (dsec, osec)
 
 

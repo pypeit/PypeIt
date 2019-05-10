@@ -1,7 +1,5 @@
 """ Module for Magellan/MAGE specific codes
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
 from astropy.time import Time
@@ -112,7 +110,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
         return par
-
 
     def init_meta(self):
         """

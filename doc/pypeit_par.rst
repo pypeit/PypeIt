@@ -52,6 +52,10 @@ Current PypeItPar Parameter Hierarchy
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
 
+        ``[[tiltframe]]``: `FrameGroupPar Keywords`_
+
+            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+
         ``[[pixelflatframe]]``: `FrameGroupPar Keywords`_
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
@@ -137,14 +141,14 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.CalibrationsPar`
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
 Key                 Type                                                 Options  Default                            Description                                                                                                                                                                              
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
-``caldir``          str                                                  ..       ``MF``                             Directory relative to calling directory to write master files.                                                                                                                           
-``reuse_masters``   bool                                                 False    ..                                 If True PypeIt will reuse existing master frames rather than recreate them. If False, it will  recreate the master frames.                                                               
+``caldir``          str                                                  ..       ``Masters``                        Directory relative to calling directory to write master files.                                                                                                                           
 ``setup``           str                                                  ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
 ``trim``            bool                                                 ..       True                               Trim the frame to isolate the data                                                                                                                                                       
 ``badpix``          bool                                                 ..       True                               Make a bad pixel mask? Bias frames must be provided.                                                                                                                                     
 ``biasframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
 ``darkframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
 ``arcframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
+``tiltframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                
 ``pixelflatframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the field flattening                                                                                                                                
 ``pinholeframe``    :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                        
 ``traceframe``      :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                        
@@ -287,15 +291,15 @@ FrameGroupPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 
-=============  ==============================================  ======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-Key            Type                                            Options                                                                                                 Default                       Description                                                                                                                                                                                                                                                    
-=============  ==============================================  ======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``bias``, ``dark``, ``pixelflat``, ``arc``, ``pinhole``, ``trace``, ``standard``, ``science``, ``all``  ``science``                   Frame type.  Options are: bias, dark, pixelflat, arc, pinhole, trace, standard, science, all                                                                                                                                                                   
-``useframe``   str                                             ..                                                                                                      ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
-``number``     int                                             ..                                                                                                      0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
-``exprng``     list                                            ..                                                                                                      None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
-``process``    :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                      `ProcessImagesPar Keywords`_  Parameters used for basic image processing                                                                                                                                                                                                                     
-=============  ==============================================  ======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
+=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+``frametype``  str                                             ``science``, ``standard``, ``tilt``, ``bias``, ``trace``, ``pixelflat``, ``arc``, ``pinhole``, ``dark``  ``science``                   Frame type.  Options are: science, standard, tilt, bias, trace, pixelflat, arc, pinhole, dark                                                                                                                                                                  
+``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
+``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
+``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
+``process``    :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                       `ProcessImagesPar Keywords`_  Parameters used for basic image processing                                                                                                                                                                                                                     
+=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 
 
 ----
@@ -418,6 +422,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
@@ -463,6 +471,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
@@ -501,6 +513,10 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -551,6 +567,10 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -604,6 +624,10 @@ Alterations to the default parameters are::
           exprng = 20, None
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
       [[traceframe]]
@@ -649,6 +673,10 @@ Alterations to the default parameters are::
           exprng = 1, None
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -685,6 +713,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 61
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -732,6 +764,10 @@ Alterations to the default parameters are::
           exprng = None, 61
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -768,6 +804,10 @@ Alterations to the default parameters are::
           exprng = None, 61
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 3
           exprng = 0, None
@@ -801,6 +841,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
       [[pinholeframe]]
@@ -827,6 +871,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 120
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -859,6 +907,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               overscan = median
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
           number = 5
@@ -898,6 +950,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               overscan = median
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
           number = 5
@@ -946,6 +1002,10 @@ Alterations to the default parameters are::
           useframe = none
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1004,6 +1064,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
@@ -1056,29 +1120,7 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
-      [[pixelflatframe]]
-          number = 5
-          [[[process]]]
-              combine = median
-              sig_lohi = 10.0, 10.0
-      [[traceframe]]
-          number = 3
-      [[standardframe]]
-          number = 1
-      [[wavelengths]]
-          lamps = CuI, ArI, ArII
-          rms_threshold = 0.4
-      [[slits]]
-          trace_npoly = 3
-
-GEMINI-N GMOS-N
----------------
-Alterations to the default parameters are::
-
-  [calibrations]
-      [[biasframe]]
-          number = 5
-      [[arcframe]]
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1105,6 +1147,40 @@ Alterations to the default parameters are::
       [[biasframe]]
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          [[[process]]]
+              combine = median
+              sig_lohi = 10.0, 10.0
+      [[traceframe]]
+          number = 3
+      [[standardframe]]
+          number = 1
+      [[wavelengths]]
+          lamps = CuI, ArI, ArII
+          rms_threshold = 0.4
+      [[slits]]
+          trace_npoly = 3
+
+GEMINI-N GMOS-N
+---------------
+Alterations to the default parameters are::
+
+  [calibrations]
+      [[biasframe]]
+          number = 5
+      [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1137,6 +1213,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = 20, None
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -1179,6 +1259,10 @@ Alterations to the default parameters are::
           exprng = 20, None
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 3
       [[traceframe]]
@@ -1213,6 +1297,10 @@ Alterations to the default parameters are::
       [[biasframe]]
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1253,6 +1341,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -1299,6 +1391,10 @@ Alterations to the default parameters are::
           exprng = None, 60
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -1339,6 +1435,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -1384,6 +1484,10 @@ Alterations to the default parameters are::
           exprng = None, 60
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -1419,6 +1523,10 @@ Alterations to the default parameters are::
       [[biasframe]]
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1

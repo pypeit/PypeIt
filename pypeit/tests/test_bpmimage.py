@@ -1,12 +1,7 @@
-# Module to run tests on BPMImage class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on BPMImage class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest
@@ -60,17 +55,4 @@ def test_keck_deimos():
     # Simple
     bpm = spectrograph.bpm(shape=shape,det=4)
     assert bpm[0,0] == 1
-
-
-# This is too experimental
-'''
-def test_bpm_from_bias():
-    bias = np.full((1024,1024), 1000, dtype=float)
-    bias[512,512] += 50.
-    bpmImage = bpmimage.BPMImage(msbias=bias)
-    bpm = bpmImage.build()
-    # Test
-    assert np.isclose(bpm[512,512],1)
-'''
-
 

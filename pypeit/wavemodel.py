@@ -1,6 +1,6 @@
-# Module to create models of arc lines.
-
-from __future__ import absolute_import, division, print_function
+"""
+Module to create models of arc lines.
+"""
 
 import astropy
 import re
