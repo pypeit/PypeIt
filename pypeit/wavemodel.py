@@ -1,7 +1,6 @@
 """
 Module to create models of arc lines.
 """
-
 import astropy
 import re
 import scipy
