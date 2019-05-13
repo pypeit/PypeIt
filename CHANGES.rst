@@ -55,7 +55,7 @@
     - general parser to pull lists of items from fits headers
 - Added metadata to `MasterFrame` objects written to fits files.
 - Added `'observed'` option for wavelength reference frame that skips
-  and relative motion corrections.
+  any relative motion corrections.
   
 
 0.9.3 (28 Feb 2019)

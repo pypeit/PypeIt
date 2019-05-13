@@ -17,7 +17,6 @@ Submodules
    pypeit.core.coadd
    pypeit.core.coadd2d
    pypeit.core.combine
-   pypeit.core.extract.0
    pypeit.core.extract
    pypeit.core.flat
    pypeit.core.flux
