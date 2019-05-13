@@ -34,6 +34,9 @@
   *always* return the sections ordered spectral then spatial to match
   the PypeIt convention to match how binning is returned.  Propagated to
   get_datasec_img.
+- Changed all functions related to binning to ensure that binning is
+  always ordered spectral vs. spatial with the PypeIt convention that
+  images have shape (nspec,nspat).  Includes associated documentation.
 - Allow `pypeit.bitmask.BitMask` and `pypeit.par.parset.ParSet` to save
   and load from fits file headers.
 - Force BitMask definitions in framematch.py and processimages.py to use
@@ -43,9 +46,6 @@
   part of its data model. When/if we require python 3.7, we can remove
   this (and other) OrderedDict usage in favor of just a normal dict.
 - Changed default for add and rm slits parameters.
-- Changed all functions related to binning to ensure that binning is
-  always ordered spectral vs. spatial with the PypeIt convention that
-  images have shape (nspec,nspat).  Includes associated documentation.
 - Doc improvements and removal of old, commented methods.
 - Edited function that replaces bad columns in images and added tests.
 - Added `pypeit.io` with routines to:
