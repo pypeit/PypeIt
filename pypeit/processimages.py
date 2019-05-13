@@ -5,6 +5,8 @@ import inspect
 import numpy as np
 import os
 
+from collections import OrderedDict
+
 #from importlib import reload
 
 from astropy.io import fits
@@ -35,16 +37,23 @@ class ProcessImagesBitMask(BitMask):
         # TODO:
         #   - Can IVAR0 and IVAR_NAN be consolidated into a single bit?
         #   - Is EXTRACT ever set?
-        mask = {       'BPM': 'Component of the instrument-specific bad pixel mask',
-                        'CR': 'Cosmic ray detected',
-                'SATURATION': 'Saturated pixel',
-                 'MINCOUNTS': 'Pixel below the instrument-specific minimum counts',
-                  'OFFSLITS': 'Pixel does not belong to any slit',
-                    'IS_NAN': 'Pixel value is undefined',
-                     'IVAR0': 'Inverse variance is undefined',
-                  'IVAR_NAN': 'Inverse variance is NaN',
-                   'EXTRACT': 'Pixel masked during local skysub and extraction'
-               }
+        # TODO: This needs to be an OrderedDict for now to ensure that
+        # the bits assigned to each key is always the same. As of python
+        # 3.7, normal dict types are guaranteed to preserve insertion
+        # order as part of its data model. When/if we require python
+        # 3.7, we can remove this (and other) OrderedDict usage in favor
+        # of just a normal dict.
+        mask = OrderedDict([
+                       ('BPM', 'Component of the instrument-specific bad pixel mask'),
+                        ('CR', 'Cosmic ray detected'),
+                ('SATURATION', 'Saturated pixel'),
+                 ('MINCOUNTS', 'Pixel below the instrument-specific minimum counts'),
+                  ('OFFSLITS', 'Pixel does not belong to any slit'),
+                    ('IS_NAN', 'Pixel value is undefined'),
+                     ('IVAR0', 'Inverse variance is undefined'),
+                  ('IVAR_NAN', 'Inverse variance is NaN'),
+                   ('EXTRACT', 'Pixel masked during local skysub and extraction')
+               ])
         super(ProcessImagesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 

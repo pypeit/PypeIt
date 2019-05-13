@@ -1294,6 +1294,7 @@ class TraceSlitsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
+    prefix = 'TSP'  # Prefix for writing parameters to a header is a class attribute
     def __init__(self, function=None, medrep=None, number=None, trim=None, maxgap=None,
                  maxshift=None, pad=None, sigdetect=None, min_slit_length=None, add_slits=None,
                  rm_slits=None, diffpolyorder=None, single=None, sobel_mode=None, pcaextrap=None,
@@ -1322,9 +1323,10 @@ class TraceSlitsPar(ParSet):
 
         defaults['medrep'] = 0
         dtypes['medrep'] = int
-        descr['medrep'] = 'Number of times to median smooth a trace image prior to analysis ' \
-                          'for slit/order edges'
+        descr['medrep'] = 'Median-smoothing iterations to perform on sqrt(trace) image before ' \
+                          'applying to Sobel filter, which detects slit/order edges.'
 
+        # TODO: Never used?
         # Force number to be an integer
         if values['number'] == 'auto':
             values['number'] = -1
@@ -2431,7 +2433,7 @@ class DetectorPar(ParSet):
         descr['gain'] = 'Inverse gain (e-/ADU). A list should be provided if a detector ' \
                         'contains more than one amplifier.'
 
-        defaults['gain'] = 4.0 if pars['numamplifiers'] is None else [4.0]*pars['numamplifiers']
+        defaults['ronoise'] = 4.0 if pars['numamplifiers'] is None else [4.0]*pars['numamplifiers']
         dtypes['ronoise'] = [ int, float, list ]
         descr['ronoise'] = 'Read-out noise (e-). A list should be provided if a detector ' \
                            'contains more than one amplifier.'

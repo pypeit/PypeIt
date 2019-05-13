@@ -4,6 +4,8 @@ Routines for matching frames to certain types or each other.
 import os
 import re
 
+from collections import OrderedDict
+
 import numpy as np
 
 from pypeit import msgs
@@ -17,16 +19,23 @@ class FrameTypeBitMask(BitMask):
     standard, or trace.
     """
     def __init__(self):
-        frame_types = {      'arc': 'Arc lamp observation used for wavelength calibration',
-                            'bias': 'Bias readout for detector bias subtraction',
-                            'dark': 'Shuttered exposure to measure dark current',
-                         'pinhole': 'Pinhole observation used for tracing slit centers',
-                       'pixelflat': 'Flat-field exposure used for pixel-to-pixel response',
-                         'science': 'On-sky observation of a primary target',
-                        'standard': 'On-sky observation of a flux calibrator',
-                           'trace': 'High-count exposure used to trace slit positions',
-                            'tilt': 'Exposure used to trace the tilt in the wavelength solution'
-                      }
+        # TODO: This needs to be an OrderedDict for now to ensure that
+        # the bits assigned to each key is always the same. As of python
+        # 3.7, normal dict types are guaranteed to preserve insertion
+        # order as part of its data model. When/if we require python
+        # 3.7, we can remove this (and other) OrderedDict usage in favor
+        # of just a normal dict.
+        frame_types = OrderedDict([
+                         ('arc', 'Arc lamp observation used for wavelength calibration'),
+                        ('bias', 'Bias readout for detector bias subtraction'),
+                        ('dark', 'Shuttered exposure to measure dark current'),
+                     ('pinhole', 'Pinhole observation used for tracing slit centers'),
+                   ('pixelflat', 'Flat-field exposure used for pixel-to-pixel response'),
+                     ('science', 'On-sky observation of a primary target'),
+                    ('standard', 'On-sky observation of a flux calibrator'),
+                       ('trace', 'High-count exposure used to trace slit positions'),
+                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution')
+                                  ])
         super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
                                                descr=list(frame_types.values()))
 

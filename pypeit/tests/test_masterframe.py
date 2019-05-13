@@ -7,6 +7,7 @@ import pytest
 
 from pypeit import msgs
 from pypeit import masterframe
+from pypiet import io
 
 #@pytest.fixture
 #def fitsdict():
@@ -63,7 +64,7 @@ def test_master_io():
     assert np.array_equal(data, _data), 'Data written/read incorrectly'
     assert _hdr['FRAMETYP'] == 'Test', 'Incorrect master type'
     assert _hdr['STEPS'].split(',') == steps, 'Steps written incorrectly'
-    assert mf.parse_hdr_raw_files(_hdr) == raw_files, 'Did not correctly read files'
+    assert io.parse_hdr_key_group(_hdr, prefix='F') == raw_files, 'Did not correctly read files'
     # Loading if reuse_masters is false should yield None
     mf.reuse_masters = False
     assert mf.load('JUNK') is None, 'Load when reuse_masters=False should return None'

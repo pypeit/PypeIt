@@ -319,7 +319,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.lcnt, self.rcnt = trace_slits.count_edge_traces(self.edgearr)
         # Log completed step
         self.steps.append(inspect.stack()[0][3])
-        return self.lcnt != 0 or self.rcnt != 0
 
     def add_user_slits(self, user_slits):
         """
@@ -340,83 +339,6 @@ class TraceSlits(masterframe.MasterFrame):
                 = trace_slits.add_user_edges(self.slit_left, self.slit_righ, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
-
-#    def _assign_edges(self):
-#        """
-#        Assign slit edges by analyzing edgearr
-#        Single slits are handled trivially
-#
-#        Wrapper to trace_slits.assign_slits()
-#
-#        Returns
-#        -------
-#        self.edgearr : ndarray (internal)
-#
-#        """
-#
-#        # Assign left edges
-#        msgs.info("Assigning left slit edges")
-#        if self.lcnt == 1:
-#            self.edgearr[np.where(self.edgearr <= -2*self.ednum)] = -self.ednum
-#        else:
-#            trace_slits.assign_slits(self.binarr, self.edgearr, lor=-1,
-#                                      function=self.par['function'],
-#                                      polyorder=self.par['trace_npoly'])
-#        # Assign right edges
-#        msgs.info("Assigning right slit edges")
-#        if self.rcnt == 1:
-#            self.edgearr[np.where(self.edgearr >= 2*self.ednum)] = self.ednum
-#        else:
-#            trace_slits.assign_slits(self.binarr, self.edgearr, lor=+1,
-#                                      function=self.par['function'],
-#                                      polyorder=self.par['trace_npoly'])
-#        # Steps
-#        self.steps.append(inspect.stack()[0][3])
-
-    def _chk_for_longslit(self, fwhm=3.):
-        """
-        Are we done?, i.e. we have a simple longslit, i.e. one left and one right
-
-        Args:
-            fwhm (float, optional):
-
-        Returns:
-            bool:  True = longslit only
-
-        """
-        # TODO: Why is this here?
-        orig = False
-        if orig:
-            if (self.lmax+1-self.lmin == 1) and (self.rmax+1-self.rmin == 1):
-                plxbin = self.pixlocn[:, :, 0].copy()
-                minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
-                # Just a single order has been identified (i.e. probably longslit)
-                msgs.info("Only one slit was identified. Should be a longslit.")
-                xint = self.pixlocn[:, 0, 0]
-                # Finish
-                self.slit_left = np.zeros((self.mstrace.shape[0], 1))
-                self.slit_righ = np.zeros((self.mstrace.shape[0], 1))
-                self.slit_left[:, 0] = utils.func_val(self.lcoeff[:, 0], xint,
-                                                      self.par['function'], minx=minvf, maxx=maxvf)
-                self.slit_righ[:, 0] = utils.func_val(self.rcoeff[:, 0], xint,
-                                                      self.par['function'], minx=minvf, maxx=maxvf)
-                return True
-            return False
-       
-        if len(self.tc_dict['left']['xval']) == 1 and len(self.tc_dict['right']['xval']) == 1:
-            # fweight the trace crude
-            for key,sign in zip(['left','right'], [1., -1.]):
-                trace_crutch = self.tc_dict[key]['xset']
-                trace_fweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0), trace_crutch,
-                                                      self.par['trace_npoly'], fwhm=3.0*fwhm,
-                                                      niter=9)[0]
-                trace_gweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
-                                                      trace_fweight, self.par['trace_npoly'],
-                                                      fwhm=fwhm, gweight=True, niter=6)[0]
-                self.tc_dict[key]['traces'] = trace_gweight
-            return True
-        return False
-
 
     def _fill_tslits_dict(self):
         """
@@ -1094,19 +1016,30 @@ class TraceSlits(masterframe.MasterFrame):
 
         # Handle single orphan edges and/or traces without any left or
         # right edges.
-        if not self._handle_orphan_edge(user_set=self.user_set):
+        self._handle_orphan_edge(user_set=self.user_set)
+
+        if self.lcnt == 0 and self.rcnt == 0:
             # No slits on either edge!
             return None
 
         # Trace crude in siglev image and sync traces
         self._mslit_tcrude()
 
-        # Are we done, e.g. a simple longslit?
-        #   Check if no further work is needed (i.e. there only exists one order)
-        if self._chk_for_longslit():
-            pass
-        else:  # No, not done yet
-            # Refine
+        # Fit the slit edges and sync left/right pairs
+        if len(self.tc_dict['left']['xval']) == 1 and len(self.tc_dict['right']['xval']) == 1:
+            # Only one pair has been found (likely a long-slit
+            # observation), so just fit
+            for key,sign in zip(['left','right'], [1., -1.]):
+                trace_crutch = self.tc_dict[key]['xset']
+                trace_fweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0), trace_crutch,
+                                                      self.par['trace_npoly'], fwhm=3.0*fwhm,
+                                                      niter=9)[0]
+                self.tc_dict[key]['traces'] \
+                        = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0), trace_fweight,
+                                                self.par['trace_npoly'], fwhm=fwhm, gweight=True,
+                                                niter=6)[0]
+        else:
+            # Refine using PCA
             self._pca_refine(mask_frac_thresh=self.par['mask_frac_thresh'], debug=debug, show=show)
             # Synchronize and add in edges
             self._mslit_sync()
