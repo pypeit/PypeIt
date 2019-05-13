@@ -1103,7 +1103,6 @@ def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
     filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
     # siglev
-    #from IPython import embed; embed(header='1106 trace_slits.py')
     siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
 
     # First edges assigned according to S/N
