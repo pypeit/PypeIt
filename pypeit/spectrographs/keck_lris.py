@@ -312,7 +312,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck LRISr reductions.
+        Set default parameters for Keck LRISb reductions.
         """
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_blue'

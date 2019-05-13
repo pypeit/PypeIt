@@ -331,7 +331,7 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
             waveimg_stack, thismask_stack, weights=None, loglam_grid=None, wave_grid=None):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
-    
+
     Slits are 'rectified' onto a spatial and spectral grid, which
     encompasses the spectral and spatial coverage of the image stacks.
     The rectification uses nearest grid point interpolation to avoid
@@ -345,7 +345,7 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
             this reference trace can simply be the center of the slit::
 
                 slitcen = (slit_left + slit_righ)/2
-                
+
             If the images were dithered, then this object can either be
             the slitcen appropriately shifted with the dither pattern,
             or it could the trace of the object of interest in each
@@ -662,14 +662,13 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
-def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False, show=False,
-                    show_peaks=False):
+def extract_coadd2d(stack_dict, master_dir, samp_fact = 1.0,ir_redux=False, par=None, std=False, show=False, show_peaks=False):
     """
     Main routine to run the extraction for 2d coadds.
-    
+
     Algorithm steps are as follows:
         - Fill this in.
-    
+
     This performs 2d coadd specific tasks, and then also performs some
     of the tasks analogous to the pypeit.extract_one method. Docs coming
     soon....
@@ -677,6 +676,9 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
     Args:
         stack_dict:
         master_dir:
+        samp_fact: float
+           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
+           samp_fact < 1.0 undersamples (coarser)
         ir_redux:
         par:
         show:
@@ -694,9 +696,10 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
     spectrograph = util.load_spectrograph(stack_dict['spectrograph'])
     par = spectrograph.default_pypeit_par() if par is None else par
 
+    binning = np.array([stack_dict['tslits_dict']['binspectral'],stack_dict['tslits_dict']['binspatial']])
     # Grab the wavelength grid that we will rectify onto
-    wave_grid = spectrograph.wavegrid()
-    wave_grid_mid = spectrograph.wavegrid(midpoint=True)
+    wave_grid = spectrograph.wavegrid(binning=binning,samp_fact=samp_fact)
+    wave_grid_mid = spectrograph.wavegrid(midpoint=True,binning=binning,samp_fact=samp_fact)
 
     coadd_list = []
     nspec_vec = np.zeros(nslits,dtype=int)
@@ -813,7 +816,8 @@ def extract_coadd2d(stack_dict, master_dir, ir_redux=False, par=None, std=False,
     mask = processimages.ProcessImages.build_mask(imgminsky_psuedo, sciivar_psuedo, np.invert(inmask_psuedo),
                                                   np.zeros_like(inmask_psuedo), slitmask=slitmask_psuedo)
 
-    redux = reduce.instantiate_me(spectrograph, tslits_dict_psuedo, mask, ir_redux=ir_redux, par=par, objtype = 'science')
+    redux = reduce.instantiate_me(spectrograph, tslits_dict_psuedo, mask, ir_redux=ir_redux, par=par,
+                                  objtype = 'science', binning=binning)
 
     if show:
         redux.show('image', image=imgminsky_psuedo*(mask == 0), chname = 'imgminsky', slits=True, clear=True)
