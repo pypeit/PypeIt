@@ -1,8 +1,5 @@
 """ Module for core algorithms related to tracing slits/orders
 These should primarily be called by the TraceSlits class
-
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _scipy.ndimage.sobel: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.sobel.html
 """
 import inspect
 import copy
@@ -24,6 +21,7 @@ from pypeit.core import plot
 from pypeit import utils
 from pypeit.core import pca
 from pypeit.core import pixels
+from pypeit.core import procimg
 from pypeit import debugger
 from pypeit.utils import calc_ivar
 from pypeit.core import extract
@@ -663,44 +661,132 @@ def sync_edges(tc_dict, nspat, insert_buff=5, verbose=False):
     # Return
     return
 
-def boxcar_smooth(img, nave, wgt=None, mode='nearest'):
+'''
+def edgearr_mslit_sync(edgearr, tc_dict, ednum, insert_buff=5, add_left_edge_slit=True, verbose=False):
+    """ Method to synchronize the slit edges
+    Adds in extra edges according to a few criteria
+
+    Developed for ARMLSD
+
+    Parameters
+    ----------
+    edgearr : ndarray
+    tc_dict : dict
+       For book-keeping
+    ednum : int
+    insert_buff : int, optional
+       Offset from existing edge for any edge added in
+    add_left_edge_slit : bool, optional
+       Allow the method to add in a left slit at the edge of the detector
+
+    Returns
+    -------
+    new_edgearr : ndarray
+      Updated edgearr
     """
-    Boxcar smooth an image along rows.
+    # Init
+    new_edgearr = np.zeros_like(edgearr, dtype=int)
+    final_left = []
+    final_right = []
 
-    Uses `scipy.ndimage.convolve`.
+    # Grab the edge indexes and xval's
+    left_idx, left_xval, right_idx, right_xval = tc_indices(tc_dict)
 
-    Args:
-        img (`numpy.ndarray`_):
-            Image to convolve.
-        nave (:obj:`int`):
-            Number of pixels along rows for smoothing.
-        wgt (`numpy.ndarray`_, optional):
-            Image providing weights for each pixel in `img`.  Uniform
-            weights are used if none are provided.
-        mode (:obj:`str`, optional):
-            See `scipy.ndimage.convolve`_.
+    # Only one slit?
+    if (len(left_xval) == 1) and (len(right_xval)==1):
+        if left_xval[0] < right_xval[0]:  # Ok slit, otherwise continue
+            return edgearr
 
-    Returns:
-        `numpy.ndarray`_: The smoothed image
-    """
-    # TODO: No checking is performed...
+    # First slit (often up against the detector)
+    if (right_xval[0] < left_xval[0]) and add_left_edge_slit:
+        right_pix = np.where(edgearr == right_idx[0])
+        mn_rp = np.min(right_pix[1])
+        if mn_rp <= insert_buff:
+            msgs.warn("Partial or too small right edge at start of detector.  Skipping it.")
+        else:
+            ioff = -1*mn_rp + insert_buff
+            msgs.warn("Adding in a left edge at start of detector which mirrors the first right edge")
+            add_edge(right_idx[0], ioff, edgearr, tc_dict, final_left, final_right, left=True)
 
-    # Construct the kernel
-    nave = np.fmin(nave,img.shape[0])
-    kernel = np.ones((nave, 1))/float(nave)
+    # Loop on left edges
+    for kk,left in enumerate(left_xval):
 
-    if wgt is None:
-        # No weights so just smooth
-        return ndimage.convolve(img, kernel, mode='nearest')
+        # Grab location of the next left edge
+        if kk < len(left_idx)-1:
+            next_left = left_xval[kk+1]
+        else:
+            next_left = edgearr.shape[1]-1
 
-    # Weighted smoothing
-    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
-    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
-    # Don't divide by 0
-    indx = np.invert(wimg > 0)
-    wimg[indx] = 1.0
-    cimg[indx] = img[indx]
-    return cimg/wimg
+        # Search for a proper right edge
+        #  Should be right of the current left and left of the next left
+        gd_right = np.where((right_xval < next_left) & (right_xval > left))[0]
+        if len(gd_right) == 0:   # None found?
+            # Last slit?
+            if kk == len(left_idx)-1:
+                msgs.warn("Last slit has no right edge.  Adding one in which will not touch the detector edge")
+                left_pix = np.where(edgearr == left_idx[kk])
+                mx_lp = np.max(left_pix[1])
+                if mx_lp >= edgearr.shape[1]:
+                    msgs.warn("Partial left edge at end of detector.  Skipping it.")
+                else:
+                    # Stay on the detector!
+                    ioff = edgearr.shape[1] - mx_lp - insert_buff
+                    # Add
+                    add_edge(left_idx[kk], ioff, edgearr, tc_dict, final_left, final_right, left=False)
+                continue
+            else: # Not the last slit, add one in!
+                msgs.warn("Missing a right edge for slit with left edge at {}".format(left))
+                msgs.warn("Adding in a corresponding right edge!")
+                # Offset from the next left edge
+                ioff = next_left-left-insert_buff
+                # Add
+                add_edge(left_idx[kk], ioff, edgearr, tc_dict, final_left, final_right, left=False)
+        else:
+            # Add in the first right edge
+            final_left.append(left_idx[kk])
+            iright = np.min(gd_right[0])
+            final_right.append(right_idx[iright])
+
+            # Check for multiple right edges between the two lefts (i.e. missing Left)
+            #     Will only add in one missing left
+            if len(gd_right) > 1:
+                msgs.warn("Missing a left edge for slit with right edge(s) at {}".format(
+                    right_xval[gd_right[1:]]))
+                msgs.warn("Adding one (and only one) in unless you turn off the setting [blah]")
+                # Offset is difference between the two right slits + a buffer
+                ioff = right_xval[gd_right[0]] - right_xval[gd_right[1]] + insert_buff
+                # Add
+                add_edge(right_idx[gd_right[1]], ioff, edgearr, tc_dict, final_left, final_right, left=True)
+
+    # Finish by remaking the edgearr
+    #  And update the book-keeping dict
+    ldict, rdict = {}, {}
+    # Left
+    for ss, left_i in enumerate(final_left):
+        newval = -1*ednum - ss
+        # Edge
+        pix = edgearr == left_i
+        new_edgearr[pix] = newval
+        # Dict
+        ldict[str(newval)] = tc_dict['left']['xval'][str(left_i)]
+    tc_dict['left']['xval'] = ldict
+    # Right
+    for ss, right_i in enumerate(final_right):
+        newval = ednum + ss
+        # Edge
+        pix = edgearr == right_i
+        new_edgearr[pix] = newval
+        # Dict
+        rdict[str(newval)] = tc_dict['right']['xval'][str(right_i)]
+    tc_dict['right']['xval'] = rdict
+
+    if verbose:
+        print(tc_dict['left']['xval'])
+        print(tc_dict['right']['xval'])
+
+    # Return
+    return new_edgearr
+'''
 
 
 def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
@@ -775,7 +861,6 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
                 all_e = np.where(edgearr > 0)
             cnt = Counter(all_e[0])
             yrow = cnt.most_common(1)[0][0]
-
 
             # Grab the x values on that row
             xinit = all_e[1][all_e[0] == yrow]
@@ -958,6 +1043,91 @@ def edgearr_tcrude(edgearr, siglev, ednum, TOL=3., tfrac=0.33, verbose=False,
     return new_edgarr, tc_dict.copy()
 
 
+def edgearr_from_binarr(binarr, binbpx, medrep=0, min_sqm=30.,
+                        sobel_mode='nearest', sigdetect=30.):
+    """ Generate the edge array from an input, trace image (likely slightly filtered)
+    Primary algorithm is to run a Sobolev filter on the image and then
+    trigger on all significant features.
+
+    The bad pixel mask is also used to fuss with bad columns, etc.
+
+    Parameters
+    ----------
+    binarr : numpy ndarray
+      Calibration frame that will be used to identify slit traces (in most cases, the slit edge)
+      Lightly filtered
+    binbpx : ndarray
+      Bad pixel max image
+    medrep : int, optional
+        Number of times to perform median smoothing on the mstrace
+        One uniform filter is always done
+        medrep = 0 is recommended for ARMLSD
+    sobel_mode : str, optional
+        ndimage.sobel mode;  default is 'nearest'
+    sigdetect : float, optional
+        threshold for edge detection
+    min_sqm : float, optional
+        Minimum error used when detecting a slit edge
+
+    Returns
+    -------
+    siglev : ndarray
+    edgearr : ndarray
+    """
+    # Specify how many times to repeat the median filter
+    # Even better would be to fit the filt/sqrt(abs(binarr)) array with a Gaussian near the maximum in each column
+    msgs.info("Detecting slit edges in the mstrace image")
+
+    # Replace bad columns
+    #  TODO -- Should consider replacing bad 'rows' for rotated detectors (e.g. GMOS)
+    bad_cols = np.sum(binbpx, axis=0) > (binbpx.shape[0]//2)
+    if np.any(bad_cols):
+        ms2 = procimg.replace_columns(binarr, bad_cols)
+    else:
+        ms2 = binarr.copy()
+
+    # Generate sqrt image
+    sqmstrace = np.sqrt(np.abs(ms2))
+
+    # Median filter, as desired
+    # TODO -- Try size=(7,3) to bring up the edges instead of (3,7)
+    for ii in range(medrep):
+        #sqmstrace = ndimage.median_filter(sqmstrace, size=(3, 7))
+        sqmstrace = ndimage.median_filter(sqmstrace, size=(7, 3))
+
+    # Make sure there are no spuriously low pixels
+    sqmstrace[(sqmstrace < 1.0) & (sqmstrace >= 0.0)] = 1.0
+    sqmstrace[(sqmstrace > -1.0) & (sqmstrace <= 0.0)] = -1.0
+
+    # Filter with a Sobel
+    filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
+    filt *= (1.0 - binbpx)  # Apply to the bad pixel mask
+    # siglev
+    siglev = np.sign(filt)*(filt**2)/np.maximum(sqmstrace, min_sqm)
+
+    # First edges assigned according to S/N
+    tedges = np.zeros(binarr.shape, dtype=np.float)
+    wl = np.where(siglev > + sigdetect)  # A positive gradient is a left edge
+    wr = np.where(siglev < - sigdetect)  # A negative gradient is a right edge
+    tedges[wl] = -1.0
+    tedges[wr] = +1.0
+
+    # Clean the edges
+    wcl = np.where((ndimage.maximum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == -1))
+    wcr = np.where((ndimage.minimum_filter1d(siglev, 10, axis=1) == siglev) & (tedges == +1))
+    nedgear = np.zeros(siglev.shape, dtype=np.int)
+    nedgear[wcl] = -1
+    nedgear[wcr] = +1
+
+    ######
+    msgs.info("Applying bad pixel mask")
+    nedgear *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
+    siglev *= (1-binbpx.astype(np.int))  # Apply the bad pixel mask
+
+    # Return
+    return siglev, nedgear
+
+
 def edgearr_add_left_right(edgearr, binarr, binbpx, lcnt, rcnt, ednum):
     """ Add left/right edges in the event that none were found thus far
     This is especially useful for long slits that fill the full detector,
@@ -1094,6 +1264,7 @@ def edgearr_final_left_right(edgearr, ednum, siglev):
         retxt = "edges"
     msgs.info("{0:d} left {1:s} and {2:d} right {3:s} were found in the trace".format(lcnt, letxt, rcnt, retxt))
     return edgearr, lcnt, rcnt
+
 
 
 def fit_edges(edgearr, lmin, lmax, plxbin, plybin, left=True, polyorder=3, function='ledgendre'):
@@ -1398,7 +1569,6 @@ def limit_yval(yc, maxv):
     yn = 0 if yc == 0 else (-yc if yc < 3 else -3)
     yx = maxv-yc if yc > maxv-4 and yc < maxv else 4
     return yn, yx
-
 
 
 def match_edges(edgdet, ednum, mr=50):
@@ -2424,25 +2594,44 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxsh
     ny = image.shape[0]
     xset = np.zeros((ny,ntrace))
     xerr = np.zeros((ny,ntrace))
-
     # Make copies of the image and the inverse variance image
     imgtemp = image.copy()
-    invtemp = np.ones_like(image) if invvar is None else invvar.copy()
+    if invvar is None:
+        invtemp = np.zeros_like(image) + 1.
+    else:
+        invtemp = invvar.copy()
 
+    # ToDo implement median filtering!
+
+    # Boxcar-sum the entire image along columns by NAVE rows
     if nave is not None:
-        # TODO: Implement median filtering!
-        # Boxcar smooth the image along rows by NAVE columns
-        imgtemp = boxcar_smooth(imgtemp, nave, wgt=invtemp)
-        if invvar is not None:
-            # The inverse variance in the inverse-variance-weighted mean
-            # is sum(ivar).  This calculation ignores covariance.
-            invtemp = boxcar_smooth(invtemp, nave)
-    
+        nave = np.fmin(nave,ny)
+        # Boxcar sum the entire image weighted by inverse variance over nave spectral pixels
+        kernel = np.ones((nave, 1))/float(nave)
+        imgconv = ndimage.convolve(imgtemp*invtemp, kernel, mode='nearest')
+        # Add the weights
+        invtemp = ndimage.convolve(invtemp, kernel, mode='nearest')
+        # Look for pixels with infinite errors - replace with original values
+        ibad = invtemp == 0.0
+        invtemp[ibad] = 1.0
+        imgconv[ibad] = imgtemp[ibad]
+        # Renormalize the summed image by the weights
+        imgtemp = imgconv/invtemp
+
+    # JFH It seems odd to me that one is passing invtemp to trace_fweight, i.e. this is not correct
+    # error propagation. While the image should be smoothed with inverse variance weights, the new noise
+    # of the smoothed image has changed, and proper error propagation would then give:
+    # var_convol = ndimage.convolve(1/invvar, kernel**2, mode='nearest')
+    # invvar_convol = 1.0/var_convol
+    # I have not implemented this for fear of breaking the behavior, and furthermore I think the desire was not
+    # to have trace_fweight operate on formally correct errors.
+
+
     #  Recenter INITIAL Row for all traces simultaneously
     #
     iy = ypass * np.ones(ntrace,dtype=int)
-    xfit,xfiterr = trace_fweight(imgtemp, xinit, ycen = iy, invvar=invtemp, radius=radius)
 
+    xfit,xfiterr = trace_fweight(imgtemp, xinit, ycen = iy, invvar=invtemp, radius=radius)
     # Shift
     xshift = np.clip(xfit-xinit, -1*maxshift0, maxshift0) * (xfiterr < maxerr)
     xset[ypass,:] = xinit + xshift
@@ -2475,25 +2664,33 @@ def trace_crude_init(image, xinit0, ypass, invvar=None, nave=5, radius=3.0,maxsh
 def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
 
     ''' Routine to recenter a trace using flux-weighted centroiding.
+
     Python port of trace_fweight.pro from IDLUTILS
+
+
     Parameters
     ----------
     fimage: 2D ndarray
       Image for tracing which shape (nspec, nspat)
+
     xinit: ndarray
       Initial guesses for spatial direction trace. This can either be an 2-d  array with shape
          (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
     Optional Parameters:
     --------------------
     ycen: ndarray, default = None
       Optionally y-position of trace can be provided. It should be an integer array the same size as x-trace (nspec, nTrace). If
       not provided np.arange(nspec) will be assumed for each trace
+
     invvar: ndarray, default = None
          Inverse variance array for the image. Array with shape (nspec, nspat) matching fimage
+
     radius :  float or ndarray, default = 3.0
          Radius for centroiding in floating point pixels. This can be either be input as a scalar or as an array to perform
          centroiding with a varaible radius. If an array is input it must have the same size and shape as xinit_in, i.e.
          a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
     Returns
     -------
     xnew:   ndarray
@@ -2508,13 +2705,17 @@ def trace_fweight(fimage, xinit_in, radius = 3.0, ycen=None, invvar=None):
          centroid deviates from the input guess by  > radius, or 2)  the centering window falls off the image, or 3) where any masked
          pixels (invvar == 0.0) contribute to the centroiding. The xnew values for the pixels which have xerr = 999 are reset to
          that of the input trace. These should thus be masked in any fit using the condition (xerr < 999)
+
          TODO we should probably either output a mask or set this 999 to something else, since I could imagine this causing problems.
+
      Revision History
      ----------------
      Python port of trace_fweight.pro from IDLUTILS
      24-Mar-1999  Written by David Schlegel, Princeton.
      27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
     """
+
+
     '''
 
     # Init

@@ -96,10 +96,12 @@ def check_frame_exptime(exptime, exprng):
         return np.ones(len(exptime), dtype=bool)
     if len(exprng) != 2:
         raise ValueError('exprng must have two elements.')
+    # Original code below
     indx = np.ones(len(exptime), dtype=bool) if exprng[0] is None \
                 else exptime > exprng[0]
     if exprng[1] is not None:
         indx &= (exptime < exprng[1])
+
     return indx
 
 

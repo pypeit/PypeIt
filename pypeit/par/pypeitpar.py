@@ -1296,7 +1296,7 @@ class TraceSlitsPar(ParSet):
     """
     prefix = 'TSP'  # Prefix for writing parameters to a header is a class attribute
     def __init__(self, function=None, medrep=None, number=None, trim=None, maxgap=None,
-                 maxshift=None, pad=None, sigdetect=None, min_slit_length=None, add_slits=None,
+                 maxshift=None, pad=None, sigdetect=None, min_slit_width=None, add_slits=None,
                  rm_slits=None, diffpolyorder=None, single=None, sobel_mode=None, pcaextrap=None,
                  smash_range=None, trace_npoly=None, mask_frac_thresh=None):
 
@@ -1379,9 +1379,10 @@ class TraceSlitsPar(ParSet):
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of legendre polynomial fits to slit/order boundary traces.'
 
-        defaults['min_slit_length'] = 6.0  # arcseconds!
-        dtypes['min_slit_length'] = float
-        descr['min_slit_length'] = 'If a slit spans less than this number of arcseconds over ' \
+        # TODO: slit *width* is a misnomer.  Should be slit *length*
+        defaults['min_slit_width'] = 6.0  # arcseconds!
+        dtypes['min_slit_width'] = float
+        descr['min_slit_width'] = 'If a slit spans less than this number of arcseconds over ' \
                                    'the spatial direction of the detector, it will be ignored.' \
                                    '  Use this option to prevent the alignment (box) slits ' \
                                    'from multislit reductions, which typically cannot be ' \
@@ -1392,16 +1393,16 @@ class TraceSlitsPar(ParSet):
         descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
                                  'spatial size of all orders.'
 
-        # DEPRECATED
-#        defaults['single'] = []
-#        dtypes['single'] = list
-#        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
-#                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
-#                          'the slit according to column values.  The second value (for the ' \
-#                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
-#                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
-#                          'user-definition for the first detector but adds one for the second. ' \
-#                          ' None means no user-level slits defined.'
+        # TO BE DEPRECATED?
+        defaults['single'] = []
+        dtypes['single'] = list
+        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
+                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
+                          'the slit according to column values.  The second value (for the ' \
+                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
+                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
+                          'user-definition for the first detector but adds one for the second. ' \
+                          ' None means no user-level slits defined.'
 
         dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  The syntax to define a ' \
@@ -1463,7 +1464,7 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = ['function', 'medrep', 'number', 'trim', 'maxgap', 'maxshift', 'pad',
-                   'sigdetect', 'min_slit_length', 'diffpolyorder', 'sobel_mode', 
+                   'sigdetect', 'min_slit_width', 'diffpolyorder', 'sobel_mode', 
                    'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly',
                    'mask_frac_thresh']
         kwargs = {}

@@ -2,7 +2,6 @@
 Module for guiding Slit/Order tracing
 
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _scipy.ndimage.uniform_filter: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.uniform_filter.html
 
 """
 import os
@@ -16,7 +15,7 @@ from scipy import ndimage
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.core import parse, trace_slits, extract, pixels, procimg
+from pypeit.core import parse, trace_slits, extract, pixels
 #from pypeit.core import io
 from pypeit import utils
 from pypeit import masterframe
@@ -51,55 +50,6 @@ class TraceSlits(masterframe.MasterFrame):
             Directory for QA output.
 
     Attributes:
-
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            See arguments list.
-        par (:class:`pypeit.par.pypeitpar.TraceSlitsPar`):
-            See arguments list.
-        det (:obj:`int`):
-            See arguments list.
-        qa_path (:obj:`str`):
-            See arguments list.
-
-        mstrace (`numpy.ndarray`_):
-            Image used to trace the slit boundaries.
-        msbpm (`numpy.ndarray`_):
-            Bad-pixel mask image.
-
-        binning (:obj:`str`):
-            Comma-separated binning in each dimesion, ordered spectral
-            then spatial.
-
-        ednum
-        slit_left
-        slit_righ
-        tc_dict
-        edgearr
-        siglev
-        steps
-        extrapord
-        slitcen
-        slitpix
-        slit_left_tweak
-        slit_righ_tweak
-
-        binarr
-        user_set
-        lmin
-        lmax
-        rmi
-        rmax
-        lcnt
-        rcnt
-        lcoeff
-        lnmbrarr
-        ldiffarr
-        lwghtarr
-        rcoeff
-        rnmbrarr
-        rdiffarr
-        rwghtarr
-
         TODO: Come back to these...
         frametype (str): Hard-coded to 'trace'
         slit_left (ndarray [nrow, nslit]): Left edges, in physical space
@@ -155,7 +105,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.spectrograph = spectrograph
         self.par = par
 
-        self.binning = '1,1' if binning is None else binning
+        self.binning = None
         self.mstrace = None
         self.msbpm = msbpm
 
@@ -263,62 +213,73 @@ class TraceSlits(masterframe.MasterFrame):
         """
         return 0 if self.slit_left is None else self.slit_left.shape[1]
 
-    def _detect_slit_edges(self, use_mask=True):
+    def _edgearr_from_binarr(self):
         """
-        Detect slit edges in the trace image.
+        Generate the first edgearr from the Sobolev produced siglev image
+        Wrapper to trace_slits.edgearr_from_binarr
 
-        This constructs :attr:`siglev` and :attr:`edgearr` using
-        :func:`pypeit.core.trace_slits.detect_slit_edges` and
-        :attr:`binarr` as the trace image.
+        :attr:`siglev` : ndarray (internal)
+        :attr:`edgearr` : ndarray (internal)
 
-        Args:
-            use_mask (:obj:`bool`, optional):
-                Pass the bad pixel mask to
-                :func:`pypeit.core.trace_slits.detect_slit_edges`.  In
-                cases where bad pixels land on slit edges, it may be
-                better to set this to False.
         """
-        # TODO: Add min_sqm to TraceSlitsPar?
         self.siglev, self.edgearr \
-                = trace_slits.detect_slit_edges(self.binarr, mask=self.msbpm if use_mask else None,
-                                                median_iterations=self.par['medrep'],
-                                                sobel_mode=self.par['sobel_mode'],
-                                                sigdetect=self.par['sigdetect'])
-        # Log the step
+                = trace_slits.edgearr_from_binarr(self.binarr, self.msbpm,
+                                                   medrep=self.par['medrep'],
+                                                   sobel_mode=self.par['sobel_mode'],
+                                                   sigdetect=self.par['sigdetect'])
+                                                   #number_slits=self.par['number'])
+        # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _handle_orphan_edge(self, user_set=False):
+#    def _edgearr_single_slit(self):
+#        """
+#        Generate the first edgearr from a user-supplied single slit
+#        Note this is different from add_user_slits (which is handled below)
+#
+#        Wrapper to trace_slits.edgearr_from_user
+#
+#        Returns
+#        -------
+#        self.edgearr : ndarray (internal)
+#        self.siglev : ndarray (internal)
+#
+#        """
+#        #  This trace slits single option is likely to be deprecated
+#        iledge, iredge = (self.det-1)*2, (self.det-1)*2+1
+#        self.edgearr = trace_slits.edgearr_from_user(self.mstrace.shape,
+#                                                      self.par['single'][iledge],
+#                                                      self.par['single'][iredge], self.det)
+#        self.siglev = None
+#        # Step
+#        self.steps.append(inspect.stack()[0][3])
+
+    def _add_left_right(self):
         """
-        Handle single orphan edges and/or traces without any left or
-        right edges.
+        Add left/right edges to edgearr
 
-        This updates :attr:`edgearr`, :attr:`lcnt`, and :attr:`rcnt` in
-        place.  See :func:`pypeit.core.trace_slits.handle_orphan_edge`.
-
-        If 0 is returned for both counts, this detector will be skipped.
-
-        Args:
-            user_set (:obj:`bool`, optional):
-                Slits have been provided by the user.  This means that
-                only a single left or right traces will be added if none
-                exist (see
-                :func:`pypeit.core.trace_slits.atleast_one_edge`).
+        Wrapper to trace_slits.edgearr_add_left_right()
+        If 0 is returned for both counts, this detector will be skipped
 
         Returns:
-            bool: If True, at least one slit has been found.
+            bool: If True, at least one slit was added
+
+        self.edgearr : ndarray (internal)
+        self.lcnt : int (internal)
+        self.rcnt : int (internal)
+
+
         """
-        # Adjust edge trace image
-        flux_valid = np.median(self.binarr) > 500
-        self.edgearr = trace_slits.atleast_one_edge(self.edgearr, mask=self.msbpm,
-                                                    flux_valid=flux_valid, copy=True) \
-                                if user_set else \
-                            trace_slits.handle_orphan_edge(self.edgearr, self.siglev,
-                                                           mask=self.msbpm, flux_valid=flux_valid,
-                                                           copy=True)
-        # Update counts
-        self.lcnt, self.rcnt = trace_slits.count_edge_traces(self.edgearr)
-        # Log completed step
+        self.edgearr, self.lcnt, self.rcnt = trace_slits.edgearr_add_left_right(
+            self.edgearr, self.binarr, self.msbpm, self.lcnt, self.rcnt, self.ednum)
+        # Check on return
+        if (self.lcnt == 0) and (self.rcnt == 0):
+            any_slits = False
+        else:
+            any_slits = True
+
+        # Step
         self.steps.append(inspect.stack()[0][3])
+        return any_slits
 
     def add_user_slits(self, user_slits):
         """
@@ -339,6 +300,83 @@ class TraceSlits(masterframe.MasterFrame):
                 = trace_slits.add_user_edges(self.slit_left, self.slit_righ, user_slits)
         # Step
         self.steps.append(inspect.stack()[0][3])
+
+#    def _assign_edges(self):
+#        """
+#        Assign slit edges by analyzing edgearr
+#        Single slits are handled trivially
+#
+#        Wrapper to trace_slits.assign_slits()
+#
+#        Returns
+#        -------
+#        self.edgearr : ndarray (internal)
+#
+#        """
+#
+#        # Assign left edges
+#        msgs.info("Assigning left slit edges")
+#        if self.lcnt == 1:
+#            self.edgearr[np.where(self.edgearr <= -2*self.ednum)] = -self.ednum
+#        else:
+#            trace_slits.assign_slits(self.binarr, self.edgearr, lor=-1,
+#                                      function=self.par['function'],
+#                                      polyorder=self.par['trace_npoly'])
+#        # Assign right edges
+#        msgs.info("Assigning right slit edges")
+#        if self.rcnt == 1:
+#            self.edgearr[np.where(self.edgearr >= 2*self.ednum)] = self.ednum
+#        else:
+#            trace_slits.assign_slits(self.binarr, self.edgearr, lor=+1,
+#                                      function=self.par['function'],
+#                                      polyorder=self.par['trace_npoly'])
+#        # Steps
+#        self.steps.append(inspect.stack()[0][3])
+
+    def _chk_for_longslit(self, fwhm=3.):
+        """
+        Are we done?, i.e. we have a simple longslit, i.e. one left and one right
+
+        Args:
+            fwhm (float, optional):
+
+        Returns:
+            bool:  True = longslit only
+
+        """
+        # TODO: Why is this here?
+        orig = False
+        if orig:
+            if (self.lmax+1-self.lmin == 1) and (self.rmax+1-self.rmin == 1):
+                plxbin = self.pixlocn[:, :, 0].copy()
+                minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+                # Just a single order has been identified (i.e. probably longslit)
+                msgs.info("Only one slit was identified. Should be a longslit.")
+                xint = self.pixlocn[:, 0, 0]
+                # Finish
+                self.slit_left = np.zeros((self.mstrace.shape[0], 1))
+                self.slit_righ = np.zeros((self.mstrace.shape[0], 1))
+                self.slit_left[:, 0] = utils.func_val(self.lcoeff[:, 0], xint,
+                                                      self.par['function'], minx=minvf, maxx=maxvf)
+                self.slit_righ[:, 0] = utils.func_val(self.rcoeff[:, 0], xint,
+                                                      self.par['function'], minx=minvf, maxx=maxvf)
+                return True
+            return False
+       
+        if len(self.tc_dict['left']['xval']) == 1 and len(self.tc_dict['right']['xval']) == 1:
+            # fweight the trace crude
+            for key,sign in zip(['left','right'], [1., -1.]):
+                trace_crutch = self.tc_dict[key]['xset']
+                trace_fweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0), trace_crutch,
+                                                      self.par['trace_npoly'], fwhm=3.0*fwhm,
+                                                      niter=9)[0]
+                trace_gweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0),
+                                                      trace_fweight, self.par['trace_npoly'],
+                                                      fwhm=fwhm, gweight=True, niter=6)[0]
+                self.tc_dict[key]['traces'] = trace_gweight
+            return True
+        return False
+
 
     def _fill_tslits_dict(self):
         """
@@ -438,51 +476,41 @@ class TraceSlits(masterframe.MasterFrame):
         self.slitcen = 0.5*(self.slit_left+self.slit_righ)
         #self.pixwid = (slit_righ-slit_left).mean(0).astype(np.int)
 
-    def _prep_trace_image(self):
+    def _make_binarr(self):
         """
-        Prepare the trace image for slit detection.
+        Lightly process mstrace
 
-        Two operations are performed:
+        Returns:
+            ndarray: The processed image
 
-            - Lightly smooth the trace image in the spectral direction
-              by applying a 3x1 boxcar smoothing.  (PypeIt images are
-              always oriented with the spectral dimension along rows.)
-              See `scipy.ndimage.uniform_filter`_.
-
-            - Patch any bad columns in the image based on the bad pixel
-              mask (:attr:`msbpm`).  See
-              :func:`pypeit.core.procimg.replace_columns`.
-
-        Prepared image is stored in :attr:`binarr`; completed operation
-        logged in :attr:`steps`.
         """
-        # Filter the image.  Only filter in the spectral dimension, not spatial!
+        #  Only filter in the spectral dimension, not spatial!
         self.binarr = ndimage.uniform_filter(self.mstrace, size=(3, 1), mode='mirror')
-        
-        if self.msbpm is not None and np.any(self.msbpm):
-            # Replace bad columns
-            flip = self.spectrograph.raw_is_transposed(det=self.det)
-            axis = 1 if flip else 0
-            bad_cols = np.sum(self.msbpm, axis=axis) > (self.msbpm.shape[axis]//2)
-            self.binarr = procimg.replace_columns(self.binarr.T if flip else self.binarr,
-                                                  bad_cols, copy=True, replace_with='linear')
-
-        # Log step completed
+        # Step
         self.steps.append(inspect.stack()[0][3])
+        return self.binarr
 
-    def _identify_traces(self):
-        """
-        Follow slit edges to indentify unique slit traces.
 
-        This sets the number of left and right traces (:attr:`lcnt` and
-        :attr:`rcnt`) and modifies the edge image (:attr:`edgearr`).
-        See :func:`pypeit.core.trace_slits.identify_traces`.  
+    def _match_edges(self):
         """
-        # Run the function, replacing :attr:`edgearr`
-        # TODO: Make keyword arguments parameters in TraceSlitsPar
-        self.edgearr, self.lcnt, self.rcnt \
-                = trace_slits.identify_traces(self.edgearr, spectral_memory=20, minimum_length=100)
-        # Log step completed
+        # Assign a number to each edge 'grouping'
+
+        Wrapper to trace_slits.match_edges()
+
+        Modified internally:
+            self.edgearr  : ndarray (internal)
+            self.lcnt : int (intenal)
+            self.rcnt: int (intenal)
+
+        Returns:
+
+        """
+
+        self.lcnt, self.rcnt = trace_slits.match_edges(self.edgearr, self.ednum)
+        # Sanity check (unlikely we will ever hit this)
+        if self.lcnt >= self.ednum or self.rcnt >= self.ednum:
+            msgs.error("Found more edges than allowed by ednum. Set ednum to a larger number.")
+        # Step
         self.steps.append(inspect.stack()[0][3])
 
     def _maxgap_prep(self):
@@ -533,10 +561,8 @@ class TraceSlits(masterframe.MasterFrame):
         Returns:
 
         """
-        print('starting')
         # Settings
         _maxshift = self.par['maxshift'] if 'maxshift' in self.par.keys() else maxshift
-        print(_maxshift)
 
         # TODO: JFH The edgearr looks like we could just pydl fit it and
         # then trace with a crutch as the first step rather than using
@@ -713,7 +739,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Step
         self.steps.append(inspect.stack()[0][3])
 
-    def _trim_slits(self, trim_slits=True, plate_scale=None, ech_slit_tol=0.3):
+    def _trim_slits(self, trim_slits=True, plate_scale = None, ech_slit_tol = 0.3):
         """
         Trim slits
           Mainly those that fell off the detector
@@ -750,18 +776,17 @@ class TraceSlits(masterframe.MasterFrame):
             msgs.info('Slit {0:d} is off the detector - ignoring this slit'.format(islit))
 
         if trim_slits:
-            _plate_scale = 1 if plate_scale is None else plate_scale
-            slit_width = np.median((self.slit_righ - self.slit_left) * _plate_scale, axis=0)
+            slit_width = np.median((self.slit_righ - self.slit_left) * plate_scale, axis=0)
 
             if self.spectrograph.pypeline == 'MultiSlit':
-                too_short = slit_width < self.par['min_slit_length']
+                too_short = slit_width < self.par['min_slit_width']
                 ishort = np.where(too_short)[0]
                 mask[ishort] = False
                 for islit in ishort:
                     msgs.info('Slit {0:d}'.format(islit)
                               + ' has width = {:6.3f}'.format(slit_width[islit])
-                              + ' arcseconds < less than min_slit_length = {:} arcseconds'.format(
-                                    self.par['min_slit_length']) + ' - ignoring this slit')
+                              + ' arcseconds < less than min_slit_width = {:} arcseconds'.format(
+                                    self.par['min_slit_width']) + ' - ignoring this slit')
 
             elif self.spectrograph.pypeline == 'Echelle':
                 # TODO: JFH Once we have orders that shrink because of
@@ -864,61 +889,10 @@ class TraceSlits(masterframe.MasterFrame):
         elif attr == 'siglev':
             ginga.show_image(self.siglev, chname='siglev')
 
-    # TODO: Allow for two types of additional slit edges?:
-    #   - Edges that are placed relative to an existing edge regardless
-    #     of anything else and will always be there
-    #   - Expected locations of slits that are placed after the
-    #     automatic detection but are then evaluated as the
-    #     auto-detected ones.
-    def run(self, mstrace, binning=None, add_user_slits=None, rm_user_slits=None,
-            min_slit_length=None, plate_scale=None, show=False, write_qa=True, debug=False,
-            msbpm=None):
-        r"""
+    def run(self, mstrace, binning, add_user_slits=None, rm_user_slits=None, trim_slits=True,
+            plate_scale=None, show=False, write_qa=True, debug=False, msbpm=None):
+        """
         Main driver for tracing slits.
-
-        .. todo::
-            - Some of these arguments either conflict with or are
-              redundant with :attr:`par`.  Ensure clarity as to what is
-              a keyword argument and what is an internal parameter and
-              when the former overrides the latter.
-            - binning is put to limited use.  Are we sure we need it?
-            - slit_width (really slit length) is provided in arcsec and
-              plate_scale in arcsec per pixel.  Why not just always work
-              in pixel space at this level?
-
-        Slits are traced with the following steps:
-
-            -  Prepare the trace image for tracing by lightly smoothing
-               it in the spectral dimension and patching any bad pixel
-               columns.  See :func:`_prep_trace_image`.
-
-            -  Filter the trace image (using a Sobel filter) to isolate
-               strong gradients that are used to detect slit edges.
-               Strong positive gradients are left edges and strong
-               negative gradients are right edges.  See
-               :func:`_detect_slit_edges`.
-
-            -  Isolate peaks within 10-pixel windows for each row in the
-               filtered image as a first pass at detecting the slit
-               edges.  See :func:`_detect_slit_edges`.
-
-            -  Identify unique slit traces by following the isolated
-               peaks along the spectral dimension of the detector.  See
-               :func:`_identify_traces`.
-            
-            -  Perform some minor handling of the slit traces.  See
-               :func:`_handle_orphan_edge`.
-                - Any detectors with no slit traces are skipped.
-                - If a left or right trace is not found (but opposites
-                  are), one is added at the detector edge.
-                - If only one left or right edge is found with multiple
-                  matching traces, all but the most significant trace is
-                  removed.
-
-            -  Tweak the slit edges using the first moment in
-               :math:`\pm3`-pixel windows around each isolated peak.
-
-        UPDATE THIS CODE FLOW
 
           Code flow
            1.  Determine approximate slit edges (left, right)
@@ -938,49 +912,33 @@ class TraceSlits(masterframe.MasterFrame):
 
         Args:
             mstrace (`numpy.ndarray`_):
-                Image used to trace slit boundaries.
+                Trace image
             binning (:obj:`str`, optional):
                 A comma-separated string with the pixel binning in each
                 dimension.  Order *must* follow the PypeIt convention of
                 spectral then spatial binning to match the orientation
-                of images in PypeIt; see
-                :func:`pypeit.spectrographs.spectrograph.Spectrograph.load_raw_frame`.
-                If None, assumed to be unbinned (i.e., '1,1').
-            add_user_slits (:obj:`str`, array-like, optional):
-                One or more slits to add after the automatic tracing has
-                finished.  See :func:`add_user_slits`.  This overrides
-                :attr:`par['add_slits']`.
-            rm_user_slits (:obj:`str`, array-like, optional):
-                One or more slits to remove after the automatic tracing has
-                finished.  See :func:`rm_user_slits`.  This overrides
-                :attr:`par['add_slits']`.
-            min_slit_length (:obj:`float`, optional):
-                Minimum acceptable slit length in arcsec.  This
-                overrides :attr:`par['min_slit_length']`.  If both are
-                None, no minimum is imposed.
-            plate_scale (:obj:`float`, optional):
-                The plate scale of the pixels in arcsec per pixel.
-            show (:obj:`bool`, optional):
-                Show progress of the algorithm.
-            write_qa (:obj:`bool`, optional):
-                Write the QA plots.
-            debug (:obj:`bool`, optional):
-                Run the code in debugging mode.
-            msbpm (`numpy.ndarray`_, optional):
-                The bad-pixel mask for the trace image.  This overrides
-                :attr:`msbpm`.  If both are None, assume all pixels are
-                good.
+                of images in PypeIt; see [this doc].  If None, assumed
+                to be '1,1'.
+            ignore_orders : bool (optional)
+              Perform ignore_orders algorithm (recommended only for echelle data)
+            add_user_slits : list of lists
+              List of 3 element lists, each an [xleft, xright, yrow] specifying a slit edge
+              at a given yrow
+            rm_user_slits : list of lists
+              List of 2 element lists, each an [xcen, yrow] specifying a slit center.  Any
+              slit containing it will be removed
 
         Returns:
-            dict: Dictionary with the results of the slit tracing.  The
-            full data model is [here].
+            dict or None (if no slits): Primary keys are --
+              'slit_left'
+              'slit_righ'
+              'slitcen'
+              'extrapord'
+              'slitpix'
         """
         # Point to input data
         self.mstrace = mstrace
-
-        if binning is not None:
-            # Override internal
-            self.binning = binning
+        self.binning = binning
 
         # Ensure the bad-pixel mask is available
         if self.msbpm is None and msbpm is None:
@@ -996,50 +954,40 @@ class TraceSlits(masterframe.MasterFrame):
         if self.mstrace.shape != self.msbpm.shape:
             msgs.error('Trace and bad-pixel mask images are not the same size!')
             
-        # TODO: Need to work though logic for when this should be True
-        self.user_set = False
+        # Generate binarr
+        _ = self._make_binarr()
 
-        # Lightly smooth in the spectral dimension and patch the bad
-        # pixel columns
-        self._prep_trace_image()
+        # Specify a single slit?
+        if len(self.par['single']) > 0:  # Single slit
+            self._edgearr_single_slit()
+            self.user_set = True
+        else:  # Generate the edgearr from the input trace image
+            self._edgearr_from_binarr()
+            self.user_set = False
 
-        # Detect the slit edges
-        self._detect_slit_edges()
+        # Assign a number to each edge 'grouping'
+        self._match_edges()
 
-        # Assign a number to each edge trace
-        self._identify_traces()
-
-        # TODO: Things to keep in self and write:
-        #   - binarr?
-        #   - siglev
-        #   - edgearr or just pixel coo and trace IDs
-
-        # Handle single orphan edges and/or traces without any left or
-        # right edges.
-        self._handle_orphan_edge(user_set=self.user_set)
-
-        if self.lcnt == 0 and self.rcnt == 0:
-            # No slits on either edge!
+        # Add in a *single* left/right edge?
+        #  Mainly useful for longslit where one or both sides butt up on the edge of the detector
+        any_slits = self._add_left_right()
+        if not any_slits:
             return None
+
+        # Final left/right edgearr fussing (as needed)
+        #  Mainly useful for longslit
+        if not self.user_set:
+            self._final_left_right()
 
         # Trace crude in siglev image and sync traces
         self._mslit_tcrude()
 
-        # Fit the slit edges and sync left/right pairs
-        if len(self.tc_dict['left']['xval']) == 1 and len(self.tc_dict['right']['xval']) == 1:
-            # Only one pair has been found (likely a long-slit
-            # observation), so just fit
-            for key,sign in zip(['left','right'], [1., -1.]):
-                trace_crutch = self.tc_dict[key]['xset']
-                trace_fweight = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0), trace_crutch,
-                                                      self.par['trace_npoly'], fwhm=3.0*fwhm,
-                                                      niter=9)[0]
-                self.tc_dict[key]['traces'] \
-                        = extract.iter_tracefit(np.fmax(sign*self.siglev, 0.0), trace_fweight,
-                                                self.par['trace_npoly'], fwhm=fwhm, gweight=True,
-                                                niter=6)[0]
-        else:
-            # Refine using PCA
+        # Are we done, e.g. a simple longslit?
+        #   Check if no further work is needed (i.e. there only exists one order)
+        if self._chk_for_longslit():
+            pass
+        else:  # No, not done yet
+            # Refine
             self._pca_refine(mask_frac_thresh=self.par['mask_frac_thresh'], debug=debug, show=show)
             # Synchronize and add in edges
             self._mslit_sync()

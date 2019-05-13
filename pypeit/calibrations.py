@@ -613,9 +613,12 @@ class Calibrations(object):
             # TODO: this should be done inside TraceSlits so that the
             # call to run() or whatever has the same format as what the
             # user sees in TraceSlitsPar
-            add_user_slits = trace_slits.parse_user_slits(self.par['slits']['add_slits'], self.det)
-            rm_user_slits = trace_slits.parse_user_slits(self.par['slits']['rm_slits'], self.det,
-                                                         rm=True)
+            add_user_slits = None if self.par['slits']['add_slits'] is None \
+                                else trace_slits.parse_user_slits(self.par['slits']['add_slits'],
+                                                                  self.det)
+            rm_user_slits = None if self.par['slits']['rm_slits'] is None \
+                                else trace_slits.parse_user_slits(self.par['slits']['rm_slits'],
+                                                                  self.det, rm=True)
             # Now we go forth
             try:
                 self.tslits_dict = self.traceSlits.run(self.traceImage.stack, self.binning,
