@@ -7,7 +7,7 @@ import pytest
 
 from pypeit import msgs
 from pypeit import masterframe
-from pypiet import io
+from pypeit import io
 
 #@pytest.fixture
 #def fitsdict():
