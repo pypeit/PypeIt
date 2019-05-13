@@ -1,5 +1,5 @@
 """
-Module to run tests on arcoadd
+Module to run tests on core.procimg functions.
 """
 import pytest
 import numpy as np

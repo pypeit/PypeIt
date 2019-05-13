@@ -1280,7 +1280,7 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid reference frames for the wavelength calibration
         """
-        return [ 'heliocentric', 'barycentric' ]
+        return [ 'observed', 'heliocentric', 'barycentric' ]
 
     def validate(self):
         pass
