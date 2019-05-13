@@ -26,6 +26,8 @@ Submodules
    pypeit.flatfield
    pypeit.fluxspec
    pypeit.ginga
+   pypeit.io
+   pypeit.junk
    pypeit.masterframe
    pypeit.metadata
    pypeit.processimages
