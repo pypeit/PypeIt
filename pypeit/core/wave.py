@@ -322,7 +322,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                 else:
                     # One does not exist yet
                     # Save it for later
-                    return_later_sobjs.add([slit, ss])
+                    return_later_sobjs.append([slit, ss])
                     punt = True
             else:
                 sv_fdict = copy.deepcopy(fdict)
