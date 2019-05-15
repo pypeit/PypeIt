@@ -158,8 +158,8 @@ def main(args):
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
-                                  bitmask=mask_in, clear=True)
+    #from IPython import embed; embed(header='2dspec A')
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg, bitmask=mask_in, clear=True)
                                   #, cuts=(cut_min, cut_max), wcs_match=True)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                      #, args.det)

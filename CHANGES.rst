@@ -30,6 +30,11 @@
   `pypeit.core.wavecal.waveio.py`
 - Rename default directory for calibration masters to `Masters` and
   removed inclusion of spectrograph name.
+- Fix oscan sec in read_lris()
+- Fix bad return in tracewave.tilts_find_lines()
+- Several doc edits
+- Fix handling of maskslits
+- Fix flexure crashing
 - Change `pypeit.spectrographs.spectrograph.get_image_section` to
   *always* return the sections ordered spectral then spatial to match
   the PypeIt convention to match how binning is returned.  Propagated to
@@ -56,7 +61,6 @@
 - Added metadata to `MasterFrame` objects written to fits files.
 - Added `'observed'` option for wavelength reference frame that skips
   any relative motion corrections.
-  
 
 0.9.3 (28 Feb 2019)
 -------------------

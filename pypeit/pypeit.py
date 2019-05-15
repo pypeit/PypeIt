@@ -2,17 +2,15 @@
 Main driver class for PypeIt run
 """
 import time
-#from abc import ABCMeta
 import os
-import datetime
 import numpy as np
 from collections import OrderedDict
+import IPython
 
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit import scienceimage
-from pypeit import specobjs
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa
@@ -23,13 +21,10 @@ from pypeit.spectrographs.util import load_spectrograph
 from linetools import utils as ltu
 
 
-
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
-
-from pypeit import debugger
 
 class PypeIt(object):
     """
@@ -595,7 +590,7 @@ class PypeIt(object):
                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                            show=self.show)
         # Object finding, first pass on frame without sky subtraction
-        self.maskslits = self.caliBrate.maskslits.copy()
+        self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
 
         self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict,
                                            self.mask, self.par,

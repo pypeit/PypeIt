@@ -145,7 +145,6 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
             prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
             prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
 
-    npix = 0
     ext = len(hdus)-1
     # Loop on specobjs
     for sobj in specObjs.specobjs:
@@ -155,6 +154,10 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
         # Add header keyword
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = sobj.idx
+
+        # Flexure shift
+        keywd = 'FLX{:04d}'.format(ext)
+        prihdu.header[keywd] = sobj.flex_shift
 
         # Add Spectrum Table
         cols = []

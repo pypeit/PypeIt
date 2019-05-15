@@ -46,7 +46,7 @@ class WaveTilts(masterframe.MasterFrame):
         msbpm (`numpy.ndarray`_, optional):
             Bad pixel mask.  If not provided, a dummy array with no
             masking is generated.
-        
+
 
     Attributes:
         frametype : str
@@ -312,7 +312,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
-        gdslits = np.where(self.mask == 0)[0]
+        gdslits = np.where(np.invert(self.mask))[0]
 
         # Final tilts image
         self.final_tilts = np.zeros(self.shape_science,dtype=float)
@@ -330,9 +330,12 @@ class WaveTilts(masterframe.MasterFrame):
         for slit in gdslits:
             msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslits-1))
             # Identify lines for tracing tilts
-            self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit],
-                                                               self.slitcen[:,slit], slit,
-                                                               debug=debug)
+            self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
+            if self.lines_spec is None:
+                self.mask[slit] = True
+                maskslits[slit] = True
+                continue
+
             thismask = self.slitmask == slit
             # Trace
             self.trace_dict = self.trace_tilts(self.msarc, self.lines_spec, self.lines_spat,
@@ -392,7 +395,7 @@ class WaveTilts(masterframe.MasterFrame):
         #   - Tilts metadata
         hdr['FUNC2D'] = self.tilts_dict['func2d']
         hdr['NSLIT'] =  self.tilts_dict['nslit']
-        
+
         # Write the fits file
         fits.HDUList([fits.PrimaryHDU(header=hdr),
                       fits.ImageHDU(data=self.tilts_dict['tilts'], name='TILTS'),
@@ -407,7 +410,7 @@ class WaveTilts(masterframe.MasterFrame):
         Load the tilts data.
 
         This is largely a wrapper for :func:`pypeit.wavetilts.WaveTilts.load_from_file`.
-        
+
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
@@ -430,7 +433,7 @@ class WaveTilts(masterframe.MasterFrame):
             # User does not want to load masters
             msgs.warn('PypeIt will not reuse masters!')
             return empty_return
-        
+
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
             msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
@@ -446,7 +449,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
         Load the tilts data, without the benefit of the rest of the
         class.
-        
+
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
