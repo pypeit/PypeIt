@@ -31,7 +31,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import TraceSlitsPar
 from pypeit import io
 
-
+# TODO: This should go in util
 def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
     """
     Calculate bounding limits for an array based on its growth.
@@ -100,6 +100,128 @@ class TraceBitMask(BitMask):
         super(TraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 
+class EdgeTracePCA:
+    """
+    Class to build and interact with PCA model of edge traces.
+
+    This is primarily a container class for the results of
+    :func:`pca_decomposition`, :func:`fit_pca_coefficients`, and
+    :func:`pca_predict`.
+
+    Args:
+
+    Attributes:
+
+    """
+    # TODO: Add a show method that plots the pca coefficients and the
+    # current fit, if there is one
+    def __init__(self, trace, npca=None, pca_explained_var=99.0, trace_coo=None, trace_mean=None):
+        # Perform the PCA decomposition of the traces
+        self.pca_coeffs, self.pca_components, self.pca_mean, self.trace_mean \
+                = pca_decomposition(trace.T, npca=npca, pca_explained_var=pca_explained_var,
+                                    mean=trace_mean)
+        self.npca = self.pca_coeffs.shape[1]
+        self.nspec = self.pca_components.shape[1]
+
+        # Instantiate the remaining attributes
+        self.trace_coo = trace_coo
+        self.pca_mask = np.zeros(self.pca_coeffs.shape, dtype=bool)
+        self.function = None
+        self.fit_coeff = None
+        self.minx = None
+        self.maxx = None
+
+    def fit_coeffs(self, order, function='polynomial', lower=3.0, upper=3.0, minx=None,
+                     maxx=None, maxrej=1, maxiter=25, debug=False):
+
+        # Save the function used
+        self.function = function
+
+        # Fit the PCA coefficients
+        self.pca_mask, self.fit_coeff, self.minx, self.maxx \
+                    = fit_pca_coefficients(self.pca_coeffs, order, function=self.function,
+                                             lower=lower, upper=upper, minx=self.minx,
+                                             maxx=self.maxx, maxrej=maxrej, maxiter=maxiter,
+                                             coo=self.trace_coo, debug=debug)
+
+    def predict(self, x):
+        r"""
+        Predict one or more traces given the functional forms for the
+        PCA coefficients.
+
+        .. warning::
+            - The PCA coefficients must have first been modeled by a
+            function before using this method. An error will be
+            raised if :attr:`fit_coeff` is not defined.
+
+        Args:
+            x (:obj:`float`, `numpy.ndarray`_):
+                One or more trace coordinates at which to sample the
+                PCA coefficients and produce the PCA model.
+
+        Returns:
+            `numpy.ndarray`_: The array with the predicted locations
+            of the trace. If the provided coordinate is a single
+            value, the returned shape is :math:`(N_{\rm pix},)`;
+            otherwise it is :math:`(N_{\rm pix}, N_{\rm x})`.
+        """
+        if self.fit_coeff is None:
+            raise ValueError('PCA coefficients have not been modeled; run model_coeffs first.')
+        return pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, self.trace_mean,
+                           function=self.function)
+
+    def trace_map(self, nspat, trace=None, trace_mask=None):
+        """
+        Construct a trace for each spatial position in an image.
+
+        Args:
+            nspat (:obj:`int`):
+                Number of spatial pixels (second axis) in the image.
+            trace (`numpy.ndarray`_, optional):
+                A subset of traces to replace the PCA predictions at
+                specific spatial positions. If None, this function is
+                equivalent to::
+
+                    self.predict(np.arange(nspat))
+
+            trace_mask (`numpy.ndarray`_, optional):
+                A boolean mask for the provided trace data. Only used
+                to set the spectral position that is most commonly
+                unmasked in the provided trace. If None, all trace
+                data are unmasked.
+
+        Returns:
+            `numpy.ndarray`_: Trace data for each spatial position.
+        """
+        # Use the PCA to predict traces at all spatial pixels
+        trace_full = self.predict(np.arange(nspat))
+
+        if trace is None:
+            # No anchor traces to insert
+            return trace_full
+
+        # Check the input
+        if trace_mask is None:
+            trace_mask = np.zeros(trace.shape, dtype=bool)
+        _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
+        _trace_mask = trace_mask.reshape(-1, 1) if trace.ndim == 1 else trace_mask
+        if _trace.shape != _trace_mask.shape:
+            raise ValueError('Trace data and its mask do not have the same shape.')
+        if _trace.shape[0] != self.nspec:
+            raise ValueError('Must provide trace position for each spectral pixel.')
+
+        # Find the spectral row that crosses the most unmasked trace
+        # locations
+        trace_ref_row = most_common_trace_row(_trace_mask)
+        # Get the spatial positions of each trace at that row
+        trace_ref = _trace[trace_ref_row,:]
+        # Anchor the PCA predictions to the provided traces at the
+        # relevant spatial positions
+        trace_full[:,np.round(trace_ref).astype(int)] = _trace
+
+        return trace_full
+
+
 class EdgeTraceSet(masterframe.MasterFrame):
     r"""
     Object for holding slit edge traces.
@@ -115,6 +237,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         - initial_trace
         - moment_refine
         - fit_refine (calls fit_trace)
+        - build_pca
         - peak_refine (calls peak_trace, which uses both pca_trace and fit_trace)
 
     Final trace is based on a run of fit_refine that pass through the detected peaks
@@ -199,6 +322,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, reuse_masters=False,
                  qa_path=None, trace_img=None, mask=None, det=1, load=False):
 
+        # TODO: It's possible for the master key and the detector
+        # number to be inconsistent...
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
 
@@ -223,6 +348,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_err = None            # Error in the slit edge spatial coordinate
         self.spat_msk = None            # Mask for the slit edge position for each spectral pixel
         self.spat_fit = None            # The result of modeling the slit edge positions
+        self.spat_fit_type = None       # The type of fitting performed
 
         self.qa_path = qa_path          # Directory for QA output
 
@@ -399,6 +525,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # No fitting has been done yet
         self.spat_fit_type = None
         self.spat_fit = None
+
+        # No PCA has been constructed yet
+        self.pca = None
+        self.pca_type = None
 
         # Restart the log
         self.log = [inspect.stack()[0][3]]
@@ -872,6 +1002,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             this_side = self.traceid < 0 if side == 'left' else self.traceid > 0
 
             # Loop continues until all traces are refined
+            # TODO: Not sure why this while loop is necessary...
             i = 0
             while np.any(this_side & untraced):
                 print('Iteration {0} for {1} side'.format(i+1, side))
@@ -1153,9 +1284,45 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # flag them. Flagging would likely mean that the traces would
         # be ignored in subsequent analysis...
 
-    def peak_refine(self, npca=None, pca_explained_var=99.8, coeff_npoly_pca=3, peak_thresh=None,
-                    smash_range=None, trace_thresh=10.0, trace_median_frac=0.01, fwhm_gaussian=3.0,
-                    fwhm_uniform=3.0, order=None, lower=2.0, upper=2.0, maxrej=1, debug=False):
+    def build_pca(self, npca=None, pca_explained_var=99.8, trace_coo=None, trace_mean=None,
+                  order=3, function='polynomial', lower=3.0, upper=3.0, minx=None, maxx=None,
+                  maxrej=1, maxiter=25, debug=False, verbose=True):
+        """
+        Build a PCA model of the current trace.
+
+        Primarily a wrapper for instantiation of :attr:`pca`, which
+        has type :class:`EdgeTracePCA`. After executing this, traces
+        can be predicted using the pca by calling
+        `self.pca.predict(spat)`; see :func:`EdgeTracePCA.predict`.
+
+        Args:
+
+        """
+        # Check the state of the current object
+        if self.pca is not None and verbose:
+            warnings.warn('PCA model already exists and will be overwritten.')
+        if self.spat_fit is None and verbose:
+            warnings.warn('No trace fits exits.  PCA based on trace centroid measurements.')
+        trace_inp = self.spat_cen if self.spat_fit is None else self.spat_fit
+        self.pca_type = 'center' if self.spat_fit is None else 'fit'
+
+        # Set the pixel coordinates for the trace reference point
+        trace_coo = trace_inp[most_common_trace_row(self.spat_msk),:]
+
+        # Instantiate the PCA
+        self.pca = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
+                                trace_coo=trace_coo, trace_mean=trace_coo)
+
+        # Set the order of the function fit to the PCA coefficiencts:
+        # Order is set to cascade down to lower order for components
+        # that account for a smaller percentage of the variance.
+        _order = np.clip(order - np.arange(self.pca.npca), 1, None).astype(int)
+        # Run the fit
+        self.pca.fit_coeffs(_order, function=function, lower=lower, upper=upper, minx=minx,
+                            maxx=maxx, maxrej=maxrej, maxiter=maxiter, debug=debug)
+
+    def peak_refine(self, peak_thresh=None, smash_range=None, trace_thresh=10.0,
+                    trace_median_frac=0.01, fwhm_gaussian=3.0, fwhm_uniform=3.0, order=None, lower=2.0, upper=2.0, maxrej=1, debug=False):
         """
         Doc string...
 
@@ -1797,8 +1964,9 @@ def recenter_moment(flux, xcen, ivar=None, mask=None, ycen=None, weighting='unif
     # Copy and normalize the shape of the input (flatten creates a
     # copy); the width needs to be an array for the compressed
     # calculation below.
-    _xcen = _xcen.flatten()
-    _width = _width.flatten() if _width.size > 1 else np.full(_xcen.size, _width[0], dtype=float)
+    _xcen = _xcen.flatten().astype(float)
+    _width = _width.flatten().astype(float) if _width.size > 1 \
+                else np.full(_xcen.size, _width[0], dtype=float)
 
     # The "radius" of the pixels to cover is either half of the
     # provided width for uniform weighting or 3*width for Gaussian
@@ -1823,18 +1991,20 @@ def recenter_moment(flux, xcen, ivar=None, mask=None, ycen=None, weighting='unif
     if _xcen.size != _ycen.size:
         raise ValueError('Number of elements in xcen and ycen must be equal')
 
-    # Window for the integration for each coordinate
+    # Window for the integration for each coordinate; definition the
+    # same as in extract()
     ix1 = np.floor(_xcen - _radius + 0.5).astype(int)
     ix2 = np.floor(_xcen + _radius + 0.5).astype(int)
-    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))
-    if weighting == 'uniform':
-        fullpix += 3        # To match trace_fweight
+    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+4
+#    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))
+#    if weighting == 'uniform':
+#        fullpix += 3        # To match trace_fweight
     x = ix1[:,None]-1+np.arange(fullpix)[None,:]
     ih = np.clip(x,0,nx-1)
 
     # Set the weight over the window; masked pixels have 0 weight
-    good = ((x >= 0) & (x < nx) & np.invert(_mask[_ycen[:,None],ih]) \
-                 & (_ivar[_ycen[:,None],ih] > 0)).astype(int)
+    good = (x >= 0) & (x < nx) & np.invert(_mask[_ycen[:,None],ih]) \
+                 & (_ivar[_ycen[:,None],ih] > 0)
     if weighting == 'uniform':
         # Weight according to the fraction of each pixel within in the
         # integration window
@@ -1842,8 +2012,8 @@ def recenter_moment(flux, xcen, ivar=None, mask=None, ycen=None, weighting='unif
     else:
         # Weight according to the integral of a Gaussian over the pixel
         coo = x - _xcen[:,None]
-        wt = good * (special.erf((coo+0.5)/np.sqrt(2)/_width[:,None])
-                        - special.erf((coo-0.5)/np.sqrt(2)/_width[:,None]))/2.
+        wt = good * (special.erf((coo+0.5)/np.sqrt(2.)/_width[:,None])
+                        - special.erf((coo-0.5)/np.sqrt(2.)/_width[:,None]))/2.
 
     # Weight the image data
     fwt = flux[_ycen[:,None],ih] * wt
@@ -2346,235 +2516,496 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
     return trace_fit, trace_cen, trace_err, bad_trace, traceset
 
 
-def pca_trace(trace, predict=None, npca=None, pca_explained_var=99.0, coeff_npoly=None,
-              debug=False, trace_coo=None, lower=3.0, upper=3.0, minv=None, maxv=None, maxrej=1,
-              trace_mean=None):
-
+def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     r"""
-    Perform principle-component analysis (PCA) of a set of trace
-    coordinates.
+    Perform principle-component analysis (PCA) for a set of 1D vectors.
 
-    This function is used in pypeit to both analyze slit edge traces
-    and object traces between different echelle orders.
-
-    First, all valid traces (see `predict`) are passed to an
-    unconstrained PCA to determine the growth curve of the accounted
-    variance as a function of PCA component. If specifying a number
-    of PCA components to use (see `npca`), this yields the percentage
-    of the variance accounted for in the analysis. If instead
-    specifying the target variance percentage (see
-    `pca_explained_var`, this is used to determine the number of PCA
-    components to use in the finaly analysis.
-
-    The PCA is then recomputed with the limited number of components.
-    The coefficients of each component for reach trace is then fit by
-    a low-order polynomial (see `trace_coo`, `coeff_npoly`, and other
-    fitting parameters that are passed to
-    :func:`pypeit.utils.robust_polyfit_djs`).
-
-    The final PCA-determined trace positions are determined using the
-    coefficients sampled from the fitted polynomial. These
-    coefficients are used both for the traces used in the PCA and to
-    construct any predicted traces requested (see `predict`).
+    The vectors are first passed to an unconstrained PCA to determine
+    the growth curve of the accounted variance as a function of the
+    PCA component. If specifying a number of PCA components to use
+    (see `npca`), this yields the percentage of the variance
+    accounted for in the analysis. If instead specifying the target
+    variance percentage (see `pca_explained_var`), this is used to
+    determine the number of PCA components to use in the final
+    analysis.
 
     Args:
-        trace (`numpy.ndarray`_):
-            Trace coordinate data to analyze. This must be a 2-d
-            array with shape (nspec, ntrace) array.
-        predict (`numpy.ndarray`_, optional):
-            Boolean array with flags of traces in `trace` that should
-            be predicted based on the PCA of the other traces. Must
-            have shape (ntrace,). If None, the function determines
-            the PCA coefficients using all traces with no no
-            extrapolation to predict new traces. When used for object
-            finding, we use the standard star (or slit boundaries) as
-            the input for orders for which a trace is not identified
-            and fit the coefficients of all simultaneously (no
-            extrapolation is performed). For tracing slit boundaries
-            it may be useful to perform extrapolations.
+        vectors (`numpy.ndarray`_):
+            A 2D array with vectors to analyze with shape
+            :math:`(N_{\rm vec}, N_{\rm pix})`. All vectors must be
+            the same length and cannot be masked.
         npca (:obj:`bool`, optional):
             The number of PCA components to keep, which must be less
-            than ntrace. If `npca==ntrace`, no PCA compression
-            occurs. If None, `npca` is automatically determined by
-            calculating the minimum number of components required to
-            explain a given percentage of variance with respect to
-            the trace data (see `pca_explained_var`).
+            than :math:`N_{\rm vec}`. If `npca==nvec`, no PCA
+            compression occurs. If None, `npca` is automatically
+            determined by calculating the minimum number of
+            components required to explain a given percentage of
+            variance in the data. (see `pca_explained_var`).
         pca_explained_var (:obj:`float`, optional):
             The percentage (i.e., not the fraction) of the variance
             in the data accounted for by the PCA used to truncate the
             number of PCA coefficients to keep (see `npca`). Ignored
             if `npca` is provided directly.
-        coeff_npoly (:obj:`int`, optional):
-            Order of polynomial fits used for PCA coefficients
-            fitting. If None, the polynomial order is determined as
-            follows::
-
-                coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/ntrace),1.0),3.0))
-
-            where `ngood` is the number of traces used to construct
-            the PCA (number of False values in `predict`) and
-            `ntrace` is the total number of traces. In general, PCA
-            components that explain less variance (and are thus much
-            noiser) are fit with lower order. In the limit where all
-            traces are used in the PCA, the polynomial order is 3.
-            TODO: This is wrong!  (see npoly in the function)
-        debug (:obj:`bool`, optional):
-            Show plots useful for debugging.
-        trace_coo (`numpy.ndarray`_, optional):
-            Floating-point array with the independent coordinates to
-            use when fitting the PCA coefficients. If None, simply
-            uses a running number.  Shape must be (ntrace,).
-        lower (:obj:`float`, optional):
-            Number of standard deviations used for rejecting data
-            **below** the mean residual during the coefficient
-            fitting. If None, no rejection is performed. See
-            :func:`utils.robust_polyfit_djs`.
-        upper (:obj:`float`, optional):
-            Number of standard deviations used for rejecting data
-            **above** the mean residual during the coefficient
-            fitting. If None, no rejection is performed. See
-            :func:`utils.robust_polyfit_djs`.
-        minv, maxv (:obj:`float`, optional):
-            Minimum and maximum values used to rescale the
-            independent axis data during the coefficient fitting. If
-            None, the minimum and maximum values of `trace_coo` are
-            used. See `minx` and `maxx` in
-            :func:`utils.robust_polyfit_djs`.
-        maxrej (:obj:`int`, optional):
-            Maximum number of points to reject during fit iterations.
-            See :func:`utils.robust_polyfit_djs`.
-        trace_mean (`numpy.ndarray`_, optional):
-            The mean position of each trace to subtract from the
-            trace data before performing the PCA. If None, this is
-            just the mean position of each trace for all spectral
-            pixels. Shape must be (ntrace,).
+        mean (`numpy.ndarray`_, optional):
+            The mean value of each vector to subtract from the data
+            before performing the PCA. If None, this is determined
+            directly from the data. Shape must be :math:`N_{\rm
+            vec}`.
 
     Returns:
-        Four objects: pca_fit, fit_dict, pca.mean_, pca_vectors.
-        TODO: Need to explain these.... The first one is: Array with
-        the same size as xinit, which contains the pca fitted orders.
+        Returns four `numpy.ndarray`_ objects::
+            - The coefficients of each PCA component, `coeffs`. Shape
+            is :math:`(N_{\rm vec},N_{\rm comp})`.
+            - The PCA component vectors, `components`. Shape is
+            :math:`(N_{\rm comp},N_{\rm pix})`.
+            - The mean offset of each PCA for each pixel, `pca_mean`.
+            Shape is :math:`(N_{\rm pix},)`.
+            - The mean offset applied to each vector before the PCA,
+            `vec_mean`. Shape is :math:`(N_{\rm vec},)`.
+
+        To reconstruct the PCA representation of the input vectors, compute::
+
+            np.dot(coeffs, components) + pca_mean[None,:] + vec_mean[:,None]
     """
     # Check input
-    if trace.ndim != 2:
+    if vectors.ndim != 2:
         raise ValueError('Input trace data must be a 2D array')
-    nspec, ntrace = trace.shape
-    if trace_coo is None:
-        trace_coo = np.arange(ntrace, dtype=float)
-    if trace_coo.size != ntrace:
-        raise ValueError('Trace coordinates has incorrect shape.')
+    nvec = vectors.shape[0]
+    if nvec < 2:
+        raise ValueError('There must be at least 2 vectors for the PCA analysis.')
 
-    if predict is None:
-        predict = np.zeros(ntrace, dtype=bool)
-    if predict.size != ntrace:
-        raise ValueError('Input predict vector has incorrect length.')
+    # Take out the mean value of each vector
+    if mean is None:
+        mean = np.mean(vectors, axis=1)
+    vec_pca = vectors - mean[:,None]
 
-    # Set of good traces to use to predict bad traces
-    use_trace = np.invert(predict)
-    ngood = np.sum(use_trace)
-    if ngood < 2:
-        raise ValueError('The must be at least 2 valid traces for the PCA analysis.')
-
-    # Take out the mean position of each input trace
-    if trace_mean is None:
-        # TODO: replace this default with most_common_trace_row?
-        trace_mean = np.mean(trace, axis=0)
-
-    # TODO: Why aren't trace_mean and trace_coo always the same?
-
-    # Below is allowed because of numpy broadcasting. trace has shape
-    # (nspec,ntrace) and trace_mean has shape (ntrace,); trace_mean is
-    # subtracted from each row of trace.  This is equivalent to::
-    #   trace_pca = trace - trace_mean[None,:]
-    trace_pca = trace - trace_mean
-
-    # Perform unconstrained PCA of the valid traces
+    # Perform unconstrained PCA of the vectors
     pca = PCA()
-    pca.fit(trace_pca[:,use_trace].T)
+    pca.fit(vec_pca)
 
     # Compute the cumulative distribution of the variance explained by the PCA components.
     # TODO: Why round to 6 decimals?  Why work in percentages?
-    var = np.cumsum(np.round(pca.explained_variance_ratio_, decimals=6) * 100)
+    var_growth = np.cumsum(np.round(pca.explained_variance_ratio_, decimals=6) * 100)
     # Number of components for a full decomposition
-    npca_tot = var.size
+    npca_tot = var_growth.size
 
     print('The unconstrained PCA yields {0} components.'.format(npca_tot))
-
     if npca is None:
         # Assign the number of components to use based on the variance
         # percentage
         if pca_explained_var is None:
             raise ValueError('Must provide percentage explained variance.')
-        npca = int(np.ceil(np.interp(pca_explained_var, var, np.arange(npca_tot)+1))) \
-                    if var[0] < pca_explained_var else 1
+        npca = int(np.ceil(np.interp(pca_explained_var, var_growth, np.arange(npca_tot)+1))) \
+                    if var_growth[0] < pca_explained_var else 1
     elif npca_tot < npca:
-        raise ValueError('Not enough good traces for a PCA fit of the requested dimensionality.  '
+        raise ValueError('Too few vectors for a PCA of the requested dimensionality.  '
                          'The full (uncompressing) PCA has {0} components'.format(npca_tot)
                          + ', which is less than the requested {0} components.'.format(npca)
                          + '  Lower the number of requested PCA components or turn off the PCA.')
 
-    print('PCA will include {0} components, containing {1:.3f}'.format(npca, var[npca-1])
+    print('PCA will include {0} components, containing {1:.3f}'.format(npca, var_growth[npca-1])
               + '% of the total variance.')
 
-    # Determine the PCA coefficients with the revised number of components
+    # Determine the PCA coefficients with the revised number of
+    # components, and return the results
     pca = PCA(n_components=npca)
-    pca_coeffs_use = pca.fit_transform(trace_pca[:,use_trace].T)
+    pca_coeffs = pca.fit_transform(vec_pca)
+    return pca_coeffs, pca.components_, pca.mean_, mean
 
-    # Fit the coefficients with a polynomial: Order is set to cascade
-    # down to lower order for components that account for a smaller
-    # percentage of the variance.
-    if coeff_npoly is None:
-        coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/ntrace),1.0),3.0))
-    ncoeff = np.clip(coeff_npoly - np.arange(npca), 1, None).astype(int)
 
-    # Initialize objects for output data
-    pca_coeffs_new = np.zeros((ntrace, npca), dtype=float)
-    fit_dict = {}
+def fit_pca_coefficients(coeffs, order, function='legendre', lower=3.0, upper=3.0, minx=None,
+                         maxx=None, maxrej=1, maxiter=25, coo=None, debug=False):
+    r"""
+    Fit a parameterized function to a set of PCA coefficients,
+    primarily for the purpose of predicting coefficients at
+    intermediate locations.
 
-    # Now loop over the dimensionality of the compression and fit
-    # polynomials to the coefficients as a function of trace coordinate
+    The coefficients of each PCA component are fit by a low-order
+    polynomial, where the abscissa is set by the `coo` argument (see
+    :func:`pypeit.utils.robust_polyfit_djs`).
+
+    .. note::
+        - This is a more general function; very similar to
+        `pypeit.core.pydl.TraceSet`.
+
+    Args:
+        coeff (`numpy.ndarray`_):
+            PCA component coefficients. If the PCA decomposition used
+            :math:`N_{\rm comp}` components for :math:`N_{\rm vec}`
+            vectors, the shape of this array must be :math:`(N_{\rm
+            comp}, N_{\rm vec})`. The array can be 1D with shape
+            :math:`(N_{\rm vec},)` if there was only one PCA
+            component.
+        order (:obj:`int`, `numpy.ndarray`_):
+            The order, :math:`o`, of the function used to fit the PCA
+            coefficients. Can be a single number for all PCA
+            components, or an array with an order specific to each
+            component. If the latter, the shape must be
+            :math:`(N_{\rm comp},)`.
+        function (:obj:`str`, optional):
+            Type of function used to fit the data.
+        lower (:obj:`float`, optional):
+            Number of standard deviations used for rejecting data
+            **below** the mean residual. If None, no rejection is
+            *performed. See
+            :func:`utils.robust_polyfit_djs`.
+        upper (:obj:`float`, optional):
+            Number of standard deviations used for rejecting data
+            **above** the mean residual. If None, no rejection is
+            *performed. See
+            :func:`utils.robust_polyfit_djs`.
+        minx, maxx (:obj:`float`, optional):
+            Minimum and maximum values used to rescale the
+            independent axis data. If None, the minimum and maximum
+            values of `coo` are used. See
+            :func:`utils.robust_polyfit_djs`.
+        maxrej (:obj:`int`, optional):
+            Maximum number of points to reject during fit iterations.
+            See :func:`utils.robust_polyfit_djs`.
+        maxiter (:obj:`int`, optional):
+            Maximum number of rejection iterations allows. To force
+            no rejection iterations, set to 0.
+        coo (`numpy.ndarray`_, optional):
+            Floating-point array with the independent coordinates to
+            use when fitting the PCA coefficients. If None, simply
+            uses a running number. Shape must be :math:`(N_{\rm
+            vec},)`.
+        debug (:obj:`bool`, optional):
+            Show plots useful for debugging.
+
+    Returns:
+        Returns four objects:
+            - A boolean `numpy.ndarray`_ masking data (`coeff`) that
+            were rejected during the polynomial fitting. Shape is the
+            same as the input `coeff`.
+            - A `list` of `numpy.ndarray`_ objects (or a single
+            `numpy.ndarray`_), one per PCA component where the length
+            of the 1D array is the number of coefficients fit to the
+            PCA-component coefficients. The number of function
+            coefficients is typically :math:`N_{\rm coeff} = o+1`.
+            - The minimum and maximum coordinate values used to
+            rescale the abscissa during the fitting.
+    """
+    # Check the input
+    #   - Get the shape of the input data to fit
+    _coeff = np.atleast_2d(coeff)
+    if _coeff.ndim != 2:
+        raise ValueError('Array with coefficiencts cannot be more than 2D')
+    npca, nvec = _coeff.shape
+    #   - Set the abscissa of the data if not provided and check its
+    #   shape
+    if coo is None:
+        coo = np.arange(nvec, dtype=float)
+    if coo.size != nvec:
+        raise ValueError('Vector coordinates have incorrect shape.')
+    #   - Check the order of the functions to fit
+    _order = np.atleast_1d(order)
+    if _order.size == 1:
+        _order = np.full(npca, order, dtype=int)
+    if _order.size != npca:
+        raise ValueError('Function order must be a single number or one number per PCA component.')
+    #   - Force the values of minx and maxx if they're not provided directly
+    if minx is None:
+        minx = np.amin(coo)
+    if maxx is None:
+        maxx = np.amax(coo)
+
+    # Instantiate the output
+    coeff_used = np.ones(_coeff.shape, dtype=bool)
+    fit_coeff = [None]*npca
+
+    # Fit the coefficients of each PCA component so that they can be
+    # interpolated to other coordinates.
     for i in range(npca):
-        # TODO: robust_poly_fit needs to return minv and maxv as
-        # outputs for the fits to be usable downstream
-        # TODO: Why a nominal polynomial and not a Legendre polynomial?
-        # Only fit the use_trace orders ...
-        msk_new, poly_out = utils.robust_polyfit_djs(trace_coo[use_trace], pca_coeffs_use[:,i],
-                                                     ncoeff[i], function='polynomial', maxiter=25,
-                                                     lower=lower, upper=upper, maxrej=maxrej,
-                                                     sticky=False, minx=minv, maxx=maxv)
-        # ... and use the result to predict the coefficients for all traces
-        pca_coeffs_new[:,i] = utils.func_val(poly_out, trace_coo, 'polynomial')
-
-        # Save the results
-        # TODO: Just return the objects...
-        fit_dict[i] = {}
-        fit_dict[i]['coeffs'] = poly_out
-        fit_dict[i]['minv'] = minv
-        fit_dict[i]['maxv'] = maxv
-
+        coeff_used[i], fit_coeff[i] = utils.robust_polyfit_djs(coo, _coeff[i], _order[i],
+                                                               function=function, maxiter=maxiter,
+                                                               lower=lower, upper=upper,
+                                                               maxrej=maxrej, sticky=False,
+                                                               minx=minx, maxx=maxx)
         if debug:
             # Visually check the fits
-            xvec = np.linspace(trace_coo.min(),trace_coo.max(),num=100)
-            robust_rejected = np.invert(msk_new == 1)
-            plt.plot(trace_coo[use_trace], pca_coeffs_use[:,i], 'ko', mfc='None', markersize=8.0,
-                     label='pca coeff')
-            if np.any(robust_rejected):
-                plt.plot(trace_coo[use_trace][robust_rejected],
-                         pca_coeffs_use[:,i][robust_rejected], 'r+',
-                         markersize=20.0, label='robust_polyfit_djs rejected')
-            plt.plot(xvec, utils.func_val(poly_out, xvec, 'polynomial'), ls='-.',
-                     color='steelblue', label='Polynomial fit of order={0}'.format(ncoeff[i]))
+            xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)
+            rejected = np.invert(coeff_used[i])
+            plt.scatter(coo, _coeff[i], marker='.', s=100, facecolor='none', label='pca coeff')
+            if np.any(rejected):
+                plt.scatter(coo[rejected], _coeff[i,rejected], marker='x', color='C3', s=80, 
+                            label='robust_polyfit_djs rejected')
+            plt.plot(xvec, utils.func_val(fit_coeff[i], xvec, function, minx=minx, maxx=maxx),
+                     linestyle='--', color='C1',
+                     label='Polynomial fit of order={0}'.format(_order[i]))
             plt.xlabel('Trace Coordinate', fontsize=14)
             plt.ylabel('PCA Coefficient', fontsize=14)
             plt.title('PCA Fit for Dimension #{0}/{1}'.format(i+1, npca))
             plt.legend()
             plt.show()
 
-    # Construct the PCA driven traces; allowed because of numpy
-    # broadcasting rules for matrices and vectors.
-    trace_pca = (np.dot(pca_coeffs_new, pca.components_) + pca.mean_).T + trace_mean
+    # Return arrays that match the shape of the input data
+    if coeff.ndim == 1:
+        return np.invert(coeff_used)[0], fit_coeff[0], minx, maxx
+    return np.invert(coeff_used), fit_coeff, minx, maxx
 
-    # Return the results
-    return trace_pca, poly_out, minv, maxv, pca
+
+def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='legendre')
+    r"""
+    Use a model of the PCA coefficients to predict vectors at the
+    specified coordinates.
+
+    Args:
+        x (:obj:`float`, `numpy.ndarray`_):
+            One or more trace coordinates at which to sample the PCA
+            coefficients and produce the PCA model.
+        pca_coeff_fits (:obj:`list`, `numpy.ndarray`_): 
+            A `list` of `numpy.ndarray`_ objects (or a single
+            `numpy.ndarray`_), one per PCA component where the length
+            of the 1D array is the number of coefficients fit to the
+            PCA-component coefficients.
+        pca_mean (`numpy.ndarray`_):
+            The mean offset of the PCA decomposotion for each pixel.
+            Shape is :math:`(N_{\rm pix},)`.
+        mean (`numpy.ndarray`_):
+            The mean offset applied to each vector before the PCA.
+            Shape is :math:`(N_{\rm vec},)`.
+    
+    Returns:
+        `numpy.ndarray`_: PCA constructed vectors, one per position
+        `x`. Shape is either :math:`(N_{\rm pix},)` or :math:`(N_{\rm
+        x},N_{\rm pix})`, depending on the input shape/type of `x`.
+    """
+    _x = np.atleast_1d(x)
+    if _x.ndim != 1:
+        raise ValueError('Coordinates for predicted vectors must be no more than 1D.')
+    # Calculate the coefficients using the best fitting function
+    npca = pca_components.shape[0]
+    c = np.zeros((_x.size, npca), dtype=float)
+    for i in range(npca):
+        c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function=function)
+    # Calculate the predicted vectors and return them
+    vectors = np.dot(c, pca_components) + pca_mean[None,:] + mean[:,None]
+    return vectors if _x.ndim > 1 else vectors[0,:]
+
+
+#def pca_trace(trace, predict=None, npca=None, pca_explained_var=99.0, coeff_npoly=None,
+#              debug=False, trace_coo=None, lower=3.0, upper=3.0, minv=None, maxv=None, maxrej=1,
+#              trace_mean=None):
+#
+#    r"""
+#    Perform principle-component analysis (PCA) of a set of trace
+#    coordinates.
+#
+#    This function is used in pypeit to both analyze slit edge traces
+#    and object traces between different echelle orders.
+#
+#    First, all valid traces (see `predict`) are passed to an
+#    unconstrained PCA to determine the growth curve of the accounted
+#    variance as a function of PCA component. If specifying a number
+#    of PCA components to use (see `npca`), this yields the percentage
+#    of the variance accounted for in the analysis. If instead
+#    specifying the target variance percentage (see
+#    `pca_explained_var`), this is used to determine the number of PCA
+#    components to use in the final analysis.
+#
+#    The PCA is then recomputed with the limited number of components.
+#    The coefficients of each component for each trace is then fit by
+#    a low-order polynomial (see `trace_coo`, `coeff_npoly`, and other
+#    fitting parameters that are passed to
+#    :func:`pypeit.utils.robust_polyfit_djs`).
+#
+#    The final PCA-determined trace positions are determined using the
+#    coefficients sampled from the fitted polynomial. These
+#    coefficients are used both for the traces used in the PCA and to
+#    construct any predicted traces requested (see `predict`).
+#
+#    Args:
+#        trace (`numpy.ndarray`_):
+#            Trace coordinate data to analyze. This must be a 2-d
+#            array with shape (nspec, ntrace) array.
+#        predict (`numpy.ndarray`_, optional):
+#            Boolean array with flags of traces in `trace` that should
+#            be predicted based on the PCA of the other traces. Must
+#            have shape (ntrace,). If None, the function determines
+#            the PCA coefficients using all traces with no no
+#            extrapolation to predict new traces. When used for object
+#            finding, we use the standard star (or slit boundaries) as
+#            the input for orders for which a trace is not identified
+#            and fit the coefficients of all simultaneously (no
+#            extrapolation is performed). For tracing slit boundaries
+#            it may be useful to perform extrapolations.
+#        npca (:obj:`bool`, optional):
+#            The number of PCA components to keep, which must be less
+#            than ntrace. If `npca==ntrace`, no PCA compression
+#            occurs. If None, `npca` is automatically determined by
+#            calculating the minimum number of components required to
+#            explain a given percentage of variance with respect to
+#            the trace data (see `pca_explained_var`).
+#        pca_explained_var (:obj:`float`, optional):
+#            The percentage (i.e., not the fraction) of the variance
+#            in the data accounted for by the PCA used to truncate the
+#            number of PCA coefficients to keep (see `npca`). Ignored
+#            if `npca` is provided directly.
+#        coeff_npoly (:obj:`int`, optional):
+#            Order of polynomial fits used for PCA coefficients
+#            fitting. If None, the polynomial order is determined as
+#            follows::
+#
+#                coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/ntrace),1.0),3.0))
+#
+#            where `ngood` is the number of traces used to construct
+#            the PCA (number of False values in `predict`) and
+#            `ntrace` is the total number of traces. In general, PCA
+#            components that explain less variance (and are thus much
+#            noiser) are fit with lower order. In the limit where all
+#            traces are used in the PCA, the polynomial order is 3.
+#            TODO: This is wrong!  (see npoly in the function)
+#        debug (:obj:`bool`, optional):
+#            Show plots useful for debugging.
+#        trace_coo (`numpy.ndarray`_, optional):
+#            Floating-point array with the independent coordinates to
+#            use when fitting the PCA coefficients. If None, simply
+#            uses a running number.  Shape must be (ntrace,).
+#        lower (:obj:`float`, optional):
+#            Number of standard deviations used for rejecting data
+#            **below** the mean residual during the coefficient
+#            fitting. If None, no rejection is performed. See
+#            :func:`utils.robust_polyfit_djs`.
+#        upper (:obj:`float`, optional):
+#            Number of standard deviations used for rejecting data
+#            **above** the mean residual during the coefficient
+#            fitting. If None, no rejection is performed. See
+#            :func:`utils.robust_polyfit_djs`.
+#        minv, maxv (:obj:`float`, optional):
+#            Minimum and maximum values used to rescale the
+#            independent axis data during the coefficient fitting. If
+#            None, the minimum and maximum values of `trace_coo` are
+#            used. See `minx` and `maxx` in
+#            :func:`utils.robust_polyfit_djs`.
+#        maxrej (:obj:`int`, optional):
+#            Maximum number of points to reject during fit iterations.
+#            See :func:`utils.robust_polyfit_djs`.
+#        trace_mean (`numpy.ndarray`_, optional):
+#            The mean position of each trace to subtract from the
+#            trace data before performing the PCA. If None, this is
+#            just the mean position of each trace for all spectral
+#            pixels. Shape must be (ntrace,).
+#
+#    Returns:
+#        Four objects: pca_fit, fit_dict, pca.mean_, pca_vectors.
+#        TODO: Need to explain these.... The first one is: Array with
+#        the same size as xinit, which contains the pca fitted orders.
+#    """
+#    # Check input
+#    if trace.ndim != 2:
+#        raise ValueError('Input trace data must be a 2D array')
+#    nspec, ntrace = trace.shape
+#    if trace_coo is None:
+#        trace_coo = np.arange(ntrace, dtype=float)
+#    if trace_coo.size != ntrace:
+#        raise ValueError('Trace coordinates has incorrect shape.')
+#
+#    if predict is None:
+#        predict = np.zeros(ntrace, dtype=bool)
+#    if predict.size != ntrace:
+#        raise ValueError('Input predict vector has incorrect length.')
+#
+#    # Set of good traces to use to predict bad traces
+#    use_trace = np.invert(predict)
+#    ngood = np.sum(use_trace)
+#    if ngood < 2:
+#        raise ValueError('The must be at least 2 valid traces for the PCA analysis.')
+#
+#    # Take out the mean position of each input trace
+#    if trace_mean is None:
+#        # TODO: replace this default with most_common_trace_row?
+#        trace_mean = np.mean(trace, axis=0)
+#
+#    # TODO: Why aren't trace_mean and trace_coo always the same?
+#
+#    # Below is allowed because of numpy broadcasting. trace has shape
+#    # (nspec,ntrace) and trace_mean has shape (ntrace,); trace_mean is
+#    # subtracted from each row of trace.  This is equivalent to::
+#    #   trace_pca = trace - trace_mean[None,:]
+#    trace_pca = trace - trace_mean
+#
+#    # Perform unconstrained PCA of the valid traces
+#    pca = PCA()
+#    pca.fit(trace_pca[:,use_trace].T)
+#
+#    # Compute the cumulative distribution of the variance explained by the PCA components.
+#    # TODO: Why round to 6 decimals?  Why work in percentages?
+#    var = np.cumsum(np.round(pca.explained_variance_ratio_, decimals=6) * 100)
+#    # Number of components for a full decomposition
+#    npca_tot = var.size
+#
+#    print('The unconstrained PCA yields {0} components.'.format(npca_tot))
+#
+#    if npca is None:
+#        # Assign the number of components to use based on the variance
+#        # percentage
+#        if pca_explained_var is None:
+#            raise ValueError('Must provide percentage explained variance.')
+#        npca = int(np.ceil(np.interp(pca_explained_var, var, np.arange(npca_tot)+1))) \
+#                    if var[0] < pca_explained_var else 1
+#    elif npca_tot < npca:
+#        raise ValueError('Not enough good traces for a PCA fit of the requested dimensionality.  '
+#                         'The full (uncompressing) PCA has {0} components'.format(npca_tot)
+#                         + ', which is less than the requested {0} components.'.format(npca)
+#                         + '  Lower the number of requested PCA components or turn off the PCA.')
+#
+#    print('PCA will include {0} components, containing {1:.3f}'.format(npca, var[npca-1])
+#              + '% of the total variance.')
+#
+#    # Determine the PCA coefficients with the revised number of components
+#    pca = PCA(n_components=npca)
+#    pca_coeffs_use = pca.fit_transform(trace_pca[:,use_trace].T)
+#
+#    # Fit the coefficients with a polynomial: Order is set to cascade
+#    # down to lower order for components that account for a smaller
+#    # percentage of the variance.
+#    if coeff_npoly is None:
+#        coeff_npoly = int(np.fmin(np.fmax(np.floor(3.3*ngood/ntrace),1.0),3.0))
+#    ncoeff = np.clip(coeff_npoly - np.arange(npca), 1, None).astype(int)
+#
+#    # Initialize objects for output data
+#    pca_coeffs_new = np.zeros((ntrace, npca), dtype=float)
+#    fit_dict = {}
+#
+#    # Now loop over the dimensionality of the compression and fit
+#    # polynomials to the coefficients as a function of trace coordinate
+#    for i in range(npca):
+#        # TODO: robust_poly_fit needs to return minv and maxv as
+#        # outputs for the fits to be usable downstream
+#        # TODO: Why a nominal polynomial and not a Legendre polynomial?
+#        # Only fit the use_trace orders ...
+#        msk_new, poly_out = utils.robust_polyfit_djs(trace_coo[use_trace], pca_coeffs_use[:,i],
+#                                                     ncoeff[i], function='polynomial', maxiter=25,
+#                                                     lower=lower, upper=upper, maxrej=maxrej,
+#                                                     sticky=False, minx=minv, maxx=maxv)
+#        # ... and use the result to predict the coefficients for all traces
+#        pca_coeffs_new[:,i] = utils.func_val(poly_out, trace_coo, 'polynomial')
+#
+#        if debug:
+#            # Visually check the fits
+#            xvec = np.linspace(trace_coo.min(),trace_coo.max(),num=100)
+#            robust_rejected = np.invert(msk_new == 1)
+#            plt.plot(trace_coo[use_trace], pca_coeffs_use[:,i], 'ko', mfc='None', markersize=8.0,
+#                     label='pca coeff')
+#            if np.any(robust_rejected):
+#                plt.plot(trace_coo[use_trace][robust_rejected],
+#                         pca_coeffs_use[:,i][robust_rejected], 'r+',
+#                         markersize=20.0, label='robust_polyfit_djs rejected')
+#            plt.plot(xvec, utils.func_val(poly_out, xvec, 'polynomial'), ls='-.',
+#                     color='steelblue', label='Polynomial fit of order={0}'.format(ncoeff[i]))
+#            plt.xlabel('Trace Coordinate', fontsize=14)
+#            plt.ylabel('PCA Coefficient', fontsize=14)
+#            plt.title('PCA Fit for Dimension #{0}/{1}'.format(i+1, npca))
+#            plt.legend()
+#            plt.show()
+#
+#    # Construct the PCA driven traces; allowed because of numpy
+#    # broadcasting rules for matrices and vectors.
+#    trace_pca = (np.dot(pca_coeffs_new, pca.components_) + pca.mean_).T + trace_mean
+#
+#    # Return the results
+#    return trace_pca, poly_out, minv, maxv, pca
 
 
 def build_trace_mask(flux, trace, mask=None, boxcar=None, thresh=None, median_kernel=None):
@@ -2646,46 +3077,48 @@ def build_trace_mask(flux, trace, mask=None, boxcar=None, thresh=None, median_ke
 
 # TODO: Add an option where the user specifies the number of slits, and
 # so it takes only the highest peaks from detect_lines
-def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='legendre', order=5,
-               npca=None, pca_explained_var=99.8, coeff_npoly_pca=3, fwhm_gaussian=3.0,
-               fwhm_uniform=3.0, peak_thresh=100.0, trace_thresh=10.0, trace_median_frac=0.01,
-               lower=2.0, upper=2.0, maxrej=1, smash_range=None, trough=False, debug=False):
+def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, function='legendre',
+               order=5, fwhm_uniform=3.0, fwhm_gaussian=3.0, peak_thresh=100.0, trace_thresh=10.0,
+               trace_median_frac=0.01, smash_range=None, trough=False, debug=False):
     """
-    Trace features by finding peaks in a rectified image collapsed
-    along the spectral axis.
+    Find and trace features in an image by identifying peaks/troughs
+    after collapsing along the spectral axis.
 
-    Rectification of the image is based on a PCA analysis of the
-    input traces; see :func:`pca_trace`. Specifically, *all* provided
-    traces are used to constrain the PCA, and then the PCA is used to
-    predict the traces that would cross through *every* spatial pixel
-    for a given spectral row. Based on this detector to trace
-    mapping, the input image is rectified by boxcar extraction along
-    the trace predicted for each spatial pixel.
+    The image is either compressed directly or after rectification
+    using the supplied `trace`. The provided trace *must* have the
+    same shape as the input `flux` image and map each spatial
+    position as a function of spectral position. This can be the
+    output of :func:`pca_predict` where the provided coordinates are
+    `np.arange(flux.shape[1])`; see also
+    :func:`EdgeTracePCA.predict`. The rectification of the input
+    `flux` is done using a boxcar extraction along the provided
+    traces with a width of `extract_width`.
 
-    The rectified image is then collapsed spectrally (see
-    `smash_range`) giving the sigma-clipped mean flux as a function
-    of spatial position. Peaks are then isolated in this vector (see
+    The (rectified) image is collapsed spectrally (see `smash_range`)
+    giving the sigma-clipped mean flux as a function of spatial
+    position. Peaks are then isolated in this vector (see
     :func:`pypeit.core.arc.detect_lines`).
 
-    PCA-based traces that pass through these peak positions are then
-    passed to two iterations of :func:`fit_trace`, which both
-    remeasures the centroids of the trace and fits a polynomial to
-    those trace data. The first iteration determines the centroids
-    with uniform weighting, passing `fwhm=fwhm_uniform` to
-    :func:`fit_trace`, and the second uses Gaussian weighting for the
-    centroid measurements (passing `fwhm=fwhm_gaussian` to
-    :func:`fit_trace`).
+    Traces that pass through these peak positions are then passed to
+    two iterations of :func:`fit_trace`, which both remeasures the
+    centroids of the trace and fits a polynomial to those trace data.
+    The first iteration determines the centroids with uniform
+    weighting, passing `fwhm=fwhm_uniform` to :func:`fit_trace`, and
+    the second uses Gaussian weighting for the centroid measurements
+    (passing `fwhm=fwhm_gaussian` to :func:`fit_trace`). The results
+    of this second iteration of :func:`fit_trace` are the data
+    returned.
 
-    The returned data are the fitted traces resulting from the final
-    call to :func:`fit_trace`; the output from :func:`fit_trace` are
-    returned directly.
+    Troughs in the image can also be traced, which is done by
+    flipping the sign of the image about its median and then
+    repeating the "peak" finding and :func:`fit_trace` iterations. If
+    troughs are fit, the traces are order with the set of peak traces
+    first (the number of which is given by the last returned object
+    of the function), followed by the trough traces.
 
     Args:
         flux (`numpy.ndarray`_):
             Image to use for tracing.
-        trace (`numpy.ndarray`_):
-            Current traces. Can be a 1D array for a single trace or a
-            2D array with shape (nspec, ntrace) for multiple traces.
         ivar (`numpy.ndarray`_, optional):
             Inverse variance of the image intensity.  If not provided,
             unity variance is used.  If provided, must have the same
@@ -2694,51 +3127,31 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
             Boolean array with the input mask for the image. If not
             provided, all values in `flux` are considered valid. If
             provided, must have the same shape as `flux`.
-        trace_mask (`numpy.ndarray`_, optional):
-            Boolean array with the trace mask; i.e., places where you
-            know the trace is going to be bad that you always want to
-            mask in the fits. Shape must match `trace`.
+        trace (`numpy.ndarray`_, optional):
+            Trace data that maps the spatial position of all spectra
+            as a function of spectral row. For example, this can be
+            the output of :func:`pca_predict` where the provided
+            coordinates are `np.arange(flux.shape[1])`; see also
+            :func:`EdgeTracePCA.predict`. This is used to rectify the
+            input image so that spectra are identically organized
+            along image rows. Shape *must* be identical to `flux`. If
+            None, `flux` is assumed to be rectified on input.
+        extract_width (:obj:`float`, optional):
+            The width of the extract aperture to use when rectifying
+            the flux image. If None, set to `fwhm_gaussian`.
         function (:obj:`str`, optional):
             The type of polynomial to fit to the trace data. See
             :func:`fit_trace`.
         order (:obj:`int`, optional):
             Order of the polynomial to fit to each trace.
-        npca (:obj:`bool`, optional):
-            The number of PCA components to keep, which must be less
-            than ntrace. If `npca==ntrace`, no PCA compression
-            occurs. If None, `npca` is automatically determined by
-            calculating the minimum number of components required to
-            explain a given percentage of variance with respect to
-            the trace data (see `pca_explained_var`). See
-            :func:`pca_trace`.
-        pca_explained_var (:obj:`float`, optional):
-            The percentage (i.e., not the fraction) of the variance
-            in the data accounted for by the PCA used to truncate the
-            number of PCA coefficients to keep (see `npca`). Ignored
-            if `npca` is provided directly. See :func:`pca_trace`.
-        coeff_npoly_pca (:obj:`int`, optional):
-            Order of polynomial fits used for PCA coefficients
-            fitting. If None, the polynomial order is determined as
-            follows::
-
-                coeff_npoly_pca = int(np.fmin(np.fmax(np.floor(3.3*ngood/ntrace),1.0),3.0))
-
-            where `ngood` is the number of traces used to construct
-            the PCA (number of False values in `predict`) and
-            `ntrace` is the total number of traces. In general, PCA
-            components that explain less variance (and are thus much
-            noiser) are fit with lower order. In the limit where all
-            traces are used in the PCA, the polynomial order is 3.
-            TODO: This is wrong!  (see npoly in the function)
-            See `coeff_npoly` argument for :func:`pca_trace`.
         fwhm_uniform (:obj:`float`, optional):
             The `fwhm` parameter to use when using uniform weighting
             in the calls to :func:`fit_trace`. See description of the
-            algorithm above. TODO: ADD THIS.
+            algorithm above.
         fwhm_gaussian (:obj:`float`, optional):
             The `fwhm` parameter to use when using Gaussian weighting
             in the calls to :func:`fit_trace`. See description of the
-            algorithm above. TODO: ADD THIS.
+            algorithm above.
         peak_thresh (:obj:`float, optional):
             The threshold for detecting peaks in the image. See the
             `input_thresh` parameter for
@@ -2752,20 +3165,7 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
             After rectification of the image and before refitting the
             traces, the rectified image is median filtered with a
             kernel width of trace_median_frac*nspec along the
-            spectral dimension (TODO: CHECK THIS).
-        lower (:obj:`float`, optional):
-            Number of standard deviations used for rejecting data
-            **below** the mean residual during the coefficient
-            fitting. If None, no rejection is performed. See
-            :func:`utils.robust_polyfit_djs`.
-        upper (:obj:`float`, optional):
-            Number of standard deviations used for rejecting data
-            **above** the mean residual during the coefficient
-            fitting. If None, no rejection is performed. See
-            :func:`utils.robust_polyfit_djs`.
-        maxrej (:obj:`int`, optional):
-            Maximum number of points to reject during fit iterations.
-            See :func:`utils.robust_polyfit_djs`.
+            spectral dimension.
         smash_range (:obj:`tuple`, optional):
             Spectral range to over which to collapse the input image
             into a 1D flux as a function of spatial position. This 1D
@@ -2784,8 +3184,19 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
             Show plots useful for debugging.
 
     Returns:
-        TODO: Copy return from fit_trace
-
+        Returns four `numpy.ndarray`_ objects and the number of peak
+        traces. The number of peak traces should be used to separate
+        peak from trough traces; if `trough` is False, this will just
+        be the total number of traces. The four
+        `numpy.ndarray`_ objects provide::
+            - The best-fitting positions of each trace determined by
+            the polynomial fit.
+            - The centroids of the trace determined by the
+            Gaussian-weighting iteration, to which the polynomial is
+            fit.
+            - The errors in the Gaussian-weighted centroids.
+            - Boolean flags for each centroid measurement (see
+            :func:`recenter_moment`).
     """
     # Setup and ensure input is correct
     if flux.ndim != 2:
@@ -2799,94 +3210,40 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
         mask = np.zeros_like(flux, dtype=bool)
     if mask.shape != flux.shape:
         raise ValueError('Mask array shape is incorrect.')
-    if trace_mask is None:
-        trace_mask = np.zeros_like(trace, dtype=bool)
-
-    # Allow for single vectors as input as well
-    _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
-    _trace_mask = trace_mask.reshape(-1, 1) if trace.ndim == 1 else trace_mask
-    ntrace = _trace.shape[1]
-    if _trace.shape != _trace_mask.shape:
-        raise ValueError('Trace data and its mask do not have the same shape.')
-    if _trace.shape[0] != nspec:
-        raise ValueError('Must provide trace position for each spectral pixel.')
 
     # Define the region to collapse
     if smash_range is None:
         smash_range = (0,1)
 
-    # Define the reference spatial positions based on the spectral row
-    # that crosses the most traces. When the flux image is rectified,
-    # the traces should line up with these positions.
-    trace_ref_row = most_common_trace_row(_trace_mask)
-    trace_ref = _trace[trace_ref_row,:]
-#    print(trace_ref)
+    # Set the image to collapse
+    if trace is None:
+        # Assume image already rectified
+        flux_extract = flux
+        # Just set the trace to the follow the spatial columns
+        trace = np.tile(np.arange(nspat), (nspec,1))
+    else:
+        # Check there is a trace for each image pixel
+        if trace.shape != flux.shape:
+            raise ValueError('Provided trace data must match the image shape.')
+        msgs.info('Rectifying image by extracting along trace for each spatial pixel')
+        # TODO: JFH What should this aperture size be? I think fwhm=3.0
+        # since that is the width of the sobel filter
+        if extract_width is None:
+            extract_width = fwhm_gaussian
+        flux_extract = extract(flux, trace-extract_width/2., trace+extract_width/2., ivar=ivar,
+                               mask=mask)[0]
+#        if debug:
+#            ginga.show_image(flux_extract, chname ='rectified image')
 
-    # Construct a full trace set to pass to pca_trace with one trace
-    # per spatial column; only the valid traces are used to construct
-    # the PCA and then the PCA is used to interpolate/extrapolate the
-    # trace to each spatial position.
-    trace_full = np.tile(np.arange(nspat).astype(float), (nspec,1))
-    trace_full[:,np.round(trace_ref).astype(int)] = _trace
-    valid_trace = np.zeros(nspat, dtype=bool)
-    valid_trace[np.round(trace_ref).astype(int)] = True
-    trace_full_ref = trace_full[trace_ref_row,:]
-#    print(trace_full[trace_ref_row,valid_trace])
-
-    # Model all traces, ignoring if they're left or right traces
-    msgs.info('Running PCA on {0} trace(s)'.format(ntrace))
-    trace_pca, _, _, _, _ \
-            = pca_trace(trace_full, predict=np.invert(valid_trace), npca=npca,
-                        pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly_pca,
-                        debug=debug, trace_coo=trace_full_ref, lower=lower, upper=upper, minv=0.0,
-                        maxv=float(nspec-1), maxrej=maxrej, trace_mean=trace_full_ref)
-#    print(trace_pca[trace_ref_row,valid_trace])
-#    print(trace_full[trace_ref_row,valid_trace] - trace_pca[trace_ref_row,valid_trace])
-#
-#    indx = np.where(valid_trace)[0]
-#    plt.scatter(np.arange(nspec), trace_full[:,indx[5]], marker='.', color='k', s=40, lw=0)
-#    plt.scatter(np.arange(nspec), trace_pca[:,indx[5]], marker='.', color='C3', s=20, lw=0)
-#    plt.scatter(np.arange(nspec), trace_pca[:,indx[5]+1], marker='.', color='C1', s=20, lw=0)
-#    plt.show()
-
-    msgs.info('Extracting image along traces')
-    # TODO: JFH What should this aperture size be? I think fwhm=3.0
-    # since that is the width of the sobel filter
-
-#    from pypeit.core import extract as ext
-#    t = time.perf_counter()
-#    flux_extract_0 = ext.extract_asymbox2(flux, trace_pca - fwhm_gaussian/2.0,
-#                                            trace_pca + fwhm_gaussian/2.0)
-#    print(time.perf_counter() - t)
-#    print(flux_extract_0.shape)
-#    t = time.perf_counter()
-    flux_extract = extract(flux, trace_pca-1, trace_pca+1, ivar=ivar, mask=mask)[0]
-#    print(time.perf_counter() - t)
-
-#    plt.imshow(flux, origin='lower', interpolation='nearest', aspect='auto')
-#    for t in _trace.T:
-#        plt.plot(t, np.arange(4096), color='C3', lw=0.5, zorder=4)
-#    plt.colorbar()
-#    plt.show()
-
-#    plt.imshow(flux_extract, origin='lower', interpolation='nearest', aspect='auto')
-#    for t in trace_full_ref[valid_trace]:
-#        plt.plot([t,t], [0,4095], color='C3', lw=0.5, zorder=4)
-#    plt.colorbar()
-#    plt.show()
-
-
-#    if debug:
-#        ginga.show_image(flux_extract, chname ='rectified image')
-
-    # Collapse the image along the spectral direction to isolate the peaks to trace
-    start, end = np.asarray(smash_range).astype(int)*nspec
+    # Collapse the image along the spectral direction to isolate peaks/troughs
+    start, end = np.clip(np.asarray(smash_range).astype(int)*nspec, 0, nspec)
+    msgs.info('Collapsing image spectrally between pixels {0}:{1}'.format(start, end))
     flux_smash_mean, flux_smash_median, flux_smash_sig \
             = sigma_clipped_stats(flux_extract[start:end,:], axis=0, sigma=4.0)
 
     # Offset by the median
-    # TODO: If tracing Sobel-filtered image, this should be close (or
-    # identically?) 0
+    # TODO: If tracing Sobel-filtered image, this should be close to,
+    # or identically, 0
     flux_median = np.median(flux_smash_mean)
     flux_smash_mean -= flux_median
 
@@ -2894,42 +3251,38 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
     label = ['peak', 'trough'] if trough else ['peak']
     sign = [1, -1] if trough else [1]
 
+    # Instantiate output
     npeak = 0
     trace_fit = np.empty((nspec,0), dtype=float)
     trace_cen = np.empty((nspec,0), dtype=float)
     trace_err = np.empty((nspec,0), dtype=float)
     bad_trace = np.empty((nspec,0), dtype=bool)
 
-    # Get the smoothing kernel, ensuring the width is odd
+    # Get the smoothing kernel width and ensure it is odd
     median_kernel = int(np.ceil(nspec*trace_median_frac))//2 * 2 + 1
 
+    # Identify and trace features in the image
     for i,(l,s) in enumerate(zip(label,sign)):
 
-        # Identify the peaks in the rectified, collapsed image
+        # Identify the peaks
         _, _, cen, _, _, best, _, _ \
                 = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
                                    input_thresh=peak_thresh, max_frac_fwhm=4.0,
                                    min_pkdist_frac_fwhm=5.0, debug=debug)
         if len(cen) == 0 or not np.any(best):
+            print('No good {0}s found!'.format(l))
             continue
         print('Found {0} good {1}(s) in the rectified, collapsed image'.format(len(cen[best]),l))
 
         # As the starting point for the iterative trace fitting, use
-        # the PCA trace results at the positions of the detected peaks
+        # the nput trace data at the positions of the detected peaks
         loc = np.round(cen[best]).astype(int) 
-        trace_peak = trace_pca[:,loc]
+        trace_peak = trace[:,loc] + (cen[best]-loc)[None,:]
 
-        plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, _trace,
-                    marker='.', color='k', s=80, lw=0)
-        plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
-                    marker='.', color='C3', s=40, lw=0)
-        plt.show()
-
-        # Image to trace; flip when tracing the troughs, set the
-        # minimum allowed in the image based on the peak detection
-        # threshold
+        # Image to trace: flip when tracing the troughs and clip low
+        # values
         # TODO: This -1 is drawn out of the ether
-        _flux = np.maximum(s*(flux - flux_median), -1)
+        _flux = np.clip(s*(flux - flux_median), -1, None)
 
         # Construct the trace mask
         trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
@@ -2939,16 +3292,18 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
         trace_peak, cen, err, bad, _ \
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
                             trace_mask=trace_peak_mask, fwhm=fwhm_uniform, function=function,
-                            niter=9, show_fits=True)
+                            niter=9, show_fits=debug)
 
-        plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, _trace,
-                    marker='.', color='k', s=80, lw=0)
-        plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
-                    marker='.', color='C3', s=40, lw=0)
-        plt.show()
+#        if debug:
+#            # Simultaneously show the fit to all traces
+#            plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, cen,
+#                        marker='.', color='k', s=80, lw=0)
+#            plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
+#                        marker='.', color='C3', s=40, lw=0)
+#            plt.show()
 
         # Reset the mask
-        # TODO: Use bad_trace
+        # TODO: Use or include `bad` resulting from fit_trace()?
         trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
                                            thresh=trace_thresh, median_kernel=median_kernel)
 
@@ -2957,14 +3312,17 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
         trace_peak, cen, err, bad, _ \
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
                             trace_mask=trace_peak_mask, weighting='gaussian', fwhm=fwhm_gaussian,
-                            function=function, niter=6, show_fits=True)
+                            function=function, niter=6, show_fits=debug)
 
-        plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, _trace,
-                    marker='.', color='k', s=80, lw=0)
-        plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
-                    marker='.', color='C3', s=40, lw=0)
-        plt.show()
+#        if debug:
+#            # Simultaneously show the fit to all traces
+#            plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, cen,
+#                        marker='.', color='k', s=80, lw=0)
+#            plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
+#                        marker='.', color='C3', s=40, lw=0)
+#            plt.show()
 
+        # Save the results
         trace_fit = np.append(trace_fit, trace_peak, axis=1)
         trace_cen = np.append(trace_cen, cen, axis=1)
         trace_err = np.append(trace_err, err, axis=1)
@@ -2974,9 +3332,342 @@ def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='leg
             # Save the number of peaks (troughs are appended, if they're located)
             npeak = cen.shape[1]
 
-    exit()
-
     return trace_fit, trace_cen, trace_err, bad_trace, npeak
+
+# TODO: Add an option where the user specifies the number of slits, and
+# so it takes only the highest peaks from detect_lines
+#def peak_trace(flux, trace, ivar=None, mask=None, trace_mask=None, function='legendre', order=5,
+#               npca=None, pca_explained_var=99.8, coeff_npoly_pca=3, fwhm_gaussian=3.0,
+#               fwhm_uniform=3.0, peak_thresh=100.0, trace_thresh=10.0, trace_median_frac=0.01,
+#               lower=2.0, upper=2.0, maxrej=1, smash_range=None, trough=False, debug=False):
+#    """
+#    Trace features by finding peaks in a rectified image collapsed
+#    along the spectral axis.
+#
+#    Rectification of the image is based on a PCA analysis of the
+#    input traces; see :func:`pca_trace`. Specifically, *all* provided
+#    traces are used to constrain the PCA, and then the PCA is used to
+#    predict the traces that would cross through *every* spatial pixel
+#    for a given spectral row. Based on this detector to trace
+#    mapping, the input image is rectified by boxcar extraction along
+#    the trace predicted for each spatial pixel.
+#
+#    The rectified image is then collapsed spectrally (see
+#    `smash_range`) giving the sigma-clipped mean flux as a function
+#    of spatial position. Peaks are then isolated in this vector (see
+#    :func:`pypeit.core.arc.detect_lines`).
+#
+#    PCA-based traces that pass through these peak positions are then
+#    passed to two iterations of :func:`fit_trace`, which both
+#    remeasures the centroids of the trace and fits a polynomial to
+#    those trace data. The first iteration determines the centroids
+#    with uniform weighting, passing `fwhm=fwhm_uniform` to
+#    :func:`fit_trace`, and the second uses Gaussian weighting for the
+#    centroid measurements (passing `fwhm=fwhm_gaussian` to
+#    :func:`fit_trace`).
+#
+#    The returned data are the fitted traces resulting from the final
+#    call to :func:`fit_trace`; the output from :func:`fit_trace` are
+#    returned directly.
+#
+#    Args:
+#        flux (`numpy.ndarray`_):
+#            Image to use for tracing.
+#        trace (`numpy.ndarray`_):
+#            Current traces. Can be a 1D array for a single trace or a
+#            2D array with shape (nspec, ntrace) for multiple traces.
+#        ivar (`numpy.ndarray`_, optional):
+#            Inverse variance of the image intensity.  If not provided,
+#            unity variance is used.  If provided, must have the same
+#            shape as `flux`.
+#        mask (`numpy.ndarray`_, optional):
+#            Boolean array with the input mask for the image. If not
+#            provided, all values in `flux` are considered valid. If
+#            provided, must have the same shape as `flux`.
+#        trace_mask (`numpy.ndarray`_, optional):
+#            Boolean array with the trace mask; i.e., places where you
+#            know the trace is going to be bad that you always want to
+#            mask in the fits. Shape must match `trace`.
+#        function (:obj:`str`, optional):
+#            The type of polynomial to fit to the trace data. See
+#            :func:`fit_trace`.
+#        order (:obj:`int`, optional):
+#            Order of the polynomial to fit to each trace.
+#        npca (:obj:`bool`, optional):
+#            The number of PCA components to keep, which must be less
+#            than ntrace. If `npca==ntrace`, no PCA compression
+#            occurs. If None, `npca` is automatically determined by
+#            calculating the minimum number of components required to
+#            explain a given percentage of variance with respect to
+#            the trace data (see `pca_explained_var`). See
+#            :func:`pca_trace`.
+#        pca_explained_var (:obj:`float`, optional):
+#            The percentage (i.e., not the fraction) of the variance
+#            in the data accounted for by the PCA used to truncate the
+#            number of PCA coefficients to keep (see `npca`). Ignored
+#            if `npca` is provided directly. See :func:`pca_trace`.
+#        coeff_npoly_pca (:obj:`int`, optional):
+#            Order of polynomial fits used for PCA coefficients
+#            fitting. If None, the polynomial order is determined as
+#            follows::
+#
+#                coeff_npoly_pca = int(np.fmin(np.fmax(np.floor(3.3*ngood/ntrace),1.0),3.0))
+#
+#            where `ngood` is the number of traces used to construct
+#            the PCA (number of False values in `predict`) and
+#            `ntrace` is the total number of traces. In general, PCA
+#            components that explain less variance (and are thus much
+#            noiser) are fit with lower order. In the limit where all
+#            traces are used in the PCA, the polynomial order is 3.
+#            TODO: This is wrong!  (see npoly in the function)
+#            See `coeff_npoly` argument for :func:`pca_trace`.
+#        fwhm_uniform (:obj:`float`, optional):
+#            The `fwhm` parameter to use when using uniform weighting
+#            in the calls to :func:`fit_trace`. See description of the
+#            algorithm above. TODO: ADD THIS.
+#        fwhm_gaussian (:obj:`float`, optional):
+#            The `fwhm` parameter to use when using Gaussian weighting
+#            in the calls to :func:`fit_trace`. See description of the
+#            algorithm above. TODO: ADD THIS.
+#        peak_thresh (:obj:`float, optional):
+#            The threshold for detecting peaks in the image. See the
+#            `input_thresh` parameter for
+#            :func:`pypeit.core.arc.detect_lines`.
+#        trace_thresh (:obj:`float`, optional):
+#            After rectification and median filtering of the image
+#            (see `trace_median_frac`), values in the resulting image
+#            that are *below* this threshold are masked in the
+#            refitting of the trace using :func:`fit_trace`.
+#        trace_median_frac (:obj:`float`, optional):
+#            After rectification of the image and before refitting the
+#            traces, the rectified image is median filtered with a
+#            kernel width of trace_median_frac*nspec along the
+#            spectral dimension (TODO: CHECK THIS).
+#        lower (:obj:`float`, optional):
+#            Number of standard deviations used for rejecting data
+#            **below** the mean residual during the coefficient
+#            fitting. If None, no rejection is performed. See
+#            :func:`utils.robust_polyfit_djs`.
+#        upper (:obj:`float`, optional):
+#            Number of standard deviations used for rejecting data
+#            **above** the mean residual during the coefficient
+#            fitting. If None, no rejection is performed. See
+#            :func:`utils.robust_polyfit_djs`.
+#        maxrej (:obj:`int`, optional):
+#            Maximum number of points to reject during fit iterations.
+#            See :func:`utils.robust_polyfit_djs`.
+#        smash_range (:obj:`tuple`, optional):
+#            Spectral range to over which to collapse the input image
+#            into a 1D flux as a function of spatial position. This 1D
+#            vector is used to detect features for tracing. This is
+#            useful (and recommended) for definining the relevant
+#            detector range for data with spectra that do not span the
+#            length of the detector. The tuple gives the minimum and
+#            maximum in the fraction of the full spectral length
+#            (nspec). If None, the full image is collapsed.
+#        trough (:obj:`bool`, optional):
+#            Trace both peaks **and** troughs in the input image. This
+#            is done by flipping the value of the smashed image about
+#            its median value, such that troughs can be identified as
+#            peaks.
+#        debug (:obj:`bool`, optional):
+#            Show plots useful for debugging.
+#
+#    Returns:
+#        TODO: Copy return from fit_trace
+#
+#    """
+#    # Setup and ensure input is correct
+#    if flux.ndim != 2:
+#        raise ValueError('Input image must be 2D.')
+#    nspec, nspat = flux.shape
+#    if ivar is None:
+#        ivar = np.ones_like(flux, dtype=float)
+#    if ivar.shape != flux.shape:
+#        raise ValueError('Inverse variance array shape is incorrect.')
+#    if mask is None:
+#        mask = np.zeros_like(flux, dtype=bool)
+#    if mask.shape != flux.shape:
+#        raise ValueError('Mask array shape is incorrect.')
+#    if trace_mask is None:
+#        trace_mask = np.zeros_like(trace, dtype=bool)
+#
+#    # Allow for single vectors as input as well
+#    _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
+#    _trace_mask = trace_mask.reshape(-1, 1) if trace.ndim == 1 else trace_mask
+#    ntrace = _trace.shape[1]
+#    if _trace.shape != _trace_mask.shape:
+#        raise ValueError('Trace data and its mask do not have the same shape.')
+#    if _trace.shape[0] != nspec:
+#        raise ValueError('Must provide trace position for each spectral pixel.')
+#
+#    # Define the region to collapse
+#    if smash_range is None:
+#        smash_range = (0,1)
+#
+#    # Define the reference spatial positions based on the spectral row
+#    # that crosses the most traces. When the flux image is rectified,
+#    # the traces should line up with these positions.
+#    trace_ref_row = most_common_trace_row(_trace_mask)
+#    trace_ref = _trace[trace_ref_row,:]
+##    print(trace_ref)
+#
+#    # Construct a full trace set to pass to pca_trace with one trace
+#    # per spatial column; only the valid traces are used to construct
+#    # the PCA and then the PCA is used to interpolate/extrapolate the
+#    # trace to each spatial position.
+#    trace_full = np.tile(np.arange(nspat).astype(float), (nspec,1))
+#    trace_full[:,np.round(trace_ref).astype(int)] = _trace
+#    valid_trace = np.zeros(nspat, dtype=bool)
+#    valid_trace[np.round(trace_ref).astype(int)] = True
+#    trace_full_ref = trace_full[trace_ref_row,:]
+##    print(trace_full[trace_ref_row,valid_trace])
+#
+#    # Model all traces, ignoring if they're left or right traces
+#    msgs.info('Running PCA on {0} trace(s)'.format(ntrace))
+#    trace_pca, _, _, _, _ \
+#            = pca_trace(trace_full, predict=np.invert(valid_trace), npca=npca,
+#                        pca_explained_var=pca_explained_var, coeff_npoly=coeff_npoly_pca,
+#                        debug=debug, trace_coo=trace_full_ref, lower=lower, upper=upper, minv=0.0,
+#                        maxv=float(nspec-1), maxrej=maxrej, trace_mean=trace_full_ref)
+##    print(trace_pca[trace_ref_row,valid_trace])
+##    print(trace_full[trace_ref_row,valid_trace] - trace_pca[trace_ref_row,valid_trace])
+##
+##    indx = np.where(valid_trace)[0]
+##    plt.scatter(np.arange(nspec), trace_full[:,indx[5]], marker='.', color='k', s=40, lw=0)
+##    plt.scatter(np.arange(nspec), trace_pca[:,indx[5]], marker='.', color='C3', s=20, lw=0)
+##    plt.scatter(np.arange(nspec), trace_pca[:,indx[5]+1], marker='.', color='C1', s=20, lw=0)
+#    plt.show()
+#
+#    msgs.info('Extracting image along traces')
+#    # TODO: JFH What should this aperture size be? I think fwhm=3.0
+#    # since that is the width of the sobel filter
+#
+##    from pypeit.core import extract as ext
+##    t = time.perf_counter()
+##    flux_extract_0 = ext.extract_asymbox2(flux, trace_pca - fwhm_gaussian/2.0,
+##                                            trace_pca + fwhm_gaussian/2.0)
+##    print(time.perf_counter() - t)
+##    print(flux_extract_0.shape)
+##    t = time.perf_counter()
+#    flux_extract = extract(flux, trace_pca-1, trace_pca+1, ivar=ivar, mask=mask)[0]
+##    print(time.perf_counter() - t)
+#
+##    plt.imshow(flux, origin='lower', interpolation='nearest', aspect='auto')
+##    for t in _trace.T:
+##        plt.plot(t, np.arange(4096), color='C3', lw=0.5, zorder=4)
+##    plt.colorbar()
+##    plt.show()
+#
+##    plt.imshow(flux_extract, origin='lower', interpolation='nearest', aspect='auto')
+##    for t in trace_full_ref[valid_trace]:
+##        plt.plot([t,t], [0,4095], color='C3', lw=0.5, zorder=4)
+##    plt.colorbar()
+##    plt.show()
+#
+#
+##    if debug:
+##        ginga.show_image(flux_extract, chname ='rectified image')
+#
+#    # Collapse the image along the spectral direction to isolate the peaks to trace
+#    start, end = np.asarray(smash_range).astype(int)*nspec
+#    flux_smash_mean, flux_smash_median, flux_smash_sig \
+#            = sigma_clipped_stats(flux_extract[start:end,:], axis=0, sigma=4.0)
+#
+#    # Offset by the median
+#    # TODO: If tracing Sobel-filtered image, this should be close (or
+#    # identically?) 0
+#    flux_median = np.median(flux_smash_mean)
+#    flux_smash_mean -= flux_median
+#
+#    # Trace peak or both peaks and troughs
+#    label = ['peak', 'trough'] if trough else ['peak']
+#    sign = [1, -1] if trough else [1]
+#
+#    npeak = 0
+#    trace_fit = np.empty((nspec,0), dtype=float)
+#    trace_cen = np.empty((nspec,0), dtype=float)
+#    trace_err = np.empty((nspec,0), dtype=float)
+#    bad_trace = np.empty((nspec,0), dtype=bool)
+#
+#    # Get the smoothing kernel, ensuring the width is odd
+#    median_kernel = int(np.ceil(nspec*trace_median_frac))//2 * 2 + 1
+#
+#    for i,(l,s) in enumerate(zip(label,sign)):
+#
+#        # Identify the peaks in the rectified, collapsed image
+#        _, _, cen, _, _, best, _, _ \
+#                = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
+#                                   input_thresh=peak_thresh, max_frac_fwhm=4.0,
+#                                   min_pkdist_frac_fwhm=5.0, debug=debug)
+#        if len(cen) == 0 or not np.any(best):
+#            continue
+#        print('Found {0} good {1}(s) in the rectified, collapsed image'.format(len(cen[best]),l))
+#
+#        # As the starting point for the iterative trace fitting, use
+#        # the PCA trace results at the positions of the detected peaks
+#        loc = np.round(cen[best]).astype(int) 
+#        trace_peak = trace_pca[:,loc] + (cen[best]-loc)[None,:]
+#
+#        if debug:
+#            plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, _trace,
+#                        marker='.', color='k', s=80, lw=0)
+#            plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
+#                        marker='.', color='C3', s=40, lw=0)
+#            plt.show()
+#
+#        # Image to trace; flip when tracing the troughs, set the
+#        # minimum allowed in the image based on the peak detection
+#        # threshold
+#        # TODO: This -1 is drawn out of the ether
+#        _flux = np.maximum(s*(flux - flux_median), -1)
+#
+#        # Construct the trace mask
+#        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
+#                                           thresh=trace_thresh, median_kernel=median_kernel)
+#
+#        # Remeasure and fit the trace using uniform weighting
+#        trace_peak, cen, err, bad, _ \
+#                = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
+#                            trace_mask=trace_peak_mask, fwhm=fwhm_uniform, function=function,
+#                            niter=9, show_fits=debug)
+#
+#        if debug:
+#            plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, _trace,
+#                        marker='.', color='k', s=80, lw=0)
+#            plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
+#                        marker='.', color='C3', s=40, lw=0)
+#            plt.show()
+#
+#        # Reset the mask
+#        # TODO: Use bad_trace
+#        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
+#                                           thresh=trace_thresh, median_kernel=median_kernel)
+#
+#        # Redo the measurements and trace fitting with Gaussian
+#        # weighting
+#        trace_peak, cen, err, bad, _ \
+#                = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
+#                            trace_mask=trace_peak_mask, weighting='gaussian', fwhm=fwhm_gaussian,
+#                            function=function, niter=6, show_fits=debug)
+#
+#        if debug:
+#            plt.scatter(np.tile(np.arange(nspec), (ntrace,1)).T, _trace,
+#                        marker='.', color='k', s=80, lw=0)
+#            plt.scatter(np.tile(np.arange(nspec), (trace_peak.shape[1],1)).T, trace_peak,
+#                        marker='.', color='C3', s=40, lw=0)
+#            plt.show()
+#
+#        trace_fit = np.append(trace_fit, trace_peak, axis=1)
+#        trace_cen = np.append(trace_cen, cen, axis=1)
+#        trace_err = np.append(trace_err, err, axis=1)
+#        bad_trace = np.append(bad_trace, bad, axis=1)
+#
+#        if i == 0:
+#            # Save the number of peaks (troughs are appended, if they're located)
+#            npeak = cen.shape[1]
+#
+#    return trace_fit, trace_cen, trace_err, bad_trace, npeak
 
 def extract_boxcar(flux, xcen, width, ivar=None, mask=None, wgt=None, ycen=None, fill_error=-1.):
     """
