@@ -80,22 +80,30 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
 
 def closest_unmasked(arr, use_indices=False):
     """
-    Return the indices of the closes unmasked elements in a vector.
+    Return the indices of the closest unmasked element in a vector.
+
+    .. warning::
+
+        The function *uses the values of the masked data* for masked
+        elements. This means that if you want to know the closest
+        unmasked element to one of the *masked* elements, the `data`
+        attribute of the provided array should have meaningful values
+        for these masked elements.
 
     Args:
         arr (`numpy.ma.MaskedArray`_):
             Array to analyze. Must be 1D.
         use_indices (:obj:`bool`, optional):
             The proximity of each element in the array is based on
-            the difference in the array values. If this is set to
-            True, this instead returns the indices of the array
-            elements that are closest in terms of the array order.
+            the difference in the array `data` values. Setting
+            `use_indices` to `True` instead bases the calculation on
+            the proximity of the element indices; i.e., find the
+            index of the closest unmasked element.
 
     Returns:
         `numpy.ndarray`_: Integer array with the indices of the
         closest array elements, the definition of which depends on
-        `use_indices`. Note: The indices of the masked elements are
-        all returned as 0.
+        `use_indices`.
     """
     # Check the input
     if not isinstance(arr, np.ma.MaskedArray):
@@ -106,11 +114,11 @@ def closest_unmasked(arr, use_indices=False):
         return closest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
 
     # Get the difference of each element with every other element
-    nearest = np.absolute(arr[None,:]-arr[:,None])
+    nearest = np.absolute(arr[None,:]-arr.data[:,None])
     # Ignore the diagonal
     nearest[np.diag_indices(arr.size)] = np.ma.masked
     # Return the location of the minimum value ignoring the masked values
-    return np.ma.amin(nearest, axis=1)
+    return np.ma.argmin(nearest, axis=1)
 
 
 class TraceBitMask(BitMask):
@@ -1646,7 +1654,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # if it's not?
         self.resort_trace_ids()
 
-        # Find the edges to add
+        # Find the edges to add, what side they're on, and where to
+        # insert them into the existing trace array
         side, add_edge, add_indx = self._get_insert_locations()
         if not np.any(add_edge):
             # No edges to add
@@ -1662,14 +1671,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # If there was only one edge, just add the other one
         if side.size == 2:
-            warnings.warn('Only one edge traced; adding an edge at the edge of the detector.')
+            warnings.warn('Only one edge traced; adding another at the opposite edge of the '
+                          'detector.')
             # PCA would have failed because there needs to be at least
-            # two traces. So we can just add a trace that matches the
-            # right edge offset to the edge of the detector.
+            # two traces.
             if trace_mode == 'pca':
                 raise ValueError('This should not happen.')
+            # Set the offset to add to the existing trace
             offset = buffer - np.amin(trace[:,0]) if add_edge[0] \
                         else self.nspat - np.amax(trace[:,0]) - buffer
+            # Construct the trace to add and insert it
             trace_add[:,0] = trace[:,0] + offset
             self.insert_traces(side[add_edge], add_indx, trace_add)
             return
@@ -1682,11 +1693,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_add = self.pca.predict(trace_ref[add_edge])
         if trace_mode == 'nearest':
             nearest = closest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
-
-
-
-
-
 
         # Insert the new traces
         self.insert_traces(side[add_edge], add_indx, trace_add)
