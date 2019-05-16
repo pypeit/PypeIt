@@ -139,6 +139,7 @@ class TraceBitMask(BitMask):
                      ('TOOSHORT', 'Trace does not meet the minimum length criterion'),
                        ('HITMIN', 'Trace crosses the minimum allowed column'),
                        ('HITMAX', 'Trace crosses the maximum allowed column'),
+                  ('OFFDETECTOR', 'Trace lands off the detector'),
                    ('SYNCINSERT', 'Trace was inserted during left and right edge sync'),
                    ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations')
                            ])
@@ -552,7 +553,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # centroids and errors. Errors are initialized to a nonsensical
         # value to indicate no measurement.
         self.spat_cen = self.spat_img.astype(float)   # This makes a copy
-        self.spat_err = np.full((self.nspec, self.ntrace), -1., dtype=float)
+        self.spat_err = np.zeros((self.nspec, self.ntrace), dtype=float)
 
         # No fitting has been done yet
         self.spat_fit_type = None
@@ -1139,7 +1140,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Remove bad traces and re-order the trace IDs
         if clip:
-            self.remove_traces(rmtrace, sortid=True)
+            self.remove_traces(rmtrace)
 
         # Add to the log
         self.log += [inspect.stack()[0][3]]
@@ -1261,7 +1262,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         good = indx & np.invert(bad)
         return good, bad
 
-    def remove_traces(self, indx, sortid=False):
+    def remove_traces(self, indx, resort=True):
         r"""
         Remove a set of traces.
 
@@ -1269,7 +1270,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             indx (array-like):
                 The boolean array with the traces to remove. Length
                 must be :math:`(N_{\rm trace},)`.
-            sortid (:obj:`bool`, optional):
+            resort (:obj:`bool`, optional):
                 Re-sort the trace IDs to be sequential in the spatial
                 direction.  See :func:`resort_trace_ids`
         """
@@ -1282,7 +1283,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.spat_fit = self.spat_fit[:,keep]
         self.traceid = self.traceid[keep]
 
-        if sortid:
+        # Remove the PCA if it exists
+        self.pca_type = None
+        self.pca = None
+
+        if resort:
             self.resort_trace_ids()
 
     def resort_trace_ids(self):
@@ -1307,6 +1312,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.traceid[indx] = -1-np.arange(np.sum(indx))
         indx = np.invert(indx)
         self.traceid[indx] = 1+np.arange(np.sum(indx))
+
+        # TODO: Need to remove the pca? Probably not if just resorting
 
     def current_trace_img(self):
         """
@@ -1367,9 +1374,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # flag them. Flagging would likely mean that the traces would
         # be ignored in subsequent analysis...
 
-    def build_pca(self, npca=None, pca_explained_var=99.8, order=3, function='polynomial',
-                  lower=3.0, upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25,
-                  use_center=False, debug=False, verbose=True):
+    def build_pca(self, minimum_length=0.9, npca=None, pca_explained_var=99.8, order=3,
+                  function='polynomial', lower=3.0, upper=3.0, minx=None, maxx=None, maxrej=1,
+                  maxiter=25, use_center=False, debug=False, verbose=True):
         """
         Build a PCA model of the current trace data using both the
         left and right traces.
@@ -1387,12 +1394,19 @@ class EdgeTraceSet(masterframe.MasterFrame):
             warnings.warn('PCA model already exists and will be overwritten.')
         if self.spat_fit is None and not use_center and verbose:
             warnings.warn('No trace fits exits.  PCA based on trace centroid measurements.')
-        trace_inp = self.spat_cen if self.spat_fit is None or use_center else self.spat_fit
         self.pca_type = 'center' if self.spat_fit is None or use_center else 'fit'
+
+        # Only use traces that are unmasked for at least some fraction of the detector
+        # TODO: Keep a separate mask specifically for the fit data?
+        use_trace = np.sum(self.spat_msk == 0, axis=0)/self.nspec > minimum_length
+        trace_inp = self.spat_cen[:,use_trace] if self.spat_fit is None or use_center \
+                        else self.spat_fit[:,use_trace]
+        msgs.info('Using {0}/{1} traces in the PCA analysis (omitting short traces).'.format(
+                    np.sum(use_trace), self.ntrace))
 
         # Instantiate the PCA
         self.pca = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
-                                reference_row=most_common_trace_row(self.spat_msk>0))
+                                reference_row=most_common_trace_row(self.spat_msk[:,use_trace]>0))
 
         # Set the order of the function fit to the PCA coefficiencts:
         # Order is set to cascade down to lower order for components
@@ -1590,7 +1604,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if center_mode == 'nearest':
             # Find the index of the closest slit with both existing
             # edges (i.e. has an unmasked slit length)
-            nearest = closest_unmasked(slit_center)
+            nearest = closest_unmasked(slit_center, use_indices=True)
             # The offset is the slit length of the nearest valid slit
             offset = slit_length[nearest]
 
@@ -1600,12 +1614,48 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 # Both slit edges already defined
                 continue
             if trace_ref.mask[slit,0]:
+                # Need to add the left edge
                 trace_ref[slit,0] = trace_ref[slit,1] - offset[slit]
                 continue
+            # Need to add the right edge
             trace_ref[slit,1] = trace_ref[slit,0] + offset[slit]
 
-        # TODO: Nothing should now be masked
+        # TODO: Nothing should now be masked. Get rid of this once
+        # satisfied that the coding is correct.
+        if np.any(trace_ref.mask):
+            raise ValueError('Coding error: this should not happen')
         return trace_ref.data.ravel()
+
+    def _nudge_traces(self, trace, max_nudge):
+        r"""
+        Nudge traces away from the detector edge.
+
+        Args:
+            trace (`numpy.ndarray`_):
+                Array with trace locations to check. Must be 2D with
+                shape :math:`(N_{\rm spec}, N_{\rm new})`.
+            max_nudge (:obj:`int`, optional):
+                If parts of the trace fall off the detector edge,
+                allow them to be nudged away from the detector edge
+                up to and including this maximum number of pixels.
+                Should be larger than 0.
+
+        Returns:
+            `numpy.ndarray`_: The nudged traces.
+        """
+        if max_nudge <= 0:
+            # Nothing to do
+            return trace
+        if trace.shape[0] != self.nspec:
+            raise ValueError('Traces have incorrect length.')
+
+        # Should never happen, but this makes a compromise if a trace
+        # crosses both the left and right spatial edge of the
+        # detector...
+        offset = np.clip(-np.amin(trace, axis=0), 0, max_nudge) \
+                    + np.clip(self.nspat - 1 - np.amax(trace, axis=0), -max_nudge, 0))
+        # Offset and return the traces
+        return trace + offset[None,:]
 
     def sync_edges(self, buffer=5, trace_mode='pca', center_mode='median', quiet=False):
         """
@@ -1671,18 +1721,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # If there was only one edge, just add the other one
         if side.size == 2:
-            warnings.warn('Only one edge traced; adding another at the opposite edge of the '
-                          'detector.')
-            # PCA would have failed because there needs to be at least
-            # two traces.
+            warnings.warn('Only one edge traced.  Ignoring center_mode and adding edge at the '
+                          'opposite edge of the detector.')
+            # TODO: PCA would have failed because there needs to be at least
+            # two traces.  Get rid of this test eventually.
             if trace_mode == 'pca':
-                raise ValueError('This should not happen.')
+                raise ValueError('Coding error: this should not happen.')
             # Set the offset to add to the existing trace
             offset = buffer - np.amin(trace[:,0]) if add_edge[0] \
                         else self.nspat - np.amax(trace[:,0]) - buffer
             # Construct the trace to add and insert it
             trace_add[:,0] = trace[:,0] + offset
-            self.insert_traces(side[add_edge], add_indx, trace_add)
+            self.insert_traces(side[add_edge], add_indx, trace_add, mode='sync', nudge=0)
             return
 
         # Get the reference locations for the new edges
@@ -1693,9 +1743,98 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_add = self.pca.predict(trace_ref[add_edge])
         if trace_mode == 'nearest':
             nearest = closest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
+            trace_add = trace[:,add_indx] + trace_ref[add_edge] - trace_ref[nearest[add_edge]]
 
         # Insert the new traces
-        self.insert_traces(side[add_edge], add_indx, trace_add)
+        self.insert_traces(side[add_edge], trace_add, add_indx, mode='sync')
+
+    def insert_traces(self, side, trace, loc=None, mode=None, max_nudge=0, resort=True):
+        r"""
+        Insert/append a set of edge traces.
+
+        TODO: Describe algorithm
+
+        Args:
+            side (:obj:`int`, `numpy.ndarray`_):
+                Side for each trace to be added: -1 for left, 1 for
+                right. Shape is :math:`(N_{\rm new},)`.
+            trace (`numpy.ndarray`_):
+                Array with one or more vectors of trace locations.
+                Can be 1D or 2D with shape :math:`(N_{\rm spec},)` or
+                :math:`(N_{\rm spec}, N_{\rm new})`, respectively.
+            loc (:obj:`int`, `numpy.ndarray`_, optional):
+                Indices in the current trace arrays at which to
+                insert the new traces; see `numpy.insert`. If None,
+                traces are appended.
+            mode (:obj:`str`, optional):
+                Mode used for generating the traces to insert used to
+                flag the traces. Options are:
+                    - None: Traces are simply inserted without
+                    flagging.
+                    - 'sync': Traces were generated by synchronizing
+                    left and right traces.
+                    - 'mask': Traces were generated based on the
+                    expected slit positions from mask design data.
+            max_nudge (:obj:`int`, optional):
+                If parts of the trace fall off the detector edge,
+                allow them to be nudged away from the detector edge
+                up to and including this maximum number of pixels. If
+                0, the traces are not altered and trace locations
+                falling off the detector are masked as such (see
+                :class:`TraceBitMask`).
+            resort (:obj:`bool`, optional):
+                Resort the traces in the spatial dimension; see
+                :func:`resort_trace_ids`.
+        """
+        # Check input
+        _side = np.atleast_1d(side)
+        ntrace = _size.size
+        _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
+        if _trace.shape[0] != ntrace:
+            raise ValueError('Number of sides does not match the number of traces to insert.')
+
+        # Nudge the traces
+        if max_nudge > 0:
+            _trace = self._nudge_traces(_trace, max_nudge)
+
+        # Set the mask
+        mask = np.zeros(_trace.shape, dtype=self.bitmask.minimum_dtype())
+        # Flag the traces pixels that fall off the detector
+        indx = (_trace < 0) | (_trace >= self.nspat)
+        mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFDETECTOR')
+        # Flag the mode used to insert these traces, if provided
+        if mode == 'sync':
+            mask = self.bitmask.turn_on(mask, 'SYNCINSERT')
+        elif mode == 'mask':
+            mask = self.bitmask.turn_on(mask, 'MASKINSERT')
+
+        # Set the ID numbers for the new traces
+        _traceid = np.empty(ntrace, dtype=int)
+        indx = _side < 0
+        if np.any(indx):
+            _traceid[indx] = np.amin(self.traceid) - 1 - np.arange(np.sum(indx))
+        indx = _side > 0
+        if np.any(indx):
+            _traceid[indx] = np.amax(self.traceid) + 1 + np.arange(np.sum(indx))
+
+        if loc is None:
+            # Insertion locations not provided so append
+            loc = np.full(ntrace, self.ntrace, dtype=int)
+
+        self.traceid = np.insert(self.traceid, loc, _traceid)
+        self.spat_img = np.insert(self.spat_img, loc, np.round(_trace).astype(int), axis=1)
+        self.spat_cen = np.insert(self.spat_cen, loc, _trace, axis=1)
+        self.spat_err = np.insert(self.spat_err, loc, np.zeros(_trace.shape, dtype=float), axis=1)
+        self.spat_msk = np.insert(self.spat_msk, loc, mask, axis=1)
+        self.spat_fit = np.insert(self.spat_fit, loc, _trace, axis=1)
+
+        if resort:
+            self.resort_trace_ids()
+
+        # TODO: I don't think this needs to reset the PCA because the traces used to construct the PCA should only be the unmasked ones.
+
+
+
 
 
 
