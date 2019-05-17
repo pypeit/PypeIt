@@ -24,5 +24,5 @@ def test_cooked_version():
     value = float(tmp[-1].strip())
     # Test
     # TODO: Shouldn't this be an exact version?
-    assert value >= 1.0
+    assert value >= 1.3
 

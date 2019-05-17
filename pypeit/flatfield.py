@@ -163,7 +163,7 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 #                                                  get_slitprofile=self.flatpar['slitprofile'])
 
     # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
-    def run(self, debug=False, show=False):
+    def run(self, debug=False, show=False, maskslits=None):
         """
         Generate normalized pixel and illumination flats
 
@@ -180,12 +180,19 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                 Run in debug mode.
             show (:obj:`bool`, optional):
                 Show the results in the ginga viewer.
+            maskslits (np.ndarray, optional):
+               Array specifying whether a slit is good.
+               True = bad
 
         Returns:
             `numpy.ndarray`_: Two arrays are returned, the normalized
             pixel flat data and the slit illumination correction data.
         """
-        # Build the pixel flat
+        # Mask
+        if maskslits is None:
+            maskslits = np.zeros(self.nslits, dtype=bool)
+
+        # Build the pixel flat (as needed)
         self.build_pixflat()
 
         # Prep tck (sets self.ntckx, self.ntcky)
@@ -206,6 +213,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Loop on slits
         for slit in range(self.nslits):
+            # Is this a good slit??
+            if maskslits[slit]:
+                msgs.info('Skipping bad slit: {}'.format(slit))
+                continue
+            #
             msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
             if self.msbpm is not None:
                 inmask = np.invert(self.msbpm)

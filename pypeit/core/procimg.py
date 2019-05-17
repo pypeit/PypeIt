@@ -735,8 +735,9 @@ def replace_columns(img, bad_cols, replace_with='mean'):
         redges = np.concatenate([redges, np.array([bad_cols.size-1])])
     # Loop on em
     for kk, ledge in enumerate(ledges):
-        lval = img[:,ledge-1]
-        rval = img[:,redges[kk]]
+        lval = img[:,redges[kk]+1] if ledge == 0 else img[:,ledge-1]
+        rval = img[:, redges[kk]]
+        # First columns?
         # Replace
         if replace_with == 'mean':
             mval = (lval+rval)/2.
