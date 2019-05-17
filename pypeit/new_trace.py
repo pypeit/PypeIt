@@ -78,6 +78,7 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
     return [ mid - Da/2, mid + Da/2 ]
 
 
+# TODO: This should go in util
 def closest_unmasked(arr, use_indices=False):
     """
     Return the indices of the closest unmasked element in a vector.
@@ -1495,7 +1496,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # every spatial pixel.
         # TODO: Mask differently if using spat_cen vs. spat_fit?
         trace_map = self.spat_cen if self.spat_fit is None else self.spat_fit
-        trace_map = self.pca.trace_map(self.nspat, trace=trace_map, trace_mask=self.spat_msk>0)
+        trace_map = self.pca.trace_map(self.nspat, trace=trace_map)
 
         # Find and trace both peaks and troughs in the image
         trace_fit, trace_cen, trace_err, bad_trace, nleft \
@@ -1561,10 +1562,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             add_edge = np.append(add_edge, True)
             add_indx = np.append(add_indx, self.ntrace)
 
-        # Find and insert missing lefts and rights
+        # Find missing lefts and rights
         diff = side[1:] + side[:-1]
-        # Missing lefts have diff == 2 and missing rights have diff ==
-        # -2
+        if np.all(diff == 0):
+            # All edges are paired left-right
+            return side, add_edge, add_indx
+
+        # Missing lefts have diff == 2, rights have diff == -2
         missing = np.where(side != 0)[0] + 1
         # Set the full side vector
         side = np.insert(side, missing, -np.sign(diff))
@@ -1573,8 +1577,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Keep track of where the new edges should be inserted in the
         # existing set
         add_indx = np.insert(add_indx, missing, missing)
-
-        # TODO: Do I really need to return all of these?
+        # Return the edges to add, their side, and where to insert them 
         return side, add_edge, add_indx
 
     def _get_reference_locations(self, trace, add_edge, center_mode):
@@ -1590,13 +1593,17 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # masked where new traces are supposed to go.
         trace_ref = np.ma.masked_all(add_edge.size)
         trace_ref[np.invert(add_edge)] = trace[reference_row,:]
-        trace_ref.reshape(-1,2)
+        trace_ref = trace_ref.reshape(-1,2)
 
-        # Get the length of each slit in pixels
+        # Get the length and center of each slit in pixels
         nslits = trace_ref.shape[0]
-        slit_length = np.ma.diff(trace_ref, axis=1)
-        slit_length[np.ma.any(add_edge.reshape(-1,2), axis=1)] = np.ma.masked
-        slit_center = np.ma.sum(trace_ref, axis=1)
+        slit_length = np.ma.diff(trace_ref, axis=1).ravel()
+        slit_center = np.ma.mean(trace_ref, axis=1)
+
+        # Mask any bad calculations
+        missing_a_side = np.ma.any(add_edge.reshape(-1,2), axis=1)
+        slit_length[missing_a_side] = np.ma.masked
+        slit_center[missing_a_side] = np.ma.masked
 
         # Determine how to offset and get the reference locations of the new edges to add
         if center_mode == 'median':
@@ -1606,7 +1613,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # edges (i.e. has an unmasked slit length)
             nearest = closest_unmasked(slit_center, use_indices=True)
             # The offset is the slit length of the nearest valid slit
-            offset = slit_length[nearest]
+            offset = slit_length.data[nearest]
 
         # Set the new edge trace reference locations
         for slit in range(nslits):
@@ -1626,7 +1633,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             raise ValueError('Coding error: this should not happen')
         return trace_ref.data.ravel()
 
-    def _nudge_traces(self, trace, max_nudge):
+    def _nudge_traces(self, trace, buffer, max_nudge):
         r"""
         Nudge traces away from the detector edge.
 
@@ -1634,6 +1641,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace (`numpy.ndarray`_):
                 Array with trace locations to check. Must be 2D with
                 shape :math:`(N_{\rm spec}, N_{\rm new})`.
+            buffer (:obj:`int`, optional):
+                The minimum separation between the detector edges and
+                a slit edge for any added edge traces. Nudges
+                incorporate this buffer.  Must be positive.
             max_nudge (:obj:`int`, optional):
                 If parts of the trace fall off the detector edge,
                 allow them to be nudged away from the detector edge
@@ -1643,21 +1654,29 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Returns:
             `numpy.ndarray`_: The nudged traces.
         """
+        # Check input
         if max_nudge <= 0:
             # Nothing to do
             return trace
+        if buffer < 0:
+            warnings.warn('Buffer must be greater than 0; ignoring.')
+            _buffer = 0
+        else:
+            _buffer = buffer
+
         if trace.shape[0] != self.nspec:
             raise ValueError('Traces have incorrect length.')
 
         # Should never happen, but this makes a compromise if a trace
         # crosses both the left and right spatial edge of the
         # detector...
-        offset = np.clip(-np.amin(trace, axis=0), 0, max_nudge) \
-                    + np.clip(self.nspat - 1 - np.amax(trace, axis=0), -max_nudge, 0))
+        offset = np.clip(buffer - np.amin(trace, axis=0), 0, max_nudge) \
+                    + np.clip(self.nspat - 1 - buffer - np.amax(trace, axis=0), -max_nudge, 0)
         # Offset and return the traces
         return trace + offset[None,:]
 
-    def sync_edges(self, buffer=5, trace_mode='pca', center_mode='median', quiet=False):
+    def sync_edges(self, buffer=5, max_nudge=0, trace_mode='pca', center_mode='median',
+                   quiet=False):
         """
         Match left and right edge traces to construct slit edge pairs.
 
@@ -1669,7 +1688,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Args:
             buffer (:obj:`int`, optional):
                 The minimum separation between the detector edges and
-                a slit edge for any added edge traces.
+                a slit edge for any added edge traces. In this
+                context, being within `buffer` pixels of the detector
+                edge is equivalent to being off the detector.
+            max_nudge (:obj:`int`, optional):
+                If parts of the traces to insert fall off the detector edge,
+                allow them to be nudged away from the detector edge
+                up to and including this maximum number of pixels. If
+                0, the traces are not altered and trace locations
+                falling off the detector are masked as such (see
+                :class:`TraceBitMask`).
             trace_mode (:obj:`str`, optional):
                 Mode to use when predicting the form of the trace to
                 insert:
@@ -1717,12 +1745,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         trace = self.spat_cen if self.spat_fit is None else self.spat_fit
 
         # Instantiate the traces to add
-        trace_add = np.zeros((self.npec, numpy.sum(add_edge)), dtype=float)
+        trace_add = np.zeros((self.nspec, np.sum(add_edge)), dtype=float)
 
         # If there was only one edge, just add the other one
         if side.size == 2:
-            warnings.warn('Only one edge traced.  Ignoring center_mode and adding edge at the '
-                          'opposite edge of the detector.')
+            if not quiet:
+                warnings.warn('Only one edge traced.  Ignoring center_mode and adding edge at '
+                              'the opposite edge of the detector.')
             # TODO: PCA would have failed because there needs to be at least
             # two traces.  Get rid of this test eventually.
             if trace_mode == 'pca':
@@ -1732,7 +1761,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         else self.nspat - np.amax(trace[:,0]) - buffer
             # Construct the trace to add and insert it
             trace_add[:,0] = trace[:,0] + offset
-            self.insert_traces(side[add_edge], add_indx, trace_add, mode='sync', nudge=0)
+            self.insert_traces(side[add_edge], trace_add, loc=add_indx, mode='sync', buffer=buffer,
+                               max_nudge=max_nudge)
             return
 
         # Get the reference locations for the new edges
@@ -1742,17 +1772,30 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if trace_mode == 'pca':
             trace_add = self.pca.predict(trace_ref[add_edge])
         if trace_mode == 'nearest':
+            # Index of trace nearest the ones to add
             nearest = closest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
-            trace_add = trace[:,add_indx] + trace_ref[add_edge] - trace_ref[nearest[add_edge]]
+            # Indices of the original traces
+            indx = np.zeros(len(add_edge), dtype=int)
+            indx[np.invert(add_edge)] = np.arange(self.ntrace)
+            # Offset the original traces by a constant based on the
+            # reference row to construct the new traces.
+            trace_add = trace[:,indx[nearest[add_edge]]] + trace_ref[add_edge] \
+                            - trace_ref[nearest[add_edge]]
 
         # Insert the new traces
-        self.insert_traces(side[add_edge], trace_add, add_indx, mode='sync')
+        max_nudge = 100
+        self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync',
+                           buffer=buffer, max_nudge=max_nudge)
 
-    def insert_traces(self, side, trace, loc=None, mode=None, max_nudge=0, resort=True):
+    def insert_traces(self, side, trace, loc=None, mode=None, buffer=5, max_nudge=0,
+                      resort=True):
         r"""
         Insert/append a set of edge traces.
 
         TODO: Describe algorithm
+
+        The new traces are added to both the fitted list and the
+        center list!
 
         Args:
             side (:obj:`int`, `numpy.ndarray`_):
@@ -1775,6 +1818,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     left and right traces.
                     - 'mask': Traces were generated based on the
                     expected slit positions from mask design data.
+            buffer (:obj:`int`, optional):
+                The minimum separation between the detector edges and
+                a slit edge for a good trace value. In this context,
+                being within `buffer` pixels of the detector edge is
+                equivalent to being off the detector.
             max_nudge (:obj:`int`, optional):
                 If parts of the trace fall off the detector edge,
                 allow them to be nudged away from the detector edge
@@ -1788,14 +1836,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         # Check input
         _side = np.atleast_1d(side)
-        ntrace = _size.size
+        ntrace = _side.size
         _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
-        if _trace.shape[0] != ntrace:
+        if _trace.shape[1] != ntrace:
             raise ValueError('Number of sides does not match the number of traces to insert.')
+        if loc is None:
+            # Insertion locations not provided so append
+            loc = np.full(ntrace, self.ntrace, dtype=int)
+        if loc.size != ntrace:
+            raise ValueError('Number of sides does not match the number of insertion locations.')
+
+        import pdb
+        pdb.set_trace()
 
         # Nudge the traces
         if max_nudge > 0:
-            _trace = self._nudge_traces(_trace, max_nudge)
+            _trace = self._nudge_traces(_trace, buffer, max_nudge)
+
+        pdb.set_trace()
 
         # Set the mask
         mask = np.zeros(_trace.shape, dtype=self.bitmask.minimum_dtype())
@@ -1817,10 +1875,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if np.any(indx):
             _traceid[indx] = np.amax(self.traceid) + 1 + np.arange(np.sum(indx))
 
-        if loc is None:
-            # Insertion locations not provided so append
-            loc = np.full(ntrace, self.ntrace, dtype=int)
 
+        # Add the new traces. The new traces are added to both the
+        # fitted list and the center list!
         self.traceid = np.insert(self.traceid, loc, _traceid)
         self.spat_img = np.insert(self.spat_img, loc, np.round(_trace).astype(int), axis=1)
         self.spat_cen = np.insert(self.spat_cen, loc, _trace, axis=1)
@@ -1831,18 +1888,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if resort:
             self.resort_trace_ids()
 
-        # TODO: I don't think this needs to reset the PCA because the traces used to construct the PCA should only be the unmasked ones.
-
-
-
-
-
-
-
-                
-
-        
-
+        # TODO: I don't think this needs to reset the PCA because the
+        # traces used to construct the PCA should only be the unmasked
+        # ones.
 
 def detect_slit_edges(flux, mask=None, median_iterations=0, min_sqm=30.,
                       sobel_mode='nearest', sigdetect=30.):
