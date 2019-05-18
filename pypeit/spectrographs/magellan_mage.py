@@ -49,7 +49,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             oscansec        = '[2049:2176,1:1024]' # as taken from the header
                             )]
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
-        self.norders = 15 
+        self.norders = 15   # 20-6
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?

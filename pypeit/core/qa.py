@@ -7,6 +7,8 @@ import glob
 import numpy as np
 import yaml
 
+from IPython import embed
+
 # CANNOT INCLUDE msgs IN THIS MODULE AS
 #  THE HTML GENERATION OCCURS FROM msgs
 #from pypeit import msgs
@@ -236,11 +238,13 @@ def html_mf_pngs(idval):
 
     # Generate HTML
     for key in ['strace', 'sprof', 'blaze', 'arc_fit', 'arc_pca', 'arc_fit2d_global', 'arc_fit2d_orders', 'arc_tilt']:
-        png_root = set_qa_filename(idval, html_dict[key]['fname'], slit=9999)
+        png_root = set_qa_filename(idval, html_dict[key]['fname'], slit=9999, out_dir='QA')
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')
         pngs = glob.glob(png_root+html_dict[key]['ext'])
         pngs.sort()
+        if key == 'arc_fit':
+            embed(header='247 of qa.py')
         if len(pngs) > 0:
             href="{:s}_{:s}".format(html_dict[key]['href'], idval)
             # Link
