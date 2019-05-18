@@ -243,6 +243,21 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
+    def slit_minmax(self, nslits, binspectral=1):
+        """
+
+        Args:
+            nslits:
+            binspectral:
+
+        Returns:
+
+        """
+        spec_max = np.asarray([4000]*14 + [3000])//binspectral
+        spec_min = np.asarray([2000,1000] + [0]*13)//binspectral
+
+        return spec_min, spec_max
+
     def slit2order(self, islit, nslit):
         """
         This routine is only for echelle spectrographs.
