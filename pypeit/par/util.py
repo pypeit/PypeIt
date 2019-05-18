@@ -22,7 +22,7 @@ from pypeit import debugger
 #-----------------------------------------------------------------------
 def _eval_ignore():
     """Provides a list of strings that should not be evaluated."""
-    return [ 'open', 'file', 'dict' ]
+    return [ 'open', 'file', 'dict', 'list', 'tuple' ]
 
 
 def recursive_dict_evaluate(d):

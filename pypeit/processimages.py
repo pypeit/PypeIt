@@ -5,6 +5,8 @@ import inspect
 import numpy as np
 import os
 
+from collections import OrderedDict
+
 #from importlib import reload
 
 from astropy.io import fits
@@ -35,16 +37,23 @@ class ProcessImagesBitMask(BitMask):
         # TODO:
         #   - Can IVAR0 and IVAR_NAN be consolidated into a single bit?
         #   - Is EXTRACT ever set?
-        mask = {       'BPM': 'Component of the instrument-specific bad pixel mask',
-                        'CR': 'Cosmic ray detected',
-                'SATURATION': 'Saturated pixel',
-                 'MINCOUNTS': 'Pixel below the instrument-specific minimum counts',
-                  'OFFSLITS': 'Pixel does not belong to any slit',
-                    'IS_NAN': 'Pixel value is undefined',
-                     'IVAR0': 'Inverse variance is undefined',
-                  'IVAR_NAN': 'Inverse variance is NaN',
-                   'EXTRACT': 'Pixel masked during local skysub and extraction'
-               }
+        # TODO: This needs to be an OrderedDict for now to ensure that
+        # the bits assigned to each key is always the same. As of python
+        # 3.7, normal dict types are guaranteed to preserve insertion
+        # order as part of its data model. When/if we require python
+        # 3.7, we can remove this (and other) OrderedDict usage in favor
+        # of just a normal dict.
+        mask = OrderedDict([
+                       ('BPM', 'Component of the instrument-specific bad pixel mask'),
+                        ('CR', 'Cosmic ray detected'),
+                ('SATURATION', 'Saturated pixel'),
+                 ('MINCOUNTS', 'Pixel below the instrument-specific minimum counts'),
+                  ('OFFSLITS', 'Pixel does not belong to any slit'),
+                    ('IS_NAN', 'Pixel value is undefined'),
+                     ('IVAR0', 'Inverse variance is undefined'),
+                  ('IVAR_NAN', 'Inverse variance is NaN'),
+                   ('EXTRACT', 'Pixel masked during local skysub and extraction')
+               ])
         super(ProcessImagesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 
@@ -310,34 +319,39 @@ class ProcessImages(object):
                     = self.spectrograph.load_raw_frame(self.files[i], det=self.det)
 
             if self.binning[i] is None:
+                # This *always* returns spectral then spatial
                 self.binning[i] = self.spectrograph.get_meta_value(self.files[i], 'binning')
 
             # Get the data sections, one section per amplifier
             try:
-                datasec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                datasec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
                                                               section='datasec')
             except:
-                datasec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                datasec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='datasec')
             self.datasec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
-                                                include_end=include_end, require_dim=2,
-                                                transpose=transpose, binning_raw=self.binning[i][::-1])
-                               for sec in datasec]
+                                               include_end=include_end, require_dim=2,
+                                               binning=self.binning[i])
+                                    for sec in datasec]
             # Get the overscan sections, one section per amplifier
             try:
-                oscansec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                oscansec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
                                                               section='oscansec')
             except:
-                oscansec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                oscansec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='oscansec')
             # Parse, including handling binning
             self.oscansec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
-                                                 include_end=include_end, require_dim=2,
-                                                 transpose=transpose, binning_raw=self.binning[i][::-1])
+                                                include_end=include_end, require_dim=2,
+                                                binning=self.binning[i])
                                     for sec in oscansec]
         # Include step
         self.steps.append(inspect.stack()[0][3])

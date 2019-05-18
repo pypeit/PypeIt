@@ -58,6 +58,10 @@ class BitMask:
 
                  Bit: key3 = 4
 
+    .. todo::
+        - Have the class keep the mask values internally instead of
+          having it only operate on the mask array...
+
     Args:
         keys (:obj:`str`, :obj:`list`):
             List of keys (or single key) to use as the bit name.  Each
@@ -83,6 +87,7 @@ class BitMask:
         max_value (int):
             The maximum valid bitmask value given the number of bits.
     """
+    prefix = 'BIT'
     def __init__(self, keys, descr=None):
 
         _keys = keys if hasattr(keys, '__iter__') else [keys]
@@ -127,6 +132,54 @@ class BitMask:
 #        if numpy.any([ not isinstance(f, str) for f in _flag ]):
 #            raise TypeError('Provided bit names must be strings!')
         return _flag
+
+    @staticmethod
+    def _fill_sequence(keys, vals, descr=None):
+        r"""
+        Fill bit sequence with NULL keys if bit values are not
+        sequential.
+
+        The instantiation of :class:`BitMask` does not include the
+        value of the bit, it just assumes that the bits are in
+        sequence such that the first key has a value of 0, and the
+        last key has a value of N-1. This is a convenience function
+        that fills the list of keys with 'NULL' for bit values that
+        are non-sequential. This is used primarily for instantiation
+        the BitMask from bits written to a file where the NULL bits
+        have been skipped.
+        Args:
+            keys (:obj:`list`, :obj:`str`):
+                Bit names
+            vals (:obj:`list`, :obj:`int`):
+                Bit values
+            descr (:obj:`list`, :obj:`str`, optional):
+                The description of each bit. If None, no bit
+                descriptions are defined.
+
+        Returns:
+            `numpy.ndarray`_: Three 1D arrays with the filled keys,
+            values, and descriptions.
+
+        Raises:
+            ValueError: Raised if a bit value is less than 0.
+        """
+        _keys = numpy.atleast_1d(keys).ravel()
+        _vals = numpy.atleast_1d(vals).ravel()
+        _descr = None if descr is None else numpy.atleast_1d(descr).ravel()
+
+        if numpy.amin(_vals) < 0:
+            raise ValueError('No bit cannot be less than 0!')
+        minv = numpy.amin(_vals)
+        maxv = numpy.amax(_vals)
+
+        if minv != 0 or maxv != len(_vals)-1:
+            diff = list(set(numpy.arange(maxv)) - set(_vals))
+            _vals = numpy.append(_vals, diff)
+            _keys = numpy.append(_keys, numpy.array(['NULL']*len(diff)))
+            if _descr is not None:
+                _descr = numpy.append(_descr, numpy.array(['']*len(diff)))
+
+        return _keys, _vals, _descr
 
     def keys(self):
         """
@@ -373,3 +426,104 @@ class BitMask:
         _flag = self._prep_flags(flag)
         return tuple([self.flagged(value, flag=f) for f in _flag])
 
+    def to_header(self, hdr, prefix=None, quiet=False):
+        """
+        Write the bits to a fits header.
+
+        .. todo::
+            - This is very similar to the function in ParSet.
+            Abstract to a general routine?
+             - The comment might have a limited length and be
+            truncated.
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object for the parameters. Modified in-place.
+            prefix (:obj:`str`, optional):
+                Prefix to use for the header keywords, which
+                overwrites the string defined for the class. If None,
+                uses the default for the class.
+            quiet (:obj:`bool`, optional):
+                Suppress print statements.
+        """
+        if prefix is None:
+            prefix = self.prefix
+        maxbit = max(list(self.bits.values()))
+        ndig = int(numpy.log10(maxbit))+1 
+        for key, value in sorted(self.bits.items(), key=lambda x:(x[1],x[0])):
+            if key == 'NULL':
+                continue
+            hdr['{0}{1}'.format(prefix, str(value).zfill(ndig))] = (key, self.descr[value])
+
+    @classmethod
+    def from_header(cls, hdr, prefix=None):
+        """
+        Instantiate the BitMask using data parsed from a fits header.
+
+        .. todo::
+            - This is very similar to the function in ParSet.
+            Abstract to a general routine?
+            - If comments are truncated by the comment line length,
+            they'll be different than a direct instantiation.
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object with the bits.
+            prefix (:obj:`str`, optional):
+                Prefix of the relevant header keywords, which
+                overwrites the string defined for the class. If None,
+                uses the default for the class.
+        """
+        if prefix is None:
+            prefix = cls.prefix
+        # Parse the bits from the header
+        keys, values, descr = cls.parse_bits_from_hdr(hdr, prefix)
+        # Fill in any missing bits
+        keys, values, descr = cls._fill_sequence(keys, values, descr=descr)
+        # Make sure the bits are sorted
+        srt = numpy.argsort(values)
+        # Instantiate the BitMask
+        return cls(keys[srt], descr=descr[srt])
+
+    @staticmethod
+    def parse_bits_from_hdr(hdr, prefix):
+        """
+        Parse bit names, values, and descriptions from a fits header.
+
+        .. todo::
+            - This is very similar to the function in ParSet.
+            Abstract to a general routine?
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object with the bits.
+            prefix (:obj:`str`):
+                The prefix used for the header keywords.
+        
+        Returns:
+            Three lists are returned providing the bit names, values,
+            and descriptions.
+        """
+        keys = []
+        values = []
+        descr = []
+        for k, v in hdr.items():
+            # Check if this header keyword starts with the required
+            # prefix
+            if k[:len(prefix)] == prefix:
+                try:
+                    # Try to convert the keyword without the prefix
+                    # into an integer. Bits are 0 indexed and written
+                    # to the header that way.
+                    i = int(k[len(prefix):])
+                except ValueError:
+                    # Assume the value is some other random keyword that
+                    # starts with the prefix but isn't a parameter
+                    continue
+
+                # Assume we've found a bit entry. Parse the bit name
+                # and description and add to the compiled list
+                keys += [v]
+                values += [i]
+                descr += [hdr.comments[k]]
+        return keys, values, descr

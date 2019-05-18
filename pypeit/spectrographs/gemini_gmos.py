@@ -96,7 +96,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['trace_npoly'] = 3
         # TODO: No longer a parameter
 #        par['calibrations']['slits']['fracignore'] = 0.02
-        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+#        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
@@ -163,12 +163,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Return a string representation of a slice defining a section of
         the detector image.
 
-        Overwrites base class function to use :func:`read_deimos` to get
+        Overwrites base class function to use :func:`read_gmos` to get
         the image sections.
 
         .. todo::
             - It feels really ineffiecient to just get the image section
-              using the full :func:`read_deimos`.  Can we parse that
+              using the full :func:`read_gmos`.  Can we parse that
               function into something that can give you the image
               section directly?
 
@@ -177,22 +177,26 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         is defined directly.
 
         Args:
-            inp (:obj:`str`):
-                String providing the file name to read.  Unlike the base
-                class, a file name *must* be provided.
+            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+                String providing the file name to read, or the relevant
+                header object.  Default is None, meaning that the
+                detector attribute must provide the image section
+                itself, not the header keyword.
             det (:obj:`int`, optional):
                 1-indexed detector number.
             section (:obj:`str`, optional):
-                The section to return.  Should be either datasec or
-                oscansec, according to the :class:`DetectorPar`
-                keywords.
+                The section to return.  Should be either 'datasec' or
+                'oscansec', according to the
+                :class:`pypeitpar.DetectorPar` keywords.
 
         Returns:
-            list, bool: A list of string representations for the image
-            sections, one string per amplifier, followed by three
-            booleans: if the slices are one indexed, if the slices
-            should include the last pixel, and if the slice should have
-            their order transposed.
+            tuple: Returns three objects: (1) A list of string
+            representations for the image sections, one string per
+            amplifier.  The sections are *always* returned in PypeIt
+            order: spectral then spatial.  (2) Boolean indicating if the
+            slices are one indexed.  (3) Boolean indicating if the
+            slices should include the last pixel.  The latter two are
+            always returned as True following the FITS convention.
         """
         # Read the file
         if inp is None:
@@ -201,51 +205,13 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             msgs.error('File {0} does not exist!'.format(inp))
         temp, head0, secs = read_gmos(inp, det=det)
         if section == 'datasec':
-            return secs[0], False, False, False
+            return secs[0], False, False
         elif section == 'oscansec':
             # Need to flip these
-            return secs[1], False, False, False
+            # TODO: What does the above mean?
+            return secs[1], False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-#     def get_datasec_img(self, filename, det=1, force=True):
-#         """
-#         Create an image identifying the amplifier used to read each pixel.
-#
-#         Args:
-#             filename (str):
-#                 Name of the file from which to read the image size.
-#             det (:obj:`int`, optional):
-#                 Detector number (1-indexed)
-#             force (:obj:`bool`, optional):
-#                 Force the image to be remade
-#
-#         Returns:
-#             `numpy.ndarray`: Integer array identifying the amplifier
-#             used to read each pixel.
-#         """
-#         if self.datasec_img is None or force:
-#             # Check the detector is defined
-#             self._check_detector()
-#             # Get the image shape
-#             raw_naxis = self.get_raw_image_shape(filename, det=det)
-#
-#             # Binning is not required because read_gmos accounts for it
-# #            binning = self.get_meta_value(filename, 'binning')
-#
-#             data_sections, one_indexed, include_end, transpose \
-#                     = self.get_image_section(filename, det, section='datasec')
-#
-#             # Initialize the image (0 means no amplifier)
-#             self.datasec_img = np.zeros(raw_naxis, dtype=int)
-#             for i in range(self.detector[det-1]['numamplifiers']):
-#                 # Convert the data section from a string to a slice
-#                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-#                                           include_end=include_end, require_dim=2,
-#                                           transpose=transpose) #, binning=binning)
-#                 # Assign the amplifier
-#                 self.datasec_img[datasec] = i+1
-#         return self.datasec_img
 
 
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
@@ -576,6 +542,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
 
 
+# TODO: Put this inside the class or abstract it.
 def read_gmos(raw_file, det=1):
     """
     Read the GMOS data file
