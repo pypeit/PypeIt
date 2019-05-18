@@ -1165,6 +1165,8 @@ class ArchiveReid:
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
             #self.debug_reid = True
             #self.debug_xcorr = True
+            #from pypeit import debugger
+            #embed(header='line1168 of autoid.py')
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
@@ -1175,7 +1177,6 @@ class ArchiveReid:
             if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = {}
                 self.bad_slits = np.append(self.bad_slits, slit)
-                #embed(header='line1175 of autoid.py')
                 continue
 
             # Perform the fit
@@ -1209,7 +1210,7 @@ class ArchiveReid:
 
         # Print the final report of all lines
         self.report_final()
-        embed()
+        #embed()
 
     def report_final(self):
         """Print out the final report of the wavelength calibration"""

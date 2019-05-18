@@ -243,8 +243,6 @@ def html_mf_pngs(idval):
             png_root = png_root.replace('S9999', 'S*')
         pngs = glob.glob(png_root+html_dict[key]['ext'])
         pngs.sort()
-        if key == 'arc_fit':
-            embed(header='247 of qa.py')
         if len(pngs) > 0:
             href="{:s}_{:s}".format(html_dict[key]['href'], idval)
             # Link

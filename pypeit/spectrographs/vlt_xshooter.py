@@ -138,9 +138,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def norders(self):
         return None
 
-    def slit2order(self, islit):
-        pass
-
     def order_vec(self):
         return self.slit2order(np.arange(self.norders))
 
@@ -340,7 +337,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
-    def slit2order(self, islit):
+    def slit2order(self, islit, nslit):
 
         """
         Parameters
@@ -570,16 +567,16 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
 
-    def slit2order(self, islit):
-
+    def slit2order(self, islit, nslit):
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
 
-        Returns
-        -------
-        order: int
+        Args:
+            islit: int, float, or string, slit number
+            nslit:
+
+        Returns:
+            int
+
         """
 
         if isinstance(islit, str):
@@ -822,7 +819,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI3 NAME')
 
-    def slit2order(self, islit):
+    def slit2order(self, islit, nslit):
 
         """
         Parameters

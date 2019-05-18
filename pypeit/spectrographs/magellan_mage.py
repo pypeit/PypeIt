@@ -31,7 +31,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                 pypeitpar.DetectorPar(
                             dataext         = 0,
                             specaxis        = 1,
-                            specflip        = False,
+                            specflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -243,19 +243,19 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
-    @staticmethod
-    def slit2order(islit):
+    def slit2order(self, islit, nslit):
+        """
+        This routine is only for echelle spectrographs.
+        It returns the order of the input slit
+
+        Args:
+            slit (int):  Slit id value, 0-indexed
+            nslit (int): Number of slits
+
+        Returns:
+            int: Echelle order number
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-
         if isinstance(islit, str):
             islit = int(islit)
         elif isinstance(islit, np.ndarray):
@@ -267,8 +267,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized type for islit')
 
-        orders = np.arange(7, 2, -1, dtype=int)
-        return orders[islit]
+        # True order numbers
+        orders = np.arange(6, 21, dtype=int)
+
+        # Funny indexing but this works..
+        return orders[nslit-(islit+1)]
 
     @staticmethod
     def order_platescale(binning = None):
@@ -318,33 +321,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         self.empty_bpm(shape=shape, filename=filename, det=det)
         return self.bpm_img
-
-    @staticmethod
-    def slit2order(islit):
-
-        """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-
-        if isinstance(islit,str):
-            islit = int(islit)
-        elif isinstance(islit,np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit,float):
-            islit = int(islit)
-        elif isinstance(islit, int):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
-
-        orders = np.arange(26,10,-1, dtype=int)
-        return orders[islit]
 
     @staticmethod
     def order_platescale(self, binning = None):

@@ -856,8 +856,19 @@ class Spectrograph(object):
     def order_platescale(self, binning=None):
         pass
 
-    # This routine is only for echelle spectrographs. It returns the plate scale order by order
-    def slit2order(self, slit):
+    def slit2order(self, slit, nslit):
+        """
+        This routine is only for echelle spectrographs.
+        It returns the order of the input slit
+
+        Args:
+            slit (int):
+            nslit (int):
+
+        Returns:
+            int: Echelle order number
+
+        """
         pass
 
 
