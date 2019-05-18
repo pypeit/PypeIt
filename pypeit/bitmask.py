@@ -527,3 +527,5 @@ class BitMask:
                 values += [i]
                 descr += [hdr.comments[k]]
         return keys, values, descr
+
+

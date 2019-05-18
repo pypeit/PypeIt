@@ -611,16 +611,22 @@ def is_keyword(v):
 
 def binning2string(binspectral, binspatial):
     """
+    Convert the binning from integers to a string following the PypeIt
+    convention order, spectral then spatial.
 
     Args:
-        binspectral (int):
+        binspectral (:obj:`int`):
+            Number of on-detector pixels binned in the spectral
+            direction (along the first axis in the PypeIt convention).
         binspatial (int):
+            Number of on-detector pixels binned in the spatial direction
+            (along the second axis in the PypeIt convention).
 
     Returns:
-        str: Binning in binspectral, binspatial order, e.g. '2,1'
-
+        str: Comma-separated binning along the spectral and spatial
+        directions; e.g., '2,1'
     """
-    return '{:d},{:d}'.format(binspectral, binspatial) # ,binspectral)
+    return '{0},{1}'.format(binspectral, binspatial)
 
 
 def parse_binning(binning):

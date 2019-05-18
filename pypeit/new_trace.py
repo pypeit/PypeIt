@@ -79,14 +79,14 @@ def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
 
 
 # TODO: This should go in util
-def closest_unmasked(arr, use_indices=False):
+def nearest_unmasked(arr, use_indices=False):
     """
-    Return the indices of the closest unmasked element in a vector.
+    Return the indices of the nearest unmasked element in a vector.
 
     .. warning::
 
         The function *uses the values of the masked data* for masked
-        elements. This means that if you want to know the closest
+        elements. This means that if you want to know the nearest
         unmasked element to one of the *masked* elements, the `data`
         attribute of the provided array should have meaningful values
         for these masked elements.
@@ -99,11 +99,11 @@ def closest_unmasked(arr, use_indices=False):
             the difference in the array `data` values. Setting
             `use_indices` to `True` instead bases the calculation on
             the proximity of the element indices; i.e., find the
-            index of the closest unmasked element.
+            index of the nearest unmasked element.
 
     Returns:
         `numpy.ndarray`_: Integer array with the indices of the
-        closest array elements, the definition of which depends on
+        nearest array elements, the definition of which depends on
         `use_indices`.
     """
     # Check the input
@@ -112,7 +112,7 @@ def closest_unmasked(arr, use_indices=False):
     if arr.ndim != 1:
         raise ValueError('Must be a 1D array.')
     if use_indices:
-        return closest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
+        return nearest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
 
     # Get the difference of each element with every other element
     nearest = np.absolute(arr[None,:]-arr.data[:,None])
@@ -122,7 +122,55 @@ def closest_unmasked(arr, use_indices=False):
     return np.ma.argmin(nearest, axis=1)
 
 
+# TODO: This should go in util
+def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
+    """
+    Boxcar smooth an image along rows.
+
+    Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
+    smooth the image.  Cannot accommodate masking.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image to convolve.
+        nave (:obj:`int`):
+            Number of pixels along rows for smoothing.
+        wgt (`numpy.ndarray`_, optional):
+            Image providing weights for each pixel in `img`.  Uniform
+            weights are used if none are provided.
+        mode (:obj:`str`, optional):
+            See `scipy.ndimage.convolve`_.
+
+    Returns:
+        `numpy.ndarray`_: The smoothed image
+    """
+    if wgt is not None and img.shape != wgt.shape:
+        raise ValueError('Input image to smooth and weights must have the same shape.')
+    if nave > img.shape[0]:
+        warnings.warn('Smoothing box is larger than the image size!')
+
+    # Construct the kernel for mean calculation
+    _nave = np.fmin(nave, img.shape[0])
+    kernel = np.ones((_nave, 1))/float(_nave)
+
+    if wgt is None:
+        # No weights so just smooth
+        return ndimage.convolve(img, kernel, mode='nearest')
+
+    # Weighted smoothing
+    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
+    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
+    smoothed_img = np.ma.divide(cimg, wimg)
+    smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
+    return smoothed_img.data
+
+
 class TraceBitMask(BitMask):
+    """
+    Mask bits used during slit tracing.
+    """
+    # TODO: Create a script that will dynamically write the used bits
+    # to a doc for readthedocs.
     def __init__(self):
         # TODO: This needs to be an OrderedDict for now to ensure that
         # the bit assigned to each key is always the same. As of python
@@ -137,18 +185,26 @@ class TraceBitMask(BitMask):
                    ('LARGESHIFT', 'Recentering resulted in a large shift'),
                 ('DISCONTINUOUS', 'Pixel included in a trace but part of a discontinuous segment'),
                     ('DUPLICATE', 'Trace is a duplicate based on trace matching tolerance'),
-                     ('TOOSHORT', 'Trace does not meet the minimum length criterion'),
+                   ('SHORTRANGE', 'Trace does not meet the minimum spectral range criterion'),
                        ('HITMIN', 'Trace crosses the minimum allowed column'),
                        ('HITMAX', 'Trace crosses the maximum allowed column'),
                   ('OFFDETECTOR', 'Trace lands off the detector'),
                    ('SYNCINSERT', 'Trace was inserted during left and right edge sync'),
-                   ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations')
+                   ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations'),
+                    ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
+                 ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length')
                            ])
         super(TraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
+    def bad_flags(self):
+        """
+        List the flags that mean the trace is bad.
+        """
+        return list(set(self.bits.keys()) - set(['SYNCINSERT', 'MASKINSERT']))
+
 
 class EdgeTracePCA:
-    """
+    r"""
     Class to build and interact with PCA model of edge traces.
 
     This is primarily a container class for the results of
@@ -156,9 +212,23 @@ class EdgeTracePCA:
     :func:`pca_predict`.
 
     Args:
-
-    Attributes:
-
+        trace (`numpy.ndarray`_):
+            A floating-point array with the spatial location of each
+            each trace edge. Shape is :math:`(N_{\rm spec}, N_{\rm
+            trace})`.
+        npca (:obj:`bool`, optional):
+            The number of PCA components to keep. See
+            :func:`pca_decomposition`.
+        pca_explained_var (:obj:`float`, optional):
+            The percentage (i.e., not the fraction) of the variance
+            in the data accounted for by the PCA used to truncate the
+            number of PCA coefficients to keep (see `npca`). Ignored
+            if `npca` is provided directly. See
+            :func:`pca_decomposition`.
+        reference_row (:obj:`int`, optional):
+            The row (spectral position) in `trace` to use as the
+            reference coordinate system for the PCA. If None, set to
+            the :math:`N_{\rm spec}/2`.
     """
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
@@ -167,6 +237,9 @@ class EdgeTracePCA:
         # Set the reference row to use for the coordinates of the trace
         self.reference_row = trace.shape[0]//2 if reference_row is None else reference_row
         self.trace_coo = trace[self.reference_row,:]
+        # Save the input
+        self.input_npca = npca
+        self.input_pcav = pca_explained_var
 
         # Perform the PCA decomposition of the traces
         self.pca_coeffs, self.pca_components, self.pca_mean, self.trace_mean \
@@ -181,16 +254,26 @@ class EdgeTracePCA:
         self.fit_coeff = None
         self.minx = None
         self.maxx = None
+        self.lower = None
+        self.upper = None
+        self.maxrej = None
+        self.maxiter = None
 
-    def fit_coeffs(self, order, function='polynomial', lower=3.0, upper=3.0, minx=None,
-                     maxx=None, maxrej=1, maxiter=25, debug=False):
+    def build_interpolator(self, order, function='polynomial', lower=3.0, upper=3.0, minx=None,
+                           maxx=None, maxrej=1, maxiter=25, debug=False):
         """
-        Wrapper for :func:`fit_pca_coefficients` using class attributes.
+        Wrapper for :func:`fit_pca_coefficients` that uses class
+        attributes and saves the input parameters.
         """
+        # Save the input
         self.function = function
+        self.lower = lower
+        self.upper = upper
+        self.maxrej = maxrej
+        self.maxiter = maxiter
         self.pca_mask, self.fit_coeff, self.minx, self.maxx \
                 = fit_pca_coefficients(self.pca_coeffs, order, function=self.function, lower=lower,
-                                       upper=upper, minx=self.minx, maxx=self.maxx, maxrej=maxrej,
+                                       upper=upper, minx=minx, maxx=maxx, maxrej=maxrej,
                                        maxiter=maxiter, coo=self.trace_coo, debug=debug)
 
     def predict(self, x):
@@ -205,14 +288,17 @@ class EdgeTracePCA:
 
         Args:
             x (:obj:`float`, `numpy.ndarray`_):
-                One or more trace coordinates at which to sample the
-                PCA coefficients and produce the PCA model.
+                One or more spatial coordinates (at the PCA reference
+                row) at which to sample the PCA coefficients and
+                produce the PCA model for the trace spatial position
+                as a function of spectral pixel.
 
         Returns:
-            `numpy.ndarray`_: The array with the predicted locations
-            of the trace. If the provided coordinate is a single
-            value, the returned shape is :math:`(N_{\rm pix},)`;
-            otherwise it is :math:`(N_{\rm pix}, N_{\rm x})`.
+            `numpy.ndarray`_: The array with the predicted spatial
+            locations of the trace. If the provided coordinate is a
+            single value, the returned shape is :math:`(N_{\rm
+            pix},)`; otherwise it is :math:`(N_{\rm pix}, N_{\rm
+            x})`.
         """
         if self.fit_coeff is None:
             raise ValueError('PCA coefficients have not been modeled; run model_coeffs first.')
@@ -221,7 +307,8 @@ class EdgeTracePCA:
 
     def trace_map(self, nspat, trace=None):
         """
-        Construct a trace for each spatial position in an image.
+        Construct a map of the spatial position of a full map of
+        trace coordinates.
 
         Args:
             nspat (:obj:`int`):
@@ -234,7 +321,8 @@ class EdgeTracePCA:
                     self.predict(np.arange(nspat))
 
         Returns:
-            `numpy.ndarray`_: Trace data for each spatial position.
+            `numpy.ndarray`_: Spatial position of each trace starting
+            from the reference row.
         """
         # Use the PCA to predict traces at all spatial pixels
         trace_full = self.predict(np.arange(nspat))
@@ -253,7 +341,10 @@ class EdgeTracePCA:
 
 class EdgeTraceSet(masterframe.MasterFrame):
     r"""
-    Object for holding slit edge traces.
+    Core class that identifies, traces, and pairs edges in an image
+    to define the slit apertures.
+
+    TODO: MORE
 
     trace_img, mask, and det should be considered mutually exclusive compare to load
 
@@ -302,27 +393,45 @@ class EdgeTraceSet(masterframe.MasterFrame):
             along rows, as determined by :attr:`spectrograph` and the
             result of a call to
             :func:`pypeit.spectrograph.Spectrograph.raw_is_transposed`.
+        binning (`str`, optional):
+            Comma-separated binning along the spectral and spatial
+            directions following the PypeIt convention (e.g., '2,1').
         load (:obj:`bool`, optional):
             Attempt to load existing output.
 
     Attributes:
+        spectrograph 
+        par
+        bitmask (:class:`TraceBitMask`):
+            Object used to manipulate/query the mask bits.
+
         files (:obj:`list`):
             The list of raw files used to constuct the image used to
             detect and trace slit edges. Only defined if a
             :class:`pypeit.traceimage.TraceImage` object is provided
             for tracing.
+
+        trace_img
+        trace_msk
+        det
+        binning
+        sobel_sig
+        sobel_sig_left
+        sobel_sig_right
+
+
         nspec (:obj:`int`):
             Number of spectral pixels (rows) in the trace image
             (`axis=0`).
         nspat (:obj:`int`):
             Number of spatial pixels (columns) in the trace image
             (`axis=1`).
-        trace (`numpy.ndarray`_):
+        traceid (`numpy.ndarray`_):
             The list of unique trace IDs.
         ntrace (:obj:`int`):
             The number of traces.
         spat_img (`numpy.ndarray`_):
-            An integer array with the spatial pixel closest to each
+            An integer array with the spatial pixel nearest to each
             trace edge, as determined by a moment analysis of the
             Sobel-filtered trace image or by a fit to those data.
             Shape is :math:`(N_{\rm spec},N_{\rm trace})`. This is
@@ -344,12 +453,20 @@ class EdgeTraceSet(masterframe.MasterFrame):
             An integer array with the mask bits assigned to each
             trace centroid; see :class:`TraceBitMask`. Shape is
             :math:`(N_{\rm spec},N_{\rm trace})`.
-        bitmask (:class:`TraceBitMask`):
-            Object used to manipulate/query the mask bits.
+
+        spat_fit (`numpy.ndarray`_):
+        spat_fit_type = None       # The type of fitting performed
+        
+        pca
+        pca_type
+        pca_order
+        qa_path
+        log
+
     """
     master_type = 'Trace'   # For MasterFrame base
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, reuse_masters=False,
-                 qa_path=None, trace_img=None, mask=None, det=1, load=False):
+                 qa_path=None, trace_img=None, mask=None, det=1, binning=None, load=False):
 
         # TODO: It's possible for the master key and the detector
         # number to be inconsistent...
@@ -365,9 +482,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.trace_msk = None           # Mask for the trace image
         # TODO: Need a separate mask for the sobel image?
         self.det = None                 # Detector used for the trace image
+        self.binning = None             # Detector ordered spectral then spatial
         self.sobel_sig = None           # Sobel filtered image used to detect edges
         self.sobel_sig_left = None      # Sobel filtered image used to trace left edges
-        self.sobel_sig_righ = None      # Sobel filtered image used to trace right edges
+        self.sobel_sig_right = None     # Sobel filtered image used to trace right edges
         self.nspec = None               # The shape of the trace image is (nspec,nspat)
         self.nspat = None
 
@@ -383,6 +501,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         
         self.pca = None                 # EdgeTracePCA with the PCA decomposition
         self.pca_type = None            # Measurements used to construct the PCA (center or fit)
+        self.pca_order = None           # High-level order of the PCA; save for rebuilding
 
         self.qa_path = qa_path          # Directory for QA output
 
@@ -398,16 +517,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         if trace_img is not None:
             # Provided a trace image so instantiate the object.
-            self.initial_trace(trace_img, mask=mask, det=det)
+            self.initial_trace(trace_img, mask=mask, det=det, binning=binning)
 
     @property
     def file_path(self):
         """
         Overwrite MasterFrame default to force the file to be gzipped.
-
-        .. todo:
-            - Change the MasterFrame default to a compressed file?
         """
+        # TODO: Change the MasterFrame default to a compressed file?
         return '{0}.gz'.format(os.path.join(self.master_dir, self.file_name))
 
     @property
@@ -417,8 +534,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         return self.traceid.size
 
-    def initial_trace(self, trace_img, mask=None, det=1, save=True):
-        """
+    def initial_trace(self, trace_img, mask=None, det=1, binning=None, save=True):
+        r"""
         Initialize the object for tracing a new image.
 
         This effectively reinstantiates the object and must be the
@@ -446,7 +563,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`):
                 2D image used to trace slit edges. If a
                 :class:`pypeit.traceimage.TraceImage` is provided,
-                the raw files used to construct the image are saved.
+                the raw files used to construct the image and on-chip
+                binning are saved; the latter overrides any directly
+                provided `binning`. The array should have shape
+                :math:`(N_{\rm spec},N_{\rm spat})`; i.e., spectra
+                are ordered along columns.
             mask (`numpy.ndarray`_, optional):
                 Mask for the trace image. Must have the same shape as
                 `trace_img`. If None, all pixels are assumed to be
@@ -458,6 +579,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 columns or along rows, as determined by
                 :attr:`spectrograph` and the result of a call to
                 :func:`pypeit.spectrograph.Spectrograph.raw_is_transposed`.
+            binning (:obj:`str`, optional):
+                On-detector binning of the data ordered spectral then
+                spatial with format, e.g., `2,1`. Ignored if
+                `trace_img` is an instance of
+                :class:`pypeit.traceimage.TraceImage`.
             save (:obj:`bool`, optional):
                 Save the result to the master frame.
         """
@@ -465,11 +591,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if isinstance(trace_img, TraceImage):
             self.files = trace_img.files
             _trace_img = trace_img.stack
+            _binning = trace_img.binning
+            if binning is not None:
+                warnings.warn('Using binning of the trace image provided by the object directly, '
+                              'not the value provided to this function.')
             # TODO: does TraceImage have a mask?
             # TODO: instead keep the TraceImage object instead of
             # deconstructing it...
         else:
             _trace_img = trace_img
+            _binning = binning
 
         # Check the input
         if _trace_img.ndim != 2:
@@ -480,6 +611,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if self.trace_msk.shape != self.trace_img.shape:
             raise ValueError('Mask is not the same shape as the trace image.')
         self.det = det
+        # TODO: The default PypeIt format for setting `binning` for
+        # unbinned data should be function. It shouldn't be hardcoded
+        # in case it changes.
+        self.binning = '1,1' if _binning is None else _binning
 
         # Lightly smooth the image before using it to trace edges
         _trace_img = ndimage.uniform_filter(self.trace_img, size=(3, 1), mode='mirror')
@@ -514,7 +649,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Empty out the images prepared for left and right tracing
         # until they're needed.
         self.sobel_sig_left = None
-        self.sobel_sig_righ = None
+        self.sobel_sig_right = None
 
         # Identify traces by following the detected edges in adjacent
         # spectral pixels.
@@ -563,6 +698,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # No PCA has been constructed yet
         self.pca = None
         self.pca_type = None
+        self.pca_order = None
 
         # Restart the log
         self.log = [inspect.stack()[0][3]]
@@ -753,7 +889,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Recalculate Sobel left and right images instead of
         # setting them to None?
         self.sobel_sig_left = None
-        self.sobel_sig_righ = None
+        self.sobel_sig_right = None
 
         # Finished, if not validating
         if not validate:
@@ -833,6 +969,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Build a series of QA plots showing the edge traces.
 
+        .. todo::
+            - This is slow because it's plotting the images.
+
         Args:
             fileroot (:obj:`str`, optional):
                 Root name for the output files. The number of output
@@ -843,10 +982,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 trace. If None, set to twice the difference between
                 the minimum and maximum centroid of the plotted
                 trace.
-
         """
-
         # Restore matplotlib defaults
+        # TODO: Is this going to screw up later plots?
         matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
         # Set font size
@@ -890,7 +1028,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             ax_y0 = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
 
             # Spatial pixel plot limits for this trace
-            indx = self.spat_msk[:,i] == 0
+            indx = np.invert(self.bitmask.flagged(self.spat_msk[:,i],
+                                                  flag=self.bitmask.bad_flags()))
             ylim = growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
             if min_spat is not None and np.diff(ylim) < min_spat:
                 ylim = np.sum(ylim)/2 + np.array([-1,1])*min_spat/2
@@ -989,10 +1128,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                                               side='left')
             return self.sobel_sig_left
         if side == 'right':
-            if self.sobel_sig_righ is None:
-                self.sobel_sig_righ = prepare_sobel_for_trace(self.sobel_sig, boxcar=boxcar,
-                                                              side='right')
-            return self.sobel_sig_righ
+            if self.sobel_sig_right is None:
+                self.sobel_sig_right = prepare_sobel_for_trace(self.sobel_sig, boxcar=boxcar,
+                                                               side='right')
+            return self.sobel_sig_right
 
     def moment_refine(self, width=6.0, maxshift_start=0.5, maxshift_follow=None, maxerror=0.2,
                       continuous=True, match_tolerance=3., minimum_length=None, clip=True):
@@ -1020,6 +1159,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             :attr:`spat_err`, any model fitting of these data are
             erased by this function! I.e., :attr:`spat_fit` and
             :attr:`spat_fit_type` are set to None.
+            - This *always* removes the PCA if it exists
 
         Args:
             width (:obj:`float`, `numpy.ndarray`_, optional):
@@ -1097,7 +1237,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 print('Number to retrace: {0}'.format(np.sum(indx)))
 
                 # Find the most common row index
-                start_row = most_common_trace_row(self.spat_msk[:,indx] > 0)
+                trace_mask = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags())
+                start_row = most_common_trace_row(trace_mask)
                 print('Starting row is: {0}'.format(start_row))
 
                 # Trace starting from this row
@@ -1121,7 +1262,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 # Save the results and update the book-keeping
                 self.spat_cen[:,good] = cen[:,good]
                 self.spat_err[:,good] = err[:,good]
-                self.spat_msk[:,good | bad] = msk[:,good | bad]
+                self.spat_msk[:,good | bad] |= msk[:,good | bad]
                 untraced[good | bad] = False
                 rmtrace[bad] = True
 
@@ -1138,6 +1279,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Erase any previous PCA results
         self.pca_type = None
         self.pca = None
+        self.pca_order = None
 
         # Remove bad traces and re-order the trace IDs
         if clip:
@@ -1205,7 +1347,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             Returns two boolean arrays selecting the good and bad
             traces.  Shapes are :math:`(N_{\rm trace},)`.
         """
-        # The closest image column
+        # The nearest image column
         col = np.round(cen).astype(int)
 
         indx = np.ones(self.ntrace, dtype=bool) if subset is None else subset
@@ -1220,7 +1362,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             if np.any(compare):
                 # Use masked arrays to ease exclusion of masked data
                 _col = np.ma.MaskedArray(np.round(cen).astype(int), mask=msk > 0)
-                spat_img = np.ma.MaskedArray(self.spat_img, mask=self.spat_msk > 0)
+                trace_mask = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags())
+                spat_img = np.ma.MaskedArray(self.spat_img, mask=trace_mask)
                 mindiff = np.ma.amin(np.absolute(_col[:,indx,None]-spat_img[:,None,compare]),
                                     axis=(0,2))
                 # TODO: This tolerance uses the integer image
@@ -1236,7 +1379,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if minimum_length is not None:
             short[indx] = (np.sum(msk[:,indx] == 0, axis=0) < minimum_length*self.nspec)
             if np.any(short):
-                msk[:,short] = self.bitmask.turn_on(msk[:,short], 'TOOSHORT')
+                msk[:,short] = self.bitmask.turn_on(msk[:,short], 'SHORTRANGE')
                 print('Found {0} short traces.'.format(np.sum(short)))
 
         # Find traces that are at the minimum column at the center row
@@ -1263,7 +1406,96 @@ class EdgeTraceSet(masterframe.MasterFrame):
         good = indx & np.invert(bad)
         return good, bad
 
-    def remove_traces(self, indx, resort=True):
+    def is_synced(self):
+        """
+        Check if the slit edges are synced.
+        """
+        side = np.clip(self.traceid, -1, 1)
+        return np.all(side[1:] + side[:-1] == 0)
+
+    def check_synced(self, scale=None, atol=None, rtol=None, clip=False, rebuild_pca=False):
+        """
+        Quality check and masking of the synchronized edges.
+
+        Before executing this method, the slit edges must be
+        synchronized (see :func:`sync_edges`) and ordered spatially
+        in left-right pairs (see :func:`spatial_sort`). The former is
+        checked explicitly.
+
+        The following checks are performed:
+            - Any trace falling off the edge of the detector is
+            masked (see :class:`TraceBitMask`). This is the only
+            check performed by default (i.e., no keywords are
+            provided).
+            - Traces that form a slit with a length (the difference
+            between the left and right edges) below the provided
+            absolute tolerance (`right-left < scale*atol`) are
+            masked.
+            - Traces that form a slit with a length that is abnormal
+            relative to the median width are masked; i.e.,
+            `abs(log((right[0]-left[0])/median(right-left))) >
+            log(1+rtol)`.
+
+        Args:
+            scale (:obj:`float`, optional):
+                Scale needed to convert the absolute tolerance to
+                pixels. If None, absolute tolerance (`atol`) should
+                already be in pixels.
+            atol (:obj:`float`, optional):
+                Absolute tolerance for the minimum length of a slit
+                formed by the synchronized left and right edges.
+                Expected to be in pixel units unless `scale` is
+                provided. If None, no minimum slit length is imposed.
+            rtol (:obj:`float`, optional):
+                Relative tolerance for the slit length; see the
+                function description. If None, no relative slit
+                length is set.
+            clip (:obj:`bool`, optional):
+                Remove traces that are *fully* masked as bad and
+                reorder the trace IDs.
+            rebuild_pca (:obj:`bool`, optional):
+                If the pca exists and traces are removed, rebuild the
+                PCA using the new traces and the previous parameter
+                set.
+        """
+        # Use the fit data if available
+        trace = self.spat_cen if self.spat_fit is None else self.spat_fit
+
+        # Flag trace locations falling off the detector
+        # TODO: This is a general check that is independent of whether
+        # or not the traces are synced. Make check_traces more general
+        # so that it can effectively be called at any time.
+        indx = (trace < 0) | (trace >= self.nspat)
+        if np.any(indx):
+            self.spat_msk[indx] = self.bitmask.turn_on(self.spat_msk[indx], 'OFFDETECTOR')
+
+        # Check the slits are synced
+        if not self.is_synced():
+            raise ValueError('Edge traces are not yet synced; run sync_edges().')
+
+        # Calculate the slit length
+        slit_length = np.mean(np.squeeze(np.diff(trace.reshape(self.nspec,-1,2), axis=-1)), axis=0)
+
+        if atol is not None:
+            # Find any short slits (flag both edges of the slit)
+            indx = np.repeat(slit_length < atol*(1. if scale is None else scale), 2)
+            if np.any(indx):
+                self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'SHORTSLIT')
+
+        if rtol is not None:
+            # Find slits that are not within the provided fraction of
+            # the median length
+            indx = np.repeat(np.absolute(np.log(slit_length/np.median(slit_length)))
+                             < np.log(1+rtol), 2)
+            if np.any(indx):
+                self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'ABNORMALSLIT')
+
+        if clip:
+            rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags()),
+                             axis=0)
+            self.remove_traces(rmtrace, rebuild_pca=rebuild_pca)
+
+    def remove_traces(self, indx, resort=True, rebuild_pca=False):
         r"""
         Remove a set of traces.
 
@@ -1272,9 +1504,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 The boolean array with the traces to remove. Length
                 must be :math:`(N_{\rm trace},)`.
             resort (:obj:`bool`, optional):
-                Re-sort the trace IDs to be sequential in the spatial
-                direction.  See :func:`resort_trace_ids`
+                Re-sort the traces and trace IDs to be sequential in
+                the spatial direction. See :func:`spatial_sort`.
+            rebuild_pca (:obj:`bool`, optional):
+                If the pca exists, rebuild it using the new traces
+                and the previous parameter set.
         """
+        # Make sure there are traces to remove
+        if not np.any(indx):
+            warnings.warn('No traces removed.')
+            return
+
+        # Reset the trace data
         keep = np.invert(indx)
         self.spat_img = self.spat_img[:,keep]
         self.spat_cen = self.spat_cen[:,keep]
@@ -1284,17 +1525,23 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.spat_fit = self.spat_fit[:,keep]
         self.traceid = self.traceid[keep]
 
-        # Remove the PCA if it exists
-        self.pca_type = None
-        self.pca = None
-
         if resort:
-            self.resort_trace_ids()
+            # Resort by the spatial dimension
+            self.spatial_sort()
 
-    def resort_trace_ids(self):
+        # Reset the PCA
+        self._reset_pca(rebuild_pca and self.pca is not None)
+
+    def spatial_sort(self):
         """
-        Re-sort the trace IDS to be sequential in the spatial
-        direction.  Attributes are edited in-place.
+        Sort the traces spatially.
+
+        The sorting is based on the mean measured center
+        (:attr:`spat_cen`) of each trace. The trace IDs are also
+        reassigned to be sorted spatially; i.e., the trace IDs for
+        three synced slits would be `[-1, 1, -2, 2, -3, 3]`.
+        
+        All attributes are edited in-place.
         """
         # Sort the traces by their spatial position (always use
         # measured positions even if fit positions are available)
@@ -1314,7 +1561,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
         indx = np.invert(indx)
         self.traceid[indx] = 1+np.arange(np.sum(indx))
 
-        # TODO: Need to remove the pca? Probably not if just resorting
+    def _reset_pca(self, rebuild):
+        """"
+        Reset the PCA decomposition by either rebuilding it with the
+        previous set of parameters or removing it (setting the
+        relevant attributes to `None`).
+        """
+        if rebuild:
+            # Rebuild the PCA using the previous parameters
+            self.build_pca(npca=self.pca.input_npca, pca_explained_var=self.pca.input_pcav,
+                           order=self.pca_order, function=self.pca.function, lower=self.pca.lower,
+                           upper=self.pca.upper, minx=self.pca.minx, maxx=self.pca.maxx,
+                           maxrej=self.pca.maxrej, maxiter=self.pca.maxiter,
+                           use_center=self.pca_type == 'center') 
+        else:
+            # Remove the existing PCA
+            self.pca_type = None
+            self.pca = None
+            self.pca_order = None
 
     def current_trace_img(self):
         """
@@ -1330,7 +1594,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                    maxdev=5.0, maxiter=25, niter=9, show_fits=False, idx=None, xmin=None,
                    xmax=None):
         """
-        Doc string...
+        TODO: Write this
         """
         # Generate bogus ivar and mask once here so that they don't
         # have to be generated multiple times.
@@ -1348,9 +1612,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         trace_err = np.zeros_like(self.spat_cen, dtype=float)
         bad_trace = np.zeros_like(self.spat_cen, dtype=bool)
 
+        # Flag bad traces; excludes inserted traces
+        trace_mask = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags())
+
         # Fit both sides
         for side in ['left', 'right']:
-            
             # Get the image relevant to tracing this side
             _sobel_sig = self._side_dependent_sobel(side)
             # Select traces on this side
@@ -1359,7 +1625,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_fit[:,this_side], trace_cen[:,this_side], trace_err[:,this_side], \
                 bad_trace[:,this_side], _ \
                     = fit_trace(_sobel_sig, self.spat_cen[:,this_side], _order, ivar=ivar,
-                                mask=mask, trace_mask=self.spat_msk[:,this_side] > 0,
+                                mask=mask, trace_mask=trace_mask[:,this_side],
                                 function=_function, niter=niter, show_fits=show_fits)
 
         # Save the results of the edge measurements ...
@@ -1375,9 +1641,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # flag them. Flagging would likely mean that the traces would
         # be ignored in subsequent analysis...
 
-    def build_pca(self, minimum_length=0.9, npca=None, pca_explained_var=99.8, order=3,
-                  function='polynomial', lower=3.0, upper=3.0, minx=None, maxx=None, maxrej=1,
-                  maxiter=25, use_center=False, debug=False, verbose=True):
+    def build_pca(self, npca=None, pca_explained_var=99.8, order=3, function='polynomial',
+                  lower=3.0, upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25,
+                  use_center=False, debug=False, verbose=True):
         """
         Build a PCA model of the current trace data using both the
         left and right traces.
@@ -1388,7 +1654,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         `self.pca.predict(spat)`; see :func:`EdgeTracePCA.predict`.
 
         Args:
-
+            TODO:
         """
         # Check the state of the current object
         if self.pca is not None and verbose:
@@ -1397,25 +1663,33 @@ class EdgeTraceSet(masterframe.MasterFrame):
             warnings.warn('No trace fits exits.  PCA based on trace centroid measurements.')
         self.pca_type = 'center' if self.spat_fit is None or use_center else 'fit'
 
+        # When constructing the PCA, ignore bad trace component and
+        # traces inserted by hand.
+        trace_mask = self.bitmask.flagged(self.spat_msk)
+
         # Only use traces that are unmasked for at least some fraction of the detector
+        # TODO: Make this minimum length check a paramter
+        minimum_length=0.9
+        # TODO: Is there a way to propagate the mask to the PCA?
         # TODO: Keep a separate mask specifically for the fit data?
-        use_trace = np.sum(self.spat_msk == 0, axis=0)/self.nspec > minimum_length
+        use_trace = np.sum(trace_mask, axis=0)/self.nspec > minimum_length
         trace_inp = self.spat_cen[:,use_trace] if self.spat_fit is None or use_center \
                         else self.spat_fit[:,use_trace]
         msgs.info('Using {0}/{1} traces in the PCA analysis (omitting short traces).'.format(
-                    np.sum(use_trace), self.ntrace))
+                  np.sum(use_trace), self.ntrace))
 
         # Instantiate the PCA
         self.pca = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
-                                reference_row=most_common_trace_row(self.spat_msk[:,use_trace]>0))
+                                reference_row=most_common_trace_row(trace_mask[:,use_trace]))
 
         # Set the order of the function fit to the PCA coefficiencts:
         # Order is set to cascade down to lower order for components
         # that account for a smaller percentage of the variance.
-        _order = np.clip(order - np.arange(self.pca.npca), 1, None).astype(int)
+        self.pca_order = order
+        _order = np.clip(self.pca_order - np.arange(self.pca.npca), 1, None).astype(int)
         # Run the fit
-        self.pca.fit_coeffs(_order, function=function, lower=lower, upper=upper, minx=minx,
-                            maxx=maxx, maxrej=maxrej, maxiter=maxiter, debug=debug)
+        self.pca.build_interpolator(_order, function=function, lower=lower, upper=upper, minx=minx,
+                                    maxx=maxx, maxrej=maxrej, maxiter=maxiter, debug=debug)
 
     def pca_refine(self, npca=None, pca_explained_var=99.8, order=3, function='polynomial',
                    lower=3.0, upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25,
@@ -1433,7 +1707,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         reset the trace data.
 
         Args:
-
+            TODO:
         """
         # Perform the PCA decomposition if necessary
         _pca_type = 'center' if use_center or self.spat_fit is None else 'fit'
@@ -1452,7 +1726,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit_type = 'pca'
 
     def peak_refine(self, peak_thresh=None, smash_range=None, trace_thresh=10.0,
-                    trace_median_frac=0.01, fwhm_gaussian=3.0, fwhm_uniform=3.0, order=None, lower=2.0, upper=2.0, maxrej=1, debug=False):
+                    trace_median_frac=0.01, fwhm_gaussian=3.0, fwhm_uniform=3.0, order=None,
+                    lower=2.0, upper=2.0, maxrej=1, rebuild_pca=False, debug=False):
         """
         Refine the trace by isolating peaks and troughs in the
         Sobel-filtered image.
@@ -1467,6 +1742,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         unlike peak_trace, must set smash_range=[0,1] if you want to
         smash the full image. Here, smash_range = None means use
         :attr:`par['smash_range']`.
+
+        Args:
+            TODO:
 
         """
         if self.pca is None:
@@ -1525,13 +1803,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_err = trace_err
         self.spat_img = np.round(self.spat_fit).astype(int)
 
-        self.resort_trace_ids()
+        # Spatially sort the traces
+        self.spatial_sort()
+        # Reset the PCA
+        self._reset_pca(rebuild_pca)
 
-        # TODO: Find a way to rebuild and/or test viablility of
-        # existing PCA, so that this isn't necessary
-        self.pca = None
-        self.pca_type = None
-
+    # TODO: Make this a core function?
     def _get_insert_locations(self):
         """
         Find where edges need to be inserted.
@@ -1582,11 +1859,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
     def _get_reference_locations(self, trace, add_edge, center_mode):
         """
-        Doc string
+        TODO: Doc string
         """
-
-        # Get the reference row for the placement calculation
-        reference_row = most_common_trace_row(self.spat_msk>0) if self.pca is None \
+        # Get the reference row for the placement calculation; allow
+        # the use of inserted traces.
+        trace_mask = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags())
+        reference_row = most_common_trace_row(trace_mask) if self.pca is None \
                             else self.pca.reference_row
 
         # Build a masked array with the trace positions at that row,
@@ -1609,9 +1887,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if center_mode == 'median':
             offset = np.full(nslits, np.ma.median(slit_length), dtype=float)
         if center_mode == 'nearest':
-            # Find the index of the closest slit with both existing
+            # Find the index of the nearest slit with both existing
             # edges (i.e. has an unmasked slit length)
-            nearest = closest_unmasked(slit_center, use_indices=True)
+            nearest = nearest_unmasked(slit_center, use_indices=True)
             # The offset is the slit length of the nearest valid slit
             offset = slit_length.data[nearest]
 
@@ -1658,14 +1936,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if max_nudge <= 0:
             # Nothing to do
             return trace
+        if trace.shape[0] != self.nspec:
+            raise ValueError('Traces have incorrect length.')
         if buffer < 0:
             warnings.warn('Buffer must be greater than 0; ignoring.')
             _buffer = 0
         else:
             _buffer = buffer
-
-        if trace.shape[0] != self.nspec:
-            raise ValueError('Traces have incorrect length.')
 
         # Should never happen, but this makes a compromise if a trace
         # crosses both the left and right spatial edge of the
@@ -1712,7 +1989,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     - 'median': Use the median length of slits
                     defined by existing left-right pairs.
                     - 'nearest': Assume the slit width is the same as
-                    the (spatially) closest left-right pair, ignoring
+                    the (spatially) nearest left-right pair, ignoring
                     any pairs that are created by adding new edges.
             quiet (:obj:`bool`, optional):
                 Suppress terminal output.
@@ -1730,7 +2007,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: This should be the convention of the class and should
         # *always* be true; instead check for this and raise an error
         # if it's not?
-        self.resort_trace_ids()
+        self.spatial_sort()
 
         # Find the edges to add, what side they're on, and where to
         # insert them into the existing trace array
@@ -1773,7 +2050,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_add = self.pca.predict(trace_ref[add_edge])
         if trace_mode == 'nearest':
             # Index of trace nearest the ones to add
-            nearest = closest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
+            nearest = nearest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
             # Indices of the original traces
             indx = np.zeros(len(add_edge), dtype=int)
             indx[np.invert(add_edge)] = np.arange(self.ntrace)
@@ -1832,7 +2109,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 :class:`TraceBitMask`).
             resort (:obj:`bool`, optional):
                 Resort the traces in the spatial dimension; see
-                :func:`resort_trace_ids`.
+                :func:`spatial_sort`.
         """
         # Check input
         _side = np.atleast_1d(side)
@@ -1846,14 +2123,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if loc.size != ntrace:
             raise ValueError('Number of sides does not match the number of insertion locations.')
 
-        import pdb
-        pdb.set_trace()
-
         # Nudge the traces
         if max_nudge > 0:
             _trace = self._nudge_traces(_trace, buffer, max_nudge)
-
-        pdb.set_trace()
 
         # Set the mask
         mask = np.zeros(_trace.shape, dtype=self.bitmask.minimum_dtype())
@@ -1875,7 +2147,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if np.any(indx):
             _traceid[indx] = np.amax(self.traceid) + 1 + np.arange(np.sum(indx))
 
-
         # Add the new traces. The new traces are added to both the
         # fitted list and the center list!
         self.traceid = np.insert(self.traceid, loc, _traceid)
@@ -1886,12 +2157,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit = np.insert(self.spat_fit, loc, _trace, axis=1)
 
         if resort:
-            self.resort_trace_ids()
+            self.spatial_sort()
 
-        # TODO: I don't think this needs to reset the PCA because the
-        # traces used to construct the PCA should only be the unmasked
-        # ones.
-
+#-----------------------------------------------------------------------
+# Done with EdgeTraceSet class.  Below are "pypeit.core.trace" routines.
+#-----------------------------------------------------------------------
 def detect_slit_edges(flux, mask=None, median_iterations=0, min_sqm=30.,
                       sobel_mode='nearest', sigdetect=30.):
     """
@@ -2263,6 +2533,7 @@ def handle_orphan_edge(trace_id_img, sobel_sig, mask=None, flux_valid=True, copy
 
     return _trace_id_img
 
+
 def most_common_trace_row(trace_mask):
     """
     Find the spectral position (row) that crosses the most traces.
@@ -2283,49 +2554,6 @@ def most_common_trace_row(trace_mask):
         rows = np.where(np.invert(trace_mask))[0]
         return rows[rows.size//2]
     return Counter(np.where(np.invert(trace_mask))[0]).most_common(1)[0][0]
-
-
-# TODO: Move this to utils
-def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
-    """
-    Boxcar smooth an image along rows.
-
-    Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
-    smooth the image.  Cannot accommodate masking.
-
-    Args:
-        img (`numpy.ndarray`_):
-            Image to convolve.
-        nave (:obj:`int`):
-            Number of pixels along rows for smoothing.
-        wgt (`numpy.ndarray`_, optional):
-            Image providing weights for each pixel in `img`.  Uniform
-            weights are used if none are provided.
-        mode (:obj:`str`, optional):
-            See `scipy.ndimage.convolve`_.
-
-    Returns:
-        `numpy.ndarray`_: The smoothed image
-    """
-    if wgt is not None and img.shape != wgt.shape:
-        raise ValueError('Input image to smooth and weights must have the same shape.')
-    if nave > img.shape[0]:
-        warnings.warn('Smoothing box is larger than the image size!')
-
-    # Construct the kernel for mean calculation
-    _nave = np.fmin(nave, img.shape[0])
-    kernel = np.ones((_nave, 1))/float(_nave)
-
-    if wgt is None:
-        # No weights so just smooth
-        return ndimage.convolve(img, kernel, mode='nearest')
-
-    # Weighted smoothing
-    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
-    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
-    smoothed_img = np.ma.divide(cimg, wimg)
-    smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
-    return smoothed_img.data
 
 
 def recenter_moment(flux, xcen, ivar=None, mask=None, ycen=None, weighting='uniform', width=3.0,
@@ -2431,7 +2659,6 @@ def recenter_moment(flux, xcen, ivar=None, mask=None, ycen=None, weighting='unif
         ValueError:
             Raised if input shapes are not correct.
     """
-
     # TODO: There's a lot of setup overhead to make this a general
     # function. If multiple calls to the function are expected, should
     # gain by only doing this setup once for a given image...
@@ -2498,7 +2725,7 @@ def recenter_moment(flux, xcen, ivar=None, mask=None, ycen=None, weighting='unif
         raise ValueError('Number of elements in xcen and ycen must be equal')
 
     # Window for the integration for each coordinate; definition the
-    # same as in extract()
+    # same as in extract_aperture()
     ix1 = np.floor(_xcen - _radius + 0.5).astype(int)
     ix2 = np.floor(_xcen + _radius + 0.5).astype(int)
     fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+4
@@ -3022,6 +3249,532 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
     return trace_fit, trace_cen, trace_err, bad_trace, traceset
 
 
+def build_trace_mask(flux, trace, mask=None, boxcar=None, thresh=None, median_kernel=None):
+    """
+    Construct a trace mask.
+
+    If no keyword arguments are provided, the traces are only masked
+    when they land outside the bounds of the image.
+
+    If both `boxcar` and `thresh` are provided, traces are also
+    masked by extracting the provided image along the trace and
+    flagging extracted values below the provided threshold.
+
+    Args:
+        flux (`numpy.ndarray`_):
+            Image to use for tracing. Shape is expected to be (nspec,
+            nspat).
+        trace (`numpy.ndarray`_):
+            Trace locations. Can be a 1D array for a single trace or a
+            2D array with shape (nspec, ntrace) for multiple traces.
+        mask (`numpy.ndarray`_, optional):
+            Boolean array with the input mask for the image. If not
+            provided, all values in `flux` are considered valid. If
+            provided, must have the same shape as `flux`.
+        boxcar (:obj:`float`, optional):
+            The width of the extraction window used for all traces
+            and spectral rows. If None, the trace mask will not
+            consider the extracted flux.
+        thresh (:obj:`float`, optional):
+            The minimum valid value of the extraced flux used to mask
+            the traces. If None, the trace mask will not consider the
+            extracted flux.
+        median_kernel (:obj:`int`, optional):
+            The spectral width of the kernel to use with
+            `scipy.signal.medfilt` to filter the *extracted* data
+            before setting the trace mask based on the provided
+            threshold. If None, the extracted data are not filtered
+            before flagging data below the threshold.
+
+    Returns:
+        `numpy.ndarray`_: The boolean mask for the traces.
+    """
+    # Setup and ensure input is correct
+    if flux.ndim != 2:
+        raise ValueError('Input image must be 2D.')
+    nspec, nspat = flux.shape
+    if mask is None:
+        mask = np.zeros_like(flux, dtype=bool)
+    if mask.shape != flux.shape:
+        raise ValueError('Mask array shape is incorrect.')
+    _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
+    if _trace.shape[0] != nspec:
+        raise ValueError('Must provide trace position for each spectral pixel.')
+
+    # Flag based on the trace positions
+    trace_mask = (_trace < 0) | (_trace > nspat - 1)
+
+    if boxcar is None or thresh is None:
+        # Only flagging based on the trace positions
+        return trace_mask
+
+    # Get the extracted flux
+    extract_flux = extract_boxcar(flux, _trace, boxcar, mask=mask)[0]
+    if median_kernel is not None:
+        # Median filter the extracted data
+        extract_flux = signal.medfilt(extract_flux, kernel_size=(median_kernel,1))
+    return trace_mask | (extract_flux < thresh)
+
+
+# TODO: Add an option where the user specifies the number of slits, and
+# so it takes only the highest peaks from detect_lines
+def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, function='legendre',
+               order=5, fwhm_uniform=3.0, fwhm_gaussian=3.0, peak_thresh=100.0, trace_thresh=10.0,
+               trace_median_frac=0.01, smash_range=None, trough=False, debug=False):
+    """
+    Find and trace features in an image by identifying peaks/troughs
+    after collapsing along the spectral axis.
+
+    The image is either compressed directly or after rectification
+    using the supplied `trace`. The provided trace *must* have the
+    same shape as the input `flux` image and map each spatial
+    position as a function of spectral position. This can be the
+    output of :func:`pca_predict` where the provided coordinates are
+    `np.arange(flux.shape[1])`; see also
+    :func:`EdgeTracePCA.predict`. The rectification of the input
+    `flux` is done using a boxcar extraction along the provided
+    traces with a width of `extract_width`.
+
+    The (rectified) image is collapsed spectrally (see `smash_range`)
+    giving the sigma-clipped mean flux as a function of spatial
+    position. Peaks are then isolated in this vector (see
+    :func:`pypeit.core.arc.detect_lines`).
+
+    Traces that pass through these peak positions are then passed to
+    two iterations of :func:`fit_trace`, which both remeasures the
+    centroids of the trace and fits a polynomial to those trace data.
+    The first iteration determines the centroids with uniform
+    weighting, passing `fwhm=fwhm_uniform` to :func:`fit_trace`, and
+    the second uses Gaussian weighting for the centroid measurements
+    (passing `fwhm=fwhm_gaussian` to :func:`fit_trace`). The results
+    of this second iteration of :func:`fit_trace` are the data
+    returned.
+
+    Troughs in the image can also be traced, which is done by
+    flipping the sign of the image about its median and then
+    repeating the "peak" finding and :func:`fit_trace` iterations. If
+    troughs are fit, the traces are order with the set of peak traces
+    first (the number of which is given by the last returned object
+    of the function), followed by the trough traces.
+
+    Args:
+        flux (`numpy.ndarray`_):
+            Image to use for tracing.
+        ivar (`numpy.ndarray`_, optional):
+            Inverse variance of the image intensity.  If not provided,
+            unity variance is used.  If provided, must have the same
+            shape as `flux`.
+        mask (`numpy.ndarray`_, optional):
+            Boolean array with the input mask for the image. If not
+            provided, all values in `flux` are considered valid. If
+            provided, must have the same shape as `flux`.
+        trace (`numpy.ndarray`_, optional):
+            Trace data that maps the spatial position of all spectra
+            as a function of spectral row. For example, this can be
+            the output of :func:`pca_predict` where the provided
+            coordinates are `np.arange(flux.shape[1])`; see also
+            :func:`EdgeTracePCA.predict`. This is used to rectify the
+            input image so that spectra are identically organized
+            along image rows. Shape *must* be identical to `flux`. If
+            None, `flux` is assumed to be rectified on input.
+        extract_width (:obj:`float`, optional):
+            The width of the extract aperture to use when rectifying
+            the flux image. If None, set to `fwhm_gaussian`.
+        function (:obj:`str`, optional):
+            The type of polynomial to fit to the trace data. See
+            :func:`fit_trace`.
+        order (:obj:`int`, optional):
+            Order of the polynomial to fit to each trace.
+        fwhm_uniform (:obj:`float`, optional):
+            The `fwhm` parameter to use when using uniform weighting
+            in the calls to :func:`fit_trace`. See description of the
+            algorithm above.
+        fwhm_gaussian (:obj:`float`, optional):
+            The `fwhm` parameter to use when using Gaussian weighting
+            in the calls to :func:`fit_trace`. See description of the
+            algorithm above.
+        peak_thresh (:obj:`float, optional):
+            The threshold for detecting peaks in the image. See the
+            `input_thresh` parameter for
+            :func:`pypeit.core.arc.detect_lines`.
+        trace_thresh (:obj:`float`, optional):
+            After rectification and median filtering of the image
+            (see `trace_median_frac`), values in the resulting image
+            that are *below* this threshold are masked in the
+            refitting of the trace using :func:`fit_trace`.
+        trace_median_frac (:obj:`float`, optional):
+            After rectification of the image and before refitting the
+            traces, the rectified image is median filtered with a
+            kernel width of trace_median_frac*nspec along the
+            spectral dimension.
+        smash_range (:obj:`tuple`, optional):
+            Spectral range to over which to collapse the input image
+            into a 1D flux as a function of spatial position. This 1D
+            vector is used to detect features for tracing. This is
+            useful (and recommended) for definining the relevant
+            detector range for data with spectra that do not span the
+            length of the detector. The tuple gives the minimum and
+            maximum in the fraction of the full spectral length
+            (nspec). If None, the full image is collapsed.
+        trough (:obj:`bool`, optional):
+            Trace both peaks **and** troughs in the input image. This
+            is done by flipping the value of the smashed image about
+            its median value, such that troughs can be identified as
+            peaks.
+        debug (:obj:`bool`, optional):
+            Show plots useful for debugging.
+
+    Returns:
+        Returns four `numpy.ndarray`_ objects and the number of peak
+        traces. The number of peak traces should be used to separate
+        peak from trough traces; if `trough` is False, this will just
+        be the total number of traces. The four
+        `numpy.ndarray`_ objects provide::
+            - The best-fitting positions of each trace determined by
+            the polynomial fit.
+            - The centroids of the trace determined by the
+            Gaussian-weighting iteration, to which the polynomial is
+            fit.
+            - The errors in the Gaussian-weighted centroids.
+            - Boolean flags for each centroid measurement (see
+            :func:`recenter_moment`).
+    """
+    # Setup and ensure input is correct
+    if flux.ndim != 2:
+        raise ValueError('Input image must be 2D.')
+    nspec, nspat = flux.shape
+    if ivar is None:
+        ivar = np.ones_like(flux, dtype=float)
+    if ivar.shape != flux.shape:
+        raise ValueError('Inverse variance array shape is incorrect.')
+    if mask is None:
+        mask = np.zeros_like(flux, dtype=bool)
+    if mask.shape != flux.shape:
+        raise ValueError('Mask array shape is incorrect.')
+
+    # Define the region to collapse
+    if smash_range is None:
+        smash_range = (0,1)
+
+    # Set the image to collapse
+    if trace is None:
+        # Assume image already rectified
+        flux_extract = flux
+        # Just set the trace to the follow the spatial columns
+        trace = np.tile(np.arange(nspat), (nspec,1))
+    else:
+        # Check there is a trace for each image pixel
+        if trace.shape != flux.shape:
+            raise ValueError('Provided trace data must match the image shape.')
+        msgs.info('Rectifying image by extracting along trace for each spatial pixel')
+        # TODO: JFH What should this aperture size be? I think fwhm=3.0
+        # since that is the width of the sobel filter
+        if extract_width is None:
+            extract_width = fwhm_gaussian
+        flux_extract = extract_aperture(flux, trace-extract_width/2., trace+extract_width/2.,
+                                        ivar=ivar, mask=mask)[0]
+#        if debug:
+#            ginga.show_image(flux_extract, chname ='rectified image')
+
+    # Collapse the image along the spectral direction to isolate peaks/troughs
+    start, end = np.clip(np.asarray(smash_range).astype(int)*nspec, 0, nspec)
+    msgs.info('Collapsing image spectrally between pixels {0}:{1}'.format(start, end))
+    flux_smash_mean, flux_smash_median, flux_smash_sig \
+            = sigma_clipped_stats(flux_extract[start:end,:], axis=0, sigma=4.0)
+
+    # Offset by the median
+    # TODO: If tracing Sobel-filtered image, this should be close to,
+    # or identically, 0
+    flux_median = np.median(flux_smash_mean)
+    flux_smash_mean -= flux_median
+
+    # Trace peak or both peaks and troughs
+    label = ['peak', 'trough'] if trough else ['peak']
+    sign = [1, -1] if trough else [1]
+
+    # Instantiate output
+    npeak = 0
+    trace_fit = np.empty((nspec,0), dtype=float)
+    trace_cen = np.empty((nspec,0), dtype=float)
+    trace_err = np.empty((nspec,0), dtype=float)
+    bad_trace = np.empty((nspec,0), dtype=bool)
+
+    # Get the smoothing kernel width and ensure it is odd
+    median_kernel = int(np.ceil(nspec*trace_median_frac))//2 * 2 + 1
+
+    # Identify and trace features in the image
+    for i,(l,s) in enumerate(zip(label,sign)):
+
+        # Identify the peaks
+        _, _, cen, _, _, best, _, _ \
+                = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
+                                   input_thresh=peak_thresh, max_frac_fwhm=4.0,
+                                   min_pkdist_frac_fwhm=5.0, debug=debug)
+        if len(cen) == 0 or not np.any(best):
+            print('No good {0}s found!'.format(l))
+            continue
+        print('Found {0} good {1}(s) in the rectified, collapsed image'.format(len(cen[best]),l))
+
+        # As the starting point for the iterative trace fitting, use
+        # the nput trace data at the positions of the detected peaks
+        loc = np.round(cen[best]).astype(int) 
+        trace_peak = trace[:,loc] + (cen[best]-loc)[None,:]
+
+        # Image to trace: flip when tracing the troughs and clip low
+        # values
+        # TODO: This -1 is drawn out of the ether
+        _flux = np.clip(s*(flux - flux_median), -1, None)
+
+        # Construct the trace mask
+        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
+                                           thresh=trace_thresh, median_kernel=median_kernel)
+
+        # Remeasure and fit the trace using uniform weighting
+        trace_peak, cen, err, bad, _ \
+                = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
+                            trace_mask=trace_peak_mask, fwhm=fwhm_uniform, function=function,
+                            niter=9, show_fits=debug)
+
+        # Reset the mask
+        # TODO: Use or include `bad` resulting from fit_trace()?
+        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
+                                           thresh=trace_thresh, median_kernel=median_kernel)
+
+        # Redo the measurements and trace fitting with Gaussian
+        # weighting
+        trace_peak, cen, err, bad, _ \
+                = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
+                            trace_mask=trace_peak_mask, weighting='gaussian', fwhm=fwhm_gaussian,
+                            function=function, niter=6, show_fits=debug)
+
+        # Save the results
+        trace_fit = np.append(trace_fit, trace_peak, axis=1)
+        trace_cen = np.append(trace_cen, cen, axis=1)
+        trace_err = np.append(trace_err, err, axis=1)
+        bad_trace = np.append(bad_trace, bad, axis=1)
+
+        if i == 0:
+            # Save the number of peaks (troughs are appended, if they're located)
+            npeak = cen.shape[1]
+
+    return trace_fit, trace_cen, trace_err, bad_trace, npeak
+
+#-----------------------------------------------------------------------
+# TODO: These should go in pypeit.core.extract
+def extract_boxcar(flux, xcen, width, ivar=None, mask=None, wgt=None, ycen=None, fill_error=-1.):
+    """
+    Simple wrapper for :func:`extract` that sets the left and right
+    locations of the extraction aperture based on the provided center
+    and width.
+
+    The arguments `xcen` and `width` must be able to broadcast to the
+    correct length for the input of `left` and `right` to
+    :func:`extract_aperture`.
+    """
+    return extract_aperture(flux, xcen-width/2, xcen+width/2, ivar=ivar, mask=mask, wgt=wgt,
+                            ycen=ycen, fill_error=fill_error)
+
+
+# TODO: Merge this with recenter_moment
+def extract_aperture(flux, left, right, ivar=None, mask=None, wgt=None, ycen=None, fill_error=-1.):
+    r"""
+    Extract the flux within a set of apertures.
+
+    This function is very similar to :func:`recenter_moment`, except
+    that the return values are the weighted zeroth moment, not the
+    weighted first moment.
+
+    Although the input image must be 2D, the calculation is 1D along
+    its second axis (axis=1). Specifically, the extracted flux
+    (:math:`\mu`) and flux errors (:math:`\epsilon_\mu`) are
+
+    .. math::
+
+        \mu &= \sum_i w_i f_i \\
+        \epsilon_\mu^2 &= \sum_i (w_i \epsilon_{f,i})^2
+
+    where :math:`f` is the flux in each pixel and :math:`\epsilon_f`
+    is its error.
+
+    The method uses numpy masked arrays to keep track of errors in
+    the calculation, likely due to math errors (e.g., divisions by
+    0). The returned boolean array indicates when these errors
+    occurred.
+
+    .. todo::
+        - Method sets masked values to have weight = 0. This feels
+        non-ideal, but there may not be a more meaningful approach...
+        - Consolidate this function with :func:`recenter_moment` into
+        a single function (e.g., calculate_moment)?
+        - This could also be used for optimal extraction by just
+        changing the weighting...
+
+    Args:
+        flux (`numpy.ndarray`_):
+            Intensity image with shape (ny, nx).
+        left (`numpy.ndarray`_):
+            Floating-point pixel coordinate along the 2nd axis of the
+            image for the left edge of the extraction aperture. This
+            can either be an 2-d array with shape (ny, na) array, or
+            a 1-d array with shape (na), where na is the number of
+            apertures along the 2nd axis to extract.
+        right (`numpy.ndarray`_):
+            Similar definition as `left` but for the right edge of
+            the extraction aperture. Must have the same shape as
+            `left`.
+        ivar (`numpy.ndarray`_, optional):
+            Inverse variance of the image intensity.  If not provided,
+            unity variance is used.  If provided, must have the same
+            shape as `flux`.
+        mask (`numpy.ndarray`_, optional):
+            Mask for the input image.  True values are ignored, False
+            values are included.  If not provided, all pixels are
+            included.  If provided, must have the same shape as
+            `flux`.
+        wgt (`numpy.ndarray`_, optional):
+            Weight to apply to each pixel in the extraction. If None,
+            each pixel is given unity weight, except for mask pixels
+            (if defined, given 0 weight). If provided, must have the
+            same shape as `flux`.
+        ycen (:obj:`int`, `numpy.ndarray`_, optional):
+            Integer or integer array with the position along the 0th
+            axis for the extraction. If None, assume `np.arange(ny)`
+            for each aperture (na). If a single number, assume the
+            value is identical for all apertures. Otherwise, must
+            have the same shape as `left` and `right`.
+        fill_error (:obj:`float`, optional):
+            Value to use as filler for undetermined fluxes, resulting
+            from either the input mask or computational issues
+            (division by zero, etc.; see return description below).
+
+    Returns:
+        Three `numpy.ndarray`_ objects are returned, all with the
+        same shape as the input aperture coordinates (e.g., `left`)::
+            - The flux within the aperture along the 2nd axis of the
+            input image. Masked values are set to 0.
+            - The formal propagated error (see equation above) in the
+            flux. Errors are only meaningful if `ivar` is provided.
+            Masked values (indicated by the third object returned)
+            are set to `fill_error`.
+            - A boolean mask for output data; True values should be
+            ignored, False values are valid measurements.
+
+    Raises:
+        ValueError:
+            Raised if input shapes are not correct.
+    """
+
+    # TODO: There's a lot of setup overhead to make this a general
+    # function. If multiple calls to the function are expected, should
+    # gain by only doing this setup once for a given image...
+    
+    # Check the input images
+    _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
+    if _ivar.shape != flux.shape:
+        raise ValueError('Inverse variance must have the same shape as the input image.')
+    _mask = np.zeros_like(flux, dtype=bool) if mask is None else mask
+    if _mask.shape != flux.shape:
+        raise ValueError('Pixel mask must have the same shape as the input image.')
+    _wgt = np.ones_like(flux, dtype=float) if wgt is None else wgt
+    if _wgt.shape != flux.shape:
+        raise ValueError('Pixel weights must have the same shape as the input image.')
+
+    # Process coordinate input
+    ny, nx = flux.shape
+    _left = np.atleast_1d(left)       # If entered as a numpy array, the array is not a copy
+    ndim = _left.ndim
+    if ndim > 2:
+        raise ValueError('Aperture array must be 1 or 2 dimensional')
+    dim = _left.shape
+    npix = dim[0]
+    if dim == 2 and npix > ny:
+        # TODO: Is this test necessary?
+        raise ValueError('More locations to trace ({0}) than pixels in the image ({1})!'.format(
+                            npix,ny))
+    nap = 1 if ndim == 1 else dim[1]
+
+    _right = np.atleast_1d(right)   # If entered as a numpy array, the array is not a copy
+    if _right.shape != _left.shape:
+        raise ValueError('Right aperture edge must match the shape of the left aperture edge.')
+
+    # Copy and normalize the shape of the input (flatten creates a
+    # copy); the width needs to be an array for the compressed
+    # calculation below.
+    _left = _left.flatten()
+    _right = _right.flatten()
+
+    # Set the row locations for the recentering
+    # TODO: Check that this does not ovewrite ycen
+    if ycen is None:
+        _ycen = np.arange(npix, dtype=int) if ndim == 1 else np.tile(np.arange(npix), (nap,1)).T
+    elif not hasattr(ycen, '__len__'):
+        # This is specifically set to be the same size as the input
+        # left (not _left)
+        _ycen = np.full_like(left, ycen, dtype=int)
+    else:
+        _ycen = np.asarray(ycen)
+    if np.amin(_ycen) < 0 or np.amax(_ycen) > ny-1:
+        raise ValueError('Input ycen values will run off the image')
+    _ycen = _ycen.astype(int).flatten()
+
+    # Check the sizes match
+    if _left.size != _ycen.size:
+        raise ValueError('Number of elements in aperture definition (left) and ycen must be equal')
+
+    # TODO: The uses of numpy.newaxis below can create huge arrays.
+    # Maybe worth testing if a for loop is faster.
+
+    # Window for the integration for each coordinate
+    ix1 = np.floor(_left + 0.5).astype(int)
+    ix2 = np.floor(_right + 0.5).astype(int)
+
+    # TODO: The following is slightly different than `recenter_moment`
+    # but should nominally be the same. It would also probably be
+    # correct if it were instead:
+    # fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+2
+    # x = ix1[:,None]+np.arange(fullpix)[None,:]
+    # but leaving it for now.
+    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+4
+    x = ix1[:,None]-1+np.arange(fullpix)[None,:]
+    ih = np.clip(x,0,nx-1)
+
+    _rad = (_right-_left)/2
+    _cen = (_right+_left)/2
+
+    # Set the weight over the window; masked pixels have 0 weight
+    good = ((x >= 0) & (x < nx) & np.invert(_mask[_ycen[:,None],ih]) \
+                 & (_ivar[_ycen[:,None],ih] > 0)).astype(int)
+    wt = good * np.clip(_rad[:,None] - np.abs(x - _cen[:,None]) + 0.5,0,1)
+
+    _flux = flux * _wgt
+    _ivar = np.ma.divide(_ivar, np.square(_wgt))
+
+    # Weight the image data
+    fwt = _flux[_ycen[:,None],ih] * wt
+    # Get the weighted sum
+    mu = np.ma.sum(fwt, axis=1)
+    # ... and the formal error
+    mue = np.ma.sqrt(np.ma.sum(np.ma.divide(np.square(wt), _ivar[_ycen[:,None],ih]), axis=1))
+
+    # Set bad calculations to 0 flux and the error fill value
+    # TODO: Include error mask (mue.mask as done below) or ignore
+    # problems in the error calculation?
+    bad = mu.mask | mue.mask
+    mu[bad] = 0
+    mue[bad] = fill_error
+
+    # Reshape to the correct size for output if more than one trace was input
+    if ndim > 1:
+        mu = mu.reshape(npix, nap)
+        mue = mue.reshape(npix, nap)
+        bad = bad.reshape(npix, nap)
+
+    # Make sure to return unmasked arrays
+    return mu.data, mue.data, bad
+
+
+#-----------------------------------------------------------------------
+# TODO: These should go in a pypeit.core.pca module
 def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     r"""
     Perform principle-component analysis (PCA) for a set of 1D vectors.
@@ -3288,526 +4041,4 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
     # Calculate the predicted vectors and return them
     vectors = np.dot(c, pca_components) + pca_mean[None,:] + mean[:,None]
     return vectors if _x.size > 1 else vectors[0,:]
-
-
-def build_trace_mask(flux, trace, mask=None, boxcar=None, thresh=None, median_kernel=None):
-    """
-    Construct a trace mask.
-
-    If no keyword arguments are provided, the traces are only masked
-    when they land outside the bounds of the image.
-
-    If both `boxcar` and `thresh` are provided, traces are also
-    masked by extracting the provided image along the trace and
-    flagging extracted values below the provided threshold.
-
-    Args:
-        flux (`numpy.ndarray`_):
-            Image to use for tracing. Shape is expected to be (nspec,
-            nspat).
-        trace (`numpy.ndarray`_):
-            Trace locations. Can be a 1D array for a single trace or a
-            2D array with shape (nspec, ntrace) for multiple traces.
-        mask (`numpy.ndarray`_, optional):
-            Boolean array with the input mask for the image. If not
-            provided, all values in `flux` are considered valid. If
-            provided, must have the same shape as `flux`.
-        boxcar (:obj:`float`, optional):
-            The width of the extraction window used for all traces
-            and spectral rows. If None, the trace mask will not
-            consider the extracted flux.
-        thresh (:obj:`float`, optional):
-            The minimum valid value of the extraced flux used to mask
-            the traces. If None, the trace mask will not consider the
-            extracted flux.
-        median_kernel (:obj:`int`, optional):
-            The spectral width of the kernel to use with
-            `scipy.signal.medfilt` to filter the *extracted* data
-            before setting the trace mask based on the provided
-            threshold. If None, the extracted data are not filtered
-            before flagging data below the threshold.
-
-    Returns:
-        `numpy.ndarray`_: The boolean mask for the traces.
-    """
-    # Setup and ensure input is correct
-    if flux.ndim != 2:
-        raise ValueError('Input image must be 2D.')
-    nspec, nspat = flux.shape
-    if mask is None:
-        mask = np.zeros_like(flux, dtype=bool)
-    if mask.shape != flux.shape:
-        raise ValueError('Mask array shape is incorrect.')
-    _trace = trace.reshape(-1,1) if trace.ndim == 1 else trace
-    if _trace.shape[0] != nspec:
-        raise ValueError('Must provide trace position for each spectral pixel.')
-
-    # Flag based on the trace positions
-    trace_mask = (_trace < 0) | (_trace > nspat - 1)
-
-    if boxcar is None or thresh is None:
-        # Only flagging based on the trace positions
-        return trace_mask
-
-    # Get the extracted flux
-    extract_flux = extract_boxcar(flux, _trace, boxcar, mask=mask)[0]
-    if median_kernel is not None:
-        # Median filter the extracted data
-        extract_flux = signal.medfilt(extract_flux, kernel_size=(median_kernel,1))
-    return trace_mask | (extract_flux < thresh)
-
-
-# TODO: Add an option where the user specifies the number of slits, and
-# so it takes only the highest peaks from detect_lines
-def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, function='legendre',
-               order=5, fwhm_uniform=3.0, fwhm_gaussian=3.0, peak_thresh=100.0, trace_thresh=10.0,
-               trace_median_frac=0.01, smash_range=None, trough=False, debug=False):
-    """
-    Find and trace features in an image by identifying peaks/troughs
-    after collapsing along the spectral axis.
-
-    The image is either compressed directly or after rectification
-    using the supplied `trace`. The provided trace *must* have the
-    same shape as the input `flux` image and map each spatial
-    position as a function of spectral position. This can be the
-    output of :func:`pca_predict` where the provided coordinates are
-    `np.arange(flux.shape[1])`; see also
-    :func:`EdgeTracePCA.predict`. The rectification of the input
-    `flux` is done using a boxcar extraction along the provided
-    traces with a width of `extract_width`.
-
-    The (rectified) image is collapsed spectrally (see `smash_range`)
-    giving the sigma-clipped mean flux as a function of spatial
-    position. Peaks are then isolated in this vector (see
-    :func:`pypeit.core.arc.detect_lines`).
-
-    Traces that pass through these peak positions are then passed to
-    two iterations of :func:`fit_trace`, which both remeasures the
-    centroids of the trace and fits a polynomial to those trace data.
-    The first iteration determines the centroids with uniform
-    weighting, passing `fwhm=fwhm_uniform` to :func:`fit_trace`, and
-    the second uses Gaussian weighting for the centroid measurements
-    (passing `fwhm=fwhm_gaussian` to :func:`fit_trace`). The results
-    of this second iteration of :func:`fit_trace` are the data
-    returned.
-
-    Troughs in the image can also be traced, which is done by
-    flipping the sign of the image about its median and then
-    repeating the "peak" finding and :func:`fit_trace` iterations. If
-    troughs are fit, the traces are order with the set of peak traces
-    first (the number of which is given by the last returned object
-    of the function), followed by the trough traces.
-
-    Args:
-        flux (`numpy.ndarray`_):
-            Image to use for tracing.
-        ivar (`numpy.ndarray`_, optional):
-            Inverse variance of the image intensity.  If not provided,
-            unity variance is used.  If provided, must have the same
-            shape as `flux`.
-        mask (`numpy.ndarray`_, optional):
-            Boolean array with the input mask for the image. If not
-            provided, all values in `flux` are considered valid. If
-            provided, must have the same shape as `flux`.
-        trace (`numpy.ndarray`_, optional):
-            Trace data that maps the spatial position of all spectra
-            as a function of spectral row. For example, this can be
-            the output of :func:`pca_predict` where the provided
-            coordinates are `np.arange(flux.shape[1])`; see also
-            :func:`EdgeTracePCA.predict`. This is used to rectify the
-            input image so that spectra are identically organized
-            along image rows. Shape *must* be identical to `flux`. If
-            None, `flux` is assumed to be rectified on input.
-        extract_width (:obj:`float`, optional):
-            The width of the extract aperture to use when rectifying
-            the flux image. If None, set to `fwhm_gaussian`.
-        function (:obj:`str`, optional):
-            The type of polynomial to fit to the trace data. See
-            :func:`fit_trace`.
-        order (:obj:`int`, optional):
-            Order of the polynomial to fit to each trace.
-        fwhm_uniform (:obj:`float`, optional):
-            The `fwhm` parameter to use when using uniform weighting
-            in the calls to :func:`fit_trace`. See description of the
-            algorithm above.
-        fwhm_gaussian (:obj:`float`, optional):
-            The `fwhm` parameter to use when using Gaussian weighting
-            in the calls to :func:`fit_trace`. See description of the
-            algorithm above.
-        peak_thresh (:obj:`float, optional):
-            The threshold for detecting peaks in the image. See the
-            `input_thresh` parameter for
-            :func:`pypeit.core.arc.detect_lines`.
-        trace_thresh (:obj:`float`, optional):
-            After rectification and median filtering of the image
-            (see `trace_median_frac`), values in the resulting image
-            that are *below* this threshold are masked in the
-            refitting of the trace using :func:`fit_trace`.
-        trace_median_frac (:obj:`float`, optional):
-            After rectification of the image and before refitting the
-            traces, the rectified image is median filtered with a
-            kernel width of trace_median_frac*nspec along the
-            spectral dimension.
-        smash_range (:obj:`tuple`, optional):
-            Spectral range to over which to collapse the input image
-            into a 1D flux as a function of spatial position. This 1D
-            vector is used to detect features for tracing. This is
-            useful (and recommended) for definining the relevant
-            detector range for data with spectra that do not span the
-            length of the detector. The tuple gives the minimum and
-            maximum in the fraction of the full spectral length
-            (nspec). If None, the full image is collapsed.
-        trough (:obj:`bool`, optional):
-            Trace both peaks **and** troughs in the input image. This
-            is done by flipping the value of the smashed image about
-            its median value, such that troughs can be identified as
-            peaks.
-        debug (:obj:`bool`, optional):
-            Show plots useful for debugging.
-
-    Returns:
-        Returns four `numpy.ndarray`_ objects and the number of peak
-        traces. The number of peak traces should be used to separate
-        peak from trough traces; if `trough` is False, this will just
-        be the total number of traces. The four
-        `numpy.ndarray`_ objects provide::
-            - The best-fitting positions of each trace determined by
-            the polynomial fit.
-            - The centroids of the trace determined by the
-            Gaussian-weighting iteration, to which the polynomial is
-            fit.
-            - The errors in the Gaussian-weighted centroids.
-            - Boolean flags for each centroid measurement (see
-            :func:`recenter_moment`).
-    """
-    # Setup and ensure input is correct
-    if flux.ndim != 2:
-        raise ValueError('Input image must be 2D.')
-    nspec, nspat = flux.shape
-    if ivar is None:
-        ivar = np.ones_like(flux, dtype=float)
-    if ivar.shape != flux.shape:
-        raise ValueError('Inverse variance array shape is incorrect.')
-    if mask is None:
-        mask = np.zeros_like(flux, dtype=bool)
-    if mask.shape != flux.shape:
-        raise ValueError('Mask array shape is incorrect.')
-
-    # Define the region to collapse
-    if smash_range is None:
-        smash_range = (0,1)
-
-    # Set the image to collapse
-    if trace is None:
-        # Assume image already rectified
-        flux_extract = flux
-        # Just set the trace to the follow the spatial columns
-        trace = np.tile(np.arange(nspat), (nspec,1))
-    else:
-        # Check there is a trace for each image pixel
-        if trace.shape != flux.shape:
-            raise ValueError('Provided trace data must match the image shape.')
-        msgs.info('Rectifying image by extracting along trace for each spatial pixel')
-        # TODO: JFH What should this aperture size be? I think fwhm=3.0
-        # since that is the width of the sobel filter
-        if extract_width is None:
-            extract_width = fwhm_gaussian
-        flux_extract = extract(flux, trace-extract_width/2., trace+extract_width/2., ivar=ivar,
-                               mask=mask)[0]
-#        if debug:
-#            ginga.show_image(flux_extract, chname ='rectified image')
-
-    # Collapse the image along the spectral direction to isolate peaks/troughs
-    start, end = np.clip(np.asarray(smash_range).astype(int)*nspec, 0, nspec)
-    msgs.info('Collapsing image spectrally between pixels {0}:{1}'.format(start, end))
-    flux_smash_mean, flux_smash_median, flux_smash_sig \
-            = sigma_clipped_stats(flux_extract[start:end,:], axis=0, sigma=4.0)
-
-    # Offset by the median
-    # TODO: If tracing Sobel-filtered image, this should be close to,
-    # or identically, 0
-    flux_median = np.median(flux_smash_mean)
-    flux_smash_mean -= flux_median
-
-    # Trace peak or both peaks and troughs
-    label = ['peak', 'trough'] if trough else ['peak']
-    sign = [1, -1] if trough else [1]
-
-    # Instantiate output
-    npeak = 0
-    trace_fit = np.empty((nspec,0), dtype=float)
-    trace_cen = np.empty((nspec,0), dtype=float)
-    trace_err = np.empty((nspec,0), dtype=float)
-    bad_trace = np.empty((nspec,0), dtype=bool)
-
-    # Get the smoothing kernel width and ensure it is odd
-    median_kernel = int(np.ceil(nspec*trace_median_frac))//2 * 2 + 1
-
-    # Identify and trace features in the image
-    for i,(l,s) in enumerate(zip(label,sign)):
-
-        # Identify the peaks
-        _, _, cen, _, _, best, _, _ \
-                = arc.detect_lines(s*flux_smash_mean, cont_subtract=False, fwhm=fwhm_gaussian,
-                                   input_thresh=peak_thresh, max_frac_fwhm=4.0,
-                                   min_pkdist_frac_fwhm=5.0, debug=debug)
-        if len(cen) == 0 or not np.any(best):
-            print('No good {0}s found!'.format(l))
-            continue
-        print('Found {0} good {1}(s) in the rectified, collapsed image'.format(len(cen[best]),l))
-
-        # As the starting point for the iterative trace fitting, use
-        # the nput trace data at the positions of the detected peaks
-        loc = np.round(cen[best]).astype(int) 
-        trace_peak = trace[:,loc] + (cen[best]-loc)[None,:]
-
-        # Image to trace: flip when tracing the troughs and clip low
-        # values
-        # TODO: This -1 is drawn out of the ether
-        _flux = np.clip(s*(flux - flux_median), -1, None)
-
-        # Construct the trace mask
-        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
-                                           thresh=trace_thresh, median_kernel=median_kernel)
-
-        # Remeasure and fit the trace using uniform weighting
-        trace_peak, cen, err, bad, _ \
-                = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
-                            trace_mask=trace_peak_mask, fwhm=fwhm_uniform, function=function,
-                            niter=9, show_fits=debug)
-
-        # Reset the mask
-        # TODO: Use or include `bad` resulting from fit_trace()?
-        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
-                                           thresh=trace_thresh, median_kernel=median_kernel)
-
-        # Redo the measurements and trace fitting with Gaussian
-        # weighting
-        trace_peak, cen, err, bad, _ \
-                = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
-                            trace_mask=trace_peak_mask, weighting='gaussian', fwhm=fwhm_gaussian,
-                            function=function, niter=6, show_fits=debug)
-
-        # Save the results
-        trace_fit = np.append(trace_fit, trace_peak, axis=1)
-        trace_cen = np.append(trace_cen, cen, axis=1)
-        trace_err = np.append(trace_err, err, axis=1)
-        bad_trace = np.append(bad_trace, bad, axis=1)
-
-        if i == 0:
-            # Save the number of peaks (troughs are appended, if they're located)
-            npeak = cen.shape[1]
-
-    return trace_fit, trace_cen, trace_err, bad_trace, npeak
-
-
-def extract_boxcar(flux, xcen, width, ivar=None, mask=None, wgt=None, ycen=None, fill_error=-1.):
-    """
-    Simple wrapper for :func:`extract` that sets the left and right
-    locations of the extraction aperture based on the provided center
-    and width.
-
-    The arguments `xcen` and `width` must be able to broadcast to the
-    correct length for the input of `left` and `right` to
-    :func:`extract`.
-    """
-    return extract(flux, xcen-width/2, xcen+width/2, ivar=ivar, mask=mask, wgt=wgt, ycen=ycen,
-                  fill_error=fill_error)
-
-
-def extract(flux, left, right, ivar=None, mask=None, wgt=None, ycen=None, fill_error=-1.):
-    r"""
-    Extract the flux within a set of apertures.
-
-    This function is very similar to :func:`recenter_moment`, except
-    that the return values are the weighted zeroth moment, not the
-    weighted first moment.
-
-    Although the input image must be 2D, the calculation is 1D along
-    its second axis (axis=1). Specifically, the extracted flux
-    (:math:`\mu`) and flux errors (:math:`\epsilon_\mu`) are
-
-    .. math::
-
-        \mu &= \sum_i w_i f_i \\
-        \epsilon_\mu^2 &= \sum_i (w_i \epsilon_{f,i})^2
-
-    where :math:`f` is the flux in each pixel and :math:`\epsilon_f`
-    is its error.
-
-    The method uses numpy masked arrays to keep track of errors in
-    the calculation, likely due to math errors (e.g., divisions by
-    0). The returned boolean array indicates when these errors
-    occurred.
-
-    .. todo::
-        - Method sets masked values to have weight = 0. This feels
-        non-ideal, but there may not be a more meaningful approach...
-        - Consolidate this function with :func:`recenter_moment` into
-        a single function (e.g., calculate_moment)?
-        - This could also be used for optimal extraction by just
-        changing the weighting...
-
-    Args:
-        flux (`numpy.ndarray`_):
-            Intensity image with shape (ny, nx).
-        left (`numpy.ndarray`_):
-            Floating-point pixel coordinate along the 2nd axis of the
-            image for the left edge of the extraction aperture. This
-            can either be an 2-d array with shape (ny, na) array, or
-            a 1-d array with shape (na), where na is the number of
-            apertures along the 2nd axis to extract.
-        right (`numpy.ndarray`_):
-            Similar definition as `left` but for the right edge of
-            the extraction aperture. Must have the same shape as
-            `left`.
-        ivar (`numpy.ndarray`_, optional):
-            Inverse variance of the image intensity.  If not provided,
-            unity variance is used.  If provided, must have the same
-            shape as `flux`.
-        mask (`numpy.ndarray`_, optional):
-            Mask for the input image.  True values are ignored, False
-            values are included.  If not provided, all pixels are
-            included.  If provided, must have the same shape as
-            `flux`.
-        wgt (`numpy.ndarray`_, optional):
-            Weight to apply to each pixel in the extraction. If None,
-            each pixel is given unity weight, except for mask pixels
-            (if defined, given 0 weight). If provided, must have the
-            same shape as `flux`.
-        ycen (:obj:`int`, `numpy.ndarray`_, optional):
-            Integer or integer array with the position along the 0th
-            axis for the extraction. If None, assume `np.arange(ny)`
-            for each aperture (na). If a single number, assume the
-            value is identical for all apertures. Otherwise, must
-            have the same shape as `left` and `right`.
-        fill_error (:obj:`float`, optional):
-            Value to use as filler for undetermined fluxes, resulting
-            from either the input mask or computational issues
-            (division by zero, etc.; see return description below).
-
-    Returns:
-        Three `numpy.ndarray`_ objects are returned, all with the
-        same shape as the input aperture coordinates (e.g., `left`)::
-            - The flux within the aperture along the 2nd axis of the
-            input image. Masked values are set to 0.
-            - The formal propagated error (see equation above) in the
-            flux. Errors are only meaningful if `ivar` is provided.
-            Masked values (indicated by the third object returned)
-            are set to `fill_error`.
-            - A boolean mask for output data; True values should be
-            ignored, False values are valid measurements.
-
-    Raises:
-        ValueError:
-            Raised if input shapes are not correct.
-    """
-
-    # TODO: There's a lot of setup overhead to make this a general
-    # function. If multiple calls to the function are expected, should
-    # gain by only doing this setup once for a given image...
-    
-    # Check the input images
-    _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
-    if _ivar.shape != flux.shape:
-        raise ValueError('Inverse variance must have the same shape as the input image.')
-    _mask = np.zeros_like(flux, dtype=bool) if mask is None else mask
-    if _mask.shape != flux.shape:
-        raise ValueError('Pixel mask must have the same shape as the input image.')
-    _wgt = np.ones_like(flux, dtype=float) if wgt is None else wgt
-    if _wgt.shape != flux.shape:
-        raise ValueError('Pixel weights must have the same shape as the input image.')
-
-    # Process coordinate input
-    ny, nx = flux.shape
-    _left = np.atleast_1d(left)       # If entered as a numpy array, the array is not a copy
-    ndim = _left.ndim
-    if ndim > 2:
-        raise ValueError('Aperture array must be 1 or 2 dimensional')
-    dim = _left.shape
-    npix = dim[0]
-    if dim == 2 and npix > ny:
-        # TODO: Is this test necessary?
-        raise ValueError('More locations to trace ({0}) than pixels in the image ({1})!'.format(
-                            npix,ny))
-    nap = 1 if ndim == 1 else dim[1]
-
-    _right = np.atleast_1d(right)   # If entered as a numpy array, the array is not a copy
-    if _right.shape != _left.shape:
-        raise ValueError('Right aperture edge must match the shape of the left aperture edge.')
-
-    # Copy and normalize the shape of the input (flatten creates a
-    # copy); the width needs to be an array for the compressed
-    # calculation below.
-    _left = _left.flatten()
-    _right = _right.flatten()
-
-    # Set the row locations for the recentering
-    # TODO: Check that this does not ovewrite ycen
-    if ycen is None:
-        _ycen = np.arange(npix, dtype=int) if ndim == 1 else np.tile(np.arange(npix), (nap,1)).T
-    elif not hasattr(ycen, '__len__'):
-        # This is specifically set to be the same size as the input
-        # left (not _left)
-        _ycen = np.full_like(left, ycen, dtype=int)
-    else:
-        _ycen = np.asarray(ycen)
-    if np.amin(_ycen) < 0 or np.amax(_ycen) > ny-1:
-        raise ValueError('Input ycen values will run off the image')
-    _ycen = _ycen.astype(int).flatten()
-
-    # Check the sizes match
-    if _left.size != _ycen.size:
-        raise ValueError('Number of elements in aperture definition (left) and ycen must be equal')
-
-    # TODO: The uses of numpy.newaxis below can create huge arrays.
-    # Maybe worth testing if a for loop is faster.
-
-    # Window for the integration for each coordinate
-    ix1 = np.floor(_left + 0.5).astype(int)
-    ix2 = np.floor(_right + 0.5).astype(int)
-
-    # TODO: The following is slightly different than `recenter_moment`
-    # but should nominally be the same. It would also probably be
-    # correct if it were instead:
-    # fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+2
-    # x = ix1[:,None]+np.arange(fullpix)[None,:]
-    # but leaving it for now.
-    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+4
-    x = ix1[:,None]-1+np.arange(fullpix)[None,:]
-    ih = np.clip(x,0,nx-1)
-
-    _rad = (_right-_left)/2
-    _cen = (_right+_left)/2
-
-    # Set the weight over the window; masked pixels have 0 weight
-    good = ((x >= 0) & (x < nx) & np.invert(_mask[_ycen[:,None],ih]) \
-                 & (_ivar[_ycen[:,None],ih] > 0)).astype(int)
-    wt = good * np.clip(_rad[:,None] - np.abs(x - _cen[:,None]) + 0.5,0,1)
-
-    _flux = flux * _wgt
-    _ivar = np.ma.divide(_ivar, np.square(_wgt))
-
-    # Weight the image data
-    fwt = _flux[_ycen[:,None],ih] * wt
-    # Get the weighted sum
-    mu = np.ma.sum(fwt, axis=1)
-    # ... and the formal error
-    mue = np.ma.sqrt(np.ma.sum(np.ma.divide(np.square(wt), _ivar[_ycen[:,None],ih]), axis=1))
-
-    # Set bad calculations to 0 flux and the error fill value
-    # TODO: Include error mask (mue.mask as done below) or ignore
-    # problems in the error calculation?
-    bad = mu.mask | mue.mask
-    mu[bad] = 0
-    mue[bad] = fill_error
-
-    # Reshape to the correct size for output if more than one trace was input
-    if ndim > 1:
-        mu = mu.reshape(npix, nap)
-        mue = mue.reshape(npix, nap)
-        bad = bad.reshape(npix, nap)
-
-    # Make sure to return unmasked arrays
-    return mu.data, mue.data, bad
 
