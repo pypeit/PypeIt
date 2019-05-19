@@ -710,7 +710,9 @@ class Echelle(Reduce):
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 
-        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=self.tslits_dict['slit_left'].shape[1])
+        norders=self.tslits_dict['slit_left'].shape[1]
+        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=norders)
+        order_vec = self.spectrograph.order_vec(norders=norders)
         inmask = self.mask == 0
         # Find objects
         specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
@@ -720,6 +722,7 @@ class Echelle(Reduce):
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                 inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
+                                order_vec=order_vec,
                                 hand_extract_dict=manual_extract_dict,
                                 plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
