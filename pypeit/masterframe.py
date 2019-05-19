@@ -4,7 +4,9 @@ Implements the master frame base class.
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
 import os
+import sys
 import warnings
+import time
 
 from abc import ABCMeta
 
@@ -13,6 +15,13 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
+
+# These imports are largely just to make the versions available for
+# writing to the header. See `initialize_header`
+import scipy
+import astropy
+import sklearn
+import pypeit
 
 class MasterFrame(object):
     """
@@ -86,7 +95,8 @@ class MasterFrame(object):
         """
         return os.path.join(self.master_dir, self.file_name)
 
-    def save(self, data, extnames, outfile=None, overwrite=True, raw_files=None, steps=None):
+    def save(self, data, extnames, outfile=None, overwrite=True, raw_files=None, steps=None,
+             checksum=True):
         """
         Base interface for saving master frame image data to a fits
         file.
@@ -111,6 +121,9 @@ class MasterFrame(object):
             steps (:obj:`list`, optional):
                 The list of steps executed by the derived class to
                 construct the master frame.
+            checksum (:obj:`bool`, optional):
+                Passed to `astropy.io.fits.HDUList.writeto` to add
+                the DATASUM and CHECKSUM keywords fits header(s).
         """
         _outfile = self.file_path if outfile is None else outfile
         # Check if it exists
@@ -129,9 +142,7 @@ class MasterFrame(object):
         _data = data if isinstance(data, list) else [data]
 
         # Build the header
-        hdr = fits.Header()
-        #   - Set the master frame type
-        hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
+        hdr = self.initialize_header()
         #   - List the completed steps
         if steps is not None:
             hdr['STEPS'] = (','.join(steps), 'Completed reduction steps')
@@ -145,12 +156,13 @@ class MasterFrame(object):
         # Write the fits file
         fits.HDUList([fits.PrimaryHDU(header=hdr)]
                         + [ fits.ImageHDU(data=d, name=n) for d,n in zip(_data, ext)]
-                     ).writeto(_outfile, overwrite=True)
+                     ).writeto(_outfile, overwrite=True, checksum=checksum)
 
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     # TODO: have ext default to provide all extensions?
-    # TODO: Add a base-level staticmethod one-liner?
+    # TODO: include checksum keyword, used to validate data when
+    # loading?
     def load(self, ext, ifile=None, return_header=False):
         """
         Generic master file reader.
@@ -196,6 +208,8 @@ class MasterFrame(object):
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
         return MasterFrame.load_from_file(_ifile, _ext, return_header=return_header)
 
+    # TODO: include checksum keyword, used to validate data when
+    # loading?
     @staticmethod
     def load_from_file(filename, ext, return_header=False):
         """
@@ -235,38 +249,47 @@ class MasterFrame(object):
         data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext ])
         return data + (hdu[0].header,) if return_header else data
 
-    @staticmethod
-    def parse_hdr_raw_files(hdr):
+
+    def initialize_header(self, hdr=None):
         """
-        Parse the file names written to the header by :func:`save`.
+        Initialize the master frame header.
+
+        The function writes information generic to all PypeIt master
+        frame headers with basic information.
 
         Args:
-            hdr (fits.Header):
-                Astropy Header object
-        
+            hdr (`astropy.io.fits.Header`, optional):
+                Header object to update with basic summary
+                information. The object is modified in-place and also
+                returned. If None, an empty header is instantiated,
+                edited, and returned.
+
         Returns:
-            list: The list of files ordered as they were listed in the
-            header.
+            `astropy.io.fits.Header`: The initialized (or edited)
+            fits header.
         """
-        raw_files = {}
-        # Header keyword prefix used to list the raw files
-        prefix = 'F'
-        for k, v in hdr.items():
-            # Check if this header keyword starts with the required
-            # prefix
-            if k[:len(prefix)] == prefix:
-                try:
-                    # Try to convert the keyword without the prefix into
-                    # an integer.
-                    i = int(k[len(prefix):])-1
-                except ValueError:
-                    # Assume the value is some other random keyword that
-                    # starts with the prefix but isn't a raw file
-                    continue
-                # Assume we've found a raw file; assign it and keep
-                # trolling the header
-                raw_files[i] = v
-        # Convert from dictionary with integer keys to an appropriately
-        # sorted list
-        return [ raw_files[i] for i in range(max(raw_files.keys())+1) ]
-    
+        # Add versioning; this hits the highlights but should it add
+        # the versions of all packages included in the requirements.txt
+        # file?
+        if hdr is None:
+            hdr = fits.Header()
+        hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
+        hdr['VERSNPY'] = (np.__version__, 'Numpy version')
+        hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
+        hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
+        hdr['VERSSKL'] = (sklearn.__version__, 'Scikit-learn version')
+        hdr['VERSPYP'] = (pypeit.__version__, 'PypeIt version')
+
+        # Save the master frame type and key, in case the file name is
+        # changed.
+        hdr['MSTRTYP'] = (self.master_type, 'PypeIt: Master frame type')
+        hdr['MSTRDIR'] = (self.master_dir, 'PypeIt: Master directory')
+        hdr['MSTRKEY'] = (self.master_key, 'PypeIt: Calibration key')
+        hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
+
+        # Save the date of the reduction
+        hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
+
+        # TODO: Anything else?
+
+        return hdr

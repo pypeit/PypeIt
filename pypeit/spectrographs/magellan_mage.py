@@ -46,7 +46,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             gain            = 1.02, # depends on the readout
                             ronoise         = 2.9, # depends on the readout
                             datasec         = '[1:2048,1:1024]',      # complementary to oscansec
-                            oscansec        = '[2049:2176,1:1024]' # as taken from the header
+                            oscansec        = '[2049:2176,1:1024]'    # as taken from the header
                             )]
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
         self.norders = 15   # 20-6
@@ -95,7 +95,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        #par['calibrations']['slits']['pcatype'] = 'order'
         par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the bluest orders
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
@@ -243,18 +243,24 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
-    def slit_minmax(self, nslits, binspectral=1):
+    def slit_minmax(self, norders, binspectral=1):
         """
+        These are the order boundaries determined by eye JXP.
 
         Args:
-            nslits:
-            binspectral:
+            norders (int):
+              Number of orders identified on the detector
+              Assumed to capture all of the reddest but maybe not all of the blue
+            binspectral (nt, optional):
 
         Returns:
 
         """
+        # Here is the info for all the orders for a good flat
         spec_max = np.asarray([4000]*14 + [3000])//binspectral
         spec_min = np.asarray([2000,1000] + [0]*13)//binspectral
+
+        # If the number of
 
         return spec_min, spec_max
 
