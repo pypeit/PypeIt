@@ -1239,6 +1239,9 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
                     use_mad=True, **kwargs_optimizer):
 
     """
+    A routine to perform robust optimization. It is completely analogous to robust_polyfit_djs, but is more general in that
+    it allows one to fit a more general model using the optimizer of the users choice. If you are fitting simple functions
+    like chebyshev or legednre polynomials using linear least squares, you should be using robust_polyfit_djs
 
     ydata:  :class:`numpy.ndarray` data to be fit
     fitfunc: :function object to be used for the fitting. The syntax of the fitting function needs to follow:
