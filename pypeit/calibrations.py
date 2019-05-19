@@ -11,7 +11,7 @@ from abc import ABCMeta
 
 from astropy.io import fits
 from astropy.table import Table
-import IPython
+from IPython import embed
 
 from pypeit import msgs
 from pypeit import masterframe

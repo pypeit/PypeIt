@@ -243,13 +243,13 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
-    def slit_minmax(self, norders, binspectral=1):
+    def slit_minmax(self, nfound, binspectral=1):
         """
         These are the order boundaries determined by eye JXP.
 
         Args:
-            norders (int):
-              Number of orders identified on the detector
+            nfound (int):
+              Number of orders found on the detector
               Assumed to capture all of the reddest but maybe not all of the blue
             binspectral (nt, optional):
 
@@ -257,10 +257,12 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         """
         # Here is the info for all the orders for a good flat
-        spec_max = np.asarray([4000]*14 + [3000])//binspectral
-        spec_min = np.asarray([2000,1000] + [0]*13)//binspectral
+        all_spec_min = np.full(self.norders, -np.inf)
+        all_spec_max = np.full(self.norders, np.inf)
 
-        # If the number of
+        # If the number of slits is less than expected, then take the reddest
+        spec_min = all_spec_min[-nfound:]
+        spec_max = all_spec_max[-nfound:]
 
         return spec_min, spec_max
 
@@ -283,7 +285,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             islit = islit.astype(int)
         elif isinstance(islit, float):
             islit = int(islit)
-        elif isinstance(islit, int):
+        elif isinstance(islit, (int, np.integer)):
             pass
         else:
             msgs.error('Unrecognized type for islit')
@@ -294,135 +296,27 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Funny indexing but this works..
         return orders[nslit-(islit+1)]
 
-    @staticmethod
-    def order_platescale(binning = None):
-
-
+    def order_platescale(self, binning=None, norders=None):
         """
         Returns the plate scale in arcseconds for each order
 
-        Parameters
-        ----------
-        None
+        Args:
+            binning:
 
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
+        Returns:
+            float: Platescale
 
         """
-
         # MAGE has no binning, but for an instrument with binning we would do this
         #binspatial, binspectral = parse.parse_binning(binning)
-        return np.full(5, 0.15)
+        if norders is None:
+            norders = self.norders
+        return np.full(norders, 0.15)
 
-
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
-        """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
-
-    @staticmethod
-    def order_platescale(self, binning = None):
-
-
-        """
-        Returns the plate scale in arcseconds for each order
-
-        Parameters
-        ----------
-        None
-
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
-
-        """
-
-        # NIR has no binning, but for an instrument with binning we would do this
-        #binspatial, binspectral = parse.parse_binning(binning)
-
-        # ToDO Either assume a linear trend or measure this
-        # X-shooter manual says, but gives no exact numbers per order.
-        # NIR: 52.4 pixels (0.210”/pix) at order 11 to 59.9 pixels (0.184”/pix) at order 26.
-
-        # Right now I just took the average
-        return np.full(16, 0.197)
-
-
-
-
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        nslits = tslits_dict['lcen'].shape[1]
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        order_max = [1476,1513,1551, 1592,1687,1741,1801, 1864,1935,2007, 2025, 2025,2025,2025,2025,2025]
-        order_min = [418 ,385 , 362,  334, 303, 268, 230,  187, 140,  85,   26,    0,   0,   0,   0,   0]
-        # TODO add binning adjustments to these
-        for islit in range(nslits):
-            orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
-            slitmask[orderbad] = -1
-        return slitmask
-
-
-
-
-
+    def order_vec(self, norders=None):
+        if norders is None:
+            norders = self.norders
+        return self.slit2order(np.arange(norders), norders)
 
 
 

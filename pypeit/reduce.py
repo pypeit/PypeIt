@@ -710,7 +710,7 @@ class Echelle(Reduce):
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 
-        plate_scale = self.spectrograph.order_platescale(binning=self.binning)
+        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=self.tslits_dict['slit_left'].shape[1])
         inmask = self.mask == 0
         # Find objects
         specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
@@ -766,8 +766,9 @@ class Echelle(Reduce):
         self.waveimg = waveimg
         self.global_sky = global_sky
         self.rn2img = rn2img
-        order_vec = self.spectrograph.order_vec()
-        plate_scale = self.spectrograph.order_platescale(binning=self.binning)
+        norders = len(self.tslits_dict['spec_min'])  # Number found, not just hard-coded
+        order_vec = self.spectrograph.order_vec(norders)
+        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=norders)
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,

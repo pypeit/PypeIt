@@ -25,7 +25,7 @@ from sklearn.decomposition import PCA
 from pypeit import specobjs
 from pypeit.core.pydl import spheregroup
 
-from pypeit import debugger
+from IPython import embed
 
 # MASK VALUES FROM EXTRACTION
 # 0 

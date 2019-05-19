@@ -206,8 +206,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         final_tilts = np.zeros_like(self.rawflatimg)
 
-        debug=True
-
         # If we are tweaking slits allocate the new aray to hold tweaked slit boundaries
         if self.flatpar['tweak_slits']:
             self.tslits_dict['slit_left_tweak'] = np.zeros_like(self.tslits_dict['slit_left'])

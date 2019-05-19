@@ -138,8 +138,10 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def norders(self):
         return None
 
-    def order_vec(self):
-        return self.slit2order(np.arange(self.norders))
+    def order_vec(self, norders=None):
+        if norders is None:
+            norders = self.norders
+        return self.slit2order(np.arange(norders), norders)
 
 
 
@@ -363,7 +365,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         orders = np.arange(26,10,-1, dtype=int)
         return orders[islit]
 
-    def order_platescale(self, binning=None):
+    def order_platescale(self, binning=None, norders=None):
         """
         Returns the spatial plate scale in arcseconds for each order
 

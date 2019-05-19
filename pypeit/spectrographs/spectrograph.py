@@ -213,10 +213,7 @@ class Spectrograph(object):
         # Transpose?
         if self.raw_is_transposed(det):
             img = img.T
-        if self.detector[det-1]['specflip']:
-            img = np.flip(img, axis=0)
-        if self.detector[det-1]['spatflip']:
-            img = np.flip(img, axis=1)
+        # All of this should be done *after* trimming, overscan etc.
 
         # Return
         return img, head0
@@ -885,8 +882,29 @@ class Spectrograph(object):
         slitmask = pixels.slit_pixels(tslits_dict['lcen'],tslits_dict['rcen'],tslits_dict['nspat'], pad=pad)
         return slitmask
 
-    # This routine is only for echelle spectrographs. It returns the plate scale order by order
-    def order_platescale(self, binning=None):
+    def order_platescale(self, binning=None, norders=None):
+        """
+        This routine is only for echelle spectrographs. It returns the plate scale order by order
+
+        Args:
+            binning:
+
+        Returns:
+
+        """
+        pass
+
+    def order_vec(self, norders=None):
+        """
+        This routine is only for echelle spectrographs. It returns a vector of orders
+
+        Args:
+            norders (int):
+
+        Returns:
+            np.ndarray
+
+        """
         pass
 
     def slit2order(self, slit, nslit):
