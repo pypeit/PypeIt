@@ -83,15 +83,18 @@ def check_frame_exptime(exptime, exprng):
         ValueError:
             Raised if the length of `exprng` is not 2.
     """
+    # JFH This prevents the code from crashing if there are Nones in the exposure time array, which is possible
+    # for corrupt files
+    exptime1 = np.copy(exptime)
+    exptime1[exptime == None] = 0.0
     if exprng is None:
-        return np.ones(len(exptime), dtype=bool)
+        return np.ones(len(exptime1), dtype=bool)
     if len(exprng) != 2:
         raise ValueError('exprng must have two elements.')
     # Original code below
-    indx = np.ones(len(exptime), dtype=bool) if exprng[0] is None \
-                else exptime > exprng[0]
+    indx = np.ones(len(exptime1), dtype=bool) if exprng[0] is None else exptime1 > exprng[0]
     if exprng[1] is not None:
-        indx &= (exptime < exprng[1])
+        indx &= (exptime1 < exprng[1])
 
     return indx
 
