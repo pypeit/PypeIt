@@ -497,23 +497,4 @@ class WaveCalib(masterframe.MasterFrame):
         txt += '>'
         return txt
 
-# TODO: Use waveio.load_wavelength_calibration 
-#def load_wv_calib(filename):
-#    """
-#    Utility function which enables one to load the wv_calib and parset from a master file one line
-#    of code without instantiating the class.
-#
-#    Note:  This method instantiates without a Spectrograph
-#
-#    Args:
-#        filename (str): Master file name
-#
-#    Returns:
-#        tuple (dict, parset): wv_calib dict, wavelengths parset
-#    """
-#
-#    waveCalib = WaveCalib(None, None, None, None)
-#    wv_calib, _ = waveCalib.load_master(filename)
-#    return wv_calib, wv_calib['par'].copy()
-
 
