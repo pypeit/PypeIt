@@ -39,7 +39,7 @@ from astropy.io import fits
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
-from pypeit import utils
+from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
@@ -917,7 +917,7 @@ class Spectrograph(object):
 
         binspectral, binspatial = parse.parse_binning(binning)
         logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
+        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
         if midpoint:
             loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
 

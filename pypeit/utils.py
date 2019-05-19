@@ -19,31 +19,6 @@ from pypeit.core import pydl
 from pypeit import msgs
 
 
-def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0):
-    """
-    Utility routine to generate a uniform grid of wavelengths
-    Args:
-        wave_min: float
-           Mininum wavelength. Can be in linear or log.
-        wave_max: float
-           Maximum wavelength. Can be in linear or log.
-        dwave: float
-           Delta wavelength interval
-        samp_fact: float
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser)
-
-    Returns:
-        wave_grid: float ndarray
-           Wavelength grid
-    """
-
-    dwave_eff = dwave/samp_fact
-    ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
-    wave_grid = wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
-    return wave_grid
-
-
 def rebin(a, newshape):
     '''Rebin an array to a new shape using slicing. This routine is taken from:
     https://scipy-cookbook.readthedocs.io/items/Rebinning.html. The image shapes need

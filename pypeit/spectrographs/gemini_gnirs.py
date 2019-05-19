@@ -5,7 +5,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit import utils
+from pypeit.core.wavecal import wvutils
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
@@ -307,7 +307,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Define the grid for GNIRS
         logmin, logmax = self.loglam_minmax
-        loglam_grid = utils.wavegrid(logmin, logmax, self.dloglam)
+        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam)
         if midpoint:
             loglam_grid = loglam_grid + self.dloglam/2.0
         return np.power(10.0,loglam_grid)

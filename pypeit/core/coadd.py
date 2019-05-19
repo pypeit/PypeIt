@@ -19,6 +19,7 @@ from pypeit import msgs
 from pypeit.core import load
 from pypeit.core import flux
 from pypeit import utils
+from pypeit.core.wavecal import wvutils
 from pypeit import debugger
 from pkg_resources import resource_filename
 
@@ -1656,7 +1657,7 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
         dloglam = np.median(np.log10(wave[0,1:])-np.log10(wave[0,:-1]))
         wave_grid_max = np.max(wave)
         wave_grid_min = np.min(wave)
-        loglam_grid = utils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, dloglam)
+        loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, dloglam)
         wave_grid = 10**loglam_grid
 
         # populate spectra to the full wavelength grid
