@@ -1244,19 +1244,20 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
     like chebyshev or legednre polynomials using linear least squares, you should be using robust_polyfit_djs
 
     ydata:  :class:`numpy.ndarray` data to be fit
-    fitfunc: :function object to be used for the fitting. The syntax of the fitting function needs to follow:
+    fitfunc (callable):
+        The callable object used to perform the fitting.  The calling
+        sequence must be::
 
-            result, ymodel = fitfunc(ydata, thismask, arg_dict, **kwargs_optimizer)
+            result, ymodel = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
 
-            ydata:  :class:`numpy.ndarray` data to be fit
-            thismask:  :class:`numpy.ndarray` boolean mask with the same shape as data. True=Good, False=Bad
-            arg_dict: dict containing the other variables needed to evaluate the model fit
-            **kwargs_optimizer: Optional parameters to be be passed to the optimizer
+        See the descriptions of `ydata`, `inmask`, `arg_dict`, and
+        `kwargs_optimizer`.
 
-            Returns:
-            --------
-            result: :class:`object` is the object returned by the optimizer from scipy.optimize
-            ymodel: :class:`numpy.ndarray` is the model fit to ydata. It has the same shape as ydata
+        The two returned objects are:
+            - `result`: Object returned by the specific scipy.optimize
+              method used to perform the fit.
+            - `ymodel`: A `numpy.ndarray` with the model fit to `ydata`
+              and with the same shape.
 
     arg_dict: dict containing the other variables needed to evaluate the model fit
     maxiter : :class:`int`, optional
