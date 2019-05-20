@@ -639,7 +639,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
             good, spl = utils.robust_polyfit_djs(waves[idx], flux[idx], 3, function='bspline',
-            sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
+                                                 sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
             mask = ~good
             # Reject CR (with grow)
             spec_fit = utils.func_val(spl, wave, 'bspline')
