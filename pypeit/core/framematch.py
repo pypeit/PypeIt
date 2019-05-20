@@ -70,32 +70,32 @@ def check_frame_exptime(exptime, exprng):
         
     Args:
         exptime (numpy.ndarray):
-            Exposure times to check.
+            Exposure times to check; allowed to be None.
         exprng (array-like):
             An array with the minimum and maximum exposure.  The limits
             are *exclusive* and a limit of None means there is no limit.
         
     Returns:
         numpy.ndarray: A boolean array that is True for all times within
-        the provided range.
+        the provided range.  The value is False for any exposure time
+        that is None or outside the provided range.
         
     Raises:
         ValueError:
             Raised if the length of `exprng` is not 2.
     """
-    # JFH This prevents the code from crashing if there are Nones in the exposure time array, which is possible
-    # for corrupt files
-    exptime1 = np.copy(exptime)
-    exptime1[exptime == None] = 0.0
+    # Instantiate with all true
+    indx = exptime != None
     if exprng is None:
-        return np.ones(len(exptime1), dtype=bool)
+        # No range specified
+        return indx
     if len(exprng) != 2:
+        # Range not correctly input
         raise ValueError('exprng must have two elements.')
-    # Original code below
-    indx = np.ones(len(exptime1), dtype=bool) if exprng[0] is None else exptime1 > exprng[0]
+    if exprng[0] is not None:
+        indx[indx] &= (exptime[indx] > exprng[0])
     if exprng[1] is not None:
-        indx &= (exptime1 < exprng[1])
-
+        indx[indx] &= (exptime[indx] < exprng[1])
     return indx
 
 
