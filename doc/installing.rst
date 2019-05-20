@@ -96,7 +96,9 @@ then type run_pypeit.::
 2. Run the PypeIt unit tests
 ----------------------------
 
-Enter the PypeIt directory and do::
+If you cloned the Repo (i.e., not PyPI),
+then you can run the
+standard tests by doing::
 
     python setup.py test
 

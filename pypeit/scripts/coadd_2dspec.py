@@ -1,70 +1,64 @@
-#!/usr/bin/env python
-
 """
 Script for performing 2d coadds of PypeIt data.
 """
+import os
+import glob
+import argparse
+from collections import OrderedDict
+
+import numpy as np
+
 from configobj import ConfigObj
+
 from astropy.io import fits
+
+from pypeit.pypeit import PypeIt
 from pypeit import par, msgs
 from pypeit.core import coadd2d
 from pypeit.core import save
 from pypeit.spectrographs.util import load_spectrograph
-from collections import OrderedDict
-import argparse
-import glob
-import os
-import numpy as np
-from pypeit.par import pypeitpar
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Echelle examples:
-## Generate sensfunc
-# pypeit_flux_spec sensfunc keck_nires --std_file=spec1d_HIP13917_V8p6_NIRES_2018Oct01T094225.598.fits
-#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --debug
-## flux calibrate your science.
-# pypeit_flux_spec flux keck_nires --sci_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698.fits
-#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml
-#         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
-
-
+# TODO: We need an 'io' module where we can put functions like this...
 def read_coadd2d_file(ifile):
     """
-    Read a PypeIt coadd2d file, akin to a standard PypeIt file
+    Read a PypeIt coadd2d file, akin to a standard PypeIt file.
 
-    The top is a config block that sets ParSet parameters
-      The spectrograph is required
+    .. todo::
+
+        - Need a better description of this.  Probably for the PypeIt
+          file itself, too!
+
+    The top is a config block that sets ParSet parameters.  The
+    spectrograph is required.
 
     Args:
-        ifile: str
+        ifile (:obj:`str`):
           Name of the flux file
 
     Returns:
-        spectrograph: Spectrograph
-        cfg_lines: list
-          Config lines to modify ParSet values
-        flux_dict: dict
-          Contains spec1d_files and flux_files
-          Empty if no flux block is specified
-
+        tuple: Returns three objects: (1) The
+        :class:`pypeit.spectrographs.spectrograph.Spectrograph`
+        instance, (2) the list of configuration lines used to modify the
+        default :class`pypeit.par.pypeitpar.PypeItPar` parameters, and
+        (3) the list of spec2d files to combine.
     """
+
     # Read in the pypeit reduction file
     msgs.info('Loading the coadd2d file')
     lines = par.util._read_pypeit_file_lines(ifile)
     is_config = np.ones(len(lines), dtype=bool)
 
-    # Parse the fluxing block
+    # Parse the coadd block
     spec2d_files = []
     s, e = par.util._find_pypeit_block(lines, 'coadd2d')
     if s >= 0 and e < 0:
         msgs.error("Missing 'coadd2d end' in {0}".format(ifile))
-    else:
-        for line in lines[s:e]:
-            prs = line.split(' ')
-            spec2d_files.append(os.path.join('Science/', os.path.basename(prs[0])))
-        is_config[s-1:e+1] = False
-    #elif (s < 0) or (s==e):
-    #    msgs.warn("No spec2d file block, you must have passed --obj as an argument..")
+    for line in lines[s:e]:
+        prs = line.split(' ')
+        # TODO: This needs to allow for the science directory to be
+        # defined by the user.
+        spec2d_files.append(os.path.join('Science/', os.path.basename(prs[0])))
+    is_config[s-1:e+1] = False
 
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
@@ -74,20 +68,6 @@ def read_coadd2d_file(ifile):
 
     # Return
     return spectrograph, cfg_lines, spec2d_files
-
-
-# TODO this is an exact copy of the same function in pypeit class. We should probably make it a utility in par??
-def select_detectors(par, spectrograph):
-    """
-    Return the 1-indexed list of detectors to reduce.
-
-    Returns:
-    list:  List of detectors to be reduced
-
-    """
-    if par['rdx']['detnum'] is None:
-        return np.arange(spectrograph.ndet)+1
-    return [par['rdx']['detnum']] if isinstance(par['rdx']['detnum'], int) else par['rdx']['detnum']
 
 
 def parser(options=None):
@@ -103,16 +83,12 @@ def parser(options=None):
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
-    parser.add_argument("--par_outfile", default='coadd2d.par', action="store_true",
-                        help="Output file to save the parameters")
+    parser.add_argument("--basename", type=str, default=None, help="Basename of files to save the parameters, spec1d, and spec2d")
+    parser.add_argument('--samp_fact', default=1.0, type=float, help="Make the wavelength grid finer (samp_fact > 1.0) "
+                                                                     "or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
-
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
@@ -123,11 +99,15 @@ def main(args):
     if args.file is not None:
         spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.file)
         # Parameters
+        # TODO: Shouldn't this reinstantiate the same parameters used in
+        # the PypeIt run that extracted the objects?  Why are we not
+        # just passing the pypeit file?
         spectrograph_def_par = spectrograph.default_pypeit_par()
-        par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+        par = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=config_lines)
     elif args.obj is not None:
-        spec2d_files = glob.glob('./Science/spec2d_' + args.obj + '*')
+        # TODO: This needs to define the science path
+        spec2d_files = glob.glob('./Science/spec2d_*' + args.obj + '*')
         head0 = fits.getheader(spec2d_files[0])
         spectrograph_name = head0['SPECTROG']
         spectrograph = load_spectrograph(spectrograph_name)
@@ -140,37 +120,43 @@ def main(args):
         msgs.info("Restricting reductions to detector={}".format(args.det))
         par['rdx']['detnum'] = int(args.det)
 
-    # Write the par to disk
-    print("Writing the parameters to {}".format(args.par_outfile))
-    par.to_config(args.par_outfile)
-
-    # Now run the coadds
+    # Get headers and base names
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
     head1d = fits.getheader(spec1d_files[0])
     head2d = fits.getheader(spec2d_files[0])
-    filename = os.path.basename(spec2d_files[0])
-    basename = filename.split('_')[1]
+    if args.basename is None:
+        filename = os.path.basename(spec2d_files[0])
+        basename = filename.split('_')[1]
+    else:
+        basename = args.basename
+
+    # Write the par to disk
+    par_outfile = basename+'_coadd2d.par'
+    print("Writing the parameters to {}".format(par_outfile))
+    par.to_config(par_outfile)
+
+    # Now run the coadds
 
     skysub_mode = head2d['SKYSUB']
     ir_redux = True if 'DIFF' in skysub_mode else False
 
     # Print status message
     msgs_string = 'Reducing target {:s}'.format(basename) + msgs.newline()
-    msgs_string += 'Performing coadd of frames reduce with {:s} imaging'.format(skysub_mode) + msgs.newline()
-    msgs_string += 'Combining frames in 2d coadd:' + msgs.newline()
+    msgs_string += 'Performing coadd of frames reduce with {:s} imaging'.format(skysub_mode)
+    msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
     for file in spec2d_files:
         msgs_string += '{0:s}'.format(os.path.basename(file)) + msgs.newline()
     msgs.info(msgs_string)
 
-    redux_path = './'
-    master_dirname = os.path.basename(head2d['PYPMFDIR'])+'/'
-    master_dir = os.path.join(redux_path,os.path.normpath(master_dirname) + '_coadd/')
+    # TODO: This needs to be added to the parameter list for rdx
+    redux_path = os.getcwd()
+    master_dirname = os.path.basename(head2d['PYPMFDIR']) + '_coadd'
+    master_dir = os.path.join(redux_path, master_dirname)
 
-    # Make the new master dir and Science dir
-    if os.path.exists(master_dir):
-        msgs.info("The following directory already exists:"+msgs.newline()+master_dir)
-    else:
-        os.mkdir(master_dir)
+    # Make the new Master dir
+    if not os.path.isdir(master_dir):
+        msgs.info('Creating directory for Master output: {0}'.format(master_dir))
+        os.makedirs(master_dir)
 
     # Instantiate the sci_dict
     sci_dict = OrderedDict()  # This needs to be ordered
@@ -179,7 +165,7 @@ def main(args):
     sci_dict['meta']['ir_redux'] = ir_redux
 
     # Find the detectors to reduce
-    detectors = select_detectors(par, spectrograph)
+    detectors = PypeIt.select_detectors(detnum=par['rdx']['detnum'], ndet=spectrograph.ndet)
     if len(detectors) != spectrograph.ndet:
         msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
         set(np.arange(spectrograph.ndet)) - set(detectors)])))
@@ -193,26 +179,20 @@ def main(args):
         stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det)
 
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
-        sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
-        sci_dict[det]['specobjs'] = coadd2d.extract_coadd2d(stack_dict, master_dir, ir_redux=ir_redux, par=par,
-                                                            show=args.show, show_peaks=args.peaks, std=args.std)
+                sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
+                sci_dict[det]['specobjs'] \
+                        = coadd2d.extract_coadd2d(stack_dict, master_dir, ir_redux=ir_redux,
+                                                  par=par, show=args.show, show_peaks=args.peaks,
+                                                  std=args.std, samp_fact=args.samp_fact)
 
-    # Make the science directory, and write outputs to disk
-    master_key_dict = stack_dict['master_key_dict']
-    scipath = redux_path + 'Science_coadd'
-    if os.path.exists(scipath):
-        msgs.info("The following directory already exists:" + msgs.newline() + scipath)
-    else:
-        os.mkdir(scipath)
-    save.save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename)
+    # Make the new Science dir
+    # TODO: This needs to be defined by the user
+    scipath = os.path.join(redux_path, 'Science_coadd')
+    if not os.path.isdir(scipath):
+        msgs.info('Creating directory for Science output: {0}'.format(scipath))
+        os.makedirs(scipath)
 
-
-
-    # I don't think I need this below
-    #try:
-    #    mjd = head1d['mjd']  # recorded as 'mjd' in fitstbl
-    #except KeyError:
-    #    mjd = head1d['MJD-OBS']
-    #obstime = time.Time(mjd, format='mjd')
-
+    # Save the results
+    save.save_all(sci_dict, stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
+                  head2d, scipath, basename)
 

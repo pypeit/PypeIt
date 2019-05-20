@@ -1,13 +1,10 @@
 """ Module for ginga routines.  Mainly for debugging
 """
-try:
-    basestring
-except NameError:
-    basestring = str
-
 import os
 import numpy as np
 import time
+
+import subprocess
 
 # A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
 # c
@@ -30,18 +27,24 @@ from astropy.io import fits
 from pypeit import msgs
 
 
-def connect_to_ginga(host='localhost', port=9000, raise_err=False):
-    """ Connect to an active RC Ginga
+def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
+    """
+    Connect to a RC Ginga.
 
     Args:
-        host (str, optional):
-        port (int, optional):  Probably should remain at 9000
-        raise_err (bool, optional): Raise an error if no connection is made,
-          otherwise just raise a warning and continue
+        host (:obj:`str`, optional):
+            Host name.
+        port (:obj:`int`, optional):
+            Probably should remain at 9000
+        raise_err (:obj:`bool`, optional):
+            Raise an error if no connection is made, otherwise just
+            raise a warning and continue
+        allow_new (:obj:`bool`, optional):
+            Allow a subprocess to be called to execute a new ginga
+            viewer if one is not already running.
 
     Returns:
-        RemoteClient: connection to ginga viewer
-
+        RemoteClient: connection to ginga viewer.
     """
     # Start
     viewer = grc.RemoteClient(host, port)
@@ -50,10 +53,17 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False):
     try:
         tmp = ginga.get_current_workspace()
     except:
+        if allow_new:
+            subprocess.Popen(['ginga', '--modules=RC'])
+            time.sleep(3)
+            return grc.RemoteClient(host, port)
+
         if raise_err:
             raise ValueError
         else:
-            msgs.warn("Problem connecting to Ginga.  Launch an RC Ginga viewer: ginga --modules=RC then continue.")
+            msgs.warn('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
+                      'then continue: \n    ginga --modules=RC')
+
     # Return
     return viewer
 
@@ -115,7 +125,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
-    img = fits.open(inp)[exten].data if isinstance(inp, basestring) else inp
+    img = fits.open(inp)[exten].data if isinstance(inp, str) else inp
 
     # Instantiate viewer
     viewer = connect_to_ginga()

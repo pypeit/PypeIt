@@ -2,8 +2,6 @@
 Module for generating Arc Line lists
   Should be run where it is located (for now)
 """
-from __future__ import print_function, absolute_import, division, unicode_literals
-
 import numpy as np
 import os, imp, glob, pdb, gzip
 import subprocess

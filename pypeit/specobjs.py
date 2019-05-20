@@ -1,12 +1,11 @@
 """ Module for the SpecObjs and SpecObj classes
 """
-from __future__ import absolute_import, division, print_function
-
 import copy
 import re
-from collections import OrderedDict
 
 import numpy as np
+
+from scipy import interpolate
 
 from astropy import units
 from astropy.table import Table
@@ -17,8 +16,6 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core import parse
-from pypeit.core import trace_slits
-from pypeit import debugger
 
 naming_model = {}
 for key in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
@@ -49,6 +46,7 @@ class SpecObj(object):
     Attributes:
         slitcen (float): Center of slit in fraction of total (trimmed) detector size at ypos
         objid (int): Identifier for the object (max=999)
+        flex_shift (float): Flexure correction in pixels
 
     Extraction dict's
         'WAVE' : wave_opt  # Optimally extracted wavelengths
@@ -95,8 +93,11 @@ class SpecObj(object):
         self.fwhmfit = None
         self.smash_nsig = None
 
+        # Wavelength items
+        self.flex_shift = 0.
+
         # Some things for echelle functionality
-        self.ech_order = None
+        self.ech_order = 0 # Needs a default value
         self.ech_orderindx = orderindx
         self.ech_objid = 999
         self.ech_snr = None
@@ -171,10 +172,11 @@ class SpecObj(object):
             else:
                 self.idx += '{:04d}'.format(self.ech_objid)
             self.idx += '-'+naming_model['order']
+            # Order
             if self.ech_orderindx is None:
                 self.idx += '----'
             else:
-                self.idx += '{:04d}'.format(self.ech_orderindx)
+                self.idx += '{:04d}'.format(self.ech_order)
         else:
             # Spat
             self.idx = naming_model['spat']
@@ -234,6 +236,41 @@ class SpecObj(object):
         sobj_copy.optimal = copy.deepcopy(self.optimal)
         # These attributes are numpy arrays that don't seem to copy from the lines above??
         return sobj_copy
+
+    def flexure_interp(self, sky_wave, fdict):
+        """
+        Apply interpolation with the flexure dict
+
+        Args:
+            sky_wave (np.ndarray): Wavelengths of the extracted sky
+            fdict (dict): Holds the various flexure items
+
+        Returns:
+            np.ndarray:  New sky spectrum (mainly for QA)
+
+        """
+        # Simple interpolation to apply
+        npix = len(sky_wave)
+        x = np.linspace(0., 1., npix)
+        # Apply
+        for attr in ['boxcar', 'optimal']:
+            if not hasattr(self, attr):
+                continue
+            if 'WAVE' in getattr(self, attr).keys():
+                msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
+                          msgs.newline() + "{0:s}".format(str(self)))
+                f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
+                getattr(self, attr)['WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
+        # Shift sky spec too
+        cut_sky = fdict['sky_spec']
+        x = np.linspace(0., 1., cut_sky.npix)
+        f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
+        twave = f(x + fdict['shift'] / (cut_sky.npix - 1)) * units.AA
+        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
+        # Save
+        self.flex_shift = fdict['shift']
+        # Return
+        return new_sky
 
     def to_xspec1d(self, extraction='optimal'):
         """

@@ -1,10 +1,11 @@
-# Module for Processing Images, e.g. bias frames, arc frames
-
-from __future__ import absolute_import, division, print_function
-
+"""
+Module for Processing Images, e.g. bias frames, arc frames
+"""
 import inspect
 import numpy as np
 import os
+
+from collections import OrderedDict
 
 #from importlib import reload
 
@@ -36,16 +37,23 @@ class ProcessImagesBitMask(BitMask):
         # TODO:
         #   - Can IVAR0 and IVAR_NAN be consolidated into a single bit?
         #   - Is EXTRACT ever set?
-        mask = {       'BPM': 'Component of the instrument-specific bad pixel mask',
-                        'CR': 'Cosmic ray detected',
-                'SATURATION': 'Saturated pixel',
-                 'MINCOUNTS': 'Pixel below the instrument-specific minimum counts',
-                  'OFFSLITS': 'Pixel does not belong to any slit',
-                    'IS_NAN': 'Pixel value is undefined',
-                     'IVAR0': 'Inverse variance is undefined',
-                  'IVAR_NAN': 'Inverse variance is NaN',
-                   'EXTRACT': 'Pixel masked during local skysub and extraction'
-               }
+        # TODO: This needs to be an OrderedDict for now to ensure that
+        # the bits assigned to each key is always the same. As of python
+        # 3.7, normal dict types are guaranteed to preserve insertion
+        # order as part of its data model. When/if we require python
+        # 3.7, we can remove this (and other) OrderedDict usage in favor
+        # of just a normal dict.
+        mask = OrderedDict([
+                       ('BPM', 'Component of the instrument-specific bad pixel mask'),
+                        ('CR', 'Cosmic ray detected'),
+                ('SATURATION', 'Saturated pixel'),
+                 ('MINCOUNTS', 'Pixel below the instrument-specific minimum counts'),
+                  ('OFFSLITS', 'Pixel does not belong to any slit'),
+                    ('IS_NAN', 'Pixel value is undefined'),
+                     ('IVAR0', 'Inverse variance is undefined'),
+                  ('IVAR_NAN', 'Inverse variance is NaN'),
+                   ('EXTRACT', 'Pixel masked during local skysub and extraction')
+               ])
         super(ProcessImagesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 
@@ -162,7 +170,6 @@ class ProcessImages(object):
         self.pixel_flat = None      # passed as an argument to process(), flat_field()
         self.illum_flat = None        # passed as an argument to process(), flat_field()
 
-#    def _set_files(self, files, check=True):
     def _set_files(self, files, check=False):
         """
         Assign the provided files to :attr:`files`.
@@ -312,35 +319,39 @@ class ProcessImages(object):
                     = self.spectrograph.load_raw_frame(self.files[i], det=self.det)
 
             if self.binning[i] is None:
+                # This *always* returns spectral then spatial
                 self.binning[i] = self.spectrograph.get_meta_value(self.files[i], 'binning')
-#                self.binning[i] = self.spectrograph.parse_binning(self.headers[i])
 
             # Get the data sections, one section per amplifier
             try:
-                datasec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                datasec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
                                                               section='datasec')
             except:
-                datasec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                datasec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='datasec')
             self.datasec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
-                                                include_end=include_end, require_dim=2,
-                                                transpose=transpose, binning=self.binning[i])
+                                               include_end=include_end, require_dim=2,
+                                               binning=self.binning[i])
                                     for sec in datasec]
             # Get the overscan sections, one section per amplifier
             try:
-                oscansec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                oscansec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.headers[i], det=self.det,
                                                               section='oscansec')
             except:
-                oscansec, one_indexed, include_end, transpose \
+                # This *always* returns spectral then spatial
+                oscansec, one_indexed, include_end \
                         = self.spectrograph.get_image_section(inp=self.files[i], det=self.det,
                                                               section='oscansec')
             # Parse, including handling binning
             self.oscansec[i] = [parse.sec2slice(sec, one_indexed=one_indexed,
-                                                 include_end=include_end, require_dim=2,
-                                                 transpose=transpose, binning=self.binning[i])
+                                                include_end=include_end, require_dim=2,
+                                                binning=self.binning[i])
                                     for sec in oscansec]
         # Include step
         self.steps.append(inspect.stack()[0][3])
@@ -435,6 +446,11 @@ class ProcessImages(object):
             if kk==0:
                 # Instantiate proc_images
                 self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
+            # Flip?
+            if self.spectrograph.detector[self.det-1]['specflip']:
+                temp = np.flip(temp, axis=0)
+            if self.spectrograph.detector[self.det-1]['spatflip']:
+                temp = np.flip(temp, axis=1)
             self.proc_images[:,:,kk] = temp.copy()
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -467,8 +483,6 @@ class ProcessImages(object):
         # Step
         self.steps.append(inspect.stack()[0][3])
         return self.stack
-
-
 
     def flat_field(self, pixel_flat, bpm, illum_flat=None):
         """
@@ -809,40 +823,41 @@ class ProcessImages(object):
         # Show
         viewer, ch = ginga.show_image(img)
 
-    def write_stack_to_fits(self, outfile, overwrite=True):
-        """
-        Write the combined image to disk as a FITS file
-
-        Parameters
-        ----------
-        outfile : str
-        overwrite
-
-        Returns
-        -------
-
-        """
-        if self.stack is None:
-            msgs.warn("You need to generate the stack before you can write it!")
-            return
-        #
-        hdu = fits.PrimaryHDU(self.stack)
-        # Add raw_files to header
-        for i in range(self.nfiles):
-            hdrname = "FRAME{0:03d}".format(i+1)
-            hdu.header[hdrname] = self.files[i]
-        # Spectrograph
-        hdu.header['INSTRUME'] = self.spectrograph.spectrograph
-        # Parameters
-        self.proc_par.to_header(hdu.header)
-        # Steps
-        steps = ','
-        hdu.header['STEPS'] = steps.join(self.steps)
-        # Finish
-        hlist = [hdu]
-        hdulist = fits.HDUList(hlist)
-        hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote stacked image to {:s}".format(outfile))
+#    # TODO: Is this ever used?
+#    def write_stack_to_fits(self, outfile, overwrite=True):
+#        """
+#        Write the combined image to disk as a FITS file
+#
+#        Parameters
+#        ----------
+#        outfile : str
+#        overwrite
+#
+#        Returns
+#        -------
+#
+#        """
+#        if self.stack is None:
+#            msgs.warn("You need to generate the stack before you can write it!")
+#            return
+#        #
+#        hdu = fits.PrimaryHDU(self.stack)
+#        # Add raw_files to header
+#        for i in range(self.nfiles):
+#            hdrname = "FRAME{0:03d}".format(i+1)
+#            hdu.header[hdrname] = self.files[i]
+#        # Spectrograph
+#        hdu.header['INSTRUME'] = self.spectrograph.spectrograph
+#        # Parameters
+#        self.proc_par.to_header(hdu.header)
+#        # Steps
+#        steps = ','
+#        hdu.header['STEPS'] = steps.join(self.steps)
+#        # Finish
+#        hlist = [hdu]
+#        hdulist = fits.HDUList(hlist)
+#        hdulist.writeto(outfile, overwrite=overwrite)
+#        msgs.info("Wrote stacked image to {:s}".format(outfile))
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,

@@ -3,7 +3,6 @@
 # See top-level LICENSE file for Copyright information
 #
 # -*- coding: utf-8 -*-
-
 """
 This script displays the Trace image and the traces
 in an RC Ginga window (must be previously launched)
@@ -39,7 +38,7 @@ def main(pargs):
     import subprocess
 
     # Load up
-    tslits_dict, mstrace = traceslits.load_tslits(pargs.root)
+    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(pargs.root)
 
     try:
         ginga.connect_to_ginga(raise_err=True)

@@ -1,48 +1,17 @@
-# Module to run tests on sort and arsetup
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to run tests on sort and arsetup
+"""
 import pytest
 
 import numpy as np
 
 from pypeit.core import framematch
-#from pypeit.pypmsgs import PypeItError
-
 from pypeit.tests.tstutils import dummy_fitstbl
 
 
 @pytest.fixture
 def fitstbl():
     return dummy_fitstbl()
-
-
-#@pytest.fixture
-#def fitstblno():
-#    return metadata.dummy_fitstbl(notype=True)
-
-
-# TODO: These are out of date; removing them for now
-#def test_chk_condition(fitstbl):
-#    # Lamp (str)
-#    cond = 'lampstat06=on'
-#    ntmp = framematch.chk_condition(fitstbl, cond)
-#    assert np.sum(ntmp) == 1
-#    # exptime (float)
-#    cond = 'exptime>30'
-#    ntmp = framematch.chk_condition(fitstbl, cond)
-#    assert np.sum(ntmp) == 6
-#    cond = 'exptime<30'
-#    ntmp = framematch.chk_condition(fitstbl, cond)
-#    assert np.sum(ntmp) == 1
-#    cond = 'exptime<=30'
-#    ntmp = framematch.chk_condition(fitstbl, cond)
-#    assert np.sum(ntmp) == 4
-#    cond = 'exptime!=30'
-#    ntmp = framematch.chk_condition(fitstbl, cond)
-#    assert np.sum(ntmp) == 7
 
 
 def test_frame_selection(fitstbl):
@@ -62,13 +31,9 @@ def test_calibration_groups(fitstbl):
     """
     calib_ID = 0
     par = fitstbl.spectrograph.default_pypeit_par()
-#    # Match and test
-#    fitstbl.match_to_science(par['calibrations'], par['rdx']['calwin'], par['fluxcalib'],
-#                             setup=True)
     assert fitstbl.find_frames('arc', calib_ID=calib_ID, index=True)[0] == 1
     assert fitstbl.find_frames('standard', calib_ID=calib_ID, index=True)[0] == 4
     assert fitstbl.find_frames('trace', calib_ID=calib_ID, index=True)[0] == 2
-    #assert fitstbl['sci_ID'][0] == 31
 
 
 # TODO: This doesn't test anything

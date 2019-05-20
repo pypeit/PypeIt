@@ -3,16 +3,16 @@
 # See top-level LICENSE file for Copyright information
 #
 # -*- coding: utf-8 -*-
-
 """
 This script displays the Arc image from and the traces
 in an RC Ginga window (must be previously launched)
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
+.. todo::
+
+    This script is out of date and will not function with the current
+    pypeit master branch.
+
+"""
 import argparse
 
 def parser(options=None):

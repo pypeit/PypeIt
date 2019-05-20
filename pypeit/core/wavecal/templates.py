@@ -14,6 +14,9 @@ from linetools import utils as ltu
 
 from pypeit import utils
 from pypeit.core.wave import airtovac
+from pypeit.core.wavecal import waveio
+from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import fitting
 
 from pypeit import debugger
 
@@ -141,6 +144,18 @@ def cheby_val(coeff, x, nrm, order):
     return np.dot(leg, coeff)
 
 def poly_val(coeff, x, nrm):
+    """
+    IDL style function for polynomial
+
+    Args:
+        coeff (np.ndarray):  Polynomial coefficients
+        x (np.ndarray):  x array
+        nrm (np.ndarray): Normalization terms
+
+    Returns:
+        np.ndarray:  Same shape as x
+
+    """
     #
     xnrm = 2. * (x - nrm[0])/nrm[1]
     #
@@ -345,6 +360,28 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
+    if flg & (2**14):  # Magellan/MagE Plots
+        outpath = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'plots')
+        new_mage_file = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv',
+                                     'magellan_mage.fits')
+        # Load
+        mage_wave = Table.read(new_mage_file)
+        llist = waveio.load_line_lists(['ThAr_MagE'])
+        #
+        for kk in range(mage_wave['wave'].shape[1]):
+            wv = mage_wave['wave'][:, kk]
+            fx = mage_wave['flux'][:, kk]
+            order = 20 - kk
+            # Reidentify
+            detections, spec_cont_sub, patt_dict = autoid.reidentify(fx, fx, wv, llist, 1)
+            # Fit
+            final_fit = fitting.fit_slit(fx, patt_dict, detections, llist)
+            # Output
+            outfile=os.path.join(outpath, 'MagE_order{:2d}_IDs.pdf'.format(order))
+            autoid.arc_fit_qa(final_fit, outfile=outfile, ids_only=True)
+            print("Wrote: {}".format(outfile))
+            autoid.arc_fit_qa(final_fit, outfile=os.path.join(outpath, 'MagE_order{:2d}_full.pdf'.format(order)))
+
 
 # Command line execution
 if __name__ == '__main__':
@@ -375,7 +412,8 @@ if __name__ == '__main__':
     #  Need several arcs to proceed this way
 
     # MagE
-    flg += 2**13
+    #flg += 2**13
+    flg += 2**14  # Plots
 
     main(flg)
 

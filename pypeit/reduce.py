@@ -82,8 +82,8 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1, objtype='science', binning=None,
-                 setup=None, maskslits=None):
+    def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1,
+                 objtype='science', binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype
@@ -710,7 +710,9 @@ class Echelle(Reduce):
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 
-        plate_scale = self.spectrograph.order_platescale(binning=self.binning)
+        norders=self.tslits_dict['slit_left'].shape[1]
+        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=norders)
+        order_vec = self.spectrograph.order_vec(norders=norders)
         inmask = self.mask == 0
         # Find objects
         specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
@@ -720,6 +722,7 @@ class Echelle(Reduce):
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
                                 inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
+                                order_vec=order_vec,
                                 hand_extract_dict=manual_extract_dict,
                                 plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,
@@ -766,8 +769,9 @@ class Echelle(Reduce):
         self.waveimg = waveimg
         self.global_sky = global_sky
         self.rn2img = rn2img
-        order_vec = self.spectrograph.order_vec()
-        plate_scale = self.spectrograph.order_platescale(binning=self.binning)
+        norders = len(self.tslits_dict['spec_min'])  # Number found, not just hard-coded
+        order_vec = self.spectrograph.order_vec(norders)
+        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=norders)
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,

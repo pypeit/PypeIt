@@ -52,6 +52,10 @@ Current PypeItPar Parameter Hierarchy
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
 
+        ``[[tiltframe]]``: `FrameGroupPar Keywords`_
+
+            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+
         ``[[pixelflatframe]]``: `FrameGroupPar Keywords`_
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
@@ -137,14 +141,14 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.CalibrationsPar`
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
 Key                 Type                                                 Options  Default                            Description                                                                                                                                                                              
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
-``caldir``          str                                                  ..       ``MF``                             Directory relative to calling directory to write master files.                                                                                                                           
-``reuse_masters``   bool                                                 False    ..                                 If True PypeIt will reuse existing master frames rather than recreate them. If False, it will  recreate the master frames.                                                               
+``caldir``          str                                                  ..       ``Masters``                        Directory relative to calling directory to write master files.                                                                                                                           
 ``setup``           str                                                  ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
 ``trim``            bool                                                 ..       True                               Trim the frame to isolate the data                                                                                                                                                       
 ``badpix``          bool                                                 ..       True                               Make a bad pixel mask? Bias frames must be provided.                                                                                                                                     
 ``biasframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
 ``darkframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
 ``arcframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
+``tiltframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                
 ``pixelflatframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the field flattening                                                                                                                                
 ``pinholeframe``    :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                        
 ``traceframe``      :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                        
@@ -218,7 +222,7 @@ Key                   Type                       Options                        
 ``IDpixels``          int, float, list           ..                                                                                        ..                One or more pixels at which to manually identify a line                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 ``IDwaves``           int, float, list           ..                                                                                        ..                Wavelengths of the manually identified lines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``medium``            str                        ``vacuum``, ``air``                                                                       ``vacuum``        Medium used when wavelength calibrating the data.  Options are: vacuum, air                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-``frame``             str                        ``heliocentric``, ``barycentric``                                                         ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+``frame``             str                        ``observed``, ``heliocentric``, ``barycentric``                                           ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``nsnippet``          int                        ..                                                                                        2                 Number of spectra to chop the arc spectrum into when using the full_template method                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ====================  =========================  ========================================================================================  ================  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
@@ -230,30 +234,28 @@ TraceSlitsPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.TraceSlitsPar`
 
-====================  ==========  ===========================================  ============  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                   Type        Options                                      Default       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-====================  ==========  ===========================================  ============  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``function``          str         ``polynomial``, ``legendre``, ``chebyshev``  ``legendre``  Function use to trace the slit center.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                                                                                  
-``medrep``            int         ..                                           0             Number of times to median smooth a trace image prior to analysis for slit/order edges                                                                                                                                                                                                                                                                                                                                                                                                                 
-``number``            int         ..                                           -1            Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.                                                                                                                                                                                                                                                                                                                                                                                     
-``trim``              tuple       ..                                           0, 0          How much to trim off each edge of each slit.  Each number should be 0 or positive                                                                                                                                                                                                                                                                                                                                                                                                                     
-``maxgap``            int         ..                                           ..            Maximum number of pixels to allow for the gap between slits.  Use None if the neighbouring slits are far apart or of similar illumination.                                                                                                                                                                                                                                                                                                                                                            
-``maxshift``          int, float  ..                                           0.15          Maximum shift in trace crude. Use a larger number for more curved slits/orders.                                                                                                                                                                                                                                                                                                                                                                                                                       
-``pad``               int         ..                                           0             Integer number of pixels to consider beyond the slit edges.                                                                                                                                                                                                                                                                                                                                                                                                                                           
-``sigdetect``         int, float  ..                                           20.0          Sigma detection threshold for edge detection                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``min_slit_width``    float       ..                                           6.0           If a slit spans less than this number of arcseconds over the spatial direction of the detector, it will be ignored. Use this option to prevent the of alignment (box) slits from multislit reductions, which typically cannot be reduced without a significant struggle                                                                                                                                                                                                                               
-``add_slits``         str, list   ..                                           []            Add one or more user-defined slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:spec:spat_left:spat_rightwhere det=detector, spec=spectral pixel, spat_left=spatial pixel of left slit boundary,  spat_righ=spatial pixel of right slit boundary.For example,  2:2000:2121:2322,3:2000:1201:1500  will add a slit to detector 2 passing through spec=2000 extending spatially from 2121 to 2322 and another on detector 3 at spec=2000 extending from 1201 to 1500
-``rm_slits``          str, list   ..                                           []            Remove one or more user-specified slits.  This is a list of lists, with each sub-list having syntax (all integers):  det:spec:spat where det=detector, spec=spectral pixel, spat=spatial pixel.for example,  2:2000:2121,3:2000:1500the slit tracing code will remove the slits on detector 2 that contain pixel (spat,spec)=(2000,2121) and detector 3 which contain (2000,2121)                                                                                                                     
-``diffpolyorder``     int         ..                                           2             Order of the 2D function used to fit the 2d solution for the spatial size of all orders.                                                                                                                                                                                                                                                                                                                                                                                                              
-``single``            list        ..                                           []            Add a single, user-defined slit based on its location on each detector.  Syntax is a list of values, 2 per detector, that define the slit according to column values.  The second value (for the right edge) must be greater than 0 to be applied.  LRISr example: setting single = -1, -1, 7, 295 means the code will skip the user-definition for the first detector but adds one for the second.  None means no user-level slits defined.                                                          
-``sobel_mode``        str         ``nearest``, ``constant``                    ``nearest``   Mode for Sobel filtering.  Default is 'nearest' but the developers find 'constant' works best for DEIMOS.                                                                                                                                                                                                                                                                                                                                                                                             
-``pcatype``           str         ``pixel``, ``order``                         ``pixel``     Select to perform the PCA using the pixel position (pcatype=pixel) or by spectral order (pcatype=order).  Pixel positions can be used for multi-object spectroscopy where the gap between slits is irregular.  Order is used for echelle spectroscopy or for slits with separations that are a smooth function of the slit number.                                                                                                                                                                    
-``pcapar``            list        ..                                           3, 2, 1, 0    Order of the polynomials to be used to fit the principle components.  The list length must be equal to or less than polyorder+1. TODO: Provide more explanation                                                                                                                                                                                                                                                                                                                                       
-``pcaextrap``         list        ..                                           0, 0          The number of extra orders to predict in the negative (first number) and positive (second number) direction.  Must be two numbers in the list and they must be integers.                                                                                                                                                                                                                                                                                                                              
-``smash_range``       list        ..                                           0.0, 1.0      Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges. If the spectrum covers only a portion of the image, use that range.                                                                                                                                                                                                                                                                                                                         
-``trace_npoly``       int         ..                                           5             Order of legendre polynomial fits to slit/order boundary traces.                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``mask_frac_thresh``  float       ..                                           0.6           Minimum fraction of the slit edge that was *not* masked to use in initial PCA.                                                                                                                                                                                                                                                                                                                                                                                                                        
-====================  ==========  ===========================================  ============  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+====================  ==========  ===========================================  ============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                   Type        Options                                      Default       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+====================  ==========  ===========================================  ============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``function``          str         ``polynomial``, ``legendre``, ``chebyshev``  ``legendre``  Function use to trace the slit center.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                                                       
+``medrep``            int         ..                                           0             Median-smoothing iterations to perform on sqrt(trace) image before applying to Sobel filter, which detects slit/order edges.                                                                                                                                                                                                                                                                                                                                               
+``number``            int         ..                                           -1            Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.                                                                                                                                                                                                                                                                                                                                                          
+``trim``              tuple       ..                                           0, 0          How much to trim off each edge of each slit.  Each number should be 0 or positive                                                                                                                                                                                                                                                                                                                                                                                          
+``maxgap``            int         ..                                           ..            Maximum number of pixels to allow for the gap between slits.  Use None if the neighbouring slits are far apart or of similar illumination.                                                                                                                                                                                                                                                                                                                                 
+``maxshift``          int, float  ..                                           0.15          Maximum shift in trace crude. Use a larger number for more curved slits/orders.                                                                                                                                                                                                                                                                                                                                                                                            
+``pad``               int         ..                                           0             Integer number of pixels to consider beyond the slit edges.                                                                                                                                                                                                                                                                                                                                                                                                                
+``sigdetect``         int, float  ..                                           20.0          Sigma detection threshold for edge detection                                                                                                                                                                                                                                                                                                                                                                                                                               
+``min_slit_width``    float       ..                                           6.0           If a slit spans less than this number of arcseconds over the spatial direction of the detector, it will be ignored.  Use this option to prevent the alignment (box) slits from multislit reductions, which typically cannot be reduced without a significant struggle.                                                                                                                                                                                                     
+``add_slits``         str, list   ..                                           ..            Add one or more user-defined slits.  The syntax to define a slit to add is: 'det:spec:spat_left:spat_right' where det=detector, spec=spectral pixel, spat_left=spatial pixel of left slit boundary, and spat_righ=spatial pixel of right slit boundary.  For example, '2:2000:2121:2322,3:2000:1201:1500' will add a slit to detector 2 passing through spec=2000 extending spatially from 2121 to 2322 and another on detector 3 at spec=2000 extending from 1201 to 1500.
+``rm_slits``          str, list   ..                                           ..            Remove one or more user-specified slits.  The syntax used to define a slit to remove is: 'det:spec:spat' where det=detector, spec=spectral pixel, spat=spatial pixel.  For example, '2:2000:2121,3:2000:1500' will remove the slit on detector 2 that contains pixel (spat,spec)=(2000,2121) and on detector 3 that contains pixel (2000,2121).                                                                                                                            
+``diffpolyorder``     int         ..                                           2             Order of the 2D function used to fit the 2d solution for the spatial size of all orders.                                                                                                                                                                                                                                                                                                                                                                                   
+``single``            list        ..                                           []            Add a single, user-defined slit based on its location on each detector.  Syntax is a list of values, 2 per detector, that define the slit according to column values.  The second value (for the right edge) must be greater than 0 to be applied.  LRISr example: setting single = -1, -1, 7, 295 means the code will skip the user-definition for the first detector but adds one for the second.  None means no user-level slits defined.                               
+``sobel_mode``        str         ``nearest``, ``constant``                    ``nearest``   Mode for Sobel filtering.  Default is 'nearest' but the developers find 'constant' works best for DEIMOS.                                                                                                                                                                                                                                                                                                                                                                  
+``pcaextrap``         list        ..                                           0, 0          The number of extra orders to predict in the negative (first number) and positive (second number) direction.  Must be two numbers in the list and they must be integers.                                                                                                                                                                                                                                                                                                   
+``smash_range``       list        ..                                           0.0, 1.0      Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges.  If the spectrum covers only a portion of the image, use that range.                                                                                                                                                                                                                                                                                             
+``trace_npoly``       int         ..                                           5             Order of legendre polynomial fits to slit/order boundary traces.                                                                                                                                                                                                                                                                                                                                                                                                           
+``mask_frac_thresh``  float       ..                                           0.6           Minimum fraction of the slit edge that was *not* masked to use in initial PCA.                                                                                                                                                                                                                                                                                                                                                                                             
+====================  ==========  ===========================================  ============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -287,15 +289,15 @@ FrameGroupPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 
-=============  ==============================================  ======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-Key            Type                                            Options                                                                                                 Default                       Description                                                                                                                                                                                                                                                    
-=============  ==============================================  ======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``bias``, ``dark``, ``pixelflat``, ``arc``, ``pinhole``, ``trace``, ``standard``, ``science``, ``all``  ``science``                   Frame type.  Options are: bias, dark, pixelflat, arc, pinhole, trace, standard, science, all                                                                                                                                                                   
-``useframe``   str                                             ..                                                                                                      ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
-``number``     int                                             ..                                                                                                      0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
-``exprng``     list                                            ..                                                                                                      None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
-``process``    :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                      `ProcessImagesPar Keywords`_  Parameters used for basic image processing                                                                                                                                                                                                                     
-=============  ==============================================  ======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
+=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+``frametype``  str                                             ``arc``, ``dark``, ``trace``, ``pixelflat``, ``science``, ``standard``, ``tilt``, ``bias``, ``pinhole``  ``science``                   Frame type.  Options are: arc, dark, trace, pixelflat, science, standard, tilt, bias, pinhole                                                                                                                                                                  
+``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
+``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
+``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
+``process``    :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                       `ProcessImagesPar Keywords`_  Parameters used for basic image processing                                                                                                                                                                                                                     
+=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 
 
 ----
@@ -418,6 +420,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
@@ -463,6 +469,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
@@ -501,6 +511,10 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -551,6 +565,10 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -604,6 +622,10 @@ Alterations to the default parameters are::
           exprng = 20, None
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
       [[traceframe]]
@@ -649,6 +671,10 @@ Alterations to the default parameters are::
           exprng = 1, None
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -685,6 +711,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 61
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -732,6 +762,10 @@ Alterations to the default parameters are::
           exprng = None, 61
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -768,6 +802,10 @@ Alterations to the default parameters are::
           exprng = None, 61
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 3
           exprng = 0, None
@@ -801,6 +839,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
       [[pinholeframe]]
@@ -827,6 +869,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 120
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -859,6 +905,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               overscan = median
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
           number = 5
@@ -899,6 +949,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = median
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
       [[traceframe]]
@@ -932,7 +986,7 @@ Alterations to the default parameters are::
   [scienceframe]
       useframe = overscan
   [scienceimage]
-      bspline_spacing = 0.8
+      bspline_spacing = 0.5
       model_full_slit = True
 
 VLT XShooter_NIR
@@ -946,6 +1000,10 @@ Alterations to the default parameters are::
           useframe = none
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1004,6 +1062,10 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
@@ -1056,29 +1118,7 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
-      [[pixelflatframe]]
-          number = 5
-          [[[process]]]
-              combine = median
-              sig_lohi = 10.0, 10.0
-      [[traceframe]]
-          number = 3
-      [[standardframe]]
-          number = 1
-      [[wavelengths]]
-          lamps = CuI, ArI, ArII
-          rms_threshold = 0.4
-      [[slits]]
-          trace_npoly = 3
-
-GEMINI-N GMOS-N
----------------
-Alterations to the default parameters are::
-
-  [calibrations]
-      [[biasframe]]
-          number = 5
-      [[arcframe]]
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1105,6 +1145,40 @@ Alterations to the default parameters are::
       [[biasframe]]
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          [[[process]]]
+              combine = median
+              sig_lohi = 10.0, 10.0
+      [[traceframe]]
+          number = 3
+      [[standardframe]]
+          number = 1
+      [[wavelengths]]
+          lamps = CuI, ArI, ArII
+          rms_threshold = 0.4
+      [[slits]]
+          trace_npoly = 3
+
+GEMINI-N GMOS-N
+---------------
+Alterations to the default parameters are::
+
+  [calibrations]
+      [[biasframe]]
+          number = 5
+      [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1137,6 +1211,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = 20, None
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -1179,6 +1257,10 @@ Alterations to the default parameters are::
           exprng = 20, None
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 3
       [[traceframe]]
@@ -1194,7 +1276,6 @@ Alterations to the default parameters are::
           rms_threshold = 0.2
       [[slits]]
           maxshift = 3.0
-          pcatype = order
       [[tilts]]
           tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
   [scienceframe]
@@ -1213,6 +1294,10 @@ Alterations to the default parameters are::
       [[biasframe]]
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
@@ -1253,6 +1338,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -1299,6 +1388,10 @@ Alterations to the default parameters are::
           exprng = None, 60
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -1339,6 +1432,10 @@ Alterations to the default parameters are::
       [[arcframe]]
           number = 1
           exprng = None, 60
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
@@ -1384,6 +1481,10 @@ Alterations to the default parameters are::
           exprng = None, 60
           [[[process]]]
               sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
@@ -1419,6 +1520,10 @@ Alterations to the default parameters are::
       [[biasframe]]
           number = 5
       [[arcframe]]
+          number = 1
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1

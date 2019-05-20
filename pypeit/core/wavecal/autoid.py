@@ -511,8 +511,9 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
     return best_dict, final_fit
 
 
-def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv = None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
-               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
+def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv=None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
+               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0,
+               debug_xcorr=False, debug_reid=False, debug_peaks = False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -526,12 +527,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     wave_soln_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
        Wavelength solutions for the archival arc spectra spec_arxiv
 
-    det_arxiv:  dict, the dict has narxiv keys which are '0','1', ... up to str(narxiv-1). det_arxiv['0'] points to an
-                an ndarray of size determined by the number of lines that were detected.
-
-       Arc line pixel locations in the spec_arxiv spectra that were used in combination with line identifications from the
-       line list to determine the wavelength solution wave_soln_arxiv.
-
     line_list: astropy table
        The arc line list used for thew wavelength solution in pypeit format.
 
@@ -544,6 +539,13 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     Optional Parameters
     -------------------
+
+    det_arxiv (optional):  dict, the dict has narxiv keys which are '0','1', ... up to str(narxiv-1). det_arxiv['0'] points to an
+                an ndarray of size determined by the number of lines that were detected.
+
+       Arc line pixel locations in the spec_arxiv spectra that were used in combination with line identifications from the
+       line list to determine the wavelength solution wave_soln_arxiv.
+
     detections: float ndarray, default = None
        An array containing the pixel centroids of the lines in the arc as computed by the pypeit.core.arc.detect_lines
        code. If this is set to None, the line detection will be run inside the code.
@@ -679,6 +681,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     shift_vec = np.zeros(narxiv)
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
+    #embed(header='line 682 of autoid.py')
     for iarxiv in range(narxiv):
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         this_det_arxiv = det_arxiv[str(iarxiv)]
@@ -745,6 +748,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
             # match to pixel in shifted/stretch arxiv spectrum
             pdiff = np.abs(detections[iline] - det_arxiv_ss)
             bstpx = np.argmin(pdiff)
+            #if np.abs(detections[iline]-1312.1) < 1.:
+            #    embed(header='762 autoid.py')
             # If a match is found within 2 pixels, consider this a successful match
             if pdiff[bstpx] < match_toler:
                 # Using the arxiv arc wavelength solution, search for the nearest line in the line list
@@ -1158,8 +1163,10 @@ class ArchiveReid:
 
             sigdetect = self._parse_param(self.par, 'sigdetect', slit)
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
-            self.debug_reid = True
-            self.debug_xcorr = True
+            #self.debug_reid = True
+            #self.debug_xcorr = True
+            #from pypeit import debugger
+            #embed(header='line1168 of autoid.py')
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
@@ -1170,12 +1177,12 @@ class ArchiveReid:
             if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = {}
                 self.bad_slits = np.append(self.bad_slits, slit)
-                embed()
                 continue
-            # Perform the fit
 
+            # Perform the fit
             n_final = self._parse_param(self.par, 'n_final', slit)
-            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)], self.detections[str(slit)],
+            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)],
+                                         self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
                                          sigrej_first=self.sigrej_first, n_final=n_final,sigrej_final=self.sigrej_final)
 
@@ -1203,7 +1210,7 @@ class ArchiveReid:
 
         # Print the final report of all lines
         self.report_final()
-        embed()
+        #embed()
 
     def report_final(self):
         """Print out the final report of the wavelength calibration"""

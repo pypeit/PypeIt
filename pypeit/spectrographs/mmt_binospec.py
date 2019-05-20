@@ -1,10 +1,6 @@
 '''
 Implements DEIMOS-specific functions, including reading in slitmask design files.
 '''
-
-## ToDo: TBD by Feige
-from __future__ import absolute_import, division, print_function
-
 import glob
 import re
 import numpy as np
@@ -209,7 +205,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['trace_npoly'] = 3
         par['calibrations']['slits']['fracignore'] = 0.02
-        par['calibrations']['slits']['pcapar'] = [3, 2, 1, 0]
+#        par['calibrations']['slits']['pcapar'] = [3, 2, 1, 0]
 
         # Overscan subtract the images
         par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -350,13 +346,13 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['hatch'] == 'closed')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['lamps'] == 'Qz') & (fitstbl['hatch'] == 'closed')
-        if ftype == 'pinhole' or ftype == 'dark':
+        if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lamps'] == 'Kr Xe Ar Ne') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -378,6 +374,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         # TODO: Fill in the rest of these.
         name = {'arc': 'Line',
+                'tilt': None,
                 'bias': None,
                 'dark': None,
                 'pinhole': None,
@@ -408,71 +405,49 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, head0
 
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        # Standard
-        # Can be over-ruled by flux calibrate = False
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['decker'] = ''
-        match_criteria['standard']['match']['binning'] = ''
-        match_criteria['standard']['match']['filter1'] = ''
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['binning'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = match_criteria['standard']['match'].copy()
-        # Return
-        return match_criteria
-
-    def get_image_section(self, filename, det, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        Overwrites base class function to use :func:`read_deimos` to get
-        the image sections.
-
-        .. todo::
-            - It feels really ineffiecient to just get the image section
-              using the full :func:`read_deimos`.  Can we parse that
-              function into something that can give you the image
-              section directly?
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
-
-        Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
-            section (:obj:`str`, optional):
-                The section to return.  Should be either datasec or
-                oscansec, according to the :class:`DetectorPar`
-                keywords.
-
-        Returns:
-            list, bool: A list of string representations for the image
-            sections, one string per amplifier, followed by three
-            booleans: if the slices are one indexed, if the slices
-            should include the last pixel, and if the slice should have
-            their order transposed.
-        """
-        # Read the file
-        temp, head0, secs = read_deimos(filename, det)
-        if section == 'datasec':
-            return secs[0], False, False, False
-        elif section == 'oscansec':
-            return secs[1], False, False, False
-        else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
+#    def get_image_section(self, filename, det, section='datasec'):
+#        """
+#        Return a string representation of a slice defining a section of
+#        the detector image.
+#
+#        Overwrites base class function to use :func:`read_deimos` to get
+#        the image sections.
+#
+#        .. todo::
+#            - It feels really ineffiecient to just get the image section
+#              using the full :func:`read_deimos`.  Can we parse that
+#              function into something that can give you the image
+#              section directly?
+#
+#        This is done separately for the data section and the overscan
+#        section in case one is defined as a header keyword and the other
+#        is defined directly.
+#
+#        Args:
+#            filename (str):
+#                data filename
+#            det (int):
+#                Detector number
+#            section (:obj:`str`, optional):
+#                The section to return.  Should be either datasec or
+#                oscansec, according to the :class:`DetectorPar`
+#                keywords.
+#
+#        Returns:
+#            list, bool: A list of string representations for the image
+#            sections, one string per amplifier, followed by three
+#            booleans: if the slices are one indexed, if the slices
+#            should include the last pixel, and if the slice should have
+#            their order transposed.
+#        """
+#        # Read the file
+#        temp, head0, secs = read_deimos(filename, det)
+#        if section == 'datasec':
+#            return secs[0], False, False, False
+#        elif section == 'oscansec':
+#            return secs[1], False, False, False
+#        else:
+#            raise ValueError('Unrecognized keyword: {0}'.format(section))
 
     # WARNING: Uses Spectrograph default get_image_shape.  If no file
     # provided it will fail.  Provide a function like in keck_lris.py
@@ -538,62 +513,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             self.bpm_img[:, 931:934] = 1
 
         return self.bpm_img
-
-    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None,
-                       msarc_shape=None, **null_kwargs):
-        """
-
-        Args:
-            arcparam:
-            disperser:
-            fitstbl:
-            arc_idx:
-            msarc_shape:
-            binspectral:
-            **null_kwargs:
-
-        Returns:
-
-        """
-        arcparam['wv_cen'] = fitstbl['dispangle'][arc_idx]
-        # TODO -- Should set according to the lamps that were on
-        # arcparam['lamps'] = ['ArI','NeI','KrI','XeI']
-        # JFH Right now these are all hard wired to use det =1 numbers. Otherwise we will need a separate arcparam for each
-        # detector and there is no mechanism in place to create that yet
-
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        #        arcparam['min_nsig'] = 30.  # Minimum signififance
-        arcparam['sigdetect'] = 10.0  # Min significance for arc lines to be used
-        arcparam['wvmnx'] = [3000., 11000.]  # Guess at wavelength range
-        # These parameters influence how the fts are done by pypeit.core.wavecal.fitting.iterative_fitting
-        arcparam['match_toler'] = 3  # Matcing tolerance (pixels)
-        arcparam['func'] = 'legendre'  # Function for fitting
-        arcparam['n_first'] = 2  # Order of polynomial for first fit
-        arcparam['n_final'] = 4  # Order of polynomial for final fit
-        arcparam['nsig_rej'] = 2  # Number of sigma for rejection
-        arcparam['nsig_rej_final'] = 3.0  # Number of sigma for rejection (final fit)
-
-        arcparam['min_ampl'] = 1000.  # Lines tend to be very strong
-        arcparam['wvmnx'][0] = 4000.
-        arcparam['wvmnx'][1] = 11000.
-
-        #        if disperser == '830G': # Blaze 8640
-
-    #            arcparam['n_first']=2 # Too much curvature for 1st order
-    #            arcparam['disp']=0.47 # Ang per pixel (unbinned)
-    #            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
-    #            arcparam['wvmnx'][0] = 550.
-    #            arcparam['wvmnx'][1] = 11000.
-    #            arcparam['min_ampl'] = 3000.  # Lines tend to be very strong
-    #        elif disperser == '1200G': # Blaze 7760
-    #            arcparam['n_first']=2 # Too much curvature for 1st order
-    #            arcparam['disp']=0.32 # Ang per pixel (unbinned)
-    #            arcparam['b1']= 1./arcparam['disp']/msarc_shape[0]
-    #            arcparam['wvmnx'][0] = 550.
-    #            arcparam['wvmnx'][1] = 11000.
-    #            arcparam['min_ampl'] = 2000.  # Lines tend to be very strong
-    #        else:
-    #            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
     def get_slitmask(self, filename):
         hdu = fits.open(filename)

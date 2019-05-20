@@ -1,7 +1,5 @@
 """ Module for PypeIt extraction code
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import time
 import copy
 import inspect
@@ -27,7 +25,7 @@ from sklearn.decomposition import PCA
 from pypeit import specobjs
 from pypeit.core.pydl import spheregroup
 
-from pypeit import debugger
+from IPython import embed
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -1456,6 +1454,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
     -------
     sobjs:   SpecoObjs object
          Object containing the information about the objects found on the slit/order
+    np.ndarray: Skymask image
 
 
 
@@ -2098,10 +2097,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
     if order_vec is None:
         order_vec = np.arange(norders)
 
-    # TODO Use the order vec below instead of 0-norders indices
-    if order_vec is None:
-        order_vec = np.arange(norders)
-
     if isinstance(plate_scale,(float, int)):
         plate_scale_ord = np.full(norders, plate_scale)
     elif isinstance(plate_scale,(np.ndarray, list, tuple)):
@@ -2147,6 +2142,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
         for spec in sobjs_slit:
             spec.ech_orderindx = iord
             spec.ech_order = order_vec[iord]
+            _ = spec.set_idx()
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)
@@ -2386,6 +2382,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, fof_li
     # resulting in a bunch of objects landing on top of each other.
 
     # Set the IDs
+    for spec in sobjs_final:
+        spec.ech_order = order_vec[spec.ech_orderindx]
     sobjs_final.set_idx()
 
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
