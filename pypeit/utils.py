@@ -1,3 +1,8 @@
+"""
+General utility functions.
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+"""
 import os
 import warnings
 import itertools
@@ -1234,89 +1239,113 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 
     return outmask, ct
 
-def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
-                    maxdev=None,maxrej=None, groupdim=None, groupsize=None, groupbadpix=False, grow=0, sticky=True,
-                    use_mad=True, **kwargs_optimizer):
-
+def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=None, invvar=None,
+                    lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
+                    groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
+                    **kwargs_optimizer):
     """
-    A routine to perform robust optimization. It is completely analogous to robust_polyfit_djs, but is more general in that
-    it allows one to fit a more general model using the optimizer of the users choice. If you are fitting simple functions
-    like chebyshev or legednre polynomials using linear least squares, you should be using robust_polyfit_djs
+    A routine to perform robust optimization. It is completely analogous
+    to :func:`robust_polyfit_djs`, but is more general in that it allows
+    one to fit a more general model using the optimizer of the users
+    choice. If you are fitting simple functions like Chebyshev or
+    Legednre polynomials using a linear least-squares algorithm, you
+    should use :func:robust_polyfit_djs` instead of this function.
 
-    ydata:  :class:`numpy.ndarray` data to be fit
-    fitfunc (callable):
-        The callable object used to perform the fitting.  The calling
-        sequence must be::
+    Args:
+        ydata (`numpy.ndarray`_):
+            Data to fit.
+        fitfunc (callable):
+            The callable object used to perform the fitting.  The
+            calling sequence must be::
 
-            result, ymodel = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
+                result, ymodel = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
 
-        See the descriptions of `ydata`, `inmask`, `arg_dict`, and
-        `kwargs_optimizer`.
+            See the descriptions of `ydata`, `inmask`, `arg_dict`, and
+            `kwargs_optimizer`.  The two returned objects are:
+                - `result`: Object returned by the specific
+                  scipy.optimize method used to perform the fit.
+                - `ymodel`: A `numpy.ndarray` with the model fit to
+                  `ydata` and with the same shape.
 
-        The two returned objects are:
-            - `result`: Object returned by the specific scipy.optimize
-              method used to perform the fit.
-            - `ymodel`: A `numpy.ndarray` with the model fit to `ydata`
-              and with the same shape.
-
-    arg_dict: dict containing the other variables needed to evaluate the model fit
-    maxiter : :class:`int`, optional
-         Maximum number of rejection iterations, default 10.  Set this to zero to disable rejection and simply do a fit.
-    inmask : :class:`numpy.ndarray`, optional
-        Input mask.  Bad points are marked with a value that evaluates to ``False``.
-        Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
-        will also always evaluate to "False" in the outmask
-    sigma : :class: float or `numpy.ndarray`, optional
-        Standard deviation of the yarray, used to reject points based on the values
-        of `upper` and `lower`. This can either be a single float for the entire yarray or a ndarray with the same
-        shape as the yarray.
-    invvar : :class: float or `numpy.ndarray`, optional
-        Inverse variance of the data, used to reject points based on the values
-        of `upper` and `lower`.  This can either be a single float for the entire yarray or a ndarray with the same
-        shape as the yarray. If both `sigma` and `invvar` are set the code will return an error.
-    lower : :class:`int` or :class:`float`, optional
-        If set, reject points with data < model - lower * sigma.
-    upper : :class:`int` or :class:`float`, optional
-        If set, reject points with data > model + upper * sigma.
-        maxdev : :class:`int` or :class:`float`, optional
-        If set, reject points with abs(data-model) > maxdev.  It is permitted to
-        set all three of `lower`, `upper` and `maxdev`.
-    maxrej: :class:`int` or :class:`numpy.ndarray`, optional
-        Maximum number of points to reject in this iteration.  If `groupsize` or
-        `groupdim` are set to arrays, this should be an array as well.
-    groupdim: class: `int`
-        Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
-        If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
-        In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
-    groupsize: class: `int`
-        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points.  If groupdim is also
-        set, then this specifies sub-groups within that. NOT WELL TESTED IN PYTHON!!
-    groupbadpix : :class:`bool`, optional
-        If set to ``True``, consecutive sets of bad pixels are considered groups,
-        overriding the values of `groupsize`.
-    grow : :class:`int`, optional, default = 0
-        If set to a non-zero integer, N, the N nearest neighbors of rejected
-        pixels will also be rejected.
-    sticky : :class:`bool`, optional, default is True
-        If set to ``True``, pixels rejected in one iteration remain rejected in
-        subsequent iterations, even if the model changes. If
-    use_mad : :class: `bool`, optional, defaul = False
-        It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
-        the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
-        and also pass in values for sigma or invvar, and the code will return an error if this is done.
-    **kwargs_optimizer: Optional parameters to be be passed to the optimizer
-
+        arg_dict (:obj:`dict`)
+            Dictionary containing the other variables needed to evaluate
+            the model fit.
+        maxiter (:obj:`int`, optional):
+            Maximum number of rejection iterations.  Set this to zero to
+            disable rejection and simply do a fit.
+        inmask (`numpy.ndarray`_, optional):
+            Input mask.  Bad points are marked with a value that
+            evaluates to `False`.  Must have the same number of
+            dimensions as `ydata`.  Points masked as `False` in `inmask`
+            will also always evaluate to `False` in the output mask.
+        sigma (:obj:`float`, `numpy.ndarray`_, optional):
+            Standard deviation of the `ydata`, used to reject points
+            based on the values of `upper` and `lower`. This can either
+            be a single float or an array with the same shape as
+            `ydata`.
+        invvar (:obj:`float`, `numpy.ndarray`_, optional):
+            Inverse variance of the data, used to reject points based on
+            the values of `upper` and `lower`.  This can either be a
+            single float for the entire yarray or a ndarray with the
+            same shape as the yarray. If both `sigma` and `invvar` are
+            set the code will return an error.
+        lower (:obj:`int`, :obj:`float`, optional):
+            If set, reject points with `data < model - lower * sigma`.
+        upper (:obj:`int`, :obj:`float`, optional):
+            If set, reject points with `data > model + upper * sigma`.
+        maxdev (:obj:`int` or :class:`float`, optional
+            If set, reject points with `abs(data-model) > maxdev`.  It
+            is permitted to set all three of `lower`, `upper` and
+            `maxdev`.
+        maxrej (:obj:`int`, `numpy.ndarray`_, optional):
+            Maximum number of points to reject in this iteration.  If
+            `groupsize` or `groupdim` are set to arrays, this should be
+            an array, as well.
+        groupdim (:obj:`int`, optional):
+            Dimension along which to group the data. Set to 1 to group
+            along the 1st dimension, 2 for the 2nd dimension, etc.  For
+            example, if data has shape [100,200], then setting
+            `groupdim=2` is equivalent to grouping the data with
+            `groupsize=100`.  In either case, there are 200 groups,
+            specified by `[*,i]`.  This functionality is **not well
+            tested in python**!
+        groupsize (:obj:`int`, optional):
+            If this and `maxrej` are set, then reject a maximum of
+            `maxrej` points per group of `groupsize` points.  If
+            `groupdim` is also set, then this specifies sub-groups
+            within that.  This functionality is **not well tested in
+            python**!
+        groupbadpix (:obj:``bool`, optional):
+            If `True`, consecutive sets of bad pixels are considered
+            groups, overriding the values of `groupsize`.
+        grow (:obj:`int`, optional):
+            If set to a non-zero integer, N, the N nearest neighbors of
+            rejected pixels will also be rejected.
+        sticky (:obj:`bool`, optional):
+            If `True`, pixels rejected in one iteration remain rejected
+            in subsequent iterations, even if the model changes.
+        use_mad (:obj:`bool`, optional):
+            It `True`, compute the median of the maximum absolute
+            deviation between the data and use this for the rejection
+            instead of the default, which is to compute the standard
+            deviation of `ydata - modelfit`. Note that it is not
+            possible to specify `use_mad=True` and also pass in values
+            for `sigma` or `invvar`, and the code will return an error
+            if this is done.
+        **kwargs_optimizer:
+            Optional parameters passed to the optimizer.
 
     Returns:
-    --------
-    :return: result, ymodel, outmask
-
-    result: :class:`object` is the object returned by the optimizer from scipy.optimize
-    ymodel: :class:`numpy.ndarray` is the model fit to ydata. It has the same shape as ydata
-    outmask :class:`numpy.ndarray` boolean mask with the same shape as data indicating which pixels were masked in the final fit True=Good, False=Bad
-
+        Three objects are returned:
+            - The object returned by the `scipy.optimize` function used
+              by the fitter.  See `fitfunc`.
+            - A `numpy.ndarray`_ with the model value fit to `ydata` and
+              has its same shape.
+            - Boolean `numpy.ndarray`_ with the same shape as data
+              indicating which pixels were masked in the final fit.
+              Convention is that `True` are good values where `False`
+              indicates bad values.
     """
-
     # Setup the initial mask
     if inmask is None:
         inmask = np.ones(ydata.size, dtype=bool)
