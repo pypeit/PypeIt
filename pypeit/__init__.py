@@ -11,7 +11,7 @@ import signal
 import warnings
 
 # Set version
-__version__ = '0.10.1dev'
+__version__ = '0.10.1'
 
 # Import and instantiate the logger
 from pypeit import pypmsgs
