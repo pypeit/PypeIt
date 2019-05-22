@@ -82,8 +82,8 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1, objtype='science', binning=None,
-                 setup=None, maskslits=None):
+    def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1,
+                 objtype='science', binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         self.objtype = objtype

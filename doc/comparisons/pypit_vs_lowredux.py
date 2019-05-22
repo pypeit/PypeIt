@@ -2,9 +2,6 @@
 # v0.1 -- First look [Kast_red only]
 # v0.2 -- With improved trace
 # v0.3 -- With improved skysub and airtovac 9 Nov 2015
-
-from __future__ import print_function, absolute_import, division, unicode_literals
-
 import numpy as np
 import sys, os
 import yaml

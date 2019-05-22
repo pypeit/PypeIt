@@ -1,6 +1,6 @@
-# Module for generating the Trace image
-from __future__ import absolute_import, division, print_function
-
+"""
+Module for generating the Trace image
+"""
 import inspect
 import numpy as np
 
@@ -26,13 +26,9 @@ class TraceImage(processimages.ProcessImages):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the arc frames.
-
-    Attributes:
-        frametype (str): Set to 'trace_image'
-
     """
-   
     # Frametype is a class attribute
+    # TODO: Why is this not trace
     frametype = 'trace_image'
 
     def __init__(self, spectrograph, files=None, det=1, par=None):

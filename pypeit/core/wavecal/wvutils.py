@@ -1,7 +1,5 @@
 """ Module for basic utilties with holy grail
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import numpy as np
 import numba as nb
 
@@ -420,20 +418,26 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Fal
     return hist_wd, cent_w, cent_d
 
 
-# JFH attempt with just FFT
-# This code does not currently work yet and has bugs in the lag computation.
-#def cross_correlate(y1,y2):
+def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0):
+    """
+    Utility routine to generate a uniform grid of wavelengths
+    Args:
+        wave_min: float
+           Mininum wavelength. Can be in linear or log.
+        wave_max: float
+           Maximum wavelength. Can be in linear or log.
+        dwave: float
+           Delta wavelength interval
+        samp_fact: float
+           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
+           samp_fact < 1.0 undersamples (coarser)
 
-#    if y1.shape != y2.shape:
-#        msgs.error('cross_correlate only works for equal sized arrays')
-#    nspec =y1.shape
-#    next2 = 2**(nspec-1).bit_length()
-#    f1 = np.fft.fft(y1,n=next2)
-#    f2 = np.fft.fft(np.flipud(y2),n=next2)
-#    cc_raw = np.real(np.fft.ifft(f1 * f2))
-#    cc = np.fft.fftshift(cc_raw)
-#    corr_denom = np.sqrt(np.sum(y1*y1)*np.sum(y2*y2))
-#    cc_norm = cc/corr_denom
-#    zero_index = int(next2/2) - 1
-#    lags = zero_index - np.arange(next2)
-#    return lags, cc_norm
+    Returns:
+        wave_grid: float ndarray
+           Wavelength grid
+    """
+
+    dwave_eff = dwave/samp_fact
+    ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
+    wave_grid = wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
+    return wave_grid

@@ -3,15 +3,7 @@ This cannot be located in the pypit/ folder (import issues)
 .. todo::
     - We should refactor so that it can...
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
-
 # TODO: Will this module be used anymore?
-
-try:
-    basestring
-except NameError:
-    basestring = str
 
 import os
 import glob

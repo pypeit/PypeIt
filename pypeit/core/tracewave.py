@@ -1,7 +1,5 @@
 """ Module for methods related to tracing arc/sky lines across a slit/order
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import inspect
 import copy
 
@@ -29,6 +27,30 @@ except ImportError:
 def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=3.0,
                     only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0,
                     max_frac_fwhm=2.0, cont_samp=30, niter_cont=3, debug_lines=False, debug_peaks=False):
+    """
+    I can't believe this method has no docs
+
+    Args:
+        arc_spec:
+        slit_cen:
+        tracethresh:
+        sig_neigh:
+        nfwhm_neigh:
+        only_these_lines:
+        fwhm:
+        nonlinear_counts:
+        fit_frac_fwhm:
+        cont_frac_fwhm:
+        max_frac_fwhm:
+        cont_samp:
+        niter_cont:
+        debug_lines:
+        debug_peaks:
+
+    Returns:
+        (np.ndarray, np.ndarray) or (None,None):
+
+    """
 
 
     nspec = arc_spec.size
@@ -75,7 +97,8 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
     nlines = len(lines_spec)
     if nlines == 0:
         msgs.warn('No arc lines were deemed usable on this slit. Cannot compute tilts. Try lowering tracethresh.')
-        return None
+        msgs.warn('Or, more likely, this was a bad slit (which you might remove)')
+        return None, None
     else:
         msgs.info('Modelling arc line tilts with {:d} arc lines'.format(nlines))
 

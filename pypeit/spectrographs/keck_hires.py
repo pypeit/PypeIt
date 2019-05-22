@@ -1,8 +1,6 @@
 '''
 Implements HIRES-specific functions, including reading in slitmask design files.
 '''
-from __future__ import absolute_import, division, print_function
-
 import glob
 import re
 import os
@@ -85,10 +83,10 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Bias')
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'Dark')
-        if ftype == 'pixelflat' or ftype == 'trace':
+        if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['idname'] == 'Flat') | (fitstbl['idname'] == 'IntFlat'))
-        if ftype == 'arc':
+        if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'Line')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -131,24 +129,28 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         This is done separately for the data section and the overscan
         section in case one is defined as a header keyword and the other
         is defined directly.
-        
+
         Args:
-            inp (:obj:`str`):
-                String providing the file name to read.  Unlike the base
-                class, a file name *must* be provided.
+            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+                String providing the file name to read, or the relevant
+                header object.  Default is None, meaning that the
+                detector attribute must provide the image section
+                itself, not the header keyword.
             det (:obj:`int`, optional):
                 1-indexed detector number.
             section (:obj:`str`, optional):
-                The section to return.  Should be either datasec or
-                oscansec, according to the :class:`DetectorPar`
-                keywords.
+                The section to return.  Should be either 'datasec' or
+                'oscansec', according to the
+                :class:`pypeitpar.DetectorPar` keywords.
 
         Returns:
-            list, bool: A list of string representations for the image
-            sections, one string per amplifier, followed by three
-            booleans: if the slices are one indexed, if the slices
-            should include the last pixel, and if the slice should have
-            their order transposed.
+            tuple: Returns three objects: (1) A list of string
+            representations for the image sections, one string per
+            amplifier.  The sections are *always* returned in PypeIt
+            order: spectral then spatial.  (2) Boolean indicating if the
+            slices are one indexed.  (3) Boolean indicating if the
+            slices should include the last pixel.  The latter two are
+            always returned as True following the FITS convention.
         """
         # Read the file
         if inp is None:
@@ -157,9 +159,9 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             msgs.error('File {0} does not exist!'.format(inp))
         temp, head0, secs = read_hires(inp, det)
         if section == 'datasec':
-            return secs[0], False, False, False
+            return secs[0], False, False
         elif section == 'oscansec':
-            return secs[1], False, False, False
+            return secs[1], False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 #
@@ -201,31 +203,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 #                 # Assign the amplifier
 #                 self.datasec_img[datasec] = i+1
 #         return self.datasec_img
-
-#    def get_match_criteria(self):
-#        # TODO: Matching needs to be looked at...
-#        match_criteria = {}
-#        for key in framematch.FrameTypeBitMask().keys():
-#            match_criteria[key] = {}
-#        #
-#        match_criteria['standard']['match'] = {}
-#        match_criteria['standard']['match']['binning'] = ''
-#        # Bias
-#        match_criteria['pixelflat']['number'] = 5
-#        match_criteria['bias']['match'] = {}
-#        match_criteria['bias']['match']['binning'] = ''
-#        # Pixelflat
-#        match_criteria['pixelflat']['number'] = 5
-#        match_criteria['pixelflat']['match'] = match_criteria['standard']['match'].copy()
-#        # Traceflat
-#        match_criteria['pixelflat']['number'] = 5
-#        match_criteria['trace']['match'] = match_criteria['standard']['match'].copy()
-#        # Arc
-#        match_criteria['pixelflat']['number'] = 1
-#        match_criteria['arc']['match'] = match_criteria['bias']['match'].copy()
-#
-#        # Return
-#        return match_criteria
 
 
 class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
@@ -297,7 +274,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 600.
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['pcatype'] = 'pixel'
+#        par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['tilts']['tracethresh'] = 20
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'bias'

@@ -1,22 +1,18 @@
-# Module to run tests on WaveTilts class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on WaveTilts class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest
 import numpy as np
 
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import wavetilts
 from pypeit.core import tracewave, pixels
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def data_path(filename):
@@ -25,18 +21,16 @@ def data_path(filename):
 
 
 @pytest.fixture
-@dev_suite_required
+@cooked_required
 def master_dir():
-    # Any test that uses this directory also requires the DevSuite!
-#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
-    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
 
 
-@dev_suite_required
+@cooked_required
 def test_step_by_step(master_dir):
     # Masters
-    spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,tslits=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
     # Instantiate
     master_key = 'A_1_01'
     parset = spectrograph.default_pypeit_par()
@@ -64,11 +58,11 @@ def test_step_by_step(master_dir):
     assert np.max(tilts) < 1.01
 
 
-@dev_suite_required
+@cooked_required
 def test_run(master_dir):
     # Masters
-    spectrograph, msarc, tslits_dict = load_kast_blue_masters(get_spectrograph=True, aimg=True,
-                                                         tslits=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
     # Instantiate
     master_key = 'A_1_01'
     spectrograph.detector[0]['saturation'] = 60000.

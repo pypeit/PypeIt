@@ -1,7 +1,5 @@
 """ Module for image processing core methods
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import astropy.stats
 import numpy as np
 from scipy import signal, ndimage
@@ -16,58 +14,58 @@ from pypeit import debugger
 # TODO: Add sigdev to the high-level parameter set so that it can be
 # changed by the user?
 # JFH I think this crappy code below is deprecated
-def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
-    """
-    Identify bad pixels in the datasection of the bias frame based on
-    their robust deviation from the median.
-
-    Args:
-        bias (:obj:`numpy.ndarray`):
-            Bias frame
-        numamplifiers (int):
-            Number of amplifiers
-        datasec (list):
-            List of slices, one per amplifier, that contain the data in
-            the raw frame.  The slices and be lists of slice ojects or
-            strings.  If they are strings, :func:`parse.sec2slice` is
-            used to convert them for use in the function.
-        sigdev (:obj:`float`, optional):
-            Number of robust standard deviations beyond which to flag
-            pixels as bad.
-        trim (:obj:`bool`, optional):
-            Flag to trim image to the data section.
-
-    Returns:
-        :obj:`numpy.ndarray`: An integer array with bad pixels set to 1.
-
-    Raises:
-        ValueError:
-            Raised if the number of data sections does not match the
-            number of amplifiers.
-    """
-    # Check input
-    if len(datasec) != numamplifiers:
-        raise ValueError('Number of amplifiers does not match provided data sections.')
-
-    # If the input image sections are strings, convert them
-    if isinstance(datasec[0], str):
-        _datasec = datasec.copy()
-        for i in range(numamplifiers):
-            _datasec[i] = parse.sec2slice(datasec[i], require_dim=2)
-    else:
-        _datasec = datasec
-
-    # Find the bad pixels and mask them
-    mask = np.zeros_like(bias, dtype=np.int8)
-    is_data = np.zeros_like(bias, dtype=bool)
-    for i in range(numamplifiers):
-        is_data[datasec[i]] = True
-        temp = np.abs(np.median(bias[datasec[i]])-bias[datasec[i]])
-        sigval = 1.4826*max(np.median(temp), 1)
-        mask[datasec[i]][temp > sigdev*sigval] = 1
-
-    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(mask))))
-    return trim_frame(mask, np.invert(is_data)) if trim else mask
+#def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):
+#    """
+#    Identify bad pixels in the datasection of the bias frame based on
+#    their robust deviation from the median.
+#
+#    Args:
+#        bias (:obj:`numpy.ndarray`):
+#            Bias frame
+#        numamplifiers (int):
+#            Number of amplifiers
+#        datasec (list):
+#            List of slices, one per amplifier, that contain the data in
+#            the raw frame.  The slices and be lists of slice ojects or
+#            strings.  If they are strings, :func:`parse.sec2slice` is
+#            used to convert them for use in the function.
+#        sigdev (:obj:`float`, optional):
+#            Number of robust standard deviations beyond which to flag
+#            pixels as bad.
+#        trim (:obj:`bool`, optional):
+#            Flag to trim image to the data section.
+#
+#    Returns:
+#        :obj:`numpy.ndarray`: An integer array with bad pixels set to 1.
+#
+#    Raises:
+#        ValueError:
+#            Raised if the number of data sections does not match the
+#            number of amplifiers.
+#    """
+#    # Check input
+#    if len(datasec) != numamplifiers:
+#        raise ValueError('Number of amplifiers does not match provided data sections.')
+#
+#    # If the input image sections are strings, convert them
+#    if isinstance(datasec[0], str):
+#        _datasec = datasec.copy()
+#        for i in range(numamplifiers):
+#            _datasec[i] = parse.sec2slice(datasec[i], require_dim=2)
+#    else:
+#        _datasec = datasec
+#
+#    # Find the bad pixels and mask them
+#    mask = np.zeros_like(bias, dtype=np.int8)
+#    is_data = np.zeros_like(bias, dtype=bool)
+#    for i in range(numamplifiers):
+#        is_data[datasec[i]] = True
+#        temp = np.abs(np.median(bias[datasec[i]])-bias[datasec[i]])
+#        sigval = 1.4826*max(np.median(temp), 1)
+#        mask[datasec[i]][temp > sigdev*sigval] = 1
+#
+#    msgs.info("Identified {0:d} bad pixels".format(int(np.sum(mask))))
+#    return trim_frame(mask, np.invert(is_data)) if trim else mask
 
 
 #def badpix(frame, numamplifiers, datasec, sigdev=10.0):
@@ -508,9 +506,11 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
                              mask=indx).filled(0.0)
 
 
-def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5, 65]):
+def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5,65]):
     """
     Subtract overscan
+
+    TODO: Describe the method.
 
     Args:
         frame (:obj:`numpy.ndarray`):
@@ -518,16 +518,15 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         numamplifiers (int):
             Number of amplifiers for this detector.
         datasec (list):
-            List of slices, one per amplifier, that contain the data in
-            the raw frame.  The slices and be lists of slice ojects or
-            strings.  If they are strings, :func:`parse.sec2slice` is
-            used to convert them for use in the function.
+            List of tuples, one per amplifier, with the slice along each
+            dimension that selects the data section of the provided raw
+            frame.  See :func:`parse.sec2slice` to convert a string
+            section (as read from a file header) into a list of slices.
         oscansec (list):
-            List of slices, one per amplifier, that contain the
-            overscane regions in the raw frame.  The slices and be lists
-            of slice ojects or strings.  If they are strings,
-            :func:`parse.sec2slice` is used to convert them for use in
-            the function.
+            List of tuples, one per amplifier, with the slice along each
+            dimension that selects the overscan section of the provided
+            raw frame.  See :func:`parse.sec2slice` to convert a string
+            section (as read from a file header) into a list of slices.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
             polynomial, savgol, median.
@@ -543,27 +542,18 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
     """
     # Check input
     if len(datasec) != numamplifiers or len(oscansec) != numamplifiers:
-        raise ValueError('Number of amplifiers does not match provided image sections.')
+        msgs.error('Number of amplifiers does not match provided image sections.')
 
     # If the input image sections are strings, convert them
-    if isinstance(datasec[0], str):
-        _datasec = datasec.copy()
-        for i in range(numamplifiers):
-            _datasec[i] = parse.sec2slice(datasec[i], require_dim=2)
-    else:
-        _datasec = datasec
-            
-    if isinstance(oscansec[0], str):
-        _oscansec = oscansec.copy()
-        for i in range(numamplifiers):
-            _oscansec[i] = parse.sec2slice(oscansec[i], require_dim=2)
-    else:
-        _oscansec = oscansec
+    if not isinstance(datasec[0], tuple):
+        msgs.error('Data section must be a tuple of slice objects.')
+    if not isinstance(oscansec[0], tuple):
+        msgs.error('Overscan section must be a tuple of slice objects.')
     
     # Check that there are no overlapping data sections
     testframe = np.zeros_like(rawframe, dtype=int)
     for i in range(numamplifiers):
-        testframe[_datasec[i]] += 1
+        testframe[datasec[i]] += 1
     if np.any(testframe > 1):
         raise ValueError('Image has overlapping data sections!')
 
@@ -573,10 +563,10 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
     # Perform the bias subtraction for each amplifier
     for i in range(numamplifiers):
         # Pull out the overscan data
-        overscan = rawframe[_oscansec[i]]
+        overscan = rawframe[oscansec[i]]
 
         # Shape along at least one axis must match
-        data_shape = rawframe[_datasec[i]].shape
+        data_shape = rawframe[datasec[i]].shape
         if not np.any([ dd == do for dd, do in zip(data_shape, overscan.shape)]):
             msgs.error('Overscan sections do not match amplifier sections for'
                        'amplifier {0}'.format(i+1))
@@ -593,13 +583,13 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
             ossub = signal.savgol_filter(osfit, params[1], params[0])
         elif method.lower() == 'median':
             # Subtract scalar and continue
-            nobias[_datasec[i]] -= osfit
+            nobias[datasec[i]] -= osfit
             continue
         else:
             raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
 
         # Subtract along the appropriate axis
-        nobias[_datasec[i]] -= (ossub[:,None] if compress_axis == 1 else ossub[None,:])
+        nobias[datasec[i]] -= (ossub[:,None] if compress_axis == 1 else ossub[None,:])
 
     return nobias
 
@@ -699,8 +689,140 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
 #    del xds, yds, xos, yos, oscan
 #    return frame
 
+# TODO: Provide a replace_pixels method that does this on a pixel by
+# pixel basis instead of full columns.
+def replace_columns(img, bad_cols, replace_with='mean', copy=False):
+    """
+    Replace bad image columns.
 
-def replace_columns(img, bad_cols, replace_with='mean'):
+    Args:
+        img (`numpy.ndarray`_):
+            A 2D array with image values to replace.
+        bad_cols (`numpy.ndarray`_):
+            Boolean array selecting bad columns in `img`.  Must have the
+            correct shape.
+        replace_with (:obj:`str`, optional):
+            Method to use for the replacements.  Can be 'mean' (see
+            :func:`replace_column_mean`) or 'linear' (see
+            :func:`replace_column_linear`).
+        copy (:obj:`bool`, optional):
+            Copy `img` to a new array before making any
+            modifications.  Otherwise, `img` is modified in-place.
+
+    Returns:
+        `numpy.ndarray`_: The modified image, which is either a new
+        array or points to the in-place modification of `img` according
+        to the value of `copy`.
+    """
+    # Check
+    if img.ndim != 2:
+        msgs.error('Images must be 2D!')
+    if bad_cols.size != img.shape[1]:
+        msgs.error('Bad column array has incorrect length!')
+    if np.all(bad_cols):
+        msgs.error('All columns are bad!')
+
+    _img = img.copy() if copy else img
+
+    if np.sum(bad_cols) == 0:
+        # No bad columns
+        return _img
+
+    # Find the starting/ending indices of adjacent bad columns
+    borders = np.zeros(img.shape[1], dtype=int)
+    borders[bad_cols] = 1
+    borders = borders - np.roll(borders,1)
+    if borders[0] == -1:
+        borders[0] = 0
+
+    # Get edge indices and deal with edge cases
+    lindx = borders == 1
+    ledges = np.where(lindx)[0] if np.any(lindx) else [0]
+    rindx = borders == -1
+    redges = np.where(rindx)[0] if np.any(rindx) else [img.shape[1]]
+    if ledges[0] > redges[0]:
+        ledges = np.append([0], ledges)
+    if ledges[-1] > redges[-1]:
+        redges = np.append(redges, [img.shape[1]])
+    # If this is tripped, there's a coding error
+    assert len(ledges) == len(redges), 'Problem in edge setup'
+
+    # Replace the image values
+    if replace_with == 'mean':
+        for l,r in zip(ledges, redges):
+            replace_column_mean(_img, l, r)
+    elif replace_with == 'linear':
+        for l,r in zip(ledges, redges):
+            replace_column_linear(_img, l, r)
+    else:
+        msgs.error('Unknown replace_columns method.  Must be mean or linear.')
+    return _img
+
+
+def replace_column_mean(img, left, right):
+    """
+    Replace the column values between left and right indices for all
+    rows by the mean of the columns just outside the region.
+
+    Columns at the end of the image with no left or right reference
+    column (`left==0` or `right==img.shape[1]`) are just replaced by the
+    closest valid column.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image with values to both use and replace.
+        left (:obj:`int`):
+            Inclusive starting column index.
+        right (:obj:`int`):
+            Exclusive ending column index.
+    """
+    if left == 0:
+        img[:,left:right] = img[:,right][:,None]
+        return
+    if right == img.shape[1]:
+        img[:,left:] = img[:,left-1][:,None]
+        return
+    img[:,left:right] = 0.5*(img[:,left-1]+img[:,right])[:,None]
+
+
+def replace_column_linear(img, left, right):
+    """
+    Replace the column values between left and right indices for all
+    rows by a linear interpolation between the columns just outside the
+    region.
+
+    If possible, extrapolation is used for columns at the end of the
+    image with no left or right reference column (`left==0` or
+    `right==img.shape[1]`) using the two most adjacent columns.
+    Otherwise, this function calls :func:`replace_column_mean`.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image with values to both use and replace.
+        left (:obj:`int`):
+            Inclusive starting column index.
+        right (:obj:`int`):
+            Exclusive ending column index.
+    """
+    if left == 0 and right > img.shape[1]-2 or right == img.shape[1] and left < 2:
+        # No extrapolation available so revert to mean
+        return replace_column_mean(img, left, right)
+    if left == 0:
+        # Extrapolate down
+        img[:,:right] = (img[:,right+1]-img[:,right])[:,None]*np.arange(right)[None,:] \
+                            + img[:,right][:,None]
+        return
+    if right == img.shape[1]:
+        # Extrapolate up
+        img[:,left:] = (img[:,left-1]-img[:,left-2])[:,None]*np.arange(right-left)[None,:] \
+                            + img[:,left-2][:,None]
+        return
+    # Interpolate
+    img[:,left:right] = np.divide(img[:,right]-img[:,left-1],right-left+1)[:,None] \
+                            * (np.arange(right-left)+1)[None,:] + img[:,left-1][:,None]
+
+
+def old_replace_columns(img, bad_cols, replace_with='mean'):
     """ Replace bad columns with values from the neighbors
 
     Parameters
@@ -737,8 +859,9 @@ def replace_columns(img, bad_cols, replace_with='mean'):
         redges = np.concatenate([redges, np.array([bad_cols.size-1])])
     # Loop on em
     for kk, ledge in enumerate(ledges):
-        lval = img[:,ledge-1]
-        rval = img[:,redges[kk]]
+        lval = img[:,redges[kk]+1] if ledge == 0 else img[:,ledge-1]
+        rval = img[:, redges[kk]]
+        # First columns?
         # Replace
         if replace_with == 'mean':
             mval = (lval+rval)/2.
@@ -776,6 +899,7 @@ def trim_frame(frame, mask):
         msgs.error('Data section is oddly shaped.  Trimming does not exclude all '
                    'pixels outside the data sections.')
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
+
 
 #def trim(frame, numamplifiers, datasec):
 #    """ Core method to trim an input image
