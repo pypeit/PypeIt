@@ -1,5 +1,8 @@
-0.9.4dev
---------
+0.10.1dev
+---------
+
+0.10.0 (21 May 2019)
+--------------------
 
 - Enable PyPI
 - Streamline some of the instantiation at the beginning of
