@@ -1,5 +1,7 @@
-0.10.1dev
----------
+0.10.1 (22 May 2019)
+--------------------
+
+- Minor bug fix to allow for `None` exposure times when typing frames.
 
 0.10.0 (21 May 2019)
 --------------------
