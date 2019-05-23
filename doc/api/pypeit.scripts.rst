@@ -14,7 +14,6 @@ Submodules
    pypeit.scripts.flux_spec
    pypeit.scripts.lowrdx_pixflat
    pypeit.scripts.lowrdx_skyspec
-   pypeit.scripts.orig_flux_spec
    pypeit.scripts.qa_html
    pypeit.scripts.run_pypeit
    pypeit.scripts.setup
