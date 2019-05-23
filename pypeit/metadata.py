@@ -20,7 +20,6 @@ from pypeit.core import flux
 from pypeit.core import parse
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
-from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
 
 from pypeit import debugger
