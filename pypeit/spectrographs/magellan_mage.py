@@ -3,6 +3,7 @@
 import numpy as np
 
 from astropy.time import Time
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -201,10 +202,14 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for MAGE")
         self.empty_bpm(shape=shape, filename=filename, det=det)
-        if det == 1:
-            self.bpm_img[:, :20] = 1.
-            self.bpm_img[:, 1000:] = 1.
-
+        # Get the binning
+        hdu = fits.open(filename)
+        binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
+        hdu.close()
+        # Do it
+        self.bpm_img[:, :10//binspatial] = 1.
+        self.bpm_img[:, 1020//binspatial:] = 1.
+        # Return
         return self.bpm_img
 
     @staticmethod
@@ -237,10 +242,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         pad = tslits_dict['pad'] if pad is None else pad
         slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
 
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
-        slitmask[order7bad] = -1
         return slitmask
 
     def slit_minmax(self, nfound, binspectral=1):
@@ -311,7 +312,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         #binspatial, binspectral = parse.parse_binning(binning)
         if norders is None:
             norders = self.norders
-        return np.full(norders, 0.15)
+        binspatial, binspec = parse.parse_binning(binning)
+        return np.full(norders, 0.15*binspatial)
 
     def order_vec(self, norders=None):
         if norders is None:
