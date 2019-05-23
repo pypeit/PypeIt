@@ -203,22 +203,3 @@ class WaveImage(MasterFrame):
         # https://stackoverflow.com/questions/26788214/super-and-staticmethod-interaction
         return MasterFrame.load_from_file(filename, 'WAVE', return_header=return_header)
 
-# TODO: Use WaveImage.load_from_file(filename)
-#def load_waveimage(filename):
-#    """
-#    Utility function which enables one to load the waveimage from a master file in one line of code without
-#    instantiating the class.
-#
-#    Args:
-#        filename (str): Master file name
-#
-#    Returns:
-#        dict:  The trace slits dict
-#
-#    """
-#
-#    waveImage = WaveImage(None, None, None, None, None)
-#    waveimage, _ = waveImage.load_master(filename)
-#
-#    return waveimage
-

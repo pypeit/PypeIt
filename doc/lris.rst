@@ -25,8 +25,8 @@ See :ref:`trace-slit-number` for further details.
 
 .. _LRISb:
 
-LRISb
-=====
+Taking Calibrations for LRISb
+=============================
 
 
 Default Settings
@@ -63,8 +63,8 @@ and set the following in the :ref:`_reduce-block` of the PypeIt file::
     reduce flatfield useframe MF_lris_blue/PypeIt_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
 
 
-LRISr
-=====
+Taking Calibrations for LRISr
+=============================
 
 Default Settings
 ++++++++++++++++

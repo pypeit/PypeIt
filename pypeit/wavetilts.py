@@ -46,7 +46,7 @@ class WaveTilts(masterframe.MasterFrame):
         msbpm (`numpy.ndarray`_, optional):
             Bad pixel mask.  If not provided, a dummy array with no
             masking is generated.
-        
+
 
     Attributes:
         frametype : str
@@ -312,7 +312,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
-        gdslits = np.where(self.mask == 0)[0]
+        gdslits = np.where(np.invert(self.mask))[0]
 
         # Final tilts image
         self.final_tilts = np.zeros(self.shape_science,dtype=float)
@@ -330,9 +330,12 @@ class WaveTilts(masterframe.MasterFrame):
         for slit in gdslits:
             msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslits-1))
             # Identify lines for tracing tilts
-            self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit],
-                                                               self.slitcen[:,slit], slit,
-                                                               debug=debug)
+            self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
+            if self.lines_spec is None:
+                self.mask[slit] = True
+                maskslits[slit] = True
+                continue
+
             thismask = self.slitmask == slit
             # Trace
             self.trace_dict = self.trace_tilts(self.msarc, self.lines_spec, self.lines_spat,
@@ -392,7 +395,7 @@ class WaveTilts(masterframe.MasterFrame):
         #   - Tilts metadata
         hdr['FUNC2D'] = self.tilts_dict['func2d']
         hdr['NSLIT'] =  self.tilts_dict['nslit']
-        
+
         # Write the fits file
         fits.HDUList([fits.PrimaryHDU(header=hdr),
                       fits.ImageHDU(data=self.tilts_dict['tilts'], name='TILTS'),
@@ -407,7 +410,7 @@ class WaveTilts(masterframe.MasterFrame):
         Load the tilts data.
 
         This is largely a wrapper for :func:`pypeit.wavetilts.WaveTilts.load_from_file`.
-        
+
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
@@ -430,7 +433,7 @@ class WaveTilts(masterframe.MasterFrame):
             # User does not want to load masters
             msgs.warn('PypeIt will not reuse masters!')
             return empty_return
-        
+
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
             msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
@@ -446,7 +449,7 @@ class WaveTilts(masterframe.MasterFrame):
         """
         Load the tilts data, without the benefit of the rest of the
         class.
-        
+
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
@@ -524,60 +527,6 @@ class WaveTilts(masterframe.MasterFrame):
                          sedges=(self.tslits_dict['slit_left'][:,slit],
                          self.tslits_dict['slit_righ'][:,slit]), points=True, clear_canvas=True)
 
-        # TODO Need to update the show function!
-
-        """
-        # ToDO I don't see why we are not looping over all slits for all of this. Why should we restrict to an individual fit?
-        if (self.tslits_dict['slit_left'] is not None) and (slit is not None):
-            sedges=(self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:,slit])
-        else:
-            sedges = None
-        if attr == 'fweight':
-            if slit is None:
-                msgs.error("Need to provide the slit with this option")
-            ginga.chk_arc_tilts(self.msarc, self.all_trcdict[slit],
-                                sedges=sedges)
-            msgs.info("Green = ok line;  red=not used")
-        elif attr == 'model':
-            if slit is None:
-                msgs.error("Need to provide the slit with this option")
-            tmp = self.all_trcdict[slit-1].copy()
-            tmp['xtfit'] = self.all_trcdict[slit-1]['xmodel']
-            tmp['ytfit'] = self.all_trcdict[slit-1]['ymodel']
-            ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True)
-        elif attr in ['arcmodel']:
-            if slit is None:
-                msgs.error("Need to provide the slit with this option")
-            tmp = self.all_trcdict[slit].copy()
-            tmp['xtfit'] = []
-            tmp['ytfit'] = []
-
-            ynorm = np.outer(np.linspace(0., 1., self.msarc.shape[0]), np.ones(self.msarc.shape[1]))
-            polytilts = (ynorm-self.tilts)*(self.msarc.shape[0]-1)
-            # arcdet is only the approximately nearest pixel (not even necessarily)
-            for idx in np.where(self.all_trcdict[slit-1]['aduse'])[0]:
-                xnow = np.arange(self.msarc.shape[1])
-                if self.all_ttilts is not None:  # None if read from disk
-                    xgd = self.all_trcdict[slit-1]['xtfit'][idx][self.all_trcdict[slit]['xtfit'][idx].size//2]
-                    ycen = self.all_ttilts[slit-1][1][int(xgd),idx]
-                else:
-                    ycen = self.all_trcdict[slit-1]['ycen'][idx]
-                ynow = ycen + polytilts[int(ycen),:]
-                # Only plot the xnow, ynow values that are on this slit
-                onslit = (slitmask[int(np.rint(xnow)),int(np.rint(ynow))]) == slit
-                tmp['xtfit'].append(xnow[onslit])
-                tmp['ytfit'].append(ynow[onslit])
-
-            # Show
-            msgs.warn("Display via tilts is not exact")  # Could make a correction.  Probably is close enough
-            ginga.chk_arc_tilts(self.msarc, tmp, sedges=sedges, all_green=True, cname=cname)
-        elif attr == 'final_tilts':
-            if self.final_tilts is not None:
-                ginga.show_image(self.final_tilts)
-        else:
-            msgs.error('Unrecognized attribute')
-        """
-
     def __repr__(self):
         # Generate sets string
         txt = '<{:s}: '.format(self.__class__.__name__)
@@ -588,23 +537,4 @@ class WaveTilts(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
-
-
-# Use WaveTilts.load_from_file
-#def load_tilts(filename):
-#    """
-#    Utility function which enables one to load the tilts from a master file in one line of code without
-#    instantiating the class.
-#
-#    Args:
-#        filename (str): Master file name
-#
-#    Returns:
-#        dict:  The trace slits dict
-#
-#    """
-#
-#    waveTilts = WaveTilts(None, None, None, None, None)
-#    tilts_dict, _ = waveTilts.load_master(filename)
-#    return tilts_dict['tilts']
 

@@ -145,25 +145,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             self.steps.append(inspect.stack()[0][3])
         return self.rawflatimg
 
-#    def _prep_tck(self):
-#        """
-#        Setup for the bspline fitting
-#
-#        Wrapper to flat.prep_ntck
-#
-#        :attr:`ntckx` -- Number of knots in the spatial dimension
-#        :attr:`ntcky` -- Number of knots in the spectral dimension
-#
-#        """
-#        # Step
-#        self.steps.append(inspect.stack()[0][3])
-#        self.ntckx, self.ntcky = flat.prep_ntck(self.tslits_dict['pixwid'],
-#                                                  method=self.flatpar['method'],
-#                                                  params=self.flatpar['params'],
-#                                                  get_slitprofile=self.flatpar['slitprofile'])
-
     # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
-    def run(self, debug=False, show=False):
+    def run(self, debug=False, show=False, maskslits=None):
         """
         Generate normalized pixel and illumination flats
 
@@ -180,12 +163,19 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                 Run in debug mode.
             show (:obj:`bool`, optional):
                 Show the results in the ginga viewer.
+            maskslits (np.ndarray, optional):
+               Array specifying whether a slit is good.
+               True = bad
 
         Returns:
             `numpy.ndarray`_: Two arrays are returned, the normalized
             pixel flat data and the slit illumination correction data.
         """
-        # Build the pixel flat
+        # Mask
+        if maskslits is None:
+            maskslits = np.zeros(self.nslits, dtype=bool)
+
+        # Build the pixel flat (as needed)
         self.build_pixflat()
 
         # Prep tck (sets self.ntckx, self.ntcky)
@@ -206,6 +196,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Loop on slits
         for slit in range(self.nslits):
+            # Is this a good slit??
+            if maskslits[slit]:
+                msgs.info('Skipping bad slit: {}'.format(slit))
+                continue
+            #
             msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
             if self.msbpm is not None:
                 inmask = np.invert(self.msbpm)
@@ -283,29 +278,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
                                 for ii in range(self.tslits_dict['slit_left'].shape[1])]
                 ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'],
                                  self.tslits_dict['slit_righ'], slit_ids)
-
-
-#    # TODO JFH: This load_master_illumflat code is a bit of a kludge.
-#    # Usually one reads in masters with the master and load_master
-#    # method, but there are technically two master files for the flats,
-#    # i.e. a pixelflat and illumination flat. Perhaps the better way to
-#    # deal with this would be to package them into one output file and
-#    # just change the load_master and save_master methods to deal with
-#    # the possible existence of an illumination flat
-#    def load_master_illumflat(self):
-#        """
-#        Load the slit illumination profile from a saved Master file
-#
-#        Returns:
-#            ndarray: Image from disk
-#
-#        """
-#        ms_name = masterframe.master_name('illumflat', self.master_key, self.mdir)
-#        msframe, head = self.load_master(ms_name)
-#        if msframe is None:
-#            msgs.warn("No Master frame found of type {:s}: {:s}".format('illumflat', ms_name))
-#
-#        return msframe, head
 
     def save(self, outfile=None, overwrite=True):
         """

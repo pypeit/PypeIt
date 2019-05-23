@@ -245,36 +245,6 @@ class PypeItMetaData:
         # Return
         return meta_data_model
 
-#    def _add_bkg_pairs(self, data, bkg_pairs):
-#        """
-#        Add the background-pair columns to the table.
-#        
-#        This include two columns called `comb_id` and `bkg_id` that
-#        identify object and background frame pairs.  The string
-#        indicates how these these columns should be added::
-#
-#            - `empty`: The columns are added but their values are all
-#              originally set to -1.  **This is currently the only
-#              option.**
-#
-#        Args:
-#            data (:obj:`dict`):
-#                The current data table.  *This is edited in place.*
-#            bkg_pairs (:obj:`str`):
-#                The method to use for including these pairs.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if the method selected to add the pairs is not
-#                defined.
-#        """
-#        numfiles = len(data['filename'])
-#        if bkg_pairs == 'empty':
-#            data['comb_id'] = [-1]*numfiles
-#            data['bkg_id'] = [-1]*numfiles
-#            return
-#        msgs.error('{0} not a defined method for the background pair columns.'.format(bkg_pairs))
-
     def _build(self, files, strict=True, usrdata=None):
         """
         Generate the fitstbl that will be at the heart of PypeItMetaData.
@@ -391,6 +361,7 @@ class PypeItMetaData:
         return manual_extract_dict
 
 
+    # TODO: Should this be removed?
     '''
     def update_par(self, par):
 

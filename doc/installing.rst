@@ -25,9 +25,9 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 
 * `python <http://www.python.org/>`_ version 3.6 or later
 * `numpy <http://www.numpy.org/>`_ version 1.15.4 or later
-* `astropy <http://www.astropy.org/>`_ version 3.0 or later
+* `astropy <http://www.astropy.org/>`_ version 3.1 or later
 * `scipy <http://www.scipy.org/>`_ version 1.1 or later
-* `matplotlib <http://matplotlib.org/>`_  version 2.1 or later
+* `matplotlib <http://matplotlib.org/>`_  version 3.0 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
@@ -96,7 +96,9 @@ then type run_pypeit.::
 2. Run the PypeIt unit tests
 ----------------------------
 
-Enter the PypeIt directory and do::
+If you cloned the Repo (i.e., not PyPI),
+then you can run the
+standard tests by doing::
 
     python setup.py test
 

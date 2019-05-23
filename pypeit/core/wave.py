@@ -280,6 +280,10 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
     # Loop on objects
     flex_list = []
+
+    # Slit/objects to come back to
+    return_later_sobjs = []
+
     # Loop over slits, and then over objects here
     for slit in range(nslits):
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(slit))
@@ -293,7 +297,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
         if slit not in gdslits:
             flex_list.append(flex_dict.copy())
             continue
-        for specobj in this_specobjs:
+        for ss, specobj in enumerate(this_specobjs):
             if specobj is None:
                 continue
             msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.slitid))
@@ -309,41 +313,52 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
             # Calculate the shift
             fdict = flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
+            punt = False
             if fdict is None:
                 msgs.warn("Flexure shift calculation failed for this spectrum.")
                 if sv_fdict is not None:
                     msgs.warn("Will used saved estimate from a previous slit/object")
                     fdict = copy.deepcopy(sv_fdict)
                 else:
-                    msgs.warn("No previous good solution.  Punting on this object")
-                    continue
+                    # One does not exist yet
+                    # Save it for later
+                    return_later_sobjs.append([slit, ss])
+                    punt = True
             else:
                 sv_fdict = copy.deepcopy(fdict)
 
-            # Simple interpolation to apply
-            npix = len(sky_wave)
-            x = np.linspace(0., 1., npix)
-            # Apply
-            for attr in ['boxcar', 'optimal']:
-                if not hasattr(specobj, attr):
-                    continue
-                if 'WAVE' in getattr(specobj, attr).keys():
-                    msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
-                              msgs.newline() + "{0:s}".format(str(specobj)))
-                    f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                    getattr(specobj, attr)['WAVE'] = f(x+fdict['shift']/(npix-1))*units.AA
-            # Shift sky spec too
-            cut_sky = fdict['sky_spec']
-            x = np.linspace(0., 1., cut_sky.npix)
-            f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-            twave = f(x + fdict['shift']/(cut_sky.npix-1))*units.AA
-            new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
+            # Punt?
+            if punt:
+                break
 
+            # Interpolate
+            new_sky = specobj.flexure_interp(sky_wave, fdict)
             # Update dict
             for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                 flex_dict[key].append(fdict[key])
             flex_dict['sky_spec'].append(new_sky)
+
         flex_list.append(flex_dict.copy())
+
+        # Do we need to go back?
+        for items in return_later_sobjs:
+            if sv_fdict is None:
+                msgs.info("No flexure corrections could be made")
+                break
+            # Setup
+            slit, ss = items
+            flex_dict = flex_list[slit]
+            specobj = specobjs[ss]
+            sky_wave = specobj.boxcar['WAVE'] #.to('AA').value
+            # Copy me
+            fdict = copy.deepcopy(sv_fdict)
+            # Interpolate
+            new_sky = specobj.flexure_interp(sky_wave, fdict)
+            # Update dict
+            for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
+                flex_dict[key].append(fdict[key])
+            flex_dict['sky_spec'].append(new_sky)
+
     return flex_list
 
 
@@ -592,20 +607,19 @@ def vactoair(wave):
     return new_wave
 
 # TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
+#  AND THIS IS WHY THE CODE IS CRASHING
 def flexure_qa(specobjs, maskslits, basename, det, flex_list,
                slit_cen=False, out_dir=None):
-    """ QA on flexure measurement
+    """
 
-    Parameters
-    ----------
-    det
-    flex_list : list
-      list of dict containing flexure results
-    slit_cen : bool, optional
-      QA on slit center instead of objects
-
-    Returns
-    -------
+    Args:
+        specobjs:
+        maskslits (np.ndarray):
+        basename (str):
+        det (int):
+        flex_list (list):
+        slit_cen:
+        out_dir:
 
     """
     plt.rcdefaults()
