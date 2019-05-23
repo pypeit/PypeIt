@@ -121,10 +121,10 @@ def test_chk_lris_red_slits():
 @cooked_required
 def test_chk_deimos_slits():
     """ This tests slit finding for DEIMOS """
-    for nslit, binning, det, root in zip([27],
+    for nslit, binning, det, root in zip([23],
                                          [(1,1)],
                                          [3],
-                                         ['MasterTrace_KeckDEIMOS_830G_8600_det3.fits',
+                                         ['MasterTrace_KeckDEIMOS_830G_8500_det3.fits',
                                           ]):
         mstrace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)
         assert chk_for_files(mstrace_file)
