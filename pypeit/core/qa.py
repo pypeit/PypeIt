@@ -43,7 +43,7 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'QA/PNGs/Slit_Profile_{:s}_'.format(root)
     elif method == 'arc_fit_qa':
 #        outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
-        outfile = 'QA/PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
+        outfile = 'PNGs/Arc_1dfit_{:s}_S{:04d}.png'.format(root, slit)
     elif method == 'plot_orderfits_Arc':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Arc_lines_{:s}_S{:04d}_'.format(root, slit)
     elif method == 'arc_fit2d_global_qa':
