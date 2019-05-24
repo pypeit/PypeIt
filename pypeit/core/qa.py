@@ -302,7 +302,7 @@ def html_exp_pngs(exp_name, det):
 
     # Generate HTML
     for key in ['trace', 'prof', 'flex_corr', 'flex_sky']:
-        png_root = set_qa_filename(exp_name, html_dict[key]['fname'], det=det, slit=9999)
+        png_root = set_qa_filename(exp_name, html_dict[key]['fname'], det=det, slit=9999, out_dir='QA')
         if html_dict[key]['slit']:  # Kludge to handle multiple slits
             png_root = png_root.replace('S9999', 'S*')
         pngs = glob.glob(png_root+html_dict[key]['ext'])
