@@ -21,7 +21,6 @@ from pypeit.bitmask import BitMask
 from pypeit.core import pydl
 from pypeit.core import procimg
 from pypeit.core import arc
-#from pypeit.core import extract
 from pypeit import utils
 from pypeit import ginga
 from pypeit import masterframe
@@ -30,6 +29,8 @@ from pypeit.traceimage import TraceImage
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import TraceSlitsPar
 from pypeit import io
+
+from pypeit import moment
 
 # TODO: This should go in util
 def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
@@ -1163,9 +1164,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Args:
             width (:obj:`float`, `numpy.ndarray`_, optional):
-                The size of the window about the provided starting
-                center for the moment integration window. See
-                :func:`recenter_moment`.
+                The width about the provided starting center for the
+                moment integration window. See :func:`pypeit.moment.moment1d`.
             maxshift_start (:obj:`float`, optional):
                 Maximum shift in pixels allowed for the adjustment of
                 the first row analyzed, which is the row that has the
@@ -1176,7 +1176,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 analyzed.  If None, use :attr:`par['maxshift']`.
             maxerror (:obj:`float`, optional):
                 Maximum allowed error in the adjusted center of the
-                trace returned by :func:`recenter_moment`.
+                trace returned by :func:`pypeit.moment.moment1d`.
             continuous (:obj:`bool`, optional):
                 Keep only the continuous part of the traces from the
                 starting row.
@@ -1203,6 +1203,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         ivar = np.ones_like(self.sobel_sig, dtype=float)
         _mask = np.zeros_like(self.sobel_sig, dtype=bool) \
                     if self.trace_msk is None else self.trace_msk
+        fwgt = np.ones_like(self.sobel_sig, dtype=float)
 
         # Book-keeping objects to keep track of which traces have been
         # analyzed and which ones should be removed
@@ -1245,7 +1246,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 print('Tracing')
                 cen[:,indx], err[:,indx], msk[:,indx] \
                         = follow_trace_moment(_sobel_sig, start_row, self.spat_img[start_row,indx],
-                                              ivar=ivar, mask=_mask, width=width,
+                                              ivar=ivar, mask=_mask, fwgt=fwgt, width=width,
                                               maxshift_start=maxshift_start,
                                               maxshift_follow=_maxshift_follow,
                                               maxerror=maxerror, continuous=continuous,
@@ -1636,10 +1637,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit_type = '{0} : order={1}'.format(_function, _order)
         self.spat_img = np.round(self.spat_fit).astype(int)
         # TODO: Flag pixels with a bad_trace (bad moment measurement)?
-        # fit_trace (really recenter_moment) replaces any bad
-        # measurement with the input center value, so may not want to
-        # flag them. Flagging would likely mean that the traces would
-        # be ignored in subsequent analysis...
+        # moment1d replaces any bad measurement with the input center
+        # value, so may not want to flag them. Flagging would likely
+        # mean that the traces would be ignored in subsequent
+        # analysis...
 
     def build_pca(self, npca=None, pca_explained_var=99.8, order=3, function='polynomial',
                   lower=3.0, upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25,
@@ -1672,7 +1673,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         minimum_length=0.9
         # TODO: Is there a way to propagate the mask to the PCA?
         # TODO: Keep a separate mask specifically for the fit data?
-        use_trace = np.sum(trace_mask, axis=0)/self.nspec > minimum_length
+        use_trace = np.sum(np.invert(trace_mask), axis=0)/self.nspec > minimum_length
+        if np.sum(use_trace) < 2:
+            msgs.error('Insufficient traces for PCA decomposition.')
         trace_inp = self.spat_cen[:,use_trace] if self.spat_fit is None or use_center \
                         else self.spat_fit[:,use_trace]
         msgs.info('Using {0}/{1} traces in the PCA analysis (omitting short traces).'.format(
@@ -2556,226 +2559,6 @@ def most_common_trace_row(trace_mask):
     return Counter(np.where(np.invert(trace_mask))[0]).most_common(1)[0][0]
 
 
-def recenter_moment(flux, xcen, ivar=None, mask=None, ycen=None, weighting='uniform', width=3.0,
-                    fill_error=-1.):
-    r"""
-    Determine weighted centroids of features in a flux image using a
-    first-moment calculation.
-
-    Although the input image must be 2D, the calculation is 1D along
-    its second axis (axis=1). Specifically, the provided centers
-    (:math:`\mu`) and center errors (:math:`\epsilon_\mu`) are
-
-    .. math::
-
-        \mu &= \frac{\sum_i x_i w_i f_i }{\sum_i w_i f_i} \\
-        \epsilon_\mu^2 &= \left(\sum_i w_i f_i\right)^{-2}\
-                          \sum_i \left[ w_i \epsilon_{f,i}
-                                      (x_i - \mu)]^2
-
-    where :math:`x` is the pixel position along the 2nd axis,
-    :math:`f` is the flux in that pixel, and :math:`\epsilon_f` is
-    the flux error. The weights applied are determined by the
-    `weighting` keyword argument (see below).
-
-    The method uses numpy masked arrays to keep track of errors in
-    the calculation, likely due to math errors such as divisions by
-    0. The returned boolean array indicates when these errors
-    occurred, and the method replaces these errors with the original
-    centers.
-
-    This is a consolidation of the functionality in trace_fweight.pro
-    and trace_gweight.pro from IDLUTILS.
-
-    Revision history:
-        - 24-Mar-1999  Written by David Schlegel, Princeton.
-        - 27-Jun-2018  Ported to python by X. Prochaska and J. Hennawi
-
-    Args:
-        flux (`numpy.ndarray`_):
-            Intensity image with shape (ny, nx).
-        xcen (`numpy.ndarray`_):
-            Initial guesses for centroid. This can either be an 2-d
-            array with shape (ny, nc) array, or a 1-d array with
-            shape (nc), where nc is the number of coordinates along
-            the 2nd axis to recenter.
-        ivar (`numpy.ndarray`_, optional):
-            Inverse variance of the image intensity.  If not provided,
-            unity variance is used.  If provided, must have the same
-            shape as `flux`.
-        mask (`numpy.ndarray`_, optional):
-            Mask for the input image.  True values are ignored, False
-            values are included.  If not provided, all pixels are
-            included.  If provided, must have the same shape as
-            `flux`.
-        ycen (:obj:`int`, `numpy.ndarray`_, optional):
-            Integer or integer array with the position along the 0th
-            axis for the recentering. If None, assume `np.arange(ny)`
-            for each coordinate (nc) in `xcen`. If a single number,
-            assume the value is identical for all `xcen`. Otherwise,
-            must have the same shape as `xcen`.
-        weighting (:obj:`str`, optional):
-            The weighting to apply to the position within each
-            integration window (see `width` below). This must be
-            (case-sensitive) either 'uniform' for uniform weighting
-            or 'gaussian' for weighting by a Gaussian centered at the
-            input guess coordinates and integrated over the pixel
-            width.
-        width (:obj:`float`, `numpy.ndarray`_, optional):
-            This can be a scalar for a fixed window size or an array
-            for a coordinate-dependent integration window. If an
-            array is provided, it must have the same shape as
-            `xcen`. The meaning of the parameter is dependent on the
-            value of `weighting` (see above)::
-
-                - `weighting=='uniform'`: The width of the
-                integration window (along 2nd axis) centered at the
-                input guess coordinate.
-                - `weighting=='gaussian'`: The sigma of the Gaussian
-                to use for the weighting. The width of the
-                integration window (along 2nd axis) centered at the
-                input guess coordinate is always 6*width (half-width
-                is :math:`3\sigma`).
-
-        fill_error (:obj:`float`, optional):
-            Value to use as filler for undetermined centers, resulting
-            from either the input mask or computational issues (division
-            by zero, etc.; see return description below).
-
-    Returns:
-        Three `numpy.ndarray`_ objects are returned, all with the same
-        shape as the input coordinates (`xcen`)::
-            - The centroid of the flux distribution along the 2nd
-            axis of the input image. Masked values (indicated by the
-            third object returned) are identical to the input values.
-            - The formal propagated error (see equation above) on the
-            centroids. Errors are only meaningful if `ivar` is
-            provided. Masked values (indicated by the third object
-            returned) are set to `fill_error`.
-            - A boolean mask for output data; True values should be
-            ignored, False values are valid measurements.
-
-    Raises:
-        ValueError:
-            Raised if input shapes are not correct.
-    """
-    # TODO: There's a lot of setup overhead to make this a general
-    # function. If multiple calls to the function are expected, should
-    # gain by only doing this setup once for a given image...
-    
-    if weighting not in ['uniform', 'gaussian']:
-        # TODO: Make it case insensitive?
-        raise ValueError('Weighting must be uniform or gaussian')
-
-    # Check the input images
-    _ivar = np.ones_like(flux) if ivar is None else ivar
-    if _ivar.shape != flux.shape:
-        raise ValueError('Inverse variance must have the same shape as the input image.')
-    _mask = np.zeros_like(flux, dtype=bool) if mask is None else mask
-    if _mask.shape != flux.shape:
-        raise ValueError('Pixel mask must have the same shape as the input image.')
-
-    # Process coordinate input
-    ny, nx = flux.shape
-    _xcen = np.atleast_1d(xcen)       # If entered as a numpy array, the array is not a copy
-    ndim = _xcen.ndim
-    if ndim > 2:
-        raise ValueError('X center array must be 1 or 2 dimensional')
-    dim = _xcen.shape
-    npix = dim[0]
-    if dim == 2 and npix > ny:
-        # TODO: Is this test necessary?
-        raise ValueError('More locations to trace ({0}) than pixels in the image ({1})!'.format(
-                            npix,ny))
-    ntrace = 1 if ndim == 1 else dim[1]
-
-    _width = np.atleast_1d(width)     # If entered as a numpy array, the array is not a copy
-    if _width.size > 1 and _width.shape == _xcen.shape:
-        raise ValueError('Radius must a be either an integer, a floating point number, or an '
-                         'ndarray with the same shape and size as xcen.')
-
-    # Copy and normalize the shape of the input (flatten creates a
-    # copy); the width needs to be an array for the compressed
-    # calculation below.
-    _xcen = _xcen.flatten().astype(float)
-    _width = _width.flatten().astype(float) if _width.size > 1 \
-                else np.full(_xcen.size, _width[0], dtype=float)
-
-    # The "radius" of the pixels to cover is either half of the
-    # provided width for uniform weighting or 3*width for Gaussian
-    # weighting, where width is the sigma of the Gaussian
-    _radius = _width/2 if weighting == 'uniform' else _width*3
-
-    # Set the row locations for the recentering
-    # TODO: Check that this does not ovewrite ycen
-    if ycen is None:
-        _ycen = np.arange(npix, dtype=int) if ndim == 1 else np.tile(np.arange(npix), (ntrace,1)).T
-    elif not hasattr(ycen, '__len__'):
-        # This is specifically set to be the same size as the input
-        # xcen (not _xcen)
-        _ycen = np.full_like(xcen, ycen, dtype=int)
-    else:
-        _ycen = np.asarray(ycen)
-    if np.amin(_ycen) < 0 or np.amax(_ycen) > ny-1:
-        raise ValueError('Input ycen values will run off the image')
-    _ycen = _ycen.astype(int).flatten()
-
-    # Check the sizes match
-    if _xcen.size != _ycen.size:
-        raise ValueError('Number of elements in xcen and ycen must be equal')
-
-    # Window for the integration for each coordinate; definition the
-    # same as in extract_aperture()
-    ix1 = np.floor(_xcen - _radius + 0.5).astype(int)
-    ix2 = np.floor(_xcen + _radius + 0.5).astype(int)
-    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+4
-#    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))
-#    if weighting == 'uniform':
-#        fullpix += 3        # To match trace_fweight
-    x = ix1[:,None]-1+np.arange(fullpix)[None,:]
-    ih = np.clip(x,0,nx-1)
-
-    # Set the weight over the window; masked pixels have 0 weight
-    good = (x >= 0) & (x < nx) & np.invert(_mask[_ycen[:,None],ih]) \
-                 & (_ivar[_ycen[:,None],ih] > 0)
-    if weighting == 'uniform':
-        # Weight according to the fraction of each pixel within in the
-        # integration window
-        wt = good * np.clip(_radius[:,None] - np.abs(x - _xcen[:,None]) + 0.5,0,1)
-    else:
-        # Weight according to the integral of a Gaussian over the pixel
-        coo = x - _xcen[:,None]
-        wt = good * (special.erf((coo+0.5)/np.sqrt(2.)/_width[:,None])
-                        - special.erf((coo-0.5)/np.sqrt(2.)/_width[:,None]))/2.
-
-    # Weight the image data
-    fwt = flux[_ycen[:,None],ih] * wt
-    # Get the weighted center ...
-    sumw = np.sum(fwt, axis=1)
-    mu = np.ma.divide(np.sum(fwt*x, axis=1), sumw)
-    # ... and the formal error
-    mue = np.ma.divide(np.ma.sqrt(np.ma.sum(
-                       np.ma.divide(np.square(wt*(x-mu[:,None])), _ivar[_ycen[:,None],ih]),
-                       axis=1)), np.absolute(sumw))
-
-    # Replace any bad calculations with the input value
-    # TODO: Include error mask (mue.mask as done below) or ignore
-    # problems in the error calculation?
-    bad = mu.mask | mue.mask
-    mu[bad] = _xcen[bad]
-    mue[bad] = fill_error
-
-    # Reshape to the correct size for output if more than one trace was
-    # input
-    if ndim > 1:
-        mu = mu.reshape(npix, ntrace)
-        mue = mue.reshape(npix, ntrace)
-        bad = bad.reshape(npix, ntrace)
-
-    # Make sure to return unmasked arrays
-    return mu.data, mue.data, bad
-
-
 def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     """
     Prepare the Sobel filtered image for tracing.
@@ -2815,7 +2598,7 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     return boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
 
 
-def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, width=6.0,
+def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, fwgt=None, width=6.0,
                         maxshift_start=0.5, maxshift_follow=0.15, maxerror=0.2, continuous=True,
                         bitmask=None):
     """
@@ -2828,13 +2611,13 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, width=
 
     Importantly, this function does not treat each row independently
     (as would be the case for a direct call to
-    :func:`recenter_moment` for trace positions along all rows), but
-    treats the calculation of the centroids sequentially where the
-    result for each row is dependent and starts from the result from
-    the previous row. The only independent measurement is the one
-    performed at the input `start_row`. This function is much slower
-    than :func:`recenter_moment` because of this introduced
-    dependency.
+    :func:`pypeit.moment.moment1d` for trace positions along all
+    rows), but treats the calculation of the centroids sequentially
+    where the result for each row is dependent and starts from the
+    result from the previous row. The only independent measurement is
+    the one performed at the input `start_row`. This function is much
+    slower than :func:`pypeit.moment.moment1d` because of this
+    introduced dependency.
 
     Args:
         flux (`numpy.ndarray`_):
@@ -2862,10 +2645,13 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, width=
             A boolean mask used to ignore pixels in the weight image.
             Pixels to ignore are masked (`mask==True`), pixels to
             analyze are not masked (`mask==False`)
+        fwgt (`numpy.ndarray`_, optional):
+            An additional weight to apply to each pixel in `flux`.  If
+            None, weights are uniform.
         width (:obj:`float`, `numpy.ndarray`_, optional):
             The size of the window about the provided starting center
             for the moment integration window. See
-            :func:`recenter_moment`.
+            :func:`pypeit.moment.moment1d`.
         maxshift_start (:obj:`float`, optional):
             Maximum shift in pixels allowed for the adjustment of the
             first row analyzed, which is the row that has the most
@@ -2876,7 +2662,7 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, width=
             analyzed.
         maxerror (:obj:`float`, optional):
             Maximum allowed error in the adjusted center of the trace
-            returned by :func:`recenter_moment`.
+            returned by :func:`pypeit.moment.moment1d`.
         continuous (:obj:`bool`, optional):
             Keep only the continuous part of the traces from the
             starting row.
@@ -2898,6 +2684,13 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, width=
     # Shape of the image with pixel weights
     nr, nc = flux.shape
 
+    # Instantiate theses supplementary arrays here to speed things up
+    # in iterative calling of moment1d. moment1d will check the array
+    # sizes.
+    _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
+    _mask = np.zeros_like(flux, dtype=bool) if mask is None else mask
+    _fwgt = np.ones_like(flux, dtype=float) if fwgt is None else fwgt
+
     # Number of starting coordinates
     _cen = np.atleast_1d(start_cen)
     nt = _cen.size
@@ -2916,21 +2709,21 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, width=
 
     # Recenter the starting row
     i = start_row
-    xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i,:], flux, ivar, mask, width,
+    xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i,:], flux, _ivar, _mask, _fwgt, width,
                                                     maxshift=maxshift_start, maxerror=maxerror,
                                                     bitmask=bitmask)
 
     # Go to higher indices using the result from the previous row
     for i in range(start_row+1,nr):
-        xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i-1,:], flux, ivar, mask, width,
-                                                        maxshift=maxshift_follow,
+        xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i-1,:], flux, _ivar, _mask, _fwgt,
+                                                        width, maxshift=maxshift_follow,
                                                         maxerror=maxerror, bitmask=bitmask)
 
     # Go to lower indices using the result from the previous row
     for i in range(start_row-1,-1,-1):
-        xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i+1,:], flux, ivar, mask, width,
-                                                       maxshift=maxshift_follow,
-                                                       maxerror=maxerror, bitmask=bitmask)
+        xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i+1,:], flux, _ivar, _mask, _fwgt,
+                                                        width, maxshift=maxshift_follow,
+                                                        maxerror=maxerror, bitmask=bitmask)
 
     # TODO: Add a set of criteria the determine whether a trace is or is not continuous...
 
@@ -2960,47 +2753,49 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, width=
     return xc, xe, xm
 
 
-def _recenter_trace_row(row, cen, flux, ivar, mask, width, maxshift=None, maxerror=None,
+def _recenter_trace_row(row, cen, flux, ivar, mask, fwgt, width, maxshift=None, maxerror=None,
                         bitmask=None, fill_error=-1):
     """
     Recenter the trace along a single row.
 
     This method is not meant for general use; it is a support method
     for :func:`follow_trace_moment`. The method executes
-    :func:`recenter_moment` (with uniform weighting) for the
+    :func:`pypeit.moment.moment1d` (with uniform weighting) for the
     specified row (spectral position) in the image, imposing a
     maximum difference with the input and centroid error, and asseses
     the result. The assessments are provided as either boolean flags
     or mask bits, depending on the value of `bitmask` (see below).
 
-    Measurements flagged by :func:`recenter_moment` or if the
-    centroid error is larger than `maxerror` (and `maxerror` is not
-    None) are replaced by their input value.
+    Measurements flagged by :func:`pypeit.moment.moment1d` or flagged
+    as having a centroid error that is larger than `maxerror` (and
+    `maxerror` is not None) are replaced by their input value.
 
     If `maxshift`, `maxerror`, and `bitmask` are all None, this is
     equivalent to::
 
-        return recenter_moment(flux, cen, ivar=ivar, mask=mask, width=width, ycen=row,
-                               fill_error=fill_error)
+        return moment.moment1d(flux, cen, width, ivar=ivar, mask=mask, row=row,
+                               order=1, fill_error=fill_error)
 
     Args:
         row (:obj:`int`):
             Row (index along the first axis; spectral position) in
-            `flux` at which to recenter the trace position. See `ycen`
-            in :func:`recenter_moment`.
+            `flux` at which to recenter the trace position. See
+            `row` in :func:`pypeit.moment.moment1d`.
         cen (`numpy.ndarray`_):
             Current estimate of the trace center.
         flux (`numpy.ndarray`_):
             Array used for the centroid calculations.
         ivar (`numpy.ndarray`_):
             Inverse variance in `flux`; passed directly to
-            :func:`recenter_moment` and can be None.
+            :func:`pypeit.moment.moment1d` and can be None.
         mask (`numpy.ndarray`_):
             Boolean mask for `flux`; passed directly to
-            :func:`recenter_moment` and can be None.
+            :func:`pypeit.moment.moment1d` and can be None.
+        fwgt (`numpy.ndarray`_):
+            A weight to apply to each pixel in `flux`.
         width (:obj:`float`):
-            Passed directly to :func:`recenter_moment`; see the
-            documentation there.
+            Passed directly to :func:`pypeit.moment.moment1d`; see
+            the documentation there.
         maxshift (:obj:`float`, optional):
             Maximum shift allowed between the input and recalculated
             centroid.  If None, no limit is applied.
@@ -3014,17 +2809,20 @@ def _recenter_trace_row(row, cen, flux, ivar, mask, width, maxshift=None, maxerr
             provided, must be able to interpret MATHERROR,
             MOMENTERROR, and LARGESHIFT flags. If None, the function
             returns boolean flags set to True if there was an error
-            in :func:`recenter_moment` or if the error is larger than
-            `maxerror` (and `maxerror` is not None); centroids that
-            have been altered by the maximum shift are *not* flagged.
+            in :func:`pypeit.moment.moment1d` or if the error is
+            larger than `maxerror` (and `maxerror` is not None);
+            centroids that have been altered by the maximum shift are
+            *not* flagged.
 
     Returns:
         Returns three `numpy.ndarray`_ objects: the new centers, the
         center errors, and the measurement flags with a data type
         depending on `bitmask`.
     """
-    xfit, xerr, matherr = recenter_moment(flux, cen, ivar=ivar, mask=mask, width=width,
-                                          ycen=row, fill_error=fill_error)
+    xfit, xerr, matherr = moment.moment1d(flux, cen, width, ivar=ivar, mask=mask, fwgt=fwgt,
+                                          row=row, order=1, fill_error=fill_error)
+#    xfit, xerr, matherr = recenter_moment(flux, cen, ivar=ivar, mask=mask, ycen=row,
+#                                          width=width, fill_error=fill_error)
     if maxshift is None and maxerror is None and bitmask is None:
         # Nothing else to do
         return xfit, xerr, matherr
@@ -3062,15 +2860,15 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
     Iteratively fit the trace of a feature in the provided image.
 
     Each iteration performs two steps:
-        - Redetermine the trace data using :func:`recenter_moment`.
-        The size of the integration window (see the definition of the
-        `width` parameter for :func:`recenter_moment`)depends on the
-        type of weighting: For *uniform weighting*, the code does a
-        third of the iterations with window `width = 2*1.3*fwhm`, a
-        third with `width = 2*1.1*fhwm`, and a third with `width =
-        2*fwhm`. For *Gaussian weighting*, all iterations use `width
-        = fwhm/2.3548`.
-
+        - Redetermine the trace data using
+        :func:`pypeit.moment.moment1d`. The size of the integration
+        window (see the definition of the `width` parameter for
+        :func:`pypeit.moment.moment1d`)depends on the type of
+        weighting: For *uniform weighting*, the code does a third of
+        the iterations with window `width = 2*1.3*fwhm`, a third with
+        `width = 2*1.1*fhwm`, and a third with `width = 2*fwhm`. For
+        *Gaussian weighting*, all iterations use `width =
+        fwhm/2.3548`.
         - Fit the centroid measurements with a 1D function of the
         provided order. See :func:`pypeit.core.pydl.TraceSet`.
 
@@ -3106,7 +2904,7 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
             mask in the fits. Shape must match `trace`.
         weighting (:obj:`str`, optional):
             The weighting to apply to the position within each
-            integration window (see :func:`recenter_moment`).
+            integration window (see :func:`pypeit.moment.moment1d`).
         fwhm (:obj:`float`, optional):
             The expected width of the feature to trace, which is used
             to define the size of the integration window during the
@@ -3150,7 +2948,7 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
             or Gaussian-weighting, to which the polynomial is fit.
             - The errors in the centroids.
             - Boolean flags for each centroid measurement (see
-            :func:`recenter_moment`).
+            :func:`pypeit.moment.moment1d`).
     """
     # Ensure setup is correct
     if flux.ndim != 2:
@@ -3195,8 +2993,8 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data
-        trace_cen, trace_err, bad_trace = recenter_moment(flux, trace_fit, ivar=ivar, mask=mask,
-                                                          weighting=weighting, width=width[i])
+        trace_cen, trace_err, bad_trace = moment.moment1d(flux, trace_fit, width[i], ivar=ivar,  
+                                                          mask=mask, weighting=weighting, order=1)
 
         # TODO: Update trace_mask with bad_trace?
 
@@ -3257,8 +3055,9 @@ def build_trace_mask(flux, trace, mask=None, boxcar=None, thresh=None, median_ke
     when they land outside the bounds of the image.
 
     If both `boxcar` and `thresh` are provided, traces are also
-    masked by extracting the provided image along the trace and
-    flagging extracted values below the provided threshold.
+    masked by extracting the provided image along the trace (see
+    :func:`pypeit.moment.moment1d`) and flagging extracted values
+    below the provided threshold.
 
     Args:
         flux (`numpy.ndarray`_):
@@ -3309,7 +3108,7 @@ def build_trace_mask(flux, trace, mask=None, boxcar=None, thresh=None, median_ke
         return trace_mask
 
     # Get the extracted flux
-    extract_flux = extract_boxcar(flux, _trace, boxcar, mask=mask)[0]
+    extract_flux = moment.moment1d(flux, _trace, boxcar, mask=mask)[0]
     if median_kernel is not None:
         # Median filter the extracted data
         extract_flux = signal.medfilt(extract_flux, kernel_size=(median_kernel,1))
@@ -3333,7 +3132,8 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, funct
     `np.arange(flux.shape[1])`; see also
     :func:`EdgeTracePCA.predict`. The rectification of the input
     `flux` is done using a boxcar extraction along the provided
-    traces with a width of `extract_width`.
+    traces with a width of `extract_width`; see
+    :func:`pypeit.moment.moment1d`.
 
     The (rectified) image is collapsed spectrally (see `smash_range`)
     giving the sigma-clipped mean flux as a function of spatial
@@ -3437,7 +3237,7 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, funct
             fit.
             - The errors in the Gaussian-weighted centroids.
             - Boolean flags for each centroid measurement (see
-            :func:`recenter_moment`).
+            :func:`pypeit.moment.moment1d`).
     """
     # Setup and ensure input is correct
     if flux.ndim != 2:
@@ -3471,8 +3271,9 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, funct
         # since that is the width of the sobel filter
         if extract_width is None:
             extract_width = fwhm_gaussian
-        flux_extract = extract_aperture(flux, trace-extract_width/2., trace+extract_width/2.,
-                                        ivar=ivar, mask=mask)[0]
+        # TODO: this can be done by actually resampling the image, but
+        # it's about 20-30% slower
+        flux_extract = moment.moment1d(flux, trace, extract_width, ivar=ivar, mask=mask)[0]
 #        if debug:
 #            ginga.show_image(flux_extract, chname ='rectified image')
 
@@ -3558,220 +3359,6 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, funct
             npeak = cen.shape[1]
 
     return trace_fit, trace_cen, trace_err, bad_trace, npeak
-
-#-----------------------------------------------------------------------
-# TODO: These should go in pypeit.core.extract
-def extract_boxcar(flux, xcen, width, ivar=None, mask=None, wgt=None, ycen=None, fill_error=-1.):
-    """
-    Simple wrapper for :func:`extract` that sets the left and right
-    locations of the extraction aperture based on the provided center
-    and width.
-
-    The arguments `xcen` and `width` must be able to broadcast to the
-    correct length for the input of `left` and `right` to
-    :func:`extract_aperture`.
-    """
-    return extract_aperture(flux, xcen-width/2, xcen+width/2, ivar=ivar, mask=mask, wgt=wgt,
-                            ycen=ycen, fill_error=fill_error)
-
-
-# TODO: Merge this with recenter_moment
-def extract_aperture(flux, left, right, ivar=None, mask=None, wgt=None, ycen=None, fill_error=-1.):
-    r"""
-    Extract the flux within a set of apertures.
-
-    This function is very similar to :func:`recenter_moment`, except
-    that the return values are the weighted zeroth moment, not the
-    weighted first moment.
-
-    Although the input image must be 2D, the calculation is 1D along
-    its second axis (axis=1). Specifically, the extracted flux
-    (:math:`\mu`) and flux errors (:math:`\epsilon_\mu`) are
-
-    .. math::
-
-        \mu &= \sum_i w_i f_i \\
-        \epsilon_\mu^2 &= \sum_i (w_i \epsilon_{f,i})^2
-
-    where :math:`f` is the flux in each pixel and :math:`\epsilon_f`
-    is its error.
-
-    The method uses numpy masked arrays to keep track of errors in
-    the calculation, likely due to math errors (e.g., divisions by
-    0). The returned boolean array indicates when these errors
-    occurred.
-
-    .. todo::
-        - Method sets masked values to have weight = 0. This feels
-        non-ideal, but there may not be a more meaningful approach...
-        - Consolidate this function with :func:`recenter_moment` into
-        a single function (e.g., calculate_moment)?
-        - This could also be used for optimal extraction by just
-        changing the weighting...
-
-    Args:
-        flux (`numpy.ndarray`_):
-            Intensity image with shape (ny, nx).
-        left (`numpy.ndarray`_):
-            Floating-point pixel coordinate along the 2nd axis of the
-            image for the left edge of the extraction aperture. This
-            can either be an 2-d array with shape (ny, na) array, or
-            a 1-d array with shape (na), where na is the number of
-            apertures along the 2nd axis to extract.
-        right (`numpy.ndarray`_):
-            Similar definition as `left` but for the right edge of
-            the extraction aperture. Must have the same shape as
-            `left`.
-        ivar (`numpy.ndarray`_, optional):
-            Inverse variance of the image intensity.  If not provided,
-            unity variance is used.  If provided, must have the same
-            shape as `flux`.
-        mask (`numpy.ndarray`_, optional):
-            Mask for the input image.  True values are ignored, False
-            values are included.  If not provided, all pixels are
-            included.  If provided, must have the same shape as
-            `flux`.
-        wgt (`numpy.ndarray`_, optional):
-            Weight to apply to each pixel in the extraction. If None,
-            each pixel is given unity weight, except for mask pixels
-            (if defined, given 0 weight). If provided, must have the
-            same shape as `flux`.
-        ycen (:obj:`int`, `numpy.ndarray`_, optional):
-            Integer or integer array with the position along the 0th
-            axis for the extraction. If None, assume `np.arange(ny)`
-            for each aperture (na). If a single number, assume the
-            value is identical for all apertures. Otherwise, must
-            have the same shape as `left` and `right`.
-        fill_error (:obj:`float`, optional):
-            Value to use as filler for undetermined fluxes, resulting
-            from either the input mask or computational issues
-            (division by zero, etc.; see return description below).
-
-    Returns:
-        Three `numpy.ndarray`_ objects are returned, all with the
-        same shape as the input aperture coordinates (e.g., `left`)::
-            - The flux within the aperture along the 2nd axis of the
-            input image. Masked values are set to 0.
-            - The formal propagated error (see equation above) in the
-            flux. Errors are only meaningful if `ivar` is provided.
-            Masked values (indicated by the third object returned)
-            are set to `fill_error`.
-            - A boolean mask for output data; True values should be
-            ignored, False values are valid measurements.
-
-    Raises:
-        ValueError:
-            Raised if input shapes are not correct.
-    """
-
-    # TODO: There's a lot of setup overhead to make this a general
-    # function. If multiple calls to the function are expected, should
-    # gain by only doing this setup once for a given image...
-    
-    # Check the input images
-    _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
-    if _ivar.shape != flux.shape:
-        raise ValueError('Inverse variance must have the same shape as the input image.')
-    _mask = np.zeros_like(flux, dtype=bool) if mask is None else mask
-    if _mask.shape != flux.shape:
-        raise ValueError('Pixel mask must have the same shape as the input image.')
-    _wgt = np.ones_like(flux, dtype=float) if wgt is None else wgt
-    if _wgt.shape != flux.shape:
-        raise ValueError('Pixel weights must have the same shape as the input image.')
-
-    # Process coordinate input
-    ny, nx = flux.shape
-    _left = np.atleast_1d(left)       # If entered as a numpy array, the array is not a copy
-    ndim = _left.ndim
-    if ndim > 2:
-        raise ValueError('Aperture array must be 1 or 2 dimensional')
-    dim = _left.shape
-    npix = dim[0]
-    if dim == 2 and npix > ny:
-        # TODO: Is this test necessary?
-        raise ValueError('More locations to trace ({0}) than pixels in the image ({1})!'.format(
-                            npix,ny))
-    nap = 1 if ndim == 1 else dim[1]
-
-    _right = np.atleast_1d(right)   # If entered as a numpy array, the array is not a copy
-    if _right.shape != _left.shape:
-        raise ValueError('Right aperture edge must match the shape of the left aperture edge.')
-
-    # Copy and normalize the shape of the input (flatten creates a
-    # copy); the width needs to be an array for the compressed
-    # calculation below.
-    _left = _left.flatten()
-    _right = _right.flatten()
-
-    # Set the row locations for the recentering
-    # TODO: Check that this does not ovewrite ycen
-    if ycen is None:
-        _ycen = np.arange(npix, dtype=int) if ndim == 1 else np.tile(np.arange(npix), (nap,1)).T
-    elif not hasattr(ycen, '__len__'):
-        # This is specifically set to be the same size as the input
-        # left (not _left)
-        _ycen = np.full_like(left, ycen, dtype=int)
-    else:
-        _ycen = np.asarray(ycen)
-    if np.amin(_ycen) < 0 or np.amax(_ycen) > ny-1:
-        raise ValueError('Input ycen values will run off the image')
-    _ycen = _ycen.astype(int).flatten()
-
-    # Check the sizes match
-    if _left.size != _ycen.size:
-        raise ValueError('Number of elements in aperture definition (left) and ycen must be equal')
-
-    # TODO: The uses of numpy.newaxis below can create huge arrays.
-    # Maybe worth testing if a for loop is faster.
-
-    # Window for the integration for each coordinate
-    ix1 = np.floor(_left + 0.5).astype(int)
-    ix2 = np.floor(_right + 0.5).astype(int)
-
-    # TODO: The following is slightly different than `recenter_moment`
-    # but should nominally be the same. It would also probably be
-    # correct if it were instead:
-    # fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+2
-    # x = ix1[:,None]+np.arange(fullpix)[None,:]
-    # but leaving it for now.
-    fullpix = int(np.amax(np.amin(ix2-ix1)-1,0))+4
-    x = ix1[:,None]-1+np.arange(fullpix)[None,:]
-    ih = np.clip(x,0,nx-1)
-
-    _rad = (_right-_left)/2
-    _cen = (_right+_left)/2
-
-    # Set the weight over the window; masked pixels have 0 weight
-    good = ((x >= 0) & (x < nx) & np.invert(_mask[_ycen[:,None],ih]) \
-                 & (_ivar[_ycen[:,None],ih] > 0)).astype(int)
-    wt = good * np.clip(_rad[:,None] - np.abs(x - _cen[:,None]) + 0.5,0,1)
-
-    _flux = flux * _wgt
-    _ivar = np.ma.divide(_ivar, np.square(_wgt))
-
-    # Weight the image data
-    fwt = _flux[_ycen[:,None],ih] * wt
-    # Get the weighted sum
-    mu = np.ma.sum(fwt, axis=1)
-    # ... and the formal error
-    mue = np.ma.sqrt(np.ma.sum(np.ma.divide(np.square(wt), _ivar[_ycen[:,None],ih]), axis=1))
-
-    # Set bad calculations to 0 flux and the error fill value
-    # TODO: Include error mask (mue.mask as done below) or ignore
-    # problems in the error calculation?
-    bad = mu.mask | mue.mask
-    mu[bad] = 0
-    mue[bad] = fill_error
-
-    # Reshape to the correct size for output if more than one trace was input
-    if ndim > 1:
-        mu = mu.reshape(npix, nap)
-        mue = mue.reshape(npix, nap)
-        bad = bad.reshape(npix, nap)
-
-    # Make sure to return unmasked arrays
-    return mu.data, mue.data, bad
-
 
 #-----------------------------------------------------------------------
 # TODO: These should go in a pypeit.core.pca module

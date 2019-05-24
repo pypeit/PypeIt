@@ -29,11 +29,14 @@ Submodules
    pypeit.io
    pypeit.masterframe
    pypeit.metadata
+   pypeit.moment
+   pypeit.new_trace
    pypeit.processimages
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.reduce
+   pypeit.sampling
    pypeit.scienceimage
    pypeit.setup_package
    pypeit.specobjs
