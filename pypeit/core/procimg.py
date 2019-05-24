@@ -368,6 +368,7 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         # Shape along at least one axis must match
         data_shape = rawframe[datasec[i]].shape
         if not np.any([ dd == do for dd, do in zip(data_shape, overscan.shape)]):
+            from IPython import embed; embed()
             msgs.error('Overscan sections do not match amplifier sections for'
                        'amplifier {0}'.format(i+1))
         compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0

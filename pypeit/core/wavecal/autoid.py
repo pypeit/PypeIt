@@ -9,7 +9,7 @@ from astropy import table
 import copy
 import numba as nb
 import numpy as np
-import pdb
+from IPython import embed
 
 from astropy.table import Table
 
@@ -392,7 +392,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
                                       best_dict=best_dict, pix_tol=pix_tol)
             # Lower minimum significance
             nsig = sigdetect
-            #pdb.set_trace()
             while(best_dict['nmatch'] < min_nmatch):
                 nsig /= 2.
                 if nsig < lowest_nsig:
@@ -401,8 +400,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
                 patterns.scan_for_matches(wv_cen, disp, npix, cut_tcent, wvdata,
                                           best_dict=best_dict, pix_tol=pix_tol)#, nsig=nsig)
 
-        #if debug:
-        #    pdb.set_trace()
         # Save linelist?
         if best_dict['nmatch'] > sav_nmatch:
             best_dict['line_list'] = tot_list.copy()
@@ -428,7 +425,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
             best_dict['mask'][kk] = True
             best_dict['midx'][kk] = tmp_dict['midx'][kk]
             best_dict['nmatch'] += 1
-    #pdb.set_trace()
 
     if best_dict['nmatch'] == 0:
         msgs.info('---------------------------------------------------' + msgs.newline() +
@@ -479,7 +475,6 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
         full_NIST = waveio.load_line_lists(lines, NIST=True)
         # KLUDGE!!!!!
         keep = full_NIST['wave'] > 8800.
-        pdb.set_trace()
         line_lists = vstack([line_lists, full_NIST[keep]])
         '''
         #
@@ -516,8 +511,9 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
     return best_dict, final_fit
 
 
-def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv = None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
-               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0, debug_xcorr=False, debug_reid=False, debug_peaks = False):
+def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, det_arxiv=None, detections=None, cc_thresh=0.8,cc_local_thresh = 0.8,
+               match_toler=2.0, nlocal_cc=11, nonlinear_counts=1e10,sigdetect=5.0,fwhm=4.0,
+               debug_xcorr=False, debug_reid=False, debug_peaks = False):
     """ Determine  a wavelength solution for a set of spectra based on archival wavelength solutions
 
     Parameters
@@ -531,12 +527,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     wave_soln_arxiv:  float ndarray shape (nspec, narxiv) or (nspec)
        Wavelength solutions for the archival arc spectra spec_arxiv
 
-    det_arxiv:  dict, the dict has narxiv keys which are '0','1', ... up to str(narxiv-1). det_arxiv['0'] points to an
-                an ndarray of size determined by the number of lines that were detected.
-
-       Arc line pixel locations in the spec_arxiv spectra that were used in combination with line identifications from the
-       line list to determine the wavelength solution wave_soln_arxiv.
-
     line_list: astropy table
        The arc line list used for thew wavelength solution in pypeit format.
 
@@ -549,6 +539,13 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     Optional Parameters
     -------------------
+
+    det_arxiv (optional):  dict, the dict has narxiv keys which are '0','1', ... up to str(narxiv-1). det_arxiv['0'] points to an
+                an ndarray of size determined by the number of lines that were detected.
+
+       Arc line pixel locations in the spec_arxiv spectra that were used in combination with line identifications from the
+       line list to determine the wavelength solution wave_soln_arxiv.
+
     detections: float ndarray, default = None
        An array containing the pixel centroids of the lines in the arc as computed by the pypeit.core.arc.detect_lines
        code. If this is set to None, the line detection will be run inside the code.
@@ -684,6 +681,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     shift_vec = np.zeros(narxiv)
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
+    #embed(header='line 682 of autoid.py')
     for iarxiv in range(narxiv):
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         this_det_arxiv = det_arxiv[str(iarxiv)]
@@ -750,6 +748,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
             # match to pixel in shifted/stretch arxiv spectrum
             pdiff = np.abs(detections[iline] - det_arxiv_ss)
             bstpx = np.argmin(pdiff)
+            #if np.abs(detections[iline]-1312.1) < 1.:
+            #    embed(header='762 autoid.py')
             # If a match is found within 2 pixels, consider this a successful match
             if pdiff[bstpx] < match_toler:
                 # Using the arxiv arc wavelength solution, search for the nearest line in the line list
@@ -1142,7 +1142,6 @@ class ArchiveReid:
         self.spec_arxiv = np.zeros((nspec_arxiv, narxiv))
         self.wave_soln_arxiv = np.zeros((nspec_arxiv, narxiv))
         self.det_arxiv = {}
-        xrng = np.arange(nspec_arxiv)
         for iarxiv in range(narxiv):
             self.spec_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['spec']
             self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
@@ -1164,21 +1163,26 @@ class ArchiveReid:
 
             sigdetect = self._parse_param(self.par, 'sigdetect', slit)
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
+            #self.debug_reid = True
+            #self.debug_xcorr = True
+            #from pypeit import debugger
+            #embed(header='line1168 of autoid.py')
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
                            cc_local_thresh=self.cc_local_thresh, nlocal_cc=self.nlocal_cc, nonlinear_counts=self.nonlinear_counts,
-                           sigdetect=sigdetect, fwhm = self.fwhm, debug_peaks = self.debug_peaks, debug_xcorr=self.debug_xcorr,
-                           debug_reid = self.debug_reid)
+                           sigdetect=sigdetect, fwhm=self.fwhm, debug_peaks=self.debug_peaks, debug_xcorr=self.debug_xcorr,
+                           debug_reid=self.debug_reid)
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:
                 self.wv_calib[str(slit)] = {}
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
-            # Perform the fit
 
+            # Perform the fit
             n_final = self._parse_param(self.par, 'n_final', slit)
-            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)], self.detections[str(slit)],
+            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)],
+                                         self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
                                          sigrej_first=self.sigrej_first, n_final=n_final,sigrej_final=self.sigrej_final)
 
@@ -1202,10 +1206,11 @@ class ArchiveReid:
             # Add the patt_dict and wv_calib to the output dicts
             self.wv_calib[str(slit)] = copy.deepcopy(final_fit)
             if self.debug_fits:
-                arc_fit_qa(self.wv_calib[str(slit)])
+                arc_fit_qa(self.wv_calib[str(slit)], title='Silt: {}'.format(str(slit)))
 
         # Print the final report of all lines
         self.report_final()
+        #embed()
 
     def report_final(self):
         """Print out the final report of the wavelength calibration"""
@@ -1221,6 +1226,9 @@ class ArchiveReid:
                 msgs.warn(badmsg)
                 continue
             st = str(slit)
+            if len(self.wv_calib[st]) == 0:
+                print("Bad solution for slit: {}".format(st))
+                continue
             if self.all_patt_dict[st]['sign'] == +1:
                 signtxt = 'correlate'
             else:
@@ -1947,7 +1955,7 @@ class HolyGrail:
             plt.subplot(212)
             plt.plot(xplt, dplt, 'bx')
             plt.show()
-            pdb.set_trace()
+            embed()
 
         fact_nl = 1.2  # Non linear factor
         new_good_fit = np.zeros(self._nslit, dtype=np.bool)
@@ -1996,7 +2004,7 @@ class HolyGrail:
                 waves[:, slit] = utils.func_val(fitc, xv, func, minx=fmin, maxx=fmax)
 
         msgs.info("Performing a PCA on the order wavelength solutions")
-        pdb.set_trace()
+        embed()
         pca_wave, outpar = pca.basis(xcen, waves, coeffs, lnpc, ofit, x0in=ords, mask=maskord, skipx0=False, function=func)
 
         # Report the QA
@@ -2083,7 +2091,7 @@ class HolyGrail:
                 plt.plot(final_fit['pixel_fit'], final_fit['wave_fit'], 'bx')
                 plt.plot(xplt, yplt, 'r-')
                 plt.show()
-                pdb.set_trace()
+                embed()
 
         # debugging
         if self._debug:
@@ -2110,7 +2118,7 @@ class HolyGrail:
             plt.subplot(212)
             plt.plot(xplt, dplt, 'bx')
             plt.show()
-            pdb.set_trace()
+            embed()
 
         return new_bad_slits
 

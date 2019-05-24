@@ -104,7 +104,7 @@ class WaveImage(MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
-                order = self.spectrograph.slit2order(slit)
+                order = self.spectrograph.slit2order(slit, len(self.maskslits))
                 # evaluate solution
                 self.mswave[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
                                                        self.tilts[thismask],

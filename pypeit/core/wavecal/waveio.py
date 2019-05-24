@@ -17,6 +17,7 @@ from pypeit import msgs
 from pypeit.core.wavecal import defs
 
 from pypeit import debugger
+from IPython import embed
 
 # TODO: These should not be declared here
 line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
@@ -42,7 +43,7 @@ def save_wavelength_calibration(outfile, wv_calib, overwrite=True):
         msgs.warn('File exists: {0}'.format(outfile) + msgs.newline()
                   + 'Set overwrite=True to overwrite it.')
         return
-    
+
     # jsonify has the annoying property that it modifies the objects
     # when it jsonifies them so make a copy, which converts lists to
     # arrays, so we make a copy
@@ -54,7 +55,7 @@ def save_wavelength_calibration(outfile, wv_calib, overwrite=True):
 def load_wavelength_calibration(filename):
     """
     Load the wavelength calibration data from a file.
-        
+
     Args:
         filename (:obj:`str`):
             Name of the json file.
@@ -65,7 +66,7 @@ def load_wavelength_calibration(filename):
     """
     if not os.path.isfile(filename):
         msgs.error('File does not exist: {0}'.format(filename))
-        
+
     wv_calib = linetools.utils.loadjson(filename)
 
     # Recast a few items as arrays
@@ -109,20 +110,46 @@ def load_template(arxiv_file, det):
     # Return
     return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
 
+
 def load_reid_arxiv(arxiv_file):
+    """
+    Load a REID arxiv file
+    Now there are 2 possible formats.  We need to consolidate
+
+    Args:
+        arxiv_file (str):
+
+    Returns:
+        dict, dict-like:
+
+    """
     # ToDO put in some code to allow user specified files rather than everything in the main directory
     calibfile = os.path.join(reid_arxiv_path, arxiv_file)
-    wv_calib_arxiv = load_wavelength_calibration(calibfile)
-    par = wv_calib_arxiv['par'].copy()
-    # Pop out par and steps if they were inserted in this calibration dictionary
-    try:
-        wv_calib_arxiv.pop('steps')
-    except KeyError:
-        pass
-    try:
-        wv_calib_arxiv.pop('par')
-    except KeyError:
-        pass
+    # This is a hack as it will fail if we change the data model yet again for wavelength solutions
+    if calibfile[-4:] == 'json':
+        wv_calib_arxiv = load_wavelength_calibration(calibfile)
+        par = wv_calib_arxiv['par'].copy()
+        # Pop out par and steps if they were inserted in this calibration dictionary
+        try:
+            wv_calib_arxiv.pop('steps')
+        except KeyError:
+            pass
+        try:
+            wv_calib_arxiv.pop('par')
+        except KeyError:
+            pass
+    elif calibfile[-4:] == 'fits':
+        # The following is a bit of a hack too
+        par = None
+        wv_tbl = Table.read(calibfile)
+        wv_calib_arxiv = {}
+        nrow = wv_tbl['wave'].shape[1]
+        for irow in np.arange(nrow):
+            wv_calib_arxiv[str(irow)] = {}
+            wv_calib_arxiv[str(irow)]['spec'] = wv_tbl['flux'][:,irow]
+            wv_calib_arxiv[str(irow)]['wave_soln'] = wv_tbl['wave'][:,irow]
+    else:
+        msgs.error("Not ready for this extension!")
 
     return wv_calib_arxiv, par
 

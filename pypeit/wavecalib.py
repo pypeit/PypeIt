@@ -153,18 +153,6 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Obtain calibration for all slits
         if method == 'simple':
-            # Should only run this on 1 slit
-            #self.par['n_first'] = 2
-            #self.par['n_final'] = 3
-            #self.par['func'] = 'legendre'
-            #self.par['sigrej_first'] = 2.
-            #self.par['sigrej_final'] = 3.
-            #self.par['match_toler'] = 3.
-
-            #CuI = wavecal.waveio.load_line_list('CuI', use_ion=True, NIST=True)
-            #ArI = wavecal.waveio.load_line_list('ArI', use_ion=True, NIST=True)
-            #ArII = wavecal.waveio.load_line_list('ArII', use_ion=True, NIST=True)
-            #llist = vstack([CuI, ArI, ArII])
             lines = self.par['lamps']
             line_lists = waveio.load_line_lists(lines)
 
@@ -259,13 +247,14 @@ class WaveCalib(masterframe.MasterFrame):
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
                 continue
-            iorder = self.spectrograph.slit2order(islit)
+            iorder = self.spectrograph.slit2order(islit, len(self.maskslits))
             mask_now = wv_calib[islit]['mask']
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
             all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'][mask_now],
                                                           float(iorder)))
 
+        # Fit
         fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
                                   nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],
@@ -343,7 +332,7 @@ class WaveCalib(masterframe.MasterFrame):
     def load(self, ifile=None):
         """
         Load a full (all slit) wavelength calibration.
-        
+
         This is largely a wrapper for
         :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
 
@@ -359,7 +348,7 @@ class WaveCalib(masterframe.MasterFrame):
             # User does not want to load masters
             msgs.warn('PypeIt will not reuse masters!')
             return None
-        
+
         # Check the input path
         _ifile = self.file_path if ifile is None else ifile
 
@@ -373,12 +362,12 @@ class WaveCalib(masterframe.MasterFrame):
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
         self.wv_calib = waveio.load_wavelength_calibration(_ifile)
         return self.wv_calib
-    
+
     @staticmethod
     def load_from_file(filename):
         """
         Load a full (all slit) wavelength calibration.
-        
+
         This simply executes
         :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
 
