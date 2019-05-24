@@ -69,8 +69,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['sigdetect'] = 200.
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
-        par['calibrations']['wavelengths']['sigdetect'] = 5.      # Good for NIRSPEC-1
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
 
         return par
 
