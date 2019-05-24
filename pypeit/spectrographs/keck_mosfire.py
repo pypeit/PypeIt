@@ -23,7 +23,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 # Detector 1
             pypeitpar.DetectorPar(
                             dataext         = 0,
-                            specaxis        = 0,
+                            specaxis        = 1,
                             specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
@@ -46,6 +46,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Set default parameters for NIRSPEC reductions
         """
         par = pypeitpar.PypeItPar()
+        # No bias subtraction
+        par['calibrations']['biasframe']['useframe'] = 'none'
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
