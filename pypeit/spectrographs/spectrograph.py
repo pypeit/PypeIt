@@ -67,8 +67,9 @@ class Spectrograph(object):
         raw_naxis (tuple):
             A tuple with the lengths of the two axes for untrimmed detector image.
         datasec_img (:obj:`numpy.ndarray`):
-            An image identifying the amplifier that reads each detector
-            pixel.
+            An image identifying the amplifier that reads each detector pixel.
+        overscan_img (:obj:`numpy.ndarray`):
+            An image identifying the amplifier that reads each detector pixel
         bpm_img (:obj:`numpy.ndarray`):
             The bad-pixel mask for the currently read detector.
     """
@@ -81,6 +82,7 @@ class Spectrograph(object):
         self.naxis = None
 #        self.raw_naxis = None
         self.datasec_img = None
+        self.overscan_img = None
         self.bpm_img = None
 
         # Default time unit
@@ -294,7 +296,19 @@ class Spectrograph(object):
 
         return image_sections, one_indexed, include_last, transpose
 
-    def get_datasec_img(self, filename, det=1, force=True):
+    def get_datasec_img(self, filename, det, force=True):
+        if self.datasec_img is None or force:
+            return self.get_pixel_img(filename, 'datasec', det)
+        else:
+            return self.datasec_img
+
+    def get_overscan_img(self, filename, det, force=True):
+        if self.overscan_img is None or force:
+            return self.get_pixel_img(filename, 'overscan', det)
+        else:
+            return self.overscan_img
+
+    def get_pixel_img(self, filename, section, det):
         """
         Create an image identifying the amplifier used to read each pixel.
 
@@ -317,54 +331,51 @@ class Spectrograph(object):
             `numpy.ndarray`: Integer array identifying the amplifier
             used to read each pixel.
         """
-        if self.datasec_img is None or force:
-            # Check the detector is defined
-            self._check_detector()
-            # Get the image shape
-            raw_naxis = self.get_raw_image_shape(filename, det=det)
+        # Check the detector is defined
+        self._check_detector()
+        # Get the image shape
+        raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-            binning_pypeit = self.get_meta_value(filename, 'binning')
+        binning_pypeit = self.get_meta_value(filename, 'binning')
 
-            data_sections, one_indexed, include_end, transpose \
-                    = self.get_image_section(filename, det, section='datasec')
-            # Note on data format
-            #--------------------
-            # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
-            # binning_raw = the binning in the format of the raw data.
-            # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
-            # files are stored the other way with spat as the first dimension (as read into python), then the transpose
-            # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
-            # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
-            # and the datasec typically written to headers. However this flip is dealt with explicitly in the
-            # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
-            # TODO Add a blurb on the PypeIt data model.
-            if transpose:
-               binning_raw = (',').join(binning_pypeit.split(',')[::-1])
-            else:
-               binning_raw = binning_pypeit
+        data_sections, one_indexed, include_end, transpose \
+                = self.get_image_section(filename, det, section=section)
+        # Note on data format
+        #--------------------
+        # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
+        # binning_raw = the binning in the format of the raw data.
+        # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
+        # files are stored the other way with spat as the first dimension (as read into python), then the transpose
+        # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
+        # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
+        # and the datasec typically written to headers. However this flip is dealt with explicitly in the
+        # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
+        # TODO Add a blurb on the PypeIt data model.
+        if transpose:
+           binning_raw = (',').join(binning_pypeit.split(',')[::-1])
+        else:
+           binning_raw = binning_pypeit
 
-            # Initialize the image (0 means no amplifier)
-            self.datasec_img = np.zeros(raw_naxis, dtype=int)
-            for i in range(self.detector[det-1]['numamplifiers']):
-                # Convert the data section from a string to a slice
-                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                          include_end=include_end, require_dim=2,
-                                          transpose=transpose, binning_raw=binning_raw)
-                # Assign the amplifier
-                self.datasec_img[datasec] = i+1
+        # Initialize the image (0 means no amplifier)
+        pix_img = np.zeros(raw_naxis, dtype=int)
+        for i in range(self.detector[det-1]['numamplifiers']):
+            # Convert the data section from a string to a slice
+            datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                      include_end=include_end, require_dim=2,
+                                      transpose=transpose, binning_raw=binning_raw)
+            # Assign the amplifier
+            self.datasec_img[datasec] = i+1
+            pix_img[datasec] = i+1
 
-        return self.datasec_img
+        return pix_img
 
     def get_oscansec_img(self, filename, det=1, force=True):
         """
-        Create an image identifying the amplifier used to read each pixel for the overscan
-
-        .. todo::
-            - I find 1-indexing to be highly annoying...
-            - Check for overlapping amplifiers?
-            - Consider renaming this datasec_ampid or something like
-              that.  I.e., the image's main purpose is to tell you where
-              the amplifiers are for the data section
+        Create an image identifying the overscan region(s) on the detector
+            0 = Not overscan
+            1 = Overscan pixels for amplifier 1
+            2 = Overscan pixels for amplifier 2
+            etc.
 
         Args:
             filename (str):
@@ -378,7 +389,7 @@ class Spectrograph(object):
             `numpy.ndarray`: Integer array identifying the amplifier
             used to read each pixel.
         """
-        if self.datasec_img is None or force:
+        if self.overscan_img is None or force:
             # Check the detector is defined
             self._check_detector()
             # Get the image shape
@@ -387,7 +398,7 @@ class Spectrograph(object):
             binning_pypeit = self.get_meta_value(filename, 'binning')
 
             data_sections, one_indexed, include_end, transpose \
-                = self.get_image_section(filename, det, section='datasec')
+                = self.get_image_section(filename, det, section='overscan')
             # Note on data format
             # --------------------
             # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)

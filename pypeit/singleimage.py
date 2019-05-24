@@ -43,13 +43,13 @@ class SingleImage(object):
 
     @property
     def datasec_img(self):
-        dimg = self.spectrograph.get_datasec_img(self.filename, det=self.det)
+        dimg = self.spectrograph.get_datasec_img(self.filename, self.det)
         return dimg
 
     @property
     def oscansec_img(self):
-        dimg = self.spectrograph.get_
-        return dimg
+        oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
+        return oimg
 
     def load(self):
         """
