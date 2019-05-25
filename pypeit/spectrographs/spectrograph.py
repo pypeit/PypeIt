@@ -68,7 +68,7 @@ class Spectrograph(object):
             A tuple with the lengths of the two axes for untrimmed detector image.
         datasec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector pixel.
-        overscan_img (:obj:`numpy.ndarray`):
+        oscansec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector pixel
         bpm_img (:obj:`numpy.ndarray`):
             The bad-pixel mask for the currently read detector.
@@ -82,7 +82,7 @@ class Spectrograph(object):
         self.naxis = None
 #        self.raw_naxis = None
         self.datasec_img = None
-        self.overscan_img = None
+        self.oscansec_img = None
         self.bpm_img = None
 
         # Default time unit
@@ -265,8 +265,6 @@ class Spectrograph(object):
 
         # Get the data section
         try:
-            hdr = self.parse_image_sec_inp()
-
             # Parse inp
             if inp is None:
                 # Force the call to the except block
@@ -302,11 +300,11 @@ class Spectrograph(object):
         else:
             return self.datasec_img
 
-    def get_overscan_img(self, filename, det, force=True):
-        if self.overscan_img is None or force:
-            return self.get_pixel_img(filename, 'overscan', det)
+    def get_oscansec_img(self, filename, det, force=True):
+        if self.oscansec_img is None or force:
+            return self.get_pixel_img(filename, 'oscansec', det)
         else:
-            return self.overscan_img
+            return self.oscansec_img
 
     def get_pixel_img(self, filename, section, det):
         """
@@ -364,11 +362,12 @@ class Spectrograph(object):
                                       include_end=include_end, require_dim=2,
                                       transpose=transpose, binning_raw=binning_raw)
             # Assign the amplifier
-            self.datasec_img[datasec] = i+1
+            #self.datasec_img[datasec] = i+1
             pix_img[datasec] = i+1
 
         return pix_img
 
+    '''
     def get_oscansec_img(self, filename, det=1, force=True):
         """
         Create an image identifying the overscan region(s) on the detector
@@ -426,6 +425,7 @@ class Spectrograph(object):
                 self.datasec_img[datasec] = i + 1
 
         return self.datasec_img
+    '''
 
     def get_raw_image_shape(self, filename, det=None, force=True):
         """
