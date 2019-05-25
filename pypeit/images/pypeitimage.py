@@ -1,23 +1,24 @@
 """ Object to hold + process a single image"""
 
 from pypeit import msgs
+from pypeit import ginga
 
 import numpy as np
 
 
 class PypeItImage(object):
 
-    def __init__(self, filename, spectrograph, det):
+    def __init__(self, spectrograph, det):
 
         # Required parameters
         self.spectrograph = spectrograph
         self.det = det
-        self.filename = filename
 
         # Attributes
         self.image = None
         self.header = None           # Image header
         self.orig_shape = None       # Shape of the image when loaded
+        self.filename = None       # Shape of the image when loaded
 
     @property
     def bpm(self):
@@ -34,19 +35,7 @@ class PypeItImage(object):
                                         det=self.det)
         return bpm
 
-    @property
-    def amps(self):
-        """
-        Return a list of the amplifier indices, 1-indexed
-
-        Returns:
-            list
-        """
-        amps = np.unique(self.datasec_img[self.datasec_img > 0]).tolist()
-        # Return
-        return amps
-
-    def load(self):
+    def load_image(self, filename):
         """
         Load the image from disk using the Spectrograph method load_raw_frame()
 
@@ -54,11 +43,15 @@ class PypeItImage(object):
             np.ndarray, fits.Header:
 
         """
+        self.filename = filename
         self.image, self.header \
-            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+            = self.spectrograph.load_raw_frame(filename, det=self.det)
         # Shape
         self.orig_shape = self.image.shape
         #
         return self.image, self.header
 
+
+    def show(self):
+        viewer, ch = ginga.show_image(self.image, chname='image')
 

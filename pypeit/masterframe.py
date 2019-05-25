@@ -151,7 +151,7 @@ class MasterFrame(object):
 
     # TODO: have ext default to provide all extensions?
     # TODO: Add a base-level staticmethod one-liner?
-    def load(self, ext, ifile=None, return_header=False):
+    def load_master(self, ext, ifile=None, return_header=False):
         """
         Generic master file reader.
 

@@ -743,6 +743,14 @@ def trim_frame(frame, mask):
                    'pixels outside the data sections.')
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
+def init_process_steps(bias, proc_par):
+    process_steps = []
+    if bias is not None:
+        process_steps.append('subtract_bias')
+    if proc_par['process']['overscan'].lower() != 'none':
+        process_steps.append('subtract_overscan')
+    # Return
+    return process_steps
 
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None, adderr=0.01):

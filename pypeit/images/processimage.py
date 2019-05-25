@@ -23,9 +23,10 @@ class ProcessImage(pypeitimage.PypeItImage):
     def __init__(self, filename, spectrograph, det, par, frametype=None):
 
         # Init me
-        pypeitimage.PypeItImage.__init__(self, filename, spectrograph, det)
+        pypeitimage.PypeItImage.__init__(self, spectrograph, det)
         # Required parameters
         self.par = par  # ProcessImagesPar
+        self.filename = filename
 
         # Optional parameters
         self.frametype = frametype
@@ -40,6 +41,18 @@ class ProcessImage(pypeitimage.PypeItImage):
                           orient=False,
                           flatten=False,
                           )
+    @property
+    def amps(self):
+        """
+        Return a list of the amplifier indices, 1-indexed
+
+        Returns:
+            list
+        """
+        amps = np.unique(self.datasec_img[self.datasec_img > 0]).tolist()
+        # Return
+        return amps
+
     @property
     def datasec_img(self):
         dimg = self.spectrograph.get_datasec_img(self.filename, self.det)
@@ -81,8 +94,28 @@ class ProcessImage(pypeitimage.PypeItImage):
         if bpm is None:
             bpm = self.bpm
         # Do it
-        self.image = flat.flatfield(self.image, pixel_flat, self.bpm,
-                                    illum_flat=illum_flat)
+        self.image = flat.flatfield(self.image, pixel_flat, bpm, illum_flat=illum_flat)
+        self.steps[step] = True
+        # Return
+        return self.image.copy()
+
+    def orient(self, force=False):
+        step = inspect.stack()[0][3]
+        # Orient the image to have blue/red run bottom to top
+        # Check if already oriented
+        if self.steps[step] and (not force):
+            msgs.warn("Image was already oriented.  Returning current image")
+            return self.image
+        # Transpose?
+        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
+            self.image = self.image.T
+        # Flip spectgral axis?
+        if self.spectrograph.detector[self.det-1]['specflip'] is True:
+            self.image = np.flip(self.image, axis=0)
+        # Flip spatial axis?
+        if self.spectrograph.detector[self.det-1]['spatflip'] is True:
+            self.image = np.flip(self.image, axis=1)
+
         self.steps[step] = True
         # Return
         return self.image.copy()
@@ -133,25 +166,7 @@ class ProcessImage(pypeitimage.PypeItImage):
         # Return
         return self.image.copy()
 
-    def orient(self, force=False):
-        step = inspect.stack()[0][3]
-        # Orient the image to have blue/red run bottom to top
-        # Check if already oriented
-        if self.steps[step] and (not force):
-            msgs.warn("Image was already oriented.  Returning current image")
-            return self.image
-        # Transpose?
-        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
-            self.image = self.image.T
-        # Flip spectgral axis?
-        if self.spectrograph.detector[self.det-1]['specflip'] is True:
-            self.image = np.flip(self.image, axis=0)
-        # Flip spatial axis?
-        if self.spectrograph.detector[self.det-1]['spatflip'] is True:
-            self.image = np.flip(self.image, axis=1)
-
-        self.steps[step] = True
-        # Return
-        return self.image.copy()
-
+    def __repr__(self):
+        return ('<{:s}: file={}, steps={}>'.format(
+            self.__class__.__name__, self.filename, self.steps))
 

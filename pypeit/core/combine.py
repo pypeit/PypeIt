@@ -2,6 +2,7 @@
 """
 import numpy as np
 
+from IPython import embed
 from pypeit import msgs
 
 def comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None,

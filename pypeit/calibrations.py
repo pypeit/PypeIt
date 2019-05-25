@@ -11,7 +11,7 @@ from abc import ABCMeta
 
 from astropy.io import fits
 from astropy.table import Table
-import IPython
+from IPython import embed
 
 from pypeit import msgs
 from pypeit import masterframe
@@ -303,7 +303,7 @@ class Calibrations(object):
                                           reuse_masters=self.reuse_masters)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.msarc = self.arcImage.load()
+        self.msarc = self.arcImage.load_arcimage()
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image()
@@ -352,7 +352,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters)
 
         # Try to load the master bias
-        self.msbias = self.biasFrame.load()
+        self.msbias = self.biasFrame.load_bias()
         if self.msbias is None:
             # Build it and save it
             self.msbias = self.biasFrame.build_image()
@@ -908,6 +908,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        #return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'arc', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
 
