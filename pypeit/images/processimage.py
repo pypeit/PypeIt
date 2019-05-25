@@ -7,6 +7,8 @@ import numpy as np
 from pypeit import msgs
 
 from pypeit.core import procimg
+from pypeit.core import flat
+
 from pypeit.images import pypeitimage
 
 from IPython import embed
@@ -65,6 +67,34 @@ class ProcessImage(pypeitimage.PypeItImage):
             gain = [gain]
         # Apply
         self.image *= procimg.gain_frame(self.datasec_img, gain, trim=self.steps['trim'])
+        self.steps[step] = True
+        # Return
+        return self.image.copy()
+
+    def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
+        step = inspect.stack()[0][3]
+        # Check if already trimmed
+        if self.steps[step] and (not force):
+            msgs.warn("Image was already flat fielded.  Returning the current image")
+            return self.image
+        # BPM
+        if bpm is None:
+            bpm = self.bpm
+        # Do it
+        self.image = flat.flatfield(self.image, pixel_flat, self.bpm,
+                                    illum_flat=illum_flat)
+        self.steps[step] = True
+        # Return
+        return self.image.copy()
+
+    def subtract_bias(self, bias_image, force=False):
+        step = inspect.stack()[0][3]
+        # Check if already trimmed
+        if self.steps[step] and (not force):
+            msgs.warn("Image was already bias subtracted.  Returning the current image")
+            return self.image
+        # Do it
+        self.image -= bias_image
         self.steps[step] = True
         # Return
         return self.image.copy()
