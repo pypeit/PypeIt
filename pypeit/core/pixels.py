@@ -325,3 +325,12 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     edgemask = (slitpix > 0) & np.any([pixleft < trim_edg[0], pixright < trim_edg[1]], axis=0)
     # Return
     return ximg, edgemask
+
+
+def slice_with_mask(image, mask, mask_val=1):
+    pix = np.where(mask == mask_val)
+    slices = [slice(np.min(pix[0]), np.max(pix[0])+1),
+              slice(np.min(pix[1]), np.max(pix[1])+1)]
+    sub_img = image[slices]
+    #
+    return sub_img, slices

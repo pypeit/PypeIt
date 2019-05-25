@@ -2,8 +2,7 @@
 
 from pypeit import msgs
 
-from pypeit.core import procimg
-from astropy.io import fits
+import numpy as np
 
 
 class PypeItImage(object):
@@ -18,6 +17,7 @@ class PypeItImage(object):
         # Attributes
         self.image = None
         self.header = None           # Image header
+        self.orig_shape = None       # Shape of the image when loaded
 
     @property
     def bpm(self):
@@ -35,14 +35,16 @@ class PypeItImage(object):
         return bpm
 
     @property
-    def datasec_img(self):
-        dimg = self.spectrograph.get_datasec_img(self.filename, self.det)
-        return dimg
+    def amps(self):
+        """
+        Return a list of the amplifier indices, 1-indexed
 
-    @property
-    def oscansec_img(self):
-        oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
-        return oimg
+        Returns:
+            list
+        """
+        amps = np.unique(self.datasec_img[self.datasec_img > 0]).tolist()
+        # Return
+        return amps
 
     def load(self):
         """
@@ -54,6 +56,8 @@ class PypeItImage(object):
         """
         self.image, self.header \
             = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        # Shape
+        self.orig_shape = self.image.shape
         #
         return self.image, self.header
 

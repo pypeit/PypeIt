@@ -188,13 +188,6 @@ class Spectrograph(object):
 
         # Turn to float
         img = raw_img.astype(np.float)
-        # Transpose?
-        if self.detector[_det-1]['specaxis'] == 1:
-            img = img.T
-        if self.detector[_det-1]['specflip'] is True:
-            img = np.flip(img, axis=0)
-        if self.detector[_det-1]['spatflip'] is True:
-            img = np.flip(img, axis=1)
 
         # Return
         return img, head0
@@ -290,9 +283,9 @@ class Spectrograph(object):
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
-        transpose = self.detector[det-1]['specaxis'] == 0
+        #transpose = self.detector[det-1]['specaxis'] == 0
 
-        return image_sections, one_indexed, include_last, transpose
+        return image_sections, one_indexed, include_last#, transpose
 
     def get_datasec_img(self, filename, det, force=True):
         if self.datasec_img is None or force:
@@ -336,8 +329,9 @@ class Spectrograph(object):
 
         binning_pypeit = self.get_meta_value(filename, 'binning')
 
-        data_sections, one_indexed, include_end, transpose \
-                = self.get_image_section(filename, det, section=section)
+        #data_sections, one_indexed, include_end, transpose \
+        data_sections, one_indexed, include_end \
+                    = self.get_image_section(filename, det, section=section)
         # Note on data format
         #--------------------
         # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
@@ -349,10 +343,11 @@ class Spectrograph(object):
         # and the datasec typically written to headers. However this flip is dealt with explicitly in the
         # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
         # TODO Add a blurb on the PypeIt data model.
-        if transpose:
-           binning_raw = (',').join(binning_pypeit.split(',')[::-1])
-        else:
-           binning_raw = binning_pypeit
+
+        #if transpose:
+        #   binning_raw = (',').join(binning_pypeit.split(',')[::-1])
+        #else:
+        binning_raw = binning_pypeit
 
         # Initialize the image (0 means no amplifier)
         pix_img = np.zeros(raw_naxis, dtype=int)
@@ -360,7 +355,7 @@ class Spectrograph(object):
             # Convert the data section from a string to a slice
             datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                       include_end=include_end, require_dim=2,
-                                      transpose=transpose, binning_raw=binning_raw)
+                                      binning_raw=binning_raw) #transpose=transpose,
             # Assign the amplifier
             #self.datasec_img[datasec] = i+1
             pix_img[datasec] = i+1

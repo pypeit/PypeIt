@@ -1,14 +1,14 @@
 """ Module for image processing core methods
 """
-import astropy.stats
 import numpy as np
 from scipy import signal, ndimage
+from IPython import embed
+
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
+from pypeit.core import pixels
 
-
-from pypeit import debugger
 
 
 # TODO: Add sigdev to the high-level parameter set so that it can be
@@ -439,7 +439,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-def gain_frame(datasec_img, namp, gain_list):
+def gain_frame(datasec_img, gain_list, trim=True):
     """ Generate a gain image
 
     Parameters
@@ -454,21 +454,17 @@ def gain_frame(datasec_img, namp, gain_list):
     gain_img : ndarray
 
     """
-    #namp = settings.spect[dnum]['numamplifiers'])
-    #gains = settings.spect[dnum]['gain'][amp - 1]
     msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Loop on amplifiers
-    # ToDo
-    # EMA --> I think there was a bug here.
-    # the previous command was: gain_img = np.zeros_like(datasec_img)
-    # but it returns an array of integers, so if the gain was <0.6 it
-    # was rounded to 0 causing a lot of problems.
-    gain_img = np.zeros_like(datasec_img,dtype=float)
-    for ii in range(namp):
+    gain_img = np.zeros_like(datasec_img, dtype=float)
+    for ii, gain in enumerate(gain_list):
         amp = ii+1
         amppix = datasec_img == amp
-        gain_img[amppix] = gain_list[ii]
+        gain_img[amppix] = gain
+    # Trim?
+    if trim:
+        gain_img = trim_frame(gain_img, datasec_img < 1)
     # Return
     return gain_img
 
@@ -602,100 +598,71 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
     return nobias
 
 
+def new_subtract_overscan(rawframe, datasec_img, oscansec_img,
+                          method='savgol', params=[5, 65]):
+    """
+    Subtract overscan
 
-#def sub_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5, 65]):
-#    """
-#    Subtract overscan
-#
-#    Args:
-#        frame (:obj:`numpy.ndarray`):
-#            Frame from which to subtract overscan
-#        numamplifiers (int):
-#            Number of amplifiers for this detector.
-#        datasec (list):
-#            Specifies the data sections, one sub-list per amplifier
-#        oscansec (list):
-#            Specifies the overscan sections, one sub-list per amplifier
-#        method (:obj:`str`, optional):
-#            The method used to fit the overscan region.  Options are
-#            polynomial, savgol, median.
-#        params (:obj:`list`, optional):
-#            Parameters for the overscan subtraction.  For
-#            method=polynomial, set params = order, number of pixels,
-#            number of repeats ; for method=savgol, set params = order,
-#            window size ; for method=median, params are ignored.
-#    Returns:
-#        :obj:`numpy.ndarray`: The input frame with the overscan region
-#        subtracted
-#    """
-#    for i in range(numamplifiers):
-#        # Determine the section of the chip that contains data
-#        dx0, dx1 = datasec[i][0][0], datasec[i][0][1]
-#        dy0, dy1 = datasec[i][1][0], datasec[i][1][1]
-#        if dx0 < 0: dx0 += rawframe.shape[0]
-#        if dx1 <= 0: dx1 += rawframe.shape[0]
-#        if dy0 < 0: dy0 += rawframe.shape[1]
-#        if dy1 <= 0: dy1 += rawframe.shape[1]
-#        xds = np.arange(dx0, dx1)
-#        yds = np.arange(dy0, dy1)
-#
-#        # Determine the section of the chip that contains the overscan
-#        # region
-#        ox0, ox1 = oscansec[i][0][0], oscansec[i][0][1]
-#        oy0, oy1 = oscansec[i][1][0], oscansec[i][1][1]
-#        if ox0 < 0: ox0 += rawframe.shape[0]
-#        if ox1 <= 0: ox1 += min(rawframe.shape[0], dx1)  # Truncate to datasec
-#        if oy0 < 0: oy0 += rawframe.shape[1]
-#        if oy1 <= 0: oy1 += min(rawframe.shape[1], dy1)  # Truncate to datasec
-#        xos = np.arange(ox0, ox1)
-#        yos = np.arange(oy0, oy1)
-#        w = np.ix_(xos, yos)
-#        oscan = rawframe[w]
-#
-#        # Make sure the overscan section has at least one side consistent with datasec
-#        if dx1-dx0 == ox1-ox0:
-#            osfit = np.median(oscan, axis=1)  # Mean was hit by CRs
-#        elif dy1-dy0 == oy1-oy0:
-#            osfit = np.median(oscan, axis=0)
-#        elif method.lower() == 'median':
-#            osfit = np.median(oscan)
-#        else:
-#            msgs.error('Overscan sections do not match amplifier sections for'
-#                       'amplifier {0}'.format(i+1))
-#
-#        # Fit/Model the overscan region
-#        if method.lower() == 'polynomial':
-#            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
-#            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-#        elif method.lower() == 'savgol':
-#            ossub = signal.savgol_filter(osfit, params[1], params[0])
-#        elif method.lower() == 'median':  # One simple value
-#            ossub = osfit * np.ones(1)
-#        else:
-#            # TODO: Should we raise an exception instead?
-#            msgs.warn('Unknown overscan subtraction method: {0}'.format(method))
-#            msgs.info('Using a linear fit to the overscan region')
-#            c = np.polyfit(np.arange(osfit.size), osfit, 1)
-#            ossub = np.polyval(c, np.arange(osfit.size))#.reshape(osfit.size,1)
-#
-#        # Determine the section of the chip that contains data for this amplifier
-#        if i==0:
-#            frame = rawframe.copy()
-#        wd = np.ix_(xds, yds)
-#        ossub = ossub.reshape(osfit.size, 1)
-#        if wd[0].shape[0] == ossub.shape[0]:
-#            frame[wd] -= ossub
-#        elif wd[1].shape[1] == ossub.shape[0]:
-#            frame[wd] -= ossub.T
-#        elif method.lower() == 'median':
-#            frame[wd] -= osfit
-#        else:
-#            msgs.error("Could not subtract bias from overscan region --" 
-#                       + msgs.newline() + "size of extracted regions does not match")
-#
-#    # Return
-#    del xds, yds, xos, yos, oscan
-#    return frame
+    Args:
+        frame (:obj:`numpy.ndarray`):
+            Frame from which to subtract overscan
+        numamplifiers (int):
+            Number of amplifiers for this detector.
+        datasec_img (np.ndarray):
+        oscansec_img (np.ndarray):
+        method (:obj:`str`, optional):
+            The method used to fit the overscan region.  Options are
+            polynomial, savgol, median.
+        params (:obj:`list`, optional):
+            Parameters for the overscan subtraction.  For
+            method=polynomial, set params = order, number of pixels,
+            number of repeats ; for method=savgol, set params = order,
+            window size ; for method=median, params are ignored.
+
+    Returns:
+        :obj:`numpy.ndarray`: The input frame with the overscan region
+        subtracted
+    """
+    # Copy the data so that the subtraction is not done in place
+    no_overscan = rawframe.copy()
+
+    # Amplifiers
+    amps = np.unique(datasec_img[datasec_img > 0]).tolist()
+
+    # Perform the bias subtraction for each amplifier
+    for amp in amps:
+        # Pull out the overscan data
+        overscan, _ = pixels.slice_with_mask(rawframe, oscansec_img, amp)
+        # Pull out the real data
+        data, data_slice = pixels.slice_with_mask(rawframe, datasec_img, amp)
+
+        # Shape along at least one axis must match
+        data_shape = data.shape
+        if not np.any([dd == do for dd, do in zip(data_shape, overscan.shape)]):
+            msgs.error('Overscan sections do not match amplifier sections for'
+                       'amplifier {0}'.format(i + 1))
+        compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
+
+        # Fit/Model the overscan region
+        osfit = np.median(overscan) if method.lower() == 'median' \
+            else np.median(overscan, axis=compress_axis)
+        if method.lower() == 'polynomial':
+            # TODO: Use np.polynomial.polynomial.polyfit instead?
+            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
+            ossub = np.polyval(c, np.arange(osfit.size))
+        elif method.lower() == 'savgol':
+            ossub = signal.savgol_filter(osfit, params[1], params[0])
+        elif method.lower() == 'median':
+            # Subtract scalar and continue
+            no_overscan[data_slice] -= osfit
+            continue
+        else:
+            raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
+
+        # Subtract along the appropriate axis
+        no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
+
+    return no_overscan
 
 
 def replace_columns(img, bad_cols, replace_with='mean'):
@@ -776,58 +743,6 @@ def trim_frame(frame, mask):
                    'pixels outside the data sections.')
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
-#def trim(frame, numamplifiers, datasec):
-#    """ Core method to trim an input image
-#
-#    Parameters
-#    ----------
-#    frame : ndarray
-#    numamplifiers : int
-#    datasec : list of datasecs
-#      One per amplifier
-#
-#    Returns
-#    -------
-#    frame : ndarray
-#      Trimmed
-#    """
-#    for i in range(numamplifiers):
-#        #datasec = "datasec{0:02d}".format(i+1)
-#        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-#        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-#        x0, x1 = datasec[i][0][0], datasec[i][0][1]
-#        y0, y1 = datasec[i][1][0], datasec[i][1][1]
-#        # Fuss with edges
-#        if x0 < 0:
-#            x0 += frame.shape[0]
-#        if x1 <= 0:
-#            x1 += frame.shape[0]
-#        if y0 < 0:
-#            y0 += frame.shape[1]
-#        if y1 <= 0:
-#            y1 += frame.shape[1]
-#        if i == 0:
-#            xv = np.arange(x0, x1)
-#            yv = np.arange(y0, y1)
-#        else:
-#            xv = np.unique(np.append(xv, np.arange(x0, x1)))
-#            yv = np.unique(np.append(yv, np.arange(y0, y1)))
-#    # Construct and array with the rows and columns to be extracted
-#    w = np.ix_(xv, yv)
-##	if len(file.shape) == 2:
-##		trimfile = file[w]
-##	elif len(file.shape) == 3:
-##		trimfile = np.zeros((w[0].shape[0],w[1].shape[1],file.shape[2]))
-##		for f in range(file.shape[2]):
-##			trimfile[:,:,f] = file[:,:,f][w]
-##	else:
-##		msgs.error("Cannot trim {0:d}D frame".format(int(len(file.shape))))
-#    try:
-#        return frame[w]
-#    except:
-#        msgs.bug("Odds are datasec is set wrong. Maybe due to transpose")
-#        debugger.set_trace()
-#        msgs.error("Cannot trim file")
 
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None, adderr=0.01):

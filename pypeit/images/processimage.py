@@ -1,17 +1,27 @@
 """ Object to hold + process a single image"""
 
+import inspect
+
+import numpy as np
+
 from pypeit import msgs
 
 from pypeit.core import procimg
 from pypeit.images import pypeitimage
 
+from IPython import embed
+
+# REMOVE THIS
+from importlib import reload
+reload(procimg)
+
 
 class ProcessImage(pypeitimage.PypeItImage):
 
-    def __init__(self, filename, spectrograph, par, det, frametype=None):
+    def __init__(self, filename, spectrograph, det, par, frametype=None):
 
         # Init me
-        pypeitimage.PypeItImage.__init__(filename, spectrograph, det)
+        pypeitimage.PypeItImage.__init__(self, filename, spectrograph, det)
         # Required parameters
         self.par = par  # ProcessImagesPar
 
@@ -19,42 +29,99 @@ class ProcessImage(pypeitimage.PypeItImage):
         self.frametype = frametype
 
         # All possible processing steps
-        self.steps = dict(bias_subtracted=False,
-                          overscan_subtracted=False,
-                          dark_subtracted=False,
-                          trimmed=False,
-                          flattened=False,
+        #  Note these have to match the method names below
+        self.steps = dict(subtract_bias=False,
+                          subtract_overscan=False,
+                          subtract_dark=False,
+                          trim=False,
+                          apply_gain=False,
+                          orient=False,
+                          flatten=False,
                           )
+    @property
+    def datasec_img(self):
+        dimg = self.spectrograph.get_datasec_img(self.filename, self.det)
+        return dimg
+
+    @property
+    def oscansec_img(self):
+        oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
+        return oimg
 
     def reset_steps(self):
         for key in self.steps.keys():
             self.steps[key] = False
 
-    def subtract_overscan(self, image, force=False):
-        # Checks
-        assert image.shape == self.disk_image.shape
+    def apply_gain(self, force=False):
+        step = inspect.stack()[0][3]
+        # Check if already trimmed
+        if self.steps[step] and (not force):
+            msgs.warn("Gain was already applied. Returning")
+            return self.image.copy()
 
-        numamplifiers = self.spectrograph.detector[self.det-1]['numamplifiers']
-        temp = procimg.subtract_overscan(image, numamplifiers, self.datasec[kk],
-                                         self.oscansec[kk],
+        gain = self.spectrograph.detector[self.det-1]['gain']
+        # Enforce gain being a list
+        if not isinstance(gain, list):
+            gain = [gain]
+        # Apply
+        self.image *= procimg.gain_frame(self.datasec_img, gain, trim=self.steps['trim'])
+        self.steps[step] = True
+        # Return
+        return self.image.copy()
+
+    def subtract_overscan(self, force=False):
+        step = inspect.stack()[0][3]
+        # Check if already trimmed
+        if self.steps[step] and (not force):
+            msgs.warn("Image was already trimmed")
+
+        temp = procimg.new_subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
                                          method=self.par['overscan'],
                                          params=self.par['overscan_par'])
-
+        # Fill
+        self.steps[step] = True
+        self.image = temp
         # Return
-        return self.processed_image
+        return self.image.copy()
 
-    def trim(self, image, force=False):
-        # Checks
-        assert image.shape == self.disk_image.shape
-        if self.steps['trimmed'] and (not force):
-            msgs.warn("Image was already trimmed")
+    def trim(self, force=False):
+        step = inspect.stack()[0][3]
+        # Check input image matches the original
+        if self.orig_shape is not None:
+            if self.image.shape != self.orig_shape:
+                msgs.warn("Image shape does not match original.  Returning current image")
+                return self.image
+        # Check if already trimmed
+        if self.steps[step] and (not force):
+            msgs.warn("Image was already trimmed.  Returning current image")
+            return self.image
         # Do it
-        trim_image = procimg.trim_frame(image, self.datasec_img < 1)
-        # Save
-        self.processed_image = trim_image
-        self.steps['trimmed'] = True
+        trim_image = procimg.trim_frame(self.image, self.datasec_img < 1)
+        # Overwrite
+        self.image = trim_image
+        self.steps[step] = True
         # Return
-        return self.processed_image
+        return self.image.copy()
 
+    def orient(self, force=False):
+        step = inspect.stack()[0][3]
+        # Orient the image to have blue/red run bottom to top
+        # Check if already oriented
+        if self.steps[step] and (not force):
+            msgs.warn("Image was already oriented.  Returning current image")
+            return self.image
+        # Transpose?
+        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
+            self.image = self.image.T
+        # Flip spectgral axis?
+        if self.spectrograph.detector[self.det-1]['specflip'] is True:
+            self.image = np.flip(self.image, axis=0)
+        # Flip spatial axis?
+        if self.spectrograph.detector[self.det-1]['spatflip'] is True:
+            self.image = np.flip(self.image, axis=1)
+
+        self.steps[step] = True
+        # Return
+        return self.image.copy()
 
 
