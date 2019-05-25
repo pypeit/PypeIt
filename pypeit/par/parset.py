@@ -49,6 +49,8 @@ if sys.version > '3':
 
 import numpy
 
+from pypeit.par import util
+
 class ParSet(object):
     """
     Generic base class to handle and manipulate a list of operational
@@ -118,7 +120,15 @@ class ParSet(object):
         cfg_comment (str): 
             Comment to be placed at the top-level of the configuration
             section written based on the contents of this parameter set.
+        prefix (str):
+            Class Prefix for header keywords when writing the parset to an
+            `astropy.io.fits.Header` object.
+
     """
+    # Set prefix for writing parameters to a fits header to a class
+    # attribute.
+    prefix = 'PAR'
+
     def __init__(self, pars, values=None, defaults=None, options=None, dtypes=None, can_call=None,
                  descr=None, cfg_section=None, cfg_comment=None):
         # Check that the list of input parameters is a list of strings
@@ -186,7 +196,6 @@ class ParSet(object):
         # Save the configuration file section details
         self.cfg_section = cfg_section
         self.cfg_comment = cfg_comment
-
 
     def __getitem__(self, key):
         """
@@ -738,6 +747,91 @@ class ParSet(object):
             if numpy.any(should_not_be_None):
                 raise ValueError('These keys should not be None: {0}'.format(
                                     numpy.asarray(self.keys())[should_not_be_None].tolist()))
+
+    def to_header(self, hdr, prefix=None, quiet=False):
+        """
+        Write the parameters to a fits header.
+
+        Any element that has a value of None or is a ParSet itself is
+        *not* written to the header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object for the parameters. Modified in-place.
+            prefix (:obj:`str`, optional):
+                Prefix to use for the header keywords, which
+                overwrites the string defined for the class. If None,
+                uses the default for the class.
+            quiet (:obj:`bool`, optional):
+                Suppress print statements.
+        """
+        if prefix is None:
+            prefix = self.prefix
+        ndig = int(numpy.log10(self.npar))+1 
+        for i, (key, value) in enumerate(self.data.items()):
+            if value is None:
+                # Don't write Nones
+                continue
+            if isinstance(value, ParSet):
+                if verbose:
+                    warnings.warn('ParSets within ParSets are not written to headers!  '
+                                  'Skipping {0}.'.format(key))
+                continue
+            _value = str(value) if isinstance(value, (list, tuple)) else value
+            hdr['{0}{1}'.format(prefix, str(i+1).zfill(ndig))] \
+                    = (_value, '{0}: {1}'.format(self.__class__.__name__, key))
+
+    @classmethod
+    def from_header(cls, hdr, prefix=None):
+        """
+        Instantiate the ParSet using data parsed from a fits header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object with the parameters.
+            prefix (:obj:`str`, optional):
+                Prefix of the relevant header keywords, which
+                overwrites the string defined for the class. If None,
+                uses the default for the class.
+        """
+        if prefix is None:
+            prefix = cls.prefix
+        return cls.from_dict(util.recursive_dict_evaluate(ParSet.parse_par_from_hdr(hdr, prefix)))
+
+    @staticmethod
+    def parse_par_from_hdr(hdr, prefix):
+        """
+        Parse the dictionary of parameters written to a header
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object to parse.
+            prefix (:obj:`str`):
+                The prefix used for the header keywords.
+        
+        Returns:
+            dict: A dictionary with the parameter keywords and
+            values.
+        """
+        par = {}
+        for k, v in hdr.items():
+            # Check if this header keyword starts with the required
+            # prefix
+            if k[:len(prefix)] == prefix:
+                try:
+                    # Try to convert the keyword without the prefix into
+                    # an integer.
+                    i = int(k[len(prefix):])-1
+                except ValueError:
+                    # Assume the value is some other random keyword that
+                    # starts with the prefix but isn't a parameter
+                    continue
+                # Assume we've found a parameter. Parse the parameter
+                # name from the header comment and add it to the
+                # dictionary.
+                par_key = hdr.comments[k].split(':')[-1].strip()
+                par[par_key] = v
+        return par
 
 
 class ParDatabase(object):

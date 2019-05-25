@@ -78,9 +78,7 @@ def main(args):
         msgs.error("Bad extension for PypeIt reduction file."+msgs.newline()+".pypeit is required")
     logname = splitnm[0] + ".log"
 
-#    # Load PypeIt file to get the spectrograph (might happen twice but that is ok)
-#    pypeitSetup = pypeitsetup.PypeItSetup.from_pypeit_file(args.pypeit_file)
-
+    # Instantiate the main pipeline reduction object
     pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
                            reuse_masters=args.use_masters, overwrite=args.overwrite,
                            logname=logname, show=args.show)

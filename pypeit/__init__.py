@@ -11,7 +11,7 @@ import signal
 import warnings
 
 # Set version
-__version__ = '0.9.4dev'
+__version__ = '0.10.2dev'
 
 # Import and instantiate the logger
 from pypeit import pypmsgs
@@ -30,7 +30,7 @@ def signal_handler(signalnum, handler):
     """
     if signalnum == 2:
         msgs.info('Ctrl+C was pressed. Ending processes...')
-        close_qa(msgs.pypit_file)
+        close_qa(msgs.pypeit_file)
         msgs.close()
         sys.exit()
 

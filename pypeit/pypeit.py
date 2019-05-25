@@ -443,36 +443,6 @@ class PypeIt(object):
         else:
             msgs.info('Skipping flexure correction.')
 
-    def helio_correct(self, sobjs, maskslits, frame, obstime):
-        """
-        Perform a heliocentric correction on a set of spectra
-
-        Args:
-            sobjs (pypeit.specobjs.SpecObjs): Spectra
-            maskslits (ndarray): Slits that are masked
-            frame (int): Frame to use for meta info
-            obstime (astropy.time.Time):
-
-        Returns:
-            astropy.units.Quantity: Velocity correction in km/s
-
-        """
-        # Helio, correct Earth's motion
-        if (self.caliBrate.par['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
-                and (self.caliBrate.par['wavelengths']['reference'] != 'pixel'):
-            # TODO change this keyword to refframe instead of frame
-            msgs.info("Performing a {0} correction".format(self.caliBrate.par['wavelengths']['frame']))
-            vel, vel_corr = wave.geomotion_correct(sobjs, maskslits, self.fitstbl, frame, obstime,
-                                                   self.spectrograph.telescope['longitude'],
-                                                   self.spectrograph.telescope['latitude'],
-                                                   self.spectrograph.telescope['elevation'],
-                                                   self.caliBrate.par['wavelengths']['frame'])
-        else:
-            msgs.info('A wavelength reference-frame correction will not be performed.')
-            vel_corr = None
-
-        return vel_corr
-
     def get_sci_metadata(self, frame, det):
         """
         Grab the meta data for a given science frame and specific detector

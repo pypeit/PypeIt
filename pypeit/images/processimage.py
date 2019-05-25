@@ -107,7 +107,7 @@ class ProcessImage(pypeitimage.PypeItImage):
             msgs.warn("Image was already oriented.  Returning current image")
             return self.image
         # Transpose?
-        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
+        if self.spectrograph.raw_is_transposed(self.det):
             self.image = self.image.T
         # Flip spectgral axis?
         if self.spectrograph.detector[self.det-1]['specflip'] is True:

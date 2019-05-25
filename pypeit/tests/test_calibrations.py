@@ -128,6 +128,7 @@ def test_wv_calib(multi_caliBrate):
     assert isinstance(wv_calib, dict)
     assert wv_calib['0'] is not None
     assert wv_calib['0']['rms'] < 0.2
+    assert isinstance(multi_caliBrate.tslits_dict['maskslits'], np.ndarray)
 
 
 @dev_suite_required
@@ -143,6 +144,7 @@ def test_tilts(multi_caliBrate):
     # Run
     tilts_dict = multi_caliBrate.get_tilts()
     assert tilts_dict['tilts'].shape == (2048,350)
+    assert isinstance(multi_caliBrate.tslits_dict['maskslits'], np.ndarray)
 
 
 @dev_suite_required
