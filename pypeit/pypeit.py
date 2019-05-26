@@ -135,9 +135,11 @@ class PypeIt(object):
         # Instantiate Calibrations class
         self.caliBrate \
             = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                 self.spectrograph, caldir=self.calibrations_path,
+                                                 self.spectrograph,
+                                                 caldir=self.calibrations_path,
                                                  qadir=self.qa_path,
-                                                 reuse_masters=self.reuse_masters, show=self.show)
+                                                 reuse_masters=self.reuse_masters,
+                                                 show=self.show)
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used

@@ -41,7 +41,7 @@ class CombinedImage(pypeitimage.PypeItImage):
 
         # Internal images
         self.images = []
-        self.combined = None
+        self.image = None
 
         # All possible processing steps
         #  Note these have to match the method names below
@@ -93,7 +93,7 @@ class CombinedImage(pypeitimage.PypeItImage):
 
     def combine(self):
         if self.nimages == 1:
-            self.combined = self.images[0].image
+            self.image = self.images[0].image
         else:
             #
             saturation = self.spectrograph.detector[self.det-1]['saturation']
@@ -105,7 +105,7 @@ class CombinedImage(pypeitimage.PypeItImage):
                 image_arr[:,:,kk] = iimage.image
 
             # Do it
-            self.combined = combine.comb_frames(image_arr,
+            self.image = combine.comb_frames(image_arr,
                                                 frametype=self.frametype,
                                              saturation=saturation,
                                              method=self.proc_par['combine'],
@@ -115,7 +115,7 @@ class CombinedImage(pypeitimage.PypeItImage):
                                              sig_lohi=self.proc_par['sig_lohi'],
                                              replace=self.proc_par['replace'])
         # Return
-        return self.combined.copy()
+        return self.image.copy()
 
     def load_images(self, reload=False):
         if (not reload) and (self.nimages > 0):
