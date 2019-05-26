@@ -9,7 +9,6 @@ import os
 
 from pypeit import msgs
 
-from pypeit import processimages
 from pypeit import masterframe
 from pypeit.core import flat
 from pypeit import ginga

@@ -364,6 +364,7 @@ class Spectrograph(object):
     def get_pixel_img(self, filename, section, det):
         """
         Create an image identifying the amplifier used to read each pixel.
+        This is in the *raw* data format
 
         .. todo::
             - I find 1-indexing to be highly annoying...

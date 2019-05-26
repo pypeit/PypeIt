@@ -162,8 +162,11 @@ class CombinedImage(pypeitimage.PypeItImage):
             msgs.warn("Images already loaded.  Use reload if you wish")
             return
         for file in self.file_list:
+            # Instantiate
             processImage = processimage.ProcessImage(file, self.spectrograph, self.det, self.proc_par)
-            processImage.load_image(file)
+            # Load
+            processImage.load_rawimage(file)
+            # Append
             self.images.append(processImage)
 
     def process_images(self, process_steps, pixel_flat=None, illum_flat=None,
