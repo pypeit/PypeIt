@@ -139,6 +139,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         return None
 
     def order_vec(self, norders=None):
+        msgs.error("Refactor to use slit_spat_pos!!")
         if norders is None:
             norders = self.norders
         return self.slit2order(np.arange(norders), norders)
@@ -350,6 +351,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         -------
         order: int
         """
+        msgs.error("REFACTOR")
 
         if isinstance(islit, str):
             islit = int(islit)
@@ -365,7 +367,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         orders = np.arange(26,10,-1, dtype=int)
         return orders[islit]
 
-    def order_platescale(self, binning=None, norders=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the spatial plate scale in arcseconds for each order
 
@@ -382,6 +384,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         order_platescale: ndarray, float
 
         """
+        msgs.error("REFACTOR")
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
@@ -614,6 +617,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         order_platescale: ndarray, float
 
         """
+        msgs.error("REFACTOR")
 
         # VIS has no binning, but for an instrument with binning we would do this
         binspectral, binspatial = parse.parse_binning(binning)
@@ -832,6 +836,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         -------
         order: int
         """
+        msgs.error("Refactor to use slit_spat_pos!!")
 
         if isinstance(islit, str):
             islit = int(islit)
@@ -866,6 +871,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         order_platescale: ndarray, float
 
         """
+        msgs.error("REFACTOR")
 
         binspectral, binspatial = parse.parse_binning(binning)
 

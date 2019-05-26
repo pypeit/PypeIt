@@ -245,6 +245,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         -------
         order: int
         """
+        msgs.error("Refactor to use slit_spat_pos!!")
 
         if isinstance(islit, str):
             islit = int(islit)
@@ -261,10 +262,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return orders[islit]
 
     def order_vec(self):
+        msgs.error("Refactor to use slit_spat_pos!!")
         return self.slit2order(np.arange(self.norders))
 
 
-    def order_platescale(self, binning=None):
+    def order_platescale(self, order_vec, binning=None):
 
 
         """
@@ -283,10 +285,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         order_platescale: ndarray, float
 
         """
-
         # NIRES has no binning, but for an instrument with binning we would do this
         #binspatial, binspectral = parse.parse_binning(binning)
-        return np.full(5, 0.15)
+        norders = order_vec.size
+        return np.full(norders, 0.15)
 
 
     @property

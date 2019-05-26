@@ -351,12 +351,13 @@ def main(flg):
             all_wave[:,order] = airtovac(wv_air * units.AA).value
         # Write
         tbl = Table()
-        tbl['wave'] = all_wave
-        tbl['flux'] = all_flux
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = np.arange(20, 5, -1, dtype=int)
         tbl.meta['BINSPEC'] = 1
         # Write
         outroot='magellan_mage.fits'
-        outfile = os.path.join(outpath, outroot)
+        outfile = os.path.join(template_path, outroot)
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
@@ -412,8 +413,8 @@ if __name__ == '__main__':
     #  Need several arcs to proceed this way
 
     # MagE
-    #flg += 2**13
-    flg += 2**14  # Plots
+    flg += 2**13
+    #flg += 2**14  # Plots
 
     main(flg)
 

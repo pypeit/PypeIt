@@ -9,14 +9,13 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
-import linetools.utils
-
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
 from pypeit.core.wavecal import autoid, waveio
 
 from pypeit import debugger
+from IPython import embed
 
 class WaveCalib(masterframe.MasterFrame):
     """
@@ -117,6 +116,8 @@ class WaveCalib(masterframe.MasterFrame):
             # TODO: Remove the following two lines if deemed ok
             if self.par['method'] != 'full_template':
                 self.inmask &= self.msarc < self.nonlinear_counts
+            self.slit_spat_pos = (self.tslits_dict['slit_left'][self.msarc.shape[0]//2, :] +
+                             self.tslits_dict['slit_righ'][self.msarc.shape[0]//2,:]) /2/self.msarc.shape[1]
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -194,7 +195,10 @@ class WaveCalib(masterframe.MasterFrame):
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
-            arcfitter = autoid.ArchiveReid(arccen, par=self.par, ok_mask=ok_mask)
+            #embed(header='196 of wavecalib')
+            # Slit positions
+            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
+                                           slit_spat_pos=self.slit_spat_pos)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
@@ -247,7 +251,7 @@ class WaveCalib(masterframe.MasterFrame):
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
                 continue
-            iorder = self.spectrograph.slit2order(islit, len(self.maskslits))
+            iorder = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
             mask_now = wv_calib[islit]['mask']
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])

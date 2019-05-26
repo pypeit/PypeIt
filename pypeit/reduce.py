@@ -10,7 +10,7 @@ from abc import ABCMeta
 from pypeit import ginga, utils, msgs, processimages, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
 
-from pypeit import debugger
+from IPython import embed
 
 class Reduce(object):
     """
@@ -702,17 +702,20 @@ class Echelle(Reduce):
         super(Echelle, self).__init__(spectrograph, tslits_dict, mask, par, **kwargs)
 
 
-
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
                               show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
                               manual_extract_dict=None):
 
+        # For echelle orders
+        slit_spat_pos = (self.tslits_dict['slit_left'][image.shape[0]//2, :] +
+                              self.tslits_dict['slit_righ'][image.shape[0]//2,:]) /2/image.shape[1]
+
+
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 
-        norders=self.tslits_dict['slit_left'].shape[1]
-        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=norders)
-        order_vec = self.spectrograph.order_vec(norders=norders)
+        order_vec = self.spectrograph.order_vec(slit_spat_pos)
+        plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
         inmask = self.mask == 0
         # Find objects
         specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
@@ -769,9 +772,13 @@ class Echelle(Reduce):
         self.waveimg = waveimg
         self.global_sky = global_sky
         self.rn2img = rn2img
-        norders = len(self.tslits_dict['spec_min'])  # Number found, not just hard-coded
-        order_vec = self.spectrograph.order_vec(norders)
-        plate_scale = self.spectrograph.order_platescale(binning=self.binning, norders=norders)
+
+        # For echelle orders
+        slit_spat_pos = (self.tslits_dict['slit_left'][sciimg.shape[0]//2, :] +
+                         self.tslits_dict['slit_righ'][sciimg.shape[0]//2,:]) /2/sciimg.shape[1]
+        order_vec = self.spectrograph.order_vec(slit_spat_pos)
+        #
+        plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciimg, self.sciivar, self.mask, self.tilts, self.waveimg, self.global_sky,
             self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,

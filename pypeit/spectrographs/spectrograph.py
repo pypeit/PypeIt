@@ -882,24 +882,13 @@ class Spectrograph(object):
         slitmask = pixels.slit_pixels(tslits_dict['lcen'],tslits_dict['rcen'],tslits_dict['nspat'], pad=pad)
         return slitmask
 
-    def order_platescale(self, binning=None, norders=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         This routine is only for echelle spectrographs. It returns the plate scale order by order
 
         Args:
+            order_vec (np.ndarray):
             binning:
-
-        Returns:
-
-        """
-        pass
-
-    def order_vec(self, norders=None):
-        """
-        This routine is only for echelle spectrographs. It returns a vector of orders
-
-        Args:
-            norders (int):
 
         Returns:
             np.ndarray
@@ -907,14 +896,26 @@ class Spectrograph(object):
         """
         pass
 
-    def slit2order(self, slit, nslit):
+    def order_vec(self, slit_spat_pos):
+        """
+        This routine is only for echelle spectrographs. It returns a vector of orders
+
+        Args:
+            slit_spat_pos (np.ndarray):
+
+        Returns:
+            np.ndarray
+
+        """
+        pass
+
+    def slit2order(self, slit_pos):
         """
         This routine is only for echelle spectrographs.
         It returns the order of the input slit
 
         Args:
-            slit (int):
-            nslit (int):
+            slit_pos (float):
 
         Returns:
             int: Echelle order number

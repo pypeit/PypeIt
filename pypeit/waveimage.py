@@ -15,7 +15,7 @@ from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
 
-from pypeit import debugger
+from IPython import embed
 
 class WaveImage(MasterFrame):
     """
@@ -71,8 +71,13 @@ class WaveImage(MasterFrame):
 
         self.maskslits = maskslits
 
+        # For echelle order, primarily
+        self.slit_spat_pos = (self.tslits_dict['slit_left'][self.tilts.shape[0]//2, :] +
+                      self.tslits_dict['slit_righ'][self.tilts.shape[0]//2,:]) /2/self.tilts.shape[1]
+
         # List to hold ouptut from inspect about what module create the image?
         self.steps = []
+
 
         # Main output
         self.mswave = None
@@ -104,7 +109,7 @@ class WaveImage(MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
-                order = self.spectrograph.slit2order(slit, len(self.maskslits))
+                order = self.spectrograph.slit2order(self.slit_spat_pos[slit])
                 # evaluate solution
                 self.mswave[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
                                                        self.tilts[thismask],

@@ -1050,8 +1050,9 @@ class ArchiveReid:
     """
 
 
-    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = False,
-                 debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
+    def __init__(self, spec, spectrograph, par, ok_mask=None, use_unknowns=True, debug_all = False,
+                 debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False,
+                 slit_spat_pos=None):
 
         if debug_all:
             debug_peaks = True
@@ -1072,7 +1073,11 @@ class ArchiveReid:
             self.nslits = 1
         else:
             msgs.error('Unrecognized shape for spec. It must be either a one dimensional or two dimensional numpy array')
-        self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
+        if not isinstance(par, pypeitpar.WavelengthSolutionPar):
+            msgs.error("Bad par!")
+        self.par = par
+        self.spectrograph = spectrograph
+        self.slit_spat_pos = slit_spat_pos
         self.lamps = self.par['lamps']
         self.use_unknowns = use_unknowns
 
@@ -1131,9 +1136,11 @@ class ArchiveReid:
                 test = int(key)
             except ValueError:
                 narxiv -=1
+        '''
         if self.ech_fix_format and (self.nslits != narxiv):
             msgs.error('You have set ech_fix_format = True, but nslits={:d} != narxiv={:d}'.format(self.nslits,narxiv) + '.' +
                        msgs.newline() + 'The number of orders identified does not match the number of solutions in the arxiv')
+        '''
 
         # Array to hold continuum subtracted arcs
         self.spec_cont_sub = np.zeros_like(self.spec)
@@ -1145,6 +1152,10 @@ class ArchiveReid:
         for iarxiv in range(narxiv):
             self.spec_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['spec']
             self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
+            if self.ech_fix_format:
+                arxiv_orders = []
+                for iarxiv in range(narxiv):
+                    arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
 
         # These are the final outputs
         self.all_patt_dict = {}
@@ -1159,7 +1170,13 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            ind_sp = slit if self.ech_fix_format else np.arange(narxiv,dtype=int)
+            if self.ech_fix_format:
+                # Grab the order (could have been input)
+                order = self.spectrograph.slit2order(slit_spat_pos[slit])
+                # Find it
+                ind_sp = arxiv_orders.index(order)
+            else:
+                ind_sp = np.arange(narxiv,dtype=int)
 
             sigdetect = self._parse_param(self.par, 'sigdetect', slit)
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
