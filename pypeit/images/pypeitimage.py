@@ -5,6 +5,7 @@ from pypeit import ginga
 
 import numpy as np
 
+from IPython import embed
 
 class PypeItImage(object):
 
@@ -18,7 +19,8 @@ class PypeItImage(object):
         self.image = None
         self.header = None           # Image header
         self.orig_shape = None       # Shape of the image when loaded
-        self.filename = None       # Shape of the image when loaded
+        self.filename = None         # Filename of the image
+        self.exptime = None          # Required to generate variance image
 
     @property
     def bpm(self):
@@ -48,6 +50,8 @@ class PypeItImage(object):
             = self.spectrograph.load_raw_frame(filename, det=self.det)
         # Shape
         self.orig_shape = self.image.shape
+        # Exposure time
+        self.exptime = self.spectrograph.get_meta_value(filename, 'exptime')
         #
         return self.image, self.header
 

@@ -68,7 +68,7 @@ class Spectrograph(object):
             detector image; often trimmmed.
         raw_naxis (tuple):
             A tuple with the lengths of the two axes for untrimmed detector image.
-        datasec_img (:obj:`numpy.ndarray`):
+        rawdatasec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector pixel.
         oscansec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector pixel
@@ -83,7 +83,7 @@ class Spectrograph(object):
         self.detector = None
         self.naxis = None
 #        self.raw_naxis = None
-        self.datasec_img = None
+        self.rawdatasec_img = None
         self.oscansec_img = None
         self.bpm_img = None
 
@@ -338,11 +338,22 @@ class Spectrograph(object):
         #
         #return image_sections, one_indexed, include_last
 
-    def get_datasec_img(self, filename, det, force=True):
-        if self.datasec_img is None or force:
+    def get_rawdatasec_img(self, filename, det, force=True):
+        """
+        Return the *raw* datasec image, i.e. in the load-from-disk orientation, etc.
+
+        Args:
+            filename:
+            det:
+            force:
+
+        Returns:
+
+        """
+        if self.rawdatasec_img is None or force:
             return self.get_pixel_img(filename, 'datasec', det)
         else:
-            return self.datasec_img
+            return self.rawdatasec_img
 
     def get_oscansec_img(self, filename, det, force=True):
         if self.oscansec_img is None or force:
@@ -499,6 +510,19 @@ class Spectrograph(object):
         # Use a file
         self._check_detector()
         return (self.load_raw_frame(filename, det=det)[0]).shape
+
+    def orient_image(self, rawimage, det):
+        image = rawimage.copy()
+        # Transpose?
+        if self.raw_is_transposed(det):
+            image = image.T
+        # Flip spectgral axis?
+        if self.detector[det-1]['specflip'] is True:
+            image = np.flip(image, axis=0)
+        # Flip spatial axis?
+        if self.detector[det-1]['spatflip'] is True:
+            image = np.flip(image, axis=1)
+        return image
 
     def empty_bpm(self, shape=None, filename=None, det=1):
         """

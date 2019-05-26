@@ -1,13 +1,15 @@
 """ Module for the ScienceImage class"""
 import numpy as np
 from pypeit import msgs
-from pypeit import processimages
 from pypeit import utils
 from pypeit import ginga
 from pypeit.core import coadd2d
+from pypeit.core import procimg
+
+from pypeit.images import combinedimage
 
 
-class ScienceImage(processimages.ProcessImages):
+class ScienceImage(combinedimage.CombinedImage):
     """
     This class will organize and run actions related to
     a Science or Standard star exposure
@@ -18,7 +20,7 @@ class ScienceImage(processimages.ProcessImages):
     ----------
     file_list : list
       List of raw files to produce the flat field
-    spectrograph : str
+    spectrograph : pypeit.spectrograph.Spectrograph
     settings : dict-like
     tslits_dict : dict
       dict from TraceSlits class
@@ -26,8 +28,9 @@ class ScienceImage(processimages.ProcessImages):
       tilts from WaveTilts class
       used for sky subtraction and object finding
     det : int
-    bpm : ndarray
-      Bad pixel mask
+    sci_bpm : ndarray
+      Bad pixel mask for this science image;  can and often does differ
+      from the default BPM
     objtype : str
       'science'
       'standard'
@@ -75,16 +78,17 @@ class ScienceImage(processimages.ProcessImages):
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list = [], ir_redux=False, det=1, binning=None, par=None):
+    def __init__(self, spectrograph, file_list, bg_file_list=[], ir_redux=False, det=1, binning=None, par=None):
 
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
         #self.par = pypeitpar.FrameGroupPar(objtype) if par is None else par
         self.par = spectrograph.default_pypeit_par()['scienceframe'] if par is None else par
 
-        # Start up by instantiating the process images class for reading in the relevant science files
-        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
-                                             files=[], det=det)
+        # Start us up
+        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
+                                             files=[], frametype=self.frametype)
+        self.file_list = file_list
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
@@ -104,7 +108,7 @@ class ScienceImage(processimages.ProcessImages):
         self.mincounts = self.spectrograph.detector[self.det - 1]['mincounts']
 
         # These attributes will be sert when the image(s) are processed
-        self.bpm = None
+        self.sci_bpm = None
         self.bias = None
         self.pixel_flat = None
         self.illum_flat = None
@@ -142,7 +146,7 @@ class ScienceImage(processimages.ProcessImages):
         """
 
         # Process
-        self.bpm = bpm
+        self.sci_bpm = bpm
         self.bias = bias
         self.pixel_flat = pixel_flat
         self.illum_flat = illum_flat
@@ -187,12 +191,22 @@ class ScienceImage(processimages.ProcessImages):
         """
         nsci = len(file_list)
         weights = np.ones(nsci)/float(nsci)
-        sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
-        self.read_stack(file_list, self.bias, self.pixel_flat, self.bpm, self.det, self.par['process'], self.spectrograph,
-                            illum_flat=self.illum_flat, reject_cr=reject_cr, binning=self.binning)
+
+        # Load
+        self.load_images()
+        # Process
+        process_steps = procimg.init_process_steps(self.bias, self.par['process'])
+        process_steps += ['trim', 'apply_gain']
+        self.process_images(process_steps, bias=self.bias, bpm=self.sci_bpm,
+                            pixel_flat=self.pixel_flat, illum_flat=self.illum_flat)
+        # Load up the stack (and create some internal images0
+        sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = self.build_stack(
+            bpm=self.sci_bpm, reject_cr=reject_cr)
+        #sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
+        #self.read_stack(file_list, self.bias, self.pixel_flat, self.sci_bpm, self.det, self.par['process'], self.spectrograph,
+        #                    illum_flat=self.illum_flat, reject_cr=reject_cr, binning=self.binning)
 
         # ToDO The bitmask is not being properly propagated here!
-
         if nsci > 1:
             sci_list = [sciimg_stack]
             var_stack = utils.calc_ivar(sciivar_stack)
@@ -206,7 +220,7 @@ class ScienceImage(processimages.ProcessImages):
             # assumes everything masked in the outmask is a CR in the individual images
             crmask = np.invert(outmask)
             # Create a mask for this image now
-            mask = self.build_mask(sciimg, sciivar, crmask, self.bpm, saturation=self.saturation, mincounts=self.mincounts)
+            mask = self.build_mask(sciimg, sciivar, crmask, self.sci_bpm, saturation=self.saturation, mincounts=self.mincounts)
         else:
             mask = mask_stack[0, :, :]
             crmask = crmask_stack[0, :, :]
@@ -217,7 +231,8 @@ class ScienceImage(processimages.ProcessImages):
         return sciimg, sciivar, rn2img, mask, crmask
 
 
-    def proc_diff(self, file_list, bg_file_list, reject_cr = True,sigma_clip=False, sigrej=None, maxiters=5):
+    def proc_diff(self, file_list, bg_file_list, reject_cr=True,
+                  sigma_clip=False, sigrej=None, maxiters=5):
         """
         Process a list of science images and their background frames
         Primarily for near-IR reductions
@@ -226,11 +241,16 @@ class ScienceImage(processimages.ProcessImages):
 
         Needed in part to set self.sciframe, although I could kludge it another way..
 
-        Returns
-        -------
-        self.sciframe
-        self.rawvarframe
-        self.crmask
+        Args:
+            file_list:
+            bg_file_list:
+            reject_cr:
+            sigma_clip:
+            sigrej:
+            maxiters:
+
+        Returns:
+            tuple: sciimg, sciivar, rn2img, mask, crmask
 
         """
 
@@ -250,7 +270,7 @@ class ScienceImage(processimages.ProcessImages):
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         crmask = crmask_diff | np.invert(outmask_comb)
         # Create a mask for this image now
-        mask = self.build_mask(sciimg, sciivar, crmask, self.bpm, saturation=self.saturation)
+        mask = self.build_mask(sciimg, sciivar, crmask, self.sci_bpm, saturation=self.saturation)
 
         return sciimg, sciivar, rn2img, mask, crmask
 

@@ -739,6 +739,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
     var = np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
     var = var + adderr ** 2 * (np.abs(sciframe)) ** 2
+    embed(header='this appears broken!')
     return
 
 
