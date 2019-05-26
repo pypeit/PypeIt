@@ -3,7 +3,7 @@
 
 - Add magellan_mage, including a new ThAr linelist and an archived solution
 - Polish several key echelle methods
-- Modified create_linelist to default to vacuum
+- Modify create_linelist to default to vacuum
 
 0.10.1 (22 May 2019)
 --------------------
