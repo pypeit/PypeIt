@@ -3,7 +3,6 @@
 Built HTML for PYPIT QA
 """
 import argparse
-import pdb as debugger
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Script to build HTML files for PYPIT QA. [v1.0]')

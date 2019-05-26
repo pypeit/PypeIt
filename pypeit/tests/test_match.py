@@ -84,3 +84,17 @@ def test_instr_setup(fitstbl):
 #    assert setup_dict['A']['ab']['arc'][0] == 'b009.fits.gz'
 
 
+def test_exptime():
+    exptime = np.array([0, 30, None, 900])
+    assert np.array_equal(framematch.check_frame_exptime(exptime, [0,None]),
+                          np.array([False, True, False, True]))
+    assert np.array_equal(framematch.check_frame_exptime(exptime, [None,1000]),
+                          np.array([True, True, False, True]))
+    assert np.array_equal(framematch.check_frame_exptime(exptime, [None,None]),
+                          np.array([True, True, False, True]))
+    assert np.array_equal(framematch.check_frame_exptime(exptime, [None,500]),
+                          np.array([True, True, False, False]))
+    assert np.array_equal(framematch.check_frame_exptime(exptime, [10,20]),
+                          np.array([False, False, False, False]))
+
+

@@ -149,61 +149,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.rdiffarr = None
         self.rwghtarr = None
 
-#    # TODO I think this routine should be deprecated.
-#    @classmethod
-#    def from_master_files(cls, root, load_pix_obj=False, par=None):
-#        """
-#        Instantiate from the primary MasterFrame outputs of the class
-#
-#        Args:
-#            root (str): Path + root name for the TraceSlits objects (FITS, JSON)
-#            load_pix_obj (bool, optional):
-#            load_pix_obj (bool, optional):
-#
-#        Returns
-#        -------
-#        slf
-#
-#        """
-#        fits_dict, ts_dict = load_traceslit_files(root)
-#        msgs.info("Loading Slits from {:s}".format(root + '.fits.gz'))
-#
-#        # Deal with parameters
-#        if par is None:
-#            if ts_dict is not None:
-#                par = pypeitpar.TraceSlitsPar.from_dict(ts_dict['settings'])
-#            else:
-#                par = pypeitpar.TraceSlitsPar()
-#
-#        # Deal with the bad pixel image
-#        if 'BINBPX' in fits_dict.keys():
-#            msbpm = fits_dict['BINBPX'].astype(float)
-#            msgs.info("Loading BPM from {:s}".format(root+'.fits.gz'))
-#        else:
-#            msbpm = None
-#
-#        # Instantiate from file
-#        spectrograph = util.load_spectrograph(ts_dict['spectrograph'])
-#        slf = cls(fits_dict['MSTRACE'], spectrograph, par, msbpm=msbpm)
-#
-#        # Fill in a bit more (Attributes)
-#        slf.steps = ts_dict['steps']
-#        slf.binning = ts_dict['binning']
-#
-#        # Others
-#        for key in ['SLIT_LEFT', 'SLIT_RIGH', 'EDGEARR', 'SIGLEV']:
-#            if key in fits_dict.keys():
-#                setattr(slf, key.lower(), fits_dict[key])
-#        # dict
-#        slf.tc_dict = ts_dict['tc_dict']
-#
-#        # Load the pixel objects?
-#        if load_pix_obj:
-#            slf._make_pixel_arrays()
-#
-#        # Return
-#        return slf
-
     @property
     def nslit(self):
         """
