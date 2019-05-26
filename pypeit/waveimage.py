@@ -51,9 +51,6 @@ class WaveImage(MasterFrame):
     def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, maskslits,
                  master_key=None, master_dir=None, reuse_masters=False):
 
-#    def __init__(self, spectrograph, tslits_dict, tilts, wv_calib, maskslits,
-#                 master_key=None, master_dir=None, reuse_masters=False):
-
         # MasterFrame
         MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)

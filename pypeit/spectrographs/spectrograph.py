@@ -214,6 +214,7 @@ class Spectrograph(object):
         if self.raw_is_transposed(det):
             img = img.T
         # All of this should be done *after* trimming, overscan etc.
+        #   And will be done in the ProcessImages refactor
 
         # Return
         return img, head0
