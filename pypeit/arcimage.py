@@ -98,7 +98,7 @@ class ArcImage(combinedimage.CombinedImage, masterframe.MasterFrame):
                 Overwrite any existing file.
         """
         super(ArcImage, self).save(self.image, 'ARC', outfile=outfile, overwrite=overwrite,
-                                   raw_files=self.files, steps=self.steps)
+                                   raw_files=self.file_list, steps=self.steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.

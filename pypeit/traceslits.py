@@ -994,11 +994,11 @@ class TraceSlits(masterframe.MasterFrame):
         #   - Provide the file names
         if traceImage is not None:
             try:
-                nfiles = len(traceImage.files)
+                nfiles = len(traceImage.file_list)
                 ndig = int(np.log10(nfiles))+1
                 for i in range(nfiles):
                     hdr['F{0}'.format(i+1).zfill(ndig)] \
-                            = (traceImage.files[i], 'PypeIt: Processed raw file')
+                            = (traceImage.file_list[i], 'PypeIt: Processed raw file')
             except:
                 msgs.warn('Master trace frame does not include list of source files.')
         #   - Slit metadata
@@ -1017,7 +1017,7 @@ class TraceSlits(masterframe.MasterFrame):
         mstrace = self.mstrace
         if traceImage is not None:
             try:
-                mstrace = traceImage.combined
+                mstrace = traceImage.image
             except:
                 # Assume it failed because it's not a TraceImage object
                 # and it's a numpy.ndarray to write.

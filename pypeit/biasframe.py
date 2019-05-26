@@ -99,14 +99,14 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        if self.combined is None:
+        if self.image is None:
             msgs.warn('No MasterBias to save!')
             return
-        if not isinstance(self.combined, np.ndarray):
+        if not isinstance(self.image, np.ndarray):
             msgs.warn('MasterBias is not an image.')
             return
-        super(BiasFrame, self).save(self.combined, 'BIAS', outfile=outfile, overwrite=overwrite,
-                                    raw_files=self.files, steps=self.steps)
+        super(BiasFrame, self).save(self.image, 'BIAS', outfile=outfile, overwrite=overwrite,
+                                    raw_files=self.file_list, steps=self.steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.

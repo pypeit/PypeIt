@@ -605,15 +605,7 @@ class Calibrations(object):
             self.traceImage = traceimage.TraceImage(self.spectrograph,
                                                     files=self.trace_image_files, det=self.det,
                                                     par=self.par['traceframe'])
-            # Load
-            self.traceImage.load_images()
-            # Process + combine
-            process_steps = procimg.init_process_steps(self.msbias, self.par['traceframe']['process'])
-            if self.par['trim']:
-                process_steps += ['trim']
-            process_steps += ['apply_gain']
-            self.traceImage.process_images(process_steps, bias=self.msbias)
-            _ = self.traceImage.combine()
+            self.traceImage.build_image(bias=self.msbias)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             binspectral, binspatial = parse.parse_binning(self.binning)

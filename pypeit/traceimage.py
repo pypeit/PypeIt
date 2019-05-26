@@ -1,14 +1,12 @@
 """
 Module for generating the Trace image
 """
-import inspect
 import numpy as np
 
 from pypeit import msgs
 from pypeit.par import pypeitpar
 from pypeit.images import combinedimage
-
-from pypeit import debugger
+from pypeit.core import procimg
 
 
 class TraceImage(combinedimage.CombinedImage):
@@ -36,3 +34,12 @@ class TraceImage(combinedimage.CombinedImage):
         combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
                                              files=files, frametype=self.frametype)
 
+    def build_image(self, bias=None):
+        # Load
+        self.load_images()
+        # Process + combine
+        process_steps = procimg.init_process_steps(bias, self.proc_par)
+        process_steps += ['trim']
+        process_steps += ['apply_gain']
+        self.process_images(process_steps, bias=bias)
+        self.image = self.combine()
