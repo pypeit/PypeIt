@@ -373,10 +373,14 @@ class MultiSlit(FluxSpec):
                                                self.spectrograph.telescope['longitude'],
                                                self.spectrograph.telescope['latitude'],
                                                BALM_MASK_WID=self.par['balm_mask_wid'],
+                                               star_type=self.star_type,
+                                               star_mag=self.star_mag,
                                                telluric=self.telluric,
                                                ra=self.std_ra,
                                                dec=self.std_dec,
                                                std_file = self.std_file,
+                                               poly_norder=self.poly_norder,
+                                               polycorrect=self.polycorrect,
                                                debug=self.debug)
         self.sens_dict['0'] = sens_dict_long
         self.sens_dict['nslits'] = 1
