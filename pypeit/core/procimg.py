@@ -262,7 +262,6 @@ def gain_frame(datasec_img, gain_list, trim=True):
         amp = ii+1
         amppix = datasec_img == amp
         gain_img[amppix] = gain
-    # Trim?
     if trim:
         gain_img = trim_frame(gain_img, datasec_img < 1)
     # Return

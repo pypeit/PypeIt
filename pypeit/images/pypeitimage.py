@@ -19,6 +19,7 @@ class PypeItImage(object):
         self.image = None
         self.head0 = None           # Image header
         self.orig_shape = None       # Shape of the image when loaded
+        self.orig_binning = None     # Binning in the raw image orientation;  e.g. bin_1, bin_2 (for NAXIS1, NAXIS2)
         self.filename = None         # Filename of the image
         self.exptime = None          # Required to generate variance image
 
