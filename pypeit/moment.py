@@ -1,3 +1,8 @@
+"""
+Module to compute moments.
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+"""
 
 import numpy as np
 from scipy import special
@@ -71,15 +76,15 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
           The shape of the array for each moment is then :math:`(N_{\rm
           mom,col},)`.
         - If `row` is a 1D integer array and `col` is 1D, the default
-          behavior is for the moments to be calculated at each col for
-          each provided row. The shape of the array for each moment
-          would then be :math:`(N_{\rm mom,row},N_{\rm mom,col})`. This
-          will be true even if :math:`N_{\rm mom,row} = N_{\rm
-          mom,col}`, as long as `mesh` is `True`. However, if
-          :math:`N_{\rm mom,row} = N_{\rm mom,col}` and `mesh` is
-          `False`, on the matched pairs of `col` and `row` will be used
-          and the output shape per moment will be :math:`(N_{\rm
-          mom,row},)`.
+          behavior is for the moments to be calculated at each col
+          for each provided row. The shape of the array for each
+          moment would then be :math:`(N_{\rm mom,row},N_{\rm
+          mom,col})`. This will be true even if :math:`N_{\rm
+          mom,row} = N_{\rm mom,col}`, as long as `mesh` is `True`.
+          However, if :math:`N_{\rm mom,row} = N_{\rm mom,col}` and
+          `mesh` is `False`, only the matched pairs of `col` and
+          `row` will be used and the output shape per moment will be
+          :math:`(N_{\rm mom,row},)`.
         - If `row` is a 1D integer array and `col` is 2D, the first axis
           of `col` must be the same length as `row`. The shape of the
           array for each moment is then :math:`(N_{\rm mom,row},N_{\rm
@@ -156,6 +161,12 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
             Value to use as filler for undetermined moments, resulting
             from either the input mask or computational issues (division
             by zero, etc.; see return description below).
+        mesh (:obj:`bool`, optional):
+            If `col` and `row` are 1D vectors of the same length,
+            this determines if each `col` and `row` should be paired
+            (`mesh is False`) or used to construct a grid, i.e.,
+            every `col` combined with every `row` (`mesh is True`).
+            See the method description.
 
     Returns:
         Three `numpy.ndarray`_ objects are returned.  If more than one
@@ -304,8 +315,13 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
     else:
         _row = np.arange(nrow)
     # Check column and row values are valid
-    if np.any((_col < 0) | (_col >= ncol)):
-        raise ValueError('Column locations outside provided image.')
+
+    # TODO: This allow the window centers to be outside the image
+    # range. This is okay because _col is never used when slicing the
+    # image. However, _row values are, meaning that they have to be
+    # within the image limits.
+#    if np.any((_col < 0) | (_col >= ncol)):
+#        raise ValueError('Column locations outside provided image.')
     if np.any((_row < 0) | (_row >= nrow)):
         raise ValueError('Row locations outside provided image.')
 
@@ -418,7 +434,7 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
         mue[i] = mue[i].filled(fill_error)
 
     # Build the return matrices
-    singlenum = len(outshape) == 1 and outshape == (1,)
+    singlenum = outshape == (1,)
     return (mu[_order][0][0], mue[_order][0][0], mum[_order][0][0]) if singlenum \
             else (np.concatenate(mu[_order]).reshape(outshape),
                   np.concatenate(mue[_order]).reshape(outshape),

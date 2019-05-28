@@ -1,3 +1,9 @@
+"""
+Implements edge tracing.
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
+"""
 import os
 import time
 import inspect
@@ -6,7 +12,7 @@ from collections import Counter, OrderedDict
 
 import numpy as np
 
-from scipy import ndimage, special, signal
+from scipy import ndimage, signal, interpolate
 
 import matplotlib
 from matplotlib import pyplot as plt
@@ -30,6 +36,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.pypeitpar import TraceSlitsPar
 from pypeit import io
 
+from pypeit import sampling
 from pypeit import moment
 
 # TODO: This should go in util
@@ -535,6 +542,70 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         return self.traceid.size
 
+    def rectify(self, flux, mask=None, extract_width=None, mask_threshold=0.5):
+        r""""
+        Rectify the provided image based on the current edge trace
+        PCA model.
+
+        The is primarily a wrapper for :func:`rectify_image`; see its
+        documentation for more detail.
+
+        Args:
+            flux (`numpy.ndarray`_):
+                The 2D image to rectify. Its shape should match the
+                image used to construct the edge traces:
+                :math:`(N_{\rm spec}, N_{\rm spat})`.
+            mask (`numpy.ndarray`_, optional):
+                Boolean mask for pixels to ignore in input image. If
+                None, no pixels are masked in the rectification. If
+                provided, shape must match `flux`.
+            extract_width (:obj:`float`, optional):
+                The width of the extraction aperture to use for the
+                image rectification. When using extraction to rectify
+                the image, flux conservation is not as accurate. If
+                None, the image recification is performed using
+                :class:`pypeit.sampling.Resample` along each row.
+            mask_threshold (:obj:`float`, optional):
+                Either due to `mask` or the bounds of the provided
+                `flux`, pixels in the rectified image may not be fully
+                covered by valid pixels in `flux`. Pixels in the
+                output image with less than this fractional coverage
+                by input pixels are flagged in the output.
+
+        Returns:
+             Two `numpy.ndarray`_ objects are returned both with
+             shape :math:`(N_{\rm spec}, N_{\rm spat})`, the rectified
+             image and its boolean mask.
+        """
+        if self.pca is None:
+            raise ValueError('Must first run the PCA analysis fo the traces; run build_pca.')
+
+        # Get the traces that cross the reference row at the first and last pixels of the image
+        first_last_trace = self.pca.predict(np.array([0,self.nspat-1]))
+        # Use these two traces to define the spatial pixel coordinates to sample
+        start = np.ceil(np.amax(np.amin(first_last_trace, axis=1))).astype(int)
+        buffer = self.nspat - np.floor(np.amin(np.amax(first_last_trace, axis=1))).astype(int) \
+                    + start
+        # Rectify the image
+        ocol = np.arange(self.nspat+buffer)-start
+        return rectify_image(flux, self.pca.predict(ocol), mask=mask, ocol=ocol,
+                             max_ocol=self.nspat-1, extract_width=extract_width,
+                             mask_threshold=mask_threshold)
+
+    def auto_trace(self, trace_img, mask=None, det=1, binning=None, save=True):
+        """
+        Automatically trace the edges and identify slits.
+        """
+        self.initial_trace(trace_img, mask=mask, det=det, binning=binning, save=False)
+        self.moment_refine(minimum_length=1/3., continuous=False)
+        self.fit_refine(niter=1, show_fits=False)
+        self.pca_refine()
+        self.peak_refine(rebuild_pca=True)
+        self.sync()
+        self.log += [inspect.stack()[0][3]]
+        if save:
+            self.save()
+
     def initial_trace(self, trace_img, mask=None, det=1, binning=None, save=True):
         r"""
         Initialize the object for tracing a new image.
@@ -832,7 +903,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Check the file exists
         if not os.path.isfile(filename):
             raise FileNotFoundError('File does not exit: {0}'.format(filename))
-        print('Loading EdgeTraceSet data from: {0}'.format(filename))
+        msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
             # TODO: Setting reuse_masters seems superfluous here...
             # Instantiate the object
@@ -1095,7 +1166,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     ofile = os.path.join(self.qa_path,
                                          '{0}_{1}.png'.format(fileroot, str(page).zfill(ndig)))
                     fig.canvas.print_figure(ofile, bbox_inches='tight')
-                    print('Finished page {0}/{1}'.format(page, npages))
+                    msgs.info('Finished page {0}/{1}'.format(page, npages))
                 fig.clear()
                 plt.close(fig)
                 fig = plt.figure(figsize=(1.5*w,1.5*h))
@@ -1155,11 +1226,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         .. warning::
             - This function modifies the internal trace arrays **in
-            place**.
+              place**.
             - Because this changes :attr:`spat_cen` and
-            :attr:`spat_err`, any model fitting of these data are
-            erased by this function! I.e., :attr:`spat_fit` and
-            :attr:`spat_fit_type` are set to None.
+              :attr:`spat_err`, any model fitting of these data are
+              erased by this function! I.e., :attr:`spat_fit` and
+              :attr:`spat_fit_type` are set to None.
             - This *always* removes the PCA if it exists
 
         Args:
@@ -1229,21 +1300,22 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # TODO: Not sure why this while loop is necessary...
             i = 0
             while np.any(this_side & untraced):
-                print('Iteration {0} for {1} side'.format(i+1, side))
+                msgs.info('Iteration {0} for {1} side'.format(i+1, side))
 
                 # TODO: Deal with single untraced edge
 
                 # Get the traces to refine
                 indx = this_side & untraced
-                print('Number to retrace: {0}'.format(np.sum(indx)))
+                msgs.info('Number to retrace: {0}'.format(np.sum(indx)))
 
                 # Find the most common row index
                 trace_mask = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags())
                 start_row = most_common_trace_row(trace_mask)
-                print('Starting row is: {0}'.format(start_row))
+                msgs.info('Starting row is: {0}'.format(start_row))
 
                 # Trace starting from this row
-                print('Tracing')
+                msgs.info('Sequentially tracing first moment of Sobel-filtered image to higher '
+                          'and lower spectral positions.')
                 cen[:,indx], err[:,indx], msk[:,indx] \
                         = follow_trace_moment(_sobel_sig, start_row, self.spat_img[start_row,indx],
                                               ivar=ivar, mask=_mask, fwgt=fwgt, width=width,
@@ -1373,7 +1445,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 repeat[indx] =  (mindiff.data < match_tolerance) & np.invert(mindiff.mask)
                 if np.any(repeat):
                     msk[:,repeat] = self.bitmask.turn_on(msk[:,repeat], 'DUPLICATE')
-                    print('Found {0} repeat traces.'.format(np.sum(repeat)))
+                    msgs.info('Found {0} repeat trace(s).'.format(np.sum(repeat)))
 
         # Find short traces
         short = np.zeros_like(indx, dtype=bool)
@@ -1381,7 +1453,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             short[indx] = (np.sum(msk[:,indx] == 0, axis=0) < minimum_length*self.nspec)
             if np.any(short):
                 msk[:,short] = self.bitmask.turn_on(msk[:,short], 'SHORTRANGE')
-                print('Found {0} short traces.'.format(np.sum(short)))
+                msgs.info('Found {0} short trace(s).'.format(np.sum(short)))
 
         # Find traces that are at the minimum column at the center row
         # TODO: Why only the center row?
@@ -1390,7 +1462,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             hit_min[indx] = (col[self.nspec//2,indx] <= mincol) & (msk[self.nspec//2,indx] == 0)
             if np.any(hit_min):
                 msk[:,hit_min] = self.bitmask.turn_on(msk[:,hit_min], 'HITMIN')
-                print('{0} traces hit the minimum centroid value.'.format(np.sum(hitmin)))
+                msgs.info('{0} trace(s) hit the minimum centroid value.'.format(np.sum(hitmin)))
             
         # Find traces that are at the maximum column at the center row
         # TODO: Why only the center row?
@@ -1399,11 +1471,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
             hit_max[indx] = (col[self.nspec//2,indx] >= maxcol) & (msk[self.nspec//2,indx] == 0)
             if np.any(hit_max):
                 msk[:,hit_max] = self.bitmask.turn_on(msk[:,hit_max], 'HITMAX')
-                print('{0} traces hit the maximum centroid value.'.format(np.sum(hitmax)))
+                msgs.info('{0} trace(s) hit the maximum centroid value.'.format(np.sum(hitmax)))
 
         # Good traces
         bad = indx & (repeat | short | hit_min | hit_max)
-        print('Identified {0} bad traces in all.'.format(np.sum(bad)))
+        msgs.info('Identified {0} bad trace(s) in all.'.format(np.sum(bad)))
         good = indx & np.invert(bad)
         return good, bad
 
@@ -1419,7 +1491,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Quality check and masking of the synchronized edges.
 
         Before executing this method, the slit edges must be
-        synchronized (see :func:`sync_edges`) and ordered spatially
+        synchronized (see :func:`sync`) and ordered spatially
         in left-right pairs (see :func:`spatial_sort`). The former is
         checked explicitly.
 
@@ -1472,7 +1544,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Check the slits are synced
         if not self.is_synced():
-            raise ValueError('Edge traces are not yet synced; run sync_edges().')
+            raise ValueError('Edge traces are not yet synced; run sync().')
 
         # Calculate the slit length
         slit_length = np.mean(np.squeeze(np.diff(trace.reshape(self.nspec,-1,2), axis=-1)), axis=0)
@@ -1955,8 +2027,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Offset and return the traces
         return trace + offset[None,:]
 
-    def sync_edges(self, buffer=5, max_nudge=0, trace_mode='pca', center_mode='median',
-                   quiet=False):
+    def sync(self, buffer=5, max_nudge=0, trace_mode='pca', center_mode='median', quiet=False):
         """
         Match left and right edge traces to construct slit edge pairs.
 
@@ -1982,18 +2053,21 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Mode to use when predicting the form of the trace to
                 insert:
                     - 'pca': Use the PCA decomposition to predict the
-                    trace at a given location.
+                      trace at a given location.
                     - 'nearest': Reproduce the shape of the nearest
-                    trace, regardless of whether it is a left or
-                    right edge.
+                      trace, regardless of whether it is a left or
+                      right edge.
+                      
             center_mode (:obj:`str`, optional):
                 Mode to use for determining the location of traces to
                 insert:
                     - 'median': Use the median length of slits
-                    defined by existing left-right pairs.
+                      defined by existing left-right pairs.
                     - 'nearest': Assume the slit width is the same as
-                    the (spatially) nearest left-right pair, ignoring
-                    any pairs that are created by adding new edges.
+                      the (spatially) nearest left-right pair,
+                      ignoring any pairs that are created by adding
+                      new edges.
+                      
             quiet (:obj:`bool`, optional):
                 Suppress terminal output.
         """
@@ -2941,14 +3015,15 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
         :class:`pypeit.core.pydl.TraceSet` object with the
         best-fitting polynomial parameters for the traces. The four
         `numpy.ndarray`_ objects all have the same shape as the input
-        positions (`trace`) and provide::
+        positions (`trace`) and provide:
+
             - The best-fitting positions of each trace determined by
-            the polynomial fit.
+              the polynomial fit.
             - The centroids of the trace determined by either flux-
-            or Gaussian-weighting, to which the polynomial is fit.
+              or Gaussian-weighting, to which the polynomial is fit.
             - The errors in the centroids.
             - Boolean flags for each centroid measurement (see
-            :func:`pypeit.moment.moment1d`).
+              :func:`pypeit.moment.moment1d`).
     """
     # Ensure setup is correct
     if flux.ndim != 2:
@@ -3115,6 +3190,129 @@ def build_trace_mask(flux, trace, mask=None, boxcar=None, thresh=None, median_ke
     return trace_mask | (extract_flux < thresh)
 
 
+def rectify_image(img, col, mask=None, ocol=None, max_ocol=None, extract_width=None,
+                  mask_threshold=0.5):
+    r"""
+    Rectify the image by shuffling flux along columns using the
+    provided column mapping.
+
+    The image recification is one dimensional, treating each image
+    row independently. It can be done either by a direct resampling
+    of the image columns using the provided mapping of output to
+    input column location (see `col` and
+    :class:`pypeit.sampling.Resample`) or by an extraction along the
+    provided column locations (see `extract_width`). The latter is
+    generally faster; however, when resampling each row, the flux is
+    explicitly conserved (see the `conserve` argument of
+    :class:`pypeit.sampling.Resample`.
+
+    Args:
+        img (`numpy.ndarray`_):
+            The 2D image to rectify. Shape is :math:`(N_{\rm row},
+            N_{\rm col})`.
+        col (`numpy.ndarray`_):
+            The array mapping each output column to its location in
+            the input image. That is, e.g., `col[:,0]` provides the
+            column coordinate in `img` that should be rectified to
+            column 0 in the output image. Shape is :math:`(N_{\rm
+            row}, N_{\rm map})`.
+        mask (`numpy.ndarray`_, optional):
+            Boolean mask for pixels to ignore in input image. If
+            None, no pixels are masked in the rectification. If
+            provided, shape must match `img`.
+        ocol (`numpy.ndarray`_, optional):
+            The column in the output image for each column in `col`.
+            If None, assume::
+
+                ocol = np.arange(col.shape[1])
+
+            These coordinates can fall off the output image (i.e.,
+            :math:`<0` or :math:`\geq N_{\rm out,col}`), but those
+            columns are removed from the output).
+        max_ocol (:obj:`int`, optional):
+            The last viable column *index* to include in the output
+            image; ie., for an image with `ncol` columns, this should
+            be `ncol-1`. If None, assume `max(ocol)`.
+        extract_width (:obj:`float`, optional):
+            The width of the extraction aperture to use for the image
+            rectification. If None, the image recification is
+            performed using :class:`pypeit.sampling.Resample` along
+            each row.
+        mask_threshold (:obj:`float`, optional):
+            Either due to `mask` or the bounds of the provided `img`,
+            pixels in the rectified image may not be fully covered by
+            valid pixels in `img`. Pixels in the output image with
+            less than this fractional coverage of an input pixel are
+            flagged in the output.
+
+    Returns:
+        Two `numpy.ndarray`_ objects are returned both with shape
+        `(nrow,max_ocol+1)`, the rectified image and its boolean
+        mask.
+    """
+    # Check the input
+    if img.ndim != 2:
+        raise ValueError('Input image must be 2D.')
+    if mask is not None and mask.shape != img.shape:
+        raise ValueError('Image mask must match image shape.')
+    _img = np.ma.MaskedArray(img, mask=mask)
+    nrow, ncol = _img.shape
+    if col.ndim != 2:
+        raise ValueError('Column mapping array must be 2D.')
+    if col.shape[0] != nrow:
+        raise ValueError('Number of rows in column mapping array must match image to rectify.')
+    _ocol = np.arange(col.shape[1]) if ocol is None else np.atleast_1d(ocol)
+    if _ocol.ndim != 1:
+        raise ValueError('Output column indices must be provided as a vector.')
+    if _ocol.size != col.shape[1]:
+        raise ValueError('Output column indices must match columns in column mapping array.')
+    _max_ocol = np.amax(_ocol) if max_ocol is None else max_ocol
+
+    # Use an aperture extraction to rectify the image
+    if extract_width is not None:
+        # Select viable columns
+        indx = (_ocol >= 0) & (_ocol <= _max_ocol)
+        # Initialize the output image as all masked
+        out_img = np.ma.masked_all((nrow,_max_ocol+1), dtype=float)
+        # Perform the extraction
+        out_img[:,_ocol[indx]] = moment.moment1d(_img.data, col[:,indx], extract_width,
+                                                 mask=_img.mask)[0]
+        # Determine what fraction of the extraction fell off the image
+        coo = col[:,indx,None] + np.arange(np.ceil(extract_width)).astype(int)[None,None,:] \
+                    - extract_width/2
+        in_image = (coo >= 0) | (coo < ncol)
+        out_msk = np.sum(in_image, axis=2)/extract_width < mask_threshold
+        # Return the filled numpy.ndarray and boolean mask
+        return out_img.filled(0.0)/extract_width, out_img.mask | out_msk
+
+    # Directly resample the image
+    # 
+    # `col` provides the column in the input image that should
+    # resampled to a given position in the output image: the value of
+    # the flux at img[:,col[:,0]] should be rectified to `outimg[:,0]`.
+    # To run the resampling algorithm we need to invert this. That is,
+    # instead of having a function that provides the output column as a
+    # function of the input column, we want a function that provies the
+    # input column as a function of the output column.
+
+    # Instantiate the output image
+    out_img = np.zeros((nrow,_max_ocol+1), dtype=float)
+    out_msk = np.zeros((nrow,_max_ocol+1), dtype=bool)
+    icol = np.arange(ncol)
+    for i in range(nrow):
+        # Get the coordinate vector of the output column
+        _icol = interpolate.interp1d(col[i,:], _ocol, copy=False, bounds_error=False,
+                                     fill_value='extrapolate', assume_sorted=True)(icol)
+        # Resample it
+        r = sampling.Resample(_img[i,:], x=_icol, newRange=[0,_max_ocol], newpix=_max_ocol+1,
+                              newLog=False, conserve=True)
+        # Save the resampled data
+        out_img[i,:] = r.outy
+        # Flag pixels
+        out_msk[i,:] = r.outf < mask_threshold
+    return out_img, out_msk
+
+
 # TODO: Add an option where the user specifies the number of slits, and
 # so it takes only the highest peaks from detect_lines
 def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, function='legendre',
@@ -3229,15 +3427,16 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, funct
         traces. The number of peak traces should be used to separate
         peak from trough traces; if `trough` is False, this will just
         be the total number of traces. The four
-        `numpy.ndarray`_ objects provide::
+        `numpy.ndarray`_ objects provide:
+
             - The best-fitting positions of each trace determined by
-            the polynomial fit.
+              the polynomial fit.
             - The centroids of the trace determined by the
-            Gaussian-weighting iteration, to which the polynomial is
-            fit.
+              Gaussian-weighting iteration, to which the polynomial
+              is fit.
             - The errors in the Gaussian-weighted centroids.
             - Boolean flags for each centroid measurement (see
-            :func:`pypeit.moment.moment1d`).
+              :func:`pypeit.moment.moment1d`).
     """
     # Setup and ensure input is correct
     if flux.ndim != 2:
@@ -3269,11 +3468,9 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, funct
         msgs.info('Rectifying image by extracting along trace for each spatial pixel')
         # TODO: JFH What should this aperture size be? I think fwhm=3.0
         # since that is the width of the sobel filter
-        if extract_width is None:
-            extract_width = fwhm_gaussian
-        # TODO: this can be done by actually resampling the image, but
-        # it's about 20-30% slower
-        flux_extract = moment.moment1d(flux, trace, extract_width, ivar=ivar, mask=mask)[0]
+        flux_extract = rectify_image(flux, trace, mask=mask,
+                                     extract_width=fwhm_gaussian if extract_width is None
+                                                     else extract_width)[0]
 #        if debug:
 #            ginga.show_image(flux_extract, chname ='rectified image')
 
@@ -3312,9 +3509,10 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, funct
                                    input_thresh=peak_thresh, max_frac_fwhm=4.0,
                                    min_pkdist_frac_fwhm=5.0, debug=debug)
         if len(cen) == 0 or not np.any(best):
-            print('No good {0}s found!'.format(l))
+            msgs.warn('No good {0}s found!'.format(l))
             continue
-        print('Found {0} good {1}(s) in the rectified, collapsed image'.format(len(cen[best]),l))
+        msgs.info('Found {0} good {1}(s) in the rectified, collapsed image'.format(
+                    len(cen[best]),l))
 
         # As the starting point for the iterative trace fitting, use
         # the nput trace data at the positions of the detected peaks
@@ -3399,19 +3597,20 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
             vec}`.
 
     Returns:
-        Returns four `numpy.ndarray`_ objects::
+        Returns four `numpy.ndarray`_ objects:
             - The coefficients of each PCA component, `coeffs`. Shape
-            is :math:`(N_{\rm vec},N_{\rm comp})`.
+              is :math:`(N_{\rm vec},N_{\rm comp})`.
             - The PCA component vectors, `components`. Shape is
-            :math:`(N_{\rm comp},N_{\rm pix})`.
+              :math:`(N_{\rm comp},N_{\rm pix})`.
             - The mean offset of each PCA for each pixel, `pca_mean`.
-            Shape is :math:`(N_{\rm pix},)`.
+              Shape is :math:`(N_{\rm pix},)`.
             - The mean offset applied to each vector before the PCA,
-            `vec_mean`. Shape is :math:`(N_{\rm vec},)`.
+              `vec_mean`. Shape is :math:`(N_{\rm vec},)`.
 
         To reconstruct the PCA representation of the input vectors, compute::
 
             np.dot(coeffs, components) + pca_mean[None,:] + vec_mean[:,None]
+
     """
     # Check input
     if vectors.ndim != 2:
@@ -3435,7 +3634,7 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     # Number of components for a full decomposition
     npca_tot = var_growth.size
 
-    print('The unconstrained PCA yields {0} components.'.format(npca_tot))
+    msgs.info('The unconstrained PCA yields {0} components.'.format(npca_tot))
     if npca is None:
         # Assign the number of components to use based on the variance
         # percentage
@@ -3445,12 +3644,12 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
                     if var_growth[0] < pca_explained_var else 1
     elif npca_tot < npca:
         raise ValueError('Too few vectors for a PCA of the requested dimensionality.  '
-                         'The full (uncompressing) PCA has {0} components'.format(npca_tot)
-                         + ', which is less than the requested {0} components.'.format(npca)
-                         + '  Lower the number of requested PCA components or turn off the PCA.')
+                         'The full (uncompressing) PCA has {0} component(s)'.format(npca_tot)
+                         + ', which is less than the requested {0} component(s).'.format(npca)
+                         + '  Lower the number of requested PCA component(s) or turn off the PCA.')
 
-    print('PCA will include {0} components, containing {1:.3f}'.format(npca, var_growth[npca-1])
-              + '% of the total variance.')
+    msgs.info('PCA will include {0} component(s), '.format(npca)
+              + 'containing {0:.3f}% of the total variance.'.format(var_growth[npca-1]))
 
     # Determine the PCA coefficients with the revised number of
     # components, and return the results
