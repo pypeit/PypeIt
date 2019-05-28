@@ -4,6 +4,7 @@ import os
 import datetime
 import copy
 from pkg_resources import resource_filename
+from collections import OrderedDict
 
 import numpy as np
 
@@ -142,12 +143,13 @@ def load_reid_arxiv(arxiv_file):
         # The following is a bit of a hack too
         par = None
         wv_tbl = Table.read(calibfile)
-        wv_calib_arxiv = {}
-        nrow = wv_tbl['wave'].shape[1]
+        wv_calib_arxiv = OrderedDict()
+        nrow = wv_tbl['wave'].shape[0]
         for irow in np.arange(nrow):
             wv_calib_arxiv[str(irow)] = {}
-            wv_calib_arxiv[str(irow)]['spec'] = wv_tbl['flux'][:,irow]
-            wv_calib_arxiv[str(irow)]['wave_soln'] = wv_tbl['wave'][:,irow]
+            wv_calib_arxiv[str(irow)]['spec'] = wv_tbl['flux'][irow,:]
+            wv_calib_arxiv[str(irow)]['wave_soln'] = wv_tbl['wave'][irow,:]
+            wv_calib_arxiv[str(irow)]['order'] = wv_tbl['order'][irow]
     else:
         msgs.error("Not ready for this extension!")
 

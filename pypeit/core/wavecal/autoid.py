@@ -681,7 +681,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     shift_vec = np.zeros(narxiv)
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
-    #embed(header='line 682 of autoid.py')
     for iarxiv in range(narxiv):
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         this_det_arxiv = det_arxiv[str(iarxiv)]
@@ -748,8 +747,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
             # match to pixel in shifted/stretch arxiv spectrum
             pdiff = np.abs(detections[iline] - det_arxiv_ss)
             bstpx = np.argmin(pdiff)
-            #if np.abs(detections[iline]-1312.1) < 1.:
-            #    embed(header='762 autoid.py')
             # If a match is found within 2 pixels, consider this a successful match
             if pdiff[bstpx] < match_toler:
                 # Using the arxiv arc wavelength solution, search for the nearest line in the line list
@@ -979,6 +976,8 @@ class ArchiveReid:
     ----------
     spec :  float ndarray shape of (nspec, nslits) or (nspec)
        Array of arc spectra for which wavelength solutions are desired.
+    spectrograph : pypeit.spectrograph.Spectrograph
+    par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
 
     Optional Parameters
     -------------------
@@ -1025,6 +1024,8 @@ class ArchiveReid:
     n_local_cc: int, defualt = 11
        Size of pixel window used for local cross-correlation computation for each arc line. If not an odd number one will
        be added to it to make it odd.
+    slit_spat_pos: np.ndarray, optional
+       For figuring out the echelle order
 
     For iterative wavelength solution fitting
     --------------------
@@ -1050,8 +1051,9 @@ class ArchiveReid:
     """
 
 
-    def __init__(self, spec, par = None, ok_mask=None, use_unknowns=True, debug_all = False,
-                 debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False):
+    def __init__(self, spec, spectrograph, par, ok_mask=None, use_unknowns=True, debug_all = False,
+                 debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False,
+                 slit_spat_pos=None):
 
         if debug_all:
             debug_peaks = True
@@ -1072,7 +1074,11 @@ class ArchiveReid:
             self.nslits = 1
         else:
             msgs.error('Unrecognized shape for spec. It must be either a one dimensional or two dimensional numpy array')
-        self.par = pypeitpar.WavelengthSolutionPar() if par is None else par
+        if not isinstance(par, pypeitpar.WavelengthSolutionPar):
+            msgs.error("Bad par!")
+        self.par = par
+        self.spectrograph = spectrograph
+        self.slit_spat_pos = slit_spat_pos
         self.lamps = self.par['lamps']
         self.use_unknowns = use_unknowns
 
@@ -1131,9 +1137,11 @@ class ArchiveReid:
                 test = int(key)
             except ValueError:
                 narxiv -=1
+        '''
         if self.ech_fix_format and (self.nslits != narxiv):
             msgs.error('You have set ech_fix_format = True, but nslits={:d} != narxiv={:d}'.format(self.nslits,narxiv) + '.' +
                        msgs.newline() + 'The number of orders identified does not match the number of solutions in the arxiv')
+        '''
 
         # Array to hold continuum subtracted arcs
         self.spec_cont_sub = np.zeros_like(self.spec)
@@ -1145,6 +1153,11 @@ class ArchiveReid:
         for iarxiv in range(narxiv):
             self.spec_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['spec']
             self.wave_soln_arxiv[:, iarxiv] = self.wv_calib_arxiv[str(iarxiv)]['wave_soln']
+        # arxiv orders (echelle only)
+        if self.ech_fix_format:
+            arxiv_orders = []
+            for iarxiv in range(narxiv):
+                arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
 
         # These are the final outputs
         self.all_patt_dict = {}
@@ -1169,14 +1182,16 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            ind_sp = slit if self.ech_fix_format else np.arange(narxiv,dtype=int)
+            if self.ech_fix_format:
+                # Grab the order (could have been input)
+                order = self.spectrograph.slit2order(slit_spat_pos[slit])
+                # Find it
+                ind_sp = arxiv_orders.index(order)
+            else:
+                ind_sp = np.arange(narxiv,dtype=int)
 
             sigdetect = self._parse_param(self.par, 'sigdetect', slit)
             cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
-            #self.debug_reid = True
-            #self.debug_xcorr = True
-            #from pypeit import debugger
-            #embed(header='line1168 of autoid.py')
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,

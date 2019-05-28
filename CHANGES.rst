@@ -1,5 +1,17 @@
-0.9.4dev
---------
+0.10.2dev
+---------
+
+- Add magellan_mage, including a new ThAr linelist and an archived solution
+- Polish several key echelle methods
+- Modify create_linelist to default to vacuum
+
+0.10.1 (22 May 2019)
+--------------------
+
+- Minor bug fix to allow for `None` exposure times when typing frames.
+
+0.10.0 (21 May 2019)
+--------------------
 
 - Enable PyPI
 - Streamline some of the instantiation at the beginning of

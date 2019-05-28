@@ -15,7 +15,7 @@ from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
 
-from pypeit import debugger
+from IPython import embed
 
 class WaveImage(MasterFrame):
     """
@@ -51,9 +51,6 @@ class WaveImage(MasterFrame):
     def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, maskslits,
                  master_key=None, master_dir=None, reuse_masters=False):
 
-#    def __init__(self, spectrograph, tslits_dict, tilts, wv_calib, maskslits,
-#                 master_key=None, master_dir=None, reuse_masters=False):
-
         # MasterFrame
         MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
@@ -71,8 +68,13 @@ class WaveImage(MasterFrame):
 
         self.maskslits = maskslits
 
+        # For echelle order, primarily
+        self.slit_spat_pos = (self.tslits_dict['slit_left'][self.tilts.shape[0]//2, :] +
+                      self.tslits_dict['slit_righ'][self.tilts.shape[0]//2,:]) /2/self.tilts.shape[1]
+
         # List to hold ouptut from inspect about what module create the image?
         self.steps = []
+
 
         # Main output
         self.mswave = None
@@ -104,7 +106,7 @@ class WaveImage(MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
-                order = self.spectrograph.slit2order(slit, len(self.maskslits))
+                order = self.spectrograph.slit2order(self.slit_spat_pos[slit])
                 # evaluate solution
                 self.mswave[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
                                                        self.tilts[thismask],
@@ -202,23 +204,4 @@ class WaveImage(MasterFrame):
         # static method explicitly without using super().  See:
         # https://stackoverflow.com/questions/26788214/super-and-staticmethod-interaction
         return MasterFrame.load_from_file(filename, 'WAVE', return_header=return_header)
-
-# TODO: Use WaveImage.load_from_file(filename)
-#def load_waveimage(filename):
-#    """
-#    Utility function which enables one to load the waveimage from a master file in one line of code without
-#    instantiating the class.
-#
-#    Args:
-#        filename (str): Master file name
-#
-#    Returns:
-#        dict:  The trace slits dict
-#
-#    """
-#
-#    waveImage = WaveImage(None, None, None, None, None)
-#    waveimage, _ = waveImage.load_master(filename)
-#
-#    return waveimage
 
