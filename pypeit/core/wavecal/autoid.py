@@ -1169,6 +1169,7 @@ class ArchiveReid:
             # ToDO should we still be populating wave_calib with an empty dict here?
             if slit not in self.ok_mask:
                 continue
+            '''
             if slit in [1,3]:
                 self.debug_peaks = True
                 self.debug_xcorr = True
@@ -1179,6 +1180,7 @@ class ArchiveReid:
                 self.debug_xcorr = False
                 self.debug_reid = False
                 self.debug_fits = False
+            '''
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
