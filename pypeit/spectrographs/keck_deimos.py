@@ -17,6 +17,8 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
+from pypeit.new_trace import index_of_x_eq_y
+
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
@@ -572,16 +574,49 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return self.bpm_img
 
     def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a DEIMOS file into a
+        :class:`pypeit.spectrographs.slitmask.SlitMask` object.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+        """
+        # Open the file
         hdu = fits.open(filename)
-        corners = np.array([hdu['BluSlits'].data['slitX1'],
-                            hdu['BluSlits'].data['slitY1'],
-                            hdu['BluSlits'].data['slitX2'],
-                            hdu['BluSlits'].data['slitY2'],
-                            hdu['BluSlits'].data['slitX3'],
-                            hdu['BluSlits'].data['slitY3'],
-                            hdu['BluSlits'].data['slitX4'],
-                            hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2)
-        self.slitmask = SlitMask(corners, slitid=hdu['BluSlits'].data['dSlitId'])
+
+        # Build the object data
+        #   - Find the index of the object IDs in the slit-object
+        #     mapping that match the object catalog
+        mapid = hdu['SlitObjMap'].data['ObjectID']
+        catid = hdu['ObjectCat'].data['ObjectID']
+        indx = index_of_x_eq_y(mapid, catid)
+        #   - Pull out the slit ID, object ID, and object coordinates
+        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(float),
+                            catid.astype(float), hdu['ObjectCat'].data['RA_OBJ'],
+                            hdu['ObjectCat'].data['DEC_OBJ']]).T
+        #   - Only keep the objects that are in the slit-object mapping
+        objects = objects[mapid[indx] == catid]
+
+        # Match the slit IDs in DesiSlits to those in BluSlits
+        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
+                               strict=True)
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
+                                           hdu['BluSlits'].data['slitY1'],
+                                           hdu['BluSlits'].data['slitX2'],
+                                           hdu['BluSlits'].data['slitY2'],
+                                           hdu['BluSlits'].data['slitX3'],
+                                           hdu['BluSlits'].data['slitY3'],
+                                           hdu['BluSlits'].data['slitX4'],
+                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
+                                 slitid=hdu['BluSlits'].data['dSlitId'],
+                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
+                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
+                                 skycoo=np.array([hdu['DesiSlits'].data['slitRA'][indx],
+                                                 hdu['DesiSlits'].data['slitDec'][indx]]).T,
+                                 objects=objects)
         return self.slitmask
 
     def get_grating(self, filename):

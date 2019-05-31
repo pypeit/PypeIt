@@ -1,47 +1,120 @@
 """
 Module to define the SlitMask class
 """
+from collections import OrderedDict
 import numpy
 from scipy import optimize
 
-class SlitMask:
+from pypeit.bitmask import BitMask
+from pypeit.new_trace import index_of_x_eq_y
+
+class SlitMaskBitMask(BitMask):
     """
-    Generic class for a slit mask that holds the slit positions and IDs.
+    Mask bits used for slit mask design data.
+    """
+    # TODO: This is overkill at the moment. Only really useful if we
+    # think there may be cases where slits can have multiple purposes.
+    # If they can't (and we don't think they ever will), we could
+    # simplify this so that slits can only have a single type.
+
+    # TODO: Create a script that will dynamically write the used bits
+    # to a doc for readthedocs.
+    def __init__(self):
+        # TODO: This needs to be an OrderedDict for now to ensure that
+        # the bit assigned to each key is always the same. As of python
+        # 3.7, normal dict types are guaranteed to preserve insertion
+        # order as part of its data model. When/if we require python
+        # 3.7, we can remove this (and other) OrderedDict usage in
+        # favor of just a normal dict.
+        mask = OrderedDict([
+                        ('ALIGN', 'Slit used for on-sky alignment'),
+                      ('SCIENCE', 'Slit containts one or more targets of scientific interest.')
+                           ])
+        super(SlitMaskBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+
+
+class SlitMask:
+    r"""
+    Generic class for a slit mask that holds the slit positions and
+    IDs.
+
+    By default no mask bits are set. Only altered if `align` or
+    `science` arguments are provided.
 
     Args:
         corners (array-like):
-            A list or numpy.ndarray with the list of coordinates.  The
-            object must be 2 or 3 dimensional: 1st axis is the slit, 2nd
-            axis are the 4 corners, 3rd axis is the x and y coordinate
-            for the corner.  If two dimensional, class assumes there is
-            only one slit.  The size of the last two dimensions must
-            always be 4 and 2, respectively.  The input order is
-            expected to be top-right (high x, low y), bottom-right (low
-            x, low y), bottom-left (low x, high y), top-left (high x,
-            high y).  The x coordinates are along the spatial direction
-            and the y coordinates are long the spectral direction.  The
-            computed length (difference in x), width (difference in y),
-            and position angle (Cartesian angle) is relative to this
-            assumption.
-
-        slitid (array-like, optional):
-            ID numbers for each slit.  If None, just a running number
-            for each of the coordinates provided.
+            A list or numpy.ndarray with the list of coordinates. The
+            object must be 2 or 3 dimensional: 1st axis is the slit,
+            2nd axis are the 4 corners, 3rd axis is the x and y
+            coordinate for the corner. If two dimensional, class
+            assumes there is only one slit. The size of the last two
+            dimensions must always be 4 and 2, respectively. The
+            input order is expected to be clockwise, starting from
+            the top-right corner; i.e., the order is top-right (high
+            x, low y), bottom-right (low x, low y), bottom-left (low
+            x, high y), top-left (high x, high y). The x coordinates
+            are along the spatial direction and the y coordinates are
+            long the spectral direction. The computed length
+            (difference in x), width (difference in y), and position
+            angle (Cartesian angle) is relative to this assumption.
+        slitid (:obj:`int`, array-like, optional):
+            A list of *unique* integer IDs for each slit. If None,
+            just a running 0-indexed list is used. Can be a single
+            integer or have shape :math:`(N_{\rm slit},)`.
+        align (:obj:`bool`, `numpy.ndarray`_, optional):
+            Indicates slit(s) used for on-sky alignment. Can be a
+            single boolean or have shape :math:`(N_{\rm slit},)`.
+        science (:obj:`bool`, `numpy.ndarray`_, optional):
+            Indicates slit(s) include a target of scientific
+            interest. Can be a single boolean or have shape
+            :math:`(N_{\rm slit},)`.
+        skycoo (`numpy.ndarray`_, optional):
+            1D or 2D array with the right ascension and declination
+            of the *center* of each slit. Shape must be :math:`(2,)`
+            or :math:`(N_{\rm slit},2)`. Order expected to match slit
+            ID order.
+        objects (`numpy.ndarray`_, optional):
+            List of objects observed as a 1D or 2D array with shape
+            :math:`(4,)` or :math:`(N_{\rm obj},4)`. The three
+            elements for each object is the slit id, the object ID,
+            and the right ascension and declination of the target.
+            The order of the objects does not have to match that of
+            the slit IDs. Also, there can be slits without objects
+            and slits with multiple objects; however, objects cannot
+            be provided that are not in *any* slit (i.e., the slit
+            IDs in the first column of this array have to be valid).
 
     Attributes:
-        corners (numpy.ndarray):
-            See above
-        center (numpy.ndarray):
+        corners (`numpy.ndarray`_):
+            See above.
+        id (`numpy.ndarray`_):
+            See `slitid` above.
+        mask (`numpy.ndarray`_):
+            Mask bits selecting the type of slit.
+        skycoo (`numpy.ndarray`_):
+            See above.
+        objects (`numpy.ndarray`_):
+            See above.
+        objindx (`numpy.ndarray`_):
+            The index that maps from the slit data to the object
+            data. For example::
+
+                objslitcoo = self.skycoo[self.objindx]
+
+            provides the slit RA and DEC coordinates for each object
+            with a shape matched to to the relevant entry in
+            :attr:`self.objects`.
+        center (`numpy.ndarray`_):
             The geometric center of each slit.
-        top (numpy.ndarray):
+        top (`numpy.ndarray`_):
             The top coordinate of each slit.
-        bottom (numpy.ndarray):
+        bottom (`numpy.ndarray`_):
             The bottom coordinate of each slit.
-        length (numpy.ndarray):
+        length (`numpy.ndarray`_):
             The slit length.
-        width (numpy.ndarray):
+        width (`numpy.ndarray`_):
             The slit width.
-        pa (numpy.ndarray):
+        pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
 
     Raises:
@@ -50,9 +123,14 @@ class SlitMask:
             or if the number of slit IDs does not match the number of
             slits provided.
     """
-    def __init__(self, corners, slitid=None):
+    bitmask = SlitMaskBitMask()
+    def __init__(self, corners, slitid=None, align=None, science=None, skycoo=None, objects=None):
 
         # TODO: Allow random input order and then fix
+
+        # TODO: Is counter-clockwise order more natural (the order in
+        # DEIMOS slitmasks is clockwise, which is why that was chosen
+        # here)
 
         # Convert to a numpy array if it isn't already one
         _corners = numpy.asarray(corners)
@@ -61,14 +139,56 @@ class SlitMask:
             raise ValueError('Incorrect input shape.  Must provide 4 corners with x and y for '
                              'each corner.')
         # Assign corner attribute allowing for one slit on input
+        # TODO: Annoyingly, numpy.atleast_3d appends a dimension at the
+        # end instead of at the beginning, like what's done with
+        # numpy.atleast_2d.
         self.corners = _corners.reshape(1,4,2) if _corners.ndim == 2 else _corners
 
         # Assign the slit IDs
         self.slitid = numpy.arange(self.corners.shape[0]) if slitid is None \
                         else numpy.atleast_1d(slitid)
         # Check the numbers match
-        if len(self.slitid) != self.corners.shape[0]:
+        if self.slitid.size != self.corners.shape[0]:
             raise ValueError('Incorrect number of slit IDs provided.')
+        if len(numpy.unique(self.slitid)) != len(self.slitid):
+            raise ValueError('Slit IDs must be unique!')
+
+        # Set the bitmask
+        self.mask = numpy.zeros(self.nslits, dtype=self.bitmask.minimum_dtype())
+        if align is not None:
+            _align = numpy.atleast_1d(align)
+            if _align.size != self.nslits:
+                raise ValueError('Alignment flags must be provided for each slit.')
+            self.mask[_align] = self.bitmask.turn_on(self.mask[_align], 'ALIGN')
+        if science is not None:
+            _science = numpy.atleast_1d(science)
+            if _science.size != self.nslits:
+                raise ValueError('Science-target flags must be provided for each slit.')
+            self.mask[_science] = self.bitmask.turn_on(self.mask[_science], 'SCIENCE')
+
+        # On-sky coordinates of the slit center
+        self.skycoo = None
+        if skycoo is not None:
+            self.skycoo = numpy.atleast_2d(skycoo)
+            if self.skycoo.shape != (self.nslits,2):
+                raise ValueError('Must provide two sky coordinates for each slit.')
+
+        # Expected objects in each slit
+        self.objects = None
+        self.objindx = None
+        if objects is not None:
+            self.objects = numpy.atleast_2d(objects)
+            if self.objects.shape[1] != 4:
+                raise ValueError('Must provide the slit ID and sky coordinates for each object.')
+            try:
+                self.objindx = index_of_x_eq_y(self.slitid, self.objects[:,0].astype(int),
+                                               strict=True)
+            except:
+                # Should only fault if there are slit IDs in `objects`
+                # that are not in `slitid`. In that case, return a more
+                # sensible error message than what index_of_x_eq_y
+                # would provide.
+                raise ValueError('Some slit IDs in object list not valid.')
 
         # Center coordinates
         self.center = numpy.mean(self.corners, axis=1)
@@ -83,20 +203,35 @@ class SlitMask:
 
         # Position angle
         self.pa = numpy.degrees(numpy.arctan2(numpy.diff(self.corners[:,0:2,1], axis=1),
-                                numpy.diff(self.corners[:,0:2,0], axis=1)))
+                                              numpy.diff(self.corners[:,0:2,0], axis=1))).ravel()
         self.pa[self.pa < -90] += 180
         self.pa[self.pa > 90] -= 180
-
-    def __getitem__(self, k):
-        #TODO: Add some tests to make sure this will work
-        return SlitMask(self.corners[k], slitid=self.slitid[k])
 
     def __repr__(self):
         return '<{0}: nslits={1}>'.format(self.__class__.__name__, self.nslits)
 
     @property
     def nslits(self):
-        return self.corners.shape[0]
+        """The number of slits."""
+        return self.slitid.size
+
+    @property
+    def alignment_slit(self):
+        """Boolean array selecting the alignment slits."""
+        return self.bitmask.flagged(self.mask, 'ALIGN')
+
+    def is_alignment(self, i):
+        """Check if specific slit is an alignment slit."""
+        return self.bitmask.flagged(self.mask[i], 'ALIGN')
+
+    @property
+    def science_slit(self):
+        """Boolean array selecting the slits with science targets."""
+        return self.bitmask.flagged(self.mask, 'SCIENCE')
+
+    def is_science(self, i):
+        """Check if specific slit should have a science target."""
+        return self.bitmask.flagged(self.mask[i], 'SCIENCE')
 
 
 class SlitRegister:

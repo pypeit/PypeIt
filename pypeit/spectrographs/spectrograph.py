@@ -49,30 +49,38 @@ from pypeit import debugger
 
 class Spectrograph(object):
     """
-    Abstract class whose derived classes dictate instrument-specific
-    behavior in PypeIt.
+    Abstract base class whose derived classes dictate
+    instrument-specific behavior in PypeIt.
 
     Attributes:
-        spectrograph (str):
-            The name of the spectrograph.  See
-            :func:`pypeit.spectrographs.util.valid_spectrographs` for the
-            currently supported spectrographs.
+        spectrograph (:obj:`str`):
+            The name of the spectrograph. See
+            :func:`pypeit.spectrographs.util.valid_spectrographs` for
+            the currently supported spectrographs.
         telescope (:class:`TelescopePar`):
             Parameters of the telescope that feeds this spectrograph.
-        detector (list):
+        detector (:obj:`list`):
             A list of instances of
-            :class:`pypeit.par.pypeitpar.DetectorPar` with the parameters
-            for each detector in the spectrograph
-        naxis (tuple):
+            :class:`pypeit.par.pypeitpar.DetectorPar` with the
+            parameters for each detector in the spectrograph
+        naxis (:obj:`tuple`):
             A tuple with the lengths of the two axes for current
             detector image; often trimmmed.
-        raw_naxis (tuple):
-            A tuple with the lengths of the two axes for untrimmed detector image.
+        raw_naxis (:obj:`tuple`):
+            A tuple with the lengths of the two axes for untrimmed
+            detector image.
         datasec_img (`numpy.ndarray`_):
-            An image identifying the amplifier that reads each detector
-            pixel.
+            An image identifying the amplifier that reads each
+            detector pixel.
         bpm_img (`numpy.ndarray`_):
             The bad-pixel mask for the currently read detector.
+        slitmask (:class:`pypeit.spectrographs.slitmask.SlitMask`):
+            Provides slit and object coordinate data for an
+            observation. Not necessarily populated for all
+            spectrograph instantiations.
+
+        TODO: Add other attributes
+
     """
     __metaclass__ = ABCMeta
 
@@ -84,6 +92,7 @@ class Spectrograph(object):
 #        self.raw_naxis = None
         self.datasec_img = None
         self.bpm_img = None
+        self.slitmask = None
 
         # Default time unit
         self.timeunit = 'mjd'
@@ -486,6 +495,12 @@ class Spectrograph(object):
             0.
         """
         return self.empty_bpm(shape=shape, filename=filename, det=det)
+
+    def get_slitmask(self, filename):
+        """
+        Empty for base class.  See derived classes.
+        """
+        return None
 
     def configuration_keys(self):
         """

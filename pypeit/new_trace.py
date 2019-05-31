@@ -170,6 +170,40 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     return smoothed_img.data
 
 
+def index_of_x_eq_y(x, y, strict=False):
+    """
+    Return an index array that maps the elements of `x` to those of
+    `y`.
+
+    This should return the index of the *first* element in array `x`
+    equal to the associated value in array `y`. Inspired by:
+    https://tinyurl.com/yyrx8acf
+
+    Args:
+        x (`numpy.array`_):
+            1D parent array
+        y (`numpy.array`_):
+            1D reference array
+        strict (:obj:`bool`, optional):
+            Raise an exception unless every element of y is found in
+            x. I.e., it must be true that::
+
+                np.array_equal(x[index_of_x_eq_y(x,y)], y)
+
+    Returns:
+        `numpy.ndarray`_: An array with index of `x` that is equal to
+        the given value of `y`.  Output shape is the same as `y`.
+    """
+    if y.ndim != 1 or y.ndim != 1:
+        raise ValueError('Arrays must be 1D.')
+    srt = np.argsort(x)
+    indx = np.searchsorted(x[srt], y)
+    x2y = np.take(srt, indx, mode='clip')
+    if strict and not np.array_equal(x[x2y], y):
+        raise ValueError('Not every element of y was found in x.')
+    return x2y
+
+
 class TraceBitMask(BitMask):
     """
     Mask bits used during slit tracing.
@@ -1969,6 +2003,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 msgs.info('Rejecting {0} abnormally long or short slits.'.format(np.sum(indx)))
                 self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'ABNORMALSLIT')
 
+        # TODO: Check that slit edges meet minimum slit gap?
+
         if self.par['clip']:
             # Remove traces that have been fully flagged as bad
             rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags()),
@@ -2491,6 +2527,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         reference_row = most_common_trace_row(trace_mask) if self.pca is None \
                             else self.pca.reference_row
 
+        # Check that the trace data are at this row
+        if not np.array_equal(np.arange(trace.shape[1]), np.argsort(trace[reference_row,:])):
+            raise ValueError('Trace data must be spatially sorted.')
+
         # Build a masked array with the trace positions at that row,
         # masked where new traces are supposed to go.
         trace_ref = np.ma.masked_all(add_edge.size)
@@ -2534,7 +2574,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Check for slit overlaps
         overlap = trace_ref[1:,0] - trace_ref[:-1,1] < min_slit_gap
         if np.any(overlap):
-            msgs.warn('Found {0} overlapping slit(s).  '.format(np.sum(overlap))
+            msgs.warn('Found {0} overlapping slit(s) using edge offsets.  '.format(np.sum(overlap))
                       + 'Moving left edges to minimum gap of {0} pixel(s).'.format(min_slit_gap))
             indx = np.where(overlap)[0]+1
             trace_ref[indx,0] = trace_ref[indx-1,1] + min_slit_gap
@@ -2693,10 +2733,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Insert the new traces, check the full synchronized list and
         # log completion of the method
         self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
-
-        import pdb
-        pdb.set_trace()
-
         self.check_synced(rebuild_pca=rebuild_pca)
         self.log += [inspect.stack()[0][3]]
 
