@@ -707,9 +707,7 @@ class Echelle(Reduce):
                               manual_extract_dict=None):
 
         # For echelle orders
-        slit_spat_pos = (self.tslits_dict['slit_left'][image.shape[0]//2, :] +
-                              self.tslits_dict['slit_righ'][image.shape[0]//2,:]) /2/image.shape[1]
-
+        slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -774,8 +772,7 @@ class Echelle(Reduce):
         self.rn2img = rn2img
 
         # For echelle orders
-        slit_spat_pos = (self.tslits_dict['slit_left'][sciimg.shape[0]//2, :] +
-                         self.tslits_dict['slit_righ'][sciimg.shape[0]//2,:]) /2/sciimg.shape[1]
+        slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
         order_vec = self.spectrograph.order_vec(slit_spat_pos)
         #
         plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)

@@ -13,6 +13,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
 from pypeit.core.wavecal import autoid, waveio
+from pypeit.core import trace_slits
 
 from pypeit import debugger
 from IPython import embed
@@ -116,8 +117,7 @@ class WaveCalib(masterframe.MasterFrame):
             # TODO: Remove the following two lines if deemed ok
             if self.par['method'] != 'full_template':
                 self.inmask &= self.msarc < self.nonlinear_counts
-            self.slit_spat_pos = (self.tslits_dict['slit_left'][self.msarc.shape[0]//2, :] +
-                             self.tslits_dict['slit_righ'][self.msarc.shape[0]//2,:]) /2/self.msarc.shape[1]
+            self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -195,7 +195,7 @@ class WaveCalib(masterframe.MasterFrame):
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
-            #embed(header='196 of wavecalib')  # USE THIS TO HARD CODE SLIT SPAT POS FOR ECHELLE
+            embed(header='196 of wavecalib')  # USE THIS TO HARD CODE SLIT SPAT POS FOR ECHELLE
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
                                            slit_spat_pos=self.slit_spat_pos)

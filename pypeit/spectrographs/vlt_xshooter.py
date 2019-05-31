@@ -138,13 +138,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def norders(self):
         return None
 
-    def order_vec(self, norders=None):
-        msgs.error("Refactor to use slit_spat_pos!!")
-        if norders is None:
-            norders = self.norders
-        return self.slit2order(np.arange(norders), norders)
-
-
 
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     """
@@ -572,53 +565,46 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
 
-    def slit2order(self, islit, nslit):
+    def slit2order(self, slit_spat_pos):
         """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
 
         Args:
-            islit: int, float, or string, slit number
-            nslit:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
 
         Returns:
-            int
+            int: order number
 
         """
+        order_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
+                                   0.41289127, 0.4733839 , 0.53072208, 0.58509916,
+                                   0.63671413, 0.685754, 0.73236772, 0.77676367,
+                                   0.8191196 , 0.85968302, 0.89877932])
+        orders = np.arange(30, 15, -1, dtype=int)
 
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
-        orders = np.arange(30,15,-1, dtype=int)
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle input for VLT X-Shooter VIS")
 
-        return orders[islit]
+        # Return
+        return orders[iorder]
 
-
-    def order_platescale(self, binning=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the plate scale in arcseconds for each order
 
-        Parameters
-        ----------
-        None
+        Args:
+            order_vec (np.ndarray): Order numbers
+            binning (optional):
 
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
+        Returns:
+            np.ndarray: Platescale
 
         """
-        msgs.error("REFACTOR")
-
         # VIS has no binning, but for an instrument with binning we would do this
         binspectral, binspatial = parse.parse_binning(binning)
 
@@ -627,8 +613,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
 
         # Right now I just assume a simple linear trend
-        slit_vec = np.arange(self.norders)
-        order_vec = self.slit2order(slit_vec)
         plate_scale = 0.153 + (order_vec - 30)*(0.153-0.167)/(30 - 17)
         return plate_scale*binspatial
 

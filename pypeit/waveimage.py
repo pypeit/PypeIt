@@ -14,6 +14,7 @@ from pypeit import utils
 from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
+from pypeit.core import trace_slits
 
 from IPython import embed
 
@@ -69,8 +70,7 @@ class WaveImage(MasterFrame):
         self.maskslits = maskslits
 
         # For echelle order, primarily
-        self.slit_spat_pos = (self.tslits_dict['slit_left'][self.tilts.shape[0]//2, :] +
-                      self.tslits_dict['slit_righ'][self.tilts.shape[0]//2,:]) /2/self.tilts.shape[1]
+        self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
 
         # List to hold ouptut from inspect about what module create the image?
         self.steps = []

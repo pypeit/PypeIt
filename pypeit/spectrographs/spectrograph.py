@@ -899,16 +899,21 @@ class Spectrograph(object):
 
     def order_vec(self, slit_spat_pos):
         """
-        This routine is only for echelle spectrographs. It returns a vector of orders
+        Convert an array of slit_spat_pos values to order numbers
 
         Args:
-            slit_spat_pos (np.ndarray):
+            slit_spat_pos (np.ndarray): Slit positions
 
         Returns:
-            np.ndarray
+            np.ndarray: Order numbers
 
         """
-        pass
+        order_vec = np.zeros(slit_spat_pos.size, dtype=int)
+        for kk, ipos in enumerate(slit_spat_pos):
+            order_vec[kk] = self.slit2order(ipos)
+        # Return
+        return order_vec
+
 
     def slit2order(self, slit_pos):
         """

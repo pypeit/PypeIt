@@ -273,11 +273,10 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         It returns the order of the input slit based on its slit_pos
 
         Args:
-            slit_spat_pos (int):  Slit id value, 0-indexed
-            nslit (int): Number of slits
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
 
         Returns:
-            int: Echelle order number
+            int: order number
 
         """
         msgs.warn("This will need to be updated with the remaining 3 orders")
@@ -302,10 +301,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         Returns the plate scale in arcseconds for each order
 
         Args:
-            binning:
+            order_vec (np.ndarray): Order numbers
+            binning (optional):
 
         Returns:
-            float: Platescale
+            np.ndarray: Platescale
 
         """
         # MAGE has no binning, but for an instrument with binning we would do this
@@ -313,13 +313,5 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         norders = len(order_vec)
         binspatial, binspec = parse.parse_binning(binning)
         return np.full(norders, 0.15*binspatial)
-
-    def order_vec(self, slit_spat_pos):
-        order_vec = np.zeros(slit_spat_pos.size, dtype=int)
-        for kk, ipos in enumerate(slit_spat_pos):
-            order_vec[kk] = self.slit2order(ipos)
-        # Return
-        return order_vec
-
 
 

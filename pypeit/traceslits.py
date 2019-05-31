@@ -149,7 +149,6 @@ class TraceSlits(masterframe.MasterFrame):
         self.rdiffarr = None
         self.rwghtarr = None
 
-    @property
     def nslit(self):
         """
 
@@ -1141,19 +1140,5 @@ class TraceSlits(masterframe.MasterFrame):
 
         return (tslits_dict, mstrace, hdu[0].header) if return_header else (tslits_dict, mstrace)
 
-# TODO: Use tslits_dict, mstrace = TraceSlits.load_from_file(filename)
-#def load_tslits(filename):
-#    """
-#    Utility function which enables one to load the tslits_dict from a master file in one line of code without
-#    instantiating the class.
-#
-#    Args:
-#        filename (str): Master file name
-#
-#    Returns:
-#        dict:  The trace slits dict
-#    """
-#    traceSlits = TraceSlits(None,None,None)
-#    tslits_dict, mstrace = traceSlits.load_master(filename)
-#    return tslits_dict, mstrace
+
 
