@@ -93,7 +93,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] = 'nothing'
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        par['calibrations']['tilts']['tracethresh'] = [10]*self.norders
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
         #par['calibrations']['slits']['pcatype'] = 'order'
@@ -280,14 +280,19 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             int: Echelle order number
 
         """
-        msgs.warn("This will need to be updated with the remaining 5 orders")
+        msgs.warn("This will need to be updated with the remaining 3 orders")
         #
-        order_spat_pos = np.array([0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
+        order_spat_pos = np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
                0.77448156, 0.82253604, 0.86875753, 0.91512689, 0.96524312])
-        orders = np.arange(15, 5, -1, dtype=int)
+        orders = np.arange(17, 5, -1, dtype=int)
 
         # Find closest
         iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
+
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle format for MagE or you have discovered one of the bluest 3 orders!")
+
         # Return
         return orders[iorder]
 
