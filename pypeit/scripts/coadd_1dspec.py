@@ -198,6 +198,13 @@ def main(args, unit_test=False, path=''):
         else:
             spectra = coadd.load_spec(gdfiles, iextensions=extensions,
                                         extract=ex_value, flux=flux_value)
+
+            ### The following are for developing
+            #from IPython import embed
+            #embed()
+            #fluxes, sigs, waves = coadd.unpack_spec(spectra, all_wave=True)
+            ### The above are for developing
+
             # Coadd!
             coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
                                 flux_scale=scale_dict, **gparam)

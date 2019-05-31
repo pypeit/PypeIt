@@ -372,6 +372,8 @@ class Spectrograph(object):
 
             # This *always* returns spectral then spatial
             binning = self.get_meta_value(filename, 'binning')
+            #ToDo: Deal with spectrograph like gmos which has their own readers.
+            #binning = '1,1'
 
             # This *always* returns spectral then spatial
             data_sections, one_indexed, include_end \

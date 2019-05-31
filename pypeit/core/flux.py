@@ -732,7 +732,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format; 3= XSHOOTER ASCII format.
 
     # SkyCoord
-    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    if ':' in ra:
+        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    else:
+        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
+
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)
     for qq, sset in enumerate(std_sets):
