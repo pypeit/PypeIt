@@ -149,6 +149,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.rdiffarr = None
         self.rwghtarr = None
 
+    @property
     def nslit(self):
         """
 

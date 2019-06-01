@@ -194,8 +194,6 @@ class WaveCalib(masterframe.MasterFrame):
             arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
-            # Now preferred
-            embed(header='196 of wavecalib')  # USE THIS TO HARD CODE SLIT SPAT POS FOR ECHELLE
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
                                            slit_spat_pos=self.slit_spat_pos)
