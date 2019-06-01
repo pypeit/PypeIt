@@ -383,6 +383,46 @@ def main(flg):
             print("Wrote: {}".format(outfile))
             autoid.arc_fit_qa(final_fit, outfile=os.path.join(outpath, 'MagE_order{:2d}_full.pdf'.format(order)))
 
+    if flg & (2**15):  # VLT/X-Shooter reid_arxiv
+        # VIS
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        old_file = os.path.join(reid_path, 'vlt_xshooter_vis1x1.json')
+        # Load
+        odict, par = waveio.load_reid_arxiv(old_file)
+
+        # Do it
+        orders = odict['fit2d']['orders'][::-1].astype(int)  # Flipped
+        all_wave = np.zeros((odict['0']['nspec'], orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk,order in enumerate(orders):
+            all_flux[:,kk] = odict[str(kk)]['spec']
+            all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outroot='vlt_xshooter_vis1x1.fits'
+        outfile = os.path.join(reid_path, outroot)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
+    if flg & (2**16):  # VLT/X-Shooter line list
+        line_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'lists')
+        old_file = os.path.join(line_path, 'ThAr_XSHOOTER_VIS_air_lines.dat')
+        # Load
+        air_list = waveio.load_line_list(old_file)
+        # Vacuum
+        vac_wv = airtovac(air_list['wave']*units.AA).value
+        vac_list = air_list.copy()
+        vac_list['wave'] = vac_wv
+        # Write
+        new_file = os.path.join(line_path, 'ThAr_XSHOOTER_VIS_lines.dat')
+        vac_list.write(new_file, format='ascii.fixed_width', overwrite=True)
+        print("Wrote: {}".format(new_file))
+
 
 # Command line execution
 if __name__ == '__main__':
@@ -413,8 +453,12 @@ if __name__ == '__main__':
     #  Need several arcs to proceed this way
 
     # MagE
-    flg += 2**13
+    #flg += 2**13
     #flg += 2**14  # Plots
+
+    # VLT/X-Shooter
+    flg += 2**15  # Convert JSON to FITS
+    #flg += 2**16  # Convert JSON to FITS
 
     main(flg)
 
