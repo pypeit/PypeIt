@@ -180,6 +180,7 @@ def main(args, unit_test=False, path=''):
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
 
+        ## The following part will be replaced with the new coadd code
         if pypeline == 'Echelle':
 
             # Check whether the scale_dict is in the right shape.
