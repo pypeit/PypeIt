@@ -207,7 +207,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -260,14 +260,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             '0.NAXIS': 2 }
         super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
-
-    '''
-    def header_keys(self):
-        hdr_keys = super(VLTXShooterNIRSpectrograph, self).header_keys()
-        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
-        hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -333,32 +325,33 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
-    def slit2order(self, islit, nslit):
+    def slit2order(self, slit_spat_pos):
+        """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
+
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+
+        Returns:
+            int: order number
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
+        order_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
+                                   0.33141317, 0.38813936, 0.44310197, 0.49637422,
+                                   0.54839496, 0.59948157, 0.65005956, 0.70074477,
+                                   0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
+        orders = np.arange(26, 10, -1, dtype=int)
 
-        Returns
-        -------
-        order: int
-        """
-        msgs.error("REFACTOR")
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle input for VLT X-Shooter VIS")
 
-        orders = np.arange(26,10,-1, dtype=int)
-        return orders[islit]
+        # Return
+        return orders[iorder]
 
     def order_platescale(self, order_vec, binning=None):
         """
@@ -377,15 +370,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         order_platescale: ndarray, float
 
         """
-        msgs.error("REFACTOR")
 
         # ToDO Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
         # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
 
         # Right now I just assume a simple linear trend
-        slit_vec = np.arange(self.norders)
-        order_vec = self.slit2order(slit_vec)
         plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
         return plate_scale
 
