@@ -15,11 +15,7 @@ settings that are related to the Magellan/MagE spectrograph.
 Limitations
 ===========
 
-Only carefully tested for the reddest 10 orders
-and 1x1 binning.
-
-Known to struggle, at least occasionally with
-2x2 binning
+Tested on the reddest 12 orders and 1x1 and 2x2 binning.
 
 Calibrations
 ============
