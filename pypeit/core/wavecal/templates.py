@@ -491,10 +491,10 @@ if __name__ == '__main__':
 
     # VLT/X-Shooter
     #flg += 2**15  # Convert JSON to FITS
-    #flg += 2**16  # Line list
+    flg += 2**16  # Line list
 
     # Keck/NIRES
-    flg += 2**17  # Convert JSON to FITS
+    #flg += 2**17  # Convert JSON to FITS
 
     main(flg)
 
