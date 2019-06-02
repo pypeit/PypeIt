@@ -4,7 +4,7 @@
 - Add magellan_mage, including a new ThAr linelist and an archived solution
 - Polish several key echelle methods
 - Modify create_linelist to default to vacuum
-- Update Xshooter and NIRES
+- Update Xshooter, NIRES, and GNIRS
 
 0.10.1 (22 May 2019)
 --------------------

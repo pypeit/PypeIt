@@ -457,6 +457,36 @@ def main(flg):
         print("Wrote: {}".format(outfile))
 
 
+    if flg & (2**18):  # Gemini/GNIRS
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'gemini_gnirs.json'
+        iout = 'gemini_gnirs.fits'
+        # Load
+        old_file = os.path.join(reid_path, iroot)
+        odict, par = waveio.load_reid_arxiv(old_file)
+
+        # Do it
+        orders = odict['fit2d']['orders'][::-1].astype(int)  # Flipped
+        all_wave = np.zeros((odict['0']['nspec'], orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk,order in enumerate(orders):
+            all_flux[:,kk] = odict[str(kk)]['spec']
+            if 'nir' in iroot:
+                all_wave[:,kk] = odict[str(kk)]['wave_soln']
+            else:
+                all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = os.path.join(reid_path, iout)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -491,10 +521,13 @@ if __name__ == '__main__':
 
     # VLT/X-Shooter
     #flg += 2**15  # Convert JSON to FITS
-    flg += 2**16  # Line list
+    #flg += 2**16  # Line list
 
     # Keck/NIRES
     #flg += 2**17  # Convert JSON to FITS
+
+    # Gemini/GNIRS
+    flg += 2**18  # Convert JSON to FITS
 
     main(flg)
 
