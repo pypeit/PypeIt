@@ -56,7 +56,6 @@ class PypeItImage(object):
         self.exptime = self.spectrograph.get_meta_value(filename, 'exptime')
         # Binning
         self.binning = self.spectrograph.get_meta_value(filename, 'binning')
-        embed(header='58 of pypeitimage')
         if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
             self.binning_raw = (',').join(self.binning.split(',')[::-1])
         else:

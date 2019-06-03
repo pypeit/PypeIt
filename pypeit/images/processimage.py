@@ -126,6 +126,16 @@ class ProcessImage(pypeitimage.PypeItImage):
         self.rn2img = None
 
     def apply_gain(self, force=False):
+        """
+        Apply the Gain values to self.image
+
+        Args:
+            force (bool, optional):
+
+        Returns:
+            np.ndarray:  copy of self.image
+
+        """
         step = inspect.stack()[0][3]
         # Check if already trimmed
         if self.steps[step] and (not force):

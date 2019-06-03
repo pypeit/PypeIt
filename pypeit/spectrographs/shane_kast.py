@@ -188,7 +188,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.2, 1.2],
                             ronoise         = [3.7, 3.7],
-                            datasec         = ['[:, 1:1024]', '[:, 1025:2048]'],  # These are rows, columns on the raw frame, 1-indexed
+                            datasec         = ['[:, 1:1024]', '[:, 1025:2048]'],    # These are rows, columns on the raw frame, 1-indexed
                             oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
                             suffix          = '_blue'
                             )]

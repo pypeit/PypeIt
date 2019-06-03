@@ -80,7 +80,7 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
         Returns:
             `numpy.ndarray`_: Combined, processed image.
         """
-        if self.par['useframe'] == 'none':
+        if self.par['useframe'].lower() == 'none':
             return None
         # Load
         self.load_images()
