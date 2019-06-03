@@ -16,10 +16,6 @@ from pypeit.bitmask import BitMask
 
 from IPython import embed
 
-# REMOVE THIS
-from importlib import reload
-reload(procimg)
-
 
 class ProcessImagesBitMask(BitMask):
     """

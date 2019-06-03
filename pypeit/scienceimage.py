@@ -7,9 +7,11 @@ from pypeit.core import coadd2d
 from pypeit.core import procimg
 
 from pypeit.images import combinedimage
+from pypeit.images import processimage
 
+from IPython import embed
 
-class ScienceImage(combinedimage.CombinedImage):
+class ScienceImage(object):
     """
     This class will organize and run actions related to
     a Science or Standard star exposure
@@ -86,19 +88,16 @@ class ScienceImage(combinedimage.CombinedImage):
         self.par = spectrograph.default_pypeit_par()['scienceframe'] if par is None else par
 
         # Start us up
-        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
-                                             files=[], frametype=self.frametype)
-        self.file_list = file_list
+        self.sci_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
+                                                       files=file_list, frametype=self.frametype)
+        self.bkg_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
+                                                       files=bg_file_list, frametype=self.frametype)
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
-        self.file_list = file_list
-        self.nsci = len(file_list)
-        self.bg_file_list = bg_file_list
         # Are we subtracing the sky using background frames? If yes, set ir_redux=True
-        self.nbg = len(self.bg_file_list)
         self.ir_redux = ir_redux
-        if self.ir_redux and self.nbg == 0:
+        if self.ir_redux and (self.bkg_combine.nimages == 0):
             msgs.error('IR reductions require that bg files are specified')
         self.det = det
         self.binning = binning
@@ -153,11 +152,10 @@ class ScienceImage(combinedimage.CombinedImage):
 
         if self.ir_redux:
             self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_diff(
-                self.file_list, self.bg_file_list, reject_cr=True, sigma_clip=False,
-                sigrej=sigrej, maxiters=maxiters)
+                reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
         else:
-            self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_sci(
-                self.file_list, reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
+            self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_list(
+                'sci', reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
 
         # Show the science image if an interactive run, only show the crmask
         if show:
@@ -166,14 +164,14 @@ class ScienceImage(combinedimage.CombinedImage):
 
         return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
 
-    def proc_sci(self, file_list, reject_cr=True, sigma_clip=False, sigrej=None, maxiters=5):
+    def proc_list(self, ltype, reject_cr=True, sigma_clip=False, sigrej=None, maxiters=5):
         """
         Process a list of science images
 
         This includes stacking the images if there is more than 1
 
         Args:
-            file_list (list): List of filenames for science frames
+            ltype (str): Type of images to process ('sci', 'bkg')
             reject_cr (bool, optional):
             sigrej (int or float, optional): Rejection threshold for sigma clipping.
                  Code defaults to determining this automatically based on the numberr of images provided.
@@ -189,46 +187,57 @@ class ScienceImage(combinedimage.CombinedImage):
               crmask
 
         """
-        nsci = len(file_list)
-        weights = np.ones(nsci)/float(nsci)
+        # Init
+        if ltype == 'sci':
+            combinedImage = self.sci_combine
+        elif ltype == 'bkg':
+            combinedImage = self.bkg_combine
+        else:
+            msgs.error("Bad ltype for proc_list")
+        nimg = combinedImage.nimages
+        weights = np.ones(nimg)/float(nimg)
 
         # Load
-        self.load_images()
+        embed(header='198 of sciimg')
+        combinedImage.load_images()
         # Process
         process_steps = procimg.init_process_steps(self.bias, self.par['process'])
         process_steps += ['trim', 'apply_gain']
-        self.process_images(process_steps, bias=self.bias, bpm=self.sci_bpm,
+        if (self.pixel_flat is not None) or (self.illum_flat is not None):
+            process_steps += ['flatten']
+        combinedImage.process_images(process_steps, bias=self.bias, bpm=self.sci_bpm,
                             pixel_flat=self.pixel_flat, illum_flat=self.illum_flat)
         # Load up the stack (and create some internal images0
-        sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = self.build_stack(
+        img_stack, ivar_stack, rn2img_stack, crmask_stack, mask_stack = combinedImage.build_stack(
             bpm=self.sci_bpm, reject_cr=reject_cr)
-        #sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack = \
-        #self.read_stack(file_list, self.bias, self.pixel_flat, self.sci_bpm, self.det, self.par['process'], self.spectrograph,
-        #                    illum_flat=self.illum_flat, reject_cr=reject_cr, binning=self.binning)
 
         # ToDO The bitmask is not being properly propagated here!
-        if nsci > 1:
-            sci_list = [sciimg_stack]
-            var_stack = utils.calc_ivar(sciivar_stack)
+        if nimg > 1:
+            img_list = [img_stack]
+            var_stack = utils.calc_ivar(ivar_stack)
             var_list = [var_stack, rn2img_stack]
-            sci_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
-                weights, sci_list, var_list, (mask_stack == 0),
-                sigma_clip=sigma_clip, sigma_clip_stack = sciimg_stack, sigrej=sigrej, maxiters=maxiters)
-            sciimg = sci_list_out[0]
-            sciivar = utils.calc_ivar(var_list_out[0])
+            img_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
+                weights, img_list, var_list, (mask_stack == 0),
+                sigma_clip=sigma_clip, sigma_clip_stack = img_stack, sigrej=sigrej, maxiters=maxiters)
+            img = img_list_out[0]
+            ivar = utils.calc_ivar(var_list_out[0])
             rn2img = var_list_out[1]
             # assumes everything masked in the outmask is a CR in the individual images
             crmask = np.invert(outmask)
-            # Create a mask for this image now
-            mask = self.build_mask(sciimg, sciivar, crmask, self.sci_bpm, saturation=self.saturation, mincounts=self.mincounts)
+            # Create a mask for this combined image
+            processImage = processimage.ProcessImage(None, self.spectrograph, self.det, self.proc_par)
+            processImage.image = img
+            processImage.rawvarframe = var_list_out[0]
+            processImage.crmask = crmask
+            mask = processImage.build_mask(bpm=self.sci_bpm, saturation=self.saturation, mincounts=self.mincounts)
         else:
             mask = mask_stack[0, :, :]
             crmask = crmask_stack[0, :, :]
-            sciimg = sciimg_stack[0, :, :]
-            sciivar = sciivar_stack[0, :, :]
+            img = img_stack[0, :, :]
+            ivar = ivar_stack[0, :, :]
             rn2img = rn2img_stack[0, :, :]
 
-        return sciimg, sciivar, rn2img, mask, crmask
+        return img, ivar, rn2img, mask, crmask
 
 
     def proc_diff(self, file_list, bg_file_list, reject_cr=True,
@@ -254,9 +263,9 @@ class ScienceImage(combinedimage.CombinedImage):
 
         """
 
-        sciimg_sci, sciivar_sci, rn2img_sci, mask_sci, crmask_sci = self.proc_sci(
+        sciimg_sci, sciivar_sci, rn2img_sci, mask_sci, crmask_sci = self.proc_list('sci',
             file_list, reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
-        sciimg_bg, sciivar_bg, rn2img_bg, mask_bg, crmask_bg = self.proc_sci(
+        sciimg_bg, sciivar_bg, rn2img_bg, mask_bg, crmask_bg = self.proc_list('bkg',
             bg_file_list, reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
 
         # Combine the images
@@ -265,12 +274,17 @@ class ScienceImage(combinedimage.CombinedImage):
         varcomb = utils.calc_ivar(sciivar_sci) + utils.calc_ivar(sciivar_bg)
         sciivar = utils.calc_ivar(varcomb)*outmask_comb
         rn2img = rn2img_sci + rn2img_bg
+        # Let's do some more processing
+        processImage = processimage.ProcessImage(None, self.spectrograph, self.det, self.proc_par)
+        processImage.image = sciimg
+        processImage.rawvarframe = varcomb
         # Now reject CRs again on the differenced image
-        crmask_diff = self.build_crmask(sciimg, self.par['process'], self.det, self.spectrograph, ivar=sciivar, binning=self.binning)
+        crmask_diff = processImage.build_crmask()
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         crmask = crmask_diff | np.invert(outmask_comb)
         # Create a mask for this image now
-        mask = self.build_mask(sciimg, sciivar, crmask, self.sci_bpm, saturation=self.saturation)
+        mask = processImage.build_mask(bpm=self.sci_bpm, saturation=self.saturation)#, mincounts=self.mincounts)
+        #mask = self.build_mask(sciimg, sciivar, crmask, self.sci_bpm, saturation=self.saturation)
 
         return sciimg, sciivar, rn2img, mask, crmask
 

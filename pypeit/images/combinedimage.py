@@ -187,6 +187,7 @@ class CombinedImage(pypeitimage.PypeItImage):
             image.orient()
             # Flat field
             if 'flatten' in process_steps:
+                #embed(header='190 of combinedimage')
                 image.flatten(pixel_flat, illum_flat=illum_flat, bpm=bpm)
 
 
