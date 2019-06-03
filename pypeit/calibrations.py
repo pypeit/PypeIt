@@ -11,7 +11,7 @@ from abc import ABCMeta
 
 from astropy.io import fits
 from astropy.table import Table
-import IPython
+from IPython import embed
 
 from pypeit import msgs
 from pypeit import masterframe
@@ -32,8 +32,6 @@ from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
-
-from pypeit import debugger
 
 class Calibrations(object):
     """

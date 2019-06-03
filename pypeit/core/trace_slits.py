@@ -3253,4 +3253,17 @@ def slit_trace_qa(frame, ltrace, rtrace, slitmask, extslit, setup, desc="",
     plt.rcdefaults()
 
 
+def slit_spat_pos(tslits_dict):
+    """
+    Generate an array of the slit spat positions
+    from the tslits_dict
 
+    Parameters:
+        tslits_dict (dict):  Trace slits dict
+
+    Returns:
+        np.ndarray
+
+    """
+    return (tslits_dict['slit_left'][tslits_dict['nspec']//2, :] +
+            tslits_dict['slit_righ'][tslits_dict['nspec']//2,:]) /2/tslits_dict['nspat']

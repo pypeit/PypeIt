@@ -84,7 +84,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         # JFH This is provisional these IDs should be checked.
@@ -185,7 +185,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 #    def parse_binning(self, inp, det=1):
 #        return '1,1'
 
-    def order_platescale(self, binning=None):
+    def order_platescale(self, order_vec, binning=None):
 
 
         """
@@ -204,41 +204,34 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         order_platescale: ndarray, float
 
         """
-
-        # Right now I just assume a simple linear trend
-        return np.full(self.norders, 0.15)
+        return np.full(order_vec.size, 0.15)
 
 
 
-    def slit2order(self, islit):
+    def slit2order(self, slit_spat_pos):
+        """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
+
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+
+        Returns:
+            int: order number
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        order_spat_pos = np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
 
         orders = np.arange(8,2,-1, dtype=int)
-        return orders[islit]
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle format for MagE or you have discovered one of the bluest 3 orders!")
 
-    def order_vec(self):
-        return self.slit2order(np.arange(self.norders))
+        # Return
+        return orders[iorder]
 
 
     def slit_minmax(self, nslits, binspectral=1):
