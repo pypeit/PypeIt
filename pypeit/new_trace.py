@@ -20,6 +20,7 @@ from sklearn.decomposition import PCA
 
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats, sigma_clip
+from astropy import table
 
 from pypeit.bitmask import BitMask
 from pypeit.core import parse, pydl, procimg, arc
@@ -36,173 +37,7 @@ from pypeit import io
 
 from pypeit import sampling
 from pypeit import moment
-
-# TODO: This should go in util
-def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
-    """
-    Calculate bounding limits for an array based on its growth.
-
-    Args:
-        a (array-like):
-            Array for which to determine limits.
-        lim (:obj:`float`):
-            Percentage of the array values to cover. Set to 1 if
-            provided value is greater than 1.
-        fac (:obj:`float`, optional):
-            Factor to increase the range based on the growth limits.
-            Default is no increase.
-        midpoint (:obj:`float`, optional):
-            Force the midpoint of the range to be centered on this
-            value. Default is the sample median.
-        default (:obj:`list`, optional):
-            Default limits to return if `a` has no data.
-
-    Returns:
-        :obj:`list`: Lower and upper boundaries for the data in `a`.
-    """
-    # Get the values to plot
-    _a = a.compressed() if isinstance(a, np.ma.MaskedArray) else np.asarray(a).ravel()
-    if len(_a) == 0:
-        # No data so return the default range
-        return default
-
-    # Set the starting and ending values based on a fraction of the
-    # growth
-    _lim = 1.0 if lim > 1.0 else lim
-    start, end = (len(_a)*(1.0+_lim*np.array([-1,1]))/2).astype(int)
-    if end == len(_a):
-        end -= 1
-
-    # Set the full range and multiply it by the provided factor
-    srt = np.ma.argsort(_a)
-    Da = (_a[srt[end]] - _a[srt[start]])*fac
-
-    # Set the midpoint
-    mid = _a[srt[len(_a)//2]] if midpoint is None else midpoint
-
-    # Return the range centered on the midpoint
-    return [ mid - Da/2, mid + Da/2 ]
-
-
-# TODO: This should go in util
-def nearest_unmasked(arr, use_indices=False):
-    """
-    Return the indices of the nearest unmasked element in a vector.
-
-    .. warning::
-        The function *uses the values of the masked data* for masked
-        elements. This means that if you want to know the nearest
-        unmasked element to one of the *masked* elements, the `data`
-        attribute of the provided array should have meaningful values
-        for these masked elements.
-
-    Args:
-        arr (`numpy.ma.MaskedArray`_):
-            Array to analyze. Must be 1D.
-        use_indices (:obj:`bool`, optional):
-            The proximity of each element in the array is based on
-            the difference in the array `data` values. Setting
-            `use_indices` to `True` instead bases the calculation on
-            the proximity of the element indices; i.e., find the
-            index of the nearest unmasked element.
-
-    Returns:
-        `numpy.ndarray`_: Integer array with the indices of the
-        nearest array elements, the definition of which depends on
-        `use_indices`.
-    """
-    # Check the input
-    if not isinstance(arr, np.ma.MaskedArray):
-        raise TypeError('Must provide a numpy masked array.')
-    if arr.ndim != 1:
-        raise ValueError('Must be a 1D array.')
-    if use_indices:
-        return nearest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
-
-    # Get the difference of each element with every other element
-    nearest = np.absolute(arr[None,:]-arr.data[:,None])
-    # Ignore the diagonal
-    nearest[np.diag_indices(arr.size)] = np.ma.masked
-    # Return the location of the minimum value ignoring the masked values
-    return np.ma.argmin(nearest, axis=1)
-
-
-# TODO: This should go in util
-def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
-    """
-    Boxcar smooth an image along rows.
-
-    Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
-    smooth the image.  Cannot accommodate masking.
-
-    Args:
-        img (`numpy.ndarray`_):
-            Image to convolve.
-        nave (:obj:`int`):
-            Number of pixels along rows for smoothing.
-        wgt (`numpy.ndarray`_, optional):
-            Image providing weights for each pixel in `img`.  Uniform
-            weights are used if none are provided.
-        mode (:obj:`str`, optional):
-            See `scipy.ndimage.convolve`_.
-
-    Returns:
-        `numpy.ndarray`_: The smoothed image
-    """
-    if wgt is not None and img.shape != wgt.shape:
-        raise ValueError('Input image to smooth and weights must have the same shape.')
-    if nave > img.shape[0]:
-        msgs.warn('Smoothing box is larger than the image size!')
-
-    # Construct the kernel for mean calculation
-    _nave = np.fmin(nave, img.shape[0])
-    kernel = np.ones((_nave, 1))/float(_nave)
-
-    if wgt is None:
-        # No weights so just smooth
-        return ndimage.convolve(img, kernel, mode='nearest')
-
-    # Weighted smoothing
-    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
-    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
-    smoothed_img = np.ma.divide(cimg, wimg)
-    smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
-    return smoothed_img.data
-
-
-def index_of_x_eq_y(x, y, strict=False):
-    """
-    Return an index array that maps the elements of `x` to those of
-    `y`.
-
-    This should return the index of the *first* element in array `x`
-    equal to the associated value in array `y`. Inspired by:
-    https://tinyurl.com/yyrx8acf
-
-    Args:
-        x (`numpy.array`_):
-            1D parent array
-        y (`numpy.array`_):
-            1D reference array
-        strict (:obj:`bool`, optional):
-            Raise an exception unless every element of y is found in
-            x. I.e., it must be true that::
-
-                np.array_equal(x[index_of_x_eq_y(x,y)], y)
-
-    Returns:
-        `numpy.ndarray`_: An array with index of `x` that is equal to
-        the given value of `y`.  Output shape is the same as `y`.
-    """
-    if y.ndim != 1 or y.ndim != 1:
-        raise ValueError('Arrays must be 1D.')
-    srt = np.argsort(x)
-    indx = np.searchsorted(x[srt], y)
-    x2y = np.take(srt, indx, mode='clip')
-    if strict and not np.array_equal(x[x2y], y):
-        raise ValueError('Not every element of y was found in x.')
-    return x2y
-
+from pypeit.spectrographs import slitmask
 
 class TraceBitMask(BitMask):
     """
@@ -732,6 +567,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
     Final trace is based on a run of fit_refine that pass through the detected peaks
 
+    design and object data are only available if the spectrograph
+    class has a get_slitmask function, and that the slit mask data
+    includes the object information.
+
+    TODO: Write a script that uses the empty function to document the
+    data model for these two tables. And for EdgeTraceSet as a whole?
+
     TODO: Talk about loading; PCA data not currently saved; rebuilt if loaded
 
     Args:
@@ -846,6 +688,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
             An informational string indicating which data were used
             in the PCA decomposition, 'center' for `spat_cen` or
             'fit' for `spat_fit`.
+        design (`astropy.table.Table`_):
+            Collated slit-mask design data matched to the edge
+            traces.
+        objects (`numpy.recarray`_):
+            Collated object ID and coordinate information matched to
+            the design table.
         qa_path (:obj:`str`):
             Root path for QA output files.
         log (:obj:`list`):
@@ -890,6 +738,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.pca = None                 # EdgeTracePCA with the PCA decomposition
         self.pca_type = None            # Measurements used to construct the PCA (center or fit)
 
+        self.design = None              # Table that collates slit-mask design data matched to
+                                        # the edge traces
+        self.objects = None             # Table that collates object information, if available
+                                        # in the slit-mask design, matched to the `design` table.
+
         self.qa_path = qa_path          # Directory for QA output
 
         self.log = None                 # Log of methods applied
@@ -922,6 +775,76 @@ class EdgeTraceSet(masterframe.MasterFrame):
         The number of edges (left and right) traced.
         """
         return self.traceid.size
+
+    @staticmethod
+    def empty_design_table(rows=None):
+        """
+        Construct an empty `design` table.
+
+        Args:
+            rows (:obj:`int`, optional):
+                Number of rows for each column. If None, the table
+                has empty columns.
+
+        Returns:
+            `astropy.table.Table`_: Instance of the empty design
+            table.
+        """
+        length = 0 if rows is None else rows
+        return table.Table([
+                    table.Column(name='TRACEID', dtype=int, length=length,
+                                 description='Trace ID Number'),
+                    table.Column(name='TRACESROW', dtype=int, length=length,
+                                 description='Spectral row for provided left and right edges.'),
+                    table.Column(name='TRACELPIX', dtype=int, length=length,
+                                 description='Spatial pixel coordinate for left edge'),
+                    table.Column(name='TRACERPIX', dtype=int, length=length,
+                                 description='Spatial pixel coordinate for right edge'),
+                    table.Column(name='SLITID', dtype=int, length=length,
+                                 description='Slit ID Number'),
+                    table.Column(name='SLITLFOC', dtype=int, length=length,
+                                 description='Left edge of the slit in mm at the focal plane'),
+                    table.Column(name='SLITRFOC', dtype=int, length=length,
+                                 description='Right edge of the slit in mm at the focal plane'),
+                    table.Column(name='SLITRA', dtype=int, length=length,
+                                 description='Right ascension of the slit center (deg)'),
+                    table.Column(name='SLITDEC', dtype=int, length=length,
+                                 description='Declination of the slit center (deg)'),
+                    table.Column(name='SLITLEN', dtype=int, length=length,
+                                 description='Slit length (arcsec)'),
+                    table.Column(name='SLITWID', dtype=int, length=length,
+                                 description='Slit width (arcsec)'),
+                    table.Column(name='SLITPA', dtype=int, length=length,
+                                 description='Slit position angle onsky (deg from N through E)')
+                           ])
+
+    @staticmethod
+    def empty_objects_table(rows=None):
+        """
+        Construct an empty `objects` table.
+
+        Args:
+            rows (:obj:`int`, optional):
+                Number of rows for each column. If None, the table
+                has empty columns.
+
+        Returns:
+            `astropy.table.Table`_: Instance of the empty object
+            table.
+        """
+        length = 0 if rows is None else rows
+        return table.Table([
+                    table.Column(name='OBJID', dtype=int, length=length,
+                                 description='Object ID Number'),
+                    table.Column(name='OBJRA', dtype=int, length=length,
+                                 description='Right ascension of the object (deg)'),
+                    table.Column(name='OBJDEC', dtype=int, length=length,
+                                 description='Declination of the object (deg)'),
+                    table.Column(name='SLITID', dtype=int, length=length,
+                                 description='Slit ID Number'),
+                    table.Column(name='SLITINDX', dtype=int, length=length,
+                                 description='Row index of relevant slit in the design table')
+                           ])
 
     def rectify(self, flux, mask=None, extract_width=None, mask_threshold=0.5):
         r""""
@@ -959,7 +882,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
              image and its boolean mask.
         """
         if self.pca is None:
-            raise ValueError('Must first run the PCA analysis fo the traces; run build_pca.')
+            raise ValueError('Must first run the PCA analysis for the traces; run build_pca.')
 
         # Get the traces that cross the reference row at the first and last pixels of the image
         first_last_trace = self.pca.predict(np.array([0,self.nspat-1]))
@@ -1190,6 +1113,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # No PCA has been constructed yet
         self.pca = None
         self.pca_type = None
+
+        # No design or object data
+        self.design = None
+        self.objects = None
 
         # Restart the log
         self.log = [inspect.stack()[0][3]]
@@ -1515,8 +1442,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Spectral pixel coordinate vector and global plot limits
         spec = np.arange(self.nspec)
         xlim = [-1,self.nspec]
-        img_zlim = growth_lim(self.trace_img, 0.95, fac=1.05)
-        sob_zlim = growth_lim(self.sobel_sig, 0.95, fac=1.05)
+        img_zlim = utils.growth_lim(self.trace_img, 0.95, fac=1.05)
+        sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
 
         # Set figure
         w,h = plt.figaspect(1)
@@ -1552,7 +1479,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Spatial pixel plot limits for this trace
             indx = np.invert(self.bitmask.flagged(self.spat_msk[:,i],
                                                   flag=self.bitmask.bad_flags()))
-            ylim = growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
+            ylim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
             if min_spat is not None and np.diff(ylim) < min_spat:
                 ylim = np.sum(ylim)/2 + np.array([-1,1])*min_spat/2
 
@@ -1778,13 +1705,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Update the image coordinates
         self.spat_img = np.round(self.spat_cen).astype(int)
 
-        # Erase any previous fitting results
+        # Erase any previous fitting, PCA, and slit-mask-match results
         self.spat_fit_type = None
         self.spat_fit = None
-
-        # Erase any previous PCA results
         self.pca_type = None
         self.pca = None
+        self.design = None
+        self.objects = None
 
         # Remove bad traces and re-order the trace IDs
         if self.par['clip']:
@@ -2553,7 +2480,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if center_mode == 'nearest':
             # Find the index of the nearest slit with both existing
             # edges (i.e. has an unmasked slit length)
-            nearest = nearest_unmasked(slit_center, use_indices=True)
+            nearest = utils.nearest_unmasked(slit_center, use_indices=True)
             # The offset is the slit length of the nearest valid slit
             offset = slit_length.data[nearest]
 
@@ -2721,7 +2648,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # TODO: Force it to use the nearest edge of the same side;
             # i.e., when inserting a new right, force it to use the
             # nearest right instead of the nearest left?
-            nearest = nearest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
+            nearest = utils.nearest_unmasked(np.ma.MaskedArray(trace_ref, mask=add_edge))
             # Indices of the original traces
             indx = np.zeros(len(add_edge), dtype=int)
             indx[np.invert(add_edge)] = np.arange(self.ntrace)
@@ -2830,6 +2757,120 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         if resort:
             self.spatial_sort()
+
+    def mask_refine(self, design_file=None):
+        """
+        Use the mask design data to refine the edge trace positions.
+
+        Use of this method requires:
+            - a PCA decomposition is available,
+            - the traces are synchronized into left-right pairs, and
+            - :attr:`spectrograph` has a viable `get_slitmask` method
+              to read slit mask design data from a file. That file is
+              either provided directly or pulled from one of the
+              files used to construct the trace image; see
+              `design_file`. The result of the `get_slitmask` method
+              must provide a
+              :class:`pypeit.spectrographs.slitmask.SlitMask` object
+              with the slit-mask design data.
+
+        Also useful, but not required, is for :attr:`spectrograph` to
+        have a viable `get_detector_map` method that provides a
+        :class:`pypeit.spectrograph.opticalmodel.DetectorMap` object,
+        which is used to provide a guess offset between the slit-mask
+        focal-plane positions and the trace pixel positions. If no
+        such `get_detector_method` exists, the guess offset is::
+
+            this
+
+        and the match between expected and traced slit positions may
+        be unstable.
+
+        The method uses
+        :class:`pypeit.spectrographs.slitmask.SlitRegister` to match
+        the expected and traced position and identify both missing
+        and erroneous trace locations. The former are used to add new
+        traces and the latter are removed. The method also constructs
+        the :attr:`design` and :attr:`objects` tables, depending on
+        the data accessible via the
+        :class:`pypeit.spectrographs.slitmask.SlitMask` instance.
+
+        Args:
+            design_file (:obj:`str`, optional):
+                A file with the mask design data. If None, the method
+                will use the first file in :attr:`files`; if
+                :attr:`files` is also None, the method will raise an
+                exception.
+        """
+        # The PCA decomposition must have already been determined
+        if self.pca is None:
+            msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
+
+        # Get the file to use when parsing the mask design information
+        _design_file = (None if self.files is None else self.files[0]) if design_file is None \
+                            else design_file
+        if _design_file is None or not os.path.isfile(_design_file):
+            msgs.error('Design file not found or none provided.')
+
+        # Read the design data
+        msgs.info('Reading slit-mask design information from: {0}'.format(_design_file))
+        if self.spectrograph.get_slitmask(_design_file) is None:
+            msgs.error('Unable to read design file or unable no slit-mask design reader '
+                       'defined for {0}.'.format(self.spectrograph.spectrograph))
+
+        # Try to match to both the left and right edges simultaneously
+        x_mask = np.array([np.amin(self.spectrograph.slitmask.corners[:,:,0], axis=1),
+                           np.amax(self.spectrograph.slitmask.corners[:,:,0], axis=1)]).T.ravel()
+        x_trace = self.spat_fit[self.pca.reference_row,:]
+
+        # Estimate the scale in pixels/mm as the telescope platescale
+        # in arcsec/mm divided by the detector platescale in
+        # arcsec/pixel
+        pix_per_mm = self.spectrograph.telescope.platescale() \
+                        / self.spectrograph.detector[self.det-1]['platescale']
+
+        # Take a guess at the offset and set the bounds
+#        try:
+        # Try using the spectrograph detector map
+        self.spectrograph.get_detector_map()
+        # Set the offset based on the location of this detector
+        offset = self.spectrograph.detector_map.npix[0]/2 \
+                    - self.spectrograph.detector_map.ccd_center[self.det-1,0]
+        # Set the bounds to some nominal fraction of the detector size and pix/mm scale
+        bounds = [[offset-0.1*self.spectrograph.detector_map.npix[0],
+                    offset+0.1*self.spectrograph.detector_map.npix[0]],
+                    [pix_per_mm/1.1, pix_per_mm*1.1]]
+        # except:
+            # # No detector map
+            # msgs.warn('No detector map available for {0}'.format(self.spectrograph.spectrograph)
+                      # + '; attempting to match to slit-mask design anyway.')
+            # # Set the guess offset such that two sets of coordinates
+            # # are offset to their mean
+            # offset = np.mean(x_trace) - np.mean(pix_per_mm * x_mask)
+            # # Assume that the range of mask locations is larger than
+            # # the range of trace locations; set the bounds to force the
+            # # trace coordinates to overlap with the mask by ~90%
+            # bounds = [[offset-(np.amin(x_trace)-np.amin(pix_per_mm*x_mask))*1.1,
+                       # offset+(np.amax(x_trace) - np.amax(pix_per_mm*x_mask))*1.1], 
+                      # [pix_per_mm/1.1, pix_per_mm*1.1]]
+
+        import pdb
+        pdb.set_trace()
+
+        # Register the data
+        register = slitmask.SlitRegister(x_trace, x_mask, guess=[offset, pix_per_mm],
+                                         bounds=bounds, fit=True)
+
+        pdb.set_trace()
+
+
+
+
+
+
+
+
+
 
 #-----------------------------------------------------------------------
 # Done with EdgeTraceSet class.  Below are "pypeit.core.trace" routines.
@@ -3244,8 +3285,8 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
         boxcar (:obj:`int`, optional):
             Boxcar smooth the detection image along rows before
             recentering the edge centers; see
-            :func:`boxcar_smooth_rows`. If `boxcar` is less than 1,
-            no smoothing is performed.
+            :func:`pypeit.utils.boxcar_smooth_rows`. If `boxcar` is
+            less than 1, no smoothing is performed.
         side (:obj:`str`, optional):
             The side that the image will be used to trace. In the
             Sobel image, positive values are for left traces,
@@ -3264,7 +3305,7 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     else:
         img = np.maximum(sobel_sig, -0.1) if side == 'left' \
                     else np.maximum(-1*sobel_sig, -0.1)
-    return boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
+    return utils.boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
 
 
 def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, fwgt=None, width=6.0,

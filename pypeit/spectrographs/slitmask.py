@@ -6,7 +6,7 @@ import numpy
 from scipy import optimize
 
 from pypeit.bitmask import BitMask
-from pypeit.new_trace import index_of_x_eq_y
+from pypeit.utils import index_of_x_eq_y
 
 class SlitMaskBitMask(BitMask):
     """
@@ -95,11 +95,11 @@ class SlitMask:
             See above.
         objects (`numpy.ndarray`_):
             See above.
-        objindx (`numpy.ndarray`_):
+        slitindx (`numpy.ndarray`_):
             The index that maps from the slit data to the object
             data. For example::
 
-                objslitcoo = self.skycoo[self.objindx]
+                objslitcoo = self.skycoo[self.slitindx]
 
             provides the slit RA and DEC coordinates for each object
             with a shape matched to to the relevant entry in
@@ -175,14 +175,14 @@ class SlitMask:
 
         # Expected objects in each slit
         self.objects = None
-        self.objindx = None
+        self.slitindx = None
         if objects is not None:
             self.objects = numpy.atleast_2d(objects)
             if self.objects.shape[1] != 4:
                 raise ValueError('Must provide the slit ID and sky coordinates for each object.')
             try:
-                self.objindx = index_of_x_eq_y(self.slitid, self.objects[:,0].astype(int),
-                                               strict=True)
+                self.slitindx = index_of_x_eq_y(self.slitid, self.objects[:,0].astype(int),
+                                                strict=True)
             except:
                 # Should only fault if there are slit IDs in `objects`
                 # that are not in `slitid`. In that case, return a more
@@ -258,54 +258,52 @@ class SlitRegister:
     Args:
         trace_spat (array-like):
             Trace coordinates in the spatial direction, typically
-            provided in pixel indices.
+            provided in pixel index units (but not necessarily index
+            integers).
         mask_spat (array-like):
             Slit-mask coordinates in the spatial direction, typically
             provided in mm in the focal plane.
-        guess_offset (:obj:`float`, optional):
-            The initial guess for the offset (:math:`o` above).  Must be
-            in the same units as the trace coordinates.  If provided as
-            None, the value is fixed to 0.
-        guess_scale (:obj:`float`, optional):
-            The initial guess for the scale (:math:`s` above).  Must
-            convert the units of the mask coordiantes to the trace
-            coordinates.  If provided as None, the value is fixed to 1.
-        offset_limits (array-like, optional):
-            An array of the lower and upper limits to allow for the
-            offset during the fit.  If None, the parameter is unbounded.
-        scale_limits (array-like, optional):
-            An array of the lower and upper limits to allow for the
-            scale during the fit.  If None, the parameter is unbounded.
+        guess (array-like, optional):
+            The initial guess for the fit parameters. Parameters are
+            currently an offset (`guess[0]`) and a scale
+            (`guess[1]`).
+        fix (array-like, optional):
+            An array of booleans indicating if the provided guess
+            parameters should be fixed during the fit.
+        bounds (array-like, optional):
+            An array of the lower and upper bounds for the
+            parameters. Must have shape :math:`(N_{\rm par},2)`, even
+            if some parameters are fixed; currently :math:`N_{\rm
+            par}=2`. If None, no bounds are imposed (specifically,
+            bounds are set to :math:`\pm``numpy.inf`.)
         penalty (:obj:`bool`, optional):
-            Include a logarithmic penalty for slits that are matched to
-            multiple slits.
+            Include a logarithmic penalty for slits that are matched
+            to multiple slits.
         fit (:obj:`bool`, optional):
-            Perform the fit based on the input.  If False, all optional
-            entries are ignored and the user has to call the
-            :func:`find_best_match` function with those same entries to
-            peform the fit.
+            Perform the fit based on the input. If False, all
+            optional entries are ignored and the user has to call the
+            :func:`find_best_match` function with those same entries
+            to perform the fit.
 
     Attributes:
-        trace_spat (numpy.ndarray):
-            Trace coordinates in the spatial direction, typically
-            provided in pixel indices.
-        mask_spat (numpy.ndarray):
-            Slit-mask coordinates in the spatial direction, typically
-            provided in mm in the focal plane.
-        guess_par (numpy.ndarray):
-            The guess parameters, with :math:`p_0=o` and :math:`p_1=s`.
-        fit_par (numpy.ndarray):
+        trace_spat (`numpy.ndarray`_):
+            Trace coordinates in the spatial direction.
+        mask_spat (`numpy.ndarray`_):
+            Slit-mask coordinates in the spatial direction.
+        guess_par (`numpy.ndarray`_):
+            The guess model parameters.
+        fit_par (`numpy.ndarray`_):
             Flag that the parameters should be fit.
         bounds (tuple):
             The boundaries imposed on the fit parameters.
-        par (numpy.ndarray):
+        par (`numpy.ndarray`_):
             The full parameter set, including any fixed parameters.
         penalty (bool):
-            Flat to apply the penaly function during the fit.
-        match_index (numpy.ndarray):
+            Flag to apply the penalty function during the fit.
+        match_index (`numpy.ndarray`_):
             Indices in the :attr:`mask_spat` that are best matched to
-            the :attr:`trace_spat` coordiantes.
-        match_separation (numpy.ndarray):
+            the :attr:`trace_spat` coordinates.
+        match_separation (`numpy.ndarray`_):
             The difference between the best-matching trace and mask
             positions in trace units.
 
@@ -313,8 +311,8 @@ class SlitRegister:
         NotImplementedError:
             Raised if the spatial positions are not 1D arrays.
     """
-    def __init__(self, trace_spat, mask_spat, guess_offset=None, guess_scale=None,
-                 offset_limits=None, scale_limits=None, penalty=False, fit=False):
+    def __init__(self, trace_spat, mask_spat, guess=[0.,1.], fix=[False,False], bounds=None,
+                 penalty=False, fit=False):
 
         # Read the input coordinates and check their dimensionality
         self.trace_spat = numpy.atleast_1d(trace_spat)
@@ -333,50 +331,49 @@ class SlitRegister:
 
         # Only perform the fit if requested
         if fit:
-            self.find_best_match(guess_offset=guess_offset, guess_scale=guess_scale,
-                                 offset_limits=offset_limits, scale_limits=scale_limits,
-                                 penalty=penalty)
+            self.find_best_match(guess=guess, fix=fix, bounds=bounds, penalty=penalty)
         
-    def _setup_to_fit(self, guess_offset, guess_scale, offset_limits, scale_limits, penalty):
+    def _setup_to_fit(self, guess, fix, bounds, penalty):
         """Setup the necessary attributes for the fit."""
-        self.guess_par = numpy.array([0 if guess_offset is None else guess_offset,
-                                      1 if guess_scale is None else guess_scale])
-        _offset_limits = [-numpy.inf, numpy.inf] if offset_limits is None else offset_limits
-        _scale_limits = [-numpy.inf, numpy.inf] if scale_limits is None else scale_limits
-        self.bounds = tuple([numpy.array([o,s]) for o,s in zip(_offset_limits, _scale_limits)])
-        self.penalty = penalty
-        self.fit_par = numpy.array([guess_offset is not None, guess_scale is not None])
+        self.guess_par = numpy.atleast_1d(guess)
+        if self.guess_par.size != 2:
+            raise ValueError('Must provide two guess parameters.')
         self.par = self.guess_par.copy()
+        self.fit_par = numpy.invert(numpy.atleast_1d(fix))
+        if self.fit_par.size != 2:
+            raise ValueError('Must indicate if each of the parameters should be fixed.')
+        _bounds = numpy.array([[-numpy.inf, numpy.inf], [-numpy.inf, numpy.inf]]) \
+                    if bounds is None else numpy.atleast_2d(bounds)
+        if _bounds.shape != (2,2):
+            raise ValueError('Must provide upper and lower bounds for each parameter.')
+        self.bounds = (_bounds[:,0], _bounds[:,1])
+        self.penalty = penalty
                        
-    def _fill_par(self, par):
-        """Replace the free parameters with the input values."""
-        self.par[self.fit_par] = par
-        
     def minimum_separation(self, par=None):
         r"""
         Return the minimum trace and mask separation for each trace.
 
         This is the function that is minimized by the optimization
         algorithm.
-        
+
         The calculation uses the internal parameters if `par` is not
         provided.
 
-        The minimum separation is penalized if :attr:`penalty` is True.
-        The penalty multiplies each separation by :math:`2^dN` where
-        :math:`dN` is the difference between the number of traces and
-        the number of uniquely matched mask positions; i.e., if two
-        traces are matched to the same mask position, the separation is
-        increase by a factor of 2.
+        The minimum separation is penalized if :attr:`penalty` is
+        True. The penalty multiplies each separation by
+        :math:`2^{dN}` where :math:`dN` is the difference between the
+        number of traces and the number of uniquely matched mask
+        positions; i.e., if two traces are matched to the same mask
+        position, the separation is increase by a factor of 2.
 
         Args:
-            par (numpy.ndarray, optional):
-                The parameter vector.
+            par (`numpy.ndarray`_, optional):
+                The parameter vector. See :func:`mask_to_trace_coo`.
 
         Returns:
-            numpy.ndarray: The separation in trace coordinates between
-            the trace position and its most closely associated slit
-            position.
+            `numpy.ndarray`_: The separation in trace coordinates
+            between the trace position and its most closely
+            associated slit position.
         """
         # Match slits based on their separation
         min_sep, min_indx = self.match(par=par)
@@ -389,12 +386,23 @@ class SlitRegister:
     def mask_to_trace_coo(self, par=None):
         """
         Compute the mask positions in the trace coordinate system.
+
+        Args:
+            par (array-like, optional):
+                The list of (free) parameters. If any parameters are
+                fixed, they should not be included, such that the
+                full parameter set is::
+
+                    self.par[self.fit_par] = par
+
+                If None, use :attr:`par`.
+
+        Returns:
+            `numpy.ndarray`_: The expected pixel positions of the
+            trace given the mask positions and the model parameters.
         """
         if par is not None:
-            # Get the full parameter set including any fixed parameters
-            self._fill_par(par)
-
-        # Translate the mask coordinates to the trace coordinates
+            self.par[self.fit_par] = par
         return self.par[0] + self.mask_spat*self.par[1]
     
     def match(self, par=None):
@@ -403,71 +411,71 @@ class SlitRegister:
         provided or internal fit parameters.
 
         Args:
-            par (numpy.ndarray, optional):
-                The parameter vector.
+            par (`numpy.ndarray`_, optional):
+                The parameter vector. See :func:`mask_to_trace_coo`.
 
         Returns:
-            numpy.ndarray: Returns two arrays, the minimum separation
-            between each trace and any slit position and the associated
-            index in the slit position vector that provides that
-            minimum.
+            Returns two `numpy.ndarray`_ objects, the minimum
+            separation between each trace and any slit position and
+            the associated index in the slit position vector that
+            provides that minimum. These are assigned to
+            :attr:`match_separation` and :attr:`match_index` by
+            :func:`find_best_match`, but *not* this function.
         """
+        # Get the coordinates of the slit positions in the trace
+        # coordinate system
         mask_pix = self.mask_to_trace_coo(par=par)
-
         # Calculate the separation between each trace position with every mask position
         sep = numpy.absolute(self.trace_spat[:,None] - mask_pix[None,:])
-
-        # Return the minimum separation and the match index
+        # Return the minimum separation of the trace positions and any
+        # slit mask position and the index of the slit mask coordinate
+        # with that minimum separation
         return numpy.amin(sep, axis=1), numpy.argmin(sep, axis=1)
     
-    def find_best_match(self, guess_offset=None, guess_scale=None, offset_limits=None,
-                        scale_limits=None, penalty=False):
+    def find_best_match(self, guess=[0.,1.], fix=[False,False], bounds=None, penalty=False):
         r"""
-        Find the best match between the trace and slit-mask positions.
+        Find the best match between the trace and slit-mask
+        positions.
+
+        This populates both :attr:`match_separation` and
+        :attr:`match_index`; the latter is also returned.
 
         Args:
-            guess_offset (:obj:`float`, optional):
-                The initial guess for the offset (:math:`o` above).
-                Must be in the same units as the trace coordinates.  If
-                provided as None, the value is fixed to 0.
-            guess_scale (:obj:`float`, optional):
-                The initial guess for the scale (:math:`s` above).  Must
-                convert the units of the mask coordiantes to the trace
-                coordinates.  If provided as None, the value is fixed to
-                1.
-            offset_limits (array-like, optional):
-                An array of the lower and upper limits to allow for the
-                offset during the fit.  If None, the parameter is
-                unbounded.
-            scale_limits (array-like, optional):
-                An array of the lower and upper limits to allow for the
-                scale during the fit.  If None, the parameter is
-                unbounded.
+            guess (array-like, optional):
+                The initial guess for the fit parameters. Parameters
+                are currently an offset (`guess[0]`) and a scale
+                (`guess[1]`).
+            fix (array-like, optional):
+                An array of booleans indicating if the provided guess
+                parameters should be fixed during the fit.
+            bounds (array-like, optional):
+                An array of the lower and upper bounds for the
+                parameters. Must have shape :math:`(N_{\rm par},2)`,
+                even if some parameters are fixed; currently
+                :math:`N_{\rm par}=2`. If None, no bounds are imposed
+                (specifically, bounds are set to
+                :math:`\pm``numpy.inf`.)
             penalty (:obj:`bool`, optional):
-                Include a logarithmic penalty for slits that are matched
-                to multiple slits.
+                Include a logarithmic penalty for slits that are
+                matched to multiple slits.
 
         Returns:
-            numpy.ndarray: An array of integers that match each trace to
-            the provided slit positions.
+            `numpy.ndarray`_: An array of integers that match each
+            trace to the provided slit positions.
         """
-        # Use the input to establish how to determine the matching
-        # indices
-        self._setup_to_fit(guess_offset, guess_scale, offset_limits, scale_limits, penalty)
-
-        # Check that there's something to fit
+        # Setup the parameter data for fitting and check the input
+        self._setup_to_fit(guess, fix, bounds, penalty)
         if numpy.sum(self.fit_par) == 0:
+            # Nothing to fit, so just use the input parameters to
+            # construct the match
             warnings.warn('No parameters to fit!')
             self.match_separation, self.match_index = self.match()
         else:
-            # Perform the least squares fit
+            # Perform the least squares fit and save the results
             par = self.guess_par[self.fit_par]
             bounds = (self.bounds[0][self.fit_par], self.bounds[1][self.fit_par])
             result = optimize.least_squares(self.minimum_separation, par, bounds=bounds)
-
-            # Save the result
             self.match_separation, self.match_index = self.match(par=result.x)
-
         # Return the matching indices
         return self.match_index
 
@@ -475,14 +483,14 @@ class SlitRegister:
         """
         Return the indices of slits missing from the trace positions.
 
-        Based on the best-fitting slit positions, the list of returned
-        indices are those slits that should fall in the range of the
-        trace coordinates provided but do not have an associated trace
-        position.
+        Based on the best-fitting slit positions, the list of
+        returned indices are those slits that should fall in the
+        range of the trace coordinates provided but do not have an
+        associated trace position.
 
         Returns:
-            list: The list of missing slits.  If all slits are accounted
-            for, the list will be empty.
+            :obj:`list`: The list of missing slits. If all slits are
+            accounted for, the list will be empty.
 
         Raises:
             ValueError:

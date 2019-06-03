@@ -17,7 +17,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
-from pypeit.new_trace import index_of_x_eq_y
+from pypeit.utils import index_of_x_eq_y
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
