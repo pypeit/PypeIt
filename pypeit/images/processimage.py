@@ -243,7 +243,7 @@ class ProcessImage(pypeitimage.PypeItImage):
             trim:
 
         Returns:
-            np.ndarray: self.rawvarframe
+            np.ndarray: Copy of self.rawvarframe
 
         """
         msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
@@ -267,9 +267,8 @@ class ProcessImage(pypeitimage.PypeItImage):
 
         Wrapper to procimg.rn_frame
 
-        Returns
-        -------
-        self.rn2img : ndarray
+        Returns:
+            np.ndarray:
 
         """
         msgs.info("Generating read noise image from detector properties and amplifier layout)")
@@ -284,6 +283,21 @@ class ProcessImage(pypeitimage.PypeItImage):
         return self.rn2img.copy()
 
     def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
+        """
+        Flat field the image
+
+        Wrapper to flat.flatfield
+
+        Args:
+            pixel_flat (np.ndarray):
+            illum_flat (np.ndarray, optional):
+            bpm (np.ndarray, optional):
+            force (bool, optional):
+
+        Returns:
+            np.ndarray:  Copy of the flattened image
+
+        """
         step = inspect.stack()[0][3]
         # Check if already trimmed
         if self.steps[step] and (not force):

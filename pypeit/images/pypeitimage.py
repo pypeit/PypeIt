@@ -19,7 +19,8 @@ class PypeItImage(object):
         self.image = None
         self.head0 = None           # Image header
         self.orig_shape = None       # Shape of the image when loaded
-        self.orig_binning = None     # Binning in the raw image orientation;  e.g. bin_1, bin_2 (for NAXIS1, NAXIS2)
+        self.binning_raw = None     # Binning in the raw image orientation;  e.g. bin_1, bin_2 (for NAXIS1, NAXIS2)
+        self.binning = None          # Binning in PypeIt orientation (spec, spat)
         self.filename = None         # Filename of the image
         self.exptime = None          # Required to generate variance image
 
@@ -53,10 +54,20 @@ class PypeItImage(object):
         self.orig_shape = self.image.shape
         # Exposure time
         self.exptime = self.spectrograph.get_meta_value(filename, 'exptime')
-        #
+        # Binning
+        self.binning = self.spectrograph.get_meta_value(filename, 'binning')
+        embed(header='58 of pypeitimage')
+        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
+            self.binning_raw = (',').join(self.binning.split(',')[::-1])
+        else:
+            self.binning_raw = self.binning
+        # Return
         return self.image, self.head0
 
 
     def show(self):
-        viewer, ch = ginga.show_image(self.image, chname='image')
+        """
+        Simple show method
+        """
+        ginga.show_image(self.image, chname='image')
 

@@ -517,7 +517,7 @@ class Spectrograph(object):
         # Transpose?
         if self.raw_is_transposed(det):
             image = image.T
-        # Flip spectgral axis?
+        # Flip spectral axis?
         if self.detector[det-1]['specflip'] is True:
             image = np.flip(image, axis=0)
         # Flip spatial axis?
