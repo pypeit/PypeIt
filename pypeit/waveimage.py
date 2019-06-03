@@ -13,7 +13,9 @@ from pypeit import utils
 from pypeit.masterframe import MasterFrame
 from pypeit.core import pixels
 from pypeit.images import pypeitimage
+from pypeit.core import trace_slits
 
+from IPython import embed
 
 class WaveImage(pypeitimage.PypeItImage, MasterFrame):
     """
@@ -69,8 +71,12 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
 
         self.maskslits = maskslits
 
+        # For echelle order, primarily
+        self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+
         # List to hold ouptut from inspect about what module create the image?
         self.steps = []
+
 
         # Main output
         self.image = None
@@ -102,7 +108,7 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
-                order = self.spectrograph.slit2order(slit)
+                order = self.spectrograph.slit2order(self.slit_spat_pos[slit])
                 # evaluate solution
                 self.image[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
                                                        self.tilts[thismask],

@@ -33,8 +33,6 @@ from pypeit.core import trace_slits
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 
-from pypeit import debugger
-
 class Calibrations(object):
     """
     This class is primarily designed to guide the generation of

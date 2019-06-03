@@ -69,6 +69,7 @@ Instruments
    instruments
    deimos
    lris
+   mage
 
 
 Object Algorithms

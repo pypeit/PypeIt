@@ -2,6 +2,7 @@
 
 import os
 import numpy as np
+from IPython import embed
 
 from pkg_resources import resource_filename
 from scipy.io import readsav
@@ -13,6 +14,9 @@ from linetools import utils as ltu
 
 from pypeit import utils
 from pypeit.core.wave import airtovac
+from pypeit.core.wavecal import waveio
+from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import fitting
 
 from pypeit import debugger
 
@@ -32,7 +36,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
     Generate a full_template for a given instrument
 
     Args:
-        in_files:
+        in_files (list or str):
         slits:
         wv_cuts:
         binspec:
@@ -96,6 +100,7 @@ def pypeit_arcspec(in_file, slit):
     # Return
     return wv_vac, np.array(iwv_calib['spec'])
 
+
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
     tbl = Table()
     tbl['wave'] = nwwv
@@ -114,6 +119,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
     print("Wrote: {}".format(outfile))
 
 
+#####################################################################################################
+#####################################################################################################
 ## Low-Redux routines
 
 def fcheby(xnrm,order):
@@ -327,6 +334,158 @@ def main(flg):
         wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_5000', 'MasterWaveCalib_B_1_01.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
+    if flg & (2**13):  # Magellan/MagE
+        # Load
+        mase_path = os.path.join(os.getenv('XIDL_DIR'), 'Magellan', 'MAGE', 'mase', 'Calib')
+        sav_file = os.path.join(mase_path, 'MagE_wvguess_jfh.idl')
+        mase_dict = readsav(sav_file)
+        mase_sol = Table(mase_dict['all_arcfit'])
+        # Do it
+        all_wave = np.zeros((2048, 15))
+        all_flux = np.zeros_like(all_wave)
+        for order in np.arange(15):
+            all_flux[:,order] = mase_dict['sv_aspec'][order]
+            # Build the wavelengths
+            wv_air = cheby_val(mase_sol['FFIT'][order], np.arange(2048), mase_sol['NRM'][order],
+                                         mase_sol['NORD'][order])
+            all_wave[:,order] = airtovac(wv_air * units.AA).value
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = np.arange(20, 5, -1, dtype=int)
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outroot='magellan_mage.fits'
+        outfile = os.path.join(template_path, outroot)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
+    if flg & (2**14):  # Magellan/MagE Plots
+        outpath = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'plots')
+        new_mage_file = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv',
+                                     'magellan_mage.fits')
+        # Load
+        mage_wave = Table.read(new_mage_file)
+        llist = waveio.load_line_lists(['ThAr_MagE'])
+        #
+        for kk in range(mage_wave['wave'].shape[1]):
+            wv = mage_wave['wave'][:, kk]
+            fx = mage_wave['flux'][:, kk]
+            order = 20 - kk
+            # Reidentify
+            detections, spec_cont_sub, patt_dict = autoid.reidentify(fx, fx, wv, llist, 1)
+            # Fit
+            final_fit = fitting.fit_slit(fx, patt_dict, detections, llist)
+            # Output
+            outfile=os.path.join(outpath, 'MagE_order{:2d}_IDs.pdf'.format(order))
+            autoid.arc_fit_qa(final_fit, outfile=outfile, ids_only=True)
+            print("Wrote: {}".format(outfile))
+            autoid.arc_fit_qa(final_fit, outfile=os.path.join(outpath, 'MagE_order{:2d}_full.pdf'.format(order)))
+
+    if flg & (2**15):  # VLT/X-Shooter reid_arxiv
+        # VIS
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        for iroot, iout in zip(['vlt_xshooter_vis1x1.json', 'vlt_xshooter_nir.json'],
+            ['vlt_xshooter_vis1x1.fits', 'vlt_xshooter_nir.fits']):
+            # Load
+            old_file = os.path.join(reid_path, iroot)
+            odict, par = waveio.load_reid_arxiv(old_file)
+
+            # Do it
+            orders = odict['fit2d']['orders'][::-1].astype(int)  # Flipped
+            all_wave = np.zeros((odict['0']['nspec'], orders.size))
+            all_flux = np.zeros_like(all_wave)
+            for kk,order in enumerate(orders):
+                all_flux[:,kk] = odict[str(kk)]['spec']
+                if 'nir' in iroot:
+                    all_wave[:,kk] = odict[str(kk)]['wave_soln']
+                else:
+                    all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+            # Write
+            tbl = Table()
+            tbl['wave'] = all_wave.T
+            tbl['flux'] = all_flux.T
+            tbl['order'] = orders
+            tbl.meta['BINSPEC'] = 1
+            # Write
+            outfile = os.path.join(reid_path, iout)
+            tbl.write(outfile, overwrite=True)
+            print("Wrote: {}".format(outfile))
+
+    if flg & (2**16):  # VLT/X-Shooter line list
+        line_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'lists')
+        old_file = os.path.join(line_path, 'ThAr_XSHOOTER_VIS_air_lines.dat')
+        # Load
+        air_list = waveio.load_line_list(old_file)
+        # Vacuum
+        vac_wv = airtovac(air_list['wave']*units.AA).value
+        vac_list = air_list.copy()
+        vac_list['wave'] = vac_wv
+        # Write
+        new_file = os.path.join(line_path, 'ThAr_XSHOOTER_VIS_lines.dat')
+        vac_list.write(new_file, format='ascii.fixed_width', overwrite=True)
+        print("Wrote: {}".format(new_file))
+
+    if flg & (2**17):  # NIRES
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'keck_nires.json'
+        iout = 'keck_nires.fits'
+        # Load
+        old_file = os.path.join(reid_path, iroot)
+        odict, par = waveio.load_reid_arxiv(old_file)
+
+        # Do it
+        orders = odict['fit2d']['orders'][::-1].astype(int)  # Flipped
+        all_wave = np.zeros((odict['0']['nspec'], orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk,order in enumerate(orders):
+            all_flux[:,kk] = odict[str(kk)]['spec']
+            if 'nir' in iroot:
+                all_wave[:,kk] = odict[str(kk)]['wave_soln']
+            else:
+                all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = os.path.join(reid_path, iout)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
+
+    if flg & (2**18):  # Gemini/GNIRS
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'gemini_gnirs.json'
+        iout = 'gemini_gnirs.fits'
+        # Load
+        old_file = os.path.join(reid_path, iroot)
+        odict, par = waveio.load_reid_arxiv(old_file)
+
+        # Do it
+        orders = odict['fit2d']['orders'][::-1].astype(int)  # Flipped
+        all_wave = np.zeros((odict['0']['nspec'], orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk,order in enumerate(orders):
+            all_flux[:,kk] = odict[str(kk)]['spec']
+            if 'nir' in iroot:
+                all_wave[:,kk] = odict[str(kk)]['wave_soln']
+            else:
+                all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = os.path.join(reid_path, iout)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
 
 # Command line execution
 if __name__ == '__main__':
@@ -351,10 +510,24 @@ if __name__ == '__main__':
     # Keck/LRISr
     #flg += 2**10  # R400
     #flg += 2**11  # R1200
-    flg += 2**12  # R600/5000
+    #flg += 2**12  # R600/5000
 
     # Shane/Kastr
     #  Need several arcs to proceed this way
+
+    # MagE
+    #flg += 2**13
+    #flg += 2**14  # Plots
+
+    # VLT/X-Shooter
+    #flg += 2**15  # Convert JSON to FITS
+    #flg += 2**16  # Line list
+
+    # Keck/NIRES
+    #flg += 2**17  # Convert JSON to FITS
+
+    # Gemini/GNIRS
+    flg += 2**18  # Convert JSON to FITS
 
     main(flg)
 
