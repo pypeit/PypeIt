@@ -71,6 +71,9 @@ class ArcImage(combinedimage.CombinedImage, masterframe.MasterFrame):
         """
         Build the arc image from one or more arc files.
 
+        If we ever decide to apply the gain, we will need
+        to worry about saturation
+
         Args:
 
         Returns:
@@ -81,7 +84,8 @@ class ArcImage(combinedimage.CombinedImage, masterframe.MasterFrame):
         self.load_images()
         # Process
         process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
-        process_steps += ['trim', 'apply_gain']
+        process_steps += ['trim']   # NOT applying gain to deal 'properly' with saturation
+        #process_steps += ['trim', 'apply_gain']
         self.process_images(process_steps, bias=self.msbias)
         # Combine + Return
         return self.combine()
