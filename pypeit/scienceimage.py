@@ -198,7 +198,7 @@ class ScienceImage(object):
         weights = np.ones(nimg)/float(nimg)
 
         # Load
-        embed(header='198 of sciimg')
+        #embed(header='198 of sciimg')
         combinedImage.load_images()
         # Process
         process_steps = procimg.init_process_steps(self.bias, self.par['process'])
