@@ -11,6 +11,7 @@ from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit.core import coadd
+from pypeit import utils
 from pypeit import msgs
 
 import warnings
@@ -168,7 +169,8 @@ def test_sn_weight():
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
     smask = rspec.data['sig'].filled(0.) > 0.
     fluxes, sigs, wave = coadd.unpack_spec(rspec)
-    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    ivars = utils.calc_ivar(sigs)
+    rms_sn, weights = coadd.sn_weights(wave, fluxes, ivars, mask=smask)
     np.testing.assert_allclose(rms_sn[0], 0.318, atol=0.1)  # Noise is random
     #  Low S/N first
     dspec = dummy_spectra(s2n=3., seed=1234)
@@ -176,7 +178,8 @@ def test_sn_weight():
     rspec = dspec.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
     smask = rspec.data['sig'].filled(0.) > 0.
     fluxes, sigs, wave = coadd.unpack_spec(rspec)
-    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    ivars = utils.calc_ivar(sigs)
+    rms_sn, weights = coadd.sn_weights(wave, fluxes, ivars, mask=smask)
     np.testing.assert_allclose(rms_sn[0], 2.934, atol=0.1)  # Noise is random
     #  High S/N now
     dspec2 = dummy_spectra(s2n=10., seed=1234)
@@ -184,7 +187,8 @@ def test_sn_weight():
     rspec2 = dspec2.rebin(cat_wave*units.AA, all=True, do_sig=True, masking='none')
     smask = rspec2.data['sig'].filled(0.) > 0.
     fluxes, sigs, wave = coadd.unpack_spec(rspec2)
-    rms_sn, weights = coadd.sn_weights(fluxes, sigs, smask, wave)
+    ivars = utils.calc_ivar(sigs)
+    rms_sn, weights = coadd.sn_weights(wave, fluxes, ivars, mask=smask)
     np.testing.assert_allclose(rms_sn[0], 9.904, atol=0.1)  # Noise is random
 
 

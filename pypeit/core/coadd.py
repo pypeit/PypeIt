@@ -219,25 +219,27 @@ def unpack_spec(spectra, all_wave=False):
     # Return
     return fluxes, sigs, wave
 
-
-def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, debug=False, verbose=False):
+# TODO JFH: Switch this function to take inverse variances everywhere, calling sequence should also be
+# wave, flux, ivar mask = None
+def sn_weights(wave, flux, ivar, mask = None, dv_smooth=10000.0, const_weights=False, verbose=False):
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
     for coadding.
 
     Parameters
     ----------
+    wave: flota ndarray, shape = (nspec,) or (nexp, nspec)
+       Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
+       that all spectra are on the same wavelength grid. If wave is a 2-d array, it will use the individual
     fluxes: float ndarray, shape = (nexp, nspec)
         Stack of (nexp, nspec) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
-    sigs: float ndarray, shape = (nexp, nspec)
-        1-sigm noise vectors for the spectra
-    mask: bool ndarray, shape = (nexp, nspec)
-        Mask for stack of spectra. True=Good, False=Bad.
-    wave: flota ndarray, shape = (nspec,) or (nexp, nspec)
-        Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
-        that all spectra are on the same wavelength grid. If wave is a 2-d array, it will use the individual
+    ivar: float ndarray, shape = (nexp, nspec)
+        1-sigm inverse variance vectors for the spectra
 
     Optional Parameters:
     --------------------
+    mask: bool ndarray, shape = (nexp, nspec)
+       Mask for stack of spectra. True=Good, False=Bad. If not passed in it will use mask = (ivar > 0)
+
     dv_smooth: float, 10000.0
          Velocity smoothing used for determining smoothly varying S/N ratio weights.
 
@@ -249,17 +251,20 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
 
+    if mask is None:
+        mask = (ivar > 0.0)
+
     if flux.ndim == 1:
         nstack = 1
         nspec = flux.shape[0]
         flux_stack = flux.reshape((nstack, nspec))
-        sig_stack = sig.reshape((nstack,nspec))
+        ivar_stack = ivar.reshape((nstack,nspec))
         mask_stack = mask.reshape((nstack, nspec))
     elif flux.ndim == 2:
         nstack = flux.shape[0]
         nspec = flux.shape[1]
         flux_stack = flux
-        sig_stack = sig
+        ivar_stack = ivar
         mask_stack = mask
     else:
         msgs.error('Unrecognized dimensionality for flux')
@@ -272,7 +277,6 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
     else:
         msgs.error('wavelength array has an invalid size')
 
-    ivar_stack = utils.calc_ivar(sig_stack**2)
     # Calculate S/N
     sn_val = flux_stack*np.sqrt(ivar_stack)
     sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
@@ -906,10 +910,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     rmask = rspec.data['sig'].filled(0.) > 0.0
 
     fluxes, sigs, wave = unpack_spec(rspec)
-
+    ivars = utils.calc_ivar(sigs)
 
     # S/N**2, weights
-    rms_sn, weights = sn_weights(fluxes, sigs, rmask, wave)
+    rms_sn, weights = sn_weights(wave, fluxes, ivars, mask = rmask)
 
     # Scale (modifies rspec in place)
     if echelle:

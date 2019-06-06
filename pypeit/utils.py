@@ -1214,7 +1214,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 
     return outmask, ct
 
-def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=None, invvar=None,
+def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
                     lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                     groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
                     **kwargs_optimizer):
@@ -1233,14 +1233,21 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
             The callable object used to perform the fitting.  The
             calling sequence must be::
 
-                result, ymodel = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
+                ret_tuple = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
 
-            See the descriptions of `ydata`, `inmask`, `arg_dict`, and
-            `kwargs_optimizer`.  The two returned objects are:
+            See the descriptions of `ydata`, `inmask`, `arg_dict`, and `kwargs_optimizer`.
+
+            The returned object ret_tuple that can have two or three elements.
+
+            If it has two elements (result, ymodel)
                 - `result`: Object returned by the specific
                   scipy.optimize method used to perform the fit.
                 - `ymodel`: A `numpy.ndarray` with the model fit to
                   `ydata` and with the same shape.
+            If it has three elements (result, ymodel, newivar)
+                - `newivar`: new inverse variance for the ydata ymodel comparison, in other
+                   words chi = (ydata - ymodel)*np.sqrt(newivar). This functionality allows
+                   one to deal with cases where the noise of the data-model comaprison is model dependent.
 
         arg_dict (:obj:`dict`)
             Dictionary containing the other variables needed to evaluate
@@ -1253,21 +1260,17 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
             evaluates to `False`.  Must have the same number of
             dimensions as `ydata`.  Points masked as `False` in `inmask`
             will also always evaluate to `False` in the output mask.
-        sigma (:obj:`float`, `numpy.ndarray`_, optional):
-            Standard deviation of the `ydata`, used to reject points
-            based on the values of `upper` and `lower`. This can either
-            be a single float or an array with the same shape as
-            `ydata`.
         invvar (:obj:`float`, `numpy.ndarray`_, optional):
             Inverse variance of the data, used to reject points based on
             the values of `upper` and `lower`.  This can either be a
             single float for the entire yarray or a ndarray with the
-            same shape as the yarray. If both `sigma` and `invvar` are
-            set the code will return an error.
+            same shape as the yarray.
         lower (:obj:`int`, :obj:`float`, optional):
-            If set, reject points with `data < model - lower * sigma`.
+            If set, reject points with `data < model - lower * sigma`, where
+            sigma = 1/sqrt(invvar)
         upper (:obj:`int`, :obj:`float`, optional):
-            If set, reject points with `data > model + upper * sigma`.
+            If set, reject points with `data > model + upper * sigma`, where
+            sigma = 1/sqrt(invvar)
         maxdev (:obj:`int` or :class:`float`, optional
             If set, reject points with `abs(data-model) > maxdev`.  It
             is permitted to set all three of `lower`, `upper` and
@@ -1304,9 +1307,8 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
             deviation between the data and use this for the rejection
             instead of the default, which is to compute the standard
             deviation of `ydata - modelfit`. Note that it is not
-            possible to specify `use_mad=True` and also pass in values
-            for `sigma` or `invvar`, and the code will return an error
-            if this is done.
+            possible to specify `use_mad=True` and also pass in a value for
+            `invvar`, and the code will return an error if this is done.
         **kwargs_optimizer:
             Optional parameters passed to the optimizer.
 
@@ -1325,17 +1327,25 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
     if inmask is None:
         inmask = np.ones(ydata.size, dtype=bool)
 
-    if sigma is not None and invvar is not None:
-        msgs.error('You cannot specify both sigma and invvar')
+    #if sigma is not None and invvar is not None:
+    #    msgs.error('You cannot specify both sigma and invvar')
 
     iter = 0
     qdone = False
     thismask = np.copy(inmask)
 
     while (not qdone) and (iter < maxiter):
-        result, ymodel = fitfunc(ydata, thismask, arg_dict, **kwargs_optimizer)
+        ret_tuple = fitfunc(ydata, thismask, arg_dict, **kwargs_optimizer)
+        if (len(ret_tuple) == 2):
+            result, ymodel = ret_tuple
+            invvar_use = invvar
+        elif (len(ret_tuple) == 3):
+            result, ymodel, invvar_use = ret_tuple
+        else:
+            msgs.error('Invalid return value from fitfunc')
+
         thismask_iter = thismask.copy()
-        thismask, qdone = pydl.djs_reject(ydata, ymodel, outmask=thismask, inmask=inmask, invvar=invvar,
+        thismask, qdone = pydl.djs_reject(ydata, ymodel, outmask=thismask, inmask=inmask, invvar=invvar_use,
                                           lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
                                           groupdim=groupdim, groupsize=groupsize, groupbadpix=groupbadpix, grow=grow,
                                           use_mad=use_mad, sticky=sticky)
