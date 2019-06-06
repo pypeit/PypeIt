@@ -16,7 +16,8 @@ from astropy.stats import sigma_clipped_stats
 import matplotlib as mpl
 from matplotlib.lines import Line2D
 import scipy
-from pypeit.core import pydl
+
+from IPython import embed
 
 try:
     from pypeit import ginga
@@ -366,6 +367,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     # Do we need this dev_mad < maxdev step?
     use_tilt = (mad_rej) & (bad_frac < max_badpix_frac) & good_line & (dev_mad < maxdev)
     nuse = np.sum(use_tilt)
+
+    embed()
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse,nlines))
 
     tilts_mad = np.outer(np.ones(nspat),dev_mad)
