@@ -614,8 +614,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                  slitid=hdu['BluSlits'].data['dSlitId'],
                                  align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
                                  science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
-                                 skycoo=np.array([hdu['DesiSlits'].data['slitRA'][indx],
-                                                 hdu['DesiSlits'].data['slitDec'][indx]]).T,
+                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
+                                                 hdu['DesiSlits'].data['slitDec'][indx],
+                                                 hdu['DesiSlits'].data['slitLen'][indx],
+                                                 hdu['DesiSlits'].data['slitWid'][indx],
+                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
                                  objects=objects)
         return self.slitmask
 

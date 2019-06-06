@@ -4,6 +4,8 @@ Module to define the SlitMask class
 from collections import OrderedDict
 import numpy
 from scipy import optimize
+from matplotlib import pyplot
+from astropy.stats import sigma_clip, sigma_clipped_stats
 
 from pypeit.bitmask import BitMask
 from pypeit.utils import index_of_x_eq_y
@@ -68,11 +70,14 @@ class SlitMask:
             Indicates slit(s) include a target of scientific
             interest. Can be a single boolean or have shape
             :math:`(N_{\rm slit},)`.
-        skycoo (`numpy.ndarray`_, optional):
-            1D or 2D array with the right ascension and declination
-            of the *center* of each slit. Shape must be :math:`(2,)`
-            or :math:`(N_{\rm slit},2)`. Order expected to match slit
-            ID order.
+        onsky (`numpy.ndarray`_, optional):
+            1D or 2D array with on-sky metrics for each slit. The
+            shape of the array must be :math:`(5,)` or :math:`(N_{\rm
+            slit},5)`, and the order along rows must match slit ID
+            order (see `slitid`). The five metrics per slit are (1-2)
+            right ascension and declination of the slit center, (3-4)
+            the slit length and width in arcseconds, and (5) the
+            position angle of the slit from N through E in degrees.
         objects (`numpy.ndarray`_, optional):
             List of objects observed as a 1D or 2D array with shape
             :math:`(4,)` or :math:`(N_{\rm obj},4)`. The three
@@ -91,7 +96,7 @@ class SlitMask:
             See `slitid` above.
         mask (`numpy.ndarray`_):
             Mask bits selecting the type of slit.
-        skycoo (`numpy.ndarray`_):
+        onsky (`numpy.ndarray`_):
             See above.
         objects (`numpy.ndarray`_):
             See above.
@@ -99,10 +104,10 @@ class SlitMask:
             The index that maps from the slit data to the object
             data. For example::
 
-                objslitcoo = self.skycoo[self.slitindx]
+                objslitdb = self.onsky[self.slitindx]
 
-            provides the slit RA and DEC coordinates for each object
-            with a shape matched to to the relevant entry in
+            provides the `onsky` slit data for each object with a
+            shape matched to the relevant entry in
             :attr:`self.objects`.
         center (`numpy.ndarray`_):
             The geometric center of each slit.
@@ -124,7 +129,7 @@ class SlitMask:
             slits provided.
     """
     bitmask = SlitMaskBitMask()
-    def __init__(self, corners, slitid=None, align=None, science=None, skycoo=None, objects=None):
+    def __init__(self, corners, slitid=None, align=None, science=None, onsky=None, objects=None):
 
         # TODO: Allow random input order and then fix
 
@@ -167,11 +172,12 @@ class SlitMask:
             self.mask[_science] = self.bitmask.turn_on(self.mask[_science], 'SCIENCE')
 
         # On-sky coordinates of the slit center
-        self.skycoo = None
-        if skycoo is not None:
-            self.skycoo = numpy.atleast_2d(skycoo)
-            if self.skycoo.shape != (self.nslits,2):
-                raise ValueError('Must provide two sky coordinates for each slit.')
+        self.onsky = None
+        if onsky is not None:
+            self.onsky = numpy.atleast_2d(onsky)
+            if self.onsky.shape != (self.nslits,5):
+                raise ValueError('Must provide sky coordinates and slit length, width, and PA '
+                                 'for each slit.')
 
         # Expected objects in each slit
         self.objects = None
@@ -279,6 +285,19 @@ class SlitRegister:
         penalty (:obj:`bool`, optional):
             Include a logarithmic penalty for slits that are matched
             to multiple slits.
+        maxiter (:obj:`int`, optional):
+            Maximum number of fit iterations to perform. If None,
+            rejection iterations are performed until no points are
+            rejected. If 1, only a single fit is performed without
+            any rejection; i.e., the number of rejection iterations
+            is `maxiter-1`.
+        maxsep (:obj:`float`, optional):
+            The maximum allowed separation between the calibrated
+            coordinates of the designed slit position in pixels and
+            the matched trace. If None, rejection is done iteratively
+            using 5-sigma clipping.
+        debug (:obj:`bool`, optional):
+            Show a plot of the fit residuals after each iteration.
         fit (:obj:`bool`, optional):
             Perform the fit based on the input. If False, all
             optional entries are ignored and the user has to call the
@@ -300,25 +319,37 @@ class SlitRegister:
             The full parameter set, including any fixed parameters.
         penalty (bool):
             Flag to apply the penalty function during the fit.
+        match_coo (`numpy.ndarray`_):
+            The best matching coordinates of the slit mask design
+            coordinates to the slit trace pixel positions.
         match_index (`numpy.ndarray`_):
             Indices in the :attr:`mask_spat` that are best matched to
             the :attr:`trace_spat` coordinates.
         match_separation (`numpy.ndarray`_):
-            The difference between the best-matching trace and mask
-            positions in trace units.
+            Signed difference between the best-matching trace and
+            mask positions in trace units; negative values mean the
+            best-matching mask position is larger than the trace
+            position.
 
     Raises:
         NotImplementedError:
             Raised if the spatial positions are not 1D arrays.
     """
-    def __init__(self, trace_spat, mask_spat, guess=[0.,1.], fix=[False,False], bounds=None,
-                 penalty=False, fit=False):
+    def __init__(self, trace_spat, mask_spat, trace_mask=None, guess=[0.,1.], fix=[False,False],
+                 bounds=None, penalty=False, maxiter=1, maxsep=None, sigma=5, debug=False,
+                 fit=False):
 
         # Read the input coordinates and check their dimensionality
         self.trace_spat = numpy.atleast_1d(trace_spat)
         self.mask_spat = numpy.atleast_1d(mask_spat)
         if self.trace_spat.ndim > 1 or self.mask_spat.ndim > 1:
             raise NotImplementedError('SlitRegister only allows 1D arrays on input.')
+        # This mask needs to be a copy so that it can be altered and
+        # compared with the input
+        self.trace_mask = numpy.zeros(self.trace_spat.shape, dtype=bool) if trace_mask is None \
+                                else numpy.atleast_1d(trace_mask).copy()
+        if self.trace_mask.shape != self.trace_spat.shape:
+            raise ValueError('Trace mask must have the same shape as the spatial positions.')
 
         # Input and output variables instantiated during the fit
         self.guess_par = None
@@ -326,14 +357,18 @@ class SlitRegister:
         self.bounds = None
         self.par = None
         self.penalty = None
+        self.maxsep = None
+        self.sigma = None
+        self.match_coo = None
         self.match_index = None
         self.match_separation = None
 
         # Only perform the fit if requested
         if fit:
-            self.find_best_match(guess=guess, fix=fix, bounds=bounds, penalty=penalty)
-        
-    def _setup_to_fit(self, guess, fix, bounds, penalty):
+            self.find_best_match(guess=guess, fix=fix, bounds=bounds, penalty=penalty,
+                                 maxiter=maxiter, maxsep=maxsep, sigma=sigma, debug=debug)
+
+    def _setup_to_fit(self, guess, fix, bounds, penalty, maxsep, sigma):
         """Setup the necessary attributes for the fit."""
         self.guess_par = numpy.atleast_1d(guess)
         if self.guess_par.size != 2:
@@ -348,44 +383,16 @@ class SlitRegister:
             raise ValueError('Must provide upper and lower bounds for each parameter.')
         self.bounds = (_bounds[:,0], _bounds[:,1])
         self.penalty = penalty
+        self.maxsep = maxsep
+        self.sigma = sigma
                        
-    def minimum_separation(self, par=None):
-        r"""
-        Return the minimum trace and mask separation for each trace.
-
-        This is the function that is minimized by the optimization
-        algorithm.
-
-        The calculation uses the internal parameters if `par` is not
-        provided.
-
-        The minimum separation is penalized if :attr:`penalty` is
-        True. The penalty multiplies each separation by
-        :math:`2^{dN}` where :math:`dN` is the difference between the
-        number of traces and the number of uniquely matched mask
-        positions; i.e., if two traces are matched to the same mask
-        position, the separation is increase by a factor of 2.
-
-        Args:
-            par (`numpy.ndarray`_, optional):
-                The parameter vector. See :func:`mask_to_trace_coo`.
-
-        Returns:
-            `numpy.ndarray`_: The separation in trace coordinates
-            between the trace position and its most closely
-            associated slit position.
-        """
-        # Match slits based on their separation
-        min_sep, min_indx = self.match(par=par)
-        # Use the difference between the number of slits and 
-        # the number of unique matches to determine and apply a penalty if requested
-        if self.penalty:
-            min_sep *= numpy.power(2, len(self.trace_spat) - len(numpy.unique(min_indx)))
-        return min_sep
-
     def mask_to_trace_coo(self, par=None):
         """
         Compute the mask positions in the trace coordinate system.
+
+        This is the core method that converts the mask coordinates to
+        the trace coordinates; any other method that needs these data
+        call this method.
 
         Args:
             par (array-like, optional):
@@ -405,39 +412,136 @@ class SlitRegister:
             self.par[self.fit_par] = par
         return self.par[0] + self.mask_spat*self.par[1]
     
-    def match(self, par=None):
+    def match(self, par=None, unique=False):
         """
         Match each trace to the nearest slit position based on the
-        provided or internal fit parameters.
+        provided or internal fit parameters (using
+        :func:`mask_to_trace_coo`).
+
+        .. note::
+            Even though this method returns the information
+            identically meant for :attr:`match_coo`,
+            :attr:`match_separation`, and :attr:`match_index`, these
+            internals are *not* altered by this function.
+
+        Args:
+            par (`numpy.ndarray`_, optional):
+                The parameter vector. See :func:`mask_to_trace_coo`.
+            unique (:obj:`bool`, optional):
+                Force the set of matched indices to be unique. This
+                can lead to large separations, which can be used to
+                find traced slits that are inconsistent with the mask
+                design. If the function runs out of available mask
+                slits to match to, it will set the remaining indices
+                to -1 and the separation to 9999.
+
+        Returns:
+            Returns three `numpy.ndarray`_ objects: (1) the mask
+            coordinates in the detector frame for *all* mask
+            coordinates; (2) the signed minimum difference between
+            each trace and any mask position; and (3) the index in
+            the array of mask coordinates that provide the best match
+            to each trace coordinate. The indices the latter are only
+            unique if requested.
+        """
+        # Get the coordinates of the slit positions in the trace
+        # coordinate system
+        mask_pix = self.mask_to_trace_coo(par=par)
+        # Calculate the separation between each trace position with every mask position
+        sep = self.trace_spat[:,None] - mask_pix[None,:]
+        abssep = numpy.absolute(sep)
+        indx = numpy.argmin(abssep, axis=1)
+        minsep = sep[numpy.arange(indx.size),indx]
+        if not unique:
+            # Return the minimum separation of the trace positions and
+            # any slit mask position and the index of the slit mask
+            # coordinate with that minimum separation
+            return mask_pix, minsep, indx
+
+        # A set of unique matches were requested
+        uniq, inv, cnt = numpy.unique(indx, return_inverse=True, return_counts=True)
+
+        while numpy.any(cnt > 1):
+            # Find which coordinates have multiple matches
+            multi = (cnt>1)[inv]
+            multi_indx = numpy.where(multi)[0]
+            # Index of the multiple match with the closest match
+            _indx = numpy.argmin(numpy.atleast_2d(abssep[multi,:][:,indx[multi]]), axis=1)
+            # Keep the one with the minimum match, ...
+            multi[multi_indx[_indx]] = False
+            # ..., find the indices of the ones that are available to
+            # be matched, ...
+            avail = numpy.ones(mask_pix.size, dtype=bool)
+            avail[indx[numpy.invert(multi)]] = False
+            # ... and find new matches for the remainder, if any
+            # are available to be matched.
+            if not numpy.any(avail):
+                # Set dummy values for ones that could not be matched
+                indx[multi] = -1
+                minsep[multi] = 9999.
+                break
+            # Find the new, previously unmatched indices ...
+            _indx = numpy.argmin(numpy.atleast_2d(abssep[multi,:][:,avail]), axis=1)
+            indx[multi] = numpy.arange(mask_pix.size)[avail][_indx]
+            # ... and save their separations
+            minsep[multi_indx] = sep[multi_indx,indx[multi_indx]]
+            # Check if the full set of indices are now unique
+            uniq, inv, cnt = numpy.unique(indx, return_inverse=True, return_counts=True)
+
+        return mask_pix, minsep, indx
+    
+    def minimum_separation(self, par=None):
+        r"""
+        Return the minimum trace and mask separation for each trace.
+
+        This is the method that returns the residuals that are
+        minimized by `scipy.optimize.least_squares`_. Those residuals
+        are provided by a call to :func:`match` *without* forcing the
+        matching pairs to be unique.
+
+        The minimum separation can be penalized (if :attr:`penalty`
+        is True), which multiplies each separation by :math:`2^{dN}`
+        if there are non-unique matches slit-to-trace matches. Here,
+        :math:`dN` is the difference between the number of traces and
+        the number of uniquely matched mask positions; i.e., if two
+        traces are matched to the same mask position, the separation
+        is increase by a factor of 2.
+
+        Residuals are only returned for the unmasked trace positions;
+        see :attr:`trace_mask`.
 
         Args:
             par (`numpy.ndarray`_, optional):
                 The parameter vector. See :func:`mask_to_trace_coo`.
 
         Returns:
-            Returns two `numpy.ndarray`_ objects, the minimum
-            separation between each trace and any slit position and
-            the associated index in the slit position vector that
-            provides that minimum. These are assigned to
-            :attr:`match_separation` and :attr:`match_index` by
-            :func:`find_best_match`, but *not* this function.
+            `numpy.ndarray`_: The signed difference between the trace
+            coordinates and its most closely associated slit position
+            (trace-mask).
         """
-        # Get the coordinates of the slit positions in the trace
-        # coordinate system
-        mask_pix = self.mask_to_trace_coo(par=par)
-        # Calculate the separation between each trace position with every mask position
-        sep = numpy.absolute(self.trace_spat[:,None] - mask_pix[None,:])
-        # Return the minimum separation of the trace positions and any
-        # slit mask position and the index of the slit mask coordinate
-        # with that minimum separation
-        return numpy.amin(sep, axis=1), numpy.argmin(sep, axis=1)
-    
-    def find_best_match(self, guess=[0.,1.], fix=[False,False], bounds=None, penalty=False):
+        # Match slits based on their separation
+        mask_pix, min_sep, min_indx = self.match(par=par)
+        # Only return residuals for the unmasked trace positions
+        gpm = numpy.invert(self.trace_mask)
+        min_sep = min_sep[gpm]
+        min_indx = min_indx[gpm]
+
+        # Use the difference between the number of slits and the number
+        # of unique matches to determine and apply a penalty if
+        # requested
+        # TODO: Multiply them all, or just the ones that are multiply
+        # matched?
+        if self.penalty:
+            min_sep *= numpy.power(2, min_sep.size - len(numpy.unique(min_indx)))
+        return min_sep
+
+    def find_best_match(self, guess=[0.,1.], fix=[False,False], bounds=None, penalty=False,
+                        maxiter=1, maxsep=None, sigma=5, debug=False):
         r"""
         Find the best match between the trace and slit-mask
         positions.
 
-        This populates both :attr:`match_separation` and
+        Populates :attr:`match_coo`, :attr:`match_separation`, and
         :attr:`match_index`; the latter is also returned.
 
         Args:
@@ -458,49 +562,234 @@ class SlitRegister:
             penalty (:obj:`bool`, optional):
                 Include a logarithmic penalty for slits that are
                 matched to multiple slits.
+            maxiter (:obj:`int`, optional):
+                Maximum number of fit iterations to perform. If None,
+                rejection iterations are performed until no points
+                are rejected. If 1, only a single fit is performed
+                without any rejection; i.e., the number of rejection
+                iterations is `maxiter-1`.
+            maxsep (:obj:`float`, optional):
+                The maximum allowed separation between the calibrated
+                coordinates of the designed slit position in pixels
+                and the matched trace. If None, rejection is done
+                iteratively using sigma clipping.
+            sigma (:obj:`float`, optional):
+                The sigma value to use for rejection. If None, it
+                will use the default set by
+                `astropy.stats.sigma_clipped_stats`.
+            debug (:obj:`bool`, optional):
+                Show a plot of the fit residuals after each
+                iteration.
 
         Returns:
-            `numpy.ndarray`_: An array of integers that match each
-            trace to the provided slit positions.
+            `numpy.ndarray`_: The index of the slit mask position
+            matched to each trace position.
         """
         # Setup the parameter data for fitting and check the input
-        self._setup_to_fit(guess, fix, bounds, penalty)
+        self._setup_to_fit(guess, fix, bounds, penalty, maxsep, sigma)
+
         if numpy.sum(self.fit_par) == 0:
             # Nothing to fit, so just use the input parameters to
             # construct the match
             warnings.warn('No parameters to fit!')
-            self.match_separation, self.match_index = self.match()
-        else:
-            # Perform the least squares fit and save the results
-            par = self.guess_par[self.fit_par]
-            bounds = (self.bounds[0][self.fit_par], self.bounds[1][self.fit_par])
+            self.match_coo, self.match_separation, self.match_index = self.match()
+            return self.match_index
+
+        # Check the number of iterations
+        if maxiter is not None and maxiter < 1:
+            warnings.warn('Must perform at least one iteration; setting maxiter=1.')
+
+        # Perform the least squares fit and save the results
+        par = self.guess_par[self.fit_par]
+        bounds = (self.bounds[0][self.fit_par], self.bounds[1][self.fit_par])
+        result = optimize.least_squares(self.minimum_separation, par, bounds=bounds)
+        if debug:
+            self.show(par=result.x, maxsep=self.maxsep, sigma=self.sigma, unique=True)
+
+        if maxiter == 1:
+            # No iterations requested, so use the parameters to get the
+            # matching coordinates and return the match indices
+            self.match_coo, self.match_separation, self.match_index = self.match(par=result.x)
+            return self.match_index
+
+        # Rejection iterations requested
+        if maxiter is None:
+            # No constraint on the number of iterations
+            maxiter = numpy.inf
+
+        # Iterate the fit up to the maximum or until no points are
+        # rejected
+        nfit = 1
+        while nfit < maxiter:
+            # Find the points to reject (bad_trace)
+            bad_trace = self.trace_mismatch(maxsep=self.maxsep, sigma=self.sigma)[1]
+            if len(bad_trace) == 0:
+                break
+            # Mask the bad traces
+            self.trace_mask[bad_trace] = True
+
+            # Re-fit, starting from previous fit
+            par = self.par[self.fit_par]
             result = optimize.least_squares(self.minimum_separation, par, bounds=bounds)
-            self.match_separation, self.match_index = self.match(par=result.x)
-        # Return the matching indices
+            if debug:
+                self.show(par=result.x, maxsep=self.maxsep, sigma=self.sigma, unique=True)
+            nfit += 1
+
+        # Use the final parameter set to get the matching coordinates
+        # and return the match indices
+        self.match_coo, self.match_separation, self.match_index \
+                = self.match(par=result.x, unique=True)
         return self.match_index
 
-    def missing_from_trace(self):
+    def show(self, par=None, maxsep=None, sigma=None, unique=True, minmax=None):
         """
-        Return the indices of slits missing from the trace positions.
+        Plot the fit residuals.
 
-        Based on the best-fitting slit positions, the list of
-        returned indices are those slits that should fall in the
-        range of the trace coordinates provided but do not have an
-        associated trace position.
+        Args:
+            par (`numpy.ndarray`_, optional):
+                The parameter vector. See :func:`mask_to_trace_coo`.
+            maxsep (:obj:`float`, optional):
+                The maximum allowed separation between the calibrated
+                coordinates of the designed slit position in pixels
+                and the matched trace. If None, use :attr:`maxsep`;
+                see :func:`find_best_match`.
+            sigma (:obj:`float`, optional):
+                The sigma value to use for rejection. If None, use
+                :attr:`sigma`; see :func:`find_best_match`.
+            unique (:obj:`bool`, optional):
+                Force the set of matched indices to be unique; see
+                :func:`match`.
+            minmax (array-like, optional):
+                A two-element array with the minimum and maximum
+                coordinate value to match to the trace data; see
+                :func:`trace_mismatch`.
+        """
+        # Set the parameters using the relevant attributes if not provided directly
+        if maxsep is None:
+            maxsep = self.maxsep
+        if sigma is None:
+            sigma = self.sigma
 
+        # Make sure the match information is up-to-date
+        self.match_coo, self.match_separation, self.match_index \
+                    = self.match(par=par, unique=unique)
+        # Find missing or added traces by forcing a unique match
+        missing_trace, bad_trace = self.trace_mismatch(maxsep=maxsep, sigma=sigma, minmax=minmax)
+        # Book-keeping for good fits
+        good = numpy.invert(self.trace_mask)
+        good[bad_trace] = False
+
+        # Make the plot
+        pyplot.scatter(self.trace_spat[good], self.match_separation[good],
+                       color='k', zorder=1, marker='.', lw=0, s=100, label='Fit')
+        if numpy.any(self.trace_mask):
+            pyplot.scatter(self.trace_spat[self.trace_mask],
+                           self.match_separation[self.trace_mask],
+                           color='0.5', zorder=1, marker='.', lw=0, s=50, label='Masked')
+        if len(bad_trace) > 0:
+            pyplot.scatter(self.trace_spat[bad_trace], self.match_separation[bad_trace],
+                           color='C3', zorder=1, marker='x', lw=1, s=50, label='Bad Match')
+        if len(missing_trace) > 0:
+            pyplot.scatter(self.match_coo[missing_trace], numpy.zeros_like(missing_trace),
+                           color='C1', zorder=1, marker='.', lw=0, s=100, label='Missing')
+        pyplot.xlabel('Trace location (pix)')
+        pyplot.ylabel('Residuals (trace-mask; pix)')
+        pyplot.title('Offset = {0:.2f}; Scale = {1:.2f}; RMS = {2:.2f}'.format(
+                        self.par[0], self.par[1], numpy.std(self.match_separation[good])))
+        pyplot.legend()
+        pyplot.show()
+
+    def trace_mismatch(self, maxsep=None, sigma=None, minmax=None):
+        """
+        Return the mismatches between the mask and trace positions.
+
+        Based on the best-fitting (or fixed) offset and scale
+        parameters, :func:`match` is executed, forcing the
+        slit-mask and trace positions pairs to be uniquely matched.
+
+        The set of slit-mask positions without a matching trace are
+        identified by finding those slits in the range relevant to
+        the list of trace coordinates (see `minmax`), but without a
+        matching trace index.
+
+        The set of mask-to-trace matches are identified as "bad" if
+        they meet any of the following criteria:
+            - The trace has not been masked (see :attr:`trace_mask`)
+            - A unique match could not be found (see :func:`match`)
+            - The absolute value of the separation is larger than the
+              provided `maxsep` (when `maxsep` is not None).
+            - The separation is rejected by a sigma-clipping (see
+              `sigma`)
+
+        Note that there is currently no argument that disables the
+        determination of bad traces. However, bad traces are simply
+        returned by the method; this function changes none of the
+        class attributes.
+
+        Args:
+            maxsep (:obj:`float`, optional):
+                The maximum allowed separation between the calibrated
+                coordinates of the designed slit position in pixels
+                and the matched trace. If None, use :attr:`maxsep`;
+                see :func:`find_best_match`.
+            sigma (:obj:`float`, optional):
+                The sigma value to use for rejection. If None, use
+                :attr:`sigma`; see :func:`find_best_match`.
+            minmax (array-like, optional):
+                A two-element array with the minimum and maximum
+                coordinate value to match to the trace data. If None,
+                this is determined from :attr:`trace_spat` and the
+                standard deviation of the fit residuals.
+        
         Returns:
-            :obj:`list`: The list of missing slits. If all slits are
-            accounted for, the list will be empty.
-
-        Raises:
-            ValueError:
-                Raised if the match has not been determined yet.
+            Two `numpy.ndarray`_ objects are returned: (1) the
+            indices of mask positions without a matching trace
+            position and (2) the list of trace positions identified
+            as "bad."
         """
-        if self.match_index is None:
-            raise ValueError('No match as been performed.  First run fit_best_match().')
-        mask_pix = self.mask_to_trace_coo()
-        return list(set(numpy.where((mask_pix > numpy.amin(self.trace_spat)) 
-                                    & (mask_pix < numpy.amax(self.trace_spat)))[0]) 
-                    - set(self.match_index))
+        # Check parameters are available
+        if self.par is None:
+            raise ValueError('No parameters are available.')
+
+        # Set the parameters using the relevant attributes if not provided directly
+        if maxsep is None:
+            maxsep = self.maxsep
+        if sigma is None:
+            sigma = self.sigma
+
+        # Get the coordinates and the matching indices: always use the
+        # existing parameters and force the matches to be unique.
+        _match_coo, _match_separation, _match_index = self.match(unique=True)
+
+        # Selection of positions included in the fit with valid match
+        # indices
+        gpm = numpy.invert(self.trace_mask) & (_match_index >= 0)
+
+        # Find the overlapping region between the trace and slit-mask
+        # coordinates
+        if minmax is None:
+            stddev = numpy.std(_match_separation[gpm])
+            _minmax = numpy.array([numpy.amin(self.trace_spat) - 3*stddev,
+                                  numpy.amax(self.trace_spat) + 3*stddev])
+        else:
+            _minmax = numpy.atleast_1d(minmax)
+            if _minmax.size != 2:
+                raise ValueError('`minmax` must be a two-element array.')
+        overlap = (_match_coo > _minmax[0]) & (_match_coo < _minmax[1])
+
+        # Find any large separations
+        bad = self.trace_mask | (_match_index < 0) #numpy.invert(gpm)
+        if maxsep is None:
+            diff = numpy.ma.MaskedArray(_match_separation, mask=bad)
+            kwargs = {} if sigma is None else {'sigma': sigma}
+            bad = numpy.ma.getmaskarray(sigma_clip(data=diff, **kwargs))
+        else:
+            bad[gpm] = numpy.absolute(_match_separation[gpm]) > maxsep
+
+        # Use these to construct the list of missing traces and those
+        # that are unmatched to the mask
+        return numpy.array(list(set(numpy.where(overlap)[0])
+                             - set(_match_index[gpm & numpy.invert(bad)]))), \
+                    numpy.where(bad & numpy.invert(self.trace_mask))[0]
 
 
