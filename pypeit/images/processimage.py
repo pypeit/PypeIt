@@ -62,7 +62,8 @@ class ProcessImage(pypeitimage.PypeItImage):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
-        frametype (str): Frame type
+
+        frametype (str, optional): Frame type
 
     Attributes:
         steps (dict):

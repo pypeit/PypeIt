@@ -26,6 +26,30 @@ reload(procimg)
 
 
 class CombinedImage(pypeitimage.PypeItImage):
+    """
+    Class to generate a combined image from a list of input images or
+    simply to hold a previously generated combined image.
+
+    Args:
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Spectrograph used to take the data.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+            Parameters that dictate the processing of the images.  See
+            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+            defaults.
+
+        files (list, optional):
+            List of filenames to be combined
+        frametype (str, optional): Frame type
+
+    Attributes:
+        pimages (list): List of ProcessImage objects
+        image (np.ndarray):
+        file_list (list): List of files to process
+
+    """
 
 
     def __init__(self, spectrograph, det, proc_par, files=None, frametype=None):
@@ -45,19 +69,27 @@ class CombinedImage(pypeitimage.PypeItImage):
         self.frametype = frametype
 
         # Internal images
-        self.images = []
+        self.pimages = []
         self.image = None
-
-        # All possible processing steps
-        #  Note these have to match the method names below
-        self.steps = dict()
 
     @property
     def nimages(self):
-        return len(self.images)
+        """
+
+        Returns:
+            int: Number of ProcessImage objects loaded
+
+        """
+        return len(self.pimages)
 
     @property
     def nfiles(self):
+        """
+
+        Returns:
+            int: Number of files in the file_list
+
+        """
         return len(self.file_list)
 
     def _set_files(self, files, check=False):
@@ -101,19 +133,42 @@ class CombinedImage(pypeitimage.PypeItImage):
                 msgs.error('{0} does not exist!'.format(f))
 
     def build_stack(self, bpm=None, reject_cr=False):
+        """
+        Generate a set of stack arrays useful for image processing
+
+        These are generated from the internal ProcessImage objects
+        held in self.pimages which need to have been previously
+        generated/loaded
+
+        Note:  To save on memory, the image attributes of each
+        ProcessImage in self.pimages is reset after it contributes
+        to the stack arrays.
+
+        Args:
+            bpm (np.ndarray, optional):
+                Bad pixel mask image
+            reject_cr (bool, optional):
+                If true, generate a CR image
+
+        Returns:
+            tuple: np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+                sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
+
+        """
 
         # For now, this winds up getting 2 copies for everything.
-        #  One in the self.images list and one in the stacks
+        #  One in the self.pimages list and one in the stacks
 
         # Get it ready
-        shape = (self.nimages, self.images[0].image.shape[0], self.images[0].image.shape[1])
+        shape = (self.nimages, self.pimages[0].image.shape[0], self.pimages[0].image.shape[1])
         sciimg_stack = np.zeros(shape)
         sciivar_stack= np.zeros(shape)
         rn2img_stack = np.zeros(shape)
         crmask_stack = np.zeros(shape, dtype=bool)
-        mask_stack = np.zeros(shape, self.images[0].bitmask.minimum_dtype(asuint=True))
+        mask_stack = np.zeros(shape, self.pimages[0].bitmask.minimum_dtype(asuint=True))
 
-        for kk, pimage in enumerate(self.images):
+        # Loop on the ProcessImage objects
+        for kk, pimage in enumerate(self.pimages):
             # Construct raw variance image and turn into inverse variance
             rawvarframe = pimage.build_rawvarframe()
             sciivar_stack[kk, :, :] = utils.calc_ivar(rawvarframe)
@@ -129,29 +184,38 @@ class CombinedImage(pypeitimage.PypeItImage):
                 saturation=self.spectrograph.detector[self.det - 1]['saturation'],
                 mincounts = self.spectrograph.detector[self.det - 1]['mincounts'])
 
-        # Should probably delete/reset the image internals now
+            # Delete/reset the image internals now
+            pimage._reset_internals()
 
         # Return
         return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
 
-
     def combine(self):
+        """
+        Combine the images held in self.pimages
+
+        Wrapper to combine.comb_frames
+
+        Returns:
+            np.ndarray: Copy of self.image
+
+        """
         if self.nimages == 1:
-            self.image = self.images[0].image
+            self.image = self.pimages[0].image
         else:
             #
-            saturation = self.spectrograph.detector[self.det-1]['saturation']
             # Build the image stack
-            image_arr = np.zeros((self.images[0].image.shape[0],
-                                         self.images[0].image.shape[1],
+            image_arr = np.zeros((self.pimages[0].image.shape[0],
+                                         self.pimages[0].image.shape[1],
                                          self.nimages))
-            for kk,iimage in enumerate(self.images):
+            # This is a bit memory expensive...
+            for kk,iimage in enumerate(self.pimages):
                 image_arr[:,:,kk] = iimage.image
 
             # Do it
             self.image = combine.comb_frames(image_arr,
-                                                frametype=self.frametype,
-                                             saturation=saturation,
+                                             frametype=self.frametype,
+                                             saturation=self.spectrograph.detector[self.det-1]['saturation'],
                                              method=self.proc_par['combine'],
                                              satpix=self.proc_par['satpix'],
                                              cosmics=self.proc_par['sigrej'],
@@ -162,6 +226,14 @@ class CombinedImage(pypeitimage.PypeItImage):
         return self.image.copy()
 
     def load_images(self, reload=False):
+        """
+        Load up the images in self.file_list into a
+        list of ProcessImages in self.pimages
+
+        Args:
+            reload (bool, optional):
+
+        """
         if (not reload) and (self.nimages > 0):
             msgs.warn("Images already loaded.  Use reload if you wish")
             return
@@ -171,28 +243,47 @@ class CombinedImage(pypeitimage.PypeItImage):
             # Load
             processImage.load_rawimage(file)
             # Append
-            self.images.append(processImage)
+            self.pimages.append(processImage)
 
     def process_images(self, process_steps, pixel_flat=None, illum_flat=None,
                        bias=None, bpm=None):
+        """
+        Process the images held in self.pimages
 
-        for image in self.images:
+        Note:  The processing steps are currently 'frozen' as is.
+          We may choose to allow optional ordering of the steps
+
+        Args:
+            process_steps (list):
+                List of processing steps
+            pixel_flat (np.ndarray, optional):
+                Pixel flat image
+            illum_flat (np.ndarray, optional):
+                Illumination flat
+            bias (np.ndarray, optional):
+                Bias image
+            bpm (np.ndarray, optional):
+                Bad pixel mask image
+
+        """
+
+        for pimage in self.pimages:
             # Standard order
             #   -- May need to allow for other order some day..
             if 'subtract_bias' in process_steps:
-                image.subtract_bias(bias)
+                pimage.subtract_bias(bias)
             if 'subtract_overscan' in process_steps:
-                image.subtract_overscan()
+                pimage.subtract_overscan()
             if 'trim' in process_steps:
-                image.trim()
+                pimage.trim()
             if 'apply_gain' in process_steps:
-                image.apply_gain()
+                pimage.apply_gain()
             # Always orient
-            image.orient()
+            pimage.orient()
             # Flat field
             if 'flatten' in process_steps:
                 #embed(header='190 of combinedimage')
-                image.flatten(pixel_flat, illum_flat=illum_flat, bpm=bpm)
+                pimage.flatten(pixel_flat, illum_flat=illum_flat, bpm=bpm)
 
 
 
