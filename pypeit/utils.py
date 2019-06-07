@@ -1097,7 +1097,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
 # TODO This should replace robust_polyfit. #ToDO This routine needs to return dicts with the minx and maxx set
 def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial', minx = None, maxx = None, minx2 = None, maxx2 = None,
                        bspline_par = None,
-                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
+                       guesses = None, maxiter=10, inmask=None,invvar=None, lower=None, upper=None,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
                        sticky=True, use_mad=True):
     """
@@ -1121,18 +1121,14 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
         Input mask.  Bad points are marked with a value that evaluates to ``False``.
         Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
         will also always evaluate to "False" in the outmask
-    sigma : :class: float or `numpy.ndarray`, optional
-        Standard deviation of the yarray, used to reject points based on the values
-        of `upper` and `lower`. This can either be a single float for the entire yarray or a ndarray with the same
-        shape as the yarray.
     invvar : :class: float or `numpy.ndarray`, optional
         Inverse variance of the data, used to reject points based on the values
         of `upper` and `lower`.  This can either be a single float for the entire yarray or a ndarray with the same
-        shape as the yarray. If both `sigma` and `invvar` are set the code will return an error.
+        shape as the yarray.
     lower : :class:`int` or :class:`float`, optional
-        If set, reject points with data < model - lower * sigma.
+        If set, reject points with data < model - lower * sigma, where sigma = 1.0/sqrt(invvar)
     upper : :class:`int` or :class:`float`, optional
-        If set, reject points with data > model + upper * sigma.
+        If set, reject points with data > model + upper * sigma, where sigma = 1.0/sqrt(invvar)
     maxdev : :class:`int` or :class:`float`, optional
         If set, reject points with abs(data-model) > maxdev.  It is permitted to
         set all three of `lower`, `upper` and `maxdev`.
@@ -1158,7 +1154,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     use_mad : :class: `bool`, optional, defaul = False
         It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
         the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
-        and also pass in values for sigma or invvar, and the code will return an error if this is done.
+        and also pass in values invvar, and the code will return an error if this is done.
 
 
     Returns:
@@ -1170,11 +1166,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     if inmask is None:
         inmask = np.ones(xarray.size, dtype=bool)
 
-    if sigma is not None and invvar is not None:
-        msgs.error('You cannot specify both sigma and invvar')
-    elif sigma is not None:
-        weights = 1.0/sigma**2
-    elif invvar is not None:
+    if invvar is not None:
         weights = np.copy(invvar)
     else:
         weights = np.ones(xarray.size,dtype=float)
@@ -1198,7 +1190,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
                       minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
         ymodel = func_val(ct, xarray, function, x2 = x2, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
         # TODO Add nrej and nrej_tot as in robust_optimize below?
-        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
+        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, invvar=invvar,
                                           lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
                                           use_mad=use_mad,sticky=sticky)
@@ -1362,9 +1354,13 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
 
     # Perform a final fit using the final outmask
-    result, ymodel = fitfunc(ydata, outmask, arg_dict, **kwargs_optimizer)
+    ret_tuple = fitfunc(ydata, outmask, arg_dict, **kwargs_optimizer)
+    if (len(ret_tuple) == 2):
+        return ret_tuple[0], ret_tuple[1], outmask
+    elif (len(ret_tuple) == 3):
+        return ret_tuple[0], ret_tuple[1], ret_tuple[2], outmask
 
-    return result, ymodel, outmask
+    #return result, ymodel, outmask
 
 def subsample(frame):
     """
