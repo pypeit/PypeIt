@@ -80,7 +80,12 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
         Returns:
             `numpy.ndarray`_: Combined, processed image.
         """
+        # Nothing?
         if self.par['useframe'].lower() == 'none':
+            msgs.info("Bias image subtraction not activated.")
+            return None
+        if self.nfiles == 0:
+            msgs.info("No bias frames provided.  No bias image will be generated or used")
             return None
         # Load
         self.load_images()

@@ -206,7 +206,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['trace_npoly'] = 3
 
         # Overscan subtract the images
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        #par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']

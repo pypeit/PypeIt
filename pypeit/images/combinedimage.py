@@ -56,6 +56,10 @@ class CombinedImage(pypeitimage.PypeItImage):
     def nimages(self):
         return len(self.images)
 
+    @property
+    def nfiles(self):
+        return len(self.file_list)
+
     def _set_files(self, files, check=False):
         """
         Assign the provided files to :attr:`files`.
