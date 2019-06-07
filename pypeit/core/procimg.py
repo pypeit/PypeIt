@@ -301,7 +301,7 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
                              mask=indx).filled(0.0)
 
 
-def new_subtract_overscan(rawframe, datasec_img, oscansec_img,
+def subtract_overscan(rawframe, datasec_img, oscansec_img,
                           method='savgol', params=[5, 65]):
     """
     Subtract overscan
@@ -367,6 +367,7 @@ def new_subtract_overscan(rawframe, datasec_img, oscansec_img,
 
     return no_overscan
 
+'''
 def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5,65]):
     """
     Subtract overscan
@@ -453,6 +454,7 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         nobias[datasec[i]] -= (ossub[:,None] if compress_axis == 1 else ossub[None,:])
 
     return nobias
+'''
 
 
 # TODO: Provide a replace_pixels method that does this on a pixel by
@@ -669,6 +671,20 @@ def trim_frame(frame, mask):
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
 def init_process_steps(bias, proc_par):
+    """
+    Initialize the processing steps
+    This first set is related to bias and overscan subtraction
+
+    Could include dark subtraction someday
+
+    Args:
+        bias (None or other):
+        proc_par (ProcessImagesPar):
+
+    Returns:
+        list: List of the processing steps to begin with.  Can be empty
+
+    """
     process_steps = []
     if bias is not None:
         process_steps.append('subtract_bias')
@@ -676,6 +692,7 @@ def init_process_steps(bias, proc_par):
         process_steps.append('subtract_overscan')
     # Return
     return process_steps
+
 
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None, adderr=0.01):
@@ -738,7 +755,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
     var = np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
     var = var + adderr ** 2 * (np.abs(sciframe)) ** 2
-    embed(header='this appears broken!')
+    embed(header='this appears to be broken!')
     return
 
 

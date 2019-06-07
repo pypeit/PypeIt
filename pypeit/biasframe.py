@@ -124,7 +124,6 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
 
         The bias mode to use in this reduction is either
           - None -- No bias subtraction
-          - 'overscan' -- Overscan subtract
           - combined -- Use a generated bias image
 
         The result is *not* saved internally.
@@ -141,7 +140,7 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
             or None if no bias is to be subtracted.
         """
         # Check input
-        if self.par['useframe'].lower() in ['none', 'overscan'] and return_header:
+        if self.par['useframe'].lower() in ['none'] and return_header:
             msgs.warn('No image data to read.  Header returned as None.')
 
         # How are we treating biases?

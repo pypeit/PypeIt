@@ -48,6 +48,34 @@ class ProcessImagesBitMask(BitMask):
 
 
 class ProcessImage(pypeitimage.PypeItImage):
+    """
+    Class to process an (typically raw) image
+
+    Args:
+        filename (:obj:`str` or None):
+            Filename
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Spectrograph used to take the data.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+        par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+            Parameters that dictate the processing of the images.  See
+            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+            defaults.
+        frametype (str): Frame type
+
+    Attributes:
+        steps (dict):
+            Dict describing the steps performed on the image
+        rawvarframe (np.narray):
+            Variance image
+        crmask (np.narray):
+            CR mask
+        mask (np.narray):
+            Full mask
+        rn2img (np.narray):
+            Read noise**2 image
+    """
 
     bitmask = ProcessImagesBitMask()  # The bit mask interpreter
 
@@ -89,11 +117,26 @@ class ProcessImage(pypeitimage.PypeItImage):
 
     @property
     def rawdatasec_img(self):
+        """
+        Generate and return the datasec image in the Raw reference frame
+
+        Returns:
+            np.ndarray
+
+        """
         rdimg = self.spectrograph.get_rawdatasec_img(self.filename, self.det)
         return rdimg
 
     @property
     def datasec_img(self):
+        """
+        Generate and return the datasec image in the PypeIt reference frame, e.g.
+        trimmed + oriented
+
+        Returns:
+            np.ndarray
+
+        """
         dimg = self.rawdatasec_img
         # Fuss
         if self.steps['trim']:
@@ -105,16 +148,28 @@ class ProcessImage(pypeitimage.PypeItImage):
 
     @property
     def oscansec_img(self):
+        """
+        Generate and return the oscansec image
+
+        Returns:
+            np.ndarray
+
+        """
         oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
         return oimg
 
     def _reset_steps(self):
+        """
+        Reset all the processing steps to False
+
+        Should consider setting the Image to None too..
+        """
         for key in self.steps.keys():
             self.steps[key] = False
 
     def _reset_internals(self):
         """
-        Init or free up memory
+        Init or free up memory by resetting the Attributes to None
         """
         self.rawvarframe = None
         self.crmask = None
@@ -157,6 +212,7 @@ class ProcessImage(pypeitimage.PypeItImage):
         Requires self.rawvarframe to exist
 
         Returns:
+            np.ndarray: Copy of self.crmask
 
         """
         if self.rawvarframe is None:
@@ -190,8 +246,17 @@ class ProcessImage(pypeitimage.PypeItImage):
 
             indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
 
+        Args:
+            bpm (np.ndarray, optional):
+                Bit pixel mask;  over-rides the internal one if provided
+            saturation (float, optional):
+                Saturation limit in ADU
+            mincounts (float, optional):
+            slitmask (np.ndarray, optional):
+                Slit mask image;  Pixels not in a slit are masked
+
         Returns:
-            numpy.ndarray: The bit value mask for the science image.
+            numpy.ndarray: Copy of the bit value mask for the science image.
         """
         # Init
         sciivar = utils.calc_ivar(self.rawvarframe)
@@ -245,9 +310,6 @@ class ProcessImage(pypeitimage.PypeItImage):
 
         Wrapper to procimg.variance_frame
 
-        Args:
-            trim:
-
         Returns:
             np.ndarray: Copy of self.rawvarframe
 
@@ -274,7 +336,7 @@ class ProcessImage(pypeitimage.PypeItImage):
         Wrapper to procimg.rn_frame
 
         Returns:
-            np.ndarray:
+            np.ndarray: Copy of the read noise squared image
 
         """
         msgs.info("Generating read noise image from detector properties and amplifier layout)")
@@ -296,9 +358,13 @@ class ProcessImage(pypeitimage.PypeItImage):
 
         Args:
             pixel_flat (np.ndarray):
+                Pixel flat image
             illum_flat (np.ndarray, optional):
+                Illumination flat image
             bpm (np.ndarray, optional):
+                Bad pixel mask image;  if provided, over-rides internal one
             force (bool, optional):
+                Force the processing even if the image was already processed
 
         Returns:
             np.ndarray:  Copy of the flattened image
@@ -319,6 +385,18 @@ class ProcessImage(pypeitimage.PypeItImage):
         return self.image.copy()
 
     def orient(self, force=False):
+        """
+        Orient the image in the PypeIt format with spectra running blue (down)
+        to red (up).
+
+        Args:
+            force (bool, optional):
+                Force the processing even if the image was already processed
+
+        Returns:
+            np.ndarray: Copy of the oriented image
+
+        """
         step = inspect.stack()[0][3]
         # Orient the image to have blue/red run bottom to top
         # Check if already oriented
@@ -332,6 +410,19 @@ class ProcessImage(pypeitimage.PypeItImage):
         return self.image.copy()
 
     def subtract_bias(self, bias_image, force=False):
+        """
+        Perform bias subtraction
+
+        Args:
+            bias_image (np.ndarray):
+                Bias image
+            force (bool, optional):
+                Force the processing even if the image was already processed
+
+        Returns:
+            np.ndarray: Copy of the bias subtracted image
+
+        """
         step = inspect.stack()[0][3]
         # Check if already trimmed
         if self.steps[step] and (not force):
@@ -344,12 +435,23 @@ class ProcessImage(pypeitimage.PypeItImage):
         return self.image.copy()
 
     def subtract_overscan(self, force=False):
+        """
+        Analyze and subtract the overscan from the image
+
+        Args:
+            force (bool, optional):
+                Force the processing even if the image was already processed
+
+        Returns:
+            np.ndarray: Copy of the overscan subtracted image
+
+        """
         step = inspect.stack()[0][3]
         # Check if already trimmed
         if self.steps[step] and (not force):
             msgs.warn("Image was already trimmed")
 
-        temp = procimg.new_subtract_overscan(self.image, self.rawdatasec_img, self.oscansec_img,
+        temp = procimg.subtract_overscan(self.image, self.rawdatasec_img, self.oscansec_img,
                                          method=self.par['overscan'],
                                          params=self.par['overscan_par'])
         # Fill
@@ -359,6 +461,17 @@ class ProcessImage(pypeitimage.PypeItImage):
         return self.image.copy()
 
     def trim(self, force=False):
+        """
+        Trim the image to include only the science data
+
+        Args:
+            force (bool, optional):
+                Force the processing even if the image was already processed
+
+        Returns:
+            np.ndarray: Copy of the trimmed image
+
+        """
         step = inspect.stack()[0][3]
         # Check input image matches the original
         if self.orig_shape is not None:

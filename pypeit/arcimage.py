@@ -82,10 +82,11 @@ class ArcImage(combinedimage.CombinedImage, masterframe.MasterFrame):
         """
         # Load
         self.load_images()
-        # Process
+        # Process steps
         process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
-        process_steps += ['trim']   # NOT applying gain to deal 'properly' with saturation
-        #process_steps += ['trim', 'apply_gain']
+        process_steps += ['trim']
+        # NOT applying gain to deal 'properly' with saturation
+        # Process
         self.process_images(process_steps, bias=self.msbias)
         # Combine + Return
         return self.combine()

@@ -8,6 +8,25 @@ import numpy as np
 from IPython import embed
 
 class PypeItImage(object):
+    """
+    Class to hold a single image from a single detector in PypeIt
+
+    Args:
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Spectrograph used to take the data.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+
+    Attributes:
+        image (np.ndarray):
+        head0 (astropy.io.fits.Header):
+        orig_shape (tuple):
+        binning_raw (tuple):  Binning in the raw image orientaion (NAXIS1, NAXIS2)
+        binning (tuple): Binning the PypeIt orientation (spec, spat)
+        filename (str): Filename of the image
+        exptime (float): Exposure time of the image
+
+    """
 
     def __init__(self, spectrograph, det):
 
@@ -43,6 +62,11 @@ class PypeItImage(object):
         """
         Load a raw image from disk using the Spectrograph method load_raw_frame()
 
+        Also loads up the binning, exposure time, and header of the Primary image
+
+        Args:
+            filename (str):  Filename
+
         Returns:
             np.ndarray, fits.Header:
 
@@ -63,10 +87,17 @@ class PypeItImage(object):
         # Return
         return self.image, self.head0
 
-
     def show(self):
         """
         Simple show method
         """
         ginga.show_image(self.image, chname='image')
+
+    def __repr__(self):
+        txt = '<{:s}:'.format(self.__class__.__name__)
+        if self.filename is not None:
+            txt += ' file={}'.format(self.filename)
+        txt += '>'
+
+        return txt
 
