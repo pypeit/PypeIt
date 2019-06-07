@@ -1697,7 +1697,7 @@ def xy2traceset(xpos, ypos, **kwargs):
 
 
 def djs_reject(data, model, outmask=None, inmask=None,
-               invvar=None, lower=None, upper=None, maxdev=None,
+               invvar=None, lower=None, upper=None, percentile=False, maxdev=None,
                maxrej=None, groupdim=None, groupsize=None, groupbadpix=False,
                grow=0, sticky=False, use_mad=False):
     """Routine to reject points when doing an iterative fit to data.
@@ -1838,10 +1838,12 @@ def djs_reject(data, model, outmask=None, inmask=None,
                 sigma = np.std(data[igood] - model[igood])
             invvar = utils.calc_ivar(sigma**2)
         else:
-            invvar = 0
+            invvar = 0.0
 
 
     diff = data - model
+    chi = diff * np.sqrt(invvar)
+
     #
     # The working array is badness, which is set to zero for good points
     # (or points already rejected), and positive values for bad points.
@@ -1850,18 +1852,39 @@ def djs_reject(data, model, outmask=None, inmask=None,
     # of multiples of maxdev away from the fit.
     #
     badness = np.zeros(outmask.shape, dtype=data.dtype)
+
+    if percentile:
+        if inmask is not None:
+            igood = (inmask & outmask).nonzero()[0]
+        else:
+            igood = outmask.nonzero()[0]
+        if len(igood > 1):
+            if lower is not None:
+                lower_chi = np.percentile(chi[igood],lower)
+            else:
+                lower_chi = -np.inf
+            if upper is not None:
+                upper_chi = np.percentile(chi[igood], upper)
+            else:
+                upper_chi = np.inf
     #
     # Decide how bad a point is according to lower.
     #
     if lower is not None:
-        qbad = (diff * np.sqrt(invvar)) < -lower
-        badness += np.fmax(-diff*np.sqrt(invvar),0.0)*qbad
+        if percentile:
+            qbad = chi < lower_chi
+        else:
+            qbad = chi < -lower
+        badness += np.fmax(-chi,0.0)*qbad
     #
     # Decide how bad a point is according to upper.
     #
     if upper is not None:
-        qbad = (diff * np.sqrt(invvar)) > upper
-        badness += np.fmax(diff*np.sqrt(invvar),0.0)*qbad
+        if percentile:
+            qbad = chi > upper_chi
+        else:
+            qbad = chi > upper
+        badness += np.fmax(chi,0.0)*qbad
     #
     # Decide how bad a point is according to maxdev.
     #
