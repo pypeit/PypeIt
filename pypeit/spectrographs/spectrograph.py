@@ -356,6 +356,22 @@ class Spectrograph(object):
             return self.rawdatasec_img
 
     def get_oscansec_img(self, filename, det, force=True):
+        """
+        Generate the oscansec image
+
+        Args:
+            filename (str):
+                Filename
+            det (int):
+                Detector index
+            force (bool, optional):
+                Force the code to remake the image.
+                Might need to do this in cases where binning varies
+                between calibrations and science images.
+
+        Returns:
+
+        """
         if self.oscansec_img is None or force:
             return self.get_pixel_img(filename, 'oscansec', det)
         else:
@@ -424,53 +440,6 @@ class Spectrograph(object):
 
         return pix_img
 
-    '''
-    def get_oscansec_img(self, filename, det=1, force=True):
-        """
-        Create an image identifying the overscan region(s) on the detector
-            0 = Not overscan
-            1 = Overscan pixels for amplifier 1
-            2 = Overscan pixels for amplifier 2
-            etc.
-
-        Args:
-            filename (str):
-                Name of the file from which to read the image size.
-            det (int):
-                Detector number (1-indexed)
-            force (:obj:`bool`, optional):
-                Force the image to be remade
-
-        Returns:
-            `numpy.ndarray`: Integer array identifying the amplifier
-            used to read each pixel.
-        """
-        if self.overscan_img is None or force:
-            # Check the detector is defined
-            self._check_detector()
-            # Get the image shape
-            raw_naxis = self.get_raw_image_shape(filename, det=det)
-
-            # This *always* returns spectral then spatial
-            binning = self.get_meta_value(filename, 'binning')
-
-            # This *always* returns spectral then spatial
-            data_sections, one_indexed, include_end \
-                    = self.get_image_section(filename, det, section='datasec')
-
-            # Initialize the image (0 means no amplifier)
-            self.datasec_img = np.zeros(raw_naxis, dtype=int)
-            for i in range(self.detector[det - 1]['numamplifiers']):
-                # Convert the data section from a string to a slice
-                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                          include_end=include_end, require_dim=2,
-                                          binning=binning)
-                # Assign the amplifier
-                self.datasec_img[datasec] = i + 1
-
-        return self.datasec_img
-    '''
-
     # TODO: There *has* to be a better way to do this.  We're reading a
     # file just to get the size of the image, likely when the image has
     # already been read (likely multiple times).
@@ -513,6 +482,19 @@ class Spectrograph(object):
         return (self.load_raw_frame(filename, det=det)[0]).shape
 
     def orient_image(self, rawimage, det):
+        """
+        Orient the image into the PypeIt frame
+
+        Args:
+            rawimage (np.ndarray):
+                Image in the raw frame
+            det (int):
+                Detector index
+
+        Returns:
+            np.ndarray:  Oriented image
+
+        """
         image = rawimage.copy()
         # Transpose?
         if self.raw_is_transposed(det):
