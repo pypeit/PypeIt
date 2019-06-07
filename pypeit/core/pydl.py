@@ -1828,10 +1828,10 @@ def djs_reject(data, model, outmask=None, inmask=None,
             maxrej1 = maxrej
     if invvar is None:
         if inmask is not None:
-            igood = (inmask & outmask).nonzero()[0]
+            igood = (inmask & outmask)
         else:
-            igood = outmask.nonzero()[0]
-        if len(igood > 1):
+            igood = outmask
+        if (np.sum(igood) > 1):
             if use_mad is True:
                 sigma = 1.4826*np.median(np.abs(data[igood] - model[igood]))
             else:
@@ -1855,10 +1855,10 @@ def djs_reject(data, model, outmask=None, inmask=None,
 
     if percentile:
         if inmask is not None:
-            igood = (inmask & outmask).nonzero()[0]
+            igood = (inmask & outmask)
         else:
-            igood = outmask.nonzero()[0]
-        if len(igood > 1):
+            igood = outmask
+        if (np.sum(igood)> 1):
             if lower is not None:
                 lower_chi = np.percentile(chi[igood],lower)
             else:
