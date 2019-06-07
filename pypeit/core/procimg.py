@@ -759,6 +759,50 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     return
 
 
+def update_mask_slitmask(bitmask, mask_old, slitmask):
+    """
+    Update a mask using the slitmask
+
+    Args:
+        bitmask (pypeit.images.processimage.ProcessImagesBitMask):
+        mask_old (np.ndarray):
+        slitmask (np.ndarray):
+
+    Returns:
+        np.ndarray: new mask image
+
+    """
+    # Pixels excluded from any slit.
+    mask_new = np.copy(mask_old)
+    indx = slitmask == -1
+    mask_new[indx] = bitmask.turn_on(mask_new[indx], 'OFFSLITS')
+    return mask_new
+
+
+def update_mask_cr(bitmask, mask_old, crmask_new):
+    """
+    Update the mask bits for cosmic rays
+
+    Args:
+        bitmask (pypeit.images.processimage.ProcessImagesBitMask):
+        mask_old (np.ndarray):
+        crmask_new:
+
+    Returns:
+        np.ndarray: new mask image
+
+    """
+
+    # Unset the CR bit from all places where it was set
+    CR_old = (bitmask.unpack(mask_old, flag='CR'))[0]
+    mask_new = np.copy(mask_old)
+    mask_new[CR_old] = bitmask.turn_off(mask_new[CR_old], 'CR')
+    # Now set the CR bit using the new crmask
+    indx = crmask_new.astype(bool)
+    mask_new[indx] = bitmask.turn_on(mask_new[indx], 'CR')
+    return mask_new
+
+
 
 
 

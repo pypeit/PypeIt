@@ -9,6 +9,7 @@
 - More precisely name the load() methods
 - Fix arc tilts bug
 - Modest refactoring of ScienceImage
+- Moved several mask methods to procimg.py
 
 0.10.1 (22 May 2019)
 --------------------
