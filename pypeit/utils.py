@@ -1348,7 +1348,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         iter += 1
 
     if (iter == maxiter) & (maxiter != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in sens_tell_fit')
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
     outmask = np.copy(thismask)
     if np.sum(outmask) == 0:
         msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
