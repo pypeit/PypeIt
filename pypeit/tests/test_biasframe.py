@@ -8,7 +8,6 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit import processimages
 from pypeit import biasframe
 from pypeit.tests.tstutils import dev_suite_required
 
