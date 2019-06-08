@@ -80,7 +80,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_mage.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = False  # Should be True
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
@@ -93,7 +93,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] = 'nothing'
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        par['calibrations']['tilts']['tracethresh'] = [10]*self.norders
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
         #par['calibrations']['slits']['pcatype'] = 'order'
@@ -267,58 +267,51 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         return spec_min, spec_max
 
-    def slit2order(self, islit, nslit):
+    def slit2order(self, slit_spat_pos):
         """
-        This routine is only for echelle spectrographs.
-        It returns the order of the input slit
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
 
         Args:
-            slit (int):  Slit id value, 0-indexed
-            nslit (int): Number of slits
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
 
         Returns:
-            int: Echelle order number
+            int: order number
 
         """
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int, np.integer)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        msgs.warn("This will need to be updated with the remaining 3 orders")
+        #
+        order_spat_pos = np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
+               0.77448156, 0.82253604, 0.86875753, 0.91512689, 0.96524312])
+        orders = np.arange(17, 5, -1, dtype=int)
 
-        # True order numbers
-        orders = np.arange(6, 21, dtype=int)
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
-        # Funny indexing but this works..
-        return orders[nslit-(islit+1)]
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle format for MagE or you have discovered one of the bluest 3 orders!")
 
-    def order_platescale(self, binning=None, norders=None):
+        # Return
+        return orders[iorder]
+
+
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the plate scale in arcseconds for each order
 
         Args:
-            binning:
+            order_vec (np.ndarray): Order numbers
+            binning (optional):
 
         Returns:
-            float: Platescale
+            np.ndarray: Platescale
 
         """
         # MAGE has no binning, but for an instrument with binning we would do this
         #binspatial, binspectral = parse.parse_binning(binning)
-        if norders is None:
-            norders = self.norders
+        norders = len(order_vec)
         binspatial, binspec = parse.parse_binning(binning)
         return np.full(norders, 0.15*binspatial)
-
-    def order_vec(self, norders=None):
-        if norders is None:
-            norders = self.norders
-        return self.slit2order(np.arange(norders), norders)
-
 
 

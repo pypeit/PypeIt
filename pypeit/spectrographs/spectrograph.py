@@ -214,6 +214,7 @@ class Spectrograph(object):
         if self.raw_is_transposed(det):
             img = img.T
         # All of this should be done *after* trimming, overscan etc.
+        #   And will be done in the ProcessImages refactor
 
         # Return
         return img, head0
@@ -882,24 +883,13 @@ class Spectrograph(object):
         slitmask = pixels.slit_pixels(tslits_dict['lcen'],tslits_dict['rcen'],tslits_dict['nspat'], pad=pad)
         return slitmask
 
-    def order_platescale(self, binning=None, norders=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         This routine is only for echelle spectrographs. It returns the plate scale order by order
 
         Args:
+            order_vec (np.ndarray):
             binning:
-
-        Returns:
-
-        """
-        pass
-
-    def order_vec(self, norders=None):
-        """
-        This routine is only for echelle spectrographs. It returns a vector of orders
-
-        Args:
-            norders (int):
 
         Returns:
             np.ndarray
@@ -907,14 +897,31 @@ class Spectrograph(object):
         """
         pass
 
-    def slit2order(self, slit, nslit):
+    def order_vec(self, slit_spat_pos):
+        """
+        Convert an array of slit_spat_pos values to order numbers
+
+        Args:
+            slit_spat_pos (np.ndarray): Slit positions
+
+        Returns:
+            np.ndarray: Order numbers
+
+        """
+        order_vec = np.zeros(slit_spat_pos.size, dtype=int)
+        for kk, ipos in enumerate(slit_spat_pos):
+            order_vec[kk] = self.slit2order(ipos)
+        # Return
+        return order_vec
+
+
+    def slit2order(self, slit_pos):
         """
         This routine is only for echelle spectrographs.
         It returns the order of the input slit
 
         Args:
-            slit (int):
-            nslit (int):
+            slit_pos (float):
 
         Returns:
             int: Echelle order number

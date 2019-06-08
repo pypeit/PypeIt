@@ -138,12 +138,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def norders(self):
         return None
 
-    def order_vec(self, norders=None):
-        if norders is None:
-            norders = self.norders
-        return self.slit2order(np.arange(norders), norders)
-
-
 
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     """
@@ -213,7 +207,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -266,14 +260,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             '0.NAXIS': 2 }
         super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
-
-    '''
-    def header_keys(self):
-        hdr_keys = super(VLTXShooterNIRSpectrograph, self).header_keys()
-        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
-        hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -339,33 +325,35 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
-    def slit2order(self, islit, nslit):
+    def slit2order(self, slit_spat_pos):
+        """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
+
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+
+        Returns:
+            int: order number
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
+        order_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
+                                   0.33141317, 0.38813936, 0.44310197, 0.49637422,
+                                   0.54839496, 0.59948157, 0.65005956, 0.70074477,
+                                   0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
+        orders = np.arange(26, 10, -1, dtype=int)
 
-        Returns
-        -------
-        order: int
-        """
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle input for VLT X-Shooter VIS")
 
-        orders = np.arange(26,10,-1, dtype=int)
-        return orders[islit]
+        # Return
+        return orders[iorder]
 
-    def order_platescale(self, binning=None, norders=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the spatial plate scale in arcseconds for each order
 
@@ -388,8 +376,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
 
         # Right now I just assume a simple linear trend
-        slit_vec = np.arange(self.norders)
-        order_vec = self.slit2order(slit_vec)
         plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
         return plate_scale
 
@@ -530,7 +516,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -569,52 +556,46 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
 
-    def slit2order(self, islit, nslit):
+    def slit2order(self, slit_spat_pos):
         """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
 
         Args:
-            islit: int, float, or string, slit number
-            nslit:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
 
         Returns:
-            int
+            int: order number
 
         """
+        order_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
+                                   0.41289127, 0.4733839 , 0.53072208, 0.58509916,
+                                   0.63671413, 0.685754, 0.73236772, 0.77676367,
+                                   0.8191196 , 0.85968302, 0.89877932])
+        orders = np.arange(30, 15, -1, dtype=int)
 
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
-        orders = np.arange(30,15,-1, dtype=int)
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle input for VLT X-Shooter VIS")
 
-        return orders[islit]
+        # Return
+        return orders[iorder]
 
-
-    def order_platescale(self, binning=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the plate scale in arcseconds for each order
 
-        Parameters
-        ----------
-        None
+        Args:
+            order_vec (np.ndarray): Order numbers
+            binning (optional):
 
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
+        Returns:
+            np.ndarray: Platescale
 
         """
-
         # VIS has no binning, but for an instrument with binning we would do this
         binspectral, binspatial = parse.parse_binning(binning)
 
@@ -623,8 +604,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
 
         # Right now I just assume a simple linear trend
-        slit_vec = np.arange(self.norders)
-        order_vec = self.slit2order(slit_vec)
         plate_scale = 0.153 + (order_vec - 30)*(0.153-0.167)/(30 - 17)
         return plate_scale*binspatial
 
@@ -832,6 +811,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         -------
         order: int
         """
+        msgs.error("Refactor to use slit_spat_pos!!")
 
         if isinstance(islit, str):
             islit = int(islit)
@@ -866,6 +846,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         order_platescale: ndarray, float
 
         """
+        msgs.error("REFACTOR")
 
         binspectral, binspatial = parse.parse_binning(binning)
 

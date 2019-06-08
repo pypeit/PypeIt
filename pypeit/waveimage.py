@@ -14,8 +14,9 @@ from pypeit import utils
 from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
+from pypeit.core import trace_slits
 
-from pypeit import debugger
+from IPython import embed
 
 class WaveImage(MasterFrame):
     """
@@ -51,9 +52,6 @@ class WaveImage(MasterFrame):
     def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, maskslits,
                  master_key=None, master_dir=None, reuse_masters=False):
 
-#    def __init__(self, spectrograph, tslits_dict, tilts, wv_calib, maskslits,
-#                 master_key=None, master_dir=None, reuse_masters=False):
-
         # MasterFrame
         MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
@@ -71,8 +69,12 @@ class WaveImage(MasterFrame):
 
         self.maskslits = maskslits
 
+        # For echelle order, primarily
+        self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+
         # List to hold ouptut from inspect about what module create the image?
         self.steps = []
+
 
         # Main output
         self.mswave = None
@@ -104,7 +106,7 @@ class WaveImage(MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
-                order = self.spectrograph.slit2order(slit, len(self.maskslits))
+                order = self.spectrograph.slit2order(self.slit_spat_pos[slit])
                 # evaluate solution
                 self.mswave[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
                                                        self.tilts[thismask],
