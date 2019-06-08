@@ -392,10 +392,9 @@ class Spectrograph(object):
         Args:
             filename (str):
                 Name of the file from which to read the image size.
+            section (str):  'datasec' or 'oscansec'
             det (int):
                 Detector number (1-indexed)
-            force (:obj:`bool`, optional):
-                Force the image to be remade
 
         Returns:
             `numpy.ndarray`: Integer array identifying the amplifier
