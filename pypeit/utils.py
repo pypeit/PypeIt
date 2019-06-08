@@ -22,7 +22,7 @@ from itertools import islice
 from bisect import insort, bisect_left
 from pypeit.core import pydl
 from pypeit import msgs
-
+import IPython
 
 def rebin(a, newshape):
     '''Rebin an array to a new shape using slicing. This routine is taken from:
@@ -1208,7 +1208,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 
 def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
                     lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
-                    groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
+                    groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=False,
                     **kwargs_optimizer):
     """
     A routine to perform robust optimization. It is completely analogous
