@@ -23,8 +23,11 @@ def test_keckdeimos():
     assert os.path.isfile(example_file), 'Could not find example file for Keck DEIMOS read.'
     data, _ = s.load_raw_frame(example_file)
     #
-    dsec_img = s.get_datasec_img(example_file, det=1)
-    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    det = 2
+    rdsec_img = s.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = s.orient_image(trim, det)
+    shape = orient.shape
     bpm = s.bpm(shape=shape) # filename=example_file)
     assert data.shape == (4096,2128)
     assert bpm.shape == (4096,2048)
@@ -38,8 +41,11 @@ def test_kecklrisblue():
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS blue read.'
     data, _ = s.load_raw_frame(example_file)
     #
-    dsec_img = s.get_datasec_img(example_file, det=1)
-    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    det = 2
+    rdsec_img = s.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = s.orient_image(trim, det)
+    shape = orient.shape
     bpm = s.bpm(shape=shape)
     assert data.shape == (2048,1154)
     assert bpm.shape == (2048,1024)
@@ -53,8 +59,11 @@ def test_kecklrisred():
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS red read.'
     data, _ = s.load_raw_frame(example_file)
     #
-    dsec_img = s.get_datasec_img(example_file, det=1)
-    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    det = 1
+    rdsec_img = s.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = s.orient_image(trim, det)
+    shape = orient.shape
     bpm = s.bpm(shape=shape)
     assert data.shape == (2068,1110)
     assert bpm.shape == (2048,1024)
@@ -141,6 +150,7 @@ def test_vltxshooternir():
     assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
+'''
 @dev_suite_required
 def test_whtisisblue():
     s = spectrographs.wht_isis.WhtIsisBlueSpectrograph()
@@ -150,5 +160,4 @@ def test_whtisisblue():
     data, _ = s.load_raw_frame(example_file)
     bpm = s.bpm(shape=data.shape)
     assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
-
-
+'''
