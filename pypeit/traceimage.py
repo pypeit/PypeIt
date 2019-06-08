@@ -1,17 +1,15 @@
 """
 Module for generating the Trace image
 """
-import inspect
 import numpy as np
 
 from pypeit import msgs
-from pypeit import processimages
 from pypeit.par import pypeitpar
+from pypeit.images import combinedimage
+from pypeit.core import procimg
 
-from pypeit import debugger
 
-
-class TraceImage(processimages.ProcessImages):
+class TraceImage(combinedimage.CombinedImage):
     """
     Generate the image for tracing the slits/orders, typically from a
     set of flat-field or twilight sky exposures
@@ -28,12 +26,20 @@ class TraceImage(processimages.ProcessImages):
             The parameters used to type and process the arc frames.
     """
     # Frametype is a class attribute
-    # TODO: Why is this not trace
     frametype = 'trace_image'
 
     def __init__(self, spectrograph, files=None, det=1, par=None):
         self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
-        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
-                                             files=files, det=det)
+        # Start us up
+        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
+                                             files=files, frametype=self.frametype)
 
-
+    def build_image(self, bias=None):
+        # Load
+        self.load_images()
+        # Process + combine
+        process_steps = procimg.init_process_steps(bias, self.proc_par)
+        process_steps += ['trim']
+        process_steps += ['apply_gain']
+        self.process_images(process_steps, bias=bias)
+        self.image = self.combine()

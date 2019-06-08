@@ -1,14 +1,14 @@
 """ Module for image processing core methods
 """
-import astropy.stats
 import numpy as np
 from scipy import signal, ndimage
+from IPython import embed
+
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
+from pypeit.core import pixels
 
-
-from pypeit import debugger
 
 
 def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
@@ -239,7 +239,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-def gain_frame(datasec_img, namp, gain_list):
+def gain_frame(datasec_img, gain_list, trim=True):
     """ Generate a gain image
 
     Parameters
@@ -254,21 +254,16 @@ def gain_frame(datasec_img, namp, gain_list):
     gain_img : ndarray
 
     """
-    #namp = settings.spect[dnum]['numamplifiers'])
-    #gains = settings.spect[dnum]['gain'][amp - 1]
     msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Loop on amplifiers
-    # ToDo
-    # EMA --> I think there was a bug here.
-    # the previous command was: gain_img = np.zeros_like(datasec_img)
-    # but it returns an array of integers, so if the gain was <0.6 it
-    # was rounded to 0 causing a lot of problems.
-    gain_img = np.zeros_like(datasec_img,dtype=float)
-    for ii in range(namp):
+    gain_img = np.zeros_like(datasec_img, dtype=float)
+    for ii, gain in enumerate(gain_list):
         amp = ii+1
         amppix = datasec_img == amp
-        gain_img[amppix] = gain_list[ii]
+        gain_img[amppix] = gain
+    if trim:
+        gain_img = trim_frame(gain_img, datasec_img < 1)
     # Return
     return gain_img
 
@@ -306,6 +301,73 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
                              mask=indx).filled(0.0)
 
 
+def subtract_overscan(rawframe, datasec_img, oscansec_img,
+                          method='savgol', params=[5, 65]):
+    """
+    Subtract overscan
+
+    Args:
+        frame (:obj:`numpy.ndarray`):
+            Frame from which to subtract overscan
+        numamplifiers (int):
+            Number of amplifiers for this detector.
+        datasec_img (np.ndarray):
+        oscansec_img (np.ndarray):
+        method (:obj:`str`, optional):
+            The method used to fit the overscan region.  Options are
+            polynomial, savgol, median.
+        params (:obj:`list`, optional):
+            Parameters for the overscan subtraction.  For
+            method=polynomial, set params = order, number of pixels,
+            number of repeats ; for method=savgol, set params = order,
+            window size ; for method=median, params are ignored.
+
+    Returns:
+        :obj:`numpy.ndarray`: The input frame with the overscan region
+        subtracted
+    """
+    # Copy the data so that the subtraction is not done in place
+    no_overscan = rawframe.copy()
+
+    # Amplifiers
+    amps = np.unique(datasec_img[datasec_img > 0]).tolist()
+
+    # Perform the bias subtraction for each amplifier
+    for amp in amps:
+        # Pull out the overscan data
+        overscan, _ = pixels.slice_with_mask(rawframe, oscansec_img, amp)
+        # Pull out the real data
+        data, data_slice = pixels.slice_with_mask(rawframe, datasec_img, amp)
+
+        # Shape along at least one axis must match
+        data_shape = data.shape
+        if not np.any([dd == do for dd, do in zip(data_shape, overscan.shape)]):
+            msgs.error('Overscan sections do not match amplifier sections for'
+                       'amplifier {0}'.format(amp))
+        compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
+
+        # Fit/Model the overscan region
+        osfit = np.median(overscan) if method.lower() == 'median' \
+            else np.median(overscan, axis=compress_axis)
+        if method.lower() == 'polynomial':
+            # TODO: Use np.polynomial.polynomial.polyfit instead?
+            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
+            ossub = np.polyval(c, np.arange(osfit.size))
+        elif method.lower() == 'savgol':
+            ossub = signal.savgol_filter(osfit, params[1], params[0])
+        elif method.lower() == 'median':
+            # Subtract scalar and continue
+            no_overscan[data_slice] -= osfit
+            continue
+        else:
+            raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
+
+        # Subtract along the appropriate axis
+        no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
+
+    return no_overscan
+
+'''
 def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5,65]):
     """
     Subtract overscan
@@ -349,7 +411,7 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         msgs.error('Data section must be a tuple of slice objects.')
     if not isinstance(oscansec[0], tuple):
         msgs.error('Overscan section must be a tuple of slice objects.')
-    
+
     # Check that there are no overlapping data sections
     testframe = np.zeros_like(rawframe, dtype=int)
     for i in range(numamplifiers):
@@ -392,6 +454,7 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
         nobias[datasec[i]] -= (ossub[:,None] if compress_axis == 1 else ossub[None,:])
 
     return nobias
+'''
 
 
 # TODO: Provide a replace_pixels method that does this on a pixel by
@@ -488,6 +551,8 @@ def replace_column_mean(img, left, right):
         img[:,left:] = img[:,left-1][:,None]
         return
     img[:,left:right] = 0.5*(img[:,left-1]+img[:,right])[:,None]
+
+
 
 
 def replace_column_linear(img, left, right):
@@ -606,6 +671,30 @@ def trim_frame(frame, mask):
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
 
+def init_process_steps(bias, proc_par):
+    """
+    Initialize the processing steps
+    This first set is related to bias and overscan subtraction
+
+    Could include dark subtraction someday
+
+    Args:
+        bias (None or other):
+        proc_par (ProcessImagesPar):
+
+    Returns:
+        list: List of the processing steps to begin with.  Can be empty
+
+    """
+    process_steps = []
+    if bias is not None:
+        process_steps.append('subtract_bias')
+    if proc_par['overscan'].lower() != 'none':
+        process_steps.append('subtract_overscan')
+    # Return
+    return process_steps
+
+
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None, adderr=0.01):
     """
@@ -667,7 +756,52 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     _objframe = np.zeros_like(skyframe) if objframe is None else objframe
     var = np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
     var = var + adderr ** 2 * (np.abs(sciframe)) ** 2
+    embed(header='this appears to be broken!')
     return
+
+
+def update_mask_slitmask(bitmask, mask_old, slitmask):
+    """
+    Update a mask using the slitmask
+
+    Args:
+        bitmask (pypeit.images.processimage.ProcessImagesBitMask):
+        mask_old (np.ndarray):
+        slitmask (np.ndarray):
+
+    Returns:
+        np.ndarray: new mask image
+
+    """
+    # Pixels excluded from any slit.
+    mask_new = np.copy(mask_old)
+    indx = slitmask == -1
+    mask_new[indx] = bitmask.turn_on(mask_new[indx], 'OFFSLITS')
+    return mask_new
+
+
+def update_mask_cr(bitmask, mask_old, crmask_new):
+    """
+    Update the mask bits for cosmic rays
+
+    Args:
+        bitmask (pypeit.images.processimage.ProcessImagesBitMask):
+        mask_old (np.ndarray):
+        crmask_new:
+
+    Returns:
+        np.ndarray: new mask image
+
+    """
+
+    # Unset the CR bit from all places where it was set
+    CR_old = (bitmask.unpack(mask_old, flag='CR'))[0]
+    mask_new = np.copy(mask_old)
+    mask_new[CR_old] = bitmask.turn_off(mask_new[CR_old], 'CR')
+    # Now set the CR bit using the new crmask
+    indx = crmask_new.astype(bool)
+    mask_new[indx] = bitmask.turn_on(mask_new[indx], 'CR')
+    return mask_new
 
 
 

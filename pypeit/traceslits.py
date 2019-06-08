@@ -994,11 +994,11 @@ class TraceSlits(masterframe.MasterFrame):
         #   - Provide the file names
         if traceImage is not None:
             try:
-                nfiles = len(traceImage.files)
+                nfiles = len(traceImage.file_list)
                 ndig = int(np.log10(nfiles))+1
                 for i in range(nfiles):
                     hdr['F{0}'.format(i+1).zfill(ndig)] \
-                            = (traceImage.files[i], 'PypeIt: Processed raw file')
+                            = (traceImage.file_list[i], 'PypeIt: Processed raw file')
             except:
                 msgs.warn('Master trace frame does not include list of source files.')
         #   - Slit metadata
@@ -1017,7 +1017,7 @@ class TraceSlits(masterframe.MasterFrame):
         mstrace = self.mstrace
         if traceImage is not None:
             try:
-                mstrace = traceImage.stack
+                mstrace = traceImage.image
             except:
                 # Assume it failed because it's not a TraceImage object
                 # and it's a numpy.ndarray to write.
@@ -1041,7 +1041,7 @@ class TraceSlits(masterframe.MasterFrame):
                       fits.ImageHDU(data=_tslits_dict['maskslits'].astype(int), name='MASK'),  # int deals with bool
                      ]).writeto(_outfile, overwrite=True)
 
-    def load(self, ifile=None, return_header=False):
+    def load_slits(self, ifile=None, return_header=False):
         """
         Load the trace slits data.
 
@@ -1140,6 +1140,5 @@ class TraceSlits(masterframe.MasterFrame):
                 tslits_dict[ext.lower()] = hdu[ext].data
 
         return (tslits_dict, mstrace, hdu[0].header) if return_header else (tslits_dict, mstrace)
-
 
 

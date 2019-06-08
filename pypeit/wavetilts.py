@@ -330,6 +330,7 @@ class WaveTilts(masterframe.MasterFrame):
         for slit in gdslits:
             msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslits-1))
             # Identify lines for tracing tilts
+            msgs.info('Finding lines for tilt analysis')
             self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
             if self.lines_spec is None:
                 self.mask[slit] = True
@@ -338,6 +339,7 @@ class WaveTilts(masterframe.MasterFrame):
 
             thismask = self.slitmask == slit
             # Trace
+            msgs.info('Trace the tilts')
             self.trace_dict = self.trace_tilts(self.msarc, self.lines_spec, self.lines_spat,
                                                thismask, self.slitcen[:,slit])
             #if show:

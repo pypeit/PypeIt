@@ -1,14 +1,14 @@
 
 import inspect
 import numpy as np
-import os
-import copy
 
 from astropy import stats
 from abc import ABCMeta
 
-from pypeit import ginga, utils, msgs, processimages, specobjs
+from pypeit import ginga, utils, msgs, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
+from pypeit.core import procimg
+from pypeit.images import processimage
 
 from IPython import embed
 
@@ -82,6 +82,8 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
+    bitmask = processimage.ProcessImagesBitMask()
+
     def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1,
                  objtype='science', binning=None, setup=None, maskslits=None):
 
@@ -101,7 +103,7 @@ class Reduce(object):
         self.mask = mask
         self.slitmask = pixels.tslits2mask(self.tslits_dict)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
-        self.mask = processimages.ProcessImages.update_mask_slitmask(self.mask, self.slitmask)
+        self.mask = procimg.update_mask_slitmask(self.bitmask, self.mask, self.slitmask)
         self.maskslits=None
         self.maskslits = self._get_goodslits(maskslits)
         self.ir_redux = ir_redux
@@ -307,11 +309,15 @@ class Reduce(object):
                 self.maskslits[slit] = True
 
         if update_crmask:
-            self.crmask = processimages.ProcessImages.build_crmask(self.sciimg - self.global_sky, self.proc_par,
-                                                                   self.det, self.spectrograph, ivar = self.sciivar,
-                                                                   binning=self.binning)
+            processImage = processimage.ProcessImage(None, self.spectrograph, self.det, self.proc_par)
+            processImage.image = self.sciimg - self.global_sky
+            processImage.rawvarframe = utils.calc_ivar(self.sciivar)
+            self.crmask = processImage.build_crmask()
+            #self.crmask = processimages.ProcessImages.build_crmask(self.sciimg - self.global_sky, self.proc_par,
+            #                                                       self.det, self.spectrograph, ivar = self.sciivar,
+            #                                                       binning=self.binning)
             # Rebuild the mask with this new crmask
-            self.mask = processimages.ProcessImages.update_mask_cr(self.mask, self.crmask)
+            self.mask = procimg.update_mask_cr(self.bitmask, self.mask, self.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -681,7 +687,7 @@ class MultiSlit(Reduce):
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
         iextract = (self.mask == 0) & (self.extractmask == False)
-        self.outmask[iextract] = processimages.ProcessImages.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
+        self.outmask[iextract] = self.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
 
         # Step
         self.steps.append(inspect.stack()[0][3])

@@ -37,10 +37,13 @@ def test_keck_lris_red():
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     # Get the shape
-    dsec_img = spectrograph.get_datasec_img(example_file, det=2)
-    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    det = 2
+    rdsec_img = spectrograph.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = spectrograph.orient_image(trim, det)
+    shape = orient.shape
     # Simple
-    bpm = spectrograph.bpm(shape=shape, filename=example_file, det=2)
+    bpm = spectrograph.bpm(shape=shape, filename=example_file, det=det)
     assert np.sum(bpm) > 0
 
 
@@ -50,8 +53,11 @@ def test_keck_deimos():
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
                                 'd0914_0002.fits.gz')
     # Get the shape
-    dsec_img = spectrograph.get_datasec_img(example_file, det=2)
-    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    det = 2
+    rdsec_img = spectrograph.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = spectrograph.orient_image(trim, det)
+    shape = orient.shape
     # Simple
     bpm = spectrograph.bpm(shape=shape,det=4)
     assert bpm[0,0] == 1

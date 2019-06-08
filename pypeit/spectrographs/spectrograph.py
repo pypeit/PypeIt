@@ -68,10 +68,11 @@ class Spectrograph(object):
             detector image; often trimmmed.
         raw_naxis (tuple):
             A tuple with the lengths of the two axes for untrimmed detector image.
-        datasec_img (`numpy.ndarray`_):
-            An image identifying the amplifier that reads each detector
-            pixel.
-        bpm_img (`numpy.ndarray`_):
+        rawdatasec_img (:obj:`numpy.ndarray`):
+            An image identifying the amplifier that reads each detector pixel.
+        oscansec_img (:obj:`numpy.ndarray`):
+            An image identifying the amplifier that reads each detector pixel
+        bpm_img (:obj:`numpy.ndarray`):
             The bad-pixel mask for the currently read detector.
     """
     __metaclass__ = ABCMeta
@@ -82,7 +83,8 @@ class Spectrograph(object):
         self.detector = None
         self.naxis = None
 #        self.raw_naxis = None
-        self.datasec_img = None
+        self.rawdatasec_img = None
+        self.oscansec_img = None
         self.bpm_img = None
 
         # Default time unit
@@ -170,7 +172,7 @@ class Spectrograph(object):
         The transpose and flip operations needed to convert the raw
         image data read using `astropy.io.fits`_ into the PypeIt-format
         `numpy.ndarray`_ is as follows::
-            
+
             - The orientation of the image in the file is expected to
               follow the FITS convention.
             - Because of different storage architecture, fits images
@@ -210,12 +212,6 @@ class Spectrograph(object):
         # Turn to float
         img = raw_img.astype(float)
 
-        # Transpose?
-        if self.raw_is_transposed(det):
-            img = img.T
-        # All of this should be done *after* trimming, overscan etc.
-        #   And will be done in the ProcessImages refactor
-
         # Return
         return img, head0
 
@@ -229,7 +225,7 @@ class Spectrograph(object):
         Args:
             det (:obj:`int`, optional):
                 1-indexed detector number.
-        
+
         Returns:
             :obj:`bool`: Flat that transpose is required.
         """
@@ -328,20 +324,63 @@ class Spectrograph(object):
         # Always assume normal FITS header formatting
         one_indexed = True
         include_last = True
+        #transpose = self.detector[det-1]['specaxis'] == 0
+
+        return image_sections, one_indexed, include_last#, transpose
 
         # Re-order so that the section is always returned as
         # (spec,spat).  NOTE: This is different from load_raw_frame
         # because of the added flip performed by just reading the image
         # data.
-        if self.detector[det-1]['specaxis'] == 0:
-            image_sections = ['[{0}]'.format(','.join(s.strip('[]').split(',')[::-1]))
-                                for s in image_sections]
+        #if self.detector[det-1]['specaxis'] == 0:
+        #    image_sections = ['[{0}]'.format(','.join(s.strip('[]').split(',')[::-1]))
+        #                        for s in image_sections]
+        #
+        #return image_sections, one_indexed, include_last
 
-        return image_sections, one_indexed, include_last
+    def get_rawdatasec_img(self, filename, det, force=True):
+        """
+        Return the *raw* datasec image, i.e. in the load-from-disk orientation, etc.
 
-    def get_datasec_img(self, filename, det=1, force=True):
+        Args:
+            filename:
+            det:
+            force:
+
+        Returns:
+
+        """
+        if self.rawdatasec_img is None or force:
+            return self.get_pixel_img(filename, 'datasec', det)
+        else:
+            return self.rawdatasec_img
+
+    def get_oscansec_img(self, filename, det, force=True):
+        """
+        Generate the oscansec image
+
+        Args:
+            filename (str):
+                Filename
+            det (int):
+                Detector index
+            force (bool, optional):
+                Force the code to remake the image.
+                Might need to do this in cases where binning varies
+                between calibrations and science images.
+
+        Returns:
+
+        """
+        if self.oscansec_img is None or force:
+            return self.get_pixel_img(filename, 'oscansec', det)
+        else:
+            return self.oscansec_img
+
+    def get_pixel_img(self, filename, section, det):
         """
         Create an image identifying the amplifier used to read each pixel.
+        This is in the *raw* data format
 
         .. todo::
             - I find 1-indexing to be highly annoying...
@@ -353,39 +392,52 @@ class Spectrograph(object):
         Args:
             filename (str):
                 Name of the file from which to read the image size.
+            section (str):  'datasec' or 'oscansec'
             det (int):
                 Detector number (1-indexed)
-            force (:obj:`bool`, optional):
-                Force the image to be remade
 
         Returns:
             `numpy.ndarray`: Integer array identifying the amplifier
             used to read each pixel.
         """
-        if self.datasec_img is None or force:
-            # Check the detector is defined
-            self._check_detector()
-            # Get the image shape
-            raw_naxis = self.get_raw_image_shape(filename, det=det)
+        # Check the detector is defined
+        self._check_detector()
+        # Get the image shape
+        raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-            # This *always* returns spectral then spatial
-            binning = self.get_meta_value(filename, 'binning')
+        binning_pypeit = self.get_meta_value(filename, 'binning')
 
-            # This *always* returns spectral then spatial
-            data_sections, one_indexed, include_end \
-                    = self.get_image_section(filename, det, section='datasec')
+        data_sections, one_indexed, include_end \
+                    = self.get_image_section(filename, det, section=section)
+        # Note on data format
+        #--------------------
+        # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
+        # binning_raw = the binning in the format of the raw data.
+        # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
+        # files are stored the other way with spat as the first dimension (as read into python), then the transpose
+        # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
+        # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
+        # and the datasec typically written to headers. However this flip is dealt with explicitly in the
+        # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
+        # TODO Add a blurb on the PypeIt data model.
 
-            # Initialize the image (0 means no amplifier)
-            self.datasec_img = np.zeros(raw_naxis, dtype=int)
-            for i in range(self.detector[det-1]['numamplifiers']):
-                # Convert the data section from a string to a slice
-                datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                          include_end=include_end, require_dim=2,
-                                          binning=binning)
-                # Assign the amplifier
-                self.datasec_img[datasec] = i+1
+        #if transpose:
+        #   binning_raw = (',').join(binning_pypeit.split(',')[::-1])
+        #else:
+        binning_raw = binning_pypeit
 
-        return self.datasec_img
+        # Initialize the image (0 means no amplifier)
+        pix_img = np.zeros(raw_naxis, dtype=int)
+        for i in range(self.detector[det-1]['numamplifiers']):
+            # Convert the data section from a string to a slice
+            datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
+                                      include_end=include_end, require_dim=2,
+                                      binning=binning_raw) #transpose=transpose,
+            # Assign the amplifier
+            #self.datasec_img[datasec] = i+1
+            pix_img[datasec] = i+1
+
+        return pix_img
 
     # TODO: There *has* to be a better way to do this.  We're reading a
     # file just to get the size of the image, likely when the image has
@@ -427,6 +479,32 @@ class Spectrograph(object):
         # Use a file
         self._check_detector()
         return (self.load_raw_frame(filename, det=det)[0]).shape
+
+    def orient_image(self, rawimage, det):
+        """
+        Orient the image into the PypeIt frame
+
+        Args:
+            rawimage (np.ndarray):
+                Image in the raw frame
+            det (int):
+                Detector index
+
+        Returns:
+            np.ndarray:  Oriented image
+
+        """
+        image = rawimage.copy()
+        # Transpose?
+        if self.raw_is_transposed(det):
+            image = image.T
+        # Flip spectral axis?
+        if self.detector[det-1]['specflip'] is True:
+            image = np.flip(image, axis=0)
+        # Flip spatial axis?
+        if self.detector[det-1]['spatflip'] is True:
+            image = np.flip(image, axis=1)
+        return image
 
     def empty_bpm(self, shape=None, filename=None, det=1):
         """
