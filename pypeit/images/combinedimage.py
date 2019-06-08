@@ -48,6 +48,7 @@ class CombinedImage(pypeitimage.PypeItImage):
         pimages (list): List of ProcessImage objects
         image (np.ndarray):
         file_list (list): List of files to process
+        steps (list): List of steps used
 
     """
 
@@ -71,6 +72,9 @@ class CombinedImage(pypeitimage.PypeItImage):
         # Internal images
         self.pimages = []
         self.image = None
+
+        # Steps -- Not currently used but needed for Masters output
+        self.steps = []
 
     @property
     def nimages(self):
