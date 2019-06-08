@@ -111,7 +111,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.  We should remove the get_spectrograph option.
-def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, datasec=False, wvcalib=False):
+def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False):
     """
     Load up the set of shane_kast_blue master frames
 
@@ -158,10 +158,6 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, datasec=False,
         tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))
         tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
         ret.append(tilts_dict)
-
-    if datasec:
-        datasec_img = spectrograph.get_datasec_img(data_path('b1.fits.gz'), 1)
-        ret.append(datasec_img)
 
     if wvcalib:
         calib_file = os.path.join(master_dir,
