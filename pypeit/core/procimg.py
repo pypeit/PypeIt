@@ -670,6 +670,7 @@ def trim_frame(frame, mask):
                    'pixels outside the data sections.')
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
+
 def init_process_steps(bias, proc_par):
     """
     Initialize the processing steps

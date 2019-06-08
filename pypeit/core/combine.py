@@ -48,7 +48,10 @@ def comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None
     ###########
     # Was printtype specified
     if printtype is None:
-        printtype = frametype
+        if frametype is None:
+            printtype = 'UNKNOWN'
+        else:
+            printtype = frametype
     # Check the number of frames
     if frames_arr is None:
         msgs.error("No '{0:s}' frames were given to comb_frames to combine".format(printtype))

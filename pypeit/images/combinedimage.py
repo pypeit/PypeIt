@@ -289,6 +289,9 @@ class CombinedImage(pypeitimage.PypeItImage):
                 #embed(header='190 of combinedimage')
                 pimage.flatten(pixel_flat, illum_flat=illum_flat, bpm=bpm)
 
+    def __repr__(self):
+        return ('<{:s}: nfiles={}, nimages={}>'.format(
+            self.__class__.__name__, self.nfiles, self.nimages))
 
 
 

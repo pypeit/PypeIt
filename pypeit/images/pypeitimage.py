@@ -58,7 +58,7 @@ class PypeItImage(object):
                                         det=self.det)
         return bpm
 
-    def load_rawimage(self, filename):
+    def load_rawimage(self, filename=None):
         """
         Load a raw image from disk using the Spectrograph method load_raw_frame()
 
@@ -71,15 +71,18 @@ class PypeItImage(object):
             np.ndarray, fits.Header:
 
         """
-        self.filename = filename
+        if filename is None:
+            filename = self.filename
+        else:
+            self.filename = filename
         self.image, self.head0 \
-            = self.spectrograph.load_raw_frame(filename, det=self.det)
+            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
         # Shape
         self.orig_shape = self.image.shape
         # Exposure time
-        self.exptime = self.spectrograph.get_meta_value(filename, 'exptime')
+        self.exptime = self.spectrograph.get_meta_value(self.filename, 'exptime')
         # Binning
-        self.binning = self.spectrograph.get_meta_value(filename, 'binning')
+        self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
         if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
             self.binning_raw = (',').join(self.binning.split(',')[::-1])
         else:
