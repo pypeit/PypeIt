@@ -48,6 +48,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # No bias subtraction
         par['calibrations']['biasframe']['useframe'] = 'none'
+        # No overscan
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'none'
+
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
