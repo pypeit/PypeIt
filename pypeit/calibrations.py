@@ -506,6 +506,7 @@ class Calibrations(object):
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixelflat is None and len(pixflat_image_files) != 0:
             # Run
+            embed(header='509 in calibrations')
             self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show,
                                                                     maskslits=self.tslits_dict['maskslits'])
 
