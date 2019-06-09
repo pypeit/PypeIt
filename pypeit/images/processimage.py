@@ -461,7 +461,7 @@ class ProcessImage(pypeitimage.PypeItImage):
         # Return
         return self.image.copy()
 
-    def trim(self, force=False):
+    def trim(self, force=False, debug=False):
         """
         Trim the image to include only the science data
 

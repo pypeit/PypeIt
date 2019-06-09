@@ -8,12 +8,12 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
 from ..par.pypeitpar import DetectorPar
-from pypeit.par.pypeitpar import CalibrationsPar
 from .. import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
-from pypeit import debugger
 from pypeit.par import pypeitpar
+
+from IPython import embed
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -340,7 +340,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
             badr = (161*2)//xbin # Transposed
             self.bpm_img[badr,:] = 1
         elif det == 3:
-            msgs.info("Using hard-coded BPM for det=2 on GMOSs")
+            msgs.info("Using hard-coded BPM for det=3 on GMOSs")
 
             # Get the binning
             hdu = fits.open(filename)
@@ -633,7 +633,7 @@ def read_gmos(raw_file, det=1):
         elif det == 3: # BLUEST DETECTOR
             order = range(4,0,-1)
     else:
-        debugger.set_trace()
+        embed()
 
     # insert extensions into master image...
     for kk, jj in enumerate(order):
@@ -650,7 +650,7 @@ def read_gmos(raw_file, det=1):
         # insert data...
         # Data section
         #section = '[:,{:d}:{:d}]'.format(xs, xe)  # Eliminate lines
-        section = '[{:d}:{:d},:]'.format(xs, xe)  # Eliminate lines
+        section = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)  # Eliminate lines
         dsec.append(section)
         array[xs:xe, :] = np.flipud(data)
 
@@ -659,9 +659,10 @@ def read_gmos(raw_file, det=1):
         xe = xs + nxb
         #debugger.set_trace()
         #section = '[:,{:d}:{:d}]'.format(xs, xe)
-        osection = '[{:d}:{:d},:]'.format(xs, xe)  # TRANSPOSED FOR WHAT COMES
+        osection = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)  # TRANSPOSED FOR WHAT COMES
         osec.append(osection)
         array[xs:xe, :] = overscan
+
 
     # make sure BZERO is a valid integer for IRAF
     obzero = head1['BZERO']

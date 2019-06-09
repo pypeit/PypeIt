@@ -250,7 +250,7 @@ class CombinedImage(pypeitimage.PypeItImage):
             self.pimages.append(processImage)
 
     def process_images(self, process_steps, pixel_flat=None, illum_flat=None,
-                       bias=None, bpm=None):
+                       bias=None, bpm=None, debug=False):
         """
         Process the images held in self.pimages
 
@@ -279,7 +279,7 @@ class CombinedImage(pypeitimage.PypeItImage):
             if 'subtract_overscan' in process_steps:
                 pimage.subtract_overscan()
             if 'trim' in process_steps:
-                pimage.trim()
+                pimage.trim(debug=debug)
             if 'apply_gain' in process_steps:
                 pimage.apply_gain()
             # Always orient
