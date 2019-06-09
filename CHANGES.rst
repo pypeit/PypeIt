@@ -10,6 +10,7 @@
 - Fix arc tilts bug
 - Modest refactoring of ScienceImage
 - Moved several mask methods to procimg.py
+- Started an X-Shooter doc and introduced a [process][bias] parameter
 
 0.10.1 (22 May 2019)
 --------------------
