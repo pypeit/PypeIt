@@ -47,3 +47,7 @@ DEIMOS
 
 See the :doc:`deimos` specific notes for more.
 
+X-Shooter
++++++++++
+
+See the :doc:`xshooter` specific notes for more.
