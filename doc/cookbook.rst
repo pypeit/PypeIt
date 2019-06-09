@@ -11,6 +11,8 @@ Notes on :doc:`installing` are found elsewhere.
 We now also provide a set of Slides that provide a more
 visual step-by-step.  Find them here at
 the `PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
+These should be considered to contain
+the most up-to-date information.
 
 The following outlines the standard steps for running
 PypeIt on a batch of data.  There are alternate ways to
@@ -55,7 +57,7 @@ following is for one instrument in one working directory.
   This produces one folder per setup and a custom :doc:`pypeit_file`.
   Here is an example of the call::
 
-    pypeit_setup -r /full_path/RAWDIR/lrisb  -s keck_lris_blue -c
+    pypeit_setup -r /full_path/RAWDIR/lrisb  -s keck_lris_blue -c=all
 
   This generates one folder per setup and a unique :doc:`pypeit_file` file in each folder.
 

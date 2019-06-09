@@ -2,6 +2,9 @@
 """
 import numpy as np
 
+from astropy.time import Time
+from astropy.io import fits
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -11,6 +14,8 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
 from pypeit import debugger
 
+from IPython import embed
+
 class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Magellan/MAGE specific code
@@ -19,14 +24,15 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(MagellanMAGESpectrograph, self).__init__()
         self.spectrograph = 'magellan_mage'
+        self.camera = 'magellan_mage'
         self.telescope = telescopes.MagellanTelescopePar()
-        self.camera = 'MAGE'
         self.numhead = 1
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            specaxis        = 0,
-                            specflip        = False,
+                            dataext         = 0,
+                            specaxis        = 1,
+                            specflip        = True,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
@@ -41,10 +47,10 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             gain            = 1.02, # depends on the readout
                             ronoise         = 2.9, # depends on the readout
                             datasec         = '[1:2048,1:1024]',      # complementary to oscansec
-                            oscansec        = '[2049:2176,1025:1152]' # as taken from the header
+                            oscansec        = '[2049:2176,1:1024]'    # as taken from the header
                             )]
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
-        self.norders = 15 
+        self.norders = 15   # 20-6
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -59,25 +65,21 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'magellan_mage'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 3
-        par['calibrations']['traceframe']['number'] = 3
-        par['calibrations']['arcframe']['number'] = 1
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['sigdetect']=5.0
-        par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.50
+        par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
 
         # Reidentification parameters
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_thar.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_mage.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -88,15 +90,14 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
-
+        par['scienceframe']['process']['satpix'] = 'nothing'
 
         # Set slits and tilts parameters
-#        par['calibrations']['tilts']['order'] = 2
-        par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        par['calibrations']['tilts']['tracethresh'] = [10]*self.norders
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['pcatype'] = 'order'
+        #par['calibrations']['slits']['pcatype'] = 'order'
+        par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the bluest orders
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -120,20 +121,24 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             self.meta: dict (generated in place)
 
         """
-        self.meta = {}
+        meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
         #TODO: Check decker is correct
-        self.meta['decker'] = dict(ext=0, card='SLITENC')
-        self.meta['binning'] = dict(card=None, compound=True)
+        meta['decker'] = dict(ext=0, card='SLITENC')
+        meta['binning'] = dict(card=None, compound=True)
 #        self.meta['binning'] = dict(ext=0, card='BINNING')
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        meta['mjd'] = dict(ext=0, card=None, compound=True)
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='INSTR')
+        meta['dispname'] = dict(ext=0, card='INSTRUME')
+        meta['idname'] = dict(ext=0, card='EXPTYPE')
+
+        # Ingest
+        self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -149,19 +154,31 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             return parse.binning2string(binspec, binspatial)
+        elif meta_key == 'mjd':
+            time = '{:s}T{:s}'.format(headarr[0]['UT-DATE'], headarr[0]['UT-TIME'])
+            ttime = Time(time, format='isot')
+            return ttime.mjd
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        return []
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
         """
-        # TODO: arcs, tilts, darks?
-        if ftype in ['pinhole', 'bias']:
-            # No pinhole or bias frames
+        if ftype in ['pinhole', 'dark']:
+            # No pinhole or bias or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['pixelflat', 'trace']:
-            return fitstbl['idname'] == 'domeflat'
-        
-        return (fitstbl['idname'] == 'object') \
+        elif ftype in ['bias']:
+            return fitstbl['idname'] == 'Bias'
+        elif ftype in ['pixelflat', 'trace']:
+            return fitstbl['idname'] == 'Flat'
+        elif ftype in ['arc']:
+            return fitstbl['idname'] == 'ThAr-Lamp'
+        else:
+            return (fitstbl['idname'] == 'Object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
     def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
@@ -185,10 +202,14 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for MAGE")
         self.empty_bpm(shape=shape, filename=filename, det=det)
-        if det == 1:
-            self.bpm_img[:, :20] = 1.
-            self.bpm_img[:, 1000:] = 1.
-
+        # Get the binning
+        hdu = fits.open(filename)
+        binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
+        hdu.close()
+        # Do it
+        self.bpm_img[:, :10//binspatial] = 1.
+        self.bpm_img[:, 1020//binspatial:] = 1.
+        # Return
         return self.bpm_img
 
     @staticmethod
@@ -221,195 +242,76 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         pad = tslits_dict['pad'] if pad is None else pad
         slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
 
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
-        slitmask[order7bad] = -1
         return slitmask
 
-    @staticmethod
-    def slit2order(islit):
+    def slit_minmax(self, nfound, binspectral=1):
+        """
+        These are the order boundaries determined by eye JXP.
+
+        Args:
+            nfound (int):
+              Number of orders found on the detector
+              Assumed to capture all of the reddest but maybe not all of the blue
+            binspectral (nt, optional):
+
+        Returns:
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
+        # Here is the info for all the orders for a good flat
+        all_spec_min = np.full(self.norders, -np.inf)
+        all_spec_max = np.full(self.norders, np.inf)
 
-        Returns
-        -------
-        order: int
+        # If the number of slits is less than expected, then take the reddest
+        spec_min = all_spec_min[-nfound:]
+        spec_max = all_spec_max[-nfound:]
+
+        return spec_min, spec_max
+
+    def slit2order(self, slit_spat_pos):
         """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
 
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, int):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
 
-        orders = np.arange(7, 2, -1, dtype=int)
-        return orders[islit]
+        Returns:
+            int: order number
 
-    @staticmethod
-    def order_platescale(binning = None):
+        """
+        msgs.warn("This will need to be updated with the remaining 3 orders")
+        #
+        order_spat_pos = np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
+               0.77448156, 0.82253604, 0.86875753, 0.91512689, 0.96524312])
+        orders = np.arange(17, 5, -1, dtype=int)
+
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
+
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.error("Bad echelle format for MagE or you have discovered one of the bluest 3 orders!")
+
+        # Return
+        return orders[iorder]
 
 
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the plate scale in arcseconds for each order
 
-        Parameters
-        ----------
-        None
+        Args:
+            order_vec (np.ndarray): Order numbers
+            binning (optional):
 
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
+        Returns:
+            np.ndarray: Platescale
 
         """
-
         # MAGE has no binning, but for an instrument with binning we would do this
         #binspatial, binspectral = parse.parse_binning(binning)
-        return np.full(5, 0.15)
-
-
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
-        """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
-
-    @staticmethod
-    def slit2order(islit):
-
-        """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-
-        if isinstance(islit,str):
-            islit = int(islit)
-        elif isinstance(islit,np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit,float):
-            islit = int(islit)
-        elif isinstance(islit, int):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
-
-        orders = np.arange(26,10,-1, dtype=int)
-        return orders[islit]
-
-    @staticmethod
-    def order_platescale(self, binning = None):
-
-
-        """
-        Returns the plate scale in arcseconds for each order
-
-        Parameters
-        ----------
-        None
-
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
-
-        """
-
-        # NIR has no binning, but for an instrument with binning we would do this
-        #binspatial, binspectral = parse.parse_binning(binning)
-
-        # ToDO Either assume a linear trend or measure this
-        # X-shooter manual says, but gives no exact numbers per order.
-        # NIR: 52.4 pixels (0.210”/pix) at order 11 to 59.9 pixels (0.184”/pix) at order 26.
-
-        # Right now I just took the average
-        return np.full(16, 0.197)
-
-
-
-
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        nslits = tslits_dict['lcen'].shape[1]
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        order_max = [1476,1513,1551, 1592,1687,1741,1801, 1864,1935,2007, 2025, 2025,2025,2025,2025,2025]
-        order_min = [418 ,385 , 362,  334, 303, 268, 230,  187, 140,  85,   26,    0,   0,   0,   0,   0]
-        # TODO add binning adjustments to these
-        for islit in range(nslits):
-            orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
-            slitmask[orderbad] = -1
-        return slitmask
-
-
-
-
-
-
+        norders = len(order_vec)
+        binspatial, binspec = parse.parse_binning(binning)
+        return np.full(norders, 0.15*binspatial)
 
 
