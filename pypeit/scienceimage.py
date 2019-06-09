@@ -80,7 +80,8 @@ class ScienceImage(object):
     frametype = 'science'
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list=[], ir_redux=False, det=1, binning=None, par=None):
+    def __init__(self, spectrograph, file_list, bg_file_list=[], ir_redux=False,
+                 det=1, binning=None, par=None):
 
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -97,7 +98,7 @@ class ScienceImage(object):
         self.spectrograph = spectrograph
         # Are we subtracing the sky using background frames? If yes, set ir_redux=True
         self.ir_redux = ir_redux
-        if self.ir_redux and (self.bkg_combine.nimages == 0):
+        if self.ir_redux and (self.bkg_combine.nfiles == 0):
             msgs.error('IR reductions require that bg files are specified')
         self.det = det
         self.binning = binning
@@ -240,8 +241,7 @@ class ScienceImage(object):
         return img, ivar, rn2img, mask, crmask
 
 
-    def proc_diff(self, file_list, bg_file_list, reject_cr=True,
-                  sigma_clip=False, sigrej=None, maxiters=5):
+    def proc_diff(self, reject_cr=True, sigma_clip=False, sigrej=None, maxiters=5):
         """
         Process a list of science images and their background frames
         Primarily for near-IR reductions
@@ -264,9 +264,9 @@ class ScienceImage(object):
         """
 
         sciimg_sci, sciivar_sci, rn2img_sci, mask_sci, crmask_sci = self.proc_list('sci',
-            file_list, reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
+            reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
         sciimg_bg, sciivar_bg, rn2img_bg, mask_bg, crmask_bg = self.proc_list('bkg',
-            bg_file_list, reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
+            reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
 
         # Combine the images
         outmask_comb = (mask_sci == 0) & (mask_bg == 0)
@@ -275,7 +275,8 @@ class ScienceImage(object):
         sciivar = utils.calc_ivar(varcomb)*outmask_comb
         rn2img = rn2img_sci + rn2img_bg
         # Let's do some more processing
-        processImage = processimage.ProcessImage(None, self.spectrograph, self.det, self.proc_par)
+        processImage = processimage.ProcessImage(None, self.spectrograph, self.det,
+                                                 self.par['process'])
         processImage.image = sciimg
         processImage.rawvarframe = varcomb
         # Now reject CRs again on the differenced image
