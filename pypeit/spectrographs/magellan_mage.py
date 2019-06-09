@@ -46,8 +46,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 1.02, # depends on the readout
                             ronoise         = 2.9, # depends on the readout
-                            datasec         = '[1:2048,1:1024]',      # complementary to oscansec
-                            oscansec        = '[2049:2176,1:1024]'    # as taken from the header
+                            datasec         = '[1:1024, 1:2048]',
+                            oscansec        = '[1:1024, 2049:2176]',
                             )]
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
         self.norders = 15   # 20-6
@@ -66,7 +66,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'magellan_mage'
         # Bias
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        #par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..

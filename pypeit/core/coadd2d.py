@@ -19,7 +19,6 @@ from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
 from pypeit.traceslits import TraceSlits
 from pypeit import reduce
-from pypeit import processimages
 
 from pypeit.core import load, coadd, pixels
 from pypeit.core import parse

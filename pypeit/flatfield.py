@@ -9,17 +9,18 @@ import os
 
 from pypeit import msgs
 
-from pypeit import processimages
 from pypeit import masterframe
 from pypeit.core import flat
 from pypeit import ginga
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
+from pypeit.core import procimg
 from pypeit.core import trace_slits
+from pypeit.images import combinedimage
 
 from pypeit import debugger
 
-class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
+class FlatField(combinedimage.CombinedImage, masterframe.MasterFrame):
     """
     Builds pixel-level flat-field and the illumination flat-field.
 
@@ -79,8 +80,8 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
 
         # Instantiate the base classes
         #   - Basic processing of the raw images
-        processimages.ProcessImages.__init__(self, spectrograph, par=self.par['process'],
-                                             files=files, det=det)
+        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
+                                             files=files, frametype=self.frametype)
         #   - Construction and interface as a master frame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
@@ -140,8 +141,17 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             pixel-flat data.
         """
         if self.rawflatimg is None or force:
-            self.rawflatimg = self.process(bias_subtract=self.msbias, bpm=self.msbpm, trim=trim,
-                                           apply_gain=True)
+            # Load
+            self.load_images()
+            # Process
+            process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
+            if trim:
+                process_steps += ['trim']
+            process_steps += ['apply_gain']
+            self.process_images(process_steps, bias=self.msbias, bpm=self.msbpm)
+            # Combine
+            self.rawflatimg = self.combine()
+            #
             self.steps.append(inspect.stack()[0][3])
         return self.rawflatimg
 
@@ -292,11 +302,11 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         """
         super(FlatField, self).save([self.rawflatimg, self.mspixelflat, self.msillumflat],
                                     ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], outfile=outfile,
-                                    overwrite=overwrite, raw_files=self.files, steps=self.steps)
+                                    overwrite=overwrite, raw_files=self.file_list, steps=self.steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load_flats(self, ifile=None, return_header=False):
         """
         Load the flat-field data from a save master frame.
 
@@ -313,6 +323,6 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
             illumination flat.  Also returns the primary header, if
             requested.
         """
-        return super(FlatField, self).load(['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], ifile=ifile,
+        return super(FlatField, self).load_master(['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], ifile=ifile,
                                            return_header=return_header)
 

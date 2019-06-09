@@ -739,7 +739,7 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         return raw_img.T, header
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
-        #
+        # Inp better be a string here!  Could check
         hdu = fits.open(inp)
         head0 = hdu[0].header
         binning = head0['BINNING']
@@ -955,7 +955,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    #from IPython import embed; embed()
+    #from IPython import embed; embed(header='958 of keck_lris')
     return array.T, head0, (dsec, osec)
 
 

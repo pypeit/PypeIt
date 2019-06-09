@@ -188,8 +188,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.2, 1.2],
                             ronoise         = [3.7, 3.7],
-                            datasec         = [ '[1:1024,:]', '[1025:2048,:]'],
-                            oscansec        = [ '[2050:2080,:]', '[2081:2111,:]'],
+                            datasec         = ['[:, 1:1024]', '[:, 1025:2048]'],    # These are rows, columns on the raw frame, 1-indexed
+                            oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
                             suffix          = '_blue'
                             )]
         self.numhead = 1
@@ -300,8 +300,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.9, 1.9],
                             ronoise         = [3.8, 3.8],
-                            datasec         = ['[40:102,:]', '[103:347,:]'],
-                            oscansec        = ['[425:522,:]', '[524:610,:]'],
+                            datasec         = ['[:,40:102]', '[:,103:347]'],
+                            oscansec        = ['[:,425:522]', '[:,524:610]'],
                             suffix          = '_red'
                             )]
         self.numhead = 1
@@ -396,7 +396,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 1,
                             gain            = 3.0,
                             ronoise         = 12.5,
-                            oscansec        = '[1203:1232,:]',
+                            oscansec        = '[:,1203:1232]',
                             suffix          = '_red'
                             )]
         # TODO: Can we change suffix to be unique wrt ShaneKastRed?

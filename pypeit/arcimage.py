@@ -9,14 +9,15 @@ import inspect
 import numpy as np
 
 from pypeit import msgs
-from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
+from pypeit.images import combinedimage
+from pypeit.core import procimg
 
-from pypeit import debugger
+from IPython import embed
 
 
-class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
+class ArcImage(combinedimage.CombinedImage, masterframe.MasterFrame):
     """
     Generate an Arc Image by processing and combining one or more arc frames.
 
@@ -58,28 +59,37 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
-                                             files=files, det=det)
+        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
+                                             files=files, frametype=self.frametype)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
 
-    # TODO: Allow trim to be a keyword argument?
-    def build_image(self, overwrite=False):
+    def build_image(self):
         """
         Build the arc image from one or more arc files.
 
+        If we ever decide to apply the gain, we will need
+        to worry about saturation
+
         Args:
-            overwrite: (:obj: `bool`, optional):
-                Regenerate the stack image
 
         Returns:
             `numpy.ndarray`_: Combined, processed image
             
         """
-        return self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
+        # Load
+        self.load_images()
+        # Process steps
+        process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
+        process_steps += ['trim']
+        # NOT applying gain to deal 'properly' with saturation
+        # Process
+        self.process_images(process_steps, bias=self.msbias)
+        # Combine + Return
+        return self.combine()
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -92,12 +102,12 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(ArcImage, self).save(self.stack, 'ARC', outfile=outfile, overwrite=overwrite,
-                                   raw_files=self.files, steps=self.steps)
+        super(ArcImage, self).save(self.image, 'ARC', outfile=outfile, overwrite=overwrite,
+                                   raw_files=self.file_list, steps=self.steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load_arcimage(self, ifile=None, return_header=False):
         """
         Load the arc frame data from a saved master frame.
 
@@ -112,5 +122,5 @@ class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
             Returns a `numpy.ndarray`_ with the arc master frame image.
             Also returns the primary header, if requested.
         """
-        return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header)
+        return super(ArcImage, self).load_master('ARC', ifile=ifile, return_header=return_header)
 

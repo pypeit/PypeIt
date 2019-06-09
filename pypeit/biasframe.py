@@ -5,13 +5,15 @@ Module for guiding Bias subtraction including generating a Bias image as desired
 
 """
 import numpy as np
+from IPython import embed
 
 from pypeit import msgs
-from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
+from pypeit.images import combinedimage
 
-class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
+
+class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
     """
     Class to generate/load the Bias image or instructions on how to deal
     with the bias.
@@ -56,8 +58,8 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
-                                             files=files, det=det)
+        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
+                                             files=files, frametype=self.frametype)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
@@ -71,16 +73,25 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         Args:
             overwrite: (:obj: `bool`, optional):
-                Regenerate the stack image
+                Regenerate the combined image
             trim (:obj:`bool`, optional):
                 If True, trim the image
 
         Returns:
             `numpy.ndarray`_: Combined, processed image.
         """
-        if self.par['useframe'] == 'none':
+        # Nothing?
+        if self.par['useframe'].lower() == 'none':
+            msgs.info("Bias image subtraction not activated.")
             return None
-        return self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
+        if self.nfiles == 0:
+            msgs.info("No bias frames provided.  No bias image will be generated or used")
+            return None
+        # Load
+        self.load_images()
+        # No Processing to do
+        # Combine
+        return self.combine()
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -93,18 +104,18 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        if self.stack is None:
+        if self.image is None:
             msgs.warn('No MasterBias to save!')
             return
-        if not isinstance(self.stack, np.ndarray):
+        if not isinstance(self.image, np.ndarray):
             msgs.warn('MasterBias is not an image.')
             return
-        super(BiasFrame, self).save(self.stack, 'BIAS', outfile=outfile, overwrite=overwrite,
-                                    raw_files=self.files, steps=self.steps)
+        super(BiasFrame, self).save(self.image, 'BIAS', outfile=outfile, overwrite=overwrite,
+                                    raw_files=self.file_list, steps=self.steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load_bias(self, ifile=None, return_header=False):
         """
         Load the bias frame.
         
@@ -113,8 +124,7 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         The bias mode to use in this reduction is either
           - None -- No bias subtraction
-          - 'overscan' -- Overscan subtract
-          - stack -- Use a generated bias image
+          - combined -- Use a generated bias image
 
         The result is *not* saved internally.
 
@@ -126,12 +136,11 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
                 Return the header
 
         Returns:
-            Returns either the `numpy.ndarray`_ with the bias image, a
-            string specifying that the bias should be subtracted using
-            the overscan, or None if no bias is to be subtracted.
+            Returns either the `numpy.ndarray`_ with the bias image
+            or None if no bias is to be subtracted.
         """
         # Check input
-        if self.par['useframe'].lower() in ['none', 'overscan'] and return_header:
+        if self.par['useframe'].lower() in ['none'] and return_header:
             msgs.warn('No image data to read.  Header returned as None.')
 
         # How are we treating biases?
@@ -142,9 +151,9 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         # 2) Use overscan
         if self.par['useframe'] == 'overscan':
-            return ('overscan', None) if return_header else 'overscan'
+            msgs.error("useframe=overscan was Deprecated. Remove from your pypeit file")
 
         # 3) User wants bias subtractions, use a Master biasframe?
         if self.par['useframe'] in ['bias', 'dark']:
-            return super(BiasFrame, self).load('BIAS', ifile=ifile, return_header=return_header)
+            return super(BiasFrame, self).load_master('BIAS', ifile=ifile, return_header=return_header)
 

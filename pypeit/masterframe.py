@@ -160,10 +160,10 @@ class MasterFrame(object):
 
         msgs.info('Master frame written to {0}'.format(_outfile))
 
-    # TODO: have ext default to provide all extensions?
+    # TODO: Add a base-level staticmethod one-liner?
     # TODO: include checksum keyword, used to validate data when
     # loading?
-    def load(self, ext, ifile=None, return_header=False):
+    def load_master(self, ext, ifile=None, return_header=False):
         """
         Generic master file reader.
 
