@@ -739,6 +739,20 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         return raw_img.T, header
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
+        """
+        Over-ride parent method
+
+        Args:
+            inp (str):
+              Filename
+            det (int):
+            section (str):
+              datasec or oscansec
+
+        Returns:
+            list, bool, bool:
+
+        """
         # Inp better be a string here!  Could check
         hdu = fits.open(inp)
         head0 = hdu[0].header
@@ -755,12 +769,12 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
             datsec = hdu[det].header['DATASEC']  # THIS IS BINNED
             x1, x2, y1, y2 = np.array(parse.load_sections(datsec, fmt_iraf=False)).flatten()
             dy = (y2-y1)+1
-            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, preline*ybin+(dy)*ybin, x1*xbin, x2*xbin)  # Eliminate lines
+            sections = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, preline*ybin+(dy)*ybin, x1*xbin, x2*xbin)  # Eliminate lines
         elif section == 'oscansec':
             nx = hdu[det].data.shape[1]
-            section = '[:,{:d}:{:d}]'.format(nx*2-postpix, nx*2)
+            sections = '[:,{:d}:{:d}]'.format(nx*2-postpix, nx*2)
         #
-        return [section], False, False, False
+        return [sections], False, False
 
 
 def read_lris(raw_file, det=None, TRIM=False):
