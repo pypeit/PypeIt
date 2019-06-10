@@ -53,27 +53,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             if 'frame' in key:
                 par['calibrations'][key]['process']['overscan'] = 'none'
 
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Do not flux calibrate
         # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['arcframe']['exprng'] = [1, None]
-        par['calibrations']['biasframe']['exprng'] = [None, 2]
-        par['calibrations']['darkframe']['exprng'] = [None, 5]
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
-        par['calibrations']['traceframe']['exprng'] = [0, None]
-        par['calibrations']['standardframe']['exprng'] = [None,5]
-        par['scienceframe']['exprng'] = [1, None]
         # Lower the default threshold for tilts
         par['calibrations']['tilts']['tracethresh'] = 10.
         # Slits
         par['calibrations']['slits']['sigdetect'] = 200.
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
+        par['calibrations']['wavelengths']['lamps'] = ['OH_R24000']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['sigdetect'] = 5.
 
@@ -101,7 +89,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card='GRATMODE')
-        #meta['hatch'] = dict(ext=0, card='CALMPOS')
         meta['idname'] = dict(ext=0, card='KOAIMTYP')
         # Filter
         meta['filter1'] = dict(ext=0, card='FILTER')
@@ -173,19 +160,4 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    def bpm(self, shape=None, **null_kwargs):
-        """ Generate a BPM
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        Returns
-        -------
-        badpix : ndarray
-        """
-        # Edges of the detector are junk
-        msgs.info("Custom bad pixel mask for MOSFIRE")
-        self.bpm_img = np.zeros(shape, dtype=np.int8)
-        #self.bpm_img[:, :20] = 1.
-        #self.bpm_img[:, 1000:] = 1.
 
-        return self.bpm_img
