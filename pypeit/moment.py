@@ -8,17 +8,18 @@ import numpy as np
 from scipy import special
 
 def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weighting='uniform',
-             order=0, fill_error=-1., mesh=True):
+             order=0, bounds=None, fill_error=-1., mesh=True):
     r"""
-    Compute one-dimensional moments of the provided image along its
-    second axis (axis=1).
+    Compute one-dimensional moments of the provided image within an
+    aperture along its second axis (axis=1).
 
     This method allows for computations of the zeroth, first, and
-    second moments (see `order`). These computations do not follow
-    the strict mathematical definition of a moment, so we provide the
-    explicit definitions used here. The zeroth moment (`order=0`)
-    computes the discrete weighted sum of the flux within the
-    aperture:
+    second moments (see `order`). The aperture used for the
+    calculation is centered at the provided `col` pixel with a width
+    defined by `width`; however, this definition depends on the type
+    of weighting applied (see `weighting`). Formulae for each moment
+    are as follows. The zeroth moment (`order=0`) computes the
+    discrete weighted sum of the flux within the aperture:
     
     .. math::
         \mu_0 &= \sum_i w_i f_i \\
@@ -95,11 +96,11 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
 
     .. warning::
 
-        The function has significant setup/input checking overhead.  If
-        repetitive calls to the function are expected, one may make
-        efficiency gains by providing arguments directly (particularly
-        `ivar`, `mask`, and `fwgt` for large images) so that they are
-        not reinstantiated for every call.
+        The function has significant setup/input checking overhead.
+        If repetitive calls to the function are expected, one may
+        make efficiency gains by providing pre-built arguments
+        directly (particularly `ivar`, `mask`, and `fwgt` for large
+        images) so that they are not reinstantiated for every call.
 
     Args:
         flux (`numpy.ndarray`_):
@@ -150,13 +151,33 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
             'gaussian' for weighting by a Gaussian centered at the input
             guess coordinates and integrated over the pixel width.
         order (:obj:`int`, array-like, optional):
-            The order of the moment(s) to calculate.  Can be a single
-            integer or a list.  Moments to calculate must be 0, 1, or 2;
-            at most order can be `[0,1,2]`.  The shape of the output
-            arrays depends on the number of moments calculated.  Note
-            that the calculation of the orders is necessarily
-            sequential; i.e., setting `order=2` means that the zeroth
-            and first moments have to be calculated anyway.
+            The order of the moment(s) to calculate. Can be a single
+            integer or a list. Moments to calculate must be 0, 1, or
+            2; at most order can be `[0,1,2]`. The shape of the
+            output arrays depends on the number of moments
+            calculated. Note that the calculation of the orders is
+            necessarily sequential; i.e., setting `order=2` means
+            that the zeroth and first moments have to be calculated
+            anyway. The order must be provided in sorted order; i.e.,
+            you cannot pass `order=[2,1]`.
+        bounds (:obj:`tuple`, optional):
+            A two-tuple with the lower and upper limit for each
+            moment order. If None, no bounds are imposed. If not
+            None, an upper and lower bound must be provided for each
+            moment to compute; i.e., if more than one moment is
+            computed, each element of the two-tuple must be an
+            array-like object that matches the length of `order`. To
+            set an upper or lower bound only, set the unbounded
+            component to None. Bounds for the zeroth and second order
+            moments are in an absolute sense, whereas first-order
+            bounds are relative to the input `col`. Measurements that
+            hit the bounds are masked; see the description of the
+            returned objects. For example, to flag anything without a
+            positive zeroth moment or a maximum shift from the input
+            center of 1 pixel, call the method with arguments::
+
+                order=[0,1], bounds=([0,-1], [None,1])
+            
         fill_error (:obj:`float`, optional):
             Value to use as filler for undetermined moments, resulting
             from either the input mask or computational issues (division
@@ -169,15 +190,13 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
             See the method description.
 
     Returns:
-        Three `numpy.ndarray`_ objects are returned.  If more than one
+        Three `numpy.ndarray`_ objects are returned. If more than one
         moment order is requested, the moments are ordered along the
-        first axis; e.g., if `order=[0,1]` the outputs `moment[0]` and
-        `moment[1]` contain the zeroth and first moments, respectively.
-        Moments are returned in *sorted* order, even if the listed order
-        is not sorted; i.e., if `order=[2,0]`, the moments are returned
-        as if you had used `order=[0,2]`.  The subsequent dimensions of
-        the output arrays are dictated by the input `row` and `col`; see
-        the method description.  The returned arrays are:
+        first axis; e.g., if `order=[0,1]` the outputs `moment[0]`
+        and `moment[1]` contain the zeroth and first moments,
+        respectively. The subsequent dimensions of the output arrays
+        are dictated by the input `row` and `col`; see the method
+        description. The returned arrays are:
             - The moment calculated along the 2nd axis of the input
               image (axis=1).  Masked values (indicated by the third
               object returned) are 0 for the zeroth and second moments
@@ -255,7 +274,12 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
         >>> moment1d(img, [43,52,57], 40., row=[0,1,2], order=1, mesh=False)[0]
         array([44.99688181, 50.00311819, 55.00311819])
     """
-    # TODO: Could be generalized further for higher dimensional inputs...
+
+    # TODO: Could be generalized further for higher dimensional
+    # inputs...
+
+    # TODO: Need to benchmark again after including the `bounds`
+    # keyword.
 
     # Check mode input
     _weighting = weighting.lower()
@@ -280,7 +304,11 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
         raise ValueError('Pixel weights must have the same shape as the input image.')
 
     # Check moment order
-    _order = np.sort(np.atleast_1d(order).astype(int))
+    _order = np.atleast_1d(order)
+    if not np.array_equal(_order, np.sort(_order)):
+        # NOTE: This is rather strict, but it's needed to make sure
+        # that the provided order and bounds make sense.
+        raise ValueError('Order must be provided as a sorted array.')
     if _order.ndim != 1:
         raise ValueError('Order can be at most 1D.')
     if _order.size > 3:
@@ -290,6 +318,18 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
     if np.any((_order != 0) & (_order != 1) & (_order != 2)):
         raise ValueError('Selected moments must be either 0, 1, or 2.')
     norder = len(_order)
+
+    # Check if the bounds are provided
+    lower = np.array([None, None, None], dtype=object)
+    upper = np.array([None, None, None], dtype=object)
+    if bounds is not None:
+        if len(bounds) != 2:
+            raise ValueError('Bounds must be provided as a two-tuple.')
+        _bounds = tuple([np.atleast_1d(b) for b in bounds])
+        if np.any([len(b) != norder for b in _bounds]):
+            raise ValueError('Number of bounds must match number of moments to calculate.')
+        lower[_order] = _bounds[0]
+        upper[_order] = _bounds[1]
 
     # Check coordinate input.  For both col and width, the atleast_1d
     # function does not result in a copy if the provided object is a
@@ -316,7 +356,7 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
         _row = np.arange(nrow)
     # Check column and row values are valid
 
-    # TODO: This allow the window centers to be outside the image
+    # TODO: This allows the window centers to be outside the image
     # range. This is okay because _col is never used when slicing the
     # image. However, _row values are, meaning that they have to be
     # within the image limits.
@@ -397,6 +437,11 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
     if 0 in _order:
         # Only calculate the error if the moment was requested
         mue[0] = np.ma.sqrt(np.ma.sum(np.ma.divide(np.square(wt), _ivar[_row[:,None],ih]), axis=1))
+        # Impose the boundary
+        if lower[0] is not None:
+            mum[0] |= mu[0] < lower[0]
+        if upper[0] is not None:
+            mum[0] |= mu[0] > upper[0]
     
     # Calculate the first moment if necessary
     if np.any(_order > 0):
@@ -408,6 +453,11 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
                                     np.ma.divide(np.square(wt*(c-mu[1][:,None])),
                                                  _ivar[_row[:,None],ih]), axis=1)),
                                     np.absolute(mu[0]))
+        # Impose the boundary
+        if lower[1] is not None:
+            mum[1] |= mu[1] < col - lower[1]
+        if upper[1] is not None:
+            mum[1] |= mu[1] > col + upper[1]
 
     # Calculate the second moment if necessary
     if 2 in _order:
@@ -419,21 +469,24 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
         mu[2] = np.ma.sqrt(mu[2])
         mue[2] = np.ma.divide(mue[2], 2*mu[2])
         mum[2] = np.ma.getmaskarray(mu[2]).copy()
+        # Impose the boundary
+        if lower[2] is not None:
+            mum[2] |= mu[2] < lower[2]
+        if upper[2] is not None:
+            mum[2] |= mu[2] > upper[2]
 
     # Fill in the masked values
     for i in range(3):
         if mu[i] is None:
             continue
-        if i == 1:
-            mu[i][mum[i]] = _col[mum[i]]
-            mu[i] = mu[i].data
-        else:
-            mu[i] = mu[i].filled(0.0)
+        mu[i][mum[i]] = _col[mum[i]] if i == 1 else 0.0
+        mu[i] = mu[i].data
         if mue[i] is None:
             continue
+        mue[i][mum[i]] = fill_error
         mue[i] = mue[i].filled(fill_error)
 
-    # Build the return matrices
+    # Return with the correct shape
     singlenum = outshape == (1,)
     return (mu[_order][0][0], mue[_order][0][0], mum[_order][0][0]) if singlenum \
             else (np.concatenate(mu[_order]).reshape(outshape),

@@ -300,8 +300,10 @@ class EdgeTracePar(ParSet):
                  trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
                  fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
                  sync_trace=None, sync_center=None, sync_to_edge=None, min_slit_gap=None,
-                 minimum_slit_length=None, length_range=None, clip=None, sync_clip=None, pad=None,
-                 add_slits=None, rm_slits=None):
+                 minimum_slit_length=None, length_range=None, clip=None, sync_clip=None,
+                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
+                 mask_reg_buffer=None, ignore_alignment=None, pad=None, add_slits=None,
+                 rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -532,6 +534,38 @@ class EdgeTracePar(ParSet):
         descr['sync_clip'] = 'For synchronized edges specifically, remove both edge traces, ' \
                              'even if only one is selected for removal.'
 
+        # TODO: Make these mask registration parameters a separate
+        # (nested) parameter set? Would making saving the paramters to
+        # the master file header annoying ...
+        dtypes['mask_reg_maxiter'] = int
+        descr['mask_reg_maxiter'] = 'Maximum number of fit iterations to perform for ' \
+                                    'registering slit-mask design and trace locations. If None, ' \
+                                    'rejection iterations are performed until no points are ' \
+                                    'rejected. If 1, only a single fit is performed without any ' \
+                                    'rejection.'
+
+        dtypes['mask_reg_maxsep'] = [int, float]
+        descr['mask_reg_maxsep'] = 'Maximum allowed separation between the calibrated ' \
+                                   'coordinates of the designed slit position in pixels and the ' \
+                                   'matched trace. If None, rejection is done iteratively using ' \
+                                   'sigma clipping.  See mask_reg_sigrej.'
+        
+        defaults['mask_reg_sigrej'] = 5
+        dtypes['mask_reg_sigrej'] = [int, float]
+        descr['mask_reg_sigrej'] = 'Number of sigma for sigma-clipping during rejection ' \
+                                   'iterations during the slit-mask design registration. If ' \
+                                   'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
+
+        defaults['mask_reg_buffer'] = 20
+        dtypes['mask_reg_buffer'] = int
+        descr['mask_reg_buffer'] = 'Number of pixels to the left and right of the detector edge ' \
+                                   'when identifying possible missing traces based on the ' \
+                                   'projected slit-mask design positions.'
+
+        defaults['ignore_alignment'] = False
+        dtypes['ignore_alignment'] = bool
+        descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
+
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
 #            try:
@@ -584,7 +618,8 @@ class EdgeTracePar(ParSet):
                    'trace_thresh', 'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian',
                    'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_trace', 'sync_center',
                    'sync_to_edge', 'minimum_slit_length', 'length_range', 'clip', 'sync_clip',
-                   'pad', 'add_slits', 'rm_slits']
+                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'mask_reg_buffer',
+                   'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -892,7 +927,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                  description='Slit width (arcsec)'),
                     table.Column(name='SLITPA', dtype=float, length=length,
                                  description='Slit position angle onsky (deg from N through E)'),
-                    table.Column(name='ALIGN', dtype=numpy.int16, length=length,
+                    table.Column(name='ALIGN', dtype=np.int16, length=length,
                                  description='Slit used for alignment, not target observations.')
                            ])
 
@@ -1226,6 +1261,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                       + 'Set overwrite=True to overwrite it.')
             return
 
+        # Report name before starting to write it
+        msgs.info('Writing master frame to {0}'.format(_outfile))
+
         # Build the primary header
         #   - Initialize with basic metadata
         prihdr = self.initialize_header()
@@ -1264,25 +1302,44 @@ class EdgeTraceSet(masterframe.MasterFrame):
         mskhdr = fits.Header()
         self.bitmask.to_header(mskhdr)
 
+        # If registered against slit-mask design data, include the
+        # source file and fit parameters in the appropriate header
+        designhdr = None
+        if self.design is not None:
+            designhdr = fits.Header()
+            designhdr['MASKFILE'] = (self.design.meta['MASKFILE'],
+                                     'File that provided slit-mask design data')
+            designhdr['MASKOFF'] = (self.design.meta['MASKOFF'],
+                                    'Best-fitting slit-mask design offset (pix)')
+            designhdr['MASKSCL'] = (self.design.meta['MASKSCL'],
+                                    'Best-fitting slit-mask design scale (pix per mm)')
+
         # Determine if the file should be compressed
         compress = False
         if _outfile.split('.')[-1] == 'gz':
             _outfile = _outfile[:_outfile.rfind('.')] 
             compress = True
-    
+
+        # Build the list of extensions to write
+        # TODO: This is necessary because of a bug in the behavior of
+        # empty binary tables in astropy.io.fits (astropy==3.1.2)
+        hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr),
+                            fits.ImageHDU(data=self.trace_img, name='TRACEIMG'),
+                            fits.ImageHDU(data=self.trace_msk.astype(np.int16), name='TRACEMSK'),
+                            fits.ImageHDU(data=self.sobel_sig, name='SOBELSIG'),
+                            fits.ImageHDU(data=self.traceid, name='TRACEID'),
+                            fits.ImageHDU(data=self.spat_cen, name='CENTER'),
+                            fits.ImageHDU(data=self.spat_err, name='CENTER_ERR'),
+                            fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
+                            fits.ImageHDU(header=fithdr, data=self.spat_fit, name='CENTER_FIT')
+                          ])
+        if self.design is not None: 
+            hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
+        if self.objects is not None: 
+            hdu += [fits.BinTableHDU(data=self.objects, name='OBJECTS')]
         # Write the fits file; note not everything is written. Some
         # arrays are reconstruced by the load function.
-        fits.HDUList([fits.PrimaryHDU(header=prihdr),
-                      fits.ImageHDU(data=self.trace_img, name='TRACEIMG'),
-                      fits.ImageHDU(data=self.trace_msk.astype(np.int16), name='TRACEMSK'),
-                      fits.ImageHDU(data=self.sobel_sig, name='SOBELSIG'),
-                      fits.ImageHDU(data=self.traceid, name='TRACEID'),
-                      fits.ImageHDU(data=self.spat_cen, name='CENTER'),
-                      fits.ImageHDU(data=self.spat_err, name='CENTER_ERR'),
-                      fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
-                      fits.ImageHDU(header=fithdr, data=self.spat_fit, name='CENTER_FIT'),
-                    ]).writeto(_outfile, overwrite=True, checksum=checksum)
-        msgs.info('Master frame written to {0}'.format(_outfile))
+        hdu.writeto(_outfile, overwrite=True, checksum=checksum)
 
         # Compress the file if the output filename has a '.gz'
         # extension; this is slow but still faster than if you have
@@ -1403,6 +1460,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit_type = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
                                 else hdu['CENTER_FIT'].header['FITTYP']
 
+        ext = [h.name for h in hdu]
+        if 'DESIGN' in ext:
+            self.design = table.Table(hdu['DESIGN'].data)
+            self.design.meta['MASKFILE'] = hdu['DESIGN'].header['MASKFILE']
+            self.design.meta['MASKOFF'] = hdu['DESIGN'].header['MASKOFF']
+            self.design.meta['MASKSCL'] = hdu['DESIGN'].header['MASKSCL']
+        if 'OBJECTS' in ext:
+            self.objects = table.Table(hdu['OBJECTS'].data)
+
         self.spat_img = np.round(self.spat_cen if self.spat_fit is None
                                  else self.spat_fit).astype(int)
 
@@ -1441,12 +1507,27 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # avoid writing nested ParSets to headers...
             raise ValueError('Parameters used to construct this master used different parameters!')
 
-    def show(self, include_error=False, thin=1, in_ginga=False, include_img=False):
+    def flagged_bits(self):
+        """
+        List the flags that have been tripped.
+
+        Returns:
+            list: List of the unique flags tripped by any trace
+            datum.
+        """
+        return np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
+                                            for b in np.unique(self.spat_msk)])).tolist()
+
+    def show(self, trace=None, include_error=False, thin=1, in_ginga=False, include_img=False,
+             img_buffer=100, flag=None):
         """
         Show a scatter plot of the current trace data and fit, if
         it's available.
 
         Args:
+            trace (:obj:`int`, array-like, optional):
+                Trace ID number to show. Will show both positive and
+                negative numbers. If None, all traces are plotted.
             include_error (:obj:`bool`, optional):
                 Show the errors on the measurements
             thin (:obj:`int`, optional):
@@ -1459,39 +1540,88 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 viewer instead of a line and scatter plot.
             include_img (:obj:`bool`, optional):
                 Overlay the trace data on the trace image.
+            img_buffer (:obj:`int`, optional):
+                Buffer for plot window with respect to trace image
+                size.
+            flag (:obj:`str`, :obj:`list`, optional):
+                One or more flags to use when *selecting* masked data
+                to include in the plot; unmasked data are always
+                plotted. If None, no masked data is plotted. If
+                'any', trace locations masked for any reason are
+                plotted. Otherwise, only trace locations flagged by
+                the specified bits are plotted.
         """
         # TODO: color/type-code the masked trace coordinates...
         if in_ginga:
             raise NotImplementedError('Someone want to do this?')
 
+        # Build the data to plot. Any masked data is excluded; masked
+        # data to be plotted are held in a separate array. This means
+        # that errors and fits are currently never plotted for masked
+        # data.
+        _flag = None if flag in ['any', None] else np.atleast_1d(flag)
+        cen = np.ma.MaskedArray(self.spat_cen, mask=self.bitmask.flagged(self.spat_msk))
+        msk = None if flag is None \
+                else np.ma.MaskedArray(self.spat_cen,
+                                       mask=np.invert(self.bitmask.flagged(self.spat_msk,
+                                                                           flag=_flag)))
+        err = np.ma.MaskedArray(self.spat_err, mask=np.ma.getmaskarray(cen).copy())
+        fit = None if self.spat_fit is None \
+                else np.ma.MaskedArray(self.spat_fit, mask=np.ma.getmaskarray(cen).copy())
+
         # Show the traced image
         if include_img:
             plt.imshow(self.trace_img.T, origin='lower', interpolation='nearest', aspect='auto')
+
+        # Select the traces to show
+        trace_indx = np.ones(self.ntrace, dtype=bool) if trace is None \
+                        else np.isin(np.absolute(self.traceid), np.atleast_1d(trace))
+
         # Spectral position
         spec = np.tile(np.arange(self.nspec), (self.ntrace,1)).T
+
         if include_error:
-            plt.errorbar(spec[::thin,:], self.spat_cen[::thin,:], yerr=self.spat_err, fmt='none',
-                         ecolor='k', elinewidth=0.5, alpha=0.3, capthick=0, zorder=3)
-        left = self.traceid < 0
-        plt.scatter(spec[::thin,left], self.spat_cen[::thin,left], marker='.', color='k', s=30,
+            # Show the errors
+            plt.errorbar(spec[::thin,trace_indx].ravel(), cen[::thin,trace_indx].ravel(),
+                         yerr=err[::thin,trace_indx].ravel(), fmt='none', ecolor='k',
+                         elinewidth=0.5, alpha=0.3, capthick=0, zorder=3)
+
+        # Plot the left trace points
+        left = (self.traceid < 0) & trace_indx
+        plt.scatter(spec[::thin,left], cen[::thin,left], marker='.', color='k', s=30,
                     lw=0, zorder=4, label='left edge measurements', alpha=0.8)
-        right = self.traceid > 0
-        plt.scatter(spec[::thin,right], self.spat_cen[::thin,right], marker='.', color='0.7',
+        if msk is not None:
+            plt.scatter(spec[::thin,left], msk[::thin,left], marker='x', color='k', s=20,
+                        lw=0.5, zorder=5, label='masked left edges', alpha=0.8)
+
+        # Plot the right trace points
+        right = (self.traceid > 0) & trace_indx
+        plt.scatter(spec[::thin,right], cen[::thin,right], marker='.', color='0.7',
                     s=30, lw=0, zorder=4, label='right edge measurements', alpha=0.8)
+        if msk is not None:
+            plt.scatter(spec[::thin,right], msk[::thin,right], marker='x', color='0.7', s=20,
+                        lw=0.5, zorder=5, label='masked right edges', alpha=0.8)
+
         if self.spat_fit is None:
+            # No fits, so we're done
             plt.legend()
             plt.show()
             return
 
+        # Plot the trace fits
         for i in range(self.ntrace):
             # If statement structure primarily for the labels. Only
             # difference between left and right is the color.
             if left[i]:
                 left_line = plt.plot(spec[::thin,i], self.spat_fit[::thin,i], color='C3', lw=0.5,
-                                     zorder=5)
-            else:
+                                     zorder=6)
+            elif right[i]:
                 right_line = plt.plot(spec[::thin,i], self.spat_fit[::thin,i], color='C1', lw=0.5,
-                                      zorder=5)
+                                      zorder=6)
+
+        # Limits and labels
+        plt.xlim(-img_buffer, self.nspec+img_buffer)
+        plt.ylim(-img_buffer, self.nspat+img_buffer)
         left_line[0].set_label('left edge fit')
         right_line[0].set_label('right edge fit')
         plt.xlabel('Spectral pixel index')
@@ -1502,6 +1632,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
     def qa_plot(self, fileroot=None, min_spat=20):
         """
         Build a series of QA plots showing the edge traces.
+
+        .. warning::
+            This method can take a while.
 
         Args:
             fileroot (:obj:`str`, optional):
@@ -2933,6 +3066,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         the data accessible via the
         :class:`pypeit.spectrographs.slitmask.SlitMask` instance.
 
+        Used parameters from :attr:`par` (:class:`EdgeTracePar`) are
+        `mask_reg_maxiter`, `mask_reg_maxsep`, `mask_reg_sigrej`,
+        `mask_reg_buffer`, and `ignore_alignment`.
+
         Args:
             design_file (:obj:`str`, optional):
                 A file with the mask design data. If None, the method
@@ -2942,16 +3079,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
-
-        # TODO: Parameters to add:
-        maxiter = None
-        maxsep = None
-        sigma = 5
-        buffer = 20
-        ignore_alignment = True
-
-        # TODO: Set allow_resync to be a parameter, as well?
-
         # The PCA decomposition must have already been determined
         if self.pca is None:
             msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
@@ -2961,6 +3088,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             else design_file
         if _design_file is None or not os.path.isfile(_design_file):
             msgs.error('Slit-mask design file not found or none provided.')
+
+        # Get the paramters to use
+        maxiter = self.par['mask_reg_maxiter']
+        maxsep = self.par['mask_reg_maxsep']
+        sigma = self.par['mask_reg_sigrej']
+        buffer = self.par['mask_reg_buffer']
+        ignore_alignment = self.par['ignore_alignment']
+
+        # TODO: Set allow_resync and design_file to be a parameters, as
+        # well?
 
         # Read the design data
         msgs.info('Reading slit-mask design information from: {0}'.format(_design_file))
@@ -3016,9 +3153,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Set the offset range
             offset_rng = [offset-np.absolute(np.amin(x_trace)-np.amin(pix_per_mm*x_design))*1.1,
                           offset+np.absolute(np.amax(pix_per_mm*x_design)-np.amax(x_trace))*1.1]
-
-        import pdb
-        pdb.set_trace()
 
         # The solution can be highly dependent on the initial guess for
         # the offset, so do an initial grid search to get close to the
@@ -3078,23 +3212,26 @@ class EdgeTraceSet(masterframe.MasterFrame):
         masked_by_registration = np.where(register.trace_mask & np.invert(x_trace_mask))[0]
         bad = np.append(bad, masked_by_registration)
 
+        # Ignore missing alignment boxes
+        if ignore_alignment:
+            missing = missing[np.invert(self.spectrograph.slitmask.alignment_slit[missing//2])]
+            found_alignment_slits = register.match_index[
+                            self.spectrograph.slitmask.alignment_slit[register.match_index//2]]
+            bad = np.append(bad, found_alignment_slits)
+
         # Report
         msgs.info('Best-fitting offset and scale for mask coordinates: {0:.2f} {1:.2f}'.format(
-                    *register.par))
-        msgs.info('Number of missing mask traces: {0}'.format(len(missing)))
-        msgs.info('Missing traces that are alignment boxes: {0}'.format(
-                    np.sum(self.spectrograph.slitmask.alignment_slit[missing//2])))
-        msgs.info('Number of bad traces: {0}'.format(len(bad)))
+                    *regist.par))
+        msgs.info('Traces will {0} alignment slits'.format('exclude' if ignore_alignment
+                                                             else 'include'))
+        msgs.info('Number of missing mask traces to insert: {0}'.format(len(missing)))
+        msgs.info('Number of bad or alignment traces to remove: {0}'.format(len(bad)))
 
         if self.is_synced and (len(missing) - len(bad)) % 2 != 0:
             if allow_resync:
                 msgs.warning('Difference in added and removed traces is odd; will resync traces.')
             else:
                 msgs.error('Difference in added and removed traces desyncronizes traces.')
-
-        # Ignore missing alignment boxes
-        if ignore_alignment:
-            missing = missing[np.invert(self.spectrograph.slitmask.alignment_slit[missing//2])]
 
         if len(bad) > 0:
             # Remove the bad traces and rebuild the pca
@@ -3133,32 +3270,85 @@ class EdgeTraceSet(masterframe.MasterFrame):
             if len(missing) != 0 or len(bad) != 0:
                  msgs.error('CODING ERROR: Should never find missing or bad traces in re-fit!')
 
-        import pdb
-        pdb.set_trace()
+        # Fill the slit-design and object tables
+        self._fill_design_table(register, _design_file)
+        self._fill_objects_table(register)
 
-    # def build_design_table(self):
+    def _fill_design_table(self, register, design_file):
+        """
+        Fill :attr:`design` based on the results of the design
+        registration.
 
-        # # Collate the mask information into the internal data tables
-        # slit_index = register.match_index[register.match_index % 2 == 0]//2
+        Args:
+            register (:class:`pypeit.spectrographs.slitmask.SlitRegister`):
+                Object holding the result of the registration.
+            design_file (:obj:`str`):
+                File that provided the slit-mask design data.
+        """
+        # Index for the slit in the design data
+        slit_index = register.match_index[register.match_index % 2 == 0]//2
+        # Number of slits
+        nslits = len(slit_index)
+        # Instantiate as an empty table
+        self.design = EdgeTraceSet.empty_design_table(rows=nslits)
+        # Save the fit parameters and the source file as table metadata
+        self.design.meta['MASKFILE'] = design_file
+        self.design.meta['MASKOFF'] = register.par[0]
+        self.design.meta['MASKSCL'] = register.par[1]
+        # Fill the columns
+        self.design['TRACEID'] = np.arange(nslits, dtype=self.design['TRACEID'].dtype)
+        self.design['TRACESROW'] = np.full(nslits, self.pca.reference_row,
+                                           dtype=self.design['TRACESROW'].dtype)
+        self.design['TRACELPIX'] = self.spat_fit[self.pca.reference_row,self.traceid<0].astype(
+                                        dtype=self.design['TRACELPIX'].dtype)
+        self.design['TRACERPIX'] = self.spat_fit[self.pca.reference_row,self.traceid>0].astype(
+                                        dtype=self.design['TRACERPIX'].dtype)
+        self.design['SLITID'] = self.spectrograph.slitmask.slitid[slit_index].astype(
+                                        dtype=self.design['SLITID'].dtype)
+        self.design['SLITLFOC'] = register.mask_spat[register.match_index][self.traceid<0].astype(
+                                        dtype=self.design['SLITLFOC'].dtype)
+        self.design['SLITRFOC'] = register.mask_spat[register.match_index][self.traceid>0].astype(
+                                        dtype=self.design['SLITRFOC'].dtype)
+        if self.spectrograph.slitmask.onsky is not None:
+            for i,key in enumerate(['SLITRA', 'SLITDEC', 'SLITLEN', 'SLITWID', 'SLITPA']):
+                self.design[key] = self.spectrograph.slitmask.onsky[slit_index,i].astype(
+                                        dtype=self.design[key].dtype)
+        self.design['ALIGN'] = self.spectrograph.slitmask.alignment_slit[slit_index].astype(
+                                        dtype=self.design['ALIGN'].dtype)
 
-        # nslits = self.ntrace//2
-        # self.design = EdgeTraceSet.empty_design_table(rows=nslits)
-        # self.design['TRACEID'] = np.arange(nslits, dtype=self.design['TRACEID'].dtype)
-        # self.design['TRACESROW'] = np.full(nslits, self.pca.reference_row,
-                                           # dtype=self.design['TRACESROW'].dtype)
-        # self.design['TRACELPIX'] = self.spat_fit[self.pca.reference_row,self.traceid<0]
-        # self.design['TRACERPIX'] = self.spat_fit[self.pca.reference_row,self.traceid>0]
-        # self.design['SLITID'] = self.spectrograph.slitmask.slitid[slit_index]
-        # self.design['SLITLFOC'] = x_design[register.match_index][self.traceid<0]
-        # self.design['SLITRFOC'] = x_design[register.match_index][self.traceid>0]
-        # if self.spectrograph.slitmask.onsky is not None:
-            # for i,key in enumerate(['SLITRA', 'SLITDEC', 'SLITLEN', 'SLITWID', 'SLITPA']):
-                # self.design[key] = self.spectrograph.slitmask.onsky[slit_index,i]
-        # self.design['ALIGN'] = self.spectrograph.slitmask.alignmentmask
+    def _fill_objects_table(self, register):
+        """
+        Fill :attr:`objects` based on the result of the design
+        registration.
 
+        Args:
+            register (:class:`pypeit.spectrographs.slitmask.SlitRegister`):
+                Object holding the result of the registration.
+        """
+        if self.spectrograph.slitmask.objects is None:
+            # No object data available in slit mask design object
+            self.objects = None
+            return
 
-
-
+        # Index for the slit in the design data
+        slit_index = register.match_index[register.match_index % 2 == 0]//2
+        # The index in the objects table are found by mapping the slit
+        # index of each object in the design file to the slit index
+        # included in the registration
+        obj_index = utils.index_of_x_eq_y(self.spectrograph.slitmask.slitindx, slit_index,
+                                          strict=True)
+        # Number of objects
+        nobj = len(obj_index)
+        # Instantiate an empty table
+        self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
+        # Fill the columns
+        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC']):
+                self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(
+                                        dtype=self.objects[key].dtype)
+        # SLITINDX is the index of the slit in the `design` table, not
+        # in the original slit-mask design data
+        self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
+                                                         self.design['SLITID'], strict=True)
 
 
 #-----------------------------------------------------------------------

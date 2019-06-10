@@ -80,7 +80,7 @@ class SlitMask:
             position angle of the slit from N through E in degrees.
         objects (`numpy.ndarray`_, optional):
             List of objects observed as a 1D or 2D array with shape
-            :math:`(4,)` or :math:`(N_{\rm obj},4)`. The three
+            :math:`(4,)` or :math:`(N_{\rm obj},4)`. The four
             elements for each object is the slit id, the object ID,
             and the right ascension and declination of the target.
             The order of the objects does not have to match that of
