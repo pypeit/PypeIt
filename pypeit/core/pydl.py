@@ -1526,7 +1526,7 @@ class TraceSet(object):
                                                                 inmask = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minx = self.xmin, maxx = self.xmax,
-                                                                sigma=None,maxdev=self.maxdev,maxrej=None,groupdim=None,
+                                                                maxdev=self.maxdev,maxrej=None,groupdim=None,
                                                                 groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
                 ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minx=self.xmin, maxx=self.xmax)
 
