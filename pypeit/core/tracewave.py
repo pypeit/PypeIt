@@ -603,7 +603,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     tilts_ivar1 = utils.calc_ivar((sigma[thismask_grow]/xnspecmin1)**2)
     fitmask_tilts, coeff2_tilts = utils.robust_polyfit_djs(tiltpix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
                                                            fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
-                                                           invvar = tilts_ivar1, 
+                                                           invvar = tilts_ivar1,
                                                            upper=5.0, lower=5.0, maxdev=10.0/xnspecmin1,
                                                            inmask=inmask, function=func2d, maxiter=20,
                                                            minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, use_mad=False)
