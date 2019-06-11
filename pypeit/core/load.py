@@ -151,6 +151,74 @@ def load_specobjs(fname,order=None):
     # Return
     return sobjs, head0
 
+def load_1dspec_to_array(fnames,gdobj=None,order=None,ex_value='OPT',flux_value=True):
+    '''
+    Load the spectra from the 1d fits file into arrays.
+    If Echelle, you need to specify which order you want to load.
+    It can NOT load all orders for Echelle data.
+    Args:
+        fnames:
+        gdobj:
+        extensions:
+        order: set to None if longslit data
+        ex_value:
+        flux_value:
+    Returns:
+        waves:
+        fluxes:
+        ivars:
+        masks:
+    '''
+
+    #ToDo: make it also works for single fits frame.
+    nexp = len(fnames)
+    sobjs0,header0 = load_specobjs(fnames[0], order=order)
+    nspec = sobjs0[0].optimal['COUNTS'].size
+
+    waves = np.zeros((nexp,nspec))
+    fluxes = np.zeros_like(waves)
+    ivars = np.zeros_like(waves)
+    masks = np.zeros_like(waves,dtype=bool)
+
+    for iexp in range(nexp):
+        specobjs, headers = load_specobjs(fnames[iexp], order=order)
+
+        # Initialize ext
+        ext = None
+        for indx, spobj in enumerate(specobjs):
+            if gdobj[iexp] in spobj.idx:
+                ext = indx
+        if ext is None:
+            msgs.error('Can not find extension {:} in {:}.'.format(gdobj[iexp],fnames[iexp]))
+
+        ## unpack wave/flux/mask
+        if ex_value == 'OPT':
+            wave = specobjs[ext].optimal['WAVE']
+            mask = specobjs[ext].optimal['MASK']
+            if flux_value:
+                flux = specobjs[ext].optimal['FLAM']
+                ivar = specobjs[ext].optimal['FLAM_IVAR']
+            else:
+                flux = specobjs[ext].optimal['COUNTS']
+                ivar = specobjs[ext].optimal['COUNTS_IVAR']
+        elif ex_value == 'BOX':
+            wave = specobjs[ext].boxcar['WAVE']
+            if flux_value:
+                flux = specobjs[ext].boxcar['FLAM']
+                ivar = specobjs[ext].boxcar['FLAM_IVAR']
+            else:
+                flux = specobjs[ext].boxcar['COUNTS']
+                ivar = specobjs[ext].boxcar['COUNTS_IVAR']
+        else:
+            msgs.error('{:} is not recognized. Please change to either BOX or OPT.'.format(ex_value))
+
+        waves[iexp,:] = wave
+        fluxes[iexp,:] = flux
+        ivars[iexp,:] = ivar
+        masks[iexp,:] = mask
+
+    return waves,fluxes,ivars,masks
+
 def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
     """Loading single order spectrum from a PypeIt 1D specctrum fits file.
         it will be called by ech_load_spec
