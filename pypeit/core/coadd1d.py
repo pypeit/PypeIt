@@ -1057,5 +1057,5 @@ def ech_combspec(gdfiles, objids=None, wave_grid_method='loggrid', wave_grid_min
 
     #from IPython import embed
     #embed()
-    #norder = np.size(order_vec)
+    norder = np.size(order_vec)
     #for ii, iord in enumerate(order_vec):
