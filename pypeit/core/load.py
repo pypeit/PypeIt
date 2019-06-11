@@ -175,7 +175,7 @@ def load_1dspec_to_array(fnames,gdobj=None,order=None,ex_value='OPT',flux_value=
     sobjs0,header0 = load_specobjs(fnames[0], order=order)
     nspec = sobjs0[0].optimal['COUNTS'].size
 
-    waves = np.zeros((nexp,nspec))
+    waves = np.zeros((nspec, nexp))
     fluxes = np.zeros_like(waves)
     ivars = np.zeros_like(waves)
     masks = np.zeros_like(waves,dtype=bool)
@@ -212,10 +212,10 @@ def load_1dspec_to_array(fnames,gdobj=None,order=None,ex_value='OPT',flux_value=
         else:
             msgs.error('{:} is not recognized. Please change to either BOX or OPT.'.format(ex_value))
 
-        waves[iexp,:] = wave
-        fluxes[iexp,:] = flux
-        ivars[iexp,:] = ivar
-        masks[iexp,:] = mask
+        waves[:, iexp] = wave
+        fluxes[:, iexp] = flux
+        ivars[:, iexp] = ivar
+        masks[:, iexp] = mask
 
     return waves,fluxes,ivars,masks
 
