@@ -35,6 +35,7 @@ def main(args, unit_test=False, path=''):
     from pypeit import msgs
     from pypeit.core import coadd
     from pypeit.core import coadd1d
+    from pypeit.core import load
     from pypeit import specobjs
 
     # Load the input file
@@ -200,7 +201,7 @@ def main(args, unit_test=False, path=''):
                                      outfile=outfile, qafile=qafile,**gparam)
 
         else:
-            waves, fluxes, ivars, masks = coadd1d.load_1dspec_to_array(gdfiles, gdobj=gdobj, order=None,
+            waves, fluxes, ivars, masks = load.load_1dspec_to_array(gdfiles, gdobj=gdobj, order=None,
                                                                        ex_value=ex_value, flux_value=flux_value)
             wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights, scales, rms_sn = \
                 coadd1d.combspec(waves, fluxes, ivars, masks, qafile=qafile, outfile=outfile, **gparam)
