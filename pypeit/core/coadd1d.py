@@ -33,15 +33,15 @@ plt.rcParams["axes.labelsize"] = 17
 
 # ToDo: update README and descriptions
 
-def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_max=None,
-                  A_pix=None,v_pix=None,samp_fact=1.0,**kwargs):
+def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
+                  A_pix=None,v_pix=None,samp_fact=1.0, **kwargs):
     """ Create a new wavelength grid for the spectra to be rebinned and coadded on
 
     Parameters
     ----------
     waves : masked ndarray
         Set of N original wavelength arrays
-        nexp, nspec
+        nspec, nexp
     wave_method : str, optional
         Desired method for creating new wavelength grid.
         'iref' -- Use the first wavelength array (default)
@@ -91,7 +91,7 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
             wave_grid_max = np.max(waves[wave_mask])
         x = np.log10(v_pix/spl + 1)
         npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
-        wave_grid = wave_grid_min * 10**(x*np.arange(npix))
+        wave_grid = wave_grid_min * 10.0**(x*np.arange(npix))
 
     elif wave_method == 'pixel': # Constant Angstrom
         if A_pix is None:
@@ -113,7 +113,7 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
         wave_grid_min = np.min(waves[wave_mask])
         loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, \
                                        dloglam,samp_fact=samp_fact)
-        wave_grid = 10**loglam_grid
+        wave_grid = 10.0**loglam_grid
 
     elif wave_method == 'concatenate':  # Concatenate
         # Setup
@@ -585,7 +585,6 @@ def robust_median_ratio(flux,ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_
     return ratio
 
 
-
 def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
                   mask=None, mask_ref=None, ylim = None, median_frac = 0.03, title=''):
 
@@ -623,7 +622,6 @@ def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
     spec_plot.legend()
     fig.suptitle(title)
     plt.show()
-
 
 
 def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, min_good=0.05,
@@ -997,17 +995,17 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     scales = np.zeros_like(fluxes)
     for iexp in range(nexp):
         # TODO Create a parset for the coadd parameters!!!
-        fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp],omethod = scale_spec(
-            waves[:, iexp],fluxes[:, iexp],ivars[:, iexp], flux_stack_nat[:, iexp],ivar_stack_nat[:, iexp],
-            mask=masks[:, iexp],mask_ref=mask_stack_nat[:, iexp], ref_percentile=ref_percentile, maxiters=maxiter_scale,
+        fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp], omethod = scale_spec(
+            waves[:, iexp],fluxes[:, iexp],ivars[:, iexp], flux_stack_nat[:, iexp], ivar_stack_nat[:, iexp],
+            mask=masks[:, iexp], mask_ref=mask_stack_nat[:, iexp], ref_percentile=ref_percentile, maxiters=maxiter_scale,
             sigrej=sigrej, scale_method=scale_method, hand_scale=hand_scale, sn_max_medscale=sn_max_medscale,
             sn_min_medscale=sn_min_medscale, debug=debug)
 
     iIter = 0
-    #qdone = False
+    qdone = False
     thismask = np.copy(masks)
-#    while (not qdone) and (iIter < maxiter_reject):
-    while (iIter < maxiter_reject):
+    while (not qdone) and (iIter < maxiter_reject):
+        IPython.embed()
         wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
             waves, fluxes_scale, ivars_scale, thismask, wave_grid, weights)
         flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
