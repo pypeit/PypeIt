@@ -89,7 +89,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card='GRATMODE')
-        meta['idname'] = dict(ext=0, card='KOAIMTYP')
+        meta['idname'] = dict(card=None, compound=True)
         # Filter
         meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps
@@ -98,6 +98,33 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
         # Ingest
         self.meta = meta
+
+    def compound_meta(self, headarr, meta_key):
+        """
+
+        Args:
+            headarr: list
+            meta_key: str
+
+        Returns:
+            value
+
+        """
+        if meta_key == 'idname':
+            if headarr[0].get('KOAIMTYP', None) is not None:
+                return headarr[0].get('KOAIMTYP')
+            else:
+                FLATSPEC = int(headarr[0].get('FLATSPEC'))
+                PWSTATA7 = int(headarr[0].get('PWSTATA7'))
+                PWSTATA8 = int(headarr[0].get('PWSTATA8'))
+                if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+                    return 'object'
+                elif FLATSPEC == 1:
+                    return 'flatlamp'
+                elif PWSTATA7 == 1 or PWSTATA8 == 1:
+                    return 'arclamp'
+        else:
+            msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         return ['decker', 'dispname', 'filter1']
