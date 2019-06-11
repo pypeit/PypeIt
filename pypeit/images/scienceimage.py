@@ -57,8 +57,7 @@ class ProcessImagesBitMask(BitMask):
 
 class ScienceImage(processrawimage.ProcessRawImage):
     """
-    Class to hold a science image, generated from one or more
-    science frames
+    Class to hold and process a science image
 
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -131,6 +130,22 @@ class ScienceImage(processrawimage.ProcessRawImage):
         return self.crmask.copy()
 
     def build_mask(self, slitmask=None, saturation=1e10, mincounts=-1e10):
+        """
+        Return the bit value mask used during extraction.
+
+        Wrapper to procimg.build_mask
+
+        Args:
+            saturation (float, optional):
+                Saturation limit in ADU
+            mincounts (float, optional):
+            slitmask (np.ndarray, optional):
+                Slit mask image;  Pixels not in a slit are masked
+
+        Returns:
+            numpy.ndarray: Copy of the bit value mask for the science image.
+
+        """
         sciivar = utils.calc_ivar(self.rawvarframe)
         self.mask = procimg.build_mask(self.bitmask, self.image, sciivar,
                                        self.bpm, self.crmask,

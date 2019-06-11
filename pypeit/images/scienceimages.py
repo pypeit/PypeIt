@@ -155,7 +155,9 @@ class ScienceImages(object):
 
         # Loop on the files
         for kk, ifile in enumerate(files):
-            sciImage = scienceimage.ScienceImage(self.spectrograph, self.det, self.par['process'])
+            # Instantiate
+            sciImage = scienceimage.ScienceImage(self.spectrograph, self.det,
+                                                 self.par['process'])
             # Process
             sciImage.process_raw(ifile, self.bias, self.pixel_flat, bpm,
                                  illum_flat=self.illum_flat)
