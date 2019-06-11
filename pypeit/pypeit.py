@@ -10,7 +10,7 @@ from IPython import embed
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
-from pypeit import scienceimage
+from pypeit.images import scienceimage
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa

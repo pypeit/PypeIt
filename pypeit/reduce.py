@@ -8,7 +8,7 @@ from abc import ABCMeta
 from pypeit import ginga, utils, msgs, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.core import procimg
-from pypeit.images import processimage
+from pypeit.images import scienceimage
 
 from IPython import embed
 
@@ -82,7 +82,7 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    bitmask = processimage.ProcessImagesBitMask()
+    bitmask = scienceimage.ProcessImagesBitMask()
 
     def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1,
                  objtype='science', binning=None, setup=None, maskslits=None):

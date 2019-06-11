@@ -300,10 +300,10 @@ class Calibrations(object):
                                           reuse_masters=self.reuse_masters)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.msarc = self.arcImage.load_arcimage()
+        self.msarc = self.arcImage.load()
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
-            self.msarc = self.arcImage.build_image()
+            self.msarc = self.arcImage.build_image(bias=self.msbias, bpm=self.msbpm)
             # Save to Masters
             if self.save_masters:
                 self.arcImage.save()
@@ -349,7 +349,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters)
 
         # Try to load the master bias
-        self.msbias = self.biasFrame.load_bias()
+        self.msbias = self.biasFrame.load()
         if self.msbias is None:
             # Build it and save it
             self.msbias = self.biasFrame.build_image()
@@ -483,7 +483,7 @@ class Calibrations(object):
         # --- Pixel flats
 
         # 1)  Try to load master files from disk (MasterFrame)?
-        _, self.mspixelflat, self.msillumflat = self.flatField.load_flats()
+        _, self.mspixelflat, self.msillumflat = self.flatField.load()
 
         # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
         # TODO: We need to document this format for the user!
@@ -602,8 +602,9 @@ class Calibrations(object):
             # Build the trace image
             self.traceImage = traceimage.TraceImage(self.spectrograph,
                                                     files=self.trace_image_files, det=self.det,
-                                                    par=self.par['traceframe'])
-            self.traceImage.build_image(bias=self.msbias)
+                                                    par=self.par['traceframe'],
+                                                    bias=self.msbias)
+            self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             binspectral, binspatial = parse.parse_binning(self.binning)

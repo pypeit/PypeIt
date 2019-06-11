@@ -167,7 +167,7 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
             tuple: Returns an `numpy.ndarray`_ with the wavelength
             image.  Also returns the primary header, if requested.
         """
-        return super(WaveImage, self).load_master('WAVE', ifile=ifile, return_header=return_header)
+        return super(WaveImage, self).load('WAVE', ifile=ifile, return_header=return_header)
 
     @staticmethod
     def load_from_file(filename, return_header=False):

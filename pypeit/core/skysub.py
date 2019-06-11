@@ -6,7 +6,7 @@ import sys, os
 from pypeit import msgs, utils, ginga
 from pypeit.core import pixels, extract, pydl
 from IPython import embed
-from pypeit.images import processimage
+#from pypeit.images import processimage
 
 from matplotlib import pyplot as plt
 

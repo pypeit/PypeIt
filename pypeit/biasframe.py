@@ -10,10 +10,10 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.par import pypeitpar
-from pypeit.images import combinedimage
+from pypeit.images import calibrationimage
 
 
-class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
+class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
     Class to generate/load the Bias image or instructions on how to deal
     with the bias.
@@ -58,13 +58,19 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
                                              files=files, frametype=self.frametype)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
+
+        # Processing steps
+        self.process_steps = []
+        if self.par['process']['overscan'].lower() != 'none':
+            self.process_steps.append('subtract_overscan')
+
 
     def build_image(self, overwrite=False, trim=True):
         """
@@ -87,11 +93,9 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
         if self.nfiles == 0:
             msgs.info("No bias frames provided.  No bias image will be generated or used")
             return None
-        # Load
-        self.load_images()
-        # No Processing to do
-        # Combine
-        return self.combine()
+        # Build
+        super(BiasFrame, self).build_image()
+        return self.image.copy()
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -111,11 +115,11 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
             msgs.warn('MasterBias is not an image.')
             return
         super(BiasFrame, self).save(self.image, 'BIAS', outfile=outfile, overwrite=overwrite,
-                                    raw_files=self.file_list, steps=self.steps)
+                                    raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load_bias(self, ifile=None, return_header=False):
+    def load(self, ifile=None, return_header=False):
         """
         Load the bias frame.
         
@@ -155,5 +159,5 @@ class BiasFrame(combinedimage.CombinedImage, masterframe.MasterFrame):
 
         # 3) User wants bias subtractions, use a Master biasframe?
         if self.par['useframe'] in ['bias', 'dark']:
-            return super(BiasFrame, self).load_master('BIAS', ifile=ifile, return_header=return_header)
+            return super(BiasFrame, self).load('BIAS', ifile=ifile, return_header=return_header)
 

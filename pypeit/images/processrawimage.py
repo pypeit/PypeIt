@@ -3,7 +3,6 @@
 import inspect
 
 import numpy as np
-from collections import OrderedDict
 
 from pypeit import msgs
 from pypeit import utils
@@ -12,44 +11,15 @@ from pypeit.core import procimg
 from pypeit.core import flat
 
 from pypeit.images import pypeitimage
-from pypeit.bitmask import BitMask
 
 from IPython import embed
 
 
-class ProcessImagesBitMask(BitMask):
-    """
-    Define a bitmask used to set the reasons why each pixel in a science
-    image was masked.
-    """
-
-    def __init__(self):
-        # TODO:
-        #   - Can IVAR0 and IVAR_NAN be consolidated into a single bit?
-        #   - Is EXTRACT ever set?
-        # TODO: This needs to be an OrderedDict for now to ensure that
-        # the bits assigned to each key is always the same. As of python
-        # 3.7, normal dict types are guaranteed to preserve insertion
-        # order as part of its data model. When/if we require python
-        # 3.7, we can remove this (and other) OrderedDict usage in favor
-        # of just a normal dict.
-        mask = OrderedDict([
-                       ('BPM', 'Component of the instrument-specific bad pixel mask'),
-                        ('CR', 'Cosmic ray detected'),
-                ('SATURATION', 'Saturated pixel'),
-                 ('MINCOUNTS', 'Pixel below the instrument-specific minimum counts'),
-                  ('OFFSLITS', 'Pixel does not belong to any slit'),
-                    ('IS_NAN', 'Pixel value is undefined'),
-                     ('IVAR0', 'Inverse variance is undefined'),
-                  ('IVAR_NAN', 'Inverse variance is NaN'),
-                   ('EXTRACT', 'Pixel masked during local skysub and extraction')
-               ])
-        super(ProcessImagesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 
-class ProcessImage(pypeitimage.PypeItImage):
+class ProcessRawImage(pypeitimage.PypeItImage):
     """
-    Class to process an (typically raw) image
+    Class to process a raw image
 
     Args:
         filename (:obj:`str` or None):
@@ -77,9 +47,6 @@ class ProcessImage(pypeitimage.PypeItImage):
         rn2img (np.narray):
             Read noise**2 image
     """
-
-    bitmask = ProcessImagesBitMask()  # The bit mask interpreter
-
     def __init__(self, filename, spectrograph, det, par, frametype=None):
 
         # Init me
@@ -115,6 +82,21 @@ class ProcessImage(pypeitimage.PypeItImage):
         amps = np.unique(self.rawdatasec_img[self.rawdatasec_img > 0]).tolist()
         # Return
         return amps
+
+    @property
+    def bpm(self):
+        """
+        Generate and return the bad pixel mask for this image
+        Warning:  BPM masks are for processed (e.g. trimmed, rotated) images only!
+
+        Returns:
+            np.ndarray:  Bad pixel mask with a bad pixel = 1
+
+        """
+        bpm = self.spectrograph.bpm(shape=self.image.shape,
+                                    filename=self.filename,
+                                    det=self.det)
+        return bpm
 
     @property
     def rawdatasec_img(self):
@@ -204,34 +186,6 @@ class ProcessImage(pypeitimage.PypeItImage):
         # Return
         return self.image.copy()
 
-    def build_crmask(self):
-        """
-        Generate the CR mask frame
-
-        Wrapper to procimg.lacosmic
-
-        Requires self.rawvarframe to exist
-
-        Returns:
-            np.ndarray: Copy of self.crmask
-
-        """
-        if self.rawvarframe is None:
-            msgs.error("Need to generate the rawvariance frame first!")
-        # Run LA Cosmic to get the cosmic ray mask
-        self.crmask = procimg.lacosmic(self.det, self.image,
-                                  self.spectrograph.detector[self.det-1]['saturation'],
-                                  self.spectrograph.detector[self.det-1]['nonlinear'],
-                                  varframe=self.rawvarframe,
-                                  maxiter=self.par['lamaxiter'],
-                                  grow=self.par['grow'],
-                                  remove_compact_obj=self.par['rmcompact'],
-                                  sigclip=self.par['sigclip'],
-                                  sigfrac=self.par['sigfrac'],
-                                  objlim=self.par['objlim'])
-        # Return
-        return self.crmask.copy()
-
     def build_mask(self, bpm=None, saturation=1e10, mincounts=-1e10, slitmask=None):
         """
         Return the bit value mask used during extraction.
@@ -304,52 +258,44 @@ class ProcessImage(pypeitimage.PypeItImage):
 
         return mask.copy()
 
-    def build_rawvarframe(self):
+    def process(self, process_steps, pixel_flat=None, illum_flat=None,
+                       bias=None, bpm=None):
         """
-        Generate the Raw Variance frame
-        Currently only used by ScienceImage.
+        Process the image
 
-        Wrapper to procimg.variance_frame
+        Note:  The processing steps are currently 'frozen' as is.
+          We may choose to allow optional ordering of the steps
 
-        Returns:
-            np.ndarray: Copy of self.rawvarframe
-
-        """
-        msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
-        # Convenience
-        detector = self.spectrograph.detector[self.det-1]
-        # Generate
-        self.rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
-                                                  detector['gain'], detector['ronoise'],
-                                                  numamplifiers=detector['numamplifiers'],
-                                                  darkcurr=detector['darkcurr'],
-                                                  exptime=self.exptime)
-        # Return
-        return self.rawvarframe.copy()
-
-    # TODO sort out dark current here. Need to pass exposure time for that.
-    def build_rn2img(self):
-        """
-        Generate the model read noise squared image
-
-        Currently only used by ScienceImage.
-
-        Wrapper to procimg.rn_frame
-
-        Returns:
-            np.ndarray: Copy of the read noise squared image
+        Args:
+            process_steps (list):
+                List of processing steps
+            pixel_flat (np.ndarray, optional):
+                Pixel flat image
+            illum_flat (np.ndarray, optional):
+                Illumination flat
+            bias (np.ndarray, optional):
+                Bias image
+            bpm (np.ndarray, optional):
+                Bad pixel mask image
 
         """
-        msgs.info("Generating read noise image from detector properties and amplifier layout)")
-        # Convenience
-        detector = self.spectrograph.detector[self.det-1]
-        # Build it
-        self.rn2img = procimg.rn_frame(self.datasec_img,
-                                       detector['gain'],
-                                       detector['ronoise'],
-                                       numamplifiers=detector['numamplifiers'])
-        # Return
-        return self.rn2img.copy()
+        if bpm is None:
+            bpm = self.bpm
+        # Standard order
+        #   -- May need to allow for other order some day..
+        if 'subtract_bias' in process_steps:
+            self.subtract_bias(bias)
+        if 'subtract_overscan' in process_steps:
+            self.subtract_overscan()
+        if 'trim' in process_steps:
+            self.trim()
+        if 'apply_gain' in process_steps:
+            self.apply_gain()
+        if 'orient' in process_steps:
+            self.orient()
+        # Flat field
+        if 'flatten' in process_steps:
+            self.flatten(pixel_flat, illum_flat=illum_flat, bpm=bpm)
 
     def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
         """
@@ -384,6 +330,35 @@ class ProcessImage(pypeitimage.PypeItImage):
         self.steps[step] = True
         # Return
         return self.image.copy()
+
+    def load(self):
+        """
+        Load a raw image from disk using the Spectrograph method load_raw_frame()
+
+        Also loads up the binning, exposure time, and header of the Primary image
+
+        Args:
+            filename (str):  Filename
+
+        Returns:
+            np.ndarray, fits.Header:
+
+        """
+        # Load
+        self.image, self.head0 \
+            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        # Shape
+        self.orig_shape = self.image.shape
+        # Exposure time
+        self.exptime = self.spectrograph.get_meta_value(self.filename, 'exptime')
+        # Binning
+        self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
+        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
+            self.binning_raw = (',').join(self.binning.split(',')[::-1])
+        else:
+            self.binning_raw = self.binning
+        # Return
+        return self.image, self.head0
 
     def orient(self, force=False):
         """
