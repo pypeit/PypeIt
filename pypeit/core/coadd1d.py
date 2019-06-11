@@ -14,6 +14,7 @@ from pypeit.core import load
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 from astropy import constants as const
+import IPython
 c_kms = const.c.to('km/s').value
 
 ## Plotting parameters
@@ -31,15 +32,15 @@ plt.rcParams["axes.labelsize"] = 17
 
 # ToDo: update README and descriptions
 
-def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_max=None,
-                  A_pix=None,v_pix=None,samp_fact=1.0,**kwargs):
+def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
+                  A_pix=None,v_pix=None,samp_fact=1.0, **kwargs):
     """ Create a new wavelength grid for the spectra to be rebinned and coadded on
 
     Parameters
     ----------
     waves : masked ndarray
         Set of N original wavelength arrays
-        nexp, nspec
+        nspec, nexp
     wave_method : str, optional
         Desired method for creating new wavelength grid.
         'iref' -- Use the first wavelength array (default)
@@ -74,7 +75,7 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
         spl = 299792.458
         if v_pix is None:
             # Find the median velocity of a pixel in the input
-            dv = spl * np.abs(waves - np.roll(waves,1)) / waves   # km/s
+            dv = spl * np.abs(waves - np.roll(waves,1, axis=0))/waves   # km/s
             v_pix = np.median(dv)
 
         # to make the wavelength grid finer or coarser
@@ -87,7 +88,7 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
             wave_grid_max = np.max(waves)
         x = np.log10(v_pix/spl + 1)
         npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
-        wave_grid = wave_grid_min * 10**(x*np.arange(npix))
+        wave_grid = wave_grid_min * 10.0**(x*np.arange(npix))
 
     elif wave_method == 'pixel': # Constant Angstrom
         if A_pix is None:
@@ -99,8 +100,7 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
             wave_grid_min = np.min(waves)
         if wave_grid_max is None:
             wave_grid_max = np.max(waves)
-        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max + A_pix, \
-                                     A_pix,samp_fact=samp_fact)
+        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max + A_pix, A_pix,samp_fact=samp_fact)
 
     elif wave_method == 'loggrid':
         dloglam_n = np.log10(waves) - np.roll(np.log10(waves), 1)
@@ -109,7 +109,7 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
         wave_grid_min = np.min(waves)
         loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, \
                                        dloglam,samp_fact=samp_fact)
-        wave_grid = 10**loglam_grid
+        wave_grid = 10.0**loglam_grid
 
     elif wave_method == 'concatenate':  # Concatenate
         # Setup
@@ -982,23 +982,23 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
 
     # Rescale spectra to line up with our preliminary stack so that we can sensibly reject outliers
-    nexp = np.shape(fluxes)[0]
+    nexp = np.shape(fluxes)[1]
     fluxes_scale = np.zeros_like(fluxes)
     ivars_scale = np.zeros_like(ivars)
     scales = np.zeros_like(fluxes)
     for iexp in range(nexp):
         # TODO Create a parset for the coadd parameters!!!
-        fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp],omethod = scale_spec(
-            waves[:, iexp],fluxes[:, iexp],ivars[:, iexp], flux_stack_nat[:, iexp],ivar_stack_nat[:, iexp],
-            mask=masks[:, iexp],mask_ref=mask_stack_nat[:, iexp], ref_percentile=ref_percentile, maxiters=maxiter_scale,
+        fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp], omethod = scale_spec(
+            waves[:, iexp],fluxes[:, iexp],ivars[:, iexp], flux_stack_nat[:, iexp], ivar_stack_nat[:, iexp],
+            mask=masks[:, iexp], mask_ref=mask_stack_nat[:, iexp], ref_percentile=ref_percentile, maxiters=maxiter_scale,
             sigrej=sigrej, scale_method=scale_method, hand_scale=hand_scale, sn_max_medscale=sn_max_medscale,
             sn_min_medscale=sn_min_medscale, debug=debug)
 
     iIter = 0
-    #qdone = False
+    qdone = False
     thismask = np.copy(masks)
-#    while (not qdone) and (iIter < maxiter_reject):
-    while (iIter < maxiter_reject):
+    while (not qdone) and (iIter < maxiter_reject):
+        IPython.embed()
         wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
             waves, fluxes_scale, ivars_scale, thismask, wave_grid, weights)
         flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
