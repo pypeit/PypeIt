@@ -1048,14 +1048,13 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights, scales, rms_sn
 
 
-def ech_combspec(gdfiles, objids=None, wave_grid_method='loggrid', wave_grid_min=None, wave_grid_max=None,
-                 A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=20.0, maxiter_scale=5, sigrej=3,
-                 scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
-                 const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
-                 order_vec=None, ex_value=None, flux_value=None, phot_scale_dicts=None, mergeorder=True, orderscale=None,
-                 qafile=None, outfile=None, debug=False):
-
-    #from IPython import embed
-    #embed()
-    norder = np.size(order_vec)
-    #for ii, iord in enumerate(order_vec):
+#def ech_combspec(gdfiles, objids=None, wave_grid_method='loggrid', wave_grid_min=None, wave_grid_max=None,
+#                 A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=20.0, maxiter_scale=5, sigrej=3,
+#                 scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
+#                 const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
+#                 order_vec=None, ex_value=None, flux_value=None, phot_scale_dicts=None, mergeorder=True, orderscale=None,
+#                 qafile=None, outfile=None, debug=False):
+#    from IPython import embed
+#    embed()
+#    norder = np.size(order_vec)
+#    for ii, iord in enumerate(order_vec):
