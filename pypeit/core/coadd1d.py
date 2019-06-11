@@ -16,6 +16,8 @@ from pypeit.core import pydl
 from astropy import constants as const
 c_kms = const.c.to('km/s').value
 
+from matplotlib.ticker import NullFormatter, NullLocator
+
 ## Plotting parameters
 plt.rcdefaults()
 plt.rcParams['font.family'] = 'times new roman'
@@ -67,14 +69,16 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
     wave_grid : ndarray
         New wavelength grid, not masked
     """
-    if not isinstance(waves, np.ma.MaskedArray):
-        waves = np.ma.array(waves,mask=waves<10.0)
+
+    #if not isinstance(waves, np.ma.MaskedArray):
+    #    waves = np.ma.array(waves,mask=waves<1.0)
+    wave_mask = waves>1.0
 
     if wave_method == 'velocity':  # Constant km/s
         spl = 299792.458
         if v_pix is None:
             # Find the median velocity of a pixel in the input
-            dv = spl * np.abs(waves - np.roll(waves,1)) / waves   # km/s
+            dv = spl * np.abs(waves - np.roll(waves,1,axis=0)) / waves   # km/s
             v_pix = np.median(dv)
 
         # to make the wavelength grid finer or coarser
@@ -82,31 +86,31 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
 
         # Generate wavelength array
         if wave_grid_min is None:
-            wave_grid_min = np.min(waves)
+            wave_grid_min = np.min(waves[wave_mask])
         if wave_grid_max is None:
-            wave_grid_max = np.max(waves)
+            wave_grid_max = np.max(waves[wave_mask])
         x = np.log10(v_pix/spl + 1)
         npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
         wave_grid = wave_grid_min * 10**(x*np.arange(npix))
 
     elif wave_method == 'pixel': # Constant Angstrom
         if A_pix is None:
-            dA =  np.abs(waves - np.roll(waves,1))
+            dA =  np.abs(waves - np.roll(waves,1,axis=0))
             A_pix = np.median(dA)
 
         # Generate wavelength array
         if wave_grid_min is None:
-            wave_grid_min = np.min(waves)
+            wave_grid_min = np.min(waves[wave_mask])
         if wave_grid_max is None:
-            wave_grid_max = np.max(waves)
+            wave_grid_max = np.max(waves[wave_mask])
         wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max + A_pix, \
                                      A_pix,samp_fact=samp_fact)
 
     elif wave_method == 'loggrid':
-        dloglam_n = np.log10(waves) - np.roll(np.log10(waves), 1)
-        dloglam = np.median(dloglam_n.compressed())
-        wave_grid_max = np.max(waves)
-        wave_grid_min = np.min(waves)
+        dloglam_n = np.log10(waves) - np.roll(np.log10(waves), 1,axis=0)
+        dloglam = np.median(dloglam_n)
+        wave_grid_max = np.max(waves[wave_mask])
+        wave_grid_min = np.min(waves[wave_mask])
         loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, \
                                        dloglam,samp_fact=samp_fact)
         wave_grid = 10**loglam_grid
@@ -114,14 +118,14 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
     elif wave_method == 'concatenate':  # Concatenate
         # Setup
         loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
-        nexp = waves.shape[0]
-        newloglam = loglam[iref, :].compressed()  # Deals with mask
+        nexp = waves.shape[1]
+        newloglam = loglam[:, iref]  # Deals with mask
         # Loop
         for j in range(nexp):
             if j == iref:
                 continue
             #
-            iloglam = loglam[j,:].compressed()
+            iloglam = loglam[:, j]
             dloglam_0 = (newloglam[1]-newloglam[0])
             dloglam_n =  (newloglam[-1] - newloglam[-2]) # Assumes sorted
             if (newloglam[0] - iloglam[0]) > dloglam_0:
@@ -135,7 +139,8 @@ def new_wave_grid(waves,wave_method='iref',iref=0,wave_grid_min=None,wave_grid_m
         wave_grid = 10**newloglam
 
     elif wave_method == 'iref':
-        wave_grid = waves[iref, :].compressed()
+        wave_tmp = waves[:, iref]
+        wave_grid = wave_tmp[wave_tmp>1.0]
 
     else:
         msgs.error("Bad method for scaling: {:s}".format(wave_method))
@@ -157,7 +162,7 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title=''):
     ygauss = gauss1(xvals,0.0,1.0,1.0)
     ygauss_new = gauss1(xvals,0.0,sigma_corr,1.0)
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
     plt.hist(chi[maskchi],bins=bins_histo,normed=True,histtype='step', align='mid',color='k',linewidth=3,label='Chi distribution')
     plt.plot(xvals,ygauss,'c-',lw=3,label='sigma=1')
     plt.plot(xvals,ygauss_new,'m--',lw=2,label='new sigma={:4.2f}'.format(round(sigma_corr,2)))
@@ -438,13 +443,13 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
 
     Parameters
     ----------
-    fluxes: float ndarray, shape = (nexp, nspec)
-        Stack of (nexp, nspec) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
-    sigs: float ndarray, shape = (nexp, nspec)
+    fluxes: float ndarray, shape = (nspec, nexp)
+        Stack of (nspec, nexp) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
+    sigs: float ndarray, shape = (nspec, nexp)
         1-sigm noise vectors for the spectra
-    masks: bool ndarray, shape = (nexp, nspec)
+    masks: bool ndarray, shape = (nspec, nexp)
         Mask for stack of spectra. True=Good, False=Bad.
-    waves: flota ndarray, shape = (nspec,) or (nexp, nspec)
+    waves: flota ndarray, shape = (nspec,) or (nspec, nexp)
         Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
         that all spectra are on the same wavelength grid. If wave is a 2-d array, it will use the individual
 
@@ -516,7 +521,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
             dv = (dwave/wave_now[1:])*c_kms
             dv_pix = np.median(dv)
             med_width = int(np.round(dv_smooth/dv_pix))
-            sn_med1 = utils.fast_running_median(n_val[iexp,imask]**2, med_width)
+            sn_med1 = utils.fast_running_median(sn_val[imask,iexp]**2, med_width)
             #sn_med1 = scipy.ndimage.filters.median_filter(sn_val[iexp,imask]**2, size=med_width, mode='reflect')
             sn_med2 = np.interp(spec_vec, spec_now, sn_med1)
             #sn_med2 = np.interp(wave_stack[iexp,:], wave_now,sn_med1)
@@ -580,10 +585,9 @@ def robust_median_ratio(flux,ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_
     return ratio
 
 
+
 def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
                   mask=None, mask_ref=None, ylim = None, median_frac = 0.03, title=''):
-
-    from matplotlib.ticker import NullFormatter
 
     if mask is None:
         mask = ivar > 0.0
@@ -603,7 +607,7 @@ def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
         ylim = (flux_min, flux_max)
 
     nullfmt = NullFormatter()  # no labels
-    fig = plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(12, 8))
     # [left, bottom, width, height]
     poly_plot = fig.add_axes([0.1, 0.75, 0.8, 0.20])
     spec_plot = fig.add_axes([0.1, 0.1, 0.8, 0.65])
@@ -619,6 +623,7 @@ def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
     spec_plot.legend()
     fig.suptitle(title)
     plt.show()
+
 
 
 def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, min_good=0.05,
@@ -758,7 +763,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
         mask_stack = ivar_stack > 0.0
 
     wave_mask = wave > 1.0
-    fig = plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(12, 8))
 
     spec_plot = fig.add_axes([0.1, 0.1, 0.8, 0.85])
 
@@ -805,13 +810,15 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
 def weights_qa(waves, weights, masks):
 
     nexp = np.shape(waves)[1]
-    fig = plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(12, 8))
 
+    wave_mask_all = np.zeros_like(masks)
     for iexp in range(nexp):
         this_wave, this_weights, this_mask = waves[:, iexp], weights[:, iexp], masks[:, iexp]
         wave_mask = this_wave > 1.0
-        plt.plot(this_wave[wave_mask], this_weights[wave_mask]*this_mask[wave_mask])
-    plt.xlim([waves.min(),waves.max()])
+        wave_mask_all[wave_mask, iexp] = True
+        plt.plot(this_wave[wave_mask], this_weights[wave_mask] * this_mask[wave_mask])
+    plt.xlim([waves[wave_mask_all].min(), waves[wave_mask_all].max()])
     plt.xlabel('Wavelength (Angstrom)')
     plt.ylabel('(S/N)^2 weights')
     plt.show()
@@ -824,17 +831,19 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, qafile=None, debug=False):
         mask = ivar > 0.0
 
     wave_mask = wave > 1.0
-    fig = plt.figure(figsize=(10, 6))
-    # [left, bottom, width, height]
-    num_plot = fig.add_axes([0.1, 0.75, 0.8, 0.20])
-    spec_plot = fig.add_axes([0.1, 0.1, 0.8, 0.65])
-
+    wave_min = wave[wave_mask].min()
+    wave_max = wave[wave_mask].max()
+    fig = plt.figure(figsize=(12, 8))
     # plot how may exposures you used at each pixel
+    # [left, bottom, width, height]
+    num_plot =  fig.add_axes([0.10, 0.75, 0.80, 0.23])
+    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.65])
     num_plot.plot(wave[wave_mask],nused[wave_mask],linestyle='steps-mid',color='k',lw=2)
-    num_plot.set_xlim([wave[wave_mask].min(), wave[wave_mask].max()])
-    num_plot.set_ylim([0.0, np.fmax(nused.max()+0.1*nused.max(), nused.max()+1.0)])
+    num_plot.set_xlim([wave_min, wave_max])
+    num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])
     num_plot.set_ylabel('$\\rm N_{EXP}$')
     num_plot.yaxis.set_major_locator(MaxNLocator(integer=True))
+    num_plot.yaxis.set_minor_locator(NullLocator())
 
     # Plot spectrum
     spec_plot.plot(wave[wave_mask], flux[wave_mask], color='black', linestyle='steps-mid',zorder=2,label='Single exposure')
@@ -855,7 +864,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, qafile=None, debug=False):
         spec_plot.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5,zorder=11)
 
     spec_plot.set_ylim([ymin, ymax])
-    spec_plot.set_xlim([wave[wave_mask].min(), wave[wave_mask].max()])
+    spec_plot.set_xlim([wave_min, wave_max])
     spec_plot.set_xlabel('Wavelength (Angstrom)')
     spec_plot.set_ylabel('Flux')
 
@@ -982,7 +991,7 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
 
     # Rescale spectra to line up with our preliminary stack so that we can sensibly reject outliers
-    nexp = np.shape(fluxes)[0]
+    nexp = np.shape(fluxes)[1]
     fluxes_scale = np.zeros_like(fluxes)
     ivars_scale = np.zeros_like(ivars)
     scales = np.zeros_like(fluxes)
@@ -1036,7 +1045,8 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
                           qafile=None, debug=debug)
 
     # Plot the final coadded spectrum
-    weights_qa(waves, weights, outmask)
+    if debug:
+        weights_qa(waves, weights, outmask)
     coadd_qa(wave_stack,flux_stack,ivar_stack, nused, mask=mask_stack, qafile=qafile, debug=debug)
 
     # Write to disk?
@@ -1047,15 +1057,3 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
         write_to_fits(wave_stack, flux_stack, ivar_stack, mask_stack, outfile, clobber=True)
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights, scales, rms_sn
-
-
-#def ech_combspec(gdfiles, objids=None, wave_grid_method='loggrid', wave_grid_min=None, wave_grid_max=None,
-#                 A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=20.0, maxiter_scale=5, sigrej=3,
-#                 scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
-#                 const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
-#                 order_vec=None, ex_value=None, flux_value=None, phot_scale_dicts=None, mergeorder=True, orderscale=None,
-#                 qafile=None, outfile=None, debug=False):
-#    from IPython import embed
-#    embed()
-#    norder = np.size(order_vec)
-#    for ii, iord in enumerate(order_vec):
