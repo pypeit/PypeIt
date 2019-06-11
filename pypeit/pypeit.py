@@ -10,7 +10,7 @@ from IPython import embed
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
-from pypeit.images import scienceimage
+from pypeit.images import scienceimages
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa
@@ -546,7 +546,7 @@ class PypeIt(object):
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciI = scienceimage.ScienceImage(self.spectrograph, sci_files,
+        self.sciI = scienceimages.ScienceImages(self.spectrograph, sci_files,
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
                                               par=self.par['scienceframe'],

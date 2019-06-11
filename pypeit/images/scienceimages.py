@@ -6,12 +6,11 @@ from pypeit import ginga
 from pypeit.core import coadd2d
 from pypeit.core import procimg
 
-from pypeit.images import combinedimage
-from pypeit.images import processimage
+from pypeit.images import scienceimage
 
 from IPython import embed
 
-class ScienceImage(object):
+class ScienceImages(object):
     """
     This class will organize and run actions related to
     a Science or Standard star exposure
@@ -77,7 +76,8 @@ class ScienceImage(object):
     """
 
     # Frametype is a class attribute
-    frametype = 'science'
+    frametype = 'scienceimages'
+    bitmask = scienceimage.ProcessImagesBitMask()
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
     def __init__(self, spectrograph, file_list, bg_file_list=[], ir_redux=False,
@@ -89,16 +89,18 @@ class ScienceImage(object):
         self.par = spectrograph.default_pypeit_par()['scienceframe'] if par is None else par
 
         # Start us up
-        self.sci_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
-                                                       files=file_list, frametype=self.frametype)
-        self.bkg_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
-                                                       files=bg_file_list, frametype=self.frametype)
+        #self.sci_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
+        #                                               files=file_list, frametype=self.frametype)
+        #self.bkg_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
+        #                                               files=bg_file_list, frametype=self.frametype)
+        self.file_list = file_list
+        self.bg_file_list = bg_file_list
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
-        # Are we subtracing the sky using background frames? If yes, set ir_redux=True
+        # Are we subtracting the sky using background frames? If yes, set ir_redux=True
         self.ir_redux = ir_redux
-        if self.ir_redux and (self.bkg_combine.nfiles == 0):
+        if self.ir_redux and (len(self.bg_file_list) == 0):
             msgs.error('IR reductions require that bg files are specified')
         self.det = det
         self.binning = binning
@@ -107,9 +109,9 @@ class ScienceImage(object):
         self.saturation = self.spectrograph.detector[self.det - 1]['saturation']
         self.mincounts = self.spectrograph.detector[self.det - 1]['mincounts']
 
-        # These attributes will be sert when the image(s) are processed
-        self.sci_bpm = None
+        # These attributes will be set when the image(s) are processed
         self.bias = None
+        self.sci_bpm = None
         self.pixel_flat = None
         self.illum_flat = None
 
@@ -118,6 +120,61 @@ class ScienceImage(object):
         # Other bookeeping internals
         self.crmask = None
         self.mask = None
+
+    def build_stack(self, files, bpm, reject_cr=False):
+        """
+        Generate a set of stack arrays useful for image processing
+
+        These are generated from the internal ProcessImage objects
+        held in self.pimages which need to have been previously
+        generated/loaded
+
+        Note:  To save on memory, the image attributes of each
+        ProcessImage in self.pimages is reset after it contributes
+        to the stack arrays.
+
+        Args:
+            bpm (np.ndarray):
+                Bad pixel mask image
+            reject_cr (bool, optional):
+                If true, generate a CR image
+
+        Returns:
+            tuple: np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+                sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
+
+        """
+        # Get it ready
+        nimages = len(files)
+        shape = (nimages, bpm.shape[0], bpm.shape[1])
+        sciimg_stack = np.zeros(shape)
+        sciivar_stack= np.zeros(shape)
+        rn2img_stack = np.zeros(shape)
+        crmask_stack = np.zeros(shape, dtype=bool)
+        mask_stack = np.zeros(shape, self.bitmask.minimum_dtype(asuint=True))
+
+        # Loop on the files
+        for kk, ifile in enumerate(files):
+            sciImage = scienceimage.ScienceImage(self.spectrograph, self.det, self.par['process'])
+            # Process
+            sciImage.process_raw(ifile, self.bias, self.pixel_flat, bpm,
+                                 illum_flat=self.illum_flat)
+            # Construct raw variance image and turn into inverse variance
+            rawvarframe = sciImage.build_rawvarframe()
+            sciivar_stack[kk, :, :] = utils.calc_ivar(rawvarframe)
+            # Mask cosmic rays
+            if reject_cr:
+                crmask_stack[kk, :, :] = sciImage.build_crmask()
+            sciimg_stack[kk,:,:] = sciImage.image
+            # Build read noise squared image
+            rn2img_stack[kk, :, :] = sciImage.build_rn2img()
+            # Final mask for this image
+            mask_stack[kk, :, :] = sciImage.build_mask(
+                saturation=self.spectrograph.detector[self.det - 1]['saturation'],
+                mincounts = self.spectrograph.detector[self.det - 1]['mincounts'])
+
+        # Return
+        return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
 
 
     # JFH TODO This stuff should be eventually moved to processimages?
@@ -190,27 +247,17 @@ class ScienceImage(object):
         """
         # Init
         if ltype == 'sci':
-            combinedImage = self.sci_combine
+            files = self.file_list
         elif ltype == 'bkg':
-            combinedImage = self.bkg_combine
+            files = self.bg_file_list
         else:
             msgs.error("Bad ltype for proc_list")
-        nimg = combinedImage.nimages
+        nimg = len(files)
         weights = np.ones(nimg)/float(nimg)
 
         # Load
-        #embed(header='198 of sciimg')
-        combinedImage.load_images()
-        # Process
-        process_steps = procimg.init_process_steps(self.bias, self.par['process'])
-        process_steps += ['trim', 'apply_gain']
-        if (self.pixel_flat is not None) or (self.illum_flat is not None):
-            process_steps += ['flatten']
-        combinedImage.process_images(process_steps, bias=self.bias, bpm=self.sci_bpm,
-                            pixel_flat=self.pixel_flat, illum_flat=self.illum_flat)
-        # Load up the stack (and create some internal images0
-        img_stack, ivar_stack, rn2img_stack, crmask_stack, mask_stack = combinedImage.build_stack(
-            bpm=self.sci_bpm, reject_cr=reject_cr)
+        img_stack, ivar_stack, rn2img_stack, crmask_stack, mask_stack = self.build_stack(
+            files, self.sci_bpm, reject_cr=reject_cr)
 
         # ToDO The bitmask is not being properly propagated here!
         if nimg > 1:
@@ -226,11 +273,13 @@ class ScienceImage(object):
             # assumes everything masked in the outmask is a CR in the individual images
             crmask = np.invert(outmask)
             # Create a mask for this combined image
-            processImage = processimage.ProcessImage(None, self.spectrograph, self.det, self.proc_par)
-            processImage.image = img
-            processImage.rawvarframe = var_list_out[0]
-            processImage.crmask = crmask
-            mask = processImage.build_mask(bpm=self.sci_bpm, saturation=self.saturation, mincounts=self.mincounts)
+            #processImage = processimage.ProcessImage(None, self.spectrograph, self.det, self.proc_par)
+            #processImage.image = img
+            #processImage.rawvarframe = var_list_out[0]
+            #processImage.crmask = crmask
+            #mask = procimg.build_mask(bpm=self.sci_bpm, saturation=self.saturation, mincounts=self.mincounts)
+            mask = procimg.build_mask(self.bitmask, img, ivar, self.sci_bpm, crmask,
+                                           saturation=self.saturation, mincounts=self.mincounts)
         else:
             mask = mask_stack[0, :, :]
             crmask = crmask_stack[0, :, :]

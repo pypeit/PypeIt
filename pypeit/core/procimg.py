@@ -812,6 +812,75 @@ def update_mask_cr(bitmask, mask_old, crmask_new):
     return mask_new
 
 
+def build_mask(bitmask, image, sciivar, bpm, crmask, saturation=1e10,
+               mincounts=-1e10, slitmask=None):
+    """
+    Return the bit value mask used during extraction.
+
+    The mask keys are defined by :class:`ScienceImageBitMask`.  Any
+    pixel with mask == 0 is valid, otherwise the pixel has been
+    masked.  To determine why a given pixel has been masked::
+
+        bitmask = ScienceImageBitMask()
+        reasons = bm.flagged_bits(mask[i,j])
+
+    To get all the pixel masked for a specific set of reasons::
+
+        indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
+
+    Args:
+        bpm (np.ndarray, optional):
+            Bit pixel mask;  over-rides the internal one if provided
+        saturation (float, optional):
+            Saturation limit in ADU
+        mincounts (float, optional):
+        slitmask (np.ndarray, optional):
+            Slit mask image;  Pixels not in a slit are masked
+
+    Returns:
+        numpy.ndarray: Copy of the bit value mask for the science image.
+    """
+    # Init
+    #if bpm is None:
+    #    bpm = self.bpm
+
+    # Instatiate the mask
+    mask = np.zeros_like(image, dtype=bitmask.minimum_dtype(asuint=True))
+
+    # Bad pixel mask
+    indx = bpm.astype(bool)
+    mask[indx] = bitmask.turn_on(mask[indx], 'BPM')
+
+    # Cosmic rays
+    indx = crmask.astype(bool)
+    mask[indx] = bitmask.turn_on(mask[indx], 'CR')
+
+    # Saturated pixels
+    indx = image >= saturation
+    mask[indx] = bitmask.turn_on(mask[indx], 'SATURATION')
+
+    # Minimum counts
+    indx = image <= mincounts
+    mask[indx] = bitmask.turn_on(mask[indx], 'MINCOUNTS')
+
+    # Undefined counts
+    indx = np.invert(np.isfinite(image))
+    mask[indx] = bitmask.turn_on(mask[indx], 'IS_NAN')
+
+    # Bad inverse variance values
+    indx = np.invert(sciivar > 0.0)
+    mask[indx] = bitmask.turn_on(mask[indx], 'IVAR0')
+
+    # Undefined inverse variances
+    indx = np.invert(np.isfinite(sciivar))
+    mask[indx] = bitmask.turn_on(mask[indx], 'IVAR_NAN')
+
+    if slitmask is not None:
+        indx = slitmask == -1
+        mask[indx] = bitmask.turn_on(mask[indx], 'OFFSLITS')
+
+    return mask
+
 
 
 

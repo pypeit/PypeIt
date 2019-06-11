@@ -54,6 +54,7 @@ class ProcessImagesBitMask(BitMask):
         ])
         super(ProcessImagesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
+
 class ScienceImage(processrawimage.ProcessRawImage):
     """
     Class to hold a science image, generated from one or more
@@ -80,28 +81,26 @@ class ScienceImage(processrawimage.ProcessRawImage):
 
     """
     bitmask = ProcessImagesBitMask()
+    frametype = 'science'
 
-    def __init__(self, spectrograph, det, par, filename=None, frametype=None):
+    def __init__(self, spectrograph, det, par, filename=None):
 
         # Init me
-        processrawimage.ProcessRawImage(filename, spectrograph, det, par, frametype=frametype)
+        processrawimage.ProcessRawImage.__init__(self, filename, spectrograph, det, par, frametype=self.frametype)
 
         # Required parameters
         if not isinstance(par, pypeitpar.ProcessImagesPar):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.par = par  # This musts be named this way as it is frequently a child
 
-        # Optional parameters
-        self.frametype = frametype
-
         # Internal images
         self.image = None
 
         self.rawvarframe = None
+        self.ivar = None
         self.crmask = None
         self.mask = None
         self.rn2img = None
-
 
     def build_crmask(self):
         """
@@ -130,6 +129,14 @@ class ScienceImage(processrawimage.ProcessRawImage):
                                   objlim=self.par['objlim'])
         # Return
         return self.crmask.copy()
+
+    def build_mask(self, slitmask=None, saturation=1e10, mincounts=-1e10):
+        sciivar = utils.calc_ivar(self.rawvarframe)
+        self.mask = procimg.build_mask(self.bitmask, self.image, sciivar,
+                                       self.bpm, self.crmask,
+                                       saturation=saturation, slitmask=slitmask,
+                                       mincounts=mincounts)
+        return self.mask.copy()
 
     def build_rawvarframe(self):
         """
@@ -180,11 +187,14 @@ class ScienceImage(processrawimage.ProcessRawImage):
 
     def process_raw(self, filename, bias, pixel_flat, bpm, illum_flat=None):
         self.filename = filename
-        process_steps = procimg.init_process_steps(bias, self.par['process'])
-        process_steps += ['trim', 'apply_gain']
+        self.load()
+        process_steps = procimg.init_process_steps(bias, self.par)
+        process_steps += ['trim', 'apply_gain', 'orient']
         if (pixel_flat is not None) or (illum_flat is not None):
             process_steps += ['flatten']
 
         self.process(process_steps, pixel_flat=pixel_flat, bias=bias,
                      bpm=bpm, illum_flat=illum_flat)
         return self.image.copy()
+
+

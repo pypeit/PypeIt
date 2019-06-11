@@ -309,13 +309,16 @@ class Reduce(object):
                 self.maskslits[slit] = True
 
         if update_crmask:
-            processImage = processimage.ProcessImage(None, self.spectrograph, self.det, self.proc_par)
-            processImage.image = self.sciimg - self.global_sky
-            processImage.rawvarframe = utils.calc_ivar(self.sciivar)
-            self.crmask = processImage.build_crmask()
-            #self.crmask = processimages.ProcessImages.build_crmask(self.sciimg - self.global_sky, self.proc_par,
-            #                                                       self.det, self.spectrograph, ivar = self.sciivar,
-            #                                                       binning=self.binning)
+            self.crmask = procimg.lacosmic(self.det, self.sciimg-self.global_sky,
+                                           self.spectrograph.detector[self.det-1]['saturation'],
+                                           self.spectrograph.detector[self.det-1]['nonlinear'],
+                                           varframe=utils.calc_ivar(self.sciivar),
+                                           maxiter=self.proc_par['lamaxiter'],
+                                           grow=self.proc_par['grow'],
+                                           remove_compact_obj=self.proc_par['rmcompact'],
+                                           sigclip=self.proc_par['sigclip'],
+                                           sigfrac=self.proc_par['sigfrac'],
+                                           objlim=self.proc_par['objlim'])
             # Rebuild the mask with this new crmask
             self.mask = procimg.update_mask_cr(self.bitmask, self.mask, self.crmask)
 
