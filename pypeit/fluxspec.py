@@ -447,11 +447,16 @@ class Echelle(FluxSpec):
                       'AIRMASS, EXPTIME.')
             return None
 
-        ext_final = fits.getheader(self.par['std_file'], -1)
-        norder = ext_final['ECHORDER'] + 1
+        #ext_final = fits.getheader(self.par['std_file'], -1)
+        #norder = ext_final['ECHORDER'] + 1
+        # Todo: In some cases norder != ext_pri['NSPEC'], fix this asap!
+        ext_pri = fits.getheader(self.par['std_file'], 0)
+        norder = ext_pri['NSPEC']
 
         self.sens_dict = {}
-        for iord in range(norder):
+        for ii in range(norder):
+            ext_ii = fits.getheader(self.par['std_file'], ii+1)
+            iord = ext_ii['ECHORDER']
             std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
             std_idx = flux.find_standard(std_specobjs)
             std = std_specobjs[std_idx]
@@ -477,7 +482,7 @@ class Echelle(FluxSpec):
                                                     poly_norder=self.poly_norder,
                                                     polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
-            self.sens_dict[str(iord)] = sens_dict_iord
+            self.sens_dict[str(ii)] = sens_dict_iord
         ## add some keys to be saved into primary header in masterframe
         for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                     'std_name', 'cal_file']:
