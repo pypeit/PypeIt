@@ -2496,6 +2496,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Predict the traces
         self.spat_fit = self.pca.predict(trace_ref)
         self.spat_fit_type = 'pca'
+
+        # TODO: Compare with the fit data. Remove traces where the mean
+        # offset between the PCA prediction and the measured centroids
+        # are larger than some threshold
+
+        # Log what was done
         self.log += [inspect.stack()[0][3]]
 
     def peak_refine(self, rebuild_pca=False, debug=False):
@@ -3743,9 +3749,19 @@ def most_common_trace_row(trace_mask):
         :obj:`int`: The row that crosses the most valid trace data.
     """
     if trace_mask.ndim == 1:
+        # Only a single vector provided. Use the central valid pixel
         rows = np.where(np.invert(trace_mask))[0]
         return rows[rows.size//2]
-    return Counter(np.where(np.invert(trace_mask))[0]).most_common(1)[0][0]
+
+    unmasked = np.invert(trace_mask)
+    n_unmasked = np.sum(unmasked, axis=0)
+    if np.all(n_unmasked == n_unmasked[0]):
+        # All the traces have the same number of unmasked pixels at any
+        # spectral row, so use the central row
+        return trace_mask.shape[0]//2
+
+    # Return the row with the most unmasked trace positions
+    return Counter(np.where(unmasked)[0]).most_common(1)[0][0]
 
 
 def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
