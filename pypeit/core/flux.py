@@ -264,7 +264,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         mask_model = flux_true <= 0
         msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
-                                                    invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
+                                                    invvar=None, guesses=None, maxiter=50, inmask=None, \
                                                     lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
                                                     groupsize=None,groupbadpix=False, grow=0, sticky=True, use_mad=True)
         star_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
@@ -531,7 +531,7 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
     # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
     _, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], poly_norder, \
                                                     function='polynomial', invvar=None, guesses=None, maxiter=maxiter, \
-                                                    inmask=None, sigma=None, lower=lower, upper=upper, maxdev=None, \
+                                                    inmask=None, lower=lower, upper=upper, maxdev=None, \
                                                     maxrej=None, groupdim=None, groupsize=None, groupbadpix=False, \
                                                     grow=0, sticky=True, use_mad=True)
     magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
