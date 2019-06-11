@@ -1005,7 +1005,6 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     qdone = False
     thismask = np.copy(masks)
     while (not qdone) and (iIter < maxiter_reject):
-        IPython.embed()
         wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
             waves, fluxes_scale, ivars_scale, thismask, wave_grid, weights)
         flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
