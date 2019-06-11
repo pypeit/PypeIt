@@ -108,8 +108,9 @@ def load_specobjs(fname,order=None):
         objp = idx.split('-')
         if objp[-2][:5] == 'ORDER':
             iord = int(objp[-2][5:])
+            msgs.info('Loading Echelle data.')
         else:
-            msgs.warn('Loading longslit data ?')
+            msgs.info('Loading longslit data.')
             iord = int(-1)
         if (order is not None) and (iord !=order):
             continue

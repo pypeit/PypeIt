@@ -4,6 +4,8 @@ Wrapper to the linetools XSpecGUI
 """
 import argparse
 
+
+
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
     parser.add_argument("infile", type=str, help="Input file (YAML)")
@@ -32,6 +34,7 @@ def main(args, unit_test=False, path=''):
 
     from pypeit import msgs
     from pypeit.core import coadd
+    from pypeit.core import coadd1d
     from pypeit import specobjs
 
     # Load the input file
@@ -197,16 +200,12 @@ def main(args, unit_test=False, path=''):
                                      outfile=outfile, qafile=qafile,**gparam)
 
         else:
-            spectra = coadd.load_spec(gdfiles, iextensions=extensions,
-                                        extract=ex_value, flux=flux_value)
-
-            ### The following are for developing
-            #from IPython import embed
-            #embed()
-            #fluxes, sigs, waves = coadd.unpack_spec(spectra, all_wave=True)
-            ### The above are for developing
-
-            # Coadd!
-            coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
-                                flux_scale=scale_dict, **gparam)
-
+            waves, fluxes, ivars, masks = coadd1d.load_1dspec_to_array(gdfiles, gdobj=gdobj, order=None,
+                                                                       ex_value=ex_value, flux_value=flux_value)
+            wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights, scales, rms_sn = \
+                coadd1d.combspec(waves, fluxes, ivars, masks, qafile=qafile, outfile=outfile, **gparam)
+            ## Old version coadd
+            #spectra = coadd.load_spec(gdfiles, iextensions=extensions,
+            #                            extract=ex_value, flux=flux_value)
+            #coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
+            #                    flux_scale=scale_dict, **gparam)
