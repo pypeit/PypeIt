@@ -27,6 +27,7 @@ def main(args, unit_test=False, path=''):
     import glob
     import yaml
 
+    import numpy as np
     from numpy import isnan
     import pdb as debugger
 
@@ -61,8 +62,13 @@ def main(args, unit_test=False, path=''):
         pypeline = header0['PYPELINE']
         # also need norder for Echelle data
         if pypeline == 'Echelle':
+            #ext_final = fits.getheader(files[0], -1)
+            #norder = ext_final['ECHORDER'] + 1
+            ext_first = fits.getheader(files[0], 1)
             ext_final = fits.getheader(files[0], -1)
-            norder = ext_final['ECHORDER'] + 1
+            norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER']) + 1
+            order_vec = np.arange(np.fmax(ext_first['ECHORDER'],ext_final['ECHORDER']),
+                                  np.fmin(ext_first['ECHORDER'],ext_final['ECHORDER'])-1,-1)
     fdict = {}
     for ifile in files:
         # Open file
@@ -199,6 +205,8 @@ def main(args, unit_test=False, path=''):
 
             spec1d = coadd.ech_coadd(gdfiles, objids=gdobj, extract=ex_value, flux=flux_value, phot_scale_dicts=scale_dict,
                                      outfile=outfile, qafile=qafile,**gparam)
+            #coadd1d.ech_combspec(gdfiles, objids=gdobj, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
+            #                     order_vec=order_vec, outfile=outfile, qafile=qafile,**gparam)
 
         else:
             waves, fluxes, ivars, masks = load.load_1dspec_to_array(gdfiles, gdobj=gdobj, order=None,
