@@ -108,7 +108,8 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
 
     elif wave_method == 'loggrid':
         dloglam_n = np.log10(waves) - np.roll(np.log10(waves), 1,axis=0)
-        dloglam = np.median(dloglam_n)
+        logwave_mask = wave_mask & np.roll(wave_mask, 1, axis=0)
+        dloglam = np.median(dloglam_n[logwave_mask])
         wave_grid_max = np.max(waves[wave_mask])
         wave_grid_min = np.min(waves[wave_mask])
         loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, \
