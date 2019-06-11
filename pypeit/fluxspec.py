@@ -450,8 +450,9 @@ class Echelle(FluxSpec):
         #ext_final = fits.getheader(self.par['std_file'], -1)
         #norder = ext_final['ECHORDER'] + 1
         # Todo: In some cases norder != ext_pri['NSPEC'], fix this asap!
-        ext_pri = fits.getheader(self.par['std_file'], 0)
-        norder = ext_pri['NSPEC']
+        ext_first = fits.getheader(self.par['std_file'], 1)
+        ext_final = fits.getheader(self.par['std_file'], -1)
+        norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER'])+1
 
         self.sens_dict = {}
         for ii in range(norder):

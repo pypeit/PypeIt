@@ -219,7 +219,7 @@ def load_1dspec_to_array(fnames,gdobj=None,order=None,ex_value='OPT',flux_value=
 
     return waves,fluxes,ivars,masks
 
-def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
+def load_spec_order(fname,norder, objid=None,order=None,extract='OPT',flux=True):
     """Loading single order spectrum from a PypeIt 1D specctrum fits file.
         it will be called by ech_load_spec
     Parameters:
@@ -242,12 +242,16 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
     extnames = [primary_header['EXT0001']] * nspec
     for kk in range(nspec):
         extnames[kk] = primary_header['EXT' + '{0:04}'.format(kk + 1)]
-    extnameroot = extnames[0]
 
     # Figure out which extension is the required data
-    ordername = '{0:04}'.format(order)
-    extname = extnameroot.replace('OBJ0001', objid)
-    extname = extname.replace('ORDER0000', 'ORDER' + ordername)
+    #extnameroot = extnames[0]
+    #ordername = '{0:04}'.format(order)
+    #extname = extnameroot.replace('OBJ0001', objid)
+    #extname = extname.replace('ORDER0000', 'ORDER' + ordername)
+    extnames_array = np.reshape(np.array(extnames),(norder,int(nspec/norder)))
+    extnames_good = extnames_array[:,int(objid[3:])-1]
+    extname = extnames_good[order]
+
     try:
         exten = extnames.index(extname) + 1
         msgs.info("Loading extension {:s} of spectrum {:s}".format(extname, fname))
@@ -295,8 +299,9 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
         msgs.error('The length of objid should be either 1 or equal to the number of spectra files.')
 
     fname = files[0]
+    ext_first = fits.getheader(fname, 1)
     ext_final = fits.getheader(fname, -1)
-    norder = ext_final['ECHORDER'] + 1
+    norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER']) + 1
     msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
     if norder <= 1:
         msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')
@@ -308,13 +313,13 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
         if order is None:
             msgs.info('Loading all orders into a gaint spectra')
             for iord in range(norder):
-                spectrum = load_spec_order(fname,objid=objid[ii],order=iord,extract=extract,flux=flux)
+                spectrum = load_spec_order(fname, norder, objid=objid[ii],order=iord,extract=extract,flux=flux)
                 # Append
                 spectra_list.append(spectrum)
         elif order >= norder:
             msgs.error('order number cannot greater than the total number of orders')
         else:
-            spectrum = load_spec_order(fname, objid=objid[ii], order=order, extract=extract, flux=flux)
+            spectrum = load_spec_order(fname,norder, objid=objid[ii], order=order, extract=extract, flux=flux)
             # Append
             spectra_list.append(spectrum)
     # Join into one XSpectrum1D object

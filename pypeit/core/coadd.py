@@ -652,7 +652,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
             good, spl = utils.robust_polyfit_djs(waves[idx], flux[idx], 3, function='bspline',
-                                                 sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
+                                                 lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
             mask = ~good
             # Reject CR (with grow)
             spec_fit = utils.func_val(spl, wave, 'bspline')
@@ -1640,8 +1640,9 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
     if nfile>1:
         msgs.info('Coadding {:} spectra.'.format(nfile))
         fname = files[0]
+        ext_first = fits.getheader(fname, 1)
         ext_final = fits.getheader(fname, -1)
-        norder = ext_final['ECHORDER'] + 1
+        norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER'])+1
         msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
         if norder <= 1:
             msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')
