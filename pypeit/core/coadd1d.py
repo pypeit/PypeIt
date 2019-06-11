@@ -388,47 +388,47 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
     '''
 
     if (fluxes.ndim==2) and (wave_new.ndim==1):
-        nexp = np.shape(fluxes)[0]
+        nexp = np.shape(fluxes)[1]
         # Interpolate spectra to have the same wave grid with the iexp spectrum.
         # And scale spectra to the same flux level with the iexp spectrum.
-        fluxes_inter = np.zeros((nexp, wave_new.size))
-        ivars_inter  = np.zeros((nexp, wave_new.size))
-        masks_inter  = np.zeros((nexp, wave_new.size), dtype=bool)
+        fluxes_inter = np.zeros((wave_new.size, nexp))
+        ivars_inter  = np.zeros((wave_new.size, nexp))
+        masks_inter  = np.zeros((wave_new.size, nexp), dtype=bool)
         for ii in range(nexp):
-            mask_ii = masks[ii, :]
-            if np.sum(wave_new == waves[ii, :]) == np.size(wave_new):
+            mask_ii = masks[:, ii]
+            if np.sum(wave_new == waves[:, ii]) == np.size(wave_new):
                 # do not interpolate if the wavelength is exactly same with wave_new
-                fluxes_inter[ii, :] = fluxes[ii, :].copy()
-                ivars_inter[ii, :] = ivars[ii, :].copy()
-                masks_inter[ii, :] = mask_ii.copy()
+                fluxes_inter[:, ii] = fluxes[:, ii].copy()
+                ivars_inter[:, ii] = ivars[:, ii].copy()
+                masks_inter[:, ii] = mask_ii.copy()
             else:
                 flux_inter_ii, ivar_inter_ii, mask_inter_ii = \
-                    interp_oned(wave_new, waves[ii, :],fluxes[ii, :],ivars[ii, :], masks[ii, :])
-                fluxes_inter[ii, :] = flux_inter_ii  # * ratio_ii
-                ivars_inter[ii, :] = ivar_inter_ii  # * ratio_ii
-                masks_inter[ii, :] = mask_inter_ii
+                    interp_oned(wave_new, waves[:, ii],fluxes[:, ii],ivars[:, ii], masks[:, ii])
+                fluxes_inter[:, ii] = flux_inter_ii  # * ratio_ii
+                ivars_inter[:, ii] = ivar_inter_ii  # * ratio_ii
+                masks_inter[:, ii] = mask_inter_ii
 
     elif (fluxes.ndim==1) and (wave_new.ndim==1):
         fluxes_inter, ivars_inter, masks_inter = interp_oned(wave_new,waves,fluxes,ivars,masks)
 
     elif (fluxes.ndim==1) and (wave_new.ndim==2):
-        nexp = np.shape(wave_new)[0]
+        nexp = np.shape(wave_new)[1]
         fluxes_inter = np.zeros_like(wave_new)
         ivars_inter = np.zeros_like(wave_new)
         masks_inter = np.zeros_like(wave_new, dtype=bool)
 
         for ii in range(nexp):
-            if np.sum(wave_new[ii, :] == waves) == np.size(waves):
+            if np.sum(wave_new[:, ii] == waves) == np.size(waves):
                 # do not interpolate if the wavelength is exactly same with wave_new
-                fluxes_inter[ii, :] = fluxes.copy()
-                ivars_inter[ii, :] = ivars.copy()
-                masks_inter[ii, :] = masks.copy()
+                fluxes_inter[:, ii] = fluxes.copy()
+                ivars_inter[:, ii] = ivars.copy()
+                masks_inter[:, ii] = masks.copy()
             else:
                 flux_inter_ii, ivar_inter_ii, mask_inter_ii = \
-                    interp_oned(wave_new[ii, :], waves, fluxes, ivars, masks)
-                fluxes_inter[ii, :] = flux_inter_ii  # * ratio_ii
-                ivars_inter[ii, :] = ivar_inter_ii  # * ratio_ii
-                masks_inter[ii, :] = mask_inter_ii
+                    interp_oned(wave_new[:, ii], waves, fluxes, ivars, masks)
+                fluxes_inter[:, ii] = flux_inter_ii  # * ratio_ii
+                ivars_inter[:, ii] = ivar_inter_ii  # * ratio_ii
+                masks_inter[:, ii] = mask_inter_ii
 
     return fluxes_inter, ivars_inter, masks_inter
 
@@ -466,12 +466,12 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     if fluxes.ndim == 1:
         nstack = 1
         nspec = fluxes.shape[0]
-        flux_stack = fluxes.reshape((nstack, nspec))
-        sig_stack = sigs.reshape((nstack,nspec))
-        mask_stack = masks.reshape((nstack, nspec))
+        flux_stack = fluxes.reshape((nspec, nstack))
+        sig_stack = sigs.reshape((nspec, nstack))
+        mask_stack = masks.reshape((nspec, nstack))
     elif fluxes.ndim == 2:
-        nstack = fluxes.shape[0]
-        nspec = fluxes.shape[1]
+        nspec = fluxes.shape[0]
+        nstack = fluxes.shape[1]
         flux_stack = fluxes
         sig_stack = sigs
         mask_stack = masks
@@ -480,7 +480,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
 
     # if the wave
     if waves.ndim == 1:
-        wave_stack = np.outer(np.ones(nstack), waves)
+        wave_stack = np.outer(waves, np.ones(nstack))
     elif waves.ndim == 2:
         wave_stack = waves
     else:
@@ -491,45 +491,46 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     sn_val = flux_stack*np.sqrt(ivar_stack)
     sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
     sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
-    sn2 = (sn_sigclip.mean(axis=1).compressed())**2 #S/N^2 value for each spectrum
+    ## TODO Update with sigma_clipped stats with our new cenfunc and std_func = mad_std
+    sn2 = (sn_sigclip.mean(axis=0).compressed())**2 #S/N^2 value for each spectrum
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
 
     if rms_sn_stack <= 3.0 or const_weights:
-        weights = np.outer(sn2, np.ones(nspec))
+        weights = np.outer(np.ones(nspec), sn2)
         if verbose:
             msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
             for iexp in np.arange(nstack):
                 msgs.info('S/N = {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(
-                    rms_sn[iexp],np.mean(weights[iexp,:]), iexp))
+                    rms_sn[iexp],np.mean(weights[:,iexp]), iexp))
     else:
         if verbose:
             msgs.info("Using wavelength dependent weights for coadding")
         weights = np.ones_like(flux_stack) #((fluxes.shape[0], fluxes.shape[1]))
         spec_vec = np.arange(nspec)
         for iexp in range(nstack):
-            imask = mask_stack[iexp,:]
-            wave_now = wave_stack[iexp, imask]
+            imask = mask_stack[:, iexp]
+            wave_now = wave_stack[imask, iexp]
             spec_now = spec_vec[imask]
             dwave = (wave_now - np.roll(wave_now,1))[1:]
             dv = (dwave/wave_now[1:])*c_kms
             dv_pix = np.median(dv)
             med_width = int(np.round(dv_smooth/dv_pix))
-            # TODO Replace with fast_running_median
-            sn_med1 = scipy.ndimage.filters.median_filter(sn_val[iexp,imask]**2, size=med_width, mode='reflect')
+            sn_med1 = utils.fast_running_median(n_val[iexp,imask]**2, med_width)
+            #sn_med1 = scipy.ndimage.filters.median_filter(sn_val[iexp,imask]**2, size=med_width, mode='reflect')
             sn_med2 = np.interp(spec_vec, spec_now, sn_med1)
             #sn_med2 = np.interp(wave_stack[iexp,:], wave_now,sn_med1)
             sig_res = np.fmax(med_width/10.0, 3.0)
             gauss_kernel = convolution.Gaussian1DKernel(sig_res)
             sn_conv = convolution.convolve(sn_med2, gauss_kernel)
-            weights[iexp,:] = sn_conv
+            weights[:, iexp] = sn_conv
             if verbose:
                 msgs.info('S/N = {:4.2f}, averaged weight = {:4.2f} for {:}th exposure'.format(
-                    rms_sn[iexp],np.mean(weights[iexp,:]), iexp))
+                    rms_sn[iexp],np.mean(weights[:, iexp]), iexp))
     # Finish
     return rms_sn, weights
 
-def robust_median_ratio(flux,ivar,flux_ref,ivar_ref, ref_percentile=20.0, min_good=0.05, mask=None, mask_ref=None,
+def robust_median_ratio(flux,ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_good=0.05, mask=None, mask_ref=None,
                         maxiters=5, max_factor = 10.0, sigrej = 3.0):
     '''
     Calculate the ratio between reference spectrum and your spectrum.
@@ -803,11 +804,11 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
 
 def weights_qa(waves, weights, masks):
 
-    nexp = np.shape(waves)[0]
+    nexp = np.shape(waves)[1]
     fig = plt.figure(figsize=(10, 6))
 
     for iexp in range(nexp):
-        this_wave, this_weights, this_mask = waves[iexp,:], weights[iexp,:], masks[iexp,:]
+        this_wave, this_weights, this_mask = waves[:, iexp], weights[:, iexp], masks[:, iexp]
         wave_mask = this_wave > 1.0
         plt.plot(this_wave[wave_mask], this_weights[wave_mask]*this_mask[wave_mask])
     plt.xlim([waves.min(),waves.max()])
@@ -923,7 +924,7 @@ def write_to_fits(wave, flux, ivar, mask, outfil, clobber=True, fill_val=None):
 
 def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, sn_cap=20.0, debug=False):
 
-    nexp = np.shape(fluxes)[0]
+    nexp = np.shape(fluxes)[1]
 
     outchi = np.zeros_like(ivars)
     maskchi = np.zeros_like(outchi,dtype=bool)
@@ -934,14 +935,14 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
     # Loop on images to update noise model for rejection
     for iexp in range(nexp):
         # Grab the spectrum
-        thisflux = fluxes[iexp,:]
-        thisivar = ivars[iexp,:]
-        thismask = outmasks[iexp,:]
+        thisflux = fluxes[:, iexp]
+        thisivar = ivars[:, iexp]
+        thismask = outmasks[:,iexp]
 
         # Grab the stack interpolated with the same grid as the current exposure
-        thisflux_stack = fluxes_stack[iexp,:]
-        thisvar_stack = utils.calc_ivar(ivars_stack[iexp,:])
-        thismask_stack = masks_stack[iexp, :]
+        thisflux_stack = fluxes_stack[:, iexp]
+        thisvar_stack = utils.calc_ivar(ivars_stack[:, iexp])
+        thismask_stack = masks_stack[:, iexp]
 
         # var_tot
         var_tot = thisvar_stack + utils.calc_ivar(thisivar)
@@ -955,9 +956,9 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
         ivar_tot_corr = ivar_tot/this_sigma_corr ** 2
         ivar_cap = np.minimum(ivar_tot_corr, (sn_cap/(thisflux_stack + (thisflux_stack <= 0.0))) ** 2)
         sigma_corrs[iexp] = this_sigma_corr
-        rejivars[iexp, :] = ivar_cap
-        outchi[iexp, :] = chi
-        maskchi[iexp, :] = igood
+        rejivars[:, iexp] = ivar_cap
+        outchi[:, iexp] = chi
+        maskchi[:, iexp] = igood
 
     return rejivars, sigma_corrs, outchi, maskchi
 
@@ -987,9 +988,9 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     scales = np.zeros_like(fluxes)
     for iexp in range(nexp):
         # TODO Create a parset for the coadd parameters!!!
-        fluxes_scale[iexp,:], ivars_scale[iexp,:], scales[iexp,:],omethod = scale_spec(
-            waves[iexp,:],fluxes[iexp,:],ivars[iexp,:], flux_stack_nat[iexp, :],ivar_stack_nat[iexp,:],
-            mask=masks[iexp,:],mask_ref=mask_stack_nat[iexp,:], ref_percentile=ref_percentile, maxiters=maxiter_scale,
+        fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp],omethod = scale_spec(
+            waves[:, iexp],fluxes[:, iexp],ivars[:, iexp], flux_stack_nat[:, iexp],ivar_stack_nat[:, iexp],
+            mask=masks[:, iexp],mask_ref=mask_stack_nat[:, iexp], ref_percentile=ref_percentile, maxiters=maxiter_scale,
             sigrej=sigrej, scale_method=scale_method, hand_scale=hand_scale, sn_max_medscale=sn_max_medscale,
             sn_min_medscale=sn_min_medscale, debug=debug)
 
@@ -1009,7 +1010,7 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
                                           lower=lower,upper=upper, maxrej=maxrej, sticky=False)
         # print out how much was rejected
         for iexp in range(nexp):
-            thisreject = thismask[iexp,:]
+            thisreject = thismask[:, iexp]
             nrej = np.sum(np.invert(thisreject))
             if nrej > 0:
                 msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej, iexp))
@@ -1028,10 +1029,10 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     if debug:
         for iexp in range(nexp):
             # plot the residual distribution
-            renormalize_errors_qa(outchi[iexp,:], maskchi[iexp,:], sigma_corrs[iexp])
+            renormalize_errors_qa(outchi[:, iexp], maskchi[:, iexp], sigma_corrs[iexp])
             # plot the rejections for each exposures
-            coadd_iexp_qa(waves[iexp,:], fluxes_scale[iexp,:], ivars_scale[iexp,:], flux_stack_nat[iexp,:],
-                          ivar_stack_nat[iexp,:], mask=outmask[iexp,:], mask_stack=mask_stack_nat[iexp,:],
+            coadd_iexp_qa(waves[:, iexp], fluxes_scale[:, iexp], ivars_scale[:, iexp], flux_stack_nat[:, iexp],
+                          ivar_stack_nat[:, iexp], mask=outmask[:, iexp], mask_stack=mask_stack_nat[:, iexp],
                           qafile=None, debug=debug)
 
     # Plot the final coadded spectrum
