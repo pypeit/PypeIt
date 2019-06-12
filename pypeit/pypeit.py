@@ -565,8 +565,8 @@ class PypeIt(object):
         #embed(header='565 of pypeit')
         self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
 
-        self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph, self.caliBrate.tslits_dict,
-                                           self.sciImg.mask, self.par,
+        self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
+                                           self.caliBrate.tslits_dict, self.par,
                                            ir_redux = self.ir_redux,
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
@@ -576,32 +576,33 @@ class PypeIt(object):
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.redux.find_objects(self.sciImg.image, self.sciImg.ivar, std=self.std_redux, ir_redux=self.ir_redux,
-                                    std_trace=std_trace,maskslits=self.maskslits,
+            self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
+                                    std_trace=std_trace, maskslits=self.maskslits,
                                     show=self.show & (not self.std_redux),
                                     manual_extract_dict=manual_extract_dict)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
-            self.redux.global_skysub(self.sciImg.image, self.sciImg.ivar, self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
+            self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
-                self.redux.find_objects(self.sciImg.image - self.initial_sky, self.sciImg.ivar, std=self.std_redux, ir_redux=self.ir_redux,
+                self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
                                   std_trace=std_trace,maskslits=self.maskslits,show=self.show,
-                                        manual_extract_dict=manual_extract_dict)
+                                        manual_extract_dict=manual_extract_dict,
+                                        skysub_img=self.initial_sky)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             self.global_sky = self.initial_sky if self.std_redux else \
-                self.redux.global_skysub(self.sciImg.image, self.sciImg.ivar, self.caliBrate.tilts_dict['tilts'],
+                self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'],
                 skymask=self.skymask, maskslits=self.maskslits, show=self.show)
 
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-            self.redux.local_skysub_extract(self.sciImg.image, self.sciImg.ivar, self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
+            self.redux.local_skysub_extract(self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
                                             self.global_sky, self.sciImg.rn2img, self.sobjs_obj,
                                             model_noise=(not self.ir_redux),std = self.std_redux,
                                             maskslits=self.maskslits, show_profile=self.show,show=self.show)

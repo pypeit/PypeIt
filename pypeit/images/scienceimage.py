@@ -89,10 +89,11 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         return slf
 
 
-    def build_crmask(self):
+    def build_crmask(self, subtract_img=None):
         return super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
-                                                      self.rawvarframe).copy()
+                                                      self.rawvarframe,
+                                                      subtract_img=subtract_img).copy()
 
     def build_mask(self, saturation=1e10, mincounts=-1e10, slitmask=None):
         return super(ScienceImage, self).build_mask(self.image, self.ivar,
@@ -171,5 +172,14 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         self.image = prawImage.process(process_steps, pixel_flat=pixel_flat,
                                        bias=bias, illum_flat=illum_flat, debug=True)
         return self.image.copy()
+
+    def update_mask_cr(self, subtract_img=None):
+        # Generate the CR mask (and save in self.crmask)
+        _ = super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
+                                                      self.par, self.image,
+                                                      self.rawvarframe,
+                                                      subtract_img=subtract_img).copy()
+        # Now update the mask
+        _ = super(ScienceImage, self).update_mask_cr(self.crmask)
 
 

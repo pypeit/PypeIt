@@ -4,7 +4,8 @@ import numpy as np
 
 from pypeit.bitmask import BitMask
 from pypeit.core import procimg
-from pypeit import utils
+
+from IPython import embed
 
 
 class ImageBitMask(BitMask):
@@ -48,7 +49,7 @@ class ImageMask(object):
         # Internals
         self.mask = None
 
-    def build_crmask(self, spectrograph, det, par, image, rawvarframe):
+    def build_crmask(self, spectrograph, det, par, image, rawvarframe, subtract_img=None):
         """
         Generate the CR mask frame
 
@@ -56,12 +57,20 @@ class ImageMask(object):
 
         Requires self.rawvarframe to exist
 
+        Args:
+            subtract_img (np.ndarray, optional):
+                If provided, subtract this from the image prior to CR detection
+
         Returns:
             np.ndarray: Copy of self.crmask
 
         """
+        if subtract_img is not None:
+            use_img = image - subtract_img
+        else:
+            use_img = image
         # Run LA Cosmic to get the cosmic ray mask
-        self.crmask = procimg.lacosmic(det, image,
+        self.crmask = procimg.lacosmic(det, use_img,
                                   spectrograph.detector[det-1]['saturation'],
                                   spectrograph.detector[det-1]['nonlinear'],
                                   varframe=rawvarframe,
@@ -138,6 +147,49 @@ class ImageMask(object):
             mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
 
         return mask
+
+    def update_mask_slitmask(self, slitmask):
+        """
+        Update a mask using the slitmask
+
+        Args:
+            bitmask (pypeit.images.processimage.ProcessImagesBitMask):
+            mask_old (np.ndarray):
+            slitmask (np.ndarray):
+
+        Returns:
+            np.ndarray: new mask image
+
+        """
+        # Pixels excluded from any slit.
+        mask_new = np.copy(self.mask)
+        indx = slitmask == -1
+        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'OFFSLITS')
+        # Finish
+        self.mask = mask_new
+
+    def update_mask_cr(self, crmask_new):
+        """
+        Update the mask bits for cosmic rays
+
+        Args:
+            bitmask (pypeit.images.processimage.ProcessImagesBitMask):
+            mask_old (np.ndarray):
+            crmask_new:
+
+        Returns:
+            np.ndarray: new mask image
+
+        """
+        # Unset the CR bit from all places where it was set
+        CR_old = (self.bitmask.unpack(self.mask, flag='CR'))[0]
+        mask_new = np.copy(self.mask)
+        mask_new[CR_old] = self.bitmask.turn_off(mask_new[CR_old], 'CR')
+        # Now set the CR bit using the new crmask
+        indx = crmask_new.astype(bool)
+        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'CR')
+        # Save
+        self.mask = mask_new.copy()
 
 
 
