@@ -11,6 +11,8 @@
 - Started an X-Shooter doc and introduced a [process][bias] parameter
 - Modified processing steps for bias + overscan subtraction
 - Started notes on how to generate a new spectrograph in PypeIt
+- Refactoring of reduce to take a ScienceImage object for the images and the mask
+- Updates to many spectrograph files to put datasec, oscansec in the raw frame
 
 0.10.1 (22 May 2019)
 --------------------

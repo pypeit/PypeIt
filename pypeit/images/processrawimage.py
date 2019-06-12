@@ -1,20 +1,15 @@
-""" Object to hold + process a single image"""
+""" Object to process a single raw image"""
 
 import inspect
 
 import numpy as np
 
 from pypeit import msgs
-from pypeit import utils
-
 from pypeit.core import procimg
 from pypeit.core import flat
-
 from pypeit.images import pypeitimage
 
 from IPython import embed
-
-
 
 
 class ProcessRawImage(pypeitimage.PypeItImage):
@@ -38,14 +33,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
     Attributes:
         steps (dict):
             Dict describing the steps performed on the image
-        rawvarframe (np.narray):
-            Variance image
-        crmask (np.narray):
-            CR mask
-        mask (np.narray):
-            Full mask
-        rn2img (np.narray):
-            Read noise**2 image
     """
     def __init__(self, filename, spectrograph, det, par, frametype=None):
 

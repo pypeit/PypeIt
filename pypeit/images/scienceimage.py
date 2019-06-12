@@ -33,10 +33,12 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             Spectrograph used to take the data.
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
-        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+        par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
+        bpm (np.ndarray):
+            Bad pixel mask.  Held in ImageMask
 
         files (list, optional):
             List of filenames to be combined
@@ -44,9 +46,10 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
     Attributes:
         image (np.ndarray):
-        file_list (list): List of files to process
-        steps (list): List of steps used
-
+        ivar (np.narray):
+            Inverse variance image
+        rn2img (np.narray):
+            Read noise**2 image
     """
     frametype = 'science'
 
@@ -67,7 +70,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
         # Internal images
         self.image = None
-        self.rawvarframe = None
+        self.ivar = None
         self.rn2img = None
 
         # Other internals
@@ -88,14 +91,38 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Return
         return slf
 
-
     def build_crmask(self, subtract_img=None):
+        """
+        Call to ImageMask.build_crmask which will
+        generate the cosmic ray mask
+
+        Args:
+            subtract_img (np.ndarray, optional):
+                Image to be subtracted off of self.image prior to CR evaluation
+
+        Returns:
+            np.ndarray: Boolean array of self.crmask
+
+        """
         return super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
-                                                      self.rawvarframe,
+                                                      utils.calc_ivar(self.ivar),
                                                       subtract_img=subtract_img).copy()
 
     def build_mask(self, saturation=1e10, mincounts=-1e10, slitmask=None):
+        """
+        Call to ImageMask.build_mask()
+        This generates the full Image mask
+
+        Args:
+            saturation (float, optional):
+            mincounts (float, optional):
+            slitmask (np.ndarray, optional):
+
+        Returns:
+            np.ndarray:  The full mask, held in self.mask
+
+        """
         return super(ScienceImage, self).build_mask(self.image, self.ivar,
                                                     saturation=saturation,
                                                     mincounts=mincounts,
@@ -103,13 +130,12 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
     def build_ivar(self):
         """
-        Generate the Raw Variance frame
-        Currently only used by ScienceImage.
+        Generate the Inverse Variance frame
 
-        Wrapper to procimg.variance_frame
+        Uses procimg.variance_frame
 
         Returns:
-            np.ndarray: Copy of self.rawvarframe
+            np.ndarray: Copy of self.ivar
 
         """
         msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
@@ -156,6 +182,19 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         return self.rn2img.copy()
 
     def process_raw(self, filename, bias, pixel_flat, illum_flat=None):
+        """
+        Process a raw science image
+
+        Args:
+            filename (str):
+            bias (np.ndarray or None):
+            pixel_flat (np.ndarray):
+            illum_flat (np.ndarray, optional):
+
+        Returns:
+            np.ndarray: Copy of self.image
+
+        """
         # Build up
         prawImage = processrawimage.ProcessRawImage(filename, self.spectrograph,
                                                     self.det, self.par,
@@ -163,17 +202,28 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Save a bit
         self.filename = filename
         self.exptime = prawImage.exptime
-        #
+        # Process steps
         process_steps = procimg.init_process_steps(bias, self.par)
         process_steps += ['trim', 'apply_gain', 'orient']
         if (pixel_flat is not None) or (illum_flat is not None):
             process_steps += ['flatten']
-
+        # Do it
         self.image = prawImage.process(process_steps, pixel_flat=pixel_flat,
                                        bias=bias, illum_flat=illum_flat, debug=True)
         return self.image.copy()
 
     def update_mask_cr(self, subtract_img=None):
+        """
+        Updates the CR mask values in self.mask
+        through a call to ImageMask.build_crmask which
+        generates a new CR mask and then a call to
+        ImageMask.update_mask_cr() which updates self.mask
+
+        Args:
+            subtract_img (np.ndarray, optional):
+                If provided, this is subtracted from self.image prior to
+                CR masking
+        """
         # Generate the CR mask (and save in self.crmask)
         _ = super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
