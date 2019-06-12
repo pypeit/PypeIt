@@ -563,29 +563,42 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min
     nspec = flux.size
     snr_ref = flux_ref * np.sqrt(ivar_ref)
     snr_ref_best = np.percentile(snr_ref[mask_ref], ref_percentile)
-    calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask & (flux != 0.0)
-    from IPython import embed
-    embed()
+    calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask
+
     if (np.sum(calc_mask) > min_good*nspec):
         # Take the best part of the higher SNR reference spectrum
-        ratio = flux_ref[calc_mask] / flux[calc_mask]
-        ratio_mean, ratio_median, ratio_std = stats.sigma_clipped_stats(ratio, cenfunc='median', stdfunc=stats.mad_std,
-                                                                        maxiters=maxiters, sigma=sigrej)
-        plt.plot(ratio)
-        plt.ylim([0.5,1.5])
-        plt.show()
-        if (ratio_median < 0.0) or (np.invert(np.isfinite(ratio_median))):
+        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=stats.mad_std)
+
+        flux_ref_ma = np.ma.MaskedArray(flux_ref, np.invert(calc_mask))
+        flux_ref_clipped, lower, upper = sigclip(flux_ref_ma, masked=True, return_bounds=True)
+        mask_ref_clipped = np.invert(flux_ref_clipped.mask)  # mask_stack = True are good values
+
+        flux_ma = np.ma.MaskedArray(flux_ref, np.invert(calc_mask))
+        flux_clipped, lower, upper = sigclip(flux_ma, masked=True, return_bounds=True)
+        mask_clipped = np.invert(flux_clipped.mask)  # mask_stack = True are good values
+
+        new_mask = mask_ref_clipped & mask_clipped
+
+        flux_ref_median = np.median(flux_ref[new_mask])
+        flux_dat_median = np.median(flux[new_mask])
+
+        #flux_ref_mean, flux_ref_median, flux_ref_std = \
+        #    stats.sigma_clipped_stats(flux_ref,np.invert(calc_mask),cenfunc='median', stdfunc=stats.mad_std,
+        #                              maxiters=maxiters,sigma=sigrej)
+        #flux_dat_mean, flux_dat_median, flux_dat_std = \
+        #    stats.sigma_clipped_stats(flux,np.invert(calc_mask),cenfunc='median', stdfunc=stats.mad_std,
+        #                              maxiters=maxiters,sigma=sigrej)
+        if (flux_ref_median < 0.0) or (flux_dat_median < 0.0):
             msgs.warn('Negative median flux found. Not rescaling')
-            ratio_median = 1.0
+            ratio = 1.0
         else:
-            ratio_median = np.fmax(np.fmin(ratio_median, max_factor), 1.0/max_factor)
-            msgs.info('Scale factor is {:}'.format(ratio_median))
+            ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
         msgs.warn('Found only {:} good pixels for computing median flux ratio.' + msgs.newline() +
                   'No median rescaling applied'.format(np.sum(calc_mask)))
-        ratio_median = 1.0
+        ratio = 1.0
 
-    return ratio_median
+    return ratio
 
 
 def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
@@ -974,7 +987,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
 #Todo: This should probaby take a parset?
 def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_min=None, wave_grid_max=None,
-             A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=20.0, maxiter_scale=5, sigrej=3,
+             A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=50.0, maxiter_scale=5, sigrej=3,
              scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
              const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
              qafile=None, outfile=None, debug=False):
