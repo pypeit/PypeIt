@@ -564,19 +564,24 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min
     snr_ref = flux_ref * np.sqrt(ivar_ref)
     snr_ref_best = np.percentile(snr_ref[mask_ref], ref_percentile)
     calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask & (flux != 0.0)
-
+    from IPython import embed
+    embed()
     if (np.sum(calc_mask) > min_good*nspec):
         # Take the best part of the higher SNR reference spectrum
         ratio = flux_ref[calc_mask] / flux[calc_mask]
         ratio_mean, ratio_median, ratio_std = stats.sigma_clipped_stats(ratio, cenfunc='median', stdfunc=stats.mad_std,
                                                                         maxiters=maxiters, sigma=sigrej)
+        plt.plot(ratio)
+        plt.ylim([0.5,1.5])
+        plt.show()
         if (ratio_median < 0.0) or (np.invert(np.isfinite(ratio_median))):
             msgs.warn('Negative median flux found. Not rescaling')
             ratio_median = 1.0
         else:
             ratio_median = np.fmax(np.fmin(ratio_median, max_factor), 1.0/max_factor)
+            msgs.info('Scale factor is {:}'.format(ratio_median))
     else:
-        msgs.warn('Found only {:%d} good pixels for computing median flux ratio.' + msgs.newline() +
+        msgs.warn('Found only {:} good pixels for computing median flux ratio.' + msgs.newline() +
                   'No median rescaling applied'.format(np.sum(calc_mask)))
         ratio_median = 1.0
 
