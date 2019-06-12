@@ -594,8 +594,8 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min
         else:
             ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
-        msgs.warn('Found only {:} good pixels for computing median flux ratio.' + msgs.newline() +
-                  'No median rescaling applied'.format(np.sum(calc_mask)))
+        msgs.warn('Found only {:} good pixels for computing median flux ratio.'.format(np.sum(calc_mask))
+                  + msgs.newline() + 'No median rescaling applied')
         ratio = 1.0
 
     return ratio
