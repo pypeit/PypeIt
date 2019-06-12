@@ -562,7 +562,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min
 
     nspec = flux.size
     snr_ref = flux_ref * np.sqrt(ivar_ref)
-    snr_ref_best = np.percentile(snr_ref[mask_ref], ref_percentile)
+    snr_ref_best = np.fmax(np.percentile(snr_ref[mask_ref], ref_percentile),0.5)
     calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask
 
     if (np.sum(calc_mask) > min_good*nspec):
@@ -592,6 +592,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min
             msgs.warn('Negative median flux found. Not rescaling')
             ratio = 1.0
         else:
+            msgs.info('Used {:} good pixels for computing median flux ratio'.format(np.sum(new_mask)))
             ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
         msgs.warn('Found only {:} good pixels for computing median flux ratio.'.format(np.sum(calc_mask))
@@ -987,7 +988,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
 #Todo: This should probaby take a parset?
 def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_min=None, wave_grid_max=None,
-             A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=50.0, maxiter_scale=5, sigrej=3,
+             A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
              scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
              const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
              qafile=None, outfile=None, debug=False):
