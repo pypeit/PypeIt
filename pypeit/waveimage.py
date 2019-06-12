@@ -152,7 +152,7 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load_wave(self, ifile=None, return_header=False):
+    def load(self, ifile=None, return_header=False):
         """
         Load the wavelength image data from a saved master frame.
 

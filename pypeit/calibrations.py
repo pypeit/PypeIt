@@ -597,7 +597,7 @@ class Calibrations(object):
                                                 reuse_masters=self.reuse_masters, msbpm=self.msbpm)
 
         # Load the MasterFrame (if it exists and is desired)?
-        self.tslits_dict, _ = self.traceSlits.load_slits()
+        self.tslits_dict, _ = self.traceSlits.load()
         if self.tslits_dict is None:
             # Build the trace image
             self.traceImage = traceimage.TraceImage(self.spectrograph,
@@ -691,7 +691,7 @@ class Calibrations(object):
                                              reuse_masters=self.reuse_masters)
 
         # Attempt to load master
-        self.mswave = self.waveImage.load_wave()
+        self.mswave = self.waveImage.load()
         if self.mswave is None:
             self.mswave = self.waveImage.build_wave()
             # Save to hard-drive

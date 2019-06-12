@@ -38,6 +38,19 @@ class ImageBitMask(BitMask):
         super(ImageBitMask, self).__init__(list(mask_dict.keys()), descr=list(mask_dict.values()))
 
 class ImageMask(object):
+    """
+    Class to handle masks associated with an Image
+
+    Args:
+        bpm (np.ndarray):
+            Bad pixel mask
+        crmask (np.ndarray, optional):
+            Cosmic Ray mask (boolean)
+
+    Attributes:
+        mask (np.ndarray):
+            The bitmask values for the full mask
+    """
 
     bitmask = ImageBitMask()
 
@@ -53,16 +66,26 @@ class ImageMask(object):
         """
         Generate the CR mask frame
 
-        Wrapper to procimg.lacosmic
-
-        Requires self.rawvarframe to exist
+        Mainly a wrapper to procimg.lacosmic
 
         Args:
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                Spectrograph used to take the data.
+            det (:obj:`int`, optional):
+                The 1-indexed detector number to process.
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+                defaults.
+            image (np.ndarray):
+                Image to identify CR's in
+            rawvarframe (np.ndarray):
+                Variance image
             subtract_img (np.ndarray, optional):
                 If provided, subtract this from the image prior to CR detection
 
         Returns:
-            np.ndarray: Copy of self.crmask
+            np.ndarray: Copy of self.crmask (boolean)
 
         """
         if subtract_img is not None:
@@ -83,7 +106,7 @@ class ImageMask(object):
         # Return
         return self.crmask.copy()
 
-    def build_mask(self, image, sciivar, saturation=1e10,
+    def build_mask(self, image, ivar, saturation=1e10,
                    mincounts=-1e10, slitmask=None):
         """
         Return the bit value mask used during extraction.
@@ -100,13 +123,15 @@ class ImageMask(object):
             indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
 
         Args:
+            image (np.ndarray):
+                Image
+            ivar (np.ndarray):
+                Inverse variance of the input image
             saturation (float, optional):
                 Saturation limit in ADU
-            mincounts (float, optional):
             slitmask (np.ndarray, optional):
                 Slit mask image;  Pixels not in a slit are masked
-            bpm (np.ndarray, optional):
-                Bad pixel mask
+            mincounts (float, optional):
 
         Returns:
             numpy.ndarray: Copy of the bit value mask for the science image.
@@ -135,11 +160,11 @@ class ImageMask(object):
         mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
 
         # Bad inverse variance values
-        indx = np.invert(sciivar > 0.0)
+        indx = np.invert(ivar > 0.0)
         mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
 
         # Undefined inverse variances
-        indx = np.invert(np.isfinite(sciivar))
+        indx = np.invert(np.isfinite(ivar))
         mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
 
         if slitmask is not None:
@@ -153,9 +178,8 @@ class ImageMask(object):
         Update a mask using the slitmask
 
         Args:
-            bitmask (pypeit.images.processimage.ProcessImagesBitMask):
-            mask_old (np.ndarray):
             slitmask (np.ndarray):
+                Slitmask with -1 values pixels *not* in a slit
 
         Returns:
             np.ndarray: new mask image
@@ -172,10 +196,12 @@ class ImageMask(object):
         """
         Update the mask bits for cosmic rays
 
+        The original are turned off and the new
+        ones are turned on.
+
         Args:
-            bitmask (pypeit.images.processimage.ProcessImagesBitMask):
-            mask_old (np.ndarray):
-            crmask_new:
+            crmask_new (np.ndarray):
+                New CR mask
 
         Returns:
             np.ndarray: new mask image

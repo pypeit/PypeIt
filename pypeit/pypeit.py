@@ -641,7 +641,6 @@ class PypeIt(object):
             self.sobjs = self.sobjs_obj
             self.vel_corr = None
 
-        #return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
         return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
 
     # TODO: Why not use self.frame?

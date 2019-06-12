@@ -1041,7 +1041,7 @@ class TraceSlits(masterframe.MasterFrame):
                       fits.ImageHDU(data=_tslits_dict['maskslits'].astype(int), name='MASK'),  # int deals with bool
                      ]).writeto(_outfile, overwrite=True)
 
-    def load_slits(self, ifile=None, return_header=False):
+    def load(self, ifile=None, return_header=False):
         """
         Load the trace slits data.
 

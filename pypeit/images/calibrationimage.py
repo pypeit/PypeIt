@@ -8,8 +8,6 @@ import numpy as np
 
 from pypeit import msgs
 
-from pypeit import utils
-from pypeit.core import procimg
 from pypeit.core import combine
 from pypeit.par import pypeitpar
 
@@ -18,11 +16,6 @@ from pypeit.images import processrawimage
 
 
 from IPython import embed
-
-# REMOVE THIS
-from importlib import reload
-reload(procimg)
-
 
 
 class CalibrationImage(pypeitimage.PypeItImage):
@@ -45,10 +38,9 @@ class CalibrationImage(pypeitimage.PypeItImage):
         frametype (str, optional): Frame type
 
     Attributes:
-        pimages (list): List of ProcessImage objects
         image (np.ndarray):
         file_list (list): List of files to process
-        process_steps (list): List of steps used
+        process_steps (list): List of processing steps to be used
 
     """
 
@@ -70,21 +62,10 @@ class CalibrationImage(pypeitimage.PypeItImage):
         self.frametype = frametype
 
         # Internal images
-        self.pimages = []
         self.image = None
 
         # Process steps
         self.process_steps = []
-
-    @property
-    def nimages(self):
-        """
-
-        Returns:
-            int: Number of ProcessImage objects loaded
-
-        """
-        return len(self.pimages)
 
     @property
     def nfiles(self):
@@ -138,9 +119,13 @@ class CalibrationImage(pypeitimage.PypeItImage):
 
     def build_image(self, bias=None, bpm=None):
         """
-        Combine the images held in self.pimages
+        Load, process and combine the images for a Calibration
 
-        Wrapper to combine.comb_frames
+        Args:
+            bias (np.ndarray, optional):
+                Bias image
+            bpm (np.ndarray, optional):
+                Bad pixel mask
 
         Returns:
             np.ndarray: Copy of self.image
@@ -176,8 +161,8 @@ class CalibrationImage(pypeitimage.PypeItImage):
         return self.image.copy()
 
     def __repr__(self):
-        return ('<{:s}: nfiles={}, nimages={}>'.format(
-            self.__class__.__name__, self.nfiles, self.nimages))
+        return ('<{:s}: nfiles={}, steps={}>'.format(
+            self.__class__.__name__, self.nfiles, self.process_steps))
 
 
 

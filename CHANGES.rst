@@ -5,12 +5,12 @@
 - Polish several key echelle methods
 - Modify create_linelist to default to vacuum
 - Update Xshooter, NIRES, and GNIRS
-- Refactor ProcessImages into ProcessImage, PypeItImage and CombinedImage
-- More precisely name the load() methods
+- Refactor ProcessImages into ProcessRawImage, PypeItImage, CalibrationImage, ScienceImage, and ImageMask
+- Refactor ScienceImage into SciImgStack
 - Fix arc tilts bug
-- Modest refactoring of ScienceImage
-- Moved several mask methods to procimg.py
 - Started an X-Shooter doc and introduced a [process][bias] parameter
+- Modified processing steps for bias + overscan subtraction
+- Started notes on how to generate a new spectrograph in PypeIt
 
 0.10.1 (22 May 2019)
 --------------------
