@@ -41,6 +41,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
+from pypeit.core import procimg
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.metadata import PypeItMetaData
@@ -376,6 +377,22 @@ class Spectrograph(object):
             return self.get_pixel_img(filename, 'oscansec', det)
         else:
             return self.oscansec_img
+
+    def get_datasec_img(self, filename, det):
+        """
+        Generate and return the datasec image in the PypeIt reference
+        frame, e.g. trimmed + oriented
+
+        Returns:
+            np.ndarray
+
+        """
+        rdimg = self.get_rawdatasec_img(filename=filename, det=det)
+        # Fuss
+        rdimg = procimg.trim_frame(rdimg, rdimg < 1)
+        dimg = self.orient_image(rdimg, det)
+        # Return
+        return dimg
 
     def get_pixel_img(self, filename, section, det):
         """

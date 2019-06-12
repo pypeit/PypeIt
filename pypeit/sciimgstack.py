@@ -1,4 +1,4 @@
-""" Module for the ScienceImage class"""
+""" Module for the SciImgStack class"""
 import numpy as np
 from pypeit import msgs
 from pypeit import utils
@@ -7,10 +7,11 @@ from pypeit.core import coadd2d
 from pypeit.core import procimg
 
 from pypeit.images import scienceimage
+from pypeit.images import maskimage
 
 from IPython import embed
 
-class ScienceImages(object):
+class SciImgStack(object):
     """
     This class will organize and run actions related to
     a Science or Standard star exposure
@@ -77,7 +78,6 @@ class ScienceImages(object):
 
     # Frametype is a class attribute
     frametype = 'scienceimages'
-    bitmask = scienceimage.ProcessImagesBitMask()
 
     # TODO: Merge into a single parset, one for procing, and one for scienceimage
     def __init__(self, spectrograph, file_list, bg_file_list=[], ir_redux=False,
@@ -151,29 +151,29 @@ class ScienceImages(object):
         sciivar_stack= np.zeros(shape)
         rn2img_stack = np.zeros(shape)
         crmask_stack = np.zeros(shape, dtype=bool)
-        mask_stack = np.zeros(shape, self.bitmask.minimum_dtype(asuint=True))
+
+        # Mask
+        bitmask = maskimage.ImageBitMask()
+        mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
 
         # Loop on the files
         for kk, ifile in enumerate(files):
             # Instantiate
             sciImage = scienceimage.ScienceImage(self.spectrograph, self.det,
-                                                 self.par['process'])
+                                                 self.par['process'], bpm)
             # Process
-            sciImage.process_raw(ifile, self.bias, self.pixel_flat, bpm,
-                                 illum_flat=self.illum_flat)
+            sciimg_stack[kk,:,:] = sciImage.process_raw(ifile, self.bias, self.pixel_flat, illum_flat=self.illum_flat)
             # Construct raw variance image and turn into inverse variance
-            rawvarframe = sciImage.build_rawvarframe()
-            sciivar_stack[kk, :, :] = utils.calc_ivar(rawvarframe)
+            sciivar_stack[kk, :, :] = sciImage.build_ivar()
             # Mask cosmic rays
             if reject_cr:
                 crmask_stack[kk, :, :] = sciImage.build_crmask()
-            sciimg_stack[kk,:,:] = sciImage.image
             # Build read noise squared image
             rn2img_stack[kk, :, :] = sciImage.build_rn2img()
             # Final mask for this image
             mask_stack[kk, :, :] = sciImage.build_mask(
                 saturation=self.spectrograph.detector[self.det - 1]['saturation'],
-                mincounts = self.spectrograph.detector[self.det - 1]['mincounts'])
+                mincounts=self.spectrograph.detector[self.det - 1]['mincounts'])
 
         # Return
         return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
@@ -214,15 +214,16 @@ class ScienceImages(object):
             self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_diff(
                 reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
         else:
-            self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_list(
-                'sci', reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
+            #self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_list(
+            sciImg = self.proc_list('sci', reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
 
         # Show the science image if an interactive run, only show the crmask
         if show:
             # Only mask the CRs in this image
-            self.show(self.sciimg * (self.crmask == 0), chname='sciimg')
+            self.show(sciImg.image * (sciImg.crmask == 0), chname='sciimg')
 
-        return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
+        #return self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask
+        return sciImg
 
     def proc_list(self, ltype, reject_cr=True, sigma_clip=False, sigrej=None, maxiters=5):
         """
@@ -269,9 +270,18 @@ class ScienceImages(object):
             img_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
                 weights, img_list, var_list, (mask_stack == 0),
                 sigma_clip=sigma_clip, sigma_clip_stack = img_stack, sigrej=sigrej, maxiters=maxiters)
+            '''
             img = img_list_out[0]
             ivar = utils.calc_ivar(var_list_out[0])
             rn2img = var_list_out[1]
+            '''
+            sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
+                                                             self.par['process'], self.sci_bpm,
+                                                             img_list_out[0],
+                                                             utils.calc_ivar(var_list_out[0]),
+                                                             var_list_out[1], np.invert(outmask))
+            sciImage.build_mask(saturation=self.saturation, mincounts=self.mincounts)
+            '''
             # assumes everything masked in the outmask is a CR in the individual images
             crmask = np.invert(outmask)
             # Create a mask for this combined image
@@ -282,14 +292,19 @@ class ScienceImages(object):
             #mask = procimg.build_mask(bpm=self.sci_bpm, saturation=self.saturation, mincounts=self.mincounts)
             mask = procimg.build_mask(self.bitmask, img, ivar, self.sci_bpm, crmask,
                                            saturation=self.saturation, mincounts=self.mincounts)
+            '''
         else:
             mask = mask_stack[0, :, :]
             crmask = crmask_stack[0, :, :]
             img = img_stack[0, :, :]
             ivar = ivar_stack[0, :, :]
             rn2img = rn2img_stack[0, :, :]
+            sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
+                                                         self.par['process'], self.sci_bpm,
+                                                         img, ivar,
+                                                         rn2img, crmask=crmask, mask=mask)
 
-        return img, ivar, rn2img, mask, crmask
+        return sciImage
 
 
     def proc_diff(self, reject_cr=True, sigma_clip=False, sigrej=None, maxiters=5):

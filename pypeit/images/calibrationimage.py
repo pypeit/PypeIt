@@ -150,18 +150,14 @@ class CalibrationImage(pypeitimage.PypeItImage):
         image_arr = None
         for kk,file in enumerate(self.file_list):
             # Process raw file
-            processrawImage = processrawimage.ProcessRawImage(file,
-                                                           self.spectrograph,
+            processrawImage = processrawimage.ProcessRawImage(file, self.spectrograph,
                                                            self.det, self.proc_par)
-            processrawImage.load()
-            processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
+            image = processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
             # Instantiate the image stack
             if image_arr is None:
-                image_arr = np.zeros((processrawImage.image.shape[0],
-                                         processrawImage.image.shape[1],
-                                         self.nfiles))
-            # This is a bit memory expensive...
-            image_arr[:,:,kk] = processrawImage.image
+                image_arr = np.zeros((image.shape[0], image.shape[1], self.nfiles))
+            # Hold
+            image_arr[:,:,kk] = image
 
         # Combine
         if self.nfiles == 1:

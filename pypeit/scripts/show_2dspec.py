@@ -10,7 +10,7 @@ with extras.  Run above the Science/ folder.
 import argparse
 from astropy.table import Table
 from pypeit import ginga
-from pypeit.images.processimage import ProcessImagesBitMask as bitmask
+from pypeit.images.maskimage import ImageBitMask as bitmask
 from pypeit.core import pixels
 from pypeit.masterframe import MasterFrame
 from pypeit.traceslits import TraceSlits

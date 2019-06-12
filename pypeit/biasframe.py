@@ -70,6 +70,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.process_steps = []
         if self.par['process']['overscan'].lower() != 'none':
             self.process_steps.append('subtract_overscan')
+        self.process_steps += ['trim']
 
 
     def build_image(self, overwrite=False, trim=True):

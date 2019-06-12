@@ -82,9 +82,7 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    bitmask = scienceimage.ProcessImagesBitMask()
-
-    def __init__(self, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1,
+    def __init__(self, sciImg, spectrograph, tslits_dict, mask, par, ir_redux=False, det=1,
                  objtype='science', binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -98,12 +96,13 @@ class Reduce(object):
         self.flex_par = self.par['flexure']
 
         # Instantiation attributes for this object
+        self.sciImg = sciImg
         self.spectrograph = spectrograph
         self.tslits_dict = tslits_dict
         self.mask = mask
         self.slitmask = pixels.tslits2mask(self.tslits_dict)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
-        self.mask = procimg.update_mask_slitmask(self.bitmask, self.mask, self.slitmask)
+        self.mask = procimg.update_mask_slitmask(self.sciImg.bitmask, self.mask, self.slitmask)
         self.maskslits=None
         self.maskslits = self._get_goodslits(maskslits)
         self.ir_redux = ir_redux
@@ -309,6 +308,7 @@ class Reduce(object):
                 self.maskslits[slit] = True
 
         if update_crmask:
+            embed(header='311 in reduce; use ScienceImage')
             self.crmask = procimg.lacosmic(self.det, self.sciimg-self.global_sky,
                                            self.spectrograph.detector[self.det-1]['saturation'],
                                            self.spectrograph.detector[self.det-1]['nonlinear'],
@@ -320,7 +320,7 @@ class Reduce(object):
                                            sigfrac=self.proc_par['sigfrac'],
                                            objlim=self.proc_par['objlim'])
             # Rebuild the mask with this new crmask
-            self.mask = procimg.update_mask_cr(self.bitmask, self.mask, self.crmask)
+            self.mask = procimg.update_mask_cr(self.sciImg.bitmask, self.mask, self.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -533,8 +533,8 @@ class MultiSlit(Reduce):
     Child of Reduce for Multislit and Longslit reductions
 
     """
-    def __init__(self, spectrograph, tslits_dict, mask, par, **kwargs):
-        super(MultiSlit, self).__init__(spectrograph, tslits_dict, mask, par, **kwargs)
+    def __init__(self, sciImg, spectrograph, tslits_dict, mask, par, **kwargs):
+        super(MultiSlit, self).__init__(sciImg, spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 
@@ -690,7 +690,7 @@ class MultiSlit(Reduce):
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
         iextract = (self.mask == 0) & (self.extractmask == False)
-        self.outmask[iextract] = self.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
+        self.outmask[iextract] = self.sciImg.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -702,13 +702,14 @@ class MultiSlit(Reduce):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
+
 class Echelle(Reduce):
     """
     Child of Reduce for Echelle reductions
 
     """
-    def __init__(self, spectrograph, tslits_dict, mask, par, **kwargs):
-        super(Echelle, self).__init__(spectrograph, tslits_dict, mask, par, **kwargs)
+    def __init__(self, sciImg, spectrograph, tslits_dict, mask, par, **kwargs):
+        super(Echelle, self).__init__(sciImg, spectrograph, tslits_dict, mask, par, **kwargs)
 
 
     def find_objects_pypeline(self, image, ivar, std=False, std_trace = None, maskslits=None,
@@ -806,7 +807,7 @@ class Echelle(Reduce):
 
 
 
-def instantiate_me(spectrograph, tslits_dict, mask, par, **kwargs):
+def instantiate_me(sciImg, spectrograph, tslits_dict, mask, par, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -829,7 +830,7 @@ def instantiate_me(spectrograph, tslits_dict, mask, par, **kwargs):
     indx = [ c.__name__ == spectrograph.pypeline for c in Reduce.__subclasses__() ]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return Reduce.__subclasses__()[np.where(indx)[0][0]](spectrograph, tslits_dict, mask, par, **kwargs)
+    return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph, tslits_dict, mask, par, **kwargs)
 
 
 

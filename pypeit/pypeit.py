@@ -10,7 +10,7 @@ from IPython import embed
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
-from pypeit.images import scienceimages
+from pypeit import sciimgstack
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa
@@ -546,25 +546,27 @@ class PypeIt(object):
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciI = scienceimages.ScienceImages(self.spectrograph, sci_files,
+        self.sciI = sciimgstack.SciImgStack(self.spectrograph, sci_files,
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
                                               par=self.par['scienceframe'],
                                               det=det,
                                               binning=self.binning)
-        # For QA on crash.
+        # For QA on crash
         msgs.sciexp = self.sciI
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
-        self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = \
-            self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixelflat.copy(),
+        #self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = \
+        self.sciImg = self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixelflat.copy(),
                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                            show=self.show)
         # Object finding, first pass on frame without sky subtraction
+        #from pypeit import ginga
+        #embed(header='565 of pypeit')
         self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
 
-        self.redux = reduce.instantiate_me(self.spectrograph, self.caliBrate.tslits_dict,
-                                           self.mask, self.par,
+        self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph, self.caliBrate.tslits_dict,
+                                           self.sciImg.mask, self.par,
                                            ir_redux = self.ir_redux,
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
@@ -574,20 +576,20 @@ class PypeIt(object):
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.redux.find_objects(self.sciimg, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
+            self.redux.find_objects(self.sciImg.image, self.sciImg.ivar, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace,maskslits=self.maskslits,
                                     show=self.show & (not self.std_redux),
                                     manual_extract_dict=manual_extract_dict)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
-            self.redux.global_skysub(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
+            self.redux.global_skysub(self.sciImg.image, self.sciImg.ivar, self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
-                self.redux.find_objects(self.sciimg - self.initial_sky, self.sciivar, std=self.std_redux, ir_redux=self.ir_redux,
+                self.redux.find_objects(self.sciImg.image - self.initial_sky, self.sciImg.ivar, std=self.std_redux, ir_redux=self.ir_redux,
                                   std_trace=std_trace,maskslits=self.maskslits,show=self.show,
                                         manual_extract_dict=manual_extract_dict)
 
@@ -595,12 +597,12 @@ class PypeIt(object):
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             self.global_sky = self.initial_sky if self.std_redux else \
-                self.redux.global_skysub(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'],
+                self.redux.global_skysub(self.sciImg.image, self.sciImg.ivar, self.caliBrate.tilts_dict['tilts'],
                 skymask=self.skymask, maskslits=self.maskslits, show=self.show)
 
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-            self.redux.local_skysub_extract(self.sciimg, self.sciivar, self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
-                                            self.global_sky, self.rn2img, self.sobjs_obj,
+            self.redux.local_skysub_extract(self.sciImg.image, self.sciImg.ivar, self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
+                                            self.global_sky, self.sciImg.rn2img, self.sobjs_obj,
                                             model_noise=(not self.ir_redux),std = self.std_redux,
                                             maskslits=self.maskslits, show_profile=self.show,show=self.show)
 
@@ -616,6 +618,7 @@ class PypeIt(object):
             # Grab coord
             radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
             self.vel_corr = self.redux.helio_correct(self.sobjs, radec, self.obstime)
+            #embed(header='620 of pypeit')
 
         else:
             # Print status message
@@ -637,7 +640,8 @@ class PypeIt(object):
             self.sobjs = self.sobjs_obj
             self.vel_corr = None
 
-        return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
+        #return self.sciimg, self.sciivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
+        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename):

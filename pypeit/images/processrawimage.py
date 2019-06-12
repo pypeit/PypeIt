@@ -61,6 +61,9 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Attributes
         self._reset_internals()
 
+        # Load
+        self.load_rawframe()
+
         # All possible processing steps
         #  Note these have to match the method names below
         self.steps = dict(subtract_bias=False,
@@ -110,24 +113,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         rdimg = self.spectrograph.get_rawdatasec_img(self.filename, self.det)
         return rdimg
 
-    @property
-    def datasec_img(self):
-        """
-        Generate and return the datasec image in the PypeIt reference frame, e.g.
-        trimmed + oriented
-
-        Returns:
-            np.ndarray
-
-        """
-        dimg = self.rawdatasec_img
-        # Fuss
-        if self.steps['trim']:
-            dimg = procimg.trim_frame(dimg, dimg < 1)
-        if self.steps['orient']:
-            dimg = self.spectrograph.orient_image(dimg, self.det)
-        # Return
-        return dimg
 
     @property
     def oscansec_img(self):
@@ -188,7 +173,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
 
 
     def process(self, process_steps, pixel_flat=None, illum_flat=None,
-                       bias=None, bpm=None):
+                       bias=None, bpm=None, debug=False):
         """
         Process the image
 
@@ -212,12 +197,12 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             bpm = self.bpm
         # Standard order
         #   -- May need to allow for other order some day..
-        if 'subtract_bias' in process_steps:
-            self.subtract_bias(bias)
         if 'subtract_overscan' in process_steps:
             self.subtract_overscan()
         if 'trim' in process_steps:
             self.trim()
+        if 'subtract_bias' in process_steps: # Bias frame, if it exists, is trimmed
+            self.subtract_bias(bias)
         if 'apply_gain' in process_steps:
             self.apply_gain()
         if 'orient' in process_steps:
@@ -225,6 +210,8 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Flat field
         if 'flatten' in process_steps:
             self.flatten(pixel_flat, illum_flat=illum_flat, bpm=bpm)
+        # Return copy of the image
+        return self.image.copy()
 
     def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
         """
@@ -260,7 +247,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Return
         return self.image.copy()
 
-    def load(self):
+    def load_rawframe(self):
         """
         Load a raw image from disk using the Spectrograph method load_raw_frame()
 
