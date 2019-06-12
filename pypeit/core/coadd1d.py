@@ -536,7 +536,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     # Finish
     return rms_sn, weights
 
-def robust_median_ratio(flux,ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_good=0.05, mask=None, mask_ref=None,
+def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_good=0.05, mask=None, mask_ref=None,
                         maxiters=5, max_factor = 10.0, sigrej = 3.0):
     '''
     Calculate the ratio between reference spectrum and your spectrum.
@@ -554,7 +554,6 @@ def robust_median_ratio(flux,ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_
     Returns:
         ratio_median: median ratio
     '''
-
     ## Mask for reference spectrum and your spectrum
     if mask is None:
         mask = ivar > 0.0
@@ -564,26 +563,24 @@ def robust_median_ratio(flux,ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_
     nspec = flux.size
     snr_ref = flux_ref * np.sqrt(ivar_ref)
     snr_ref_best = np.percentile(snr_ref[mask_ref], ref_percentile)
-    calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask
+    calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask & (flux != 0.0)
+
     if (np.sum(calc_mask) > min_good*nspec):
         # Take the best part of the higher SNR reference spectrum
-        flux_ref_mean, flux_ref_median, flux_ref_std = \
-            stats.sigma_clipped_stats(flux_ref,np.invert(calc_mask),cenfunc='median', stdfunc=stats.mad_std,
-                                      maxiters=maxiters,sigma=sigrej)
-        flux_dat_mean, flux_dat_median, flux_dat_std = \
-            stats.sigma_clipped_stats(flux,np.invert(calc_mask),cenfunc='median', stdfunc=stats.mad_std,
-                                      maxiters=maxiters,sigma=sigrej)
-        if (flux_ref_median < 0.0) or (flux_dat_mean < 0.0):
+        ratio = flux_ref[calc_mask] / flux[calc_mask]
+        ratio_mean, ratio_median, ratio_std = stats.sigma_clipped_stats(ratio, cenfunc='median', stdfunc=stats.mad_std,
+                                                                        maxiters=maxiters, sigma=sigrej)
+        if (ratio_median < 0.0) or (np.invert(np.isfinite(ratio_median))):
             msgs.warn('Negative median flux found. Not rescaling')
-            ratio = 1.0
+            ratio_median = 1.0
         else:
-            ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
+            ratio_median = np.fmax(np.fmin(ratio_median, max_factor), 1.0/max_factor)
     else:
-        msgs.warn('Found only {%d} good pixels for computing median flux ratio.' + msgs.newline() +
+        msgs.warn('Found only {:%d} good pixels for computing median flux ratio.' + msgs.newline() +
                   'No median rescaling applied'.format(np.sum(calc_mask)))
-        ratio = 1.0
+        ratio_median = 1.0
 
-    return ratio
+    return ratio_median
 
 
 def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
@@ -1045,7 +1042,7 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
     # Plot the final coadded spectrum
     if debug:
         weights_qa(waves, weights, outmask)
-    coadd_qa(wave_stack,flux_stack,ivar_stack, nused, mask=mask_stack, qafile=qafile, debug=debug)
+        coadd_qa(wave_stack,flux_stack,ivar_stack, nused, mask=mask_stack, qafile=qafile, debug=debug)
 
     # Write to disk?
     if outfile is not None:
