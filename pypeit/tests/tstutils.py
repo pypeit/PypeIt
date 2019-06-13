@@ -145,7 +145,7 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False)
     if aimg:
         AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir,
                                  reuse_masters=reuse_masters)
-        msarc = AImg.load_arcimage()
+        msarc = AImg.load()
         ret.append(msarc)
 
     if tslits:

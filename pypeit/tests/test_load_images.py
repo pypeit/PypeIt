@@ -8,7 +8,7 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit.images.combinedimage import CombinedImage
+from pypeit.images.calibrationimage import CalibrationImage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -19,24 +19,25 @@ par = pypeitpar.ProcessImagesPar()
 # Dumb wrapper because I am too lazy to replace the old approach
 def ProcessImages(specstr, par, files, det=1):
     spec = load_spectrograph(specstr)
-    combinedImage = CombinedImage(spec, det, par, files=files)
-    return combinedImage
+    calibImage = CalibrationImage(spec, det, par, files=files)
+    return calibImage
 
-def grab_img(proc):
-    data_img, slice = pixels.slice_with_mask(proc.pimages[0].image,
-                                      proc.pimages[0].rawdatasec_img)
+def grab_img(proc, filename):
+    rdimg = proc.spectrograph.get_rawdatasec_img(filename, proc.det)
+    data_img, slice = pixels.slice_with_mask(proc.image, rdimg)
     return data_img
 
 
+'''
 @dev_suite_required
 def test_load_deimos():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
                          'd0914_0014.fits.gz')
     proc = ProcessImages('keck_deimos', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         # First amplifier
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('DEIMOS test data section failed.')
 
@@ -45,10 +46,10 @@ def test_load_lris():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_blue',
                          'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     proc = ProcessImages('keck_lris_blue', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         # First amplifier
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('LRIS test data section failed.')
 
@@ -57,10 +58,10 @@ def test_load_nires():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES',
                          's180604_0004.fits.gz')
     proc = ProcessImages('keck_nires', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         # First amplifier
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('NIRES test data section failed.')
 
@@ -69,10 +70,10 @@ def test_load_nirspec():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRSPEC', 'NIRSPEC-1',
                          'NS.20160414.02604.fits.gz')
     proc = ProcessImages('keck_nirspec_low', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         # First amplifier
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('NIRSPEC test data section failed.')
 
@@ -81,10 +82,10 @@ def test_load_kast():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Shane_Kast_blue', '600_4310_d55',
                          'b1.fits.gz')
     proc = ProcessImages('shane_kast_blue', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         # First amplifier
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('Shane Kast test data section failed.')
 
@@ -94,9 +95,9 @@ def test_load_vlt_xshooter_uvb():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER',
                          'UVB_1x1/XSHOO.2010-04-28T05:34:32.723.fits.gz')
     proc = ProcessImages('vlt_xshooter_uvb', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('VLT XSHOOTER UVB test data section failed: {0}'.format(files))
 
@@ -111,20 +112,21 @@ def test_load_vlt_xshooter_vis():
 
     for f in files:
         proc = ProcessImages('vlt_xshooter_vis', par, f)
-        proc.load_images()
+        proc.build_image()
         try:
-            data_img = grab_img(proc)
+            data_img = grab_img(proc, f)
         except:
             pytest.fail('VLT XSHOOTER VIS test data section failed: {0}'.format(f))
+'''
 
 @dev_suite_required
 def test_load_vlt_xshooter_nir():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER',
                          'NIR/XSHOO.2016-08-02T08:45:49.494.fits.gz')
     proc = ProcessImages('vlt_xshooter_nir', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('VLT XSHOOTER NIR test data section failed: {0}'.format(files))
 
@@ -133,9 +135,9 @@ def test_load_gnirs():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/GNIRS/',
                          'cN20170331S0206.fits')
     proc = ProcessImages('gemini_gnirs', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('Gemini GNIRS test data section failed: {0}'.format(files))
 
@@ -144,9 +146,9 @@ def test_load_mage():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_MAGE/1x1',
                          'mage0050.fits')
     proc = ProcessImages('magellan_mage', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
-        data_img = grab_img(proc)
+        data_img = grab_img(proc, files)
     except:
         pytest.fail('Magellan MAGE test data section failed: {0}'.format(files))
 
@@ -157,7 +159,7 @@ def test_load_fire():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_FIRE/FIRE',
                          'fire_0029.fits.gz')
     proc = ProcessImages('magellan_fire', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         data_img = proc.raw_images[0][proc.datasec[0][0]]
     except:
@@ -168,7 +170,7 @@ def test_load_hires():
     files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_HIRES/RED',
                          'hires0009.fits.gz')
     proc = ProcessImages('keck_hires_red', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         data_img = proc.raw_images[0][proc.datasec[0][0]]
     except:
@@ -179,7 +181,7 @@ def test_load_isis():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'WHT_ISIS_blue', 'long_R300B_d5300',
                          'r2324566.fit.gz')
     proc = ProcessImages('wht_isis_blue', par, files)
-    proc.load_images()
+    proc.build_image()
     try:
         # First amplifier
         data_img = grab_img(proc)

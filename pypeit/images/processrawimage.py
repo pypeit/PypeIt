@@ -180,8 +180,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                 Bad pixel mask image
 
         """
-        if bpm is None:
-            bpm = self.bpm
         # Standard order
         #   -- May need to allow for other order some day..
         if 'subtract_overscan' in process_steps:

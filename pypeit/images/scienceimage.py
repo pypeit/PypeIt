@@ -209,7 +209,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             process_steps += ['flatten']
         # Do it
         self.image = prawImage.process(process_steps, pixel_flat=pixel_flat,
-                                       bias=bias, illum_flat=illum_flat, debug=True)
+                                       bias=bias, illum_flat=illum_flat,
+                                       bpm=self.bpm, debug=True)
         return self.image.copy()
 
     def update_mask_cr(self, subtract_img=None):
@@ -227,7 +228,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Generate the CR mask (and save in self.crmask)
         _ = super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
-                                                      self.rawvarframe,
+                                                      utils.calc_ivar(self.ivar),
                                                       subtract_img=subtract_img).copy()
         # Now update the mask
         _ = super(ScienceImage, self).update_mask_cr(self.crmask)

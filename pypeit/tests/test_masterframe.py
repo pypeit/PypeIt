@@ -45,9 +45,9 @@ def test_master_io():
     # Check the filename
     assert mf.file_name == 'MasterTest_A_01_1.fits', 'Incorrect master frame file name'
     # No file so load should return None
-    assert mf.load_master('JUNK') is None, 'Load for non-existent frame should return None'
+    assert mf.load('JUNK') is None, 'Load for non-existent frame should return None'
     # Should also return None for the header
-    assert mf.load_master('JUNK', return_header=True) == (None, None), \
+    assert mf.load('JUNK', return_header=True) == (None, None), \
             'Load for non-existent frame should return None'
     # Save a fake file
     data = np.arange(10)
@@ -57,17 +57,17 @@ def test_master_io():
     mf.save(data, extnames, overwrite=False, raw_files=raw_files, steps=steps)
     assert os.path.isfile(mf.file_path), 'No file written'
     # Try to load it
-    _data = mf.load_master('JUNK')
+    _data = mf.load('JUNK')
     assert np.array_equal(data, _data), 'Data written/read incorrectly'
     # Try to load it with the header
-    _data, _hdr = mf.load_master('JUNK', return_header=True)
+    _data, _hdr = mf.load('JUNK', return_header=True)
     assert np.array_equal(data, _data), 'Data written/read incorrectly'
     assert _hdr['MSTRTYP'] == 'Test', 'Incorrect master type'
     assert _hdr['STEPS'].split(',') == steps, 'Steps written incorrectly'
     assert io.parse_hdr_key_group(_hdr, prefix='F') == raw_files, 'Did not correctly read files'
     # Loading if reuse_masters is false should yield None
     mf.reuse_masters = False
-    assert mf.load_master('JUNK') is None, 'Load when reuse_masters=False should return None'
+    assert mf.load('JUNK') is None, 'Load when reuse_masters=False should return None'
     # Clean up
     os.remove(mf.file_path)
 
