@@ -474,12 +474,14 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
         nspec = fluxes.shape[0]
         flux_stack = fluxes.reshape((nspec, nstack))
         sig_stack = sigs.reshape((nspec, nstack))
+        ivar_stack = ivars.reshape((nspec, nstack))
         mask_stack = masks.reshape((nspec, nstack))
     elif fluxes.ndim == 2:
         nspec = fluxes.shape[0]
         nstack = fluxes.shape[1]
         flux_stack = fluxes
         sig_stack = sigs
+        ivar_stack = ivars
         mask_stack = masks
     else:
         msgs.error('Unrecognized dimensionality for flux')
@@ -492,7 +494,6 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     else:
         msgs.error('wavelength array has an invalid size')
 
-    ivar_stack = utils.calc_ivar(sig_stack**2)
     # Calculate S/N
     sn_val = flux_stack*np.sqrt(ivar_stack)
     sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
@@ -502,6 +503,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
 
+    # ToDo: For high-z quasar, one would never want to use const_weight !!!
     if rms_sn_stack <= 3.0 or const_weights:
         weights = np.outer(np.ones(nspec), sn2)
         if verbose:
@@ -522,10 +524,15 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
             dv = (dwave/wave_now[1:])*c_kms
             dv_pix = np.median(dv)
             med_width = int(np.round(dv_smooth/dv_pix))
+            ## ToDo: using fast_running_median or median_filter will make the weights of spectra with large break smaller
+            ##   than what it should be. The Longslit data do not have this issue, but it will be an issue if you use
+            ##   this weights for coadding different orders of Echelle data.
+            ##   Two ways to solve this problem:  use gauss_kernel smooth only but not median+gauss_kernel
+            ##                                    set a smaller dv_smooth.
             sn_med1 = utils.fast_running_median(sn_val[imask,iexp]**2, med_width)
-            #sn_med1 = scipy.ndimage.filters.median_filter(sn_val[iexp,imask]**2, size=med_width, mode='reflect')
+            ##sn_med1 = scipy.ndimage.filters.median_filter(sn_val[imask,iexp]**2, size=med_width, mode='reflect')
             sn_med2 = np.interp(spec_vec, spec_now, sn_med1)
-            #sn_med2 = np.interp(wave_stack[iexp,:], wave_now,sn_med1)
+            ##sn_med2 = np.interp(wave_stack[iexp,:], wave_now,sn_med1)
             sig_res = np.fmax(med_width/10.0, 3.0)
             gauss_kernel = convolution.Gaussian1DKernel(sig_res)
             sn_conv = convolution.convolve(sn_med2, gauss_kernel)
@@ -1131,13 +1138,13 @@ def long_combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, m
 def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
                  samp_fact = 1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                  sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
-                 dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
-                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None,
+                 dv_smooth=1000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
+                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
                  qafile=None, outfile = None, debug=False, show=True):
 
     # Loading Echelle data
     waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
-                                                                    flux_value=flux_value)
+                                                                    flux_value=flux_value, nmaskedge=nmaskedge)
 
     # data shape
     data_shape = np.shape(waves)

@@ -152,7 +152,7 @@ def load_specobjs(fname,order=None):
     return sobjs, head0
 
 
-def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True):
+def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True, nmaskedge=None):
     '''
     It will be called by load_1dspec_to_array.
     Load one-d spectra from ext_id in the hdulist
@@ -186,6 +186,12 @@ def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True):
 
     wave = hdu_iexp.data['{:}_WAVE'.format(ex_value)]
     mask = hdu_iexp.data['{:}_MASK'.format(ex_value)]
+
+    # Mask Edges
+    if nmaskedge is not None:
+        mask[:int(nmaskedge)] = False
+        mask[-int(nmaskedge):] = False
+
     if flux_value:
         flux = hdu_iexp.data['{:}_FLAM'.format(ex_value)]
         ivar = hdu_iexp.data['{:}_FLAM_IVAR'.format(ex_value)]
@@ -196,7 +202,7 @@ def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True):
 
     return wave, flux, ivar, mask
 
-def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_value=True):
+def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_value=True, nmaskedge=None):
     '''
     Load the spectra from the 1d fits file into arrays.
     If Echelle, you need to specify which order you want to load.
@@ -257,7 +263,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
             for ii, iord in enumerate(order_vec):
                 ext_id = gdobj+'-ORDER{:04d}'.format(iord)
                 wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist, ext_id, ex_value=ex_value,
-                                                                               flux_value=flux_value)
+                                                                               flux_value=flux_value, nmaskedge=nmaskedge)
                 waves[:,ii] = wave_iord
                 fluxes[:,ii] = flux_iord
                 ivars[:,ii] = ivar_iord
@@ -267,7 +273,8 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
                 ext_id = gdobj+'-ORDER{:04d}'.format(order)
             else:
                 ext_id = gdobj
-            waves, fluxes, ivars, masks = load_ext_to_array(hdulist, ext_id, ex_value=ex_value, flux_value=flux_value)
+            waves, fluxes, ivars, masks = load_ext_to_array(hdulist, ext_id, ex_value=ex_value, flux_value=flux_value,
+                                                            nmaskedge=nmaskedge)
 
     ## Loading data from a list of fits files
     else:
@@ -288,7 +295,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
                 for ii, iord in enumerate(order_vec):
                     ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(iord)
                     wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value,
-                                                                                   flux_value=flux_value)
+                                                                                   nmaskedge = nmaskedge, flux_value=flux_value)
                     waves[:,ii,iexp] = wave_iord
                     fluxes[:,ii,iexp] = flux_iord
                     ivars[:,ii,iexp] = ivar_iord
@@ -298,7 +305,8 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
                     ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(order)
                 else:
                     ext_id = gdobj[iexp]
-                wave, flux, ivar, mask = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value, flux_value=flux_value)
+                wave, flux, ivar, mask = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value, flux_value=flux_value,
+                                                           nmaskedge=nmaskedge)
                 waves[:, iexp] = wave
                 fluxes[:, iexp] = flux
                 ivars[:, iexp] = ivar
