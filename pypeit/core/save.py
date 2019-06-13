@@ -14,6 +14,7 @@ import copy
 import linetools.utils
 from pypeit import msgs
 from pypeit import specobjs
+from pypeit import utils
 from pypeit.core import parse
 
 
