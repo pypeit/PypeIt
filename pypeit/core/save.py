@@ -220,7 +220,7 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
     return outfile
 
 
-def save_coadd1d_to_fits(waves, fluxes, ivars, masks, header=None, ext_value='OPT', outfile=None, overwrite=True):
+def save_coadd1d_to_fits(waves, fluxes, ivars, masks, header=None, ex_value='OPT', outfile=None, overwrite=True):
     '''
     Args:
         waves: one-D or two-D (nspec by nexp/norder) wavelength array
