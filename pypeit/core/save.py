@@ -219,6 +219,75 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
     return outfile
 
 
+def save_coadd1d_to_fits(waves, fluxes, ivars, masks, header=None, ext_value='OPT', outfile=None, overwrite=True):
+    '''
+    Args:
+        waves: one-D or two-D (nspec by nexp/norder) wavelength array
+        fluxes: flux array
+        ivars: ivar array
+        masks: mask array
+        header: primary fits header
+        ext_value: 'OPT' or 'BOX'
+        outfile: name of fitsfile you want to save to
+        overwrite: True or False
+    Returns:
+        None
+    '''
+
+    # Estimate sigma from ivar
+    sigs = np.sqrt(utils.calc_ivar(ivars))
+
+    # Init for spec1d as need be
+    prihdu = fits.PrimaryHDU()
+    hdulist = fits.HDUList([prihdu])
+
+    if header is None:
+        msgs.warn('The primary header is none')
+    else:
+        prihdu.header =  header
+
+    if outfile is None:
+        outfile = 'spec1d_pypeit.fits'
+    if len(outfile.split('.')) == 1:
+        outfile = outfile + '.fits'
+
+    if waves.ndim == 1:
+        wave_mask = waves > 1.0
+        # Add Spectrum Table
+        cols = []
+        cols += [fits.Column(array=waves[wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
+        cols += [fits.Column(array=fluxes[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
+        cols += [fits.Column(array=ivars[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
+        cols += [fits.Column(array=sigs[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
+        cols += [fits.Column(array=masks[wave_mask], name='{:}_MASK'.format(ex_value), format='D')]
+
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = 'OBJ0001-SPEC0001'
+        hdulist.append(tbhdu)
+    else:
+        nspec = np.shape(waves)[1]
+
+        for ispec in range(nspec):
+            wave_mask = waves[:,ispec]>1.0
+            # Add Spectrum Table
+            cols = []
+            cols += [fits.Column(array=waves[:,ispec][wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
+            cols += [fits.Column(array=fluxes[:,ispec][wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
+            cols += [fits.Column(array=ivars[:,ispec][wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
+            cols += [fits.Column(array=sigs[:,ispec][wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
+            cols += [fits.Column(array=masks[:,ispec][wave_mask], name='{:}_MASK'.format(ex_value), format='D')]
+
+            coldefs = fits.ColDefs(cols)
+            tbhdu = fits.BinTableHDU.from_columns(coldefs)
+            tbhdu.name = 'OBJ0001-SPEC{:04d}'.format(ispec+1)
+            hdulist.append(tbhdu)
+
+    hdulist.writeto(outfile, overwrite=overwrite)
+    msgs.info("Wrote 1D spectra to {:s}".format(outfile))
+
+    return None
+
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...

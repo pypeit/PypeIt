@@ -226,18 +226,16 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         fname0 = fnames
     else:
         fname0 = fnames[0]
+
     hdulist = fits.open(fname0)
-    npix = hdulist[0].header['NPIX']
-    pypeline = hdulist[0].header['PYPELINE']
+    header = hdulist[0].header
+    npix = header['NPIX']
+    pypeline = header['PYPELINE']
 
     # get the order/slit information
     ntrace0 = np.size(hdulist)-1
-    idx_names = []
-    idx_objids = []
     idx_orders = []
     for ii in range(ntrace0):
-        idx_names.append(hdulist[ii+1].name) # idx name
-        idx_objids.append(hdulist[ii+1].name.split('-')[0])
         idx_orders.append(int(hdulist[ii+1].name.split('-')[1][5:])) # slit ID or order ID
 
     if pypeline == "Echelle":
@@ -306,7 +304,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
                 ivars[:, iexp] = ivar
                 masks[:, iexp] = mask
 
-    return waves,fluxes,ivars,masks
+    return waves, fluxes, ivars, masks, header
 
 def load_spec_order(fname,norder, objid=None,order=None,extract='OPT',flux=True):
     """Loading single order spectrum from a PypeIt 1D specctrum fits file.
