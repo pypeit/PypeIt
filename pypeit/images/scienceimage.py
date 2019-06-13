@@ -242,11 +242,14 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
     def __sub__(self, other):
         """
+        Subtract a ScienceImage object from another
+        Extras (e.g. ivar, masks) are included if they are present
 
         Args:
             other (ScienceImage):
 
         Returns:
+            ScienceImage:
 
         """
         # Images
