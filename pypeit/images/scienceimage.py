@@ -40,9 +40,9 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         bpm (np.ndarray):
             Bad pixel mask.  Held in ImageMask
 
-        files (list, optional):
-            List of filenames to be combined
         frametype (str, optional): Frame type
+        files (list, optional):
+            List of filenames that went into the loaded image
 
     Attributes:
         image (np.ndarray):
@@ -50,6 +50,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             Inverse variance image
         rn2img (np.narray):
             Read noise**2 image
+        filename (str):
+            Required to build from a Raw image
     """
     frametype = 'science'
 
@@ -75,10 +77,12 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
         # Other internals
         self.filename = None
+        self.files = []
 
     @classmethod
     def from_images(cls, spectrograph, det, par, bpm,
-                    image, ivar, rn2img, crmask=None, mask=None):
+                    image, ivar, rn2img, crmask=None, mask=None,
+                    files=None):
         # Init
         slf = cls(spectrograph, det, par, bpm)
         # Other images
@@ -88,6 +92,9 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Masks
         slf.crmask = crmask
         slf.mask = mask
+        # Files
+        if files is not None:
+            slf.files = files
         # Return
         return slf
 
@@ -232,5 +239,66 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                                       subtract_img=subtract_img).copy()
         # Now update the mask
         _ = super(ScienceImage, self).update_mask_cr(self.crmask)
+
+    def __sub__(self, other):
+        """
+
+        Args:
+            other (ScienceImage):
+
+        Returns:
+
+        """
+        # Images
+        newimg = self.image - other.image
+
+        # Mask time
+        outmask_comb = (self.mask == 0) & (other.mask == 0)
+
+        # Variance
+        if self.ivar is not None:
+            varcomb = utils.calc_ivar(self.ivar) + utils.calc_ivar(other.ivar)
+            new_ivar = utils.calc_ivar(varcomb) * outmask_comb
+        else:
+            new_ivar = None
+
+        # RN2
+        if self.rn2img is not None:
+            new_rn2 = self.rn2img + other.rn2img
+        else:
+            new_rn2 = None
+
+
+        # Files
+        new_files = self.files + other.files
+
+        # Instantiate
+        new_sciImg = ScienceImage.from_images(self.spectrograph, self.det, self.par, self.bpm,
+                                              newimg, new_ivar, new_rn2, files=new_files)
+        #TODO: Check this out JFH
+        #embed(header='279 in sciImg')
+        crmask_diff = new_sciImg.build_crmask()
+        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
+        new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
+        # Note that the following uses the saturation and mincounts held in
+        # self.spectrograph.detector[self.det-1]
+        new_sciImg.build_mask()
+
+        return new_sciImg
+
+    def __repr__(self):
+        repr = '<{:s}: files={}'.format(self.__class__.__name__, self.files)
+        # Image
+        rdict = {}
+        for attr in ['image', 'ivar', 'rn2img', 'crmask', 'mask']:
+            if getattr(self, attr) is not None:
+                rdict[attr] = True
+            else:
+                rdict[attr] = False
+        repr += ' images={}'.format(rdict)
+        repr = repr + '>'
+        return repr
+
+
 
 

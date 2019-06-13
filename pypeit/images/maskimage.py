@@ -50,6 +50,8 @@ class ImageMask(object):
     Attributes:
         mask (np.ndarray):
             The bitmask values for the full mask
+        pars (dict):
+            Used to hold parameters used when creating masks
     """
 
     bitmask = ImageBitMask()
@@ -171,7 +173,8 @@ class ImageMask(object):
             indx = slitmask == -1
             mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
 
-        return mask
+        self.mask = mask
+        return self.mask.copy()
 
     def update_mask_slitmask(self, slitmask):
         """

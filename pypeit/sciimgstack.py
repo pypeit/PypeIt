@@ -211,10 +211,8 @@ class SciImgStack(object):
         self.illum_flat = illum_flat
 
         if self.ir_redux:
-            self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_diff(
-                reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
+            sciImg = self.proc_diff(reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
         else:
-            #self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = self.proc_list(
             sciImg = self.proc_list('sci', reject_cr=True, sigma_clip=False, sigrej=sigrej, maxiters=maxiters)
 
         # Show the science image if an interactive run, only show the crmask
@@ -279,7 +277,8 @@ class SciImgStack(object):
                                                              self.par['process'], self.sci_bpm,
                                                              img_list_out[0],
                                                              utils.calc_ivar(var_list_out[0]),
-                                                             var_list_out[1], np.invert(outmask))
+                                                             var_list_out[1], np.invert(outmask),
+                                                             files=files)
             sciImage.build_mask(saturation=self.saturation, mincounts=self.mincounts)
             '''
             # assumes everything masked in the outmask is a CR in the individual images
@@ -329,11 +328,12 @@ class SciImgStack(object):
 
         """
 
-        sciimg_sci, sciivar_sci, rn2img_sci, mask_sci, crmask_sci = self.proc_list('sci',
-            reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
-        sciimg_bg, sciivar_bg, rn2img_bg, mask_bg, crmask_bg = self.proc_list('bkg',
-            reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
+        sciImg = self.proc_list('sci', reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
+        bgImg = self.proc_list('bkg', reject_cr=reject_cr, sigma_clip=sigma_clip, sigrej=sigrej,maxiters=maxiters)
 
+        new_sciImg = sciImg - bgImg
+
+        '''
         # Combine the images
         outmask_comb = (mask_sci == 0) & (mask_bg == 0)
         sciimg = sciimg_sci - sciimg_bg
@@ -352,8 +352,8 @@ class SciImgStack(object):
         # Create a mask for this image now
         mask = processImage.build_mask(bpm=self.sci_bpm, saturation=self.saturation)#, mincounts=self.mincounts)
         #mask = self.build_mask(sciimg, sciivar, crmask, self.sci_bpm, saturation=self.saturation)
-
-        return sciimg, sciivar, rn2img, mask, crmask
+        '''
+        return new_sciImg  # sciimg, sciivar, rn2img, mask, crmask
 
 
     def show(self, image, chname=None):

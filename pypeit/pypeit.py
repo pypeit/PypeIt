@@ -561,8 +561,6 @@ class PypeIt(object):
                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                            show=self.show)
         # Object finding, first pass on frame without sky subtraction
-        #from pypeit import ginga
-        #embed(header='565 of pypeit')
         self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
 
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
