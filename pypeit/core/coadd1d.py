@@ -10,7 +10,7 @@ from astropy import convolution
 from pkg_resources import resource_filename
 from pypeit import utils
 from pypeit import msgs
-from pypeit.core import load
+from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 from astropy import constants as const
@@ -601,6 +601,100 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min
 
     return ratio
 
+def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, max_factor=10., sigrej=3, debug=False):
+    '''
+    Args:
+        waves: 2D array of wavelength
+        fluxes: 2D array of flux
+        ivars: 2D array of ivar
+        masks: 2D array of mask
+        min_good: minmum fraction of the total number of good pixels needed for estimate the median ratio
+        maxiters: maximum iterations for rejecting outliers
+        max_factor: maximum scale factor
+        sigrej: sigma used for rejecting outliers
+        debug: True or False
+    Returns:
+        re-scaled fluxes, ivars and an array of scale factor
+    '''
+
+    norder = np.shape(waves)[1]
+    order_ratios = np.ones(norder)
+
+    ## re-scale bluer orders to match the reddest order.
+    # scaling spectrum order by order. We use the reddest order as the reference since slit loss in redder is smaller
+    for ii in range(norder - 1):
+        iord = norder - ii - 1
+        wave_blue, flux_blue, ivar_blue, mask_blue = waves[:, iord-1], fluxes[:, iord-1],\
+                                                     ivars[:, iord-1], masks[:, iord-1]
+
+        wave_red_tmp, flux_red_tmp = waves[:, iord], fluxes[:, iord]*order_ratios[iord]
+        ivar_red_tmp, mask_red_tmp = ivars[:, iord]*1.0/order_ratios[iord]**2, masks[:, iord]
+        wave_mask = wave_red_tmp>1.0
+        wave_red, flux_red, ivar_red, mask_red = wave_red_tmp[wave_mask], flux_red_tmp[wave_mask], \
+                                                 ivar_red_tmp[wave_mask], mask_red_tmp[wave_mask],
+
+        # interpolate iord-1 (bluer) to iord-1 (redder)
+        flux_blue_inter, ivar_blue_inter, mask_blue_inter = interp_spec(wave_red, wave_blue, flux_blue, ivar_blue, mask_blue)
+
+        npix_overlap = np.sum(mask_blue_inter & mask_red)
+        percentile_iord = np.fmax(100.0 * (npix_overlap / np.sum(mask_red)-0.05), 10)
+
+        order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
+                                               mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
+                                               maxiters=maxiters, max_factor=max_factor, sigrej=sigrej)
+
+        order_ratios[iord - 1] = np.fmax(np.fmin(order_ratio_iord, max_factor), 1.0/max_factor)
+        msgs.info('Scaled {}th order to {}th order by {:}'.format(iord-1, iord, order_ratios[iord-1]))
+
+        if debug:
+            plt.figure(figsize=(12, 8))
+            plt.plot(wave_red[mask_red], flux_red[mask_red], 'k-', label='reference spectrum')
+            plt.plot(wave_blue[mask_blue], flux_blue[mask_blue],color='dodgerblue', lw=3, label='raw spectrum')
+            plt.plot(wave_blue[mask_blue], flux_blue[mask_blue]*order_ratios[iord-1], color='r',
+                     alpha=0.5, label='re-scaled spectrum')
+
+            med_width = (2.0 * np.ceil(0.03 / 2.0 * wave_blue[mask_blue].size) + 1).astype(int)
+            flux_med, ivar_med = median_filt_spec(flux_blue, ivar_blue, mask_blue, med_width)
+            ymax = 1.5 * flux_med.max()
+            ymin = -0.15 * ymax
+
+            plt.ylim([ymin, ymax])
+            plt.xlim([np.min(wave_blue[mask_blue]), np.max(wave_red[mask_red])])
+            plt.legend()
+            plt.xlabel('wavelength')
+            plt.ylabel('Flux')
+            plt.show()
+
+    # Update flux and ivar
+    fluxes_new = np.copy(fluxes)
+    ivars_new = np.copy(ivars)
+    for ii in range(norder):
+        fluxes_new[:, ii] *= order_ratios[ii]
+        ivars_new[:, ii] *= 1.0/order_ratios[ii]**2
+
+    if debug:
+        plt.figure(figsize=(12, 8))
+        ymin = []
+        ymax = []
+        for ii in range(norder):
+            wave_stack_iord = waves[:, ii]
+            flux_stack_iord = fluxes_new[:, ii]
+            ivar_stack_iord = ivars_new[:, ii]
+            mask_stack_iord = masks[:, ii]
+            plt.plot(wave_stack_iord[mask_stack_iord], flux_stack_iord[mask_stack_iord])
+            # plt.plot(wave_stack_iord[mask_stack_iord],1.0/np.sqrt(ivar_stack_iord[mask_stack_iord]))
+
+            med_width = (2.0 * np.ceil(0.1 / 2.0 * np.size(wave_stack_iord[mask_stack_iord])) + 1).astype(int)
+            flux_med, ivar_med = median_filt_spec(flux_stack_iord, ivar_stack_iord, mask_stack_iord, med_width)
+            ymax.append(1.5 * flux_med.max())
+            ymin.append(-0.2 * flux_med.max())
+        plt.xlim([np.min(waves[masks]), np.max(waves[masks])])
+        plt.ylim([np.min(ymin), np.max(ymax)])
+        plt.xlabel('Wavelength ($\\rm\\AA$)')
+        plt.ylabel('Flux')
+        plt.show()
+
+    return fluxes_new, ivars_new, order_ratios
 
 def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
                   mask=None, mask_ref=None, ylim = None, median_frac = 0.03, title=''):
@@ -724,7 +818,7 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, m
     return flux_scale, ivar_scale, scale, scale_method
 
 
-def compute_stack(waves,fluxes,ivars,masks,wave_grid,weights):
+def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     '''
     Compute the stacked spectrum based on spectra and wave_grid with weights being taken into account.
     Args:
@@ -838,7 +932,7 @@ def weights_qa(waves, weights, masks):
     plt.ylabel('(S/N)^2 weights')
     plt.show()
 
-def coadd_qa(wave, flux, ivar, nused, mask=None, qafile=None, debug=False):
+def coadd_qa(wave, flux, ivar, nused, mask=None, title=None, qafile=None, show=False):
 
     from matplotlib.ticker import MaxNLocator
 
@@ -851,8 +945,8 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, qafile=None, debug=False):
     fig = plt.figure(figsize=(12, 8))
     # plot how may exposures you used at each pixel
     # [left, bottom, width, height]
-    num_plot =  fig.add_axes([0.10, 0.75, 0.80, 0.23])
-    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.65])
+    num_plot =  fig.add_axes([0.10, 0.70, 0.80, 0.23])
+    spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60])
     num_plot.plot(wave[wave_mask],nused[wave_mask],linestyle='steps-mid',color='k',lw=2)
     num_plot.set_xlim([wave_min, wave_max])
     num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])
@@ -883,68 +977,19 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, qafile=None, debug=False):
     spec_plot.set_xlabel('Wavelength (Angstrom)')
     spec_plot.set_ylabel('Flux')
 
+    if title is not None:
+        num_plot.set_title(title,color='b',fontsize=16)
+
     if qafile is not None:
         if len(qafile.split('.'))==1:
             msgs.info("No fomat given for the qafile, save to PDF format.")
             qafile = qafile+'.pdf'
         plt.savefig(qafile,dpi=300)
         msgs.info("Wrote QA: {:s}".format(qafile))
-    if debug:
+    if show:
         plt.show()
 
     return
-
-def write_to_fits(wave, flux, ivar, mask, outfil, clobber=True, fill_val=None):
-    """ Write to a multi-extension FITS file.
-    unless select=True.
-    Otherwise writes 1D arrays
-    Parameters
-    ----------
-    outfil : str
-      Name of the FITS file
-    select : int, optional
-      Write only the select spectrum.
-      This will always trigger if there is only 1 spectrum
-      in the data array
-    clobber : bool (True)
-      Clobber existing file?
-    add_wave : bool (False)
-      Force writing of wavelengths as array, instead of using FITS
-      header keywords to specify a wcs.
-    fill_val : float, optional
-      Fill value for masked pixels
-    """
-
-    # Flux
-    if fill_val is None:
-        flux = flux[mask]
-    else:
-        flux[mask] = fill_val
-    prihdu = fits.PrimaryHDU(flux)
-    hdu = fits.HDUList([prihdu])
-    prihdu.name = 'FLUX'
-
-    # Error  (packing LowRedux style)
-    sig = np.sqrt(utils.calc_ivar(ivar))
-    if fill_val is None:
-        sig = sig[mask]
-    else:
-        sig[mask] = fill_val
-    sighdu = fits.ImageHDU(sig)
-    sighdu.name = 'ERROR'
-    hdu.append(sighdu)
-
-    # Wavelength
-    if fill_val is None:
-        wave = wave[mask]
-    else:
-        wave[mask] = fill_val
-    wvhdu = fits.ImageHDU(wave)
-    wvhdu.name = 'WAVELENGTH'
-    hdu.append(wvhdu)
-
-    hdu.writeto(outfil, overwrite=clobber)
-    msgs.info('Wrote spectrum to {:s}'.format(outfil))
 
 def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, sn_cap=20.0, debug=False):
 
@@ -989,7 +1034,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
 
 def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.0, lower=3.0, upper=3.0,
-                     maxrej=None, maxiter_reject=5, qafile=None, debug=False):
+                     maxrej=None, maxiter_reject=5, title=None, qafile=None, debug=False, show=False):
 
     nexp = np.shape(waves)[1]
     iIter = 0
@@ -997,7 +1042,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
     thismask = np.copy(masks)
     while (not qdone) and (iIter < maxiter_reject):
         wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
-            waves, fluxes, ivars, thismask, wave_grid, weights)
+            wave_grid, waves, fluxes, ivars, thismask, weights)
         flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
             waves, wave_stack, flux_stack, ivar_stack,mask_stack)
         rejivars, sigma_corrs, outchi, maskchi = update_errors(waves, fluxes, ivars, thismask,
@@ -1020,7 +1065,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
 
     # Compute the final stack using this outmask
     wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
-        waves, fluxes, ivars, outmask, wave_grid, weights)
+        wave_grid, waves, fluxes, ivars, outmask, weights)
     # Used only for plotting below
     flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
     if debug:
@@ -1031,25 +1076,26 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
             coadd_iexp_qa(waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], flux_stack_nat[:, iexp],
                           ivar_stack_nat[:, iexp], mask=outmask[:, iexp], mask_stack=mask_stack_nat[:, iexp],
                           qafile=None, debug=debug)
+        # weights qa
+        weights_qa(waves, weights, outmask)
 
     # Plot the final coadded spectrum
-    if debug:
-        weights_qa(waves, weights, outmask)
-        coadd_qa(wave_stack,flux_stack,ivar_stack, nused, mask=mask_stack, qafile=qafile, debug=debug)
+    if show or debug:
+        coadd_qa(wave_stack,flux_stack,ivar_stack, nused, mask=mask_stack, title= title, qafile=qafile, show=True)
 
-    return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights
+    return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused
 
 #Todo: This should probaby take a parset?
 def long_combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
                   scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
                   const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
-                  qafile=None, outfile=None, debug=False):
+                  header=None, ex_value='OPT', title=None, qafile=None, outfile=None, debug=False, show=False):
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves,fluxes,ivars,masks, dv_smooth=dv_smooth, const_weights=const_weights, verbose=True)
 
     # Compute an initial stack as the reference, this has its own wave grid based on the weighted averages
-    wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(waves, fluxes, ivars, masks, wave_grid, weights)
+    wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, masks, weights)
     # Interpolate the stack onto each individual exposures native wavelength grid
     flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
 
@@ -1067,15 +1113,129 @@ def long_combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, m
             sn_min_medscale=sn_min_medscale, debug=debug)
 
     # Rejecting and coadding
-    wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights = spec_reject_comb(
+    wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
         wave_grid, waves, fluxes_scale, ivars_scale, masks, weights, sn_cap=sn_cap, lower=lower, upper=upper,
-        maxrej=maxrej, maxiter_reject=maxiter_reject, qafile=qafile, debug=debug)
+        maxrej=maxrej, maxiter_reject=maxiter_reject, title=title, qafile=qafile, debug=debug, show=show)
 
     # Write to disk?
     if outfile is not None:
         if len(outfile.split('.'))==1:
             msgs.info("No fomat given for the outfile, save to fits format.")
             outfile = outfile+'.fits'
-        write_to_fits(wave_stack, flux_stack, ivar_stack, mask_stack, outfile, clobber=True)
+        #write_to_fits(wave_stack, flux_stack, ivar_stack, mask_stack, outfile, clobber=True)
+        save.save_coadd1d_to_fits(wave_stack, flux_stack, ivar_stack, mask_stack, header=header,
+                                  outfile=outfile, ex_value=ex_value, overwrite=True)
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights, scales, rms_sn
+
+def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
+                 samp_fact = 1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
+                 sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
+                 dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
+                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None,
+                 qafile=None, outfile = None, debug=False, show=True):
+
+    # Loading Echelle data
+    waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
+                                                                    flux_value=flux_value)
+
+    # data shape
+    data_shape = np.shape(waves)
+    npix = data_shape[0] # detector size in the wavelength direction
+    norder = data_shape[1]
+    nexp = data_shape[2]
+
+    # create some arrays
+    scales = np.zeros_like(waves)
+    weights = np.zeros_like(waves)
+    outmasks = np.zeros_like(waves,dtype=bool)
+
+    # output name root for fits and QA plots
+    if outfile is None:
+        outfile = header['TARGET']
+    outfile_order = 'spec1d_order_{:}'.format(outfile)
+    outfile_stack = 'spec1d_stack_{:}'.format(outfile)
+    outfile_giant_stack = 'spec1d_giant_stack_{:}'.format(outfile)
+
+    if qafile is None:
+        qafile = header['TARGET']
+    qafile_stack = 'spec1d_stack_{:}'.format(outfile)
+    qafile_giant_stack = 'spec1d_giant_stack_{:}'.format(outfile)
+
+    # Generate a giant wave_grid
+    wave_grid = new_wave_grid(waves, wave_method=wave_method, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
+                              A_pix=A_pix, v_pix=v_pix, samp_fact=samp_fact)
+
+    # Arrays to store stacked individual order spectra.
+    waves_stack_orders = np.zeros((np.size(wave_grid)-1, norder))
+    fluxes_stack_orders = np.zeros_like(waves_stack_orders)
+    ivars_stack_orders = np.zeros_like(waves_stack_orders)
+    masks_stack_orders = np.zeros_like(waves_stack_orders,dtype=bool)
+
+    # Loop over orders to get the initial stacks of each order
+    for ii in range(norder):
+
+        # get the slice of iord spectra of all exposures
+        waves_iord, fluxes_iord, ivars_iord, masks_iord = waves[:,ii,:], fluxes[:,ii,:], ivars[:,ii,:], masks[:,ii,:]
+
+        # Get the stacked spectrum for each order
+        waves_stack_orders[:, ii], fluxes_stack_orders[:, ii], ivars_stack_orders[:, ii],  masks_stack_orders[:, ii], \
+        outmask_iord, weights_iord, scales_iord, rms_sn_iord = \
+                    long_combspec(wave_grid, waves_iord, fluxes_iord, ivars_iord, masks_iord, ref_percentile=ref_percentile,
+                                  maxiter_scale=maxiter_scale, sigrej=sigrej, scale_method=scale_method, hand_scale=hand_scale,
+                                  sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, dv_smooth=dv_smooth,
+                                  const_weights=const_weights, maxiter_reject=maxiter_reject, sn_cap=sn_cap, lower=lower,
+                                  upper=upper, maxrej=maxrej, title='Stacked spectrum of order {:}'.format(ii+1), qafile=None,
+                                  outfile=None, debug=debug, show=show)
+
+        # store new masks, scales and weights, all of these arrays are in native wave grid
+        scales[:,ii,:] = scales_iord
+        weights[:,ii,:] = weights_iord
+        outmasks[:,ii,:] = outmask_iord
+
+    # scale different orders based on overlapped regions using median scale
+    fluxes_stack_orders_scale, ivars_stack_orders_scale, order_ratios = \
+        order_median_scale(waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
+                           min_good=min_good, maxiters=maxiters, max_factor=max_factor, sigrej=sigrej, debug=debug)
+
+    ## Stack with the first method: combine the stacked individual order spectra directly
+    # Get weights for individual order stacks
+    rms_sn_stack, weights_stack = sn_weights(waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale,
+                                             masks_stack_orders, dv_smooth=dv_smooth, const_weights=const_weights, verbose=True)
+
+    # Reject and stack
+    wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
+        wave_grid, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
+        weights_stack, sn_cap=sn_cap, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject,
+        title='Order merged stacked spectra', qafile=qafile_stack, debug=debug, show=show)
+
+    # Save stacked individual order spectra
+    save.save_coadd1d_to_fits(waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
+                              header=header, outfile=outfile_order, ex_value = ex_value, overwrite=True)
+    save.save_coadd1d_to_fits(wave_stack, flux_stack, ivar_stack, mask_stack, header=header, outfile=outfile_stack,
+                              ex_value = ex_value, overwrite=True)
+
+    # apply order_ratios to the scales array: order_ratio*scale
+    scales_new = np.copy(scales)
+    for ii in range(norder):
+        scales_new[:,ii,:] *= order_ratios[ii]
+
+    fluxes_scale = fluxes * scales_new
+    ivars_scale = ivars * 1.0/scales_new**2
+
+    # reshaping 3D arrays (npix, norder, nexp) to 2D arrays (npix, norder*nexp)
+    waves_2d = np.reshape(waves,(npix, norder*nexp))
+    fluxes_2d = np.reshape(fluxes_scale, np.shape(waves_2d))
+    ivars_2d = np.reshape(ivars_scale, np.shape(waves_2d))
+    masks_2d = np.reshape(masks, np.shape(waves_2d))
+    weights_2d = np.reshape(weights, np.shape(waves_2d))
+
+    wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack, outmask_giant_stack, nused_giant_stack = \
+        spec_reject_comb(wave_grid, waves_2d, fluxes_2d, ivars_2d, masks_2d, weights_2d, sn_cap=sn_cap, lower=lower,
+                         upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, title='Final stacked spectra',
+                         qafile=qafile_stack, debug=debug, show=show)
+
+    save.save_coadd1d_to_fits(wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
+                              header=header, outfile=outfile_giant_stack, ex_value=ex_value, overwrite=True)
+
+    return wave_stack, flux_stack, ivar_stack, mask_stack
