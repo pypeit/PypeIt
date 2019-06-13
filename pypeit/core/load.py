@@ -202,17 +202,22 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     If Echelle, you need to specify which order you want to load.
     It can NOT load all orders for Echelle data.
     Args:
-        fnames:
-        gdobj:
-        extensions:
-        order: set to None if longslit data
-        ex_value:
-        flux_value:
+        fnames: 1D spectra fits file(s)
+        gdobj: extension name (longslit/multislit) or objID (Echelle)
+        order: None or an int number
+        ex_value: 'OPT' or 'BOX'
+        flux_value: True or False
     Returns:
-        waves:
-        fluxes:
-        ivars:
-        masks:
+        waves, fluxes, ivars, masks
+        The shapes of all returns are exactly the same.
+        Case 1: np.size(fnames)=np.size(gdobj)=1, order=None for Longslit or order=N (an int number) for Echelle
+            Longslit/single order for a single fits file, they are 1D arrays with the size equal to Nspec
+        Case 2: np.size(fnames)=np.size(gdobj)>1, order=None for Longslit or order=N (an int number) for Echelle
+            Longslit/single order for a list of fits files, 2D array, the shapes are Nspec by Nexp
+        Case 3: np.size(fnames)=np.size(gdobj)=1, order=None
+            All Echelle orders for a single fits file, 2D array, the shapes are Nspec by Norders
+        Case 4: np.size(fnames)=np.size(gdobj)>1, order=None
+            All Echelle orders for a list of fits files, 3D array, the shapres are Nspec by Norders by Nexp
     '''
 
     # read in the first fits file
@@ -271,7 +276,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         # initialize arrays
         if (order is None) and (pypeline == "Echelle"):
             # store all orders into one single array
-            waves = np.zeros((npix * norder, nexp))
+            waves = np.zeros((npix, norder, nexp))
         else:
             # store a specific order or longslit
             waves = np.zeros((npix, nexp))
@@ -282,28 +287,24 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         for iexp in range(nexp):
             hdulist_iexp = fits.open(fnames[iexp])
             if (order is None) and (pypeline == "Echelle"):
-                wave = np.zeros(npix*norder)
-                flux = np.zeros_like(wave)
-                ivar = np.zeros_like(wave)
-                mask = np.zeros_like(wave,dtype=bool)
                 for ii, iord in enumerate(order_vec):
                     ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(iord)
                     wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value,
                                                                                    flux_value=flux_value)
-                    wave[npix*ii:npix*(ii+1)] = wave_iord
-                    flux[npix*ii:npix*(ii+1)] = flux_iord
-                    ivar[npix*ii:npix*(ii+1)] = ivar_iord
-                    mask[npix*ii:npix*(ii+1)] = mask_iord
+                    waves[:,ii,iexp] = wave_iord
+                    fluxes[:,ii,iexp] = flux_iord
+                    ivars[:,ii,iexp] = ivar_iord
+                    masks[:,ii,iexp] = mask_iord
             else:
                 if pypeline == "Echelle":
                     ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(order)
                 else:
                     ext_id = gdobj[iexp]
                 wave, flux, ivar, mask = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value, flux_value=flux_value)
-            waves[:, iexp] = wave
-            fluxes[:, iexp] = flux
-            ivars[:, iexp] = ivar
-            masks[:, iexp] = mask
+                waves[:, iexp] = wave
+                fluxes[:, iexp] = flux
+                ivars[:, iexp] = ivar
+                masks[:, iexp] = mask
 
     return waves,fluxes,ivars,masks
 
