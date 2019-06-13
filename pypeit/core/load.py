@@ -151,7 +151,52 @@ def load_specobjs(fname,order=None):
     # Return
     return sobjs, head0
 
-def load_1dspec_to_array(fnames,gdobj=None,order=None,ex_value='OPT',flux_value=True):
+
+def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True):
+    '''
+    It will be called by load_1dspec_to_array.
+    Load one-d spectra from ext_id in the hdulist
+    Args:
+        hdulist: FITS HDU list
+        ext_id: extension name, i.e., 'SPAT1073-SLIT0001-DET03', 'OBJID0001-ORDER0003', 'OBJID0001-ORDER0002-DET01'
+        ex_value: 'OPT' or 'BOX'
+        flux_value: if True load fluxed data, else load unfluxed data
+    Returns:
+         wave, flux, ivar, mask
+    '''
+
+    if (ex_value != 'OPT') and (ex_value != 'BOX'):
+        msgs.error('{:} is not recognized. Please change to either BOX or OPT.'.format(ex_value))
+
+    # get the order/slit information
+    ntrace0 = np.size(hdulist)-1
+    idx_names = []
+    for ii in range(ntrace0):
+        idx_names.append(hdulist[ii+1].name) # idx name
+
+    # Initialize ext
+    ext = None
+    for indx in (idx_names):
+        if ext_id in indx:
+            ext = indx
+    if ext is None:
+        msgs.error('Can not find extension {:}.'.format(ext_id))
+    else:
+        hdu_iexp = hdulist[ext]
+
+    wave = hdu_iexp.data['{:}_WAVE'.format(ex_value)]
+    mask = hdu_iexp.data['{:}_MASK'.format(ex_value)]
+    if flux_value:
+        flux = hdu_iexp.data['{:}_FLAM'.format(ex_value)]
+        ivar = hdu_iexp.data['{:}_FLAM_IVAR'.format(ex_value)]
+    else:
+        msgs.warn('Loading unfluxed spectra')
+        flux = hdu_iexp.data['{:}_COUNTS'.format(ex_value)]
+        ivar = hdu_iexp.data['{:}_COUNTS_IVAR'.format(ex_value)]
+
+    return wave, flux, ivar, mask
+
+def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_value=True):
     '''
     Load the spectra from the 1d fits file into arrays.
     If Echelle, you need to specify which order you want to load.
@@ -170,52 +215,95 @@ def load_1dspec_to_array(fnames,gdobj=None,order=None,ex_value='OPT',flux_value=
         masks:
     '''
 
-    #ToDo: make it also works for single fits frame.
-    nexp = len(fnames)
-    sobjs0,header0 = load_specobjs(fnames[0], order=order)
-    nspec = sobjs0[0].optimal['COUNTS'].size
+    # read in the first fits file
+    nexp = np.size(fnames)
+    if nexp == 1:
+        fname0 = fnames
+    else:
+        fname0 = fnames[0]
+    hdulist = fits.open(fname0)
+    npix = hdulist[0].header['NPIX']
+    pypeline = hdulist[0].header['PYPELINE']
 
-    waves = np.zeros((nspec, nexp))
-    fluxes = np.zeros_like(waves)
-    ivars = np.zeros_like(waves)
-    masks = np.zeros_like(waves,dtype=bool)
+    # get the order/slit information
+    ntrace0 = np.size(hdulist)-1
+    idx_names = []
+    idx_objids = []
+    idx_orders = []
+    for ii in range(ntrace0):
+        idx_names.append(hdulist[ii+1].name) # idx name
+        idx_objids.append(hdulist[ii+1].name.split('-')[0])
+        idx_orders.append(int(hdulist[ii+1].name.split('-')[1][5:])) # slit ID or order ID
 
-    for iexp in range(nexp):
-        specobjs, headers = load_specobjs(fnames[iexp], order=order)
+    if pypeline == "Echelle":
+        order_vec = np.unique(idx_orders)
+        norder = np.size(order_vec)
+    else:
+        order_vec = None
+        norder = 1
 
-        # Initialize ext
-        ext = None
-        for indx, spobj in enumerate(specobjs):
-            if gdobj[iexp] in spobj.idx:
-                ext = indx
-        if ext is None:
-            msgs.error('Can not find extension {:} in {:}.'.format(gdobj[iexp],fnames[iexp]))
+    ## Loading data from a single fits file
+    if nexp == 1:
+        # initialize arrays
+        if (order is None) and (pypeline == "Echelle"):
+            waves = np.zeros((npix, norder))
+            fluxes = np.zeros_like(waves)
+            ivars = np.zeros_like(waves)
+            masks = np.zeros_like(waves, dtype=bool)
 
-        ## unpack wave/flux/mask
-        if ex_value == 'OPT':
-            wave = specobjs[ext].optimal['WAVE']
-            mask = specobjs[ext].optimal['MASK']
-            if flux_value:
-                flux = specobjs[ext].optimal['FLAM']
-                ivar = specobjs[ext].optimal['FLAM_IVAR']
-            else:
-                flux = specobjs[ext].optimal['COUNTS']
-                ivar = specobjs[ext].optimal['COUNTS_IVAR']
-        elif ex_value == 'BOX':
-            wave = specobjs[ext].boxcar['WAVE']
-            if flux_value:
-                flux = specobjs[ext].boxcar['FLAM']
-                ivar = specobjs[ext].boxcar['FLAM_IVAR']
-            else:
-                flux = specobjs[ext].boxcar['COUNTS']
-                ivar = specobjs[ext].boxcar['COUNTS_IVAR']
+            for ii, iord in enumerate(order_vec):
+                ext_id = gdobj+'-ORDER{:04d}'.format(iord)
+                wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist, ext_id, ex_value=ex_value,
+                                                                               flux_value=flux_value)
+                waves[:,ii] = wave_iord
+                fluxes[:,ii] = flux_iord
+                ivars[:,ii] = ivar_iord
+                masks[:,ii] = mask_iord
         else:
-            msgs.error('{:} is not recognized. Please change to either BOX or OPT.'.format(ex_value))
+            if pypeline == "Echelle":
+                ext_id = gdobj+'-ORDER{:04d}'.format(order)
+            else:
+                ext_id = gdobj
+            waves, fluxes, ivars, masks = load_ext_to_array(hdulist, ext_id, ex_value=ex_value, flux_value=flux_value)
 
-        waves[:, iexp] = wave
-        fluxes[:, iexp] = flux
-        ivars[:, iexp] = ivar
-        masks[:, iexp] = mask
+    ## Loading data from a list of fits files
+    else:
+        # initialize arrays
+        if (order is None) and (pypeline == "Echelle"):
+            # store all orders into one single array
+            waves = np.zeros((npix * norder, nexp))
+        else:
+            # store a specific order or longslit
+            waves = np.zeros((npix, nexp))
+        fluxes = np.zeros_like(waves)
+        ivars = np.zeros_like(waves)
+        masks = np.zeros_like(waves,dtype=bool)
+
+        for iexp in range(nexp):
+            hdulist_iexp = fits.open(fnames[iexp])
+            if (order is None) and (pypeline == "Echelle"):
+                wave = np.zeros(npix*norder)
+                flux = np.zeros_like(wave)
+                ivar = np.zeros_like(wave)
+                mask = np.zeros_like(wave,dtype=bool)
+                for ii, iord in enumerate(order_vec):
+                    ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(iord)
+                    wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value,
+                                                                                   flux_value=flux_value)
+                    wave[npix*ii:npix*(ii+1)] = wave_iord
+                    flux[npix*ii:npix*(ii+1)] = flux_iord
+                    ivar[npix*ii:npix*(ii+1)] = ivar_iord
+                    mask[npix*ii:npix*(ii+1)] = mask_iord
+            else:
+                if pypeline == "Echelle":
+                    ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(order)
+                else:
+                    ext_id = gdobj[iexp]
+                wave, flux, ivar, mask = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value, flux_value=flux_value)
+            waves[:, iexp] = wave
+            fluxes[:, iexp] = flux
+            ivars[:, iexp] = ivar
+            masks[:, iexp] = mask
 
     return waves,fluxes,ivars,masks
 

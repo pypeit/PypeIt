@@ -986,12 +986,65 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
     return rejivars, sigma_corrs, outchi, maskchi
 
+
+
+def spec_reject_comb(waves, fluxes, ivars, masks, weights, wave_grid, sn_cap=20.0, lower=3.0, upper=3.0,
+                     maxrej=None, maxiter_reject=5, qafile=None, debug=False):
+
+    nexp = np.shape(waves)[1]
+    iIter = 0
+    qdone = False
+    thismask = np.copy(masks)
+    while (not qdone) and (iIter < maxiter_reject):
+        wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
+            waves, fluxes, ivars, thismask, wave_grid, weights)
+        flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
+            waves, wave_stack, flux_stack, ivar_stack,mask_stack)
+        rejivars, sigma_corrs, outchi, maskchi = update_errors(waves, fluxes, ivars, thismask,
+                                                               flux_stack_nat, ivar_stack_nat, mask_stack_nat,
+                                                               sn_cap=sn_cap)
+        thismask, qdone = pydl.djs_reject(fluxes, flux_stack_nat, outmask=thismask,inmask=masks, invvar=rejivars,
+                                          lower=lower,upper=upper, maxrej=maxrej, sticky=False)
+        # print out how much was rejected
+        for iexp in range(nexp):
+            thisreject = thismask[:, iexp]
+            nrej = np.sum(np.invert(thisreject))
+            if nrej > 0:
+                msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej, iexp))
+
+        iIter = iIter +1
+
+    if (iIter == maxiter_reject) & (maxiter_reject != 0):
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in combspec')
+    outmask = np.copy(thismask)
+
+    # Compute the final stack using this outmask
+    wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
+        waves, fluxes, ivars, outmask, wave_grid, weights)
+    # Used only for plotting below
+    flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
+    if debug:
+        for iexp in range(nexp):
+            # plot the residual distribution
+            renormalize_errors_qa(outchi[:, iexp], maskchi[:, iexp], sigma_corrs[iexp])
+            # plot the rejections for each exposures
+            coadd_iexp_qa(waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], flux_stack_nat[:, iexp],
+                          ivar_stack_nat[:, iexp], mask=outmask[:, iexp], mask_stack=mask_stack_nat[:, iexp],
+                          qafile=None, debug=debug)
+
+    # Plot the final coadded spectrum
+    if debug:
+        weights_qa(waves, weights, outmask)
+        coadd_qa(wave_stack,flux_stack,ivar_stack, nused, mask=mask_stack, qafile=qafile, debug=debug)
+
+    return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights
+
 #Todo: This should probaby take a parset?
-def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_min=None, wave_grid_max=None,
-             A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
-             scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
-             const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
-             qafile=None, outfile=None, debug=False):
+def long_combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_min=None, wave_grid_max=None,
+                  A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
+                  scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
+                  const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
+                  qafile=None, outfile=None, debug=False):
 
     # Define a common fixed wavegrid
     wave_grid = new_wave_grid(waves,wave_method=wave_grid_method,wave_grid_min=wave_grid_min,wave_grid_max=wave_grid_max,
@@ -1018,50 +1071,10 @@ def combspec(waves, fluxes, ivars, masks, wave_grid_method='pixel', wave_grid_mi
             sigrej=sigrej, scale_method=scale_method, hand_scale=hand_scale, sn_max_medscale=sn_max_medscale,
             sn_min_medscale=sn_min_medscale, debug=debug)
 
-    iIter = 0
-    qdone = False
-    thismask = np.copy(masks)
-    while (not qdone) and (iIter < maxiter_reject):
-        wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
-            waves, fluxes_scale, ivars_scale, thismask, wave_grid, weights)
-        flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
-            waves, wave_stack, flux_stack, ivar_stack,mask_stack)
-        rejivars, sigma_corrs, outchi, maskchi = update_errors(waves, fluxes_scale, ivars_scale, thismask,
-                                                               flux_stack_nat, ivar_stack_nat, mask_stack_nat,
-                                                               sn_cap=sn_cap)
-        thismask, qdone = pydl.djs_reject(fluxes_scale, flux_stack_nat, outmask=thismask,inmask=masks, invvar=rejivars,
-                                          lower=lower,upper=upper, maxrej=maxrej, sticky=False)
-        # print out how much was rejected
-        for iexp in range(nexp):
-            thisreject = thismask[:, iexp]
-            nrej = np.sum(np.invert(thisreject))
-            if nrej > 0:
-                msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej, iexp))
-
-        iIter = iIter +1
-
-    if (iIter == maxiter_reject) & (maxiter_reject != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter_reject) + ' reached in combspec')
-    outmask = np.copy(thismask)
-
-    # Compute the final stack using this outmask
-    wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
-        waves, fluxes_scale, ivars_scale, outmask, wave_grid, weights)
-    # Used only for plotting below
-    flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
-    if debug:
-        for iexp in range(nexp):
-            # plot the residual distribution
-            renormalize_errors_qa(outchi[:, iexp], maskchi[:, iexp], sigma_corrs[iexp])
-            # plot the rejections for each exposures
-            coadd_iexp_qa(waves[:, iexp], fluxes_scale[:, iexp], ivars_scale[:, iexp], flux_stack_nat[:, iexp],
-                          ivar_stack_nat[:, iexp], mask=outmask[:, iexp], mask_stack=mask_stack_nat[:, iexp],
-                          qafile=None, debug=debug)
-
-    # Plot the final coadded spectrum
-    if debug:
-        weights_qa(waves, weights, outmask)
-        coadd_qa(wave_stack,flux_stack,ivar_stack, nused, mask=mask_stack, qafile=qafile, debug=debug)
+    # Rejecting and coadding
+    wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights = spec_reject_comb(
+        waves, fluxes_scale, ivars_scale, masks, weights, wave_grid, sn_cap=sn_cap, lower=lower, upper=upper,
+        maxrej=maxrej, maxiter_reject=maxiter_reject, qafile=qafile, debug=debug)
 
     # Write to disk?
     if outfile is not None:
