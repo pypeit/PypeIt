@@ -988,7 +988,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
 
 
-def spec_reject_comb(waves, fluxes, ivars, masks, weights, wave_grid, sn_cap=20.0, lower=3.0, upper=3.0,
+def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, qafile=None, debug=False):
 
     nexp = np.shape(waves)[1]
@@ -1040,15 +1040,10 @@ def spec_reject_comb(waves, fluxes, ivars, masks, weights, wave_grid, sn_cap=20.
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights
 
 #Todo: This should probaby take a parset?
-def long_combspec(waves, fluxes, ivars, masks, wave_method='pixel', wave_grid_min=None, wave_grid_max=None,
-                  A_pix=None, v_pix=None, samp_fact = 1.0, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
+def long_combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
                   scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
                   const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None,
                   qafile=None, outfile=None, debug=False):
-
-    # Define a common fixed wavegrid
-    wave_grid = new_wave_grid(waves, wave_method=wave_method, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
-                              A_pix=A_pix, v_pix=v_pix, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves,fluxes,ivars,masks, dv_smooth=dv_smooth, const_weights=const_weights, verbose=True)
@@ -1073,7 +1068,7 @@ def long_combspec(waves, fluxes, ivars, masks, wave_method='pixel', wave_grid_mi
 
     # Rejecting and coadding
     wave_stack, flux_stack, ivar_stack, mask_stack, outmask, weights = spec_reject_comb(
-        waves, fluxes_scale, ivars_scale, masks, weights, wave_grid, sn_cap=sn_cap, lower=lower, upper=upper,
+        wave_grid, waves, fluxes_scale, ivars_scale, masks, weights, sn_cap=sn_cap, lower=lower, upper=upper,
         maxrej=maxrej, maxiter_reject=maxiter_reject, qafile=qafile, debug=debug)
 
     # Write to disk?
