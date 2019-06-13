@@ -396,6 +396,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 1,
                             gain            = 3.0,
                             ronoise         = 12.5,
+                            datasec         = '[:,1:1200]',
                             oscansec        = '[:,1203:1232]',
                             suffix          = '_red'
                             )]
@@ -438,19 +439,6 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         super(ShaneKastRedRetSpectrograph, self).check_headers(headers,
                                                                expected_values=expected_values)
     
-    def header_keys(self):
-        """
-        Header keys specific to shane_kast_red_ret
-
-        Returns:
-
-        """
-        hdr_keys = super(ShaneKastRedRetSpectrograph, self).header_keys()
-        hdr_keys[0]['dispname'] = 'GRATNG_N'
-        hdr_keys[0]['filter1'] = 'RDFILT_N'
-        hdr_keys[0]['dispangle'] = 'GRTILT_P'
-        return hdr_keys
-
     def init_meta(self):
         """
         Meta data specific to shane_kast_blue

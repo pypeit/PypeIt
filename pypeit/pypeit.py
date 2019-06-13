@@ -628,11 +628,11 @@ class PypeIt(object):
             msgs.warn(msgs_string)
             # set to first pass global sky
             self.skymodel = self.initial_sky
-            self.objmodel = np.zeros_like(self.sciimg)
+            self.objmodel = np.zeros_like(self.sciImg.image)
             # Set to sciivar. Could create a model but what is the point?
-            self.ivarmodel = np.copy(self.sciivar)
+            self.ivarmodel = np.copy(self.sciImg.ivar)
             # Set to the initial mask in case no objects were found
-            self.outmask = self.redux.mask
+            self.outmask = self.sciImg.mask
             # empty specobjs object from object finding
             if self.ir_redux:
                 self.sobjs_obj.purge_neg()
