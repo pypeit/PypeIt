@@ -245,10 +245,12 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         idx_orders.append(int(hdulist[ii+1].name.split('-')[1][5:])) # slit ID or order ID
 
     if pypeline == "Echelle":
-        order_vec = np.unique(idx_orders)
+        ## np.unique automatically sort the returned array which is not what I want!!!
+        ## order_vec = np.unique(idx_orders)
+        dum, order_vec_idx = np.unique(idx_orders, return_index=True)
+        order_vec = np.array(idx_orders)[np.sort(order_vec_idx)]
         norder = np.size(order_vec)
     else:
-        order_vec = None
         norder = 1
 
     ## Loading data from a single fits file
@@ -291,6 +293,17 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
 
         for iexp in range(nexp):
             hdulist_iexp = fits.open(fnames[iexp])
+
+            # ToDo: The following part can be removed if all data are reduced using the leatest pipeline
+            if pypeline == "Echelle":
+                ntrace = np.size(hdulist_iexp) - 1
+                idx_orders = []
+                for ii in range(ntrace):
+                    idx_orders.append(int(hdulist_iexp[ii + 1].name.split('-')[1][5:]))  # slit ID or order ID
+                    dum, order_vec_idx = np.unique(idx_orders, return_index=True)
+                    order_vec = np.array(idx_orders)[np.sort(order_vec_idx)]
+            # ToDo: The above part can be removed if all data are reduced using the leatest pipeline
+
             if (order is None) and (pypeline == "Echelle"):
                 for ii, iord in enumerate(order_vec):
                     ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(iord)
