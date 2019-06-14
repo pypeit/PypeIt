@@ -1220,7 +1220,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     ivars_stack_orders = np.zeros_like(waves_stack_orders)
     masks_stack_orders = np.zeros_like(waves_stack_orders,dtype=bool)
 
-    # Loop over orders to get the initial stacks of each order
+    # Loop over orders to get the initial stacks of each individual order
     for ii in range(norder):
 
         # get the slice of iord spectra of all exposures
@@ -1241,14 +1241,15 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
         weights[:,ii,:] = weights_iord
         outmasks[:,ii,:] = outmask_iord
 
-    # scale different orders based on overlapped regions using median scale
+    # Now that we have high S/N ratio individual order stacks, let's compute re-scaling fractors from the order
+    # overlaps. We will work from red to blue.
     fluxes_stack_orders_scale, ivars_stack_orders_scale, order_ratios = \
         order_median_scale(waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
                            min_good=min_good, maxiters=maxiters, max_factor=max_factor, sigrej=sigrej, debug=debug)
 
     ## Stack with the first method: combine the stacked individual order spectra directly
     # Get weights for individual order stacks
-    # ToDo: Currently, I used pixel_weights when merging different orders.
+    # ToDo: The sensfunc need to be put in here for the order merge, i.e. the weights should be sensfunc**2
     rms_sn_stack, weights_stack = sn_weights(waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale,
                                              masks_stack_orders, dv_smooth=dv_smooth, const_weights=const_weights,
                                              pixel_weights=False, verbose=True)
@@ -1266,7 +1267,10 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     plt.show()
     '''
 
-    # Reject and stack
+    # TODO Will we use this reject/stack below? It is the straight combine of the stacked individual orders.
+    #  This does not take advantage
+    #  of the fact that we have many samples in the order overlap regions allowing us to better reject. It does
+    #  however have the advatnage that it operates on higher S/N ratio stacked spectra.
     wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
         wave_grid, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
         weights_stack, sn_cap=sn_cap, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject,
@@ -1284,15 +1288,16 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
         scales_new[:,ii,:] *= order_ratios[ii]
 
     fluxes_scale = fluxes * scales_new
-    ivars_scale = ivars * 1.0/scales_new**2
+    ivars_scale = ivars/scales_new**2
 
     # reshaping 3D arrays (npix, norder, nexp) to 2D arrays (npix, norder*nexp)
     from IPython import embed
     embed()
-    waves_2d = np.reshape(waves,(norder*npix, nexp))
+    waves_2d = np.reshape(waves,(npix, norder*nexp))
     fluxes_2d = np.reshape(fluxes_scale, np.shape(waves_2d))
     ivars_2d = np.reshape(ivars_scale, np.shape(waves_2d))
-    masks_2d = np.reshape(masks, np.shape(waves_2d))
+    masks_2d = np.reshape(outmasks, np.shape(waves_2d))
+    # TODO below this should be the product of weights for the stack of exposures, and the sensfunc weights needed/discussed above
     weights_2d = np.reshape(weights, np.shape(waves_2d))
 
     wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack, outmask_giant_stack, nused_giant_stack = \
