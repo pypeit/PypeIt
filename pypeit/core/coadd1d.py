@@ -170,7 +170,7 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', q
     plt.xlabel('Residual distribution')
     plt.xlim([-6.05,6.05])
     plt.legend(fontsize=13,loc=2)
-    plt.title(title)
+    plt.title(title, fontsize=16, color='red')
     if qafile is not None:
         if len(qafile.split('.'))==1:
             msgs.info("No fomat given for the qafile, save to PDF format.")
@@ -632,7 +632,8 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min
 
     return ratio
 
-def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, max_factor=10., sigrej=3, debug=False):
+def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, max_factor=10., sigrej=3,
+                       debug=False, show=False):
     '''
     Args:
         waves: 2D array of wavelength
@@ -674,14 +675,14 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         snr_median_red = np.median(flux_red[mask_both]*np.sqrt(ivar_red[mask_both]))
         snr_median_blue = np.median(flux_blue_inter[mask_both]*np.sqrt(ivar_blue_inter[mask_both]))
 
-        if (snr_median_blue>3.0) & (snr_median_red>3.0):
+        if (snr_median_blue>0.5) & (snr_median_red>0.5):
             order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
                                                    mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
                                                    maxiters=maxiters, max_factor=max_factor, sigrej=sigrej)
             order_ratios[iord - 1] = np.fmax(np.fmin(order_ratio_iord, max_factor), 1.0/max_factor)
             msgs.info('Scaled {}th order to {}th order by {:}'.format(iord-1, iord, order_ratios[iord-1]))
         else:
-            msgs.warn('The SNR in the overlapped region is too low. '
+            msgs.warn('The SNR in the overlapped region is too low or there is not enough overlapped pixels.'+ msgs.newline() +
                       'Median scale between order {:} and order {:} was not attempted'.format(iord-1, iord))
 
         if debug:
@@ -710,7 +711,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         fluxes_new[:, ii] *= order_ratios[ii]
         ivars_new[:, ii] *= 1.0/order_ratios[ii]**2
 
-    if debug:
+    if show:
         plt.figure(figsize=(12, 8))
         ymin = []
         ymax = []
@@ -1294,7 +1295,8 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     # overlaps. We will work from red to blue.
     fluxes_stack_orders_scale, ivars_stack_orders_scale, order_ratios = \
         order_median_scale(waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
-                           min_good=min_good, maxiters=maxiters, max_factor=max_factor, sigrej=sigrej, debug=debug)
+                           min_good=min_good, maxiters=maxiters, max_factor=max_factor, sigrej=sigrej,
+                           debug=debug, show=show)
 
     ## Stack with the first method: combine the stacked individual order spectra directly
     # Get weights for individual order stacks
@@ -1380,23 +1382,23 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
             waves_2d_exps, fluxes_2d_exps, ivars_2d_exps, masks_2d_exps, flux_stack_2d_exps, ivar_stack_2d_exps,
             mask_stack_2d_exps, sn_cap=sn_cap)
 
-        if show:
+        if debug:
             # QA for individual exposures
             for iexp in range(nexp):
                 # plot the residual distribution
                 msgs.info('QA plots for exposure {:} with new_sigma = {:}'.format(iexp+1, sigma_corrs_2d[iexp]))
-                renormalize_errors_qa(outchi_2d[:, iexp], maskchi_2d[:, iexp], sigma_corrs_2d[iexp])
+                renormalize_errors_qa(outchi_2d[:, iexp], maskchi_2d[:, iexp], sigma_corrs_2d[iexp],
+                                      title='Chi distribution of exposure {:}'.format(iexp+1))
 
                 # plot coadd_qa
                 coadd_iexp_qa(waves_2d_exps[:,iexp], fluxes_2d_exps[:,iexp], ivars_2d_exps[:,iexp],
                               flux_stack_2d_exps[:,iexp], ivar_stack_2d_exps[:,iexp], mask=masks_2d_exps[:,iexp],
                               mask_stack=mask_stack_2d_exps[:,iexp], norder=norder, qafile=None)
-        if show:
-            # Global QA
-            rejivars_1d, sigma_corrs_1d, outchi_1d, maskchi_1d = update_errors(
-                waves_2d_exps.flatten(), fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), masks_2d_exps.flatten(),
-                flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_cap=sn_cap)
-            renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d, qafile=qafile_chi)
+        # Global QA
+        rejivars_1d, sigma_corrs_1d, outchi_1d, maskchi_1d = update_errors(
+            waves_2d_exps.flatten(), fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), masks_2d_exps.flatten(),
+            flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_cap=sn_cap)
+        renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d, qafile=qafile_chi, title='Global Chi distribution')
 
     save.save_coadd1d_to_fits(wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
                               header=header, outfile=outfile_giant_stack, ex_value=ex_value, overwrite=True)
