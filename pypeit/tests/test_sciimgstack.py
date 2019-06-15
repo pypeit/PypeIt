@@ -43,6 +43,9 @@ def nires_bg_files():
             for ifile in ['s180604_0090.fits.gz', 's180604_0091.fits.gz']]
 
 def test_standard_instantiate():
+    """
+    Simple instantiate
+    """
     # Empty
     sciImgStack = sciimgstack.SciImgStack(kast_blue, [], kast_par['scienceframe'])
     assert sciImgStack.nfiles == 0
@@ -51,7 +54,7 @@ def test_standard_instantiate():
 @dev_suite_required
 def test_proc_one(shane_kast_blue_sci_files):
     """
-    Instantiate and run on a single sience frame
+    Run on a single science frame
     """
     # Load calibrations
     tslits_dict, mstrace, tilts_dict, pixelflat = load_kast_blue_masters(
@@ -68,7 +71,7 @@ def test_proc_one(shane_kast_blue_sci_files):
 @dev_suite_required
 def test_proc_list(shane_kast_blue_sci_files):
     """
-    Instantiate and run on two frames
+    Run on two frames
     """
     # Load calibrations
     tslits_dict, mstrace, tilts_dict, pixelflat = load_kast_blue_masters(
