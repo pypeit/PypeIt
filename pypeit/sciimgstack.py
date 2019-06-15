@@ -4,7 +4,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
 from pypeit.core import coadd2d
-from pypeit.core import procimg
+from pypeit.par import pypeitpar
 
 from pypeit.images import scienceimage
 from pypeit.images import maskimage
@@ -20,9 +20,10 @@ class SciImgStack(object):
 
     Parameters
     ----------
+    spectrograph : pypeit.spectrograph.Spectrograph
     file_list : list
       List of raw files to produce the flat field
-    spectrograph : pypeit.spectrograph.Spectrograph
+    par (PypeItPar):
     settings : dict-like
     tslits_dict : dict
       dict from TraceSlits class
@@ -79,25 +80,22 @@ class SciImgStack(object):
     # Frametype is a class attribute
     frametype = 'scienceimages'
 
-    # TODO: Merge into a single parset, one for procing, and one for scienceimage
-    def __init__(self, spectrograph, file_list, bg_file_list=[], ir_redux=False,
-                 det=1, binning=None, par=None):
+    def __init__(self, spectrograph, file_list, par, bg_file_list=[], ir_redux=False,
+                 det=1, binning=None):
 
-
-        # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
-        #self.par = pypeitpar.FrameGroupPar(objtype) if par is None else par
-        self.par = spectrograph.default_pypeit_par()['scienceframe'] if par is None else par
-
-        # Start us up
-        #self.sci_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
-        #                                               files=file_list, frametype=self.frametype)
-        #self.bkg_combine = combinedimage.CombinedImage(spectrograph, det, self.par['process'],
-        #                                               files=bg_file_list, frametype=self.frametype)
-        self.file_list = file_list
-        self.bg_file_list = bg_file_list
 
         # Instantiation attributes for this object
         self.spectrograph = spectrograph
+        self.par = par
+        if not isinstance(self.par, pypeitpar.FrameGroupPar):
+            msgs.error("Bad par type")
+        if not isinstance(file_list, list):
+            msgs.error("Bad file_list type")
+        self.file_list = file_list
+        if not isinstance(bg_file_list, list):
+            msgs.error("Bad file_list type")
+        self.bg_file_list = bg_file_list
+
         # Are we subtracting the sky using background frames? If yes, set ir_redux=True
         self.ir_redux = ir_redux
         if self.ir_redux and (len(self.bg_file_list) == 0):
@@ -120,6 +118,15 @@ class SciImgStack(object):
         # Other bookeeping internals
         self.crmask = None
         self.mask = None
+
+    @property
+    def nfiles(self):
+        """
+        Returns:
+            int: Number of science frames as per file_list
+
+        """
+        return len(self.file_list)
 
     def build_stack(self, files, bpm, reject_cr=False):
         """
@@ -178,8 +185,6 @@ class SciImgStack(object):
         # Return
         return sciimg_stack, sciivar_stack, rn2img_stack, crmask_stack, mask_stack
 
-
-    # JFH TODO This stuff should be eventually moved to processimages?
     def proc(self, bias, pixel_flat, bpm, illum_flat=None, sigrej=None, maxiters=5, show=False):
         """
         Primary wrapper for processing one or more science frames or science frames with bgframes
@@ -299,9 +304,9 @@ class SciImgStack(object):
             ivar = ivar_stack[0, :, :]
             rn2img = rn2img_stack[0, :, :]
             sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
-                                                         self.par['process'], self.sci_bpm,
-                                                         img, ivar,
-                                                         rn2img, crmask=crmask, mask=mask)
+                                                             self.par['process'], self.sci_bpm,
+                                                             img, ivar, rn2img, crmask=crmask,
+                                                             mask=mask, files=files)
 
         return sciImage
 
@@ -370,15 +375,9 @@ class SciImgStack(object):
         viewer, ch = ginga.show_image(image, chname=ch_name)
 
 
-
     def __repr__(self):
-        txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
-                                        self.nsci)
-        if len(self.steps) > 0:
-            txt+= ' steps: ['
-            for step in self.steps:
-                txt += '{:s}, '.format(step)
-            txt = txt[:-2]+']'  # Trim the trailing comma
+        txt = '<{:s}: nfiles={:d}'.format(self.__class__.__name__,
+                                        self.nfiles)
         txt += '>'
         return txt
 

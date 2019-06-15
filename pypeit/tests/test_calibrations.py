@@ -74,7 +74,6 @@ def multi_caliBrate_reuse(multi_caliBrate):
     multi_caliBrate.save_masters = True
     return multi_caliBrate
 
-'''
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
@@ -179,7 +178,6 @@ def test_waveimg(multi_caliBrate):
     mswave = multi_caliBrate.get_wave()
     assert mswave.shape == (2048,350)
 
-'''
 
 @dev_suite_required
 def test_reuse(multi_caliBrate_reuse):

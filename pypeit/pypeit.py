@@ -546,10 +546,9 @@ class PypeIt(object):
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciI = sciimgstack.SciImgStack(self.spectrograph, sci_files,
+        self.sciI = sciimgstack.SciImgStack(self.spectrograph, sci_files, self.par['scienceframe'],
                                               bg_file_list=self.fitstbl.frame_paths(bg_frames),
                                               ir_redux = self.ir_redux,
-                                              par=self.par['scienceframe'],
                                               det=det,
                                               binning=self.binning)
         # For QA on crash

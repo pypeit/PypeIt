@@ -28,7 +28,6 @@ def grab_img(proc, filename):
     return data_img
 
 
-'''
 @dev_suite_required
 def test_load_deimos():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
@@ -117,7 +116,6 @@ def test_load_vlt_xshooter_vis():
             data_img = grab_img(proc, f)
         except:
             pytest.fail('VLT XSHOOTER VIS test data section failed: {0}'.format(f))
-'''
 
 @dev_suite_required
 def test_load_vlt_xshooter_nir():
