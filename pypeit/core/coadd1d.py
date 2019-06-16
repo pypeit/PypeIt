@@ -1372,7 +1372,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
         spec_reject_comb(wave_grid, waves_2d, fluxes_2d, ivars_2d, masks_2d, weights_2d, sn_cap=sn_cap, lower=lower,
                          upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, title='Final stacked spectra',
                          qafile=qafile_giant_stack, debug=debug, show=show)
-    
+
     if debug or show:
         # Estimate chi for each exposure after interpolating and reshaping
         flux_stack_2d, ivar_stack_2d, mask_stack_2d = interp_spec(waves_2d, wave_giant_stack, flux_giant_stack,
