@@ -260,7 +260,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
             masks = np.zeros_like(waves, dtype=bool)
 
             for ii, iord in enumerate(order_vec):
-                ext_id = gdobj+'-ORDER{:04d}'.format(iord)
+                ext_id = gdobj[0]+'-ORDER{:04d}'.format(iord)
                 wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist, ext_id, ex_value=ex_value,
                                                                                flux_value=flux_value, nmaskedge=nmaskedge)
                 waves[:,ii,0] = wave_iord
