@@ -555,7 +555,6 @@ class PypeIt(object):
         msgs.sciexp = self.sciI
 
         # Process images (includes inverse variance image, rn2 image, and CR mask)
-        #self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = \
         self.sciImg = self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixelflat.copy(),
                            self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
                            show=self.show)
@@ -577,6 +576,7 @@ class PypeIt(object):
                                     std_trace=std_trace, maskslits=self.maskslits,
                                     show=self.show & (not self.std_redux),
                                     manual_extract_dict=manual_extract_dict)
+        #embed(header='579 of pyepit')
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
@@ -590,6 +590,10 @@ class PypeIt(object):
                                   std_trace=std_trace,maskslits=self.maskslits,show=self.show,
                                         manual_extract_dict=manual_extract_dict,
                                         skysub_img=self.initial_sky)
+        else:
+            # For standard stars
+            for iobj in self.sobjs_obj:
+                iobj.prof_nsigma = self.par['scienceimage']['std_prof_nsigma']
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:

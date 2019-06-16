@@ -1483,7 +1483,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
 
     slit_spat_pos = (np.interp(slit_spec_pos, spec_vec, slit_left), np.interp(slit_spec_pos, spec_vec, slit_righ))
 
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
     # If a mask was not passed in, create it
     if inmask is None:
@@ -1505,6 +1505,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
     flux_mean_med = np.median(flux_mean[smash_mask])
     flux_mean[np.invert(smash_mask)] = 0.0
     if (nsamp < 9.0*fwhm):
+        # This may lead to many negative fluxsub values..
+        # TODO: Calculate flux_mean_med by avoiding the peak
         fluxsub = flux_mean - flux_mean_med
     else:
         kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
@@ -1523,7 +1525,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
 
     cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
                                          cont_frac_fwhm=2.0, sigthresh=sig_thresh,
-                                         sigrej=2.0, cont_samp=3,npoly=1, cont_mask_neg=True)
+                                         sigrej=2.0, cont_samp=3,npoly=1, cont_mask_neg=True)#, debug=debug)
     # TODO this is experimental, but I'm removing the linear continuum fit
     fluxconv_cont = fluxconv - cont
 
@@ -1581,6 +1583,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
         # Possible thresholds    [significance,  fraction of brightest, absolute]
         threshvec = np.array([sig_thresh*sigma, peak_thresh*ypeak.max(), abs_thresh])
         threshold = threshvec.max()
+        #embed(header='1584 of extract')
         if threshvec.argmax() == 0:
             msgs.info('Used SIGNIFICANCE threshold: sig_thresh = {:3.1f}'.format(sig_thresh) +
                       ' * sigma = {:5.2f}'.format(sigma))
