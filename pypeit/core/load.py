@@ -228,11 +228,8 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
 
     # read in the first fits file
     nexp = np.size(fnames)
-    if nexp == 1:
-        fname0 = fnames
-    else:
-        fname0 = fnames[0]
 
+    fname0 = fnames[0]
     hdulist = fits.open(fname0)
     header = hdulist[0].header
     npix = header['NPIX']
@@ -263,7 +260,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
             masks = np.zeros_like(waves, dtype=bool)
 
             for ii, iord in enumerate(order_vec):
-                ext_id = gdobj+'-ORDER{:04d}'.format(iord)
+                ext_id = gdobj[0]+'-ORDER{:04d}'.format(iord)
                 wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist, ext_id, ex_value=ex_value,
                                                                                flux_value=flux_value, nmaskedge=nmaskedge)
                 waves[:,ii] = wave_iord
@@ -272,9 +269,9 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
                 masks[:,ii] = mask_iord
         else:
             if pypeline == "Echelle":
-                ext_id = gdobj+'-ORDER{:04d}'.format(order)
+                ext_id = gdobj[0]+'-ORDER{:04d}'.format(order)
             else:
-                ext_id = gdobj
+                ext_id = gdobj[0]
             waves, fluxes, ivars, masks = load_ext_to_array(hdulist, ext_id, ex_value=ex_value, flux_value=flux_value,
                                                             nmaskedge=nmaskedge)
 

@@ -1094,7 +1094,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
             outchi[:, iexp] = chi
             maskchi[:, iexp] = igood
         else:
-            sigma_corrs = this_sigma_corr
+            sigma_corrs = np.array([this_sigma_corr])
             rejivars = ivar_cap
             outchi = chi
             maskchi = igood
@@ -1235,12 +1235,19 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     # Loading Echelle data
     waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
                                                                     flux_value=flux_value, nmaskedge=nmaskedge)
-
     # data shape
     data_shape = np.shape(waves)
     npix = data_shape[0] # detector size in the wavelength direction
     norder = data_shape[1]
-    nexp = data_shape[2]
+    if waves.ndim == 3:
+        nexp = data_shape[2]
+    else:
+        waves = waves.reshape((waves.shape[0], waves.shape[1], 1))
+        fluxes = fluxes.reshape(np.shape(waves))
+        ivars = ivars.reshape(np.shape(waves))
+        masks = masks.reshape(np.shape(waves))
+        msgs.warn('Only one exposure found.')
+        nexp =1
 
     # create some arrays
     scales = np.zeros_like(waves)
@@ -1365,7 +1372,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
         spec_reject_comb(wave_grid, waves_2d, fluxes_2d, ivars_2d, masks_2d, weights_2d, sn_cap=sn_cap, lower=lower,
                          upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, title='Final stacked spectra',
                          qafile=qafile_giant_stack, debug=debug, show=show)
-
+    
     if debug or show:
         # Estimate chi for each exposure after interpolating and reshaping
         flux_stack_2d, ivar_stack_2d, mask_stack_2d = interp_spec(waves_2d, wave_giant_stack, flux_giant_stack,
@@ -1398,7 +1405,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
         rejivars_1d, sigma_corrs_1d, outchi_1d, maskchi_1d = update_errors(
             waves_2d_exps.flatten(), fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), masks_2d_exps.flatten(),
             flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_cap=sn_cap)
-        renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d, qafile=qafile_chi, title='Global Chi distribution')
+        renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d[0], qafile=qafile_chi, title='Global Chi distribution')
 
     save.save_coadd1d_to_fits(wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
                               header=header, outfile=outfile_giant_stack, ex_value=ex_value, overwrite=True)
