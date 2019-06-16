@@ -279,7 +279,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     11-Mar-2005  Written by J. Hennawi and S. Burles.
     28-May-2018  Ported to python by J. Hennawi
     """
-
+    # Setup
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
@@ -432,6 +432,53 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.boxcar['BOX_RADIUS'] = box_radius
 
     return None
+
+
+def extract_specobj_boxcar(sciimg,ivar, mask, waveimg, skyimg, rn2_img, box_radius, specobj):
+    # Setup
+    imgminsky = sciimg - skyimg
+    nspat = imgminsky.shape[1]
+    nspec = imgminsky.shape[0]
+
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
+    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+
+
+    # Fill in the boxcar extraction tags
+    flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    # Denom is computed in case the trace goes off the edge of the image
+    box_denom = extract_boxcar(waveimg*mask > 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    wave_box  = extract_boxcar(waveimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)/(box_denom + (box_denom == 0.0))
+    varimg = 1.0/(ivar + (ivar == 0.0))
+    var_box  = extract_boxcar(varimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    nvar_box  = extract_boxcar(var_no*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    sky_box  = extract_boxcar(skyimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    rn2_box  = extract_boxcar(rn2_img*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    rn_posind = (rn2_box > 0.0)
+    rn_box = np.zeros(rn2_box.shape,dtype=float)
+    rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
+    pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    # If every pixel is masked then mask the boxcar extraction
+    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot)
+
+    bad_box = (wave_box <= 0.0) | (np.isfinite(wave_box) == False) | (box_denom == 0.0)
+    # interpolate bad wavelengths over masked pixels
+    if bad_box.any():
+        f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
+        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],grid=False)
+
+    ivar_box = 1.0/(var_box + (var_box == 0.0))
+    nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
+
+    specobj.boxcar['WAVE'] = wave_box
+    specobj.boxcar['COUNTS'] = flux_box*mask_box
+    specobj.boxcar['COUNTS_IVAR'] = ivar_box*mask_box
+    specobj.boxcar['COUNTS_SIG'] = np.sqrt(utils.calc_ivar(ivar_box*mask_box))
+    specobj.boxcar['COUNTS_NIVAR'] = nivar_box*mask_box
+    specobj.boxcar['MASK'] = mask_box
+    specobj.boxcar['COUNTS_SKY'] = sky_box
 
 
 

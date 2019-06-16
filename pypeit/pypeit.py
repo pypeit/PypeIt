@@ -573,6 +573,9 @@ class PypeIt(object):
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
+        # REMOVE THIS!!
+        msgs.warn("REMOVE THIS")
+        self.maskslits[0:3] = True
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
@@ -585,9 +588,27 @@ class PypeIt(object):
             self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
+        # Quick loop over the objects
+        from pypeit.core import trace_slits, pixels, extract
+        slit_spat_pos = trace_slits.slit_spat_pos(self.caliBrate.tslits_dict)
+        slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
+        for iord in range(self.nobj):
+            thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)# indices of objects for this slit
+            thismask = (slitmask == iord) # pixels for this slit
+            # True  = Good, False = Bad for inmask
+            inmask = (self.sciImg.mask == 0) & thismask
+            # Do it
+            embed(header='601 in pypeit')
+            sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
+            plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
+            extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                                           self.caliBrate.mswave, self.initial_sky, self.sciImg.rn2img,
+                                           self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
+
         # KLUDGES -- REMOVE THESE!!
+        embed(header='594')
         self.nobj = 0
-        skip_second_pass = True
+        skip_second_pass = True # Turn this into a Par
         from pypeit import specobjs
         self.sobjs_obj = specobjs.SpecObjs()
         msgs.warn("REMOVE THIS CRAZY KLUDGE")
