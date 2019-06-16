@@ -741,7 +741,13 @@ class Calibrations(object):
         # Grab arc binning (may be different from science!)
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
+        if len(self.arc_files) == 0:  # Better be reading from Masters
+            if not self.reuse_masters:
+                msgs.error("At least one arc file is required!")
+            binspec, binspat = 1,1
+            msgs.warn("Set binning to 1x1")
+        else:
+            binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
                                                                                 'binning'))
         # Instantiate
         self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, self.spectrograph,

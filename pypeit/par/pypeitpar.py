@@ -61,6 +61,7 @@ import glob
 import warnings
 from pkg_resources import resource_filename
 import inspect
+from IPython import embed
 
 from collections import OrderedDict
 
@@ -1818,9 +1819,9 @@ class CalibrationsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['caldir'] = 'Masters'
+        defaults['caldir'] = 'default'
         dtypes['caldir'] = str
-        descr['caldir'] = 'Directory relative to calling directory to write master files.'
+        descr['caldir'] = 'Directory for read/write of master files. If left as "default", it is set by the PypeIt class.'
 
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \

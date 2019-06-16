@@ -121,7 +121,14 @@ class PypeIt(object):
         self.show = show
 
         # Check the output paths are ready
-        self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+        #  This was over-writing what we may have input!!
+        #self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+
+        # Set paths
+        if self.par['calibrations']['caldir'] == 'default':
+            self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')
+        else:
+            self.calibrations_path = self.par['calibrations']['caldir']
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
@@ -156,11 +163,6 @@ class PypeIt(object):
     def science_path(self):
         """Return the path to the science directory."""
         return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
-        
-    @property
-    def calibrations_path(self):
-        """Return the path to the calibrations directory."""
-        return os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['caldir'])
         
     @property
     def qa_path(self):
@@ -582,6 +584,7 @@ class PypeIt(object):
         self.initial_sky = \
             self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
+        embed(header='586 of pypeit')
 
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
