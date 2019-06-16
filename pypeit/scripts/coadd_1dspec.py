@@ -40,6 +40,8 @@ def main(args, unit_test=False, path=''):
     from pypeit.core import load
     from pypeit import specobjs
 
+    from IPython import embed
+
     # Load the input file
     with open(args.infile, 'r') as infile:
         coadd_dict = yaml.load(infile)
