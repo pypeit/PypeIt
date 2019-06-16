@@ -173,8 +173,7 @@ class PypeIt(object):
         """
         Generate QA wrappers
         """
-        # TODO: pass qa path
-        qa.gen_mf_html(self.pypeit_file)
+        qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
     # TODO: This should go in a more relevant place
@@ -574,7 +573,6 @@ class PypeIt(object):
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
-        self.maskslits[0:3] = True
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace, maskslits=self.maskslits,
@@ -586,12 +584,8 @@ class PypeIt(object):
             self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
-
-
-        msgs.warn("REMOVE THIS CRAZY KLUDGE")
-        skip_second_pass = True # Turn this into a Par
-        #
-        if (not self.std_redux) and (not skip_second_pass):
+        # Second pass of object finding
+        if (not self.std_redux) and (not self.par['scienceimage']['skip_second_find']):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
@@ -601,8 +595,7 @@ class PypeIt(object):
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
-            boxcar_only = True
-            if boxcar_only:  # ONLY FOR ECHELLE + NEAR-IR SO FAR!
+            if self.par['scienceimage']['boxcar_only']:  # ONLY FOR ECHELLE + NEAR-IR SO FAR!
                 # Quick loop over the objects
                 from pypeit.core import pixels, extract
                 slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)

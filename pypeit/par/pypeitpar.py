@@ -907,7 +907,7 @@ class ManualExtractionParOld(ParSet):
 class ReducePar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
-    to the overal reduction of the the data.
+    to the overall reduction of the the data.
     
     Critically, this parameter set defines the spectrograph that was
     used to collect the data and the overall pipeline used in the
@@ -948,7 +948,7 @@ class ReducePar(ParSet):
 
         # TODO: Allow this to apply to each calibration frame type
         defaults['calwin'] = 0
-        dtypes['calwin']   = [int, float]
+        dtypes['calwin'] = [int, float]
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
                           'science frame'
 
@@ -1688,7 +1688,8 @@ class ScienceImagePar(ParSet):
 
     def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
-                 model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
+                 model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None,
+                 boxcar_only=None, skip_second_find=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1720,6 +1721,10 @@ class ScienceImagePar(ParSet):
         dtypes['sky_sigrej'] = float
         descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
 
+        defaults['boxcar_only'] = False
+        dtypes['boxcar_only'] = bool
+        descr['boxcar_only'] = 'Perform only boxcar extraction?  This is only valid for Echelle + Near-IR thus far (e.g. NIRES)'
+
         defaults['boxcar_radius'] = 1.5
         dtypes['boxcar_radius'] = [int, float]
         descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
@@ -1738,6 +1743,10 @@ class ScienceImagePar(ParSet):
         defaults['sig_thresh'] = 10.0
         dtypes['sig_thresh'] = [int, float]
         descr['sig_thresh'] = 'Significance threshold for object finding.'
+
+        defaults['skip_second_find'] = False
+        dtypes['skip_second_find'] = bool
+        descr['skip_second_find'] = 'Perform only one pass on object finding?'
 
         defaults['maxnumber'] = 10
         dtypes['maxnumber'] = int
@@ -1778,7 +1787,7 @@ class ScienceImagePar(ParSet):
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
-                   'sky_sigrej']
+                   'sky_sigrej', 'skip_second_find', 'boxcar_only']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

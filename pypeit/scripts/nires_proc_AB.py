@@ -63,17 +63,16 @@ def main(pargs):
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    caldir = {0}'.format(master_dir)]
     # Boxcar radius
+    cfg_lines += ['[scienceimage]']
+    cfg_lines += ['    boxcar_only = True']
+    cfg_lines += ['    skip_second_find = True']
     if pargs.box_radius is not None:
-        cfg_lines += ['[scienceimage]']
         cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
 
     # Write
     ofiles = ps.fitstbl.write_pypeit('', configs=['A'], write_bkg_pairs=True, cfg_lines=cfg_lines)
     if len(ofiles) > 1:
         msgs.error("Bad things happened..")
-
-    # Generate a soft link to the Master Frames
-
 
     # Instantiate the main pipeline reduction object
     pypeIt = pypeit.PypeIt(ofiles[0], verbosity=2,
