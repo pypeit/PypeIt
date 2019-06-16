@@ -719,6 +719,9 @@ class Echelle(Reduce):
         skymask = np.zeros_like(image, dtype=bool)
 
         order_vec = self.spectrograph.order_vec(slit_spat_pos)
+        # Mask me
+        order_vec = order_vec[np.invert(maskslits)]
+        embed(header='724 of reduce')
         plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
         inmask = self.sciImg.mask == 0
         # Find objects

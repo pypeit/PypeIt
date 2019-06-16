@@ -573,9 +573,6 @@ class PypeIt(object):
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        # REMOVE THIS!!
-        msgs.warn("REMOVE THIS")
-        self.maskslits[0:3] = True
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
@@ -588,30 +585,10 @@ class PypeIt(object):
             self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
 
-        # Quick loop over the objects
-        from pypeit.core import trace_slits, pixels, extract
-        slit_spat_pos = trace_slits.slit_spat_pos(self.caliBrate.tslits_dict)
-        slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
-        for iord in range(self.nobj):
-            thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)# indices of objects for this slit
-            thismask = (slitmask == iord) # pixels for this slit
-            # True  = Good, False = Bad for inmask
-            inmask = (self.sciImg.mask == 0) & thismask
-            # Do it
-            embed(header='601 in pypeit')
-            sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
-            plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
-            extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
-                                           self.caliBrate.mswave, self.initial_sky, self.sciImg.rn2img,
-                                           self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
 
-        # KLUDGES -- REMOVE THESE!!
-        embed(header='594')
-        self.nobj = 0
-        skip_second_pass = True # Turn this into a Par
-        from pypeit import specobjs
-        self.sobjs_obj = specobjs.SpecObjs()
+
         msgs.warn("REMOVE THIS CRAZY KLUDGE")
+        skip_second_pass = True # Turn this into a Par
         #
         if (not self.std_redux) and (not skip_second_pass):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
@@ -623,16 +600,39 @@ class PypeIt(object):
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
-            # Global sky subtraction second pass. Uses skymask from object finding
-            self.global_sky = self.initial_sky if self.std_redux else \
-                self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'],
-                skymask=self.skymask, maskslits=self.maskslits, show=self.show)
+            boxcar_only = True
+            if boxcar_only:  # ONLY FOR ECHELLE + NEAR-IR SO FAR!
+                # Quick loop over the objects
+                from pypeit.core import pixels, extract
+                slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
+                for iord in range(self.nobj):
+                    thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)# pos indices of objects for this slit
+                    thismask = (slitmask == iord) # pixels for this slit
+                    # True  = Good, False = Bad for inmask
+                    inmask = (self.sciImg.mask == 0) & thismask
+                    # Do it
+                    sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
+                    plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
+                    extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                                                   self.caliBrate.mswave, self.initial_sky, self.sciImg.rn2img,
+                                                   self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
+                    self.sobjs = self.sobjs_obj
+                    # Fill me up -- Should sync with the nobj=0 case  -- Could just set this as the DEFAULTS before optimal
+                    self.skymodel = self.initial_sky
+                    self.objmodel = np.zeros_like(self.sciImg.image)
+                    self.ivarmodel = np.copy(self.sciImg.ivar)
+                    self.outmask = self.sciImg.mask
+            else:
+                # Global sky subtraction second pass. Uses skymask from object finding
+                self.global_sky = self.initial_sky if self.std_redux else \
+                    self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'],
+                    skymask=self.skymask, maskslits=self.maskslits, show=self.show)
 
-            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-            self.redux.local_skysub_extract(self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
-                                            self.global_sky, self.sciImg.rn2img, self.sobjs_obj,
-                                            model_noise=(not self.ir_redux),std = self.std_redux,
-                                            maskslits=self.maskslits, show_profile=self.show,show=self.show)
+                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
+                self.redux.local_skysub_extract(self.caliBrate.tilts_dict['tilts'], self.caliBrate.mswave,
+                                                self.global_sky, self.sciImg.rn2img, self.sobjs_obj,
+                                                model_noise=(not self.ir_redux),std = self.std_redux,
+                                                maskslits=self.maskslits, show_profile=self.show,show=self.show)
 
             # Purge out the negative objects if this was a near-IR reduction.
             # TODO should we move this purge call to local_skysub_extract??
