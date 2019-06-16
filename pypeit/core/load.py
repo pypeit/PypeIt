@@ -208,8 +208,8 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     If Echelle, you need to specify which order you want to load.
     It can NOT load all orders for Echelle data.
     Args:
-        fnames: 1D spectra fits file(s)
-        gdobj: extension name (longslit/multislit) or objID (Echelle)
+        fnames (list): 1D spectra fits file(s)
+        gdobj (list): extension name (longslit/multislit) or objID (Echelle)
         order: None or an int number
         ex_value: 'OPT' or 'BOX'
         flux_value: True or False
@@ -228,8 +228,8 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
 
     # read in the first fits file
     nexp = np.size(fnames)
-
     fname0 = fnames[0]
+
     hdulist = fits.open(fname0)
     header = hdulist[0].header
     npix = header['NPIX']
@@ -254,19 +254,19 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     if nexp == 1:
         # initialize arrays
         if (order is None) and (pypeline == "Echelle"):
-            waves = np.zeros((npix, norder))
+            waves = np.zeros((npix, norder,nexp))
             fluxes = np.zeros_like(waves)
             ivars = np.zeros_like(waves)
             masks = np.zeros_like(waves, dtype=bool)
 
             for ii, iord in enumerate(order_vec):
-                ext_id = gdobj[0]+'-ORDER{:04d}'.format(iord)
+                ext_id = gdobj+'-ORDER{:04d}'.format(iord)
                 wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist, ext_id, ex_value=ex_value,
                                                                                flux_value=flux_value, nmaskedge=nmaskedge)
-                waves[:,ii] = wave_iord
-                fluxes[:,ii] = flux_iord
-                ivars[:,ii] = ivar_iord
-                masks[:,ii] = mask_iord
+                waves[:,ii,0] = wave_iord
+                fluxes[:,ii,0] = flux_iord
+                ivars[:,ii,0] = ivar_iord
+                masks[:,ii,0] = mask_iord
         else:
             if pypeline == "Echelle":
                 ext_id = gdobj[0]+'-ORDER{:04d}'.format(order)

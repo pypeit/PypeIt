@@ -16,6 +16,8 @@ from pypeit.core import pydl
 from astropy import constants as const
 c_kms = const.c.to('km/s').value
 
+from IPython import embed
+
 from matplotlib.ticker import NullFormatter, NullLocator
 
 ## Plotting parameters
@@ -1059,7 +1061,8 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
     # Loop on images to update noise model for rejection
     for iexp in range(nexp):
-        if nexp>1:
+        #if nexp>1: # JXP TOUCHED THIS
+        if nexp>=1:
             # Grab the spectrum
             thisflux = fluxes[:, iexp]
             thisivar = ivars[:, iexp]
@@ -1088,7 +1091,8 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
         this_sigma_corr, igood = renormalize_errors(chi, mask_tot, clip=6.0, max_corr=5.0, title='spec_reject', debug=debug)
         ivar_tot_corr = ivar_tot/this_sigma_corr ** 2
         ivar_cap = np.minimum(ivar_tot_corr, (sn_cap/(thisflux_stack + (thisflux_stack <= 0.0))) ** 2)
-        if nexp>1:
+        # if nexp>1:  #JXP TOUCHED THIS
+        if nexp>=1:
             sigma_corrs[iexp] = this_sigma_corr
             rejivars[:, iexp] = ivar_cap
             outchi[:, iexp] = chi
