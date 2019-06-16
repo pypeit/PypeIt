@@ -53,6 +53,8 @@ def main(pargs):
 
     # Calibrations
     master_dir = os.getenv('NIRES_MASTERS')
+    if master_dir is None:
+        msgs.error("You need to set an Environmental variable NIRES_MASTERS that points at the Master Calibs")
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format('keck_nires')]
     cfg_lines += ['    redux_path = {0}'.format(os.path.join(os.getcwd(),'keck_nires_A'))]

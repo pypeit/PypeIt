@@ -584,9 +584,15 @@ class PypeIt(object):
         self.initial_sky = \
             self.redux.global_skysub(self.caliBrate.tilts_dict['tilts'], skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
-        embed(header='586 of pypeit')
 
-        if not self.std_redux:
+        # KLUDGES -- REMOVE THESE!!
+        self.nobj = 0
+        skip_second_pass = True
+        from pypeit import specobjs
+        self.sobjs_obj = specobjs.SpecObjs()
+        msgs.warn("REMOVE THIS CRAZY KLUDGE")
+        #
+        if (not self.std_redux) and (not skip_second_pass):
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
