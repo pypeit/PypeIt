@@ -720,8 +720,6 @@ class Echelle(Reduce):
 
         order_vec = self.spectrograph.order_vec(slit_spat_pos)
         # Mask me
-        order_vec = order_vec[np.invert(maskslits)]
-        embed(header='724 of reduce')
         plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
         inmask = self.sciImg.mask == 0
         # Find objects
@@ -730,9 +728,9 @@ class Echelle(Reduce):
         # ToDO implement parsets here!
         sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
-            extract.ech_objfind(image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
+            extract.ech_objfind(image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'],
+                                self.tslits_dict['slit_righ'], order_vec, maskslits,
                                 inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
-                                order_vec=order_vec,
                                 hand_extract_dict=manual_extract_dict,
                                 plate_scale=plate_scale, std_trace=std_trace,
                                 specobj_dict=specobj_dict,sig_thresh=sig_thresh,

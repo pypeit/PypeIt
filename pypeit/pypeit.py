@@ -574,6 +574,7 @@ class PypeIt(object):
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
         # Do one iteration of object finding, and sky subtract to get initial sky model
+        self.maskslits[0:3] = True
         self.sobjs_obj, self.nobj, skymask_init = \
             self.redux.find_objects(std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace, maskslits=self.maskslits,

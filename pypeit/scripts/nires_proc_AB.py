@@ -18,6 +18,7 @@ def parser(options=None):
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
     parser.add_argument('fileA', type=str, help='A frame')
     parser.add_argument('fileB', type=str, help='B frame')
+    parser.add_argument('-b', '--box_radius', type=float, help='Set the radius for the boxcar extraction')
 
     if options is None:
         pargs = parser.parse_args()
@@ -36,8 +37,7 @@ def main(pargs):
 
     from pypeit import pypeit
     from pypeit import pypeitsetup
-    from pypeit.spectrographs.util import load_spectrograph
-    from pypeit.par.util import make_pypeit_file
+
 
     # Setup
     data_files = [os.path.join(pargs.full_rawpath, pargs.fileA), os.path.join(pargs.full_rawpath,pargs.fileB)]
@@ -55,11 +55,17 @@ def main(pargs):
     master_dir = os.getenv('NIRES_MASTERS')
     if master_dir is None:
         msgs.error("You need to set an Environmental variable NIRES_MASTERS that points at the Master Calibs")
+
+    # Config the run
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format('keck_nires')]
     cfg_lines += ['    redux_path = {0}'.format(os.path.join(os.getcwd(),'keck_nires_A'))]
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    caldir = {0}'.format(master_dir)]
+    # Boxcar radius
+    if pargs.box_radius is not None:
+        cfg_lines += ['[scienceimage]']
+        cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
 
     # Write
     ofiles = ps.fitstbl.write_pypeit('', configs=['A'], write_bkg_pairs=True, cfg_lines=cfg_lines)
