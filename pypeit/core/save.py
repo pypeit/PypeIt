@@ -239,9 +239,9 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
     sigs = np.sqrt(utils.calc_ivar(ivars))
 
     # Init for spec1d as need be
-    if outfile is not None:
-        if (len(outfile.split('.'))==1) or (outfile.split('.')[-1]!='fits'):
-            outfile = outfile+'.fits'
+    #if outfile is not None:
+    #    if (len(outfile.split('.'))==1) or (outfile.split('.')[-1]!='fits'):
+    #        outfile = outfile+'.fits'
 
     if (os.path.exists(outfile)) and (np.invert(overwrite)):
         hdulist = fits.open(outfile)
