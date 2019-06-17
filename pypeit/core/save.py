@@ -220,16 +220,16 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
     return outfile
 
 
-def save_coadd1d_to_fits(waves, fluxes, ivars, masks, header=None, ex_value='OPT', outfile=None, overwrite=True):
+def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_value='OPT', overwrite=True):
     '''
     Args:
+        outfile: name of fitsfile you want to save to
         waves: one-D or two-D (nspec by nexp/norder) wavelength array
         fluxes: flux array
         ivars: ivar array
         masks: mask array
         header: primary fits header
         ext_value: 'OPT' or 'BOX'
-        outfile: name of fitsfile you want to save to
         overwrite: True or False
     Returns:
         None
@@ -247,10 +247,10 @@ def save_coadd1d_to_fits(waves, fluxes, ivars, masks, header=None, ex_value='OPT
     else:
         prihdu.header =  header
 
-    if outfile is None:
-        outfile = 'spec1d_pypeit.fits'
-    if len(outfile.split('.')) == 1:
-        outfile = outfile + '.fits'
+    #if outfile is None:
+    #    outfile = 'spec1d_pypeit.fits'
+    #if len(outfile.split('.')) == 1:
+    #    outfile = outfile + '.fits'
 
     if waves.ndim == 1:
         wave_mask = waves > 1.0
