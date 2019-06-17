@@ -18,11 +18,13 @@ from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
 from pypeit.traceslits import TraceSlits
+from pypeit.images import scienceimage
 from pypeit import reduce
 
 from pypeit.core import load, coadd, pixels
 from pypeit.core import parse
 from pypeit.spectrographs import util
+import IPython
 
 
 def get_brightest_obj(specobjs_list, echelle=True):
@@ -661,7 +663,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
-def extract_coadd2d(stack_dict, master_dir, samp_fact = 1.0,ir_redux=False, par=None, std=False, show=False, show_peaks=False):
+def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False, par=None, std=False, show=False, show_peaks=False):
     """
     Main routine to run the extraction for 2d coadds.
 
@@ -675,6 +677,7 @@ def extract_coadd2d(stack_dict, master_dir, samp_fact = 1.0,ir_redux=False, par=
     Args:
         stack_dict:
         master_dir:
+        det (int):
         samp_fact: float
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
            samp_fact < 1.0 undersamples (coarser)
@@ -784,7 +787,8 @@ def extract_coadd2d(stack_dict, master_dir, samp_fact = 1.0,ir_redux=False, par=
     tslits_dict_psuedo = dict(slit_left=slit_left, slit_righ=slit_righ, slitcen=slitcen,
                               nspec=nspec_psuedo, nspat=nspat_psuedo, pad=0,
                               nslits = nslits, binspectral=1, binspatial=1, spectrograph=spectrograph.spectrograph,
-                              spec_min=spec_min1, spec_max=spec_max1)
+                              spec_min=spec_min1, spec_max=spec_max1,
+                              maskslits=np.zeros(slit_left.shape[1], dtype=np.bool))
 
     slitmask_psuedo = pixels.tslits2mask(tslits_dict_psuedo)
     # This is a kludge to deal with cases where bad wavelengths result in large regions where the slit is poorly sampled,
@@ -812,14 +816,24 @@ def extract_coadd2d(stack_dict, master_dir, samp_fact = 1.0,ir_redux=False, par=
 
     # Make a fake bitmask from the outmask. We are kludging the crmask to be the outmask_psuedo here, and setting the bpm to
     # be good everywhere
-    mask = processimages.ProcessImages.build_mask(imgminsky_psuedo, sciivar_psuedo, np.invert(inmask_psuedo),
-                                                  np.zeros_like(inmask_psuedo), slitmask=slitmask_psuedo)
+    #mask = processimages.ProcessImages.build_mask(imgminsky_psuedo, sciivar_psuedo, np.invert(inmask_psuedo),
+    #                                              np.zeros_like(inmask_psuedo), slitmask=slitmask_psuedo)
 
-    redux = reduce.instantiate_me(spectrograph, tslits_dict_psuedo, mask, ir_redux=ir_redux, par=par,
+    # Generate a ScienceImage
+    sciImage = scienceimage.ScienceImage.from_images(spectrograph, det,
+                                                     par['scienceframe']['process'],
+                                                     np.zeros_like(inmask_psuedo),  # Dummy bpm
+                                                     imgminsky_psuedo, sciivar_psuedo,
+                                                     np.zeros_like(inmask_psuedo),  # Dummy rn2img
+                                                     crmask=np.invert(inmask_psuedo))
+    sciImage.build_mask(slitmask=slitmask_psuedo)
+
+
+    redux = reduce.instantiate_me(sciImage, spectrograph, tslits_dict_psuedo, ir_redux=ir_redux, par=par,
                                   objtype = 'science', binning=binning)
 
     if show:
-        redux.show('image', image=imgminsky_psuedo*(mask == 0), chname = 'imgminsky', slits=True, clear=True)
+        redux.show('image', image=imgminsky_psuedo*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
     # Object finding
     sobjs_obj, nobj, skymask_init = redux.find_objects(imgminsky_psuedo, sciivar_psuedo, ir_redux=ir_redux, std=std,
                                                        show_peaks=show_peaks, show=show)
