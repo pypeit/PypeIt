@@ -16,7 +16,7 @@ from pypeit.core import pydl
 from astropy import constants as const
 c_kms = const.c.to('km/s').value
 
-from matplotlib.ticker import NullFormatter, NullLocator
+from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 
 ## Plotting parameters
 plt.rcdefaults()
@@ -149,11 +149,33 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
     return wave_grid
 
 def gauss1(x, mean, sigma, area):
+    '''
+    Simple Gaussian function
+    Args:
+        x: variable
+        mean: mean value
+        sigma: sigma value
+        area: total area of the Gaussian function
+    Return:
+        one-d array of your Gaussian function
+    '''
     ygauss = np.exp(-np.power(x - mean, 2.) / (2 * np.power(sigma, 2.)))
     norm = area / (sigma * np.sqrt(2 * np.pi))
     return norm * ygauss
 
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
+    '''
+    Histogram QA plot of your chi distribution.
+    Args:
+        chi: one-d array of your chi values
+        maskchi: mask for your chi array, True is good
+        sigma_corr: corrected sigma
+        sig_range: used for set binsize, default 6-sigma
+        title:  plot title
+        qafile: output QA file name
+    Return:
+        None
+    '''
 
     n_bins = 50
     binsize = 2.0*sig_range/n_bins
@@ -183,6 +205,19 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', q
     return
 
 def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=False):
+    '''
+    Function for renormalizing your chi distribution
+    Args:
+        chi: one-d array of your chi
+        mask: mask for chi, True is good
+        clip: X sigma outliers will be masked
+        max_corr: maximum corrected sigma
+        title: title for QA plot, will parsed to renormalize_errors_qa
+        debug: whether or not show the QA plot
+    Returns:
+        sigma_corr: corrected new sigma
+        maskchi: new mask
+    '''
 
     chi2 = chi**2
     maskchi = (chi2 < clip**2) & mask
@@ -308,6 +343,16 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     return result, flux_scale, ivartot
 
 def median_filt_spec(flux, ivar, mask, med_width):
+    '''
+    Median filter you spectrum.
+    Args:
+        flux: flux array
+        ivar: ivar array
+        mask: mask array, True = good
+        med_width: width for median filter
+    Return:
+        filtered flux and ivar
+    '''
 
     flux_med = np.zeros_like(flux)
     ivar_med = np.zeros_like(ivar)
@@ -395,12 +440,13 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
     '''
     Interpolate all spectra to the page of wave_new
     Args:
-        waves:
-        fluxes:
-        sigs:
-        masks:
-        iref:
+        wave_new: (1d or 2d array) new wavelength
+        waves: (1d or 2d array) old wavelength
+        fluxes: same size with waves, old flux
+        ivars: same size with waves, old ivar
+        masks: same size with waves, old mask, True=good
     Returns:
+        Interpolated flux, ivar and mask with the size exactly same with wave_new
     '''
 
     # First case: interpolate either an (nspec, nexp) array of spectra onto a single wavelength grid
@@ -558,23 +604,25 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     # Finish
     return rms_sn, weights
 
-def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, ref_percentile=20.0, min_good=0.05, mask=None, mask_ref=None,
-                        maxiters=5, max_factor = 10.0, sigrej = 3.0):
+def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=20.0, min_good=0.05,
+                        maxiters=5, sigrej=3.0, max_factor=10.0):
     '''
     Calculate the ratio between reference spectrum and your spectrum.
     Need to be in the same wave grid !!!
     Args:
-        flux:
-        sig:
-        flux_ref:
-        sig_ref:
-        mask:
-        mask_ref:
-        snr_cut:
-        maxiters:
-        sigma:
+        flux: one-d array of your flux
+        ivar: one-d array of ivar
+        flux_ref: reference flux
+        ivar_ref: reference ivar
+        mask: one-d array of your mask, True=good
+        mask_ref: reference mask
+        ref_percentile: percentile fraction cut used for selecting minimum SNR cut
+        min_good: minimum fraction of good pixels of total pixels for estimating the median ratio
+        maxiters: maximum iterations for sigma_clip
+        sigrej: sigma for sigma_clip
+        max_factor: maximum value of the returned ratio
     Returns:
-        ratio_median: median ratio
+        median ratio
     '''
     ## Mask for reference spectrum and your spectrum
     if mask is None:
@@ -722,6 +770,16 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
 
 def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
                   mask=None, mask_ref=None, ylim = None, median_frac = 0.03, title=''):
+    '''
+    QA plot for spectrum scaling
+        wave, flux, ivar, mask: spectrum need to be scaled
+        flux_ref, ivar_ref, mask_ref: reference spectrum
+        ymult: scale factor array
+    scale_method: scale method, will be shown in the qa plot
+    ylim: ylim for plotting
+    median_frac: used for estimating ylim, if ylim set to None
+    title: QA plot title
+    '''
 
     if mask is None:
         mask = ivar > 0.0
@@ -765,21 +823,23 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, m
                npoly=None, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=True):
     '''
     Scale the spectra into the same page with the reference spectrum.
-
-    Args:
-        waves:
-        fluxes:
-        ivars:
-        masks:
-        flux_iref:
-        ivar_iref:
-        mask_iref:
-        iref:
-        cenfunc:
-        snr_cut:
-        maxiters:
-        sigma:
-    Returns:
+    wave, flux, ivar, mask: spectrum that will be scaled
+    flux_ref, ivar_ref, mask_ref: reference spectrum
+    min_good: minmum fraction of the total number of good pixels needed for estimate the median ratio
+    maxiters: maximum iterations for rejecting outliers
+    max_median_factor: maximum scale factor
+    sigrej: sigma used for rejecting outliers
+    ref_percentile: percentile fraction cut used for selecting minimum SNR cut
+    npoly: order for the poly ratio scaling
+    scale_method: scale method
+    hand_scale: array of hand scale factors
+    sn_max_medscale: maximum SNR for perforing median scale
+    sn_min_medscale: minimum SNR for perforing median scale
+    debug: show QA plot or not
+    Return:
+        flux_scale, ivar_scale: scaled spectrum
+        scale: scale factor
+        scale_method: actually used scale method
     '''
 
     if mask is None:
@@ -847,12 +907,9 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     '''
     Compute the stacked spectrum based on spectra and wave_grid with weights being taken into account.
     Args:
-        waves:
-        fluxes:
-        ivars:
-        masks:
-        wave_grid:
-        weights:
+        wave_grid: new wavelength grid
+        waves, fluxes, ivars, masks: spectra that you want to stack
+        weights: weights for your spectra, same size with fluxes
     Returns:
         weighted stacked wavelength, flux and ivar
     '''
@@ -890,6 +947,16 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
 
 def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stack=None,
                   norder=None, qafile=None):
+    '''
+    QA for showing the iexp spectra with the combine, showing the rejected pixels
+    Args:
+        wave, flux, ivar, mask: iexp spectrum
+        flux_stack, ivar_stack, mask_stack: stacked spectrum
+        norder: give how many orders you have if Echelle
+        qafile: QA file name
+    Return:
+        None
+    '''
 
     if mask is None:
         mask = ivar > 0.0
@@ -957,6 +1024,13 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
     return
 
 def weights_qa(waves, weights, masks):
+    '''
+    QA plot routine for weights
+    Args:
+        waves: wavelength array
+        weights:  weights array
+        masks: mask array, True=good
+    '''
 
     nexp = np.shape(waves)[1]
     fig = plt.figure(figsize=(12, 8))
@@ -973,8 +1047,14 @@ def weights_qa(waves, weights, masks):
     plt.show()
 
 def coadd_qa(wave, flux, ivar, nused, mask=None, title=None, qafile=None):
-
-    from matplotlib.ticker import MaxNLocator
+    '''
+    QA plot of the final stacked spectrum
+    Args:
+        wave, flux, ivar, mask:
+        nused: same size with flux, how many exposures used in the stack for each pixel
+        title: plot title
+        qafile: QA file name
+    '''
 
     if mask is None:
         mask = ivar > 0.0
@@ -1031,6 +1111,19 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, title=None, qafile=None):
     return
 
 def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, sn_cap=20.0, debug=False):
+    '''
+    Adjust errors after rejection to reflect the statistics of the distribution of errors.
+    Args:
+        waves, fluxes, ivars, masks: your spectra
+        fluxes_stack, ivars_stack, masks_stack: stacked spectrum
+        sn_cap: cap SNR
+        debug: show QA plot or not
+    Return:
+        rejivars: cap ivar
+        sigma_corrs: new corrected sigma
+        outchi: chi
+        maskchi: mask for chi, True=good
+    '''
 
     if fluxes.ndim == 1:
         nexp = 1
@@ -1093,6 +1186,24 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
 def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, debug=False):
+    '''
+    Routine for rejections and combining
+    Args:
+        wave_grid: wave length grid
+        waves, fluxes, ivars, masks: your spectra
+        weights: weights for your spectra
+        sn_cap: cap SNR
+        lower: lower sigma for djs_reject
+        upper: upper sigma for djs_reject
+        maxrej: maximum value for djs_reject
+        maxiter_reject: maximum number of interations
+        debug: show QA plots or not
+    Return:
+        wave_stack, flux_stack, ivar_stack, mask_stack: stacked spectrum
+        outmask: new mask for your individual spectra, same size with fluxes
+        nused: same size with flux_stack, how many exposures used in the stack of each pixel
+
+    '''
 
     nexp = np.shape(waves)[1]
     iIter = 0
@@ -1143,6 +1254,39 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
 def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
              scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
              const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None, debug=False):
+    '''
+    Routine for combspec longslit spectra or individual orders
+    Args:
+        wave_grid: wave length grid
+        waves, fluxes, ivars, masks: your spectra
+        weights: weights for your spectra
+
+        sn_cap: cap SNR
+        lower: lower sigma for djs_reject
+        upper: upper sigma for djs_reject
+        maxrej: maximum value for djs_reject
+        maxiter_reject: maximum number of interations
+
+        ref_percentile: percentile fraction cut used for selecting minimum SNR cut
+        scale_method: scale method
+        hand_scale: array of hand scale factors
+        sn_max_medscale: maximum SNR for perforing median scale
+        sn_min_medscale: minimum SNR for perforing median scale
+
+        dv_smooth: float, 10000.0
+         Velocity smoothing used for determining smoothly varying S/N ratio weights.
+        const_weights: whether you want constant weights or not
+
+        debug: show QA plots or not
+
+    Returns:
+        wave_stack, flux_stack, ivar_stack, mask_stack: stacked spectrum
+        outmask: new mask for your individual spectra, same size with fluxes
+        nused: same size with flux_stack, how many exposures used in the stack of each pixel
+        weights: weights for each individual spectrum
+        scales: scale factors
+        rms_sn: SNR of each individual spectrum.
+    '''
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves,fluxes,ivars,masks, dv_smooth=dv_smooth, const_weights=const_weights, verbose=True)
