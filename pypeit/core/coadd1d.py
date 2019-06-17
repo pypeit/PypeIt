@@ -916,8 +916,8 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
 def get_ylim(flux, ivar, mask):
     med_width = (2.0 * np.ceil(0.1 / 2.0 * np.size(flux[mask])) + 1).astype(int)
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
-    mask_lim = ivar_med > np.percentile(ivar_med, 10)
-    ymax = 2.0 * np.max(flux_med[mask_lim])
+    mask_lim = ivar_med > np.percentile(ivar_med, 20)
+    ymax = 2.5 * np.max(flux_med[mask_lim])
     ymin = -0.15 * ymax
     return ymin, ymax
 
@@ -1008,6 +1008,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
             scale = 0.8 * ymax
             spec_plot.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5, zorder=11)
     else:
+        npix = np.size(flux)
         nspec = int(npix / norder)
         for iord in range(norder):
             spec_plot.plot(wave[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
@@ -1194,8 +1195,6 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
     return rejivars, sigma_corrs, outchi, maskchi
 
-
-
 def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, debug=False):
     '''
@@ -1234,7 +1233,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
         # print out how much was rejected
         for iexp in range(nexp):
             thisreject = thismask[:, iexp]
-            nrej = np.sum(np.invert(thisreject))
+            nrej = np.sum(np.invert(thisreject)) - np.sum(waves[:, iexp]<1.0) # didn't take the wave=0 pixels into account.
             if nrej > 0:
                 msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej, iexp))
 
@@ -1651,7 +1650,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
             flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_cap=sn_cap)
         renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d[0], qafile=qafile_chi, title='Global Chi distribution')
         # show the final coadded spectrum
-        coadd_qa( wave_giant_stack, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
+        coadd_qa(wave_giant_stack, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
                  title='Final stacked spectrum', qafile=qafile_stack)
 
     save.save_coadd1d_to_fits(outfile_stack, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
