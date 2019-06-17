@@ -150,6 +150,9 @@ class PypeItMetaData:
         Define the core set of meta data that must be defined
         to run PypeIt
 
+        Warning:  The keys should all be <= 8 length as they are
+        all written to the Header
+
         Each meta entry is a dict with keys
            dtype: str, float, int
            comment: str
@@ -180,6 +183,10 @@ class PypeItMetaData:
         core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
         core_meta['airmass'] = dict(dtype=float, comment='Airmass')
         core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+
+        # Test me
+        for key in core_meta.keys():
+            assert len(key) <= 8
 
         # Return
         return core_meta
