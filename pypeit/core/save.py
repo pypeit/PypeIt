@@ -239,13 +239,21 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
     sigs = np.sqrt(utils.calc_ivar(ivars))
 
     # Init for spec1d as need be
-    prihdu = fits.PrimaryHDU()
-    hdulist = fits.HDUList([prihdu])
+    if outfile is not None:
+        if (len(outfile.split('.'))==1) or (outfile.split('.')[-1]!='fits'):
+            outfile = outfile+'.fits'
 
-    if header is None:
-        msgs.warn('The primary header is none')
+    if (os.path.exists(outfile)) and (np.invert(overwrite)):
+        hdulist = fits.open(outfile)
+        msgs.info("Reading primary HDU from existing file: {:s}".format(outfile))
     else:
-        prihdu.header =  header
+        msgs.info("Creating an new primary HDU.")
+        prihdu = fits.PrimaryHDU()
+        if header is None:
+            msgs.warn('The primary header is none')
+        else:
+            prihdu.header = header
+        hdulist = fits.HDUList([prihdu])
 
     #if outfile is None:
     #    outfile = 'spec1d_pypeit.fits'
@@ -264,7 +272,7 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
 
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'OBJ0001-SPEC0001'
+        tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
         hdulist.append(tbhdu)
     else:
         nspec = np.shape(waves)[1]
@@ -281,11 +289,15 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
 
             coldefs = fits.ColDefs(cols)
             tbhdu = fits.BinTableHDU.from_columns(coldefs)
-            tbhdu.name = 'OBJ0001-SPEC{:04d}'.format(ispec+1)
+            tbhdu.name = 'OBJ0001-SPEC{:04d}-{:}'.format(ispec+1, ex_value.capitalize())
             hdulist.append(tbhdu)
 
-    hdulist.writeto(outfile, overwrite=overwrite)
-    msgs.info("Wrote 1D spectra to {:s}".format(outfile))
+    if (os.path.exists(outfile)) and (np.invert(overwrite)):
+        hdulist.writeto(outfile, overwrite=True)
+        msgs.info("Appending 1D spectra to existing file {:s}".format(outfile))
+    else:
+        hdulist.writeto(outfile, overwrite=overwrite)
+        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
 
     return None
 

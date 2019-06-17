@@ -1233,13 +1233,13 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     if outfile is None:
         outfile = header['TARGET']
     outfile_order = 'spec1d_order_{:}'.format(outfile)
+    outfile_merge = 'spec1d_merge_{:}'.format(outfile)
     outfile_stack = 'spec1d_stack_{:}'.format(outfile)
-    outfile_giant_stack = 'spec1d_giant_stack_{:}'.format(outfile)
 
     if qafile is None:
         qafile = header['TARGET']
+    qafile_merge = 'spec1d_merge_{:}'.format(outfile)
     qafile_stack = 'spec1d_stack_{:}'.format(outfile)
-    qafile_giant_stack = 'spec1d_giant_stack_{:}'.format(outfile)
     qafile_chi = 'spec1d_chi_{:}'.format(outfile)
 
     # Generate a giant wave_grid
@@ -1268,8 +1268,8 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
             upper=upper, maxrej=maxrej, debug=debug)
 
         if show:
-            coadd_qa(wave_stack_orders[:, ii], flux_stack_orders[:, ii], ivar_stack_orders[:, ii], nused_iord,
-                     mask=mask_stack_orders[:, ii], title='Stacked spectrum of order {:}'.format(ii+1))
+            coadd_qa(waves_stack_orders[:, ii], fluxes_stack_orders[:, ii], ivars_stack_orders[:, ii], nused_iord,
+                     mask=masks_stack_orders[:, ii], title='Stacked spectrum of order {:}'.format(ii+1))
 
         # store new masks, scales and weights, all of these arrays are in native wave grid
         scales[:,ii,:] = scales_iord
@@ -1307,14 +1307,18 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     #  This does not take advantage
     #  of the fact that we have many samples in the order overlap regions allowing us to better reject. It does
     #  however have the advatnage that it operates on higher S/N ratio stacked spectra.
-    wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
+    wave_merge, flux_merge, ivar_merge, mask_merge, outmask, nused = spec_reject_comb(
         wave_grid, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
         weights_stack, sn_cap=sn_cap, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject,debug=debug)
+
+    if debug or show:
+        coadd_qa(wave_merge, flux_merge, ivar_merge, nused, mask=mask_merge,
+                 title='Order merged spectrum', qafile=qafile_merge)
 
     # Save stacked individual order spectra
     save.save_coadd1d_to_fits(outfile_order, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
                               header=header, ex_value = ex_value, overwrite=True)
-    save.save_coadd1d_to_fits(outfile_stack, wave_stack, flux_stack, ivar_stack, mask_stack, header=header,
+    save.save_coadd1d_to_fits(outfile_merge, wave_merge, flux_merge, ivar_merge, mask_merge, header=header,
                               ex_value = ex_value, overwrite=True)
 
     # apply order_ratios to the scales array: order_ratio*scale
@@ -1347,8 +1351,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
 
     wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack, outmask_giant_stack, nused_giant_stack = \
         spec_reject_comb(wave_grid, waves_2d, fluxes_2d, ivars_2d, masks_2d, weights_2d, sn_cap=sn_cap, lower=lower,
-                         upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, title='Final stacked spectra',
-                         qafile=qafile_giant_stack, debug=debug, show=show)
+                         upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug)
 
     if debug or show:
         # Estimate chi for each exposure after interpolating and reshaping
@@ -1383,8 +1386,11 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
             waves_2d_exps.flatten(), fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), masks_2d_exps.flatten(),
             flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_cap=sn_cap)
         renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d[0], qafile=qafile_chi, title='Global Chi distribution')
+        # show the final coadded spectrum
+        coadd_qa( wave_giant_stack, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
+                 title='Final stacked spectrum', qafile=qafile_stack)
 
-    save.save_coadd1d_to_fits(wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
-                              header=header, outfile=outfile_giant_stack, ex_value=ex_value, overwrite=True)
+    save.save_coadd1d_to_fits(outfile_stack, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
+                              header=header, ex_value=ex_value, overwrite=True)
 
-    return wave_stack, flux_stack, ivar_stack, mask_stack
+    return wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack
