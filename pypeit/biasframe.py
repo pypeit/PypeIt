@@ -58,8 +58,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
-                                             files=files, frametype=self.frametype)
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name

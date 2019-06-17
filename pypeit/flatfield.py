@@ -80,8 +80,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         # Instantiate the base classes
         #   - Basic processing of the raw images
-        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
-                                                   files=files, frametype=self.frametype)
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
         #   - Construction and interface as a master frame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
