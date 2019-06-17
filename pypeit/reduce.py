@@ -9,8 +9,7 @@ from abc import ABCMeta
 
 from pypeit import ginga, utils, msgs, processimages, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
-
-from IPython import embed
+import IPython
 
 class Reduce(object):
     """

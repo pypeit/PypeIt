@@ -228,10 +228,12 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Check
         if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.error("Bad echelle format for MagE or you have discovered one of the bluest 3 orders!")
-
-        # Return
-        return orders[iorder]
+            msgs.warn("Bad echelle format for GNIRS or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return orders[iorder]
+        else:
+            return orders[iorder]
 
 
     def slit_minmax(self, nslits, binspectral=1):
@@ -296,11 +298,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def loglam_minmax(self):
         return np.log10(7000), np.log10(26000)
 
-    def wavegrid(self, binning=None, midpoint=False):
+    def wavegrid(self, binning=None, samp_fact=1.0, midpoint=False):
 
         # Define the grid for GNIRS
         logmin, logmax = self.loglam_minmax
-        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam)
+        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam, samp_fact=samp_fact)
         if midpoint:
             loglam_grid = loglam_grid + self.dloglam/2.0
         return np.power(10.0,loglam_grid)
