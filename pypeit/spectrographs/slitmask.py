@@ -2,8 +2,9 @@
 Module to define the SlitMask class
 """
 from collections import OrderedDict
+import warnings
 import numpy
-from scipy import optimize
+from scipy import optimize, fftpack, signal
 from matplotlib import pyplot
 from astropy.stats import sigma_clip, sigma_clipped_stats
 
@@ -520,7 +521,7 @@ class SlitRegister:
             (trace-mask).
         """
         # Match slits based on their separation
-        mask_pix, min_sep, min_indx = self.match(par=par)
+        mask_pix, min_sep, min_indx = self.match(par=par, unique=True)
         # Only return residuals for the unmasked trace positions
         gpm = numpy.invert(self.trace_mask)
         min_sep = min_sep[gpm]
@@ -641,7 +642,7 @@ class SlitRegister:
                 = self.match(par=result.x, unique=True)
         return self.match_index
 
-    def show(self, par=None, maxsep=None, sigma=None, unique=True, minmax=None):
+    def show(self, par=None, maxsep=None, sigma=None, unique=True, minmax=None, synced=False):
         """
         Plot the fit residuals.
 
@@ -663,6 +664,11 @@ class SlitRegister:
                 A two-element array with the minimum and maximum
                 coordinate value to match to the trace data; see
                 :func:`trace_mismatch`.
+            synced (:obj:`bool`, optional):
+                The mask coordinates being matched to are synced
+                left-to-right in adjacent pairs. I.e., the indices of
+                left edges are all even and the indices of all right
+                edges are odd.
         """
         # Set the parameters using the relevant attributes if not provided directly
         if maxsep is None:
@@ -674,7 +680,9 @@ class SlitRegister:
         self.match_coo, self.match_separation, self.match_index \
                     = self.match(par=par, unique=unique)
         # Find missing or added traces by forcing a unique match
-        missing_trace, bad_trace = self.trace_mismatch(maxsep=maxsep, sigma=sigma, minmax=minmax)
+        missing_trace, bad_trace = self.trace_mismatch(maxsep=maxsep, sigma=sigma, minmax=minmax,
+                                                       synced=synced)
+
         # Book-keeping for good fits
         good = numpy.invert(self.trace_mask)
         good[bad_trace] = False
@@ -699,7 +707,7 @@ class SlitRegister:
         pyplot.legend()
         pyplot.show()
 
-    def trace_mismatch(self, maxsep=None, sigma=None, minmax=None):
+    def trace_mismatch(self, maxsep=None, sigma=None, minmax=None, synced=False):
         """
         Return the mismatches between the mask and trace positions.
 
@@ -711,6 +719,8 @@ class SlitRegister:
         identified by finding those slits in the range relevant to
         the list of trace coordinates (see `minmax`), but without a
         matching trace index.
+
+        TODO: explain synced adjustment
 
         The set of mask-to-trace matches are identified as "bad" if
         they meet any of the following criteria:
@@ -740,6 +750,11 @@ class SlitRegister:
                 coordinate value to match to the trace data. If None,
                 this is determined from :attr:`trace_spat` and the
                 standard deviation of the fit residuals.
+            synced (:obj:`bool`, optional):
+                The mask coordinates being matched to are synced
+                left-to-right in adjacent pairs. I.e., the indices of
+                left edges are all even and the indices of all right
+                edges are odd.
         
         Returns:
             Two `numpy.ndarray`_ objects are returned: (1) the
@@ -778,7 +793,7 @@ class SlitRegister:
         overlap = (_match_coo > _minmax[0]) & (_match_coo < _minmax[1])
 
         # Find any large separations
-        bad = self.trace_mask | (_match_index < 0) #numpy.invert(gpm)
+        bad = self.trace_mask | (_match_index < 0)
         if maxsep is None:
             diff = numpy.ma.MaskedArray(_match_separation, mask=bad)
             kwargs = {} if sigma is None else {'sigma': sigma}
@@ -786,10 +801,82 @@ class SlitRegister:
         else:
             bad[gpm] = numpy.absolute(_match_separation[gpm]) > maxsep
 
+        if synced:
+            # Get the union of all indices with good or missing matches
+            indx = numpy.array(list(set(numpy.append(numpy.where(overlap)[0],
+                                                     _match_index[gpm & numpy.invert(bad)]))))
+            # If the coordinate are left-right synchronized, there
+            # should be an even number of indices, and the sorted
+            # sequence should always have adjacent pairs the are
+            # different by one
+            unsynced = numpy.where(numpy.diff(indx)[::2] != 1)[0]*2
+            if len(unsynced) != 0:
+                offset = numpy.ones(len(unsynced), dtype=int)
+                offset[indx[unsynced] % 2 == 1] = -1
+                overlap[indx[unsynced]+offset] = True
+            # Make sure the last index is paired
+            if indx[-1] % 2 == 0:
+                # Add a right
+                overlap[indx[-1]+1] = True
+
         # Use these to construct the list of missing traces and those
         # that are unmatched to the mask
         return numpy.array(list(set(numpy.where(overlap)[0])
                              - set(_match_index[gpm & numpy.invert(bad)]))), \
                     numpy.where(bad & numpy.invert(self.trace_mask))[0]
+
+def xc_trace(x_trace, x_design, pix_per_mm):
+    """
+    Use a cross-correlation to find the offset
+    """
+#    _x_design = -pix_per_mm*x_design[::-1]
+    _x_design = pix_per_mm*x_design
+    size = slit_function_length(_x_design, oversample=10)[1]
+    fftsize = fftpack.next_fast_len(size)
+    design_offset, design_slits_x, design_slits_y \
+            = build_slit_function(_x_design, oversample=10, size=fftsize)
+    trace_offset, trace_slits_x, trace_slits_y \
+            = build_slit_function(x_trace, oversample=10, size=fftsize)
+
+#    pyplot.plot(trace_slits_x, trace_slits_y)
+    pyplot.plot(design_slits_x, design_slits_y)
+    pyplot.scatter(_x_design, numpy.ones(_x_design.size), color='C3', marker='.', s=50, lw=0)
+    pyplot.show()
+
+    xc = signal.correlate(numpy.roll(design_slits_y, (fftsize-size)//2),
+                          numpy.roll(trace_slits_y, (fftsize-size)//2), mode='full', method='fft')
+    pyplot.plot(numpy.arange(xc.size), xc)
+    max_xc = numpy.argmax(xc)
+    pyplot.scatter(max_xc, xc[max_xc], marker='x', color='C3')
+    pyplot.show()
+
+    import pdb
+    pdb.set_trace()
+
+def slit_function_length(edges, oversample=1):
+    offset = -int(numpy.floor(numpy.amin(edges)))
+    return offset, (int(numpy.ceil(numpy.amax(edges)))+1+offset)*int(oversample)
+
+def build_slit_function(edges, size=None, oversample=1, sigma=None):
+    """
+    Construct a unit normalized slit function
+    """
+    if len(edges) % 2 != 0:
+        raise ValueError('Must provide synchronized set of left and right edges.')
+
+    offset, complete_size = slit_function_length(edges, oversample=oversample)
+    _size = complete_size if size is None else size
+
+    if _size < complete_size:
+        print(_size, complete_size)
+        warnings.warn('Array does not cover full edge range.')
+
+    slit_func_x = numpy.arange(_size, dtype=float)/oversample-offset
+    slit_func_y = numpy.zeros(_size, dtype=float)
+    for slit in edges.reshape(-1,2):
+        slit_func_y[(slit_func_x > slit[0]) & (slit_func_x < slit[1])] = 1.
+
+    return offset, slit_func_x, slit_func_y
+
 
 

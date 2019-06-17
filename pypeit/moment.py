@@ -8,7 +8,7 @@ import numpy as np
 from scipy import special
 
 def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weighting='uniform',
-             order=0, bounds=None, fill_error=-1., mesh=True, first_moment_bound=True):
+             order=0, bounds=None, fill_error=-1., mesh=True):
     r"""
     Compute one-dimensional moments of the provided image within an
     aperture along its second axis (axis=1).
@@ -188,12 +188,6 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
             (`mesh is False`) or used to construct a grid, i.e.,
             every `col` combined with every `row` (`mesh is True`).
             See the method description.
-        first_moment_bound (:obj:`bool`, optional):
-            Specifically for first moment calculations, bound them
-            such that the first moment must be within the aperture
-            used for the calculation. Also bound them so that they
-            are no closer than half the aperture window to the `flux`
-            image edge.
 
     Returns:
         Three `numpy.ndarray`_ objects are returned. If more than one
@@ -461,12 +455,9 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
                                     np.absolute(mu[0]))
         # Impose the boundary
         if lower[1] is not None:
-            mum[1] |= mu[1] < col - lower[1]
+            mum[1] |= mu[1] < _col - lower[1]
         if upper[1] is not None:
-            mum[1] |= mu[1] > col + upper[1]
-        if first_moment_bound:
-            mum[1] |= (np.absolute(_col-mu[1]) > _radius + 0.5) | (mu[1] < _radius - 0.5) \
-                            | (mu[1] > ncol - 0.5 - _radius)
+            mum[1] |= mu[1] > _col + upper[1]
 
     # Calculate the second moment if necessary
     if 2 in _order:

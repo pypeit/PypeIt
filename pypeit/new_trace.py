@@ -117,7 +117,9 @@ class TraceBitMask(BitMask):
                     ('MATHERROR', 'A math error occurred during the calculation (e.g., div by 0)'),
                   ('MOMENTERROR', 'Recentering moment calculation had a large error'),
                    ('LARGESHIFT', 'Recentering resulted in a large shift'),
-                ('DISCONTINUOUS', 'Pixel included in a trace but part of a discontinuous segment'),
+              ('OUTSIDEAPERTURE', 'Recentering yielded a centroid outside the moment aperture'),
+                   ('EDGEBUFFER', 'Recentering yielded a centroid too close to the detector edge'),
+                ('DISCONTINUOUS', 'Pixel included in a trace but part of a diseontinuous segment'),
                     ('DUPLICATE', 'Trace is a duplicate based on trace matching tolerance'),
                    ('SHORTRANGE', 'Trace does not meet the minimum spectral range criterion'),
                        ('HITMIN', 'Trace crosses the minimum allowed column'),
@@ -302,8 +304,7 @@ class EdgeTracePar(ParSet):
                  sync_trace=None, sync_center=None, sync_to_edge=None, min_slit_gap=None,
                  minimum_slit_length=None, length_range=None, clip=None, sync_clip=None,
                  mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
-                 mask_reg_buffer=None, ignore_alignment=None, pad=None, add_slits=None,
-                 rm_slits=None):
+                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -441,14 +442,12 @@ class EdgeTracePar(ParSet):
         descr['edge_detect_clip'] = 'Sigma clipping level for peaks detected in the collapsed, ' \
                                     'Sobel-filtered significance image.'
 
-        defaults['trace_median_frac'] = 0.01
         dtypes['trace_median_frac'] = [int, float]
         descr['trace_median_frac'] = 'After detection of peaks in the rectified Sobel-filtered ' \
                                      'image and before refitting the edge traces, the rectified ' \
                                      'image is median filtered with a kernel width of ' \
                                      '`trace_median_frac*nspec` along the spectral dimension.'
         
-        defaults['trace_thresh'] = 10.
         dtypes['trace_thresh'] = [int, float]
         descr['trace_thresh'] = 'After rectification and median filtering of the Sobel-filtered ' \
                                 'image (see `trace_median_frac`), values in the median-filtered ' \
@@ -556,12 +555,6 @@ class EdgeTracePar(ParSet):
                                    'iterations during the slit-mask design registration. If ' \
                                    'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
 
-        defaults['mask_reg_buffer'] = 20
-        dtypes['mask_reg_buffer'] = int
-        descr['mask_reg_buffer'] = 'Number of pixels to the left and right of the detector edge ' \
-                                   'when identifying possible missing traces based on the ' \
-                                   'projected slit-mask design positions.'
-
         defaults['ignore_alignment'] = False
         dtypes['ignore_alignment'] = bool
         descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
@@ -618,8 +611,8 @@ class EdgeTracePar(ParSet):
                    'trace_thresh', 'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian',
                    'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_trace', 'sync_center',
                    'sync_to_edge', 'minimum_slit_length', 'length_range', 'clip', 'sync_clip',
-                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'mask_reg_buffer',
-                   'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
+                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
+                   'pad', 'add_slits', 'rm_slits']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1050,6 +1043,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.pca_refine(debug=debug)
         self.peak_refine(rebuild_pca=True, debug=debug)
         self.sync()
+        # TODO: Add mask_refine()
         self.log += [inspect.stack()[0][3]]
         if save:
             self.save()
@@ -1797,27 +1791,37 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                                                side='right')
             return self.sobel_sig_right
 
-    def moment_refine(self, maxshift_start=0.5, continuous=False):
+    def moment_refine(self, follow=True, start_row=None, maxshift=0.5, continuous=False,
+                      check=True, use_fit=False):
         """
         Refine the edge positions using a moment analysis and assess
         the results.
 
-        For each set of edges (left and right), this method uses
-        :func:`follow_trace_moment` to refine the centroids of the
-        currently identified traces. The resulting traces are then
-        checked that they cover at least a minimum fraction of the
-        detector, whether or not they hit the detector edge, and
-        whether or not they cross one another; see
-        :func:`check_traces`. These two operations are done
-        iteratively until all input traces are either refined or
-        flagged for deletion.
+        The method runs in two primary modes, depending on the
+        value of `follow`:
+            - If `follow=False`, the function simply executes
+              :func:`pypeit.moment.moment1d` to recenter *all* the
+              locations for the left and right edges at each spectral
+              row independently. The maximum shift between any input
+              and output centroid is `maxshift`.
 
-        Nominally, this method should be run directly after
-        :func:`initial_trace`.
+            - If `follow=True`, the method uses :func:`follow_edge`
+              to refine the centroids of the currently identified
+              traces. Each edge is recentered starting from
+              `start_row` and then moving to higher and then lower
+              spectral rows. In this case, the center of the aperture
+              used for each row is the returned first moment
+              (centroid) of the trace from the preceding row. The
+              maximum shift between the input and output center for
+              the first row analyzed is set by `maxshift`. For each
+              subsequent row, the maximum shift is set by the
+              `max_spat_shift` value in :attr:`par`.
 
-        Used parameters from :attr:`par` (:class:`EdgeTracePar`) are
-        `fwhm_uniform`, `max_spat_shift`, `max_spat_error`, and
-        `clip`.
+        In either case, :func:`pypeit.moment.moment1d` is run with
+        uniform weighting and an aperture width set to be twice
+        `fwhm_uniform` from :attr:`par`. Other used parameters from
+        :attr:`par` (:class:`EdgeTracePar`) are `max_spat_shift`,
+        `max_spat_error`, and `clip`.
 
         .. warning::
             - This function modifies the internal trace arrays **in
@@ -1829,14 +1833,39 @@ class EdgeTraceSet(masterframe.MasterFrame):
             - This *always* removes the PCA if it exists.
 
         Args:
-            maxshift_start (:obj:`float`, optional):
-                Maximum shift in pixels allowed for the adjustment of
-                the first row analyzed, which is the row that has the
-                most slit edges that cross through it.
+            follow (:obj:`bool`, optional):
+                Perform the centroiding first at a single row (see
+                `start_row`) and then move to higher and lower
+                spectral rows in series. See :func:`follow_edge`.
+            start_row (:obj:`int`, optional):
+                The starting row when following the trace between
+                adjacent rows; see `follow`. If None, the starting
+                row is set by the finding the row that crosses the
+                most unmasked trace positions; see
+                :func:`most_common_trace_row`. Value is ignored if
+                `follow=False`.
+            maxshift (:obj:`float`, optional):
+                If `follow=True`, this is the maximum shift in pixels
+                allowed for the adjustment of the *first* row
+                analyzed; see `start_row`. If `follow=False`, this is
+                the maximum shift allowed between the input and
+                output centroid for *any* measurement (in this case
+                `max_spat_shift` in :attr:`par` is ignored).
             continuous (:obj:`bool`, optional):
                 Keep only the continuous part of the traces from the
                 starting row.
+            check (:obj:`bool`, optional):
+                Run :func:`check_traces` to flag bad traces.
+            use_fit (:obj:`bool`, optional):
+                Use the fitted traces as the starting point for the
+                refinement. Otherwise, uses :`spat_img`. If True and
+                :attr:`spat_fit` is None, the method will raise an
+                exception.
         """
+        # Check input
+        if use_fit and self.spat_fit is None:
+            raise ValueError('No fit data available.')
+
         # Parse parameters and report
         width = 2 * self.par['fwhm_uniform']
         maxshift_follow = self.par['max_spat_shift']
@@ -1854,12 +1883,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     if self.trace_msk is None else self.trace_msk
         fwgt = np.ones_like(self.sobel_sig, dtype=float)
 
-        # Book-keeping objects to keep track of which traces have been
-        # analyzed and which ones should be removed
-        untraced = np.ones(self.ntrace, dtype=bool)
+        # Book-keeping objects to keep track of which traces to remove
         rmtrace = np.zeros(self.ntrace, dtype=bool)
 
         # To hold the refined traces and mask
+        trace = self.spat_fit if use_fit else self.spat_img
         cen = np.zeros_like(self.spat_cen)
         err = np.zeros_like(self.spat_err)
         msk = np.zeros_like(self.spat_msk)
@@ -1872,50 +1900,40 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
             # Identify the traces on the correct side: Traces on the
             # left side are negative.
-            this_side = self.traceid < 0 if side == 'left' else self.traceid > 0
+            indx = self.traceid < 0 if side == 'left' else self.traceid > 0
+            msgs.info('Number to retrace: {0}'.format(np.sum(indx)))
 
-            # Loop continues until all traces are refined
-            # TODO: Not sure why this while loop is necessary...
-            i = 0
-            while np.any(this_side & untraced):
-                msgs.info('Iteration {0} for {1} side'.format(i+1, side))
-
-                # TODO: Deal with single untraced edge
-
-                # Get the traces to refine
-                indx = this_side & untraced
-                msgs.info('Number to retrace: {0}'.format(np.sum(indx)))
-
+            if follow:
                 # Find the most common row index
                 trace_mask = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags)
-                start_row = most_common_trace_row(trace_mask)
-                msgs.info('Starting row is: {0}'.format(start_row))
+                _start_row = most_common_trace_row(trace_mask) if start_row is None else start_row
+                msgs.info('Starting row is: {0}'.format(_start_row))
 
                 # Trace starting from this row
                 msgs.info('Sequentially tracing first moment of Sobel-filtered image to higher '
-                          'and lower spectral positions.')
+                        'and lower spectral positions.')
                 cen[:,indx], err[:,indx], msk[:,indx] \
-                        = follow_trace_moment(_sobel_sig, start_row, self.spat_img[start_row,indx],
-                                              ivar=ivar, mask=_mask, fwgt=fwgt, width=width,
-                                              maxshift_start=maxshift_start,
-                                              maxshift_follow=maxshift_follow, maxerror=maxerror,
-                                              continuous=continuous, bitmask=self.bitmask)
+                        = follow_centroid(_sobel_sig, _start_row, trace[_start_row,indx],
+                                          ivar=ivar, mask=_mask, fwgt=fwgt, width=width,
+                                          maxshift_start=maxshift, maxshift_follow=maxshift_follow,
+                                          maxerror=maxerror, continuous=continuous,
+                                          bitmask=self.bitmask)
+            else:
+                cen[:,indx], err[:,indx], msk[:,indx] \
+                        = masked_centroid(_sobel_sig, trace[:,indx], width, ivar=ivar, mask=_mask,
+                                          fwgt=fwgt, maxshift=maxshift, maxerror=maxerror,
+                                          bitmask=self.bitmask, fill='bound')
 
-                # Check the traces
-                mincol = None if side == 'left' else 0
-                maxcol = _sobel_sig.shape[1]-1 if side == 'left' else None
-                good, bad = self.check_traces(cen, err, msk, subset=indx, mincol=mincol,
-                                              maxcol=maxcol)
+            # Check the traces
+            mincol = None if side == 'left' else 0
+            maxcol = _sobel_sig.shape[1]-1 if side == 'left' else None
+            good, bad = self.check_traces(cen, err, msk, subset=indx, mincol=mincol, maxcol=maxcol)
 
-                # Save the results and update the book-keeping
-                self.spat_cen[:,good] = cen[:,good]
-                self.spat_err[:,good] = err[:,good]
-                self.spat_msk[:,good | bad] |= msk[:,good | bad]
-                untraced[good | bad] = False
-                rmtrace[bad] = True
-
-                # Increment the iteration counter
-                i += 1
+            # Save the results and update the book-keeping
+            self.spat_cen[:,good] = cen[:,good]
+            self.spat_err[:,good] = err[:,good]
+            self.spat_msk[:,good | bad] |= msk[:,good | bad]
+            rmtrace[bad] = True
 
         # Update the image coordinates
         self.spat_img = np.round(self.spat_cen).astype(int)
@@ -2222,7 +2240,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Reset the PCA
         self._reset_pca(rebuild_pca and self.pca is not None)
 
-    def spatial_sort(self):
+    def spatial_sort(self, use_mean=False, use_fit=True):
         """
         Sort the traces spatially.
 
@@ -2232,14 +2250,46 @@ class EdgeTraceSet(masterframe.MasterFrame):
         three synced slits would be `[-1, 1, -2, 2, -3, 3]`.
         
         All attributes are edited in-place.
+
+        Args:
+            use_mean (:obj:`bool`, optional):
+                Sort according to the mean of the masked spatial
+                positions. If False, the spatial position at a
+                reference row is used, where the reference row is
+                either the same as used by the PCA (if available) or
+                the result of :func:`most_common_trace_row` using the
+                current trace mask.
+            use_fit (:obj:`bool`, optional):
+                Sort according to the fit positions instead of the
+                measured positions. Otherwise, only use the fit
+                positions if they're available and the measured
+                location is masked.
         """
-        msgs.info('Re-sorting edge traces by their mean spatial position.')
+        # Check input
+        if use_fit and self.spat_fit is None:
+            msgs.warn('Fit data is not available; cannot use it for spatially sorting the edges.')
 
-        # Sort the traces by their spatial position (always use
-        # measured positions even if fit positions are available)
-        # TODO: Instead do this based on a reference row?
-        srt = np.argsort(np.mean(self.spat_cen, axis=0))
+        # Set up the coordinates to use
+        mask = self.bitmask.flagged(self.spat_msk, self.bitmask.bad_flags)
+        cen = self.spat_fit.copy() if self.spat_fit is not None and use_fit \
+                    else self.spat_cen.copy()
+        # Replace masked values with the fit if it is available
+        if self.spat_fit is not None and not use_fit:
+                cen[mask] = self.spat_fit[mask]
 
+        # Get the sorted indices
+        if use_mean:
+            # Sort the traces by their spatial position (always use
+            # measured positions even if fit positions are available)
+            srt = np.argsort(np.mean(cen, axis=0))
+        else:
+            # Sort according to the spatial position in one row
+            reference_row = most_common_trace_row(mask) if self.pca is None \
+                                else self.pca.reference_row
+            msgs.info('Re-sorting edges based on where they cross row {0}'.format(reference_row))
+            srt = np.argsort(cen[reference_row,:])
+
+        # Resort the arrays
         self.traceid = self.traceid[srt]
         self.spat_img = self.spat_img[:,srt]
         self.spat_cen = self.spat_cen[:,srt]
@@ -2300,8 +2350,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Run in debug mode.
             idx (`numpy.ndarray`_, optional):
                 Array of strings with the IDs for each object. Used
-                only if show_fits is true for the plotting. Default
-                is just a running number.
+                only if `debug` is true for the plotting. Default is
+                just a running number.
         """
         # Parse parameters and report
         function = self.par['fit_function']
@@ -2352,8 +2402,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     = fit_trace(_sobel_sig, self.spat_cen[:,this_side], _order, ivar=ivar,
                                 mask=mask, trace_mask=trace_mask[:,this_side],
                                 weighting=weighting, fwhm=fwhm, function=_function,
-                                maxdev=maxdev, maxiter=maxiter, niter=niter, show_fits=debug,
-                                idx=idx, xmin=xmin, xmax=xmax)
+                                maxdev=maxdev, maxiter=maxiter, niter=niter, debug=debug, idx=idx,
+                                xmin=xmin, xmax=xmax)
 
         # Save the results of the edge measurements ...
         self.spat_cen = trace_cen
@@ -2551,8 +2601,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         msgs.info('Threshold for peak detection: {0:.1f}'.format(peak_thresh))
         msgs.info('Detector range (spectral axis) collapsed: {0}'.format(smash_range))
-        msgs.info('Image fraction filtered for trace masking: {0:.2f}'.format(trace_median_frac))
-        msgs.info('Threshold for trace masking: {0:.1f}'.format(trace_thresh))
+        msgs.info('Image fraction for trace mask filter: {0}'.format(trace_median_frac))
+        msgs.info('Threshold for trace masking: {0}'.format(trace_thresh))
         msgs.info('Trace fitting function: {0}'.format(function))
         msgs.info('Trace fitting order: {0}'.format(order))
         msgs.info('FWHM parameter for uniform-weighted centroids: {0:.1f}'.format(fwhm_uniform))
@@ -2577,6 +2627,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Get the image relevant to tracing
         _sobel_sig = prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=None)
 
+        # TODO: Need to fix how the rest of this handles bad_trace
+
         # Find and trace both peaks and troughs in the image. The input
         # trace data (`trace` argument) is the PCA prediction of the
         # trace that passes through each spatial position at the
@@ -2597,10 +2649,20 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.warn('Found fewer traces using peak finding than originally available.  '
                       'May want to reset peak threshold.')
 
+#        # TODO: Check the traces? NOTE: This currently only identifies short
+#        # traces.
+#        good, bad = self.check_traces(trace_cen, trace_err, bad_trace)
+#        left = np.zeros(trace_fit.shape[1])
+
         # Reset the trace data
         self.spat_msk = np.zeros_like(bad_trace, dtype=self.bitmask.minimum_dtype())
         if np.any(bad_trace):
+            # TODO: This could have also been masked because of OUTSIDEAPERTURE or EDGEBUFFER
             self.spat_msk[bad_trace] = self.bitmask.turn_on(self.spat_msk[bad_trace], 'MATHERROR')
+        # TODO: Do this properly
+        indx = trace_err > 0.2
+        self.spat_msk[indx] = self.bitmask.turn_on(self.spat_msk[indx], 'MOMENTERROR')
+
         self.traceid = np.zeros(ntrace, dtype=int)
         self.traceid[:nleft] = -1-np.arange(nleft)
         self.traceid[nleft:] = 1+np.arange(ntrace-nleft)
@@ -2665,6 +2727,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # existing set
         add_indx = np.insert(add_indx, missing, missing)
         # Return the edges to add, their side, and where to insert them 
+
         return side, add_edge, add_indx
 
     def _get_reference_locations(self, trace, add_edge):
@@ -2705,7 +2768,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         reference_row = most_common_trace_row(trace_mask) if self.pca is None \
                             else self.pca.reference_row
 
-        # Check that the trace data are at this row
+        # Check that the trace data are sorted at this row
         if not np.array_equal(np.arange(trace.shape[1]), np.argsort(trace[reference_row,:])):
             raise ValueError('Trace data must be spatially sorted.')
 
@@ -2722,6 +2785,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Mask any bad calculations
         missing_a_side = np.ma.any(add_edge.reshape(-1,2), axis=1)
+        # NOTE: Slit length should already be masked; np.ma.diff
+        # returns a masked value when one of the slit edges is masked.
         slit_length[missing_a_side] = np.ma.masked
         slit_center[missing_a_side] = np.ma.masked
 
@@ -2749,19 +2814,27 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_ref[slit,1] = self.nspat - 1 if slit == nslits-1 and to_edge \
                                     else trace_ref[slit,0] + offset[slit]
 
-        # Check for slit overlaps
-        overlap = trace_ref[1:,0] - trace_ref[:-1,1] < min_slit_gap
-        if np.any(overlap):
-            msgs.warn('Found {0} overlapping slit(s) using edge offsets.  '.format(np.sum(overlap))
-                      + 'Moving left edges to minimum gap of {0} pixel(s).'.format(min_slit_gap))
-            indx = np.where(overlap)[0]+1
-            trace_ref[indx,0] = trace_ref[indx-1,1] + min_slit_gap
-
         # TODO: Nothing should now be masked. Get rid of this once
         # satisfied that the coding is correct.
         if np.any(trace_ref.mask):
             raise ValueError('Coding error: this should not happen')
-        return trace_ref.data.ravel()
+        trace_ref = trace_ref.data.ravel()
+
+        # Check that the predicted reference positions don't cause slit
+        # overlaps
+        indx = np.where(add_edge[1:-1])[0]
+        if len(indx) > 0:
+            indx += 1
+            msgs.warn('Found {0} overlapping slit edges.  '.format(len(indx))
+                      + 'Offsetting to minimum gap of {0} pixel(s).'.format(min_slit_gap))
+            # Predicted below an existing edge (will never add paired edges)
+            too_lo = trace_ref[indx] < trace_ref[indx-1]
+            trace_ref[indx[too_lo]] = trace_ref[indx[too_lo]-1]+min_slit_gap
+            # Predicted above an existing edge
+            too_hi = trace_ref[indx] > trace_ref[indx+1]
+            trace_ref[indx[too_hi]] = trace_ref[indx[too_hi]+1]-min_slit_gap
+
+        return trace_ref
 
     def nudge_traces(self, trace):
         r"""
@@ -2809,7 +2882,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Offset and return the traces
         return trace + offset[None,:]
 
-    def sync(self, rebuild_pca=True):
+    def sync(self, rebuild_pca=True, debug=False):
         """
         Match left and right edge traces to construct slit edge pairs.
 
@@ -2846,6 +2919,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 traces and the previous parameter set. Note that
                 inserted traces are *not* included in the PCA
                 decomposition.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
         """
         # Check input
         if self.par['sync_trace'] not in ['pca', 'nearest']:
@@ -2914,9 +2989,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_add = trace[:,indx[nearest[add_edge]]] + trace_ref[add_edge] \
                             - trace_ref[nearest[add_edge]]
 
-        # Insert the new traces, check the full synchronized list and
-        # log completion of the method
+        # Insert the new traces
         self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
+
+        if debug:
+            msgs.info('Show instance includes inserted traces but before checking the sync.')
+            self.show(thin=10, include_img=True)
+
+        # Check the full synchronized list and log completion of the
+        # method
         self.check_synced(rebuild_pca=rebuild_pca)
         self.log += [inspect.stack()[0][3]]
 
@@ -3073,8 +3154,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         :class:`pypeit.spectrographs.slitmask.SlitMask` instance.
 
         Used parameters from :attr:`par` (:class:`EdgeTracePar`) are
-        `mask_reg_maxiter`, `mask_reg_maxsep`, `mask_reg_sigrej`,
-        `mask_reg_buffer`, and `ignore_alignment`.
+        `mask_reg_maxiter`, `mask_reg_maxsep`, `mask_reg_sigrej`, and
+        `ignore_alignment`.
 
         Args:
             design_file (:obj:`str`, optional):
@@ -3099,7 +3180,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         maxiter = self.par['mask_reg_maxiter']
         maxsep = self.par['mask_reg_maxsep']
         sigma = self.par['mask_reg_sigrej']
-        buffer = self.par['mask_reg_buffer']
         ignore_alignment = self.par['ignore_alignment']
 
         # TODO: Set allow_resync and design_file to be a parameters, as
@@ -3112,8 +3192,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                        'defined for {0}.'.format(self.spectrograph.spectrograph))
 
         # Match both left and right edges simultaneously
-        x_design = np.array([np.amin(self.spectrograph.slitmask.corners[:,:,0], axis=1),
-                             np.amax(self.spectrograph.slitmask.corners[:,:,0], axis=1)]).T.ravel()
+        x_design = np.array([self.spectrograph.slitmask.bottom[:,0],
+                             self.spectrograph.slitmask.top[:,0]]).T.ravel()
         x_trace = self.spat_fit[self.pca.reference_row,:]
 
         # Mask traces that are fully masked, except if they were
@@ -3135,13 +3215,32 @@ class EdgeTraceSet(masterframe.MasterFrame):
         pix_per_mm = self.spectrograph.telescope.platescale() \
                         / self.spectrograph.detector[self.det-1]['platescale']
 
+        import pdb
+        pdb.set_trace()
+
+        # If the traces are synchronized, use the estimated scale to
+        # first mask edges that yeild slits that are too small relative
+        # to the range of slit lengths in the mask file.
+        if self.is_synced:
+            slit_len_trace = np.diff(x_trace.reshape(-1,2), axis=1).ravel()
+            slit_len_mask = np.diff(x_design.reshape(-1,2), axis=1).ravel()*pix_per_mm
+            indx = (slit_len_trace < np.amin(slit_len_mask)/1.1) \
+                        | (slit_len_trace > np.amax(slit_len_mask)*1.1)
+            if np.any(indx):
+                msgs.info('Removing {0} edges that form (an) '.format(np.sum(indx)*2)
+                          + 'errantly small or large slit(s) compared to the mask design data.')
+                x_trace_mask[np.repeat(indx,2)] = True
+
         # Initial guess for the offset
         try:
+            raise NotImplementedError()
             # Try using the spectrograph detector map
             self.spectrograph.get_detector_map()
             # Set the offset based on the location of this detector
-            offset = self.spectrograph.detector_map.npix[0]/2 \
-                        - self.spectrograph.detector_map.ccd_center[self.det-1,0]
+            offset = self.spectrograph.detector_map.image_coordinates(
+                            self.spectrograph.detector_map.npix[0]/2,
+                            self.spectrograph.detector_map.npix[1]/2, detector=self.det,
+                            in_mm=False)[0][0] - self.spectrograph.detector_map.npix[0]/2
             # Set the bounds to some nominal fraction of the detector
             # size and pix/mm scale; allow for a +/- 10% deviation in
             # the pixel scale
@@ -3160,14 +3259,22 @@ class EdgeTraceSet(masterframe.MasterFrame):
             offset_rng = [offset-np.absolute(np.amin(x_trace)-np.amin(pix_per_mm*x_design))*1.1,
                           offset+np.absolute(np.amax(pix_per_mm*x_design)-np.amax(x_trace))*1.1]
 
+        import pdb
+        pdb.set_trace()
+
+        slitmask.xc_trace(x_trace, x_design, pix_per_mm)
+
+        pdb.set_trace()
+
         # The solution can be highly dependent on the initial guess for
         # the offset, so do an initial grid search to get close to the
         # solution.
         msgs.info('Running a grid search to try to find the best starting offset.')
         # Step by 2 pixels
         # TODO: Make a parameter?
-        off = np.arange(offset_rng[0], offset_rng[1], 2).astype(float)
+        off = np.arange(offset_rng[0], offset_rng[1], 1).astype(float)
         rms = np.zeros_like(off, dtype=float)
+        scl = np.zeros_like(off, dtype=float)
         par = np.array([0, pix_per_mm])
         bounds = np.array([offset_rng, [pix_per_mm/1.1, pix_per_mm*1.1]])
         register = slitmask.SlitRegister(x_trace, x_design, trace_mask=x_trace_mask)
@@ -3190,8 +3297,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         for i in range(off.size):
             print('Grid point: {0}/{1}'.format(i+1, off.size), end='\r')
             par[0] = off[i]
-            register.find_best_match(guess=par, fix=[True,False], bounds=bounds, penalty=False)
+            register.find_best_match(guess=par, fix=[True,False], bounds=bounds, penalty=True) #False)
             minsep = register.match(unique=True)[1]
+            scl[i] = register.par[1]
             rms[i] = sigma_clipped_stats(minsep, sigma=5)[2]
         print('Grid point: {0}/{0}'.format(off.size))
 
@@ -3202,19 +3310,26 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msgs.info('Minimum RMS ({0:.2f}) found with offset = {1:.2f}'.format(best_rms, offset))
         if debug:
             # Plot the result
-            plt.scatter(off, rms, color='k', marker='.', s=100, lw=0, zorder=0)
-            plt.scatter(offset, best_rms, color='C3', marker='x', s=50, zorder=1)
-            plt.xlabel('Trace Offset (pix)')
-            plt.ylabel('RMS (trace-mask; pix)')
-            plt.title('Grid search for initial offset')
+            ax1 = plt.subplot(211)
+            ax1.scatter(off, rms, color='k', marker='.', s=100, lw=0, zorder=0)
+            ax1.scatter(offset, best_rms, color='C3', marker='x', s=50, zorder=1)
+            ax1.set_xlabel('Trace Offset (pix)')
+            ax1.set_ylabel('RMS (trace-mask; pix)')
+            ax1.set_title('Grid search for initial offset')
+            ax2 = plt.subplot(212, sharex=ax1)
+            ax2.scatter(off, scl, color='k', marker='.', s=100, lw=0, zorder=0)
+            ax2.set_ylabel('Best-fit scale')
             plt.show()
 
         # Do the final fit with some rejection iterations
         register.find_best_match(guess=[offset, pix_per_mm], bounds=bounds, penalty=False,
                                  maxiter=maxiter, maxsep=maxsep, sigma=sigma, debug=debug)
 
+        if debug:
+            register.show(minmax=[0, self.nspat], synced=True)
+
         # Find the missing, bad, and masked traces
-        missing, bad = register.trace_mismatch(minmax=[-buffer, self.nspat+buffer])
+        missing, bad = register.trace_mismatch(minmax=[0, self.nspat], synced=True)
         masked_by_registration = np.where(register.trace_mask & np.invert(x_trace_mask))[0]
         bad = np.append(bad, masked_by_registration)
 
@@ -3227,7 +3342,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Report
         msgs.info('Best-fitting offset and scale for mask coordinates: {0:.2f} {1:.2f}'.format(
-                    *regist.par))
+                    *register.par))
         msgs.info('Traces will {0} alignment slits'.format('exclude' if ignore_alignment
                                                              else 'include'))
         msgs.info('Number of missing mask traces to insert: {0}'.format(len(missing)))
@@ -3272,7 +3387,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # TODO: This fit should *never* result in missing or bad
             # traces! Keep this for a while until we feel like we've
             # vetted the code well enough.
-            missing, bad = register.trace_mismatch(minmax=[-buffer, self.nspat+buffer])
+            missing, bad = register.trace_mismatch(minmax=[0, self.nspat], synced=True)
             if len(missing) != 0 or len(bad) != 0:
                  msgs.error('CODING ERROR: Should never find missing or bad traces in re-fit!')
 
@@ -3732,7 +3847,7 @@ def handle_orphan_edge(edge_img, sobel_sig, mask=None, flux_valid=True, copy=Fal
     return _edge_img
 
 
-def most_common_trace_row(trace_mask):
+def most_common_trace_row(trace_mask, valid_frac=1/3.):
     """
     Find the spectral position (row) that crosses the most traces.
 
@@ -3744,6 +3859,10 @@ def most_common_trace_row(trace_mask):
             Mask for the trace data (True is bad; False is good). Can
             be a 1D array for a single trace or a 2D array with shape
             (nspec, ntrace) for multiple traces.
+        valid_frac (:obj:`float`, optional):
+            The valid fraction of the detector from which to choose
+            the row. For example, if 1/3, only choose the row from
+            the central third of the rows.
 
     Returns:
         :obj:`int`: The row that crosses the most valid trace data.
@@ -3753,7 +3872,8 @@ def most_common_trace_row(trace_mask):
         rows = np.where(np.invert(trace_mask))[0]
         return rows[rows.size//2]
 
-    unmasked = np.invert(trace_mask)
+    s,e = ((0.5 + np.array([-1,1])*valid_frac/2)*trace_mask.shape[0]).astype(int)
+    unmasked = np.invert(trace_mask[s:e,:])
     n_unmasked = np.sum(unmasked, axis=0)
     if np.all(n_unmasked == n_unmasked[0]):
         # All the traces have the same number of unmasked pixels at any
@@ -3761,7 +3881,7 @@ def most_common_trace_row(trace_mask):
         return trace_mask.shape[0]//2
 
     # Return the row with the most unmasked trace positions
-    return Counter(np.where(unmasked)[0]).most_common(1)[0][0]
+    return Counter(np.where(unmasked)[0]).most_common(1)[0][0] + s
 
 
 def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
@@ -3803,22 +3923,21 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     return utils.boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
 
 
-def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, fwgt=None, width=6.0,
-                        maxshift_start=0.5, maxshift_follow=0.15, maxerror=0.2, continuous=True,
-                        bitmask=None):
+def follow_centroid(flux, start_row, start_cen, ivar=None, mask=None, fwgt=None, width=6.0,
+                    maxshift_start=0.5, maxshift_follow=0.15, maxerror=0.2, continuous=True,
+                    bitmask=None):
     """
-    Follow a set of traces using a moment analysis of the provided
-    image.
+    Follow the centroid of features in an image along the first axis.
 
     Starting from a specified row and input centers along each
-    column, attempt to follow a set of traces to both lower and
+    column, attempt to follow a set of features to both lower and
     higher rows in the provided image.
 
     Importantly, this function does not treat each row independently
     (as would be the case for a direct call to
-    :func:`pypeit.moment.moment1d` for trace positions along all
+    :func:`pypeit.moment.moment1d` for centroid positions along all
     rows), but treats the calculation of the centroids sequentially
-    where the result for each row is dependent and starts from the
+    where the result for each row is dependent on and starts from the
     result from the previous row. The only independent measurement is
     the one performed at the input `start_row`. This function is much
     slower than :func:`pypeit.moment.moment1d` because of this
@@ -3827,31 +3946,28 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, fwgt=N
     Args:
         flux (`numpy.ndarray`_):
             Image used to weight the column coordinates when
-            recentering. This should typically be the Sobel filtered
-            trace image after adjusting for the correct side and
-            performing any smoothing; see
-            :func:`prepare_sobel_for_trace`.
+            recentering. For example, when tracing slit edges, this
+            should typically be the Sobel-filtered trace image after
+            adjusting for the correct side and performing any
+            smoothing; see :func:`prepare_sobel_for_trace`.
         start_row (:obj:`int`):
-            Row at which to start the recentering. The function
-            begins with this row and then traces first to higher
-            indices and then to lower indices. This will almost
-            certainly need to be different than the default, which is
-            to start at the first row.
+            Row at which to start the calculation. The function
+            begins with this row and then continues first to higher
+            indices and then to lower indices.
         start_cen (:obj:`int`, `numpy.ndarray`_, optional):
-            One or more trace coordinates to recenter. If an array,
-            must be 1D.
+            One or more coordinates to recenter. If an array, must be
+            1D.
         ivar (`numpy.ndarray`_, optional):
-            Inverse variance in the weight image. If not provided,
-            unity variance is assumed. Used for the calculation of
-            the errors in the moment analysis. If this is not
-            provided, be careful with the value set for
-            `maxerror_center` (see below).
+            Inverse variance in the image. If not provided, unity
+            variance is assumed. Used for the calculation of the
+            errors in the moment analysis. If this is not provided,
+            be careful with the value set for `maxerror` (see below).
         mask (`numpy.ndarray`_, optional):
-            A boolean mask used to ignore pixels in the weight image.
-            Pixels to ignore are masked (`mask==True`), pixels to
-            analyze are not masked (`mask==False`)
+            A boolean mask used to ignore pixels in the image. Pixels
+            to ignore are masked (`mask==True`), pixels to analyze
+            are not masked (`mask==False`)
         fwgt (`numpy.ndarray`_, optional):
-            An additional weight to apply to each pixel in `flux`.  If
+            An additional weight to apply to each pixel in `flux`. If
             None, weights are uniform.
         width (:obj:`float`, `numpy.ndarray`_, optional):
             The size of the window about the provided starting center
@@ -3859,25 +3975,25 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, fwgt=N
             :func:`pypeit.moment.moment1d`.
         maxshift_start (:obj:`float`, optional):
             Maximum shift in pixels allowed for the adjustment of the
-            first row analyzed, which is the row that has the most
-            slit edges that cross through it.
+            first row analyzed.
         maxshift_follow (:obj:`float`, optional):
-            Maximum shift in pixels between traces in adjacent rows
-            as the routine follows the trace away from the first row
-            analyzed.
+            Maximum shift in pixels between centroids in adjacent
+            rows as the routine follows the feature away from the
+            first row analyzed.
         maxerror (:obj:`float`, optional):
-            Maximum allowed error in the adjusted center of the trace
-            returned by :func:`pypeit.moment.moment1d`.
+             Maximum allowed error in the centroid returned by
+            :func:`pypeit.moment.moment1d`.
         continuous (:obj:`bool`, optional):
-            Keep only the continuous part of the traces from the
-            starting row.
+            Keep only the continuous part of the feature trace from
+            the starting row.
         bitmask (:class:`pypeit.bitmask.BitMask`, optional):
-            Object used to flag traces. If None, assessments use
-            boolean to flag traces. If not None, errors will be
-            raised if the object cannot interpret the correct flag
-            names defined. In addition to flags used by
-            :func:`_recenter_trace_row`, this function uses the
-            DISCONTINUOUS flag.
+
+            Object used to flag the feature traces. If None,
+            assessments use a boolean array to flag traces. If not
+            None, errors will be raised if the object cannot
+            interpret the correct flag names defined. In addition to
+            flags used by :func:`_recenter_trace_row`, this function
+            uses the DISCONTINUOUS flag.
 
     Returns:
         Two numpy arrays are returned, the optimized center and an
@@ -3914,21 +4030,23 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, fwgt=N
 
     # Recenter the starting row
     i = start_row
-    xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i,:], flux, _ivar, _mask, _fwgt, width,
-                                                    maxshift=maxshift_start, maxerror=maxerror,
-                                                    bitmask=bitmask)
+    xc[i,:], xe[i,:], xm[i,:] = masked_centroid(flux, xc[i,:], width, ivar=_ivar, mask=_mask,
+                                                fwgt=_fwgt, row=i, maxshift=maxshift_start,
+                                                maxerror=maxerror, bitmask=bitmask, fill='bound')
 
     # Go to higher indices using the result from the previous row
     for i in range(start_row+1,nr):
-        xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i-1,:], flux, _ivar, _mask, _fwgt,
-                                                        width, maxshift=maxshift_follow,
-                                                        maxerror=maxerror, bitmask=bitmask)
+        xc[i,:], xe[i,:], xm[i,:] = masked_centroid(flux, xc[i-1,:], width, ivar=_ivar, mask=_mask,
+                                                    fwgt=_fwgt, row=i, maxshift=maxshift_follow,
+                                                    maxerror=maxerror, bitmask=bitmask,
+                                                    fill='bound')
 
     # Go to lower indices using the result from the previous row
     for i in range(start_row-1,-1,-1):
-        xc[i,:], xe[i,:], xm[i,:] = _recenter_trace_row(i, xc[i+1,:], flux, _ivar, _mask, _fwgt,
-                                                        width, maxshift=maxshift_follow,
-                                                        maxerror=maxerror, bitmask=bitmask)
+        xc[i,:], xe[i,:], xm[i,:] = masked_centroid(flux, xc[i+1,:], width, ivar=_ivar, mask=_mask,
+                                                    fwgt=_fwgt, row=i, maxshift=maxshift_follow,
+                                                    maxerror=maxerror, bitmask=bitmask,
+                                                    fill='bound')
 
     # NOTE: In edgearr_tcrude, skip_bad (roughly opposite of continuous
     # here) was True by default, meaning continuous would be False by
@@ -3959,47 +4077,58 @@ def follow_trace_moment(flux, start_row, start_cen, ivar=None, mask=None, fwgt=N
     return xc, xe, xm
 
 
-def _recenter_trace_row(row, cen, flux, ivar, mask, fwgt, width, maxshift=None, maxerror=None,
-                        bitmask=None, fill_error=-1):
+def masked_centroid(flux, cen, width, ivar=None, mask=None, fwgt=None, row=None,
+                    weighting='uniform', maxshift=None, maxerror=None, bitmask=None, fill='input',
+                    fill_error=-1):
     """
-    Recenter the trace along a single row.
+    Measure the centroid within 1D apertures and flag and fill bad
+    results.
 
-    This method is not meant for general use; it is a support method
-    for :func:`follow_trace_moment`. The method executes
-    :func:`pypeit.moment.moment1d` (with uniform weighting) for the
-    specified row (spectral position) in the image, imposing a
-    maximum difference with the input and centroid error, and asseses
-    the result. The assessments are provided as either boolean flags
-    or mask bits, depending on the value of `bitmask` (see below).
+    This is primarily a wrapper for :func:`pypeit.moment.moment1d`
+    that flags the output.
 
-    Measurements flagged by :func:`pypeit.moment.moment1d` or flagged
-    as having a centroid error that is larger than `maxerror` (and
-    `maxerror` is not None) are replaced by their input value.
+    Data are flagged for the following reasons:
 
-    If `maxshift`, `maxerror`, and `bitmask` are all None, this is
-    equivalent to::
+        - The centroids must always be within the aperture used by
+          :func:`pypeit.moment.moment1d` (`OUTSIDEAPERTURE`).
+        - The centroid cannot be within half an aperture of the image
+          edge (`EDGEBUFFER`).
+        - If `maxerror` is not None, the centroid error must be below
+          the provided maximum (`MOMENTERROR`).
+        - If `maxshift` is not None, the centroid must be different
+          from the input value by less than the maximum
+          (`LARGESHIFT`).
 
-        return moment.moment1d(flux, cen, width, ivar=ivar, mask=mask, row=row,
-                               order=1, fill_error=fill_error)
+    The flags are provided as either a boolean array or an array of
+    mask bits, depending on the value of `bitmask` (see below). The
+    bitmask flags used for each criteria are given in the list above.
+    If `fill` is 'input', the output centroids are replaced by the
+    input value for any measurements captured by these flags. For
+    centroids above `maxshift`, however, the replacement value can be
+    at the maximum shift if `fill='bound'`.
 
     Args:
-        row (:obj:`int`):
+        flux (`numpy.ndarray`_):
+            Array used for the centroid calculations.
+        cen (`numpy.ndarray`_):
+            Current estimate of the trace center.
+        width (:obj:`float`):
+            Passed directly to :func:`pypeit.moment.moment1d`; see
+            the documentation there.
+        ivar (`numpy.ndarray`_, optional):
+            Inverse variance in `flux`; passed directly to
+            :func:`pypeit.moment.moment1d`.
+        mask (`numpy.ndarray`_, optional):
+            Boolean mask for `flux`; passed directly to
+            :func:`pypeit.moment.moment1d`.
+        fwgt (`numpy.ndarray`_, optional):
+            A weight to apply to each pixel in `flux`; passed
+            directly to :func:`pypeit.moment.moment1d`.
+        row (:obj:`int`, optional):
             Row (index along the first axis; spectral position) in
             `flux` at which to recenter the trace position. See
             `row` in :func:`pypeit.moment.moment1d`.
-        cen (`numpy.ndarray`_):
-            Current estimate of the trace center.
-        flux (`numpy.ndarray`_):
-            Array used for the centroid calculations.
-        ivar (`numpy.ndarray`_):
-            Inverse variance in `flux`; passed directly to
-            :func:`pypeit.moment.moment1d` and can be None.
-        mask (`numpy.ndarray`_):
-            Boolean mask for `flux`; passed directly to
-            :func:`pypeit.moment.moment1d` and can be None.
-        fwgt (`numpy.ndarray`_):
-            A weight to apply to each pixel in `flux`.
-        width (:obj:`float`):
+        weighting (:obj:`str`, optional):
             Passed directly to :func:`pypeit.moment.moment1d`; see
             the documentation there.
         maxshift (:obj:`float`, optional):
@@ -4019,48 +4148,74 @@ def _recenter_trace_row(row, cen, flux, ivar, mask, fwgt, width, maxshift=None, 
             larger than `maxerror` (and `maxerror` is not None);
             centroids that have been altered by the maximum shift are
             *not* flagged.
+        fill (:obj:`str`, optional):
+            A string keyword specifying how flagged centroids should
+            be replaced. Options are:
+                - 'input': Replace the flagged centroids with their
+                  input value.
+                - 'bound': *Only* for the case where the
+                  centroid is outside the provided `maxshift`,
+                  replace the centroid by the value at either the
+                  positive or negative boundary edge. In all other
+                  cases, the centroid is still replaced with the
+                  input value. See replacement cases above.
+        fill_error (:obj:`float`, optional):
+            For flagged centroids, this error is replaced with this
+            dummy value.
 
     Returns:
         Returns three `numpy.ndarray`_ objects: the new centers, the
         center errors, and the measurement flags with a data type
         depending on `bitmask`.
     """
+    radius = width/2
     xfit, xerr, matherr = moment.moment1d(flux, cen, width, ivar=ivar, mask=mask, fwgt=fwgt,
-                                          row=row, order=1, fill_error=fill_error)
-#    xfit, xerr, matherr = recenter_moment(flux, cen, ivar=ivar, mask=mask, ycen=row,
-#                                          width=width, fill_error=fill_error)
+                                          row=row, weighting=weighting, order=1,
+                                          fill_error=fill_error)
+    # Flag centroids outide the aperture and too close to the image edge
+    outside_ap = (np.absolute(xfit - cen) > radius + 0.5)
+    edge_buffer = (xfit < radius - 0.5) | (xfit > flux.shape[1] - 0.5 - radius)
+    indx = matherr | outside_ap | edge_buffer
+    xfit[indx] = cen[indx]
+    xerr[indx] = fill_error
     if maxshift is None and maxerror is None and bitmask is None:
         # Nothing else to do
         return xfit, xerr, matherr
+
+    # Flag large shifts
+    if maxshift is not None:
+        large_shift = np.absolute(xfit-cen) > maxshift
+        if fill == 'bound':
+            xfit = np.clip(xfit - cen, -maxshift, maxshift)+cen
+        else:
+            indx |= large_shift
+
+    # Flag large errors
+    if maxerror is not None:
+        large_error = xerr > maxerror
+        indx |= large_error
+
+    # Replace flagged data with the input and dummy error
+    xfit[indx] = cen[indx]
+    xerr[indx] = fill_error
 
     # Toggle the mask bits
     if bitmask is not None:
         xmsk = np.zeros_like(xfit, dtype=bitmask.minimum_dtype())
         xmsk[matherr] = bitmask.turn_on(xmsk[matherr], 'MATHERROR')
+        xmsk[outside_ap] = bitmask.turn_on(xmsk[outside_ap], 'OUTSIDEAPERTURE')
+        xmsk[edge_buffer] = bitmask.turn_on(xmsk[edge_buffer], 'EDGEBUFFER')
         if maxerror is not None:
-            indx = xerr > maxerror
-            xmsk[indx] = bitmask.turn_on(xmsk[indx], 'MOMENTERROR')
+            xmsk[large_error] = bitmask.turn_on(xmsk[large_error], 'MOMENTERROR')
         if maxshift is not None:
-            indx = np.absolute(xfit - cen) > maxshift
-            xmsk[indx] = bitmask.turn_on(xmsk[indx], 'LARGESHIFT')
-
-    # Impose the maximum shift
-    if maxshift is not None:
-        xfit = np.clip(xfit - cen, -maxshift, maxshift)+cen
-
-    # Reset 'bad' values to the input
-    indx = matherr
-    if maxerror is not None:
-        indx |= (xerr > maxerror)
-    xfit[indx] = cen[indx]
-    xerr[indx] = fill_error
+            xmsk[large_shift] = bitmask.turn_on(xmsk[large_shift], 'LARGESHIFT')
 
     # Return the new centers, errors, and flags
     return xfit, xerr, indx if bitmask is None else xmsk
 
 
 def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighting='uniform',
-              fwhm=3.0, function='legendre', maxdev=5.0, maxiter=25, niter=9, show_fits=False,
+              fwhm=3.0, function='legendre', maxdev=5.0, maxiter=25, niter=9, debug=False,
               idx=None, xmin=None, xmax=None):
     """
     Iteratively fit the trace of a feature in the provided image.
@@ -4130,17 +4285,17 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
             The number of iterations for this method; i.e., the
             number of times the two-step fitting algorithm described
             above is performed.
-        show_fits (:obj:`bool`, optional):
+        debug (:obj:`bool`, optional):
             Plot the data and the fits.
         idx (`numpy.ndarray`_, optional):
             Array of strings with the IDs for each object. Used only
-            if show_fits is true for the plotting. Default is just a
+            if `debug` is true for the plotting. Default is just a
             running number.
         xmin (:obj:`float`, optional):
             Lower reference for robust_polyfit polynomial fitting.
             Default is to use zero
         xmax (:obj:`float`, optional):
-            Upper refrence for robust_polyfit polynomial fitting.
+            Upper reference for robust_polyfit polynomial fitting.
             Default is to use the image size in nspec direction
 
     Returns:
@@ -4169,6 +4324,7 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
         mask = np.zeros_like(flux, dtype=bool)
     if mask.shape != flux.shape:
         raise ValueError('Mask array shape is incorrect.')
+    fwgt = np.ones_like(flux, dtype=float)
     if trace_mask is None:
         trace_mask = np.zeros_like(trace, dtype=bool)
 
@@ -4198,13 +4354,14 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
     trace_fit = np.copy(_trace)
     # Uniform weighting during the fit
     trace_fit_ivar = np.ones_like(trace_fit)
+    # Bad positions that are replaced with the input
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data
-        trace_cen, trace_err, bad_trace = moment.moment1d(flux, trace_fit, width[i], ivar=ivar,  
-                                                          mask=mask, weighting=weighting, order=1)
-
-        # TODO: Update trace_mask with bad_trace?
+        # TODO: Change this to masked_centroid
+        trace_cen, trace_err, bad_trace \
+                = masked_centroid(flux, trace_fit, width[i], ivar=ivar, mask=mask, fwgt=fwgt,
+                                  weighting=weighting, maxshift=0.5, maxerror=0.2)
 
         # Do not do any kind of masking based on the trace recentering
         # errors. Trace fitting is much more robust when masked pixels
@@ -4216,12 +4373,32 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
                                  function=function, ncoeff=order, maxdev=maxdev, maxiter=maxiter,
                                  invvar=trace_fit_ivar.T, xmin=xmin, xmax=xmax)
 
+        # TODO: Keep this around for now. I wanted to see how each
+        # iteration affected the centroids and fit.
+#        if debug:
+#            indx = np.invert(bad_trace)
+#            for i in range(trace_fit.shape[1]):
+#                plt.scatter(trace_coo[i,:], trace_fit[:,i], color='0.7', marker='.', s=50, lw=0,
+#                            label='input')
+#                plt.scatter(trace_coo[i,indx[:,i]], trace_cen[indx[:,i],i],
+#                            color='k', marker='.', s=50, lw=0, label='output')
+#                plt.scatter(trace_coo[i,bad_trace[:,i]], trace_cen[bad_trace[:,i],i],
+#                            color='C1', marker='x', s=20, lw=0.5, label='bad output')
+#                plt.scatter(trace_coo[i,:], traceset.yfit[i,:], color='r', marker='.', s=50, lw=0,
+#                            label='fit')
+#            plt.show()
+
         # TODO: Report iteration number and mean/stddev in difference
         # of coefficients with respect to previous iteration
+
+        # TODO: Do this (as was done before)? This means in the next
+        # iteration, the values being fit are based on the results of
+        # this fit even for the bad traces instead of the original
+        # input data.
         trace_fit = traceset.yfit.T
 
     # Plot the final fit if requested
-    if show_fits:
+    if debug:
         # Set the title based on the type of weighting used
         title_text = 'Flux Weighted' if weighting == 'uniform' else 'Gaussian Weighted'
         if idx is None:
@@ -4651,7 +4828,8 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, smash
     bad_trace = np.empty((nspec,0), dtype=bool)
 
     # Get the smoothing kernel width and ensure it is odd
-    median_kernel = int(np.ceil(nspec*trace_median_frac))//2 * 2 + 1
+    median_kernel = None if trace_median_frac is None \
+                        else int(np.ceil(nspec*trace_median_frac))//2 * 2 + 1
 
     # Identify and trace features in the image
     for i,(l,s) in enumerate(zip(label,sign)):
@@ -4696,19 +4874,23 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, smash
         _flux = np.clip(s*(flux - flux_median), -1, None)
 
         # Construct the trace mask
-        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
-                                           thresh=trace_thresh, median_kernel=median_kernel)
+        trace_peak_mask = np.zeros(trace_peak.shape, dtype=bool) if trace_thresh is None \
+                            else build_trace_mask(_flux, trace_peak, mask=mask,
+                                                  boxcar=fwhm_gaussian, thresh=trace_thresh,
+                                                  median_kernel=median_kernel)
 
         # Remeasure and fit the trace using uniform weighting
         trace_peak, cen, err, bad, _ \
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
                             trace_mask=trace_peak_mask, fwhm=fwhm_uniform, function=function,
-                            maxdev=maxdev, maxiter=maxiter, niter=niter_uniform, show_fits=debug)
+                            maxdev=maxdev, maxiter=maxiter, niter=niter_uniform, debug=debug)
 
         # Reset the mask
         # TODO: Use or include `bad` resulting from fit_trace()?
-        trace_peak_mask = build_trace_mask(_flux, trace_peak, mask=mask, boxcar=fwhm_gaussian,
-                                           thresh=trace_thresh, median_kernel=median_kernel)
+        trace_peak_mask = np.zeros(trace_peak.shape, dtype=bool) if trace_thresh is None \
+                            else build_trace_mask(_flux, trace_peak, mask=mask,
+                                                  boxcar=fwhm_gaussian, thresh=trace_thresh,
+                                                  median_kernel=median_kernel)
 
         # Redo the measurements and trace fitting with Gaussian
         # weighting
@@ -4716,7 +4898,7 @@ def peak_trace(flux, ivar=None, mask=None, trace=None, extract_width=None, smash
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, mask=mask,
                             trace_mask=trace_peak_mask, weighting='gaussian', fwhm=fwhm_gaussian,
                             function=function, maxdev=maxdev, maxiter=maxiter,
-                            niter=niter_gaussian, show_fits=debug)
+                            niter=niter_gaussian, debug=debug)
 
         # Save the results
         trace_fit = np.append(trace_fit, trace_peak, axis=1)
