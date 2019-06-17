@@ -16,12 +16,7 @@ from pypeit.images import pypeitimage
 from pypeit.images import processrawimage
 from pypeit.images import maskimage
 
-
 from IPython import embed
-
-# REMOVE THIS
-from importlib import reload
-reload(procimg)
 
 
 class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
@@ -45,7 +40,6 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             List of filenames that went into the loaded image
 
     Attributes:
-        image (np.ndarray):
         ivar (np.narray):
             Inverse variance image
         rn2img (np.narray):
@@ -66,12 +60,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.par = par  # This musts be named this way as it is frequently a child
 
-        #
-        self.spectrograph = spectrograph
-        self.det = det
-
         # Internal images
-        self.image = None
         self.ivar = None
         self.rn2img = None
 
@@ -113,7 +102,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         """
         return super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
-                                                      utils.calc_ivar(self.ivar),
+                                                      utils.inverse(self.ivar, positive=True),
                                                       subtract_img=subtract_img).copy()
 
     def build_mask(self, saturation=1e10, mincounts=-1e10, slitmask=None):
@@ -130,10 +119,11 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             np.ndarray:  The full mask, held in self.mask
 
         """
-        return super(ScienceImage, self).build_mask(self.image, self.ivar,
+        super(ScienceImage, self).build_mask(self.image, self.ivar,
                                                     saturation=saturation,
                                                     mincounts=mincounts,
                                                     slitmask=slitmask)
+        return self.mask.copy()
 
     def build_ivar(self):
         """
@@ -158,7 +148,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                                   darkcurr=detector['darkcurr'],
                                                   exptime=self.exptime)
         # Ivar
-        self.ivar = utils.calc_ivar(rawvarframe)
+        self.ivar = utils.inverse(rawvarframe, positive=True)
         # Return
         return self.ivar.copy()
 
@@ -233,12 +223,12 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                 CR masking
         """
         # Generate the CR mask (and save in self.crmask)
-        _ = super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
+        super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
-                                                      utils.calc_ivar(self.ivar),
+                                                      utils.inverse(self.ivar, positive=True),
                                                       subtract_img=subtract_img).copy()
         # Now update the mask
-        _ = super(ScienceImage, self).update_mask_cr(self.crmask)
+        super(ScienceImage, self).update_mask_cr(self.crmask)
 
     def __sub__(self, other):
         """
@@ -260,8 +250,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
         # Variance
         if self.ivar is not None:
-            varcomb = utils.calc_ivar(self.ivar) + utils.calc_ivar(other.ivar)
-            new_ivar = utils.calc_ivar(varcomb) * outmask_comb
+            new_ivar = utils.inverse(utils.inverse(self.ivar, positive=True) + utils.inverse(other.ivar, positive=True))
+            new_ivar[np.invert(outmask_comb)] = 0
         else:
             new_ivar = None
 

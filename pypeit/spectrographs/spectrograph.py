@@ -198,23 +198,26 @@ class Spectrograph(object):
                 1-indexed detector number.
 
         Returns:
-            Returns an `numpy.ndarray`_ with the image data and an
-            `astropy.io.fits.Header`_ object with the image and header
+            Returns an `numpy.ndarray`_ with the image data and
+            `astropy.io.fits.HDUList`_ object with the image and header
             data, respectively.  The image data is always returned with
             floating-point type.
         """
         # Check the detector is defined
         self._check_detector()
 
+        hdu = fits.open(raw_file)
+        raw_img = hdu[self.detector[det-1]['dataext']].data
+        '''
         # Load the raw image
-        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=self.detector[det-1]['dataext'],
+        raw_img, hdu = self.load_raw_img_hdu(raw_file, dataext=self.detector[det-1]['dataext'],
                                                 det=det)
-
+        '''
         # Turn to float
         img = raw_img.astype(float)
 
         # Return
-        return img, head0
+        return img, hdu
 
     def raw_is_transposed(self, det=1):
         """
@@ -232,7 +235,8 @@ class Spectrograph(object):
         """
         return self.detector[det-1]['specaxis'] == 1
 
-    def load_raw_img_head(self, raw_file, dataext=0, headext=0, **null_kwargs):
+    '''
+    def load_raw_img_hdu(self, raw_file, dataext=0, **null_kwargs):
         """
         Generic raw image reader
 
@@ -247,13 +251,14 @@ class Spectrograph(object):
               Captured and never used
 
         Returns:
-            Returns an `numpy.ndarray`_ with the image data and an
-            `astropy.io.fits.Header`_ object with the image and header
-            data, respectively.
+            Returns an `numpy.ndarray`_ with the image data and
+            the `astropy.io.fits.HDUList`_ object with the image and HDU,
+            respectively.
         """
         # Open and go
         hdu = fits.open(raw_file)
-        return hdu[dataext].data, hdu[headext].header
+        return hdu[dataext].data, hdu
+    '''
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
