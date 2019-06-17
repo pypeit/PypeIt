@@ -24,6 +24,7 @@ from pypeit import reduce
 from pypeit.core import load, coadd, pixels
 from pypeit.core import parse
 from pypeit.spectrographs import util
+import IPython
 
 
 def get_brightest_obj(specobjs_list, echelle=True):
@@ -786,7 +787,8 @@ def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False,
     tslits_dict_psuedo = dict(slit_left=slit_left, slit_righ=slit_righ, slitcen=slitcen,
                               nspec=nspec_psuedo, nspat=nspat_psuedo, pad=0,
                               nslits = nslits, binspectral=1, binspatial=1, spectrograph=spectrograph.spectrograph,
-                              spec_min=spec_min1, spec_max=spec_max1)
+                              spec_min=spec_min1, spec_max=spec_max1,
+                              maskslits=np.zeros(slit_left.shape[1], dtype=np.bool))
 
     slitmask_psuedo = pixels.tslits2mask(tslits_dict_psuedo)
     # This is a kludge to deal with cases where bad wavelengths result in large regions where the slit is poorly sampled,
