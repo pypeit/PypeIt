@@ -509,16 +509,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
 
-    # ToDo: For high-z quasar, one would never want to use const_weight !!!
-    if rms_sn_stack <= 3.0 or const_weights:
-    #if const_weights:
-        weights = np.outer(np.ones(nspec), np.fmax(sn2,1e-5)) # set the minimum value to be 1e-5 to avoid zeros
-        if verbose:
-            msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
-            for iexp in np.arange(nstack):
-                msgs.info('S/N = {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(
-                    rms_sn[iexp],np.mean(weights[:,iexp]), iexp))
-    elif sens_weights:
+    if sens_weights:
         # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
         if verbose:
             msgs.info("Using sensfunc weights for merging orders")
@@ -539,6 +530,15 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
             gauss_kernel = convolution.Gaussian1DKernel(sig_res)
             sn_conv = convolution.convolve(sn_med2, gauss_kernel)
             weights[:, iexp] = sn_conv
+    # ToDo: For high-z quasar, one would never want to use const_weight !!!
+    elif rms_sn_stack <= 3.0 or const_weights:
+    #if const_weights:
+        weights = np.outer(np.ones(nspec), np.fmax(sn2,1e-5)) # set the minimum value to be 1e-5 to avoid zeros
+        if verbose:
+            msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
+            for iexp in np.arange(nstack):
+                msgs.info('S/N = {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(
+                    rms_sn[iexp],np.mean(weights[:,iexp]), iexp))
     else:
         if verbose:
             msgs.info("Using wavelength dependent weights for coadding")
