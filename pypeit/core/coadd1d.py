@@ -592,9 +592,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
             gauss_kernel = convolution.Gaussian1DKernel(sig_res)
             sn_conv = convolution.convolve(sn_med2, gauss_kernel)
             weights[:, iexp] = sn_conv
-    # ToDo: For high-z quasar, one would never want to use const_weight !!!
     elif rms_sn_stack <= 3.0 or const_weights:
-    #if const_weights:
         weights = np.outer(np.ones(nspec), np.fmax(sn2,1e-5)) # set the minimum value to be 1e-5 to avoid zeros
         if verbose:
             msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
@@ -1576,7 +1574,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
 
     if debug or show:
         coadd_qa(wave_merge, flux_merge, ivar_merge, nused, mask=mask_merge,
-                 title='Straight merged spectrum of the stacked individual orders', qafile=qafile_merge)
+                 title='Straight combined spectrum of the stacked individual orders', qafile=qafile_merge)
 
     # Save stacked individual order spectra
     save.save_coadd1d_to_fits(outfile_order, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
