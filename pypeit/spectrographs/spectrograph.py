@@ -358,8 +358,7 @@ class Spectrograph(object):
         """
         if self.rawdatasec_img is None or force:
             return self.get_pixel_img(filename, 'datasec', det)
-        else:
-            return self.rawdatasec_img
+        return self.rawdatasec_img
 
     def get_oscansec_img(self, filename, det, force=True):
         """
@@ -380,8 +379,7 @@ class Spectrograph(object):
         """
         if self.oscansec_img is None or force:
             return self.get_pixel_img(filename, 'oscansec', det)
-        else:
-            return self.oscansec_img
+        return self.oscansec_img
 
     def get_datasec_img(self, filename, det):
         """
@@ -410,7 +408,19 @@ class Spectrograph(object):
             - Consider renaming this datasec_ampid or something like
               that.  I.e., the image's main purpose is to tell you where
               the amplifiers are for the data section
-          
+
+        Note on data format
+        --------------------
+         binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
+         binning_raw = the binning in the format of the raw data.
+         In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
+         files are stored the other way with spat as the first dimension (as read into python), then the transpose
+         flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
+         (Note also that BTW the python convention of storing images is transposed relative to the fits convention
+         and the datasec typically written to headers. However this flip is dealt with explicitly in the
+         parse.spec2slice code and is NOT the transpose we are describing and flipping here).
+         TODO Add a blurb on the PypeIt data model.
+
         Args:
             filename (str):
                 Name of the file from which to read the image size.
@@ -427,26 +437,10 @@ class Spectrograph(object):
         # Get the image shape
         raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-        binning_pypeit = self.get_meta_value(filename, 'binning')
+        binning_raw = self.get_meta_value(filename, 'binning')
 
         data_sections, one_indexed, include_end \
                     = self.get_image_section(filename, det, section=section)
-        # Note on data format
-        #--------------------
-        # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
-        # binning_raw = the binning in the format of the raw data.
-        # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
-        # files are stored the other way with spat as the first dimension (as read into python), then the transpose
-        # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
-        # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
-        # and the datasec typically written to headers. However this flip is dealt with explicitly in the
-        # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
-        # TODO Add a blurb on the PypeIt data model.
-
-        #if transpose:
-        #   binning_raw = (',').join(binning_pypeit.split(',')[::-1])
-        #else:
-        binning_raw = binning_pypeit
 
         # Initialize the image (0 means no amplifier)
         pix_img = np.zeros(raw_naxis, dtype=int)

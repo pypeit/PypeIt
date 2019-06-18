@@ -151,6 +151,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
         """
         slf = cls(spectrograph, det, par, bpm)
+        slf.files = [filename]
         # Build up
         prawImage = processrawimage.ProcessRawImage(filename, slf.spectrograph,
                                                     slf.det, slf.par)
@@ -263,6 +264,19 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Return
         return slf
 
+    @property
+    def nfiles(self):
+        """
+        Number of files in the files attribute
+
+        Returns:
+            int
+
+        """
+        if isinstance(self.files, list):
+            return len(self.files)
+        else:
+            return 0
 
     def build_crmask(self, subtract_img=None):
         """
@@ -388,6 +402,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             ScienceImage:
 
         """
+        if not isinstance(other, ScienceImage):
+            msgs.error("Misuse of the subtract method")
         # Images
         newimg = self.image - other.image
 
