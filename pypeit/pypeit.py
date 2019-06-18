@@ -10,7 +10,7 @@ from IPython import embed
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
-from pypeit import sciimgstack
+from pypeit.images import scienceimage
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa
@@ -546,19 +546,26 @@ class PypeIt(object):
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
         # Instantiate ScienceImage for the files we will reduce
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciI = sciimgstack.SciImgStack(self.spectrograph, sci_files, self.par['scienceframe'],
-                                              bg_file_list=self.fitstbl.frame_paths(bg_frames),
-                                              ir_redux = self.ir_redux,
-                                              det=det,
-                                              binning=self.binning)
-        # For QA on crash
-        msgs.sciexp = self.sciI
 
-        # Process images (includes inverse variance image, rn2 image, and CR mask)
-        #self.sciimg, self.sciivar, self.rn2img, self.mask, self.crmask = \
-        self.sciImg = self.sciI.proc(self.caliBrate.msbias, self.caliBrate.mspixelflat.copy(),
-                           self.caliBrate.msbpm, illum_flat=self.caliBrate.msillumflat,
-                           show=self.show)
+        # Science image
+        self.sciImg = scienceimage.ScienceImage.from_file_list(
+            self.spectrograph, det, self.par['scienceframe']['process'],
+            self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
+            self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
+
+        # Background subtract?
+        if len(bg_frames) > 0:
+            bg_file_list=self.fitstbl.frame_paths(bg_frames)
+            self.sciImg = self.sciImg - scienceimage.ScienceImage.from_file_list(
+                self.spectrograph, det, self.par['scienceframe']['process'],
+                self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
+                self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
+
+
+        # For QA on crash
+        msgs.sciexp = self.sciImg
+
+
         # Object finding, first pass on frame without sky subtraction
         self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
 

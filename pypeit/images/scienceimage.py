@@ -9,6 +9,7 @@ import numpy as np
 from pypeit import msgs
 
 from pypeit.core import procimg
+from pypeit.core import coadd2d
 from pypeit.par import pypeitpar
 from pypeit import utils
 
@@ -72,6 +73,36 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
     def from_images(cls, spectrograph, det, par, bpm,
                     image, ivar, rn2img, crmask=None, mask=None,
                     files=None):
+        """
+        Instantiate from a set of images
+
+        Args:
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                Spectrograph used to take the data.
+            det (:obj:`int`, optional):
+                The 1-indexed detector number to process.
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+                defaults.
+            bpm (np.ndarray):
+                Bad pixel mask.  Held in ImageMask
+            image (np.ndarray):
+            ivar (np.ndarray):
+                Inverse variance image
+            rn2img (np.ndarray):
+                Read noise**2 image
+            crmask (np.ndarray, optional):
+                CR mask
+            mask (np.ndarray, optional):
+                Full mask
+            files (list, optional):
+                Image list
+
+        Returns:
+            ScienceImage:
+
+        """
         # Init
         slf = cls(spectrograph, det, par, bpm)
         # Other images
@@ -86,6 +117,152 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             slf.files = files
         # Return
         return slf
+
+    @classmethod
+    def from_single_file(cls, spectrograph, det, par, bpm,
+                         filename, bias, pixel_flat, illum_flat=None):
+        """
+        Instantiate from a single file
+
+        This will also generate the ivar, crmask, rn2img and mask
+
+        Args:
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                Spectrograph used to take the data.
+            det (:obj:`int`, optional):
+                The 1-indexed detector number to process.
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+                defaults.
+            bpm (np.ndarray):
+                Bad pixel mask.  Held in ImageMask
+            filename (str):
+                Filename
+            bias (np.ndarray or None):
+                Bias image
+            pixel_flat (np.ndarray):
+                Flat image
+            illum_flat (np.ndarray, optional):
+                Illumination image
+
+        Returns:
+            ScienceImage:
+
+        """
+        slf = cls(spectrograph, det, par, bpm)
+        # Build up
+        prawImage = processrawimage.ProcessRawImage(filename, slf.spectrograph,
+                                                    slf.det, slf.par)
+        # Save a bit
+        slf.filename = filename
+        slf.exptime = prawImage.exptime
+        # Process steps
+        process_steps = procimg.init_process_steps(bias, slf.par)
+        process_steps += ['trim', 'apply_gain', 'orient']
+        if (pixel_flat is not None) or (illum_flat is not None):
+            process_steps += ['flatten']
+        # Do it
+        slf.image = prawImage.process(process_steps, pixel_flat=pixel_flat,
+                                       bias=bias, illum_flat=illum_flat,
+                                       bpm=slf.bpm, debug=True)
+        # Build the rest
+        slf.build_ivar()
+        slf.build_crmask()
+        slf.build_rn2img()
+        slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
+                       mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
+        # Return
+        return slf
+
+    @classmethod
+    def from_file_list(cls, spectrograph, det, par, bpm,
+                       file_list, bias, pixel_flat, illum_flat=None,
+                       sigma_clip=False, sigrej=None, maxiters=5):
+        """
+        Instantiate from file list
+
+        This will also generate the ivar, crmask, rn2img and mask
+
+        Args:
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                Spectrograph used to take the data.
+            det (:obj:`int`, optional):
+                The 1-indexed detector number to process.
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+                defaults.
+            bpm (np.ndarray):
+                Bad pixel mask.  Held in ImageMask
+            file_list (list):
+                List of files
+            bias (np.ndarray or None):
+                Bias image
+            pixel_flat (np.ndarray):
+                Flat image
+            illum_flat (np.ndarray, optional):
+                Illumination image
+            sigrej (int or float, optional): Rejection threshold for sigma clipping.
+                 Code defaults to determining this automatically based on the numberr of images provided.
+            maxiters (int, optional):
+
+        Returns:
+            ScienceImage:
+
+        """
+        # Single file?
+        if len(file_list) == 1:
+            return cls.from_single_file(spectrograph, det, par, bpm,
+                         file_list[0], bias, pixel_flat, illum_flat=illum_flat)
+
+        # Continue with an actual list
+        # Get it ready
+        nimages = len(file_list)
+        shape = (nimages, bpm.shape[0], bpm.shape[1])
+        sciimg_stack = np.zeros(shape)
+        sciivar_stack= np.zeros(shape)
+        rn2img_stack = np.zeros(shape)
+        crmask_stack = np.zeros(shape, dtype=bool)
+
+        # Mask
+        bitmask = maskimage.ImageBitMask()
+        mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
+
+        # Loop on the files
+        for kk, ifile in enumerate(file_list):
+            # Instantiate
+            sciImage = ScienceImage.from_single_file(spectrograph, det, par, bpm,
+                ifile, bias, pixel_flat, illum_flat=illum_flat)
+            # Process
+            sciimg_stack[kk,:,:] = sciImage.image
+            # Construct raw variance image and turn into inverse variance
+            sciivar_stack[kk, :, :] = sciImage.ivar
+            # Mask cosmic rays
+            crmask_stack[kk, :, :] = sciImage.crmask
+            # Build read noise squared image
+            rn2img_stack[kk, :, :] = sciImage.build_rn2img()
+            # Final mask for this image
+            mask_stack[kk, :, :] = sciImage.mask
+
+        # Coadd them
+        weights = np.ones(nimages)/float(nimages)
+        img_list = [sciimg_stack]
+        var_stack = utils.inverse(sciivar_stack, positive=True)
+        var_list = [var_stack, rn2img_stack]
+        img_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
+            weights, img_list, var_list, (mask_stack == 0),
+            sigma_clip=sigma_clip, sigma_clip_stack=sciimg_stack, sigrej=sigrej, maxiters=maxiters)
+
+        # Build the last one
+        slf = ScienceImage.from_images(spectrograph, det, par, bpm, img_list_out[0],
+                                       utils.inverse(var_list_out[0], positive=True),
+                                       var_list_out[1], np.invert(outmask), files=file_list)
+        slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
+                       mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
+        # Return
+        return slf
+
 
     def build_crmask(self, subtract_img=None):
         """
@@ -178,36 +355,6 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Return
         return self.rn2img.copy()
 
-    def process_raw(self, filename, bias, pixel_flat, illum_flat=None):
-        """
-        Process a raw science image
-
-        Args:
-            filename (str):
-            bias (np.ndarray or None):
-            pixel_flat (np.ndarray):
-            illum_flat (np.ndarray, optional):
-
-        Returns:
-            np.ndarray: Copy of self.image
-
-        """
-        # Build up
-        prawImage = processrawimage.ProcessRawImage(filename, self.spectrograph,
-                                                    self.det, self.par)
-        # Save a bit
-        self.filename = filename
-        self.exptime = prawImage.exptime
-        # Process steps
-        process_steps = procimg.init_process_steps(bias, self.par)
-        process_steps += ['trim', 'apply_gain', 'orient']
-        if (pixel_flat is not None) or (illum_flat is not None):
-            process_steps += ['flatten']
-        # Do it
-        self.image = prawImage.process(process_steps, pixel_flat=pixel_flat,
-                                       bias=bias, illum_flat=illum_flat,
-                                       bpm=self.bpm, debug=True)
-        return self.image.copy()
 
     def update_mask_cr(self, subtract_img=None):
         """
