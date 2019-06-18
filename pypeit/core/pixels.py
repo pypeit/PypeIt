@@ -327,4 +327,3 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     return ximg, edgemask
 
 
-

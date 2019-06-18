@@ -12,7 +12,7 @@ from pypeit.images.calibrationimage import CalibrationImage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import pixels
+from pypeit.core import procimg
 
 par = pypeitpar.ProcessImagesPar()
 
@@ -24,7 +24,7 @@ def ProcessImages(specstr, par, files, det=1):
 
 def grab_img(proc, filename):
     rdimg = proc.spectrograph.get_rawdatasec_img(filename, proc.det)
-    data_img, slice = pixels.slice_with_mask(proc.image, rdimg)
+    data_img, slice = procimg.rect_slice_with_mask(proc.image, rdimg)
     return data_img
 
 
