@@ -194,8 +194,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         """
         # Build up
         prawImage = processrawimage.ProcessRawImage(filename, self.spectrograph,
-                                                    self.det, self.par,
-                                                    frametype=self.frametype)
+                                                    self.det, self.par)
         # Save a bit
         self.filename = filename
         self.exptime = prawImage.exptime

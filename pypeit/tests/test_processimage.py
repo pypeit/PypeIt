@@ -39,7 +39,7 @@ def test_instantiate(deimos_flat_files, kast_blue_bias_files):
     one_file = deimos_flat_files[0]
     spectograph = load_spectrograph('keck_deimos')
     # DEIMOS
-    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par, frametype='pixelflat')
+    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par)
     # Test
     assert isinstance(deimos_flat.image, np.ndarray)
     assert deimos_flat.rawdatasec_img.shape == (4096, 2128)
@@ -55,7 +55,7 @@ def test_overscan_subtract(deimos_flat_files):
     one_file = deimos_flat_files[0]
     spectograph = load_spectrograph('keck_deimos')
     # DEIMOS
-    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par, frametype='pixelflat')
+    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par)
     # Bias subtract
     pre_sub = deimos_flat.image.copy()
     _ = deimos_flat.subtract_overscan()
