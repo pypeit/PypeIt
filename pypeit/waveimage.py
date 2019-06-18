@@ -15,8 +15,7 @@ from pypeit.masterframe import MasterFrame
 from pypeit import ginga
 from pypeit.core import pixels
 from pypeit.core import trace_slits
-
-from IPython import embed
+import IPython
 
 class WaveImage(MasterFrame):
     """
@@ -62,7 +61,13 @@ class WaveImage(MasterFrame):
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.wv_calib = wv_calib
-        self.slitmask = pixels.tslits2mask(self.tslits_dict) if tslits_dict is not None else None
+        if tslits_dict is not None:
+            self.slitmask = pixels.tslits2mask(self.tslits_dict)
+            self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+        else:
+            self.slitmask = None
+            self.slit_spat_pos = None
+
         # TODO: only echelle is ever used.  Do we need to keep the whole
         # thing?
         self.par = wv_calib['par'] if wv_calib is not None else None
@@ -70,7 +75,6 @@ class WaveImage(MasterFrame):
         self.maskslits = maskslits
 
         # For echelle order, primarily
-        self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
 
         # List to hold ouptut from inspect about what module create the image?
         self.steps = []
