@@ -430,7 +430,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Instantiate
         new_sciImg = ScienceImage.from_images(self.spectrograph, self.det, self.par, self.bpm,
                                               newimg, new_ivar, new_rn2, files=new_files)
-        #TODO: Check this out JFH
+        #TODO: KW properly handle adding the bits
         #embed(header='279 in sciImg')
         crmask_diff = new_sciImg.build_crmask()
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images

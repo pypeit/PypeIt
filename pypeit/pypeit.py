@@ -555,7 +555,7 @@ class PypeIt(object):
 
         # Background subtract?
         if len(bg_frames) > 0:
-            bg_file_list=self.fitstbl.frame_paths(bg_frames)
+            bg_file_list = self.fitstbl.frame_paths(bg_frames)
             self.sciImg = self.sciImg - scienceimage.ScienceImage.from_file_list(
                 self.spectrograph, det, self.par['scienceframe']['process'],
                 self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
