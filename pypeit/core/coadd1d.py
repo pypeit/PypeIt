@@ -304,10 +304,18 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     return loss_function
 
 def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
+    '''
+    Function that we are optimizing
+    Args:
+        flux_ref:
+        thismask:
+        arg_dict:
+        kwargs_opt:
+    Return:
+    '''
 
     # flux_ref, ivar_ref act like the 'data', the rescaled flux will be the 'model'
 
-    # Function that we are optimizing
     #result = scipy.optimize.differential_evolution(poly_ratio_fitfunc_chi2, args=(flux_ref, ivar_ref, thismask, arg_dict,), **kwargs_opt)
     guess = arg_dict['guess']
     result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(flux_ref, thismask, arg_dict),  **kwargs_opt)
@@ -366,6 +374,23 @@ def median_filt_spec(flux, ivar, mask, med_width):
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
                      scale_min = 0.05, scale_max = 100.0, func='legendre',
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01, debug=False):
+    '''
+    Routine for solving the poly_ratio
+    Args:
+        wave, flux, ivar, mask: spectrum that you want to scale
+        flux_ref, ivar_ref, mask_ref: reference spectrum
+        norder: order of your polynomial
+        scale_min: minimum scaling factor
+        scale_max: maximum scaling factor
+        func: which kind of function you want to use, default is 'legendre'
+        maxiter: maximum iteration for robust_optimize
+        sticky: whether you want to sticky or not with robust_optimize
+        lower: lower sigma for robust_optimize
+        upper: upper sigma for robust_optimize
+        median_frac: used for estimating the median filter width
+        debug: show QA plot or not
+    Return:
+    '''
 
     if mask is None:
         mask = (ivar > 0.0)
@@ -390,7 +415,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                     flux_med = flux_med, ivar_med = ivar_med,
                     flux_ref_med = flux_ref_med, ivar_ref_med = ivar_ref_med,
                     ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
-                    wave_max = wave_max, func = func, norder = norder, guess = guess, debug=debug)
+                    wave_max = wave_max, func = func, norder = norder, guess = guess, debug=False)
 
     result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
@@ -570,9 +595,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
             gauss_kernel = convolution.Gaussian1DKernel(sig_res)
             sn_conv = convolution.convolve(sn_med2, gauss_kernel)
             weights[:, iexp] = sn_conv
-    # ToDo: For high-z quasar, one would never want to use const_weight !!!
     elif rms_sn_stack <= 3.0 or const_weights:
-    #if const_weights:
         weights = np.outer(np.ones(nspec), np.fmax(sn2,1e-5)) # set the minimum value to be 1e-5 to avoid zeros
         if verbose:
             msgs.info("Using constant weights for coadding, RMS S/N = {:g}".format(rms_sn_stack))
@@ -727,12 +750,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
             plt.plot(wave_blue[mask_blue], flux_blue[mask_blue],color='dodgerblue', lw=3, label='raw spectrum')
             plt.plot(wave_blue[mask_blue], flux_blue[mask_blue]*order_ratios[iord-1], color='r',
                      alpha=0.5, label='re-scaled spectrum')
-
-            med_width = (2.0 * np.ceil(0.03 / 2.0 * wave_blue[mask_blue].size) + 1).astype(int)
-            flux_med, ivar_med = median_filt_spec(flux_blue, ivar_blue, mask_blue, med_width)
-            ymax = 1.5 * flux_med.max()
-            ymin = -0.15 * ymax
-
+            ymin, ymax = get_ylim(flux_blue, ivar_blue, mask_blue)
             plt.ylim([ymin, ymax])
             plt.xlim([np.min(wave_blue[mask_blue]), np.max(wave_red[mask_red])])
             plt.legend()
@@ -756,13 +774,11 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
             flux_stack_iord = fluxes_new[:, ii]
             ivar_stack_iord = ivars_new[:, ii]
             mask_stack_iord = masks[:, ii]
-            plt.plot(wave_stack_iord[mask_stack_iord], flux_stack_iord[mask_stack_iord])
+            plt.plot(wave_stack_iord[mask_stack_iord], flux_stack_iord[mask_stack_iord], alpha=0.5)
             # plt.plot(wave_stack_iord[mask_stack_iord],1.0/np.sqrt(ivar_stack_iord[mask_stack_iord]))
-
-            med_width = (2.0 * np.ceil(0.1 / 2.0 * np.size(wave_stack_iord[mask_stack_iord])) + 1).astype(int)
-            flux_med, ivar_med = median_filt_spec(flux_stack_iord, ivar_stack_iord, mask_stack_iord, med_width)
-            ymax.append(1.5 * flux_med.max())
-            ymin.append(-0.2 * flux_med.max())
+            ymin_ii, ymax_ii = get_ylim(flux_stack_iord, ivar_stack_iord, mask_stack_iord)
+            ymax.append(ymax_ii)
+            ymin.append(ymin_ii)
         plt.xlim([np.min(waves[masks]), np.max(waves[masks])])
         plt.ylim([np.min(ymin), np.max(ymax)])
         plt.xlabel('Wavelength ($\\rm\\AA$)')
@@ -770,55 +786,6 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         plt.show()
 
     return fluxes_new, ivars_new, order_ratios
-
-def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
-                  mask=None, mask_ref=None, ylim = None, median_frac = 0.03, title=''):
-    '''
-    QA plot for spectrum scaling
-        wave, flux, ivar, mask: spectrum need to be scaled
-        flux_ref, ivar_ref, mask_ref: reference spectrum
-        ymult: scale factor array
-    scale_method: scale method, will be shown in the qa plot
-    ylim: ylim for plotting
-    median_frac: used for estimating ylim, if ylim set to None
-    title: QA plot title
-    '''
-
-    if mask is None:
-        mask = ivar > 0.0
-    if mask_ref  is None:
-        mask_ref = ivar_ref > 0.0
-
-    # This deals with spectrographs that have zero wavelength values. They are masked in mask, but this impacts plotting
-    wave_mask = wave > 1.0
-    # Get limits
-    if ylim is None:
-        nspec = flux.size
-        med_width = (2.0 * np.ceil(median_frac / 2.0 * nspec) + 1).astype(int)
-        flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
-        flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
-        flux_max = 1.5 * (np.fmax(flux_med.max(), flux_ref_med.max()))
-        flux_min = np.fmin(-0.15 * flux_max, np.fmin(flux_med.min(), flux_ref_med.min()))
-        ylim = (flux_min, flux_max)
-
-    nullfmt = NullFormatter()  # no labels
-    fig = plt.figure(figsize=(12, 8))
-    # [left, bottom, width, height]
-    poly_plot = fig.add_axes([0.1, 0.75, 0.8, 0.20])
-    spec_plot = fig.add_axes([0.1, 0.1, 0.8, 0.65])
-    poly_plot.xaxis.set_major_formatter(nullfmt)  # no x-axis labels for polynomial plot
-    poly_plot.plot(wave[wave_mask], ymult[wave_mask], color='black', linewidth=3.0, label=scale_method + ' scaling')
-    poly_plot.legend()
-    spec_plot.set_ylim(ylim)
-    spec_plot.plot(wave[wave_mask], flux[wave_mask], color='red', zorder=10,
-                   marker='o', markersize=1.0, mfc='k', fillstyle='full', linestyle='None', label='original spectrum')
-    spec_plot.plot(wave[wave_mask], flux[wave_mask]*ymult[wave_mask], color='dodgerblue', drawstyle='steps-mid', alpha=0.5, zorder=5, linewidth=2,
-                   label='rescaled spectrum')
-    spec_plot.plot(wave[wave_mask], flux_ref[wave_mask], color='black', drawstyle='steps-mid', zorder=7, alpha = 0.5, label='reference spectrum')
-
-    spec_plot.legend()
-    fig.suptitle(title)
-    plt.show()
 
 
 def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, min_good=0.05,
@@ -916,7 +883,6 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     Returns:
         weighted stacked wavelength, flux and ivar
     '''
-
     ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0)
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
@@ -948,6 +914,57 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
+def get_ylim(flux, ivar, mask):
+    med_width = (2.0 * np.ceil(0.1 / 2.0 * np.size(flux[mask])) + 1).astype(int)
+    flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
+    mask_lim = ivar_med > np.percentile(ivar_med, 20)
+    ymax = 2.5 * np.max(flux_med[mask_lim])
+    ymin = -0.15 * ymax
+    return ymin, ymax
+
+def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
+                  mask=None, mask_ref=None, ylim = None, median_frac = 0.03, title=''):
+    '''
+    QA plot for spectrum scaling
+        wave, flux, ivar, mask: spectrum need to be scaled
+        flux_ref, ivar_ref, mask_ref: reference spectrum
+        ymult: scale factor array
+    scale_method: scale method, will be shown in the qa plot
+    ylim: ylim for plotting
+    median_frac: used for estimating ylim, if ylim set to None
+    title: QA plot title
+    '''
+
+    if mask is None:
+        mask = ivar > 0.0
+    if mask_ref  is None:
+        mask_ref = ivar_ref > 0.0
+
+    # This deals with spectrographs that have zero wavelength values. They are masked in mask, but this impacts plotting
+    wave_mask = wave > 1.0
+    # Get limits
+    if ylim is None:
+        ylim = get_ylim(flux, ivar, mask)
+
+    nullfmt = NullFormatter()  # no labels
+    fig = plt.figure(figsize=(12, 8))
+    # [left, bottom, width, height]
+    poly_plot = fig.add_axes([0.1, 0.75, 0.8, 0.20])
+    spec_plot = fig.add_axes([0.1, 0.1, 0.8, 0.65])
+    poly_plot.xaxis.set_major_formatter(nullfmt)  # no x-axis labels for polynomial plot
+    poly_plot.plot(wave[wave_mask], ymult[wave_mask], color='black', linewidth=3.0, label=scale_method + ' scaling')
+    poly_plot.legend()
+    spec_plot.set_ylim(ylim)
+    spec_plot.plot(wave[wave_mask], flux[wave_mask], color='red', zorder=10,
+                   marker='o', markersize=1.0, mfc='k', fillstyle='full', linestyle='None', label='original spectrum')
+    spec_plot.plot(wave[wave_mask], flux[wave_mask]*ymult[wave_mask], color='dodgerblue', drawstyle='steps-mid', alpha=0.5, zorder=5, linewidth=2,
+                   label='rescaled spectrum')
+    spec_plot.plot(wave[wave_mask], flux_ref[wave_mask], color='black', drawstyle='steps-mid', zorder=7, alpha = 0.5, label='reference spectrum')
+
+    spec_plot.legend()
+    fig.suptitle(title)
+    plt.show()
+
 def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stack=None,
                   norder=None, qafile=None):
     '''
@@ -971,11 +988,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
     spec_plot = fig.add_axes([0.1, 0.1, 0.8, 0.85])
 
     # Get limits
-    npix = flux.size
-    med_width = (2.0 * np.ceil(0.03 / 2.0 * npix) + 1).astype(int)
-    flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
-    ymax = 2.0 * flux_med.max()
-    ymin = -0.15 * ymax
+    ymin, ymax = get_ylim(flux, ivar, mask)
 
     # Plot spectrum
     rejmask = (mask == False) & (wave_mask == True)
@@ -996,6 +1009,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
             scale = 0.8 * ymax
             spec_plot.plot(skycat[:, 0] * 1e4, skycat[:, 1] * scale, 'm-', alpha=0.5, zorder=11)
     else:
+        npix = np.size(flux)
         nspec = int(npix / norder)
         for iord in range(norder):
             spec_plot.plot(wave[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
@@ -1078,15 +1092,12 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, title=None, qafile=None):
     num_plot.yaxis.set_minor_locator(NullLocator())
 
     # Plot spectrum
-    spec_plot.plot(wave[wave_mask], flux[wave_mask], color='black', linestyle='steps-mid',zorder=1,alpha=0.7, label='Single exposure')
-    spec_plot.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(ivar[wave_mask])),zorder=2, color='red', alpha=0.7, linestyle='steps-mid')
+    spec_plot.plot(wave[wave_mask], flux[wave_mask], color='black', drawstyle='steps-mid',zorder=1,alpha=0.8, label='Single exposure')
+    spec_plot.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(ivar[wave_mask])),zorder=2, color='red', alpha=0.7,
+                   drawstyle='steps-mid', linestyle=':')
 
     # Get limits
-    nspec = flux.size
-    med_width = (2.0 * np.ceil(0.03 / 2.0 * nspec) + 1).astype(int)
-    flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
-    ymax = 2.0 * flux_med.max()
-    ymin = -0.15 * ymax
+    ymin, ymax = get_ylim(flux, ivar, mask)
 
     # Plot transmission
     if (np.max(wave[mask])>9000.0):
@@ -1185,8 +1196,6 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
     return rejivars, sigma_corrs, outchi, maskchi
 
-
-
 def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, debug=False):
     '''
@@ -1225,7 +1234,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
         # print out how much was rejected
         for iexp in range(nexp):
             thisreject = thismask[:, iexp]
-            nrej = np.sum(np.invert(thisreject))
+            nrej = np.sum(np.invert(thisreject)) - np.sum(waves[:, iexp]<1.0) # didn't take the wave=0 pixels into account.
             if nrej > 0:
                 msgs.info("Rejecting {:d} pixels in exposure {:d}".format(nrej, iexp))
 
@@ -1327,7 +1336,58 @@ def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method=
                    dv_smooth=1000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
                    maxrej=None, phot_scale_dicts=None, nmaskedge=2,
                    qafile=None, outfile = None, debug=False, show=False):
+    '''
+    Routine for coadding longslit/multi-slit spectra
+    Args:
+        fnames (list): a list of fits file names
+        objids (list): objid you want to combine, i.e the extension name (e.g. 'SPAT0764-SLIT0000-DET07') of
+                that spectrum in the fits files
+        ex_value (string): 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
+        flux_value (bool): if True coadd fluxed spectrum, if False coadd un-fluxed (counts) spectrum.
+        wave_method (string): method for generating new wavelength grid (set to 'pixel' for long/multi-slit)
+        A_pix (float): dispersion in units of A in case you want to specify it in the wave_grid, otherwise using a median
+        v_pix (float): dispersion in units of km/s in case you want to specify it in the wave_grid, otherwise using a median
+        samp_fact (float):
+           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
+           samp_fact < 1.0 undersamples (coarser)
+        wave_grid_min (float): in case you want to specify the minimum wavelength in your wavelength grid, default is None
+        wave_grid_max (float): in case you want to specify the maximu wavelength in your wavelength grid, default is None
 
+        ref_percentile: percentile fraction cut used for selecting minimum SNR cut
+        maxiters_scale: maximum iterations for rejecting outliers in scale_spec
+        max_median_factor: maximum scale factor in scale_spec
+        sigrej: sigma used for rejecting outliers in scale_spec
+        npoly: order for the poly ratio scaling
+        scale_method: scale method
+        hand_scale: array of hand scale factors
+        sn_max_medscale: maximum SNR for perforing median scale
+        sn_min_medscale: minimum SNR for perforing median scale
+
+        maxiter_reject: maximum number of interations
+        sn_cap: cap SNR
+        lower: lower sigma for djs_reject
+        upper: upper sigma for djs_reject
+        maxrej: maximum value for djs_reject
+
+        nmaskedge (int): how many edge pixels you want to mask
+
+        dv_smooth: float, 10000.0
+         Velocity smoothing used for determining smoothly varying S/N ratio weights.
+        const_weights: whether you want constant weights or not
+
+        qafile: root name for QA, if None, it will be either from outfile or from fits header
+        outfile: root name for QA, if None, it will come from the target name from the fits header.
+        debug: show QA plots or not (do not set to True unless you really want to look at all QA plots)
+        show: show key QA plots or not
+
+    Returns:
+        wave_stack, flux_stack, ivar_stack, mask_stack: stacked spectrum
+        outmask: new mask for your individual spectra, same size with fluxes
+        nused: same size with flux_stack, how many exposures used in the stack of each pixel
+        weights: weights for each individual spectrum
+        scales: scale factors
+        rms_sn: SNR of each individual spectrum.
+    '''
     # Loading Echelle data
     waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
                                                                     flux_value=flux_value, nmaskedge=nmaskedge)
@@ -1361,6 +1421,58 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
                  dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
                  maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
                  qafile=None, outfile = None, debug=False, show=False):
+    '''
+    Routine for coadding Echelle spectra
+    Args:
+        fnames (list): a list of fits file names
+        objids (list): objid you want to combine, i.e the extension name (e.g. 'SPAT0764-SLIT0000-DET07') of
+                that spectrum in the fits files
+        ex_value (string): 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
+        flux_value (bool): if True coadd fluxed spectrum, if False coadd un-fluxed (counts) spectrum.
+        wave_method (string): method for generating new wavelength grid (set to 'pixel' for long/multi-slit)
+        A_pix (float): dispersion in units of A in case you want to specify it in the wave_grid, otherwise using a median
+        v_pix (float): dispersion in units of km/s in case you want to specify it in the wave_grid, otherwise using a median
+        samp_fact (float):
+           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
+           samp_fact < 1.0 undersamples (coarser)
+        wave_grid_min (float): in case you want to specify the minimum wavelength in your wavelength grid, default is None
+        wave_grid_max (float): in case you want to specify the maximu wavelength in your wavelength grid, default is None
+
+        ref_percentile: percentile fraction cut used for selecting minimum SNR cut
+        maxiters_scale: maximum iterations for rejecting outliers in scale_spec
+        max_median_factor: maximum scale factor in scale_spec
+        sigrej: sigma used for rejecting outliers in scale_spec
+        npoly: order for the poly ratio scaling
+        scale_method: scale method
+        hand_scale: array of hand scale factors
+        sn_max_medscale: maximum SNR for perforing median scale
+        sn_min_medscale: minimum SNR for perforing median scale
+
+        maxiter_reject: maximum number of interations
+        sn_cap: cap SNR
+        lower: lower sigma for djs_reject
+        upper: upper sigma for djs_reject
+        maxrej: maximum value for djs_reject
+
+        nmaskedge (int): how many edge pixels you want to mask
+
+        dv_smooth: float, 10000.0
+         Velocity smoothing used for determining smoothly varying S/N ratio weights.
+        const_weights: whether you want constant weights or not
+
+        qafile: root name for QA, if None, it will be either from outfile or from fits header
+        outfile: root name for QA, if None, it will come from the target name from the fits header.
+        debug: show QA plots or not (do not set to True unless you really want to look at all QA plots)
+        show: show key QA plots or not
+
+    Returns:
+        wave_stack, flux_stack, ivar_stack, mask_stack: stacked spectrum
+        outmask: new mask for your individual spectra, same size with fluxes
+        nused: same size with flux_stack, how many exposures used in the stack of each pixel
+        weights: weights for each individual spectrum
+        scales: scale factors
+        rms_sn: SNR of each individual spectrum.
+    '''
 
     # Loading Echelle data
     waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
@@ -1378,16 +1490,21 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
 
     # output name root for fits and QA plots
     if outfile is None:
-        outfile = header['TARGET']
+        outfile = header['TARGET']+'.fits'
+    elif len(outfile.split('.'))==1:
+        outfile = outfile+'.fits'
+
     outfile_order = 'spec1d_order_{:}'.format(outfile)
     outfile_merge = 'spec1d_merge_{:}'.format(outfile)
     outfile_stack = 'spec1d_stack_{:}'.format(outfile)
 
     if qafile is None:
         qafile = header['TARGET']
-    qafile_merge = 'spec1d_merge_{:}'.format(outfile)
-    qafile_stack = 'spec1d_stack_{:}'.format(outfile)
-    qafile_chi = 'spec1d_chi_{:}'.format(outfile)
+    else:
+        qafile = outfile.split('.')[0]
+    qafile_merge = 'spec1d_merge_{:}'.format(qafile)
+    qafile_stack = 'spec1d_stack_{:}'.format(qafile)
+    qafile_chi = 'spec1d_chi_{:}'.format(qafile)
 
     # Generate a giant wave_grid
     wave_grid = new_wave_grid(waves, wave_method=wave_method, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
@@ -1460,7 +1577,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
 
     if debug or show:
         coadd_qa(wave_merge, flux_merge, ivar_merge, nused, mask=mask_merge,
-                 title='Order merged spectrum', qafile=qafile_merge)
+                 title='Straight combined spectrum of the stacked individual orders', qafile=qafile_merge)
 
     # Save stacked individual order spectra
     save.save_coadd1d_to_fits(outfile_order, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
@@ -1534,7 +1651,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
             flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_cap=sn_cap)
         renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d[0], qafile=qafile_chi, title='Global Chi distribution')
         # show the final coadded spectrum
-        coadd_qa( wave_giant_stack, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
+        coadd_qa(wave_giant_stack, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
                  title='Final stacked spectrum', qafile=qafile_stack)
 
     save.save_coadd1d_to_fits(outfile_stack, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
