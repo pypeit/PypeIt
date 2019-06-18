@@ -909,6 +909,12 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     # New mask for the stack
     mask_stack = (weights_total > 0.0) & (nused > 0.0)
 
+    ## In extreme cases (i.e. reject too many pixels in the telluric order), one need to sort the data
+    ## to make sure the wavelength is from blue to red. some pixels even have exactly the same wavelength
+    #indsort = np.argsort(wave_stack)
+    #wave_stack, flux_stack, ivar_stack, mask_stack, nused = wave_stack[indsort], flux_stack[indsort], \
+    #                                                        ivar_stack[indsort], mask_stack[indsort], nused[indsort]
+
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
 def get_ylim(flux, ivar, mask):
@@ -1213,7 +1219,6 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
         nused: same size with flux_stack, how many exposures used in the stack of each pixel
 
     '''
-
     nexp = np.shape(waves)[1]
     iIter = 0
     qdone = False
