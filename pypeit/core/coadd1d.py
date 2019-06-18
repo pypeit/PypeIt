@@ -451,13 +451,16 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
         # make the mask array to be float, used for interpolation
         masks_float = np.zeros_like(flux_old)
         masks_float[mask_old] = 1.0
-
+        #TODO Should this be linear interpolation??
         flux_new = interpolate.interp1d(wave_old[mask_old], flux_old[mask_old], kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(wave_new)
         ivar_new = interpolate.interp1d(wave_old[mask_old], ivar_old[mask_old], kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(wave_new)
         mask_new_tmp = interpolate.interp1d(wave_old[mask_old], masks_float[mask_old], kind='cubic',
                                             bounds_error=False, fill_value=np.nan)(wave_new)
+        # Don't allow the ivar to be every less than zero
+        neg_ivar = ivar_new < 0.0
+        ivar_new[neg_ivar] = 0.0
         mask_new = (mask_new_tmp > 0.5) & (ivar_new > 0.0) & np.isfinite(flux_new)
         return flux_new, ivar_new, mask_new
 
