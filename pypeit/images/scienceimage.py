@@ -169,8 +169,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                        bpm=slf.bpm, debug=True)
         # Build the rest
         slf.build_ivar()
-        slf.build_crmask()
         slf.build_rn2img()
+        slf.build_crmask()
         slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
                        mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
         # Return
