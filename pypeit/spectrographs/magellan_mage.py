@@ -289,12 +289,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Find closest
         iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
+
         # Check
         if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.error("Bad echelle format for MagE or you have discovered one of the bluest 3 orders!")
+            msgs.warn("Bad echelle format for Magellan-MAGE or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return orders[iorder]
+        else:
+            return orders[iorder]
 
-        # Return
-        return orders[iorder]
 
 
     def order_platescale(self, order_vec, binning=None):

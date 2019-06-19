@@ -45,7 +45,7 @@ class CalibrationImage(pypeitimage.PypeItImage):
     """
 
 
-    def __init__(self, spectrograph, det, proc_par, files=None, frametype=None):
+    def __init__(self, spectrograph, det, proc_par, files=None):
 
         # Init me
         pypeitimage.PypeItImage.__init__(self, spectrograph, det)
@@ -58,14 +58,15 @@ class CalibrationImage(pypeitimage.PypeItImage):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.proc_par = proc_par  # This musts be named this way as it is frequently a child
 
-        # Optional parameters
-        self.frametype = frametype
-
         # Internal images
         self.image = None
 
         # Process steps
         self.process_steps = []
+
+    @property
+    def shape(self):
+        return () if self.image is None else self.image.shape
 
     @property
     def nfiles(self):
@@ -131,6 +132,9 @@ class CalibrationImage(pypeitimage.PypeItImage):
             np.ndarray: Copy of self.image
 
         """
+        if self.nfiles == 0:
+            msgs.warn("Need to provide a non-zero list of files")
+            return
         # Load up image array
         image_arr = None
         for kk,file in enumerate(self.file_list):
@@ -149,7 +153,6 @@ class CalibrationImage(pypeitimage.PypeItImage):
             self.image = image_arr[:,:,0]
         else:
             self.image = combine.comb_frames(image_arr,
-                                         frametype=self.frametype,
                                          saturation=self.spectrograph.detector[self.det-1]['saturation'],
                                          method=self.proc_par['combine'],
                                          satpix=self.proc_par['satpix'],

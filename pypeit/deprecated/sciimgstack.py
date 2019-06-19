@@ -268,7 +268,7 @@ class SciImgStack(object):
         # ToDO The bitmask is not being properly propagated here!
         if nimg > 1:
             img_list = [img_stack]
-            var_stack = utils.calc_ivar(ivar_stack)
+            var_stack = utils.inverse(ivar_stack, positive=True)
             var_list = [var_stack, rn2img_stack]
             img_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
                 weights, img_list, var_list, (mask_stack == 0),
@@ -281,7 +281,7 @@ class SciImgStack(object):
             sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
                                                              self.par['process'], self.sci_bpm,
                                                              img_list_out[0],
-                                                             utils.calc_ivar(var_list_out[0]),
+                                                             utils.inverse(var_list_out[0], positive=True),
                                                              var_list_out[1], np.invert(outmask),
                                                              files=files)
             sciImage.build_mask(saturation=self.saturation, mincounts=self.mincounts)

@@ -324,7 +324,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
     def init_meta(self):
         """
-        Meta data specific to shane_kast_blue
+        Meta data specific to shane_kast_red
 
         Returns:
 
@@ -354,21 +354,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             '0.DSENSOR': '2k x 4k Hamamatsu' }
         super(ShaneKastRedSpectrograph, self).check_headers(headers,
                                                             expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Header keys specific to shane_kast_red
-
-        Returns:
-
-        """
-        hdr_keys = super(ShaneKastRedSpectrograph, self).header_keys()
-        hdr_keys[0]['dispname'] = 'GRATING_N'
-        hdr_keys[0]['filter1'] = 'RDFILT_N'
-        hdr_keys[0]['dispangle'] = 'GRTILT_P'
-        return hdr_keys
-
-
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     """

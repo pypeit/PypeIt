@@ -13,6 +13,9 @@ import warnings
 # Set version
 __version__ = '0.10.2dev'
 
+# Report current coverage
+__coverage__ = 0.55
+
 # Import and instantiate the logger
 from pypeit import pypmsgs
 msgs = pypmsgs.Messages()
