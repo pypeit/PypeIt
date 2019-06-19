@@ -46,6 +46,9 @@ class PypeItImage(object):
         """
         Simple show method
         """
+        if self.image is None:
+            msgs.warn("No image to show!")
+            return
         ginga.show_image(self.image, chname='image')
 
     def __repr__(self):

@@ -21,9 +21,9 @@ class Reduce(object):
          file_list : list
            List of raw files to produce the flat field
          spectrograph : str
-         settings : dict-like
          tslits_dict : dict
            dict from TraceSlits class
+         par :
          tilts : ndarray
            tilts from WaveTilts class
            used for sky subtraction and object finding
@@ -82,7 +82,8 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, sciImg, spectrograph, tslits_dict, par, ir_redux=False, det=1,
+    def __init__(self, sciImg, spectrograph, tslits_dict, par, tilts,
+                 ir_redux=False, det=1,
                  objtype='science', binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -102,10 +103,10 @@ class Reduce(object):
         self.slitmask = pixels.tslits2mask(self.tslits_dict)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         self.sciImg.update_mask_slitmask(self.slitmask)
-        self.maskslits=None
         self.maskslits = self._get_goodslits(maskslits)
         self.ir_redux = ir_redux
         self.det = det
+        self.tilts = tilts
         self.binning = binning
         self.setup = setup
         self.pypeline = spectrograph.pypeline
@@ -114,7 +115,6 @@ class Reduce(object):
 
         # Other attributes that will be set later during object finding,
         # sky-subtraction, and extraction
-        self.tilts = None  # used by extract
         self.waveimage = None  # used by extract
 
         # Key outputs images for extraction
@@ -190,14 +190,9 @@ class Reduce(object):
         # Return
         return manual_extract_dict
 
-    def find_objects(self, std=False, ir_redux=False, std_trace=None, maskslits=None,
+    def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False,
-                     manual_extract_dict=None, skysub_img=None):
-
-        # Image
-        image = self.sciImg.image.copy()
-        if skysub_img is not None:
-            image -= skysub_img
+                     manual_extract_dict=None):
 
         # Positive image
         parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
@@ -239,7 +234,7 @@ class Reduce(object):
          """
         return None, None, None
 
-    def global_skysub(self, tilts, std=False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
+    def global_skysub(self, std=False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
                       show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -277,7 +272,6 @@ class Reduce(object):
         else:
             sigrej = 3.0
 
-        self.tilts = tilts
         self.maskslits = self.maskslits if maskslits is None else maskslits
         gdslits = np.where(np.invert(self.maskslits))[0]
 
@@ -331,7 +325,7 @@ class Reduce(object):
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, tilts, waveimg, global_sky, rn2img, sobjs,
+    def local_skysub_extract(self, waveimg, global_sky, sobjs,
                              maskslits=None, model_noise=True, std=False,
                              show_profile=False, show_resids=False, show=False):
 
@@ -531,8 +525,8 @@ class MultiSlit(Reduce):
     Child of Reduce for Multislit and Longslit reductions
 
     """
-    def __init__(self, sciImg, spectrograph, tslits_dict, par, **kwargs):
-        super(MultiSlit, self).__init__(sciImg, spectrograph, tslits_dict, par, **kwargs)
+    def __init__(self, sciImg, spectrograph, tslits_dict, par, tilts, **kwargs):
+        super(MultiSlit, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
 
 
@@ -618,7 +612,7 @@ class MultiSlit(Reduce):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract(self, tilts, waveimg, global_sky, rn2img, sobjs,
+    def local_skysub_extract(self, waveimg, global_sky, sobjs,
                              spat_pix=None, maskslits=None, model_noise=True, std = False,
                              show_profile=False, show=False):
         """
@@ -640,10 +634,8 @@ class MultiSlit(Reduce):
         Returns:
             global_sky: (numpy.ndarray) image of the the global sky model
         """
-        self.tilts = tilts
         self.waveimg = waveimg
         self.global_sky = global_sky
-        self.rn2img = rn2img
 
         # get the good slits and assign self.maskslits
         self.maskslits = self.maskslits if maskslits is None else maskslits
@@ -676,7 +668,7 @@ class MultiSlit(Reduce):
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
-                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.rn2img,
+                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.sciImg.rn2img,
                     thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix, model_full_slit=self.redux_par['model_full_slit'],
                     box_rad=self.redux_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
@@ -705,8 +697,8 @@ class Echelle(Reduce):
     Child of Reduce for Echelle reductions
 
     """
-    def __init__(self, sciImg, spectrograph, tslits_dict, par, **kwargs):
-        super(Echelle, self).__init__(sciImg, spectrograph, tslits_dict, par, **kwargs)
+    def __init__(self, sciImg, spectrograph, tslits_dict, par, tilts, **kwargs):
+        super(Echelle, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
 
     def find_objects_pypeline(self, image, std=False, std_trace = None, maskslits=None,
@@ -746,7 +738,7 @@ class Echelle(Reduce):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract(self, tilts, waveimg, global_sky, rn2img, sobjs,
+    def local_skysub_extract(self, waveimg, global_sky, sobjs,
                              spat_pix=None, model_noise=True, min_snr=2.0, std = False, fit_fwhm=False,
                              maskslits=None, show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
@@ -768,10 +760,8 @@ class Echelle(Reduce):
             global_sky: (numpy.ndarray) image of the the global sky model
         """
 
-        self.tilts = tilts
         self.waveimg = waveimg
         self.global_sky = global_sky
-        self.rn2img = rn2img
 
         # For echelle orders
         slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
@@ -780,7 +770,7 @@ class Echelle(Reduce):
         plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciImg.image, self.sciImg.ivar, self.sciImg.mask, self.tilts, self.waveimg, self.global_sky,
-            self.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
+            self.sciImg.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
             std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.redux_par['bspline_spacing'],
             box_rad_order=self.redux_par['boxcar_radius']/plate_scale,
             sigrej=self.redux_par['sky_sigrej'],
@@ -799,7 +789,7 @@ class Echelle(Reduce):
 
 
 
-def instantiate_me(sciImg, spectrograph, tslits_dict, par, **kwargs):
+def instantiate_me(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -814,6 +804,7 @@ def instantiate_me(sciImg, spectrograph, tslits_dict, par, **kwargs):
 
         tslits_dict: dict
             dictionary containing slit/order boundary information
+        tilts (np.ndarray):
 
     Returns:
         :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
@@ -822,7 +813,7 @@ def instantiate_me(sciImg, spectrograph, tslits_dict, par, **kwargs):
     indx = [ c.__name__ == spectrograph.pypeline for c in Reduce.__subclasses__() ]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph, tslits_dict, par, **kwargs)
+    return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
 
 

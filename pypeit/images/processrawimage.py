@@ -8,6 +8,7 @@ from pypeit import msgs
 from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.images import pypeitimage
+from pypeit.par import pypeitpar
 
 from IPython import embed
 
@@ -28,25 +29,31 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
 
-        frametype (str, optional): Frame type
-
     Attributes:
         steps (dict):
             Dict describing the steps performed on the image
+        _bpm (np.ndarray):
+            Holds the bad pixel mask once loaded
+        _rawdatasec_img (np.ndarray):
+            Holds the rawdatasec_img once loaded
+        hdu (fits.HDUList):
+            HDUList of the file
     """
-    def __init__(self, filename, spectrograph, det, par, frametype=None):
+    def __init__(self, filename, spectrograph, det, par):
 
         # Init me
         pypeitimage.PypeItImage.__init__(self, spectrograph, det)
         # Required parameters
+        if not isinstance(par, pypeitpar.ProcessImagesPar):
+            msgs.error("Bad par input")
         self.par = par  # ProcessImagesPar
         self.filename = filename
 
-        # Optional parameters
-        self.frametype = frametype
-
         # Attributes
         self._reset_internals()
+        self._bpm = None
+        self._rawdatasec_img = None
+        self.hdu = None
 
         # Load
         self.load_rawframe()
@@ -69,9 +76,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Returns:
             list
         """
-        amps = np.unique(self.rawdatasec_img[self.rawdatasec_img > 0]).tolist()
-        # Return
-        return amps
+        return np.unique(self.rawdatasec_img[self.rawdatasec_img > 0]).tolist()
 
     @property
     def bpm(self):
@@ -83,10 +88,11 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             np.ndarray:  Bad pixel mask with a bad pixel = 1
 
         """
-        bpm = self.spectrograph.bpm(shape=self.image.shape,
+        if self._bpm is None:
+            self._bpm = self.spectrograph.bpm(shape=self.image.shape,
                                     filename=self.filename,
                                     det=self.det)
-        return bpm
+        return self._bpm
 
     @property
     def rawdatasec_img(self):
@@ -97,8 +103,9 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             np.ndarray
 
         """
-        rdimg = self.spectrograph.get_rawdatasec_img(self.filename, self.det)
-        return rdimg
+        if self._rawdatasec_img is None:
+            self._rawdatasec_img = self.spectrograph.get_rawdatasec_img(self.filename, self.det)
+        return self._rawdatasec_img
 
 
     @property
@@ -148,16 +155,12 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             msgs.warn("Gain was already applied. Returning")
             return self.image.copy()
 
-        gain = self.spectrograph.detector[self.det-1]['gain']
-        # Enforce gain being a list
-        if not isinstance(gain, list):
-            gain = [gain]
+        gain = np.atleast_1d(self.spectrograph.detector[self.det - 1]['gain']).tolist()
         # Apply
         self.image *= procimg.gain_frame(self.rawdatasec_img, gain, trim=self.steps['trim'])
         self.steps[step] = True
         # Return
         return self.image.copy()
-
 
     def process(self, process_steps, pixel_flat=None, illum_flat=None,
                        bias=None, bpm=None, debug=False):
@@ -214,9 +217,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             force (bool, optional):
                 Force the processing even if the image was already processed
 
-        Returns:
-            np.ndarray:  Copy of the flattened image
-
         """
         step = inspect.stack()[0][3]
         # Check if already trimmed
@@ -229,25 +229,22 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Do it
         self.image = flat.flatfield(self.image, pixel_flat, bpm, illum_flat=illum_flat)
         self.steps[step] = True
-        # Return
-        return self.image.copy()
 
     def load_rawframe(self):
         """
         Load a raw image from disk using the Spectrograph method load_raw_frame()
 
         Also loads up the binning, exposure time, and header of the Primary image
+        And the HDUList in self.hdu
 
         Args:
             filename (str):  Filename
 
-        Returns:
-            np.ndarray, fits.Header:
-
         """
         # Load
-        self.image, self.head0 \
+        self.image, self.hdu, \
             = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        self.head0 = self.hdu[0].header
         # Shape
         self.orig_shape = self.image.shape
         # Exposure time
@@ -258,8 +255,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             self.binning_raw = (',').join(self.binning.split(',')[::-1])
         else:
             self.binning_raw = self.binning
-        # Return
-        return self.image, self.head0
 
     def orient(self, force=False):
         """
@@ -270,21 +265,16 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             force (bool, optional):
                 Force the processing even if the image was already processed
 
-        Returns:
-            np.ndarray: Copy of the oriented image
-
         """
         step = inspect.stack()[0][3]
         # Orient the image to have blue/red run bottom to top
         # Check if already oriented
-        if self.steps[step] and (not force):
+        if self.steps[step] and not force:
             msgs.warn("Image was already oriented.  Returning current image")
             return self.image.copy()
         # Orient me
         self.image = self.spectrograph.orient_image(self.image, self.det)
         self.steps[step] = True
-        # Return
-        return self.image.copy()
 
     def subtract_bias(self, bias_image, force=False):
         """
@@ -295,10 +285,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                 Bias image
             force (bool, optional):
                 Force the processing even if the image was already processed
-
-        Returns:
-            np.ndarray: Copy of the bias subtracted image
-
         """
         step = inspect.stack()[0][3]
         # Check if already trimmed
@@ -308,8 +294,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Do it
         self.image -= bias_image
         self.steps[step] = True
-        # Return
-        return self.image.copy()
 
     def subtract_overscan(self, force=False):
         """
@@ -318,9 +302,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Args:
             force (bool, optional):
                 Force the processing even if the image was already processed
-
-        Returns:
-            np.ndarray: Copy of the overscan subtracted image
 
         """
         step = inspect.stack()[0][3]
@@ -334,8 +315,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Fill
         self.steps[step] = True
         self.image = temp
-        # Return
-        return self.image.copy()
 
     def trim(self, force=False):
         """
@@ -344,9 +323,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Args:
             force (bool, optional):
                 Force the processing even if the image was already processed
-
-        Returns:
-            np.ndarray: Copy of the trimmed image
 
         """
         step = inspect.stack()[0][3]
@@ -364,8 +340,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Overwrite
         self.image = trim_image
         self.steps[step] = True
-        # Return
-        return self.image.copy()
 
     def __repr__(self):
         return ('<{:s}: file={}, steps={}>'.format(

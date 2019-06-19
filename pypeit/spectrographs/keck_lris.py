@@ -167,8 +167,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
-        
-    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+
+    def load_raw_frame(self, raw_file, det=None):
         """
         Wrapper to the raw image reader for LRIS
 
@@ -180,14 +180,14 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
               Captured and never used
 
         Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            head0: Header
+            Returns an `numpy.ndarray`_ with the image data and
+            `astropy.io.fits.HDUList`_ object with the image and header
+            data, respectively.  The image data is always returned with
 
         """
-        raw_img, head0, _ = read_lris(raw_file, det=det)
+        raw_img, hdu, _ = read_lris(raw_file, det=det)
 
-        return raw_img, head0
+        return raw_img, hdu
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
@@ -233,7 +233,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             msgs.error('Must provide Keck LRIS file to get image section.')
         elif not os.path.isfile(inp):
             msgs.error('File {0} does not exist!'.format(inp))
-        temp, head0, secs = read_lris(inp, det)
+        _, _, secs = read_lris(inp, det)
         if section == 'datasec':
             return secs[0], False, False
         elif section == 'oscansec':
@@ -282,7 +282,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.55, 1.56],
                             ronoise         = [3.9, 4.2],
-                            datasec         = ['',''],      # These are provided by read_lris
+                            datasec         = ['',''],
                             oscansec        = ['',''],
                             suffix          = '_01blue'
                             ),
@@ -301,7 +301,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.63, 1.70],
                             ronoise         = [3.6, 3.6],
-                            datasec         = ['',''],      # These are provided by read_lris
+                            datasec         = ['',''],
                             oscansec        = ['',''],
                             suffix          = '_02blue'
                             )]
@@ -447,7 +447,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   =2,
                             gain            =[1.255, 1.18],
                             ronoise         =[4.64, 4.76],
-                            datasec         = ['',''],      # These are provided by read_lris
+                            datasec         = ['',''],
                             oscansec        = ['',''],
                             suffix          ='_01red'
                             ),
@@ -466,7 +466,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             numamplifiers   =2,
                             gain            =[1.191, 1.162],
                             ronoise         =[4.54, 4.62],
-                            datasec         = ['',''],      # These are provided by read_lris
+                            datasec         = ['',''],
                             oscansec        = ['',''],
                             suffix          ='_02red'
                             )]
@@ -681,7 +681,7 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
                             numamplifiers   =1,
                             gain            =[1.255],
                             ronoise         =[4.64],
-                            datasec         = ['',''],      # These are provided by read_lris
+                            datasec         = ['',''],
                             oscansec        = ['',''],
                             suffix          ='_01red'
                             ),
@@ -700,7 +700,7 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
                             numamplifiers   =1,
                             gain            =[1.162],
                             ronoise         =[4.62],
-                            datasec         = ['',''],      # These are provided by read_lris
+                            datasec         = ['',''],
                             oscansec        = ['',''],
                             suffix          ='_02red'
                             )]
@@ -721,12 +721,11 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         Returns:
             raw_img: ndarray
               Raw image;  likely unsigned int
-            head0: Header
+            hdu: `astropy.io.fits.HDUList`_ object
 
         """
+        # Open
         hdu = fits.open(raw_file)
-        header = hdu[det].header
-
         # Grab data (this includes flips as needed)
         data, predata, postdata, x1, y1 = lris_read_amp(hdu, det)
         # Pack
@@ -736,7 +735,7 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         raw_img[-postdata.shape[0]:,:] = postdata
 
         # Return
-        return raw_img.T, header
+        return raw_img.T, hdu
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         # Inp better be a string here!  Could check
@@ -762,7 +761,6 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         #
         return [section], False, False, False
 
-
 def read_lris(raw_file, det=None, TRIM=False):
     """
     Read a raw LRIS data frame (one or more detectors)
@@ -783,7 +781,7 @@ def read_lris(raw_file, det=None, TRIM=False):
     -------
     array : ndarray
       Combined image 
-    header : FITS header
+    hdu : HDUList
     sections : list
       List of datasec, oscansec, ampsec sections
       datasec, oscansec needs to be for an *unbinned* image as per standard convention
@@ -889,13 +887,11 @@ def read_lris(raw_file, det=None, TRIM=False):
             nxpre = buf[0]
             xs = kk*precol
             xe = xs + nxpre
-            '''
-            if keyword_set(VERBOSITY) then begin
-                section = '['+stringify(xs)+':'+stringify(xe)+',*]'
-                message, 'inserting extension '+stringify(i)+ $
-                         ' predata  in '+section, /info
-            endif 
-            '''
+            #if keyword_set(VERBOSITY) then begin
+            #    section = '['+stringify(xs)+':'+stringify(xe)+',*]'
+            #    message, 'inserting extension '+stringify(i)+ $
+            #             ' predata  in '+section, /info
+            #endif 
             array[xs:xe, :] = predata
 
             # insert data...
@@ -918,13 +914,12 @@ def read_lris(raw_file, det=None, TRIM=False):
             #section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
             section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)
             osec.append(section)
-            '''
-            if keyword_set(VERBOSITY) then begin
-                section = '['+stringify(xs)+':'+stringify(xe)+',*]'
-                message, 'inserting extension '+stringify(i)+ $
-                         ' postdata in '+section, /info
-            endif 
-            '''
+            
+            #if keyword_set(VERBOSITY) then begin
+            #    section = '['+stringify(xs)+':'+stringify(xe)+',*]'
+            #    message, 'inserting extension '+stringify(i)+ $
+            #             ' postdata in '+section, /info
+            #endif 
             array[xs:xe, :] = postdata
         else:
             buf = data.shape
@@ -939,14 +934,12 @@ def read_lris(raw_file, det=None, TRIM=False):
             yin1 = preline
             yin2 = nydata - postline 
 
-            '''
-            if keyword_set(VERBOSITY) then begin
-                section = '['+stringify(xs)+':'+stringify(xe)+ $
-                          ','+stringify(ys)+':'+stringify(ye)+']'
-                message, 'inserting extension '+stringify(i)+ $
-                         ' data     in '+section, /info
-            endif 
-            '''
+            #if keyword_set(VERBOSITY) then begin
+            #    section = '['+stringify(xs)+':'+stringify(xe)+ $
+            #              ','+stringify(ys)+':'+stringify(ye)+']'
+            #    message, 'inserting extension '+stringify(i)+ $
+            #             ' data     in '+section, /info
+            #endif 
             array[xs:xe, ys:ye] = data[:, yin1:yin2]
 
     # make sure BZERO is a valid integer for IRAF
@@ -956,8 +949,7 @@ def read_lris(raw_file, det=None, TRIM=False):
 
     # Return, transposing array back to goofy Python indexing
     #from IPython import embed; embed(header='958 of keck_lris')
-    return array.T, head0, (dsec, osec)
-
+    return array.T, hdu, (dsec, osec)
 
 def lris_read_amp(inp, ext):
     """

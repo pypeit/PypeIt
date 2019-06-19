@@ -8,7 +8,6 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit import sciimgstack
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.tests.tstutils import load_kast_blue_masters
 from pypeit.spectrographs.util import load_spectrograph
@@ -42,17 +41,19 @@ def nires_bg_files():
     return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES', ifile)
             for ifile in ['s180604_0090.fits.gz', 's180604_0091.fits.gz']]
 
+
 def test_standard_instantiate():
     """
     Simple instantiate
     """
     # Empty
-    sciImgStack = sciimgstack.SciImgStack(kast_blue, [], kast_par['scienceframe'])
-    assert sciImgStack.nfiles == 0
-    assert 'nfiles' in sciImgStack.__repr__()
+    bpm = np.zeros((100,100))
+    sciImg = scienceimage.ScienceImage(kast_blue, [], kast_par['scienceframe']['process'], bpm)
+    assert sciImg.nfiles == 0
+
 
 @dev_suite_required
-def test_proc_one(shane_kast_blue_sci_files):
+def test_instantiate_from_one(shane_kast_blue_sci_files):
     """
     Run on a single science frame
     """
@@ -60,16 +61,16 @@ def test_proc_one(shane_kast_blue_sci_files):
     tslits_dict, mstrace, tilts_dict, pixelflat = load_kast_blue_masters(
         tslits=True, tilts=True, pixflat=True)
     bpm = kast_blue.empty_bpm(shape=pixelflat.shape)
-    # Instantiate
-    sciImgStack = sciimgstack.SciImgStack(kast_blue, [shane_kast_blue_sci_files[0]], kast_par['scienceframe'])
     # Do it
-    sciImg = sciImgStack.proc(None, pixelflat, bpm)
+    det = 1
+    sciImg = scienceimage.ScienceImage.from_single_file(kast_blue, det, kast_par['scienceframe']['process'],
+                                            bpm, shane_kast_blue_sci_files[0], None, pixelflat)
     # Test
-    assert isinstance(sciImg, scienceimage.ScienceImage)
-    assert len(sciImg.files) == 1
+    assert sciImg.nfiles == 1
+
 
 @dev_suite_required
-def test_proc_list(shane_kast_blue_sci_files):
+def test_from_list(shane_kast_blue_sci_files):
     """
     Run on two frames
     """
@@ -77,25 +78,29 @@ def test_proc_list(shane_kast_blue_sci_files):
     tslits_dict, mstrace, tilts_dict, pixelflat = load_kast_blue_masters(
         tslits=True, tilts=True, pixflat=True)
     bpm = kast_blue.empty_bpm(shape=pixelflat.shape)
-    # Instantiate
-    sciImgStack = sciimgstack.SciImgStack(kast_blue, shane_kast_blue_sci_files, kast_par['scienceframe'])
     # Do it
-    sciImg = sciImgStack.proc(None, pixelflat, bpm)
+    det = 1
+    sciImg = scienceimage.ScienceImage.from_file_list(kast_blue, det, kast_par['scienceframe']['process'],
+                                                        bpm, shane_kast_blue_sci_files, None, pixelflat)
     # Test
-    assert len(sciImg.files) == 2
+    assert sciImg.nfiles == 2
+
 
 @dev_suite_required
 def test_proc_diff(nires_sci_files, nires_bg_files):
     """
     Run on near-IR frames
     """
-    # Instantiate
-    sciImgStack = sciimgstack.SciImgStack(keck_nires, nires_sci_files, nires_par['scienceframe'],
-                                          bg_file_list=nires_bg_files, ir_redux=True)
-    # Dummy calibs
+    # Setup
+    det = 1
     bpm = np.zeros((2048,1024))
     pixelflat = np.ones_like(bpm)
-    # Do It!
-    sciImg = sciImgStack.proc(None, pixelflat, bpm)
-    assert isinstance(sciImg, scienceimage.ScienceImage)
-    assert len(sciImg.files) == 4
+
+    # Sci image
+    sciImg = scienceimage.ScienceImage.from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
+                                       nires_sci_files, None, pixelflat)
+    # Bg image
+    bgImg = scienceimage.ScienceImage.from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
+                                                      nires_bg_files, None, pixelflat)
+    # Difference
+    sciImg = sciImg - bgImg

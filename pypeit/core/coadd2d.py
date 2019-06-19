@@ -869,9 +869,9 @@ def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False,
     master_key_dict = stack_dict['master_key_dict']
 
     # TODO: These saving operations are a temporary kludge
-    waveImage = WaveImage(None, None, None, None, None, master_key=master_key_dict['arc'],
+    waveImage = WaveImage(None, None, None, None, None, None, master_key=master_key_dict['arc'],
                           master_dir=master_dir)
-    waveImage.save(mswave=waveimg_psuedo)
+    waveImage.save(image=waveimg_psuedo)
 
     traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
     traceSlits.save(tslits_dict=tslits_dict_psuedo)
