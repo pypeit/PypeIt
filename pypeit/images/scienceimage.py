@@ -170,7 +170,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Build the rest
         slf.build_ivar()
         slf.build_rn2img()
-        slf.build_crmask()
+        if slf.par['cr_reject']:
+            slf.build_crmask()
         slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
                        mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
         # Return
@@ -179,7 +180,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
     @classmethod
     def from_file_list(cls, spectrograph, det, par, bpm,
                        file_list, bias, pixel_flat, illum_flat=None,
-                       sigma_clip=False, sigrej=None, maxiters=5):
+                       sigma_clip=False, sigrej=None, maxiters=5,
+                       **kwargs):
         """
         Instantiate from file list
 
@@ -207,6 +209,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             sigrej (int or float, optional): Rejection threshold for sigma clipping.
                  Code defaults to determining this automatically based on the numberr of images provided.
             maxiters (int, optional):
+            **kwargs:
+                Passed to ScienceImage.from_single_file()
 
         Returns:
             ScienceImage:
@@ -234,7 +238,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         for kk, ifile in enumerate(file_list):
             # Instantiate
             sciImage = ScienceImage.from_single_file(spectrograph, det, par, bpm,
-                ifile, bias, pixel_flat, illum_flat=illum_flat)
+                ifile, bias, pixel_flat, illum_flat=illum_flat, **kwargs)
             # Process
             sciimg_stack[kk,:,:] = sciImage.image
             # Construct raw variance image and turn into inverse variance
@@ -432,9 +436,10 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                               newimg, new_ivar, new_rn2, files=new_files)
         #TODO: KW properly handle adding the bits
         #embed(header='279 in sciImg')
-        crmask_diff = new_sciImg.build_crmask()
-        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
-        new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
+        if self.par['cr_reject']:
+            crmask_diff = new_sciImg.build_crmask()
+            # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
+            new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
         # Note that the following uses the saturation and mincounts held in
         # self.spectrograph.detector[self.det-1]
         new_sciImg.build_mask()

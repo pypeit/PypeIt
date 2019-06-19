@@ -5,7 +5,7 @@ import time
 import os
 import numpy as np
 from collections import OrderedDict
-from IPython import embed
+from configobj import ConfigObj
 
 from astropy.io import fits
 from pypeit import msgs
@@ -17,15 +17,15 @@ from pypeit.core import qa
 from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
-from pypeit.core import pixels
+from pypeit.core import pixels as ppixels
 from pypeit.spectrographs.util import load_spectrograph
-from linetools import utils as ltu
-
-
-from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
+
+from linetools import utils as ltu
+
+from IPython import embed
 
 class PypeIt(object):
     """
@@ -564,7 +564,7 @@ class PypeIt(object):
                 self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
 
         # Update mask for slitmask
-        slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
+        slitmask = ppixels.tslits2mask(self.caliBrate.tslits_dict)
         self.sciImg.update_mask_slitmask(slitmask)
 
         # For QA on crash
