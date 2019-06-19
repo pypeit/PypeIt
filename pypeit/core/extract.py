@@ -1525,7 +1525,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
 
     cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
                                          cont_frac_fwhm=2.0, sigthresh=sig_thresh,
-                                         sigrej=2.0, cont_samp=3,npoly=1, cont_mask_neg=True)#, debug=debug)
+                                         sigrej=2.0, cont_samp=3,npoly=1, cont_mask_neg=True)
     # TODO this is experimental, but I'm removing the linear continuum fit
     fluxconv_cont = fluxconv - cont
 
@@ -1583,7 +1583,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
         # Possible thresholds    [significance,  fraction of brightest, absolute]
         threshvec = np.array([sig_thresh*sigma, peak_thresh*ypeak.max(), abs_thresh])
         threshold = threshvec.max()
-        #embed(header='1584 of extract')
         if threshvec.argmax() == 0:
             msgs.info('Used SIGNIFICANCE threshold: sig_thresh = {:3.1f}'.format(sig_thresh) +
                       ' * sigma = {:5.2f}'.format(sigma))
