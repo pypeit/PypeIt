@@ -3215,9 +3215,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         pix_per_mm = self.spectrograph.telescope.platescale() \
                         / self.spectrograph.detector[self.det-1]['platescale']
 
-        import pdb
-        pdb.set_trace()
-
         # If the traces are synchronized, use the estimated scale to
         # first mask edges that yeild slits that are too small relative
         # to the range of slit lengths in the mask file.
@@ -3259,20 +3256,19 @@ class EdgeTraceSet(masterframe.MasterFrame):
             offset_rng = [offset-np.absolute(np.amin(x_trace)-np.amin(pix_per_mm*x_design))*1.1,
                           offset+np.absolute(np.amax(pix_per_mm*x_design)-np.amax(x_trace))*1.1]
 
-        import pdb
-        pdb.set_trace()
-
-        slitmask.xc_trace(x_trace, x_design, pix_per_mm)
-
-        pdb.set_trace()
+#        import pdb
+#        pdb.set_trace()
+#
+#        slitmask.xc_trace(x_trace, x_design, pix_per_mm)
+#
+#        pdb.set_trace()
 
         # The solution can be highly dependent on the initial guess for
         # the offset, so do an initial grid search to get close to the
         # solution.
         msgs.info('Running a grid search to try to find the best starting offset.')
         # Step by 2 pixels
-        # TODO: Make a parameter?
-        off = np.arange(offset_rng[0], offset_rng[1], 1).astype(float)
+        off = np.arange(offset_rng[0], offset_rng[1], 2).astype(float)
         rms = np.zeros_like(off, dtype=float)
         scl = np.zeros_like(off, dtype=float)
         par = np.array([0, pix_per_mm])
@@ -3297,7 +3293,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         for i in range(off.size):
             print('Grid point: {0}/{1}'.format(i+1, off.size), end='\r')
             par[0] = off[i]
-            register.find_best_match(guess=par, fix=[True,False], bounds=bounds, penalty=True) #False)
+            register.find_best_match(guess=par, fix=[True,False], bounds=bounds, penalty=False)
             minsep = register.match(unique=True)[1]
             scl[i] = register.par[1]
             rms[i] = sigma_clipped_stats(minsep, sigma=5)[2]
@@ -3330,8 +3326,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Find the missing, bad, and masked traces
         missing, bad = register.trace_mismatch(minmax=[0, self.nspat], synced=True)
-        masked_by_registration = np.where(register.trace_mask & np.invert(x_trace_mask))[0]
-        bad = np.append(bad, masked_by_registration)
+#        masked_by_registration = np.where(register.trace_mask & np.invert(x_trace_mask))[0]
+#        bad = np.append(bad, masked_by_registration)
+        bad = np.append(bad, np.where(register.trace_mask | x_trace_mask)[0])
 
         # Ignore missing alignment boxes
         if ignore_alignment:
@@ -3367,6 +3364,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             missing_traces = self.pca.predict(register.match_coo[missing])
             # Insert them
             self.insert_traces(side, missing_traces, mode='mask')
+
+        import pdb
+        pdb.set_trace()
 
         if len(bad) > 0 or len(missing) > 0:
             # Traces were removed and/or inserted, resync or recheck that the edges are synced.
@@ -4358,10 +4358,10 @@ def fit_trace(flux, trace, order, ivar=None, mask=None, trace_mask=None, weighti
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data
-        # TODO: Change this to masked_centroid
+        # TODO: Make maxshift and maxerror parameters
         trace_cen, trace_err, bad_trace \
                 = masked_centroid(flux, trace_fit, width[i], ivar=ivar, mask=mask, fwgt=fwgt,
-                                  weighting=weighting, maxshift=0.5, maxerror=0.2)
+                                  weighting=weighting) #, maxshift=0.5, maxerror=0.2)
 
         # Do not do any kind of masking based on the trace recentering
         # errors. Trace fitting is much more robust when masked pixels

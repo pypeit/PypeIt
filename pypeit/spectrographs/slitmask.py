@@ -521,7 +521,7 @@ class SlitRegister:
             (trace-mask).
         """
         # Match slits based on their separation
-        mask_pix, min_sep, min_indx = self.match(par=par, unique=True)
+        mask_pix, min_sep, min_indx = self.match(par=par) #, unique=True)
         # Only return residuals for the unmasked trace positions
         gpm = numpy.invert(self.trace_mask)
         min_sep = min_sep[gpm]
