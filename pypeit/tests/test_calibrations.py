@@ -52,7 +52,7 @@ def multi_caliBrate(fitstbl):
     #
     calib_par = par['calibrations']
     calib_par['badpix'] = False
-    calib_par['biasframe']['useframe'] = 'overscan'
+    calib_par['biasframe']['useframe'] = 'none' # Only use overscan
 
     multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph)
     return reset_calib(multi_caliBrate)
@@ -74,7 +74,6 @@ def multi_caliBrate_reuse(multi_caliBrate):
     multi_caliBrate.save_masters = True
     return multi_caliBrate
 
-
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
@@ -82,14 +81,18 @@ def test_instantiate(fitstbl):
 
 
 def test_bias(multi_caliBrate):
+    """
+    This should only overscan subtract
+
+    Returns:
+
+    """
     multi_caliBrate.get_bias()
 
 
 def test_arc(multi_caliBrate):
-    multi_caliBrate.msbias = 'overscan'
     arc = multi_caliBrate.get_arc()
     assert arc.shape == (2048,350)
-
 
 def test_bpm(multi_caliBrate):
     # Prep
@@ -106,7 +109,6 @@ def test_slits(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
-    multi_caliBrate.msbias = 'overscan'
     # Run
     tslits_dict = multi_caliBrate.get_slits(write_qa=False)
     # Test
@@ -120,7 +122,6 @@ def test_wv_calib(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
-    multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_arc()
     multi_caliBrate.get_slits(write_qa=False)
     # Run
@@ -137,7 +138,6 @@ def test_tilts(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
-    multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_arc()
     multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
@@ -153,7 +153,6 @@ def test_flat(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
-    multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_arc()
     multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
@@ -170,7 +169,6 @@ def test_waveimg(multi_caliBrate):
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
-    multi_caliBrate.msbias = 'overscan'
     multi_caliBrate.get_arc()
     multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
@@ -233,7 +231,6 @@ def test_reuse(multi_caliBrate_reuse):
     #   - These don't source a master file
     multi_caliBrate_reuse.shape = (2048,350)
     multi_caliBrate_reuse.get_bpm()
-    multi_caliBrate_reuse.msbias = 'overscan'
     #   - The arc is the first sourced master
     assert 'arc' not in multi_caliBrate_reuse.master_key_dict.keys(), \
             'arc master key should not be defined yet'
@@ -256,4 +253,3 @@ def test_reuse(multi_caliBrate_reuse):
 
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)
-

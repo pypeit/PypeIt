@@ -23,7 +23,6 @@ from pypeit.core import pca
 from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit import debugger
-from pypeit.utils import calc_ivar
 from pypeit.core import extract
 from pypeit.core import arc
 from pypeit.core import pydl
@@ -2937,7 +2936,7 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     if invvar is None:
         invvar = np.zeros_like(fimage) + 1.
 
-    var =calc_ivar(invvar)
+    var = utils.inverse(invvar, positive=True)
     # More setting up
     x_int = np.rint(xinit).astype(int)
     nstep = 2*int(3.0*np.max(sigma_out)) - 1

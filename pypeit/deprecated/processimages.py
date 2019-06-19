@@ -433,6 +433,7 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtract")
+                msgs.error("THE FOLLOWING IS OLD AND DEPRECATED")
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec[kk],
                                                  self.oscansec[kk],
                                                  method=self.proc_par['overscan'],

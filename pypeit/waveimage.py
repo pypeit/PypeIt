@@ -4,7 +4,6 @@ Module for guiding construction of the Wavelength Image
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 
 """
-import os
 import inspect
 
 import numpy as np
@@ -12,12 +11,12 @@ import numpy as np
 from pypeit import msgs
 from pypeit import utils
 from pypeit.masterframe import MasterFrame
-from pypeit import ginga
 from pypeit.core import pixels
+from pypeit.images import pypeitimage
 from pypeit.core import trace_slits
 import IPython
 
-class WaveImage(MasterFrame):
+class WaveImage(pypeitimage.PypeItImage, MasterFrame):
     """
     Class to generate the Wavelength Image
 
@@ -40,7 +39,7 @@ class WaveImage(MasterFrame):
     Attributes:
         frametype : str
           Hard-coded to 'wave'
-        mswave (ndarray): Wavelength image
+        image (ndarray): Wavelength image
         steps (list): List of the processing steps performed
 
     """
@@ -48,8 +47,11 @@ class WaveImage(MasterFrame):
 #    frametype = 'wave'
     master_type = 'Wave'
 
-    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, maskslits,
+    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, det, maskslits,
                  master_key=None, master_dir=None, reuse_masters=False):
+
+        # Image
+        pypeitimage.PypeItImage.__init__(self, spectrograph, det)
 
         # MasterFrame
         MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
@@ -81,7 +83,7 @@ class WaveImage(MasterFrame):
 
 
         # Main output
-        self.mswave = None
+        self.image = None
 
     def build_wave(self):
         """
@@ -93,7 +95,7 @@ class WaveImage(MasterFrame):
         """
         # Loop on slits
         ok_slits = np.where(~self.maskslits)[0]
-        self.mswave = np.zeros_like(self.tilts)
+        self.image = np.zeros_like(self.tilts)
         nspec = self.slitmask.shape[0]
 
         # Error checking on the wv_calib
@@ -112,7 +114,7 @@ class WaveImage(MasterFrame):
             if self.par['echelle']:
                 order = self.spectrograph.slit2order(self.slit_spat_pos[slit])
                 # evaluate solution
-                self.mswave[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
+                self.image[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
                                                        self.tilts[thismask],
                                                        self.wv_calib['fit2d']['func2d'],
                                                        x2=np.ones_like(self.tilts[thismask])*order,
@@ -120,40 +122,24 @@ class WaveImage(MasterFrame):
                                                        maxx=self.wv_calib['fit2d']['max_spec'],
                                                        minx2=self.wv_calib['fit2d']['min_order'],
                                                        maxx2=self.wv_calib['fit2d']['max_order'])
-                self.mswave[thismask] /= order
+                self.image[thismask] /= order
             else:
                 iwv_calib = self.wv_calib[str(slit)]
-                self.mswave[thismask] = utils.func_val(iwv_calib['fitc'], self.tilts[thismask],
+                self.image[thismask] = utils.func_val(iwv_calib['fitc'], self.tilts[thismask],
                                                        iwv_calib['function'],
                                                        minx=iwv_calib['fmin'],
                                                        maxx=iwv_calib['fmax'])
 
         # Return
         self.steps.append(inspect.stack()[0][3])
-        return self.mswave
-
-    def show(self, item='wave'):
-        """
-        Show the image
-
-        Args:
-            item (str, optional):
-
-        Returns:
-
-        """
-        if item == 'wave':
-            if self.mswave is not None:
-                ginga.show_image(self.mswave)
-        else:
-            msgs.warn("Not able to show this type of image")
+        return self.image
 
     def __repr__(self):
         # Generate sets string
         txt = '<{:s}: >'.format(self.__class__.__name__)
         return txt
 
-    def save(self, outfile=None, overwrite=True, mswave=None):
+    def save(self, outfile=None, overwrite=True, image=None):
         """
         Save the master wavelength image.
 
@@ -164,8 +150,8 @@ class WaveImage(MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _mswave = self.mswave if mswave is None else mswave
-        super(WaveImage, self).save(_mswave, 'WAVE', outfile=outfile, overwrite=overwrite,
+        _image = self.image if image is None else image
+        super(WaveImage, self).save(_image, 'WAVE', outfile=outfile, overwrite=overwrite,
                                     steps=self.steps)
 
     # TODO: it would be better to have this instantiate the full class

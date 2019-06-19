@@ -164,12 +164,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 2.12, #
                             ronoise         = 8.0, # ?? more precise value? #TODO the read noise is exposure time  dependent and should be grabbed from header
-                            datasec         = '[4:,4:2044]', # These are all unbinned pixels
+                            datasec         = '[4:2044,4:]', # These are all unbinned pixels
                             # EMA: No real overscan for XSHOOTER-NIR: 
                             # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
                             # The overscan region below contains only zeros
                             # ToDo should we just set it as empty?
-                            oscansec        = '[1:3,4:2044]', # These are all unbinned pixels.
+                            oscansec        = '[4:2044,1:3]', # These are all unbinned pixels.
                             suffix          = '_NIR'
                             )]
         self.numhead = 1
@@ -471,8 +471,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 0.595, # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
                             ronoise         = 3.1, # raw unbinned images are (4000,2106) (spec, spat)
-                            datasec='[11:2058,1:]',  # pre and oscan are in the spatial direction
-                            oscansec='[2059:2106,1:]',
+                            datasec='[:,11:2058]',  # pre and oscan are in the spatial direction
+                            oscansec='[:,2059:2106]',
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
@@ -492,11 +492,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Adjustments to parameters for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
-        par['calibrations']['arcframe']['useframe']= 'overscan'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['traceframe']['useframe']= 'overscan'
-        par['calibrations']['biasframe']['useframe']= 'overscan'
-        # TODO THIS IS STUPID. biasframe currently determines behvior for everyone. See Issue # 554
 
         par['calibrations']['slits']['sigdetect'] = 8.0
         par['calibrations']['slits']['trace_npoly'] = 8
@@ -741,8 +737,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[49:2096,1:]', # '[49:2000,1:2999]',
-                            oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
+                            datasec         = '[:,49:2096]', # '[49:2000,1:2999]',
+                            oscansec        = '[:,1:48]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             )]
         self.numhead = 1

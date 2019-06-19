@@ -39,8 +39,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 3.8,
                             ronoise         = 5.0,
-                            datasec         = '[1:2048,1:1024]',
-                            oscansec        = '[1:2048,980:1024]'
+                            datasec         = '[:,:]',
+                            oscansec        = '[980:1024,:]'  # Is this a hack??
                             )]
         self.norders = 5
         # Uses default timeunit
@@ -99,13 +99,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
-        # Do not bias subtract
-        par['scienceframe']['useframe'] ='overscan'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
-
-
+        # Overscan but not bias
+        #  This seems like a kludge of sorts
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
 
         # Set the default exposure time ranges for the frame typing

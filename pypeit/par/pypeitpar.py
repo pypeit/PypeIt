@@ -190,7 +190,7 @@ class ProcessImagesPar(ParSet):
     """
     def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -206,6 +206,14 @@ class ProcessImagesPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+        defaults['bias'] = 'as_available'
+        options['bias'] = ProcessImagesPar.valid_bias()
+        dtypes['bias'] = str
+        descr['bias'] = 'Parameter for bias subtraction. ' \
+                        'as_available: Bias subtract if bias frames were provided' \
+                        'force: Require bias subtraction, i.e., break if bias frames were not provided' \
+                        'skip: Skip bias subtraction even if bias frames were provided'
+
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
         dtypes['overscan'] = str
@@ -296,20 +304,28 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'overscan', 'overscan_par', 'match', 'combine', 'satpix', 'sigrej', 'n_lohi',
-                    'sig_lohi', 'replace', 'lamaxiter', 'grow', 'rmcompact', 'sigclip', 'sigfrac',
-                    'objlim' ]
+        parkeys = [ 'bias', 'overscan', 'overscan_par', 'match',
+                    'combine', 'satpix', 'sigrej', 'n_lohi',
+                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
+                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
     @staticmethod
+    def valid_bias():
+        """
+        Return the valid bias methods.
+        """
+        return ['as_available', 'force', 'skip']
+
+    @staticmethod
     def valid_overscan():
         """
         Return the valid overscan methods.
         """
-        return [ 'polynomial', 'savgol', 'median' ]
+        return ['polynomial', 'savgol', 'median','none']
 
     @staticmethod
     def valid_combine_methods():

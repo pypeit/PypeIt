@@ -6,11 +6,14 @@ import pytest
 import numpy as np
 import copy
 
+from IPython import embed
+
 from astropy import time
 
 from pypeit import arcimage
 from pypeit import traceslits
 from pypeit import wavecalib
+from pypeit import flatfield
 from pypeit import wavetilts
 from pypeit.masterframe import MasterFrame
 from pypeit.core.wavecal import waveio
@@ -111,19 +114,23 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.  We should remove the get_spectrograph option.
-def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, datasec=False, wvcalib=False):
+def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False, pixflat=False):
     """
     Load up the set of shane_kast_blue master frames
+
+    Order is Arc, tslits_dict, tilts_dict, wv_calib, pixflat
 
     Args:
         get_spectrograph:
         aimg:
-        tslits:
+        tslits (bool, optional):
+            Load the tslits_dict
         tilts:
         datasec:
         wvcalib:
 
     Returns:
+        list: List of calibration items
 
     """
 
@@ -159,16 +166,21 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, datasec=False,
         tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
         ret.append(tilts_dict)
 
-    if datasec:
-        datasec_img = spectrograph.get_datasec_img(data_path('b1.fits.gz'), 1)
-        ret.append(datasec_img)
-
     if wvcalib:
         calib_file = os.path.join(master_dir,
                                   MasterFrame.construct_file_name('WaveCalib', master_key,
                                                                   file_format='json'))
         wv_calib = waveio.load_wavelength_calibration(calib_file) 
         ret.append(wv_calib)
+
+    # Pixelflat
+    if pixflat:
+        flatField = flatfield.FlatField(spectrograph,
+                                        spectrograph.default_pypeit_par()['calibrations']['pixelflatframe'])
+        calib_file = os.path.join(master_dir,
+                                  MasterFrame.construct_file_name('Flat', master_key))
+        pixelflat = flatField.load_from_file(calib_file, 2)
+        ret.append(pixelflat)
 
     # Return
     return ret
