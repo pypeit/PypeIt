@@ -122,7 +122,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+    def load_raw_frame(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for LRIS
 
@@ -136,12 +136,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             raw_img: ndarray
               Raw image;  likely unsigned int
-            head0: Header
+            hdu: HDUList
 
         """
-        raw_img, head0, _ = read_gmos(raw_file, det=det)
+        raw_img, hdu, _ = read_gmos(raw_file, det=det)
 
-        return raw_img, head0
+        return raw_img, hdu
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """
@@ -560,7 +560,7 @@ def read_gmos(raw_file, det=1):
     -------
     array : ndarray
       Combined image 
-    header : FITS header
+    hdu : FITS HDUList
     sections : list
       List of datasec, oscansec, ampsec sections
     """
@@ -652,7 +652,7 @@ def read_gmos(raw_file, det=1):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    return array, head0, (dsec, osec)
+    return array, hdu, (dsec, osec)
 
 
 def gemini_read_amp(inp, ext):

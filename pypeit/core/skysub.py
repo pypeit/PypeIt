@@ -3,9 +3,10 @@
 import numpy as np
 import sys, os
 
-from pypeit import msgs, utils, processimages, ginga
+from pypeit import msgs, utils, ginga
 from pypeit.core import pixels, extract, pydl
 from IPython import embed
+from pypeit.images import maskimage
 
 from matplotlib import pyplot as plt
 
@@ -926,7 +927,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
     """
 
-    bitmask = processimages.ProcessImagesBitMask()  # The bit mask interpreter
+    bitmask = maskimage.ImageBitMask()
 
     # Allocate the images that are needed
     # Initialize to mask in case no objects were found

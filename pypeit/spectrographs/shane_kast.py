@@ -188,8 +188,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.2, 1.2],
                             ronoise         = [3.7, 3.7],
-                            datasec         = [ '[1:1024,:]', '[1025:2048,:]'],
-                            oscansec        = [ '[2050:2080,:]', '[2081:2111,:]'],
+                            datasec         = ['[:, 1:1024]', '[:, 1025:2048]'],    # These are rows, columns on the raw frame, 1-indexed
+                            oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
                             suffix          = '_blue'
                             )]
         self.numhead = 1
@@ -300,8 +300,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.9, 1.9],
                             ronoise         = [3.8, 3.8],
-                            datasec         = ['[40:102,:]', '[103:347,:]'],
-                            oscansec        = ['[425:522,:]', '[524:610,:]'],
+                            datasec         = ['[:,40:102]', '[:,103:347]'],
+                            oscansec        = ['[:,425:522]', '[:,524:610]'],
                             suffix          = '_red'
                             )]
         self.numhead = 1
@@ -324,7 +324,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
     def init_meta(self):
         """
-        Meta data specific to shane_kast_blue
+        Meta data specific to shane_kast_red
 
         Returns:
 
@@ -355,21 +355,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         super(ShaneKastRedSpectrograph, self).check_headers(headers,
                                                             expected_values=expected_values)
 
-    def header_keys(self):
-        """
-        Header keys specific to shane_kast_red
-
-        Returns:
-
-        """
-        hdr_keys = super(ShaneKastRedSpectrograph, self).header_keys()
-        hdr_keys[0]['dispname'] = 'GRATING_N'
-        hdr_keys[0]['filter1'] = 'RDFILT_N'
-        hdr_keys[0]['dispangle'] = 'GRTILT_P'
-        return hdr_keys
-
-
-
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     """
     Child to handle Shane/Kast red specific code
@@ -396,7 +381,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 1,
                             gain            = 3.0,
                             ronoise         = 12.5,
-                            oscansec        = '[1203:1232,:]',
+                            datasec         = '[:,1:1200]',
+                            oscansec        = '[:,1203:1232]',
                             suffix          = '_red'
                             )]
         # TODO: Can we change suffix to be unique wrt ShaneKastRed?
@@ -438,19 +424,6 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         super(ShaneKastRedRetSpectrograph, self).check_headers(headers,
                                                                expected_values=expected_values)
     
-    def header_keys(self):
-        """
-        Header keys specific to shane_kast_red_ret
-
-        Returns:
-
-        """
-        hdr_keys = super(ShaneKastRedRetSpectrograph, self).header_keys()
-        hdr_keys[0]['dispname'] = 'GRATNG_N'
-        hdr_keys[0]['filter1'] = 'RDFILT_N'
-        hdr_keys[0]['dispangle'] = 'GRTILT_P'
-        return hdr_keys
-
     def init_meta(self):
         """
         Meta data specific to shane_kast_blue

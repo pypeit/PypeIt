@@ -205,7 +205,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['trace_npoly'] = 3
 
         # Overscan subtract the images
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        #par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -392,7 +392,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                  'trace': 'IntFlat' }
         return name[ftype]
   
-    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+    def load_raw_frame(self, raw_file, det=None):
         """
         Wrapper to the raw image reader for DEIMOS
 
@@ -408,9 +408,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
               Raw image;  likely unsigned int
             head0: Header
         """
-        raw_img, head0, _ = read_deimos(raw_file, det=det)
+        raw_img, hdu, _ = read_deimos(raw_file, det=det)
 
-        return raw_img, head0
+        return raw_img, hdu
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
@@ -456,7 +456,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             msgs.error('Must provide Keck DEIMOS file to get image section.')
         elif not os.path.isfile(inp):
             msgs.error('File {0} does not exist!'.format(inp))
-        temp, head0, secs = read_deimos(inp, det)
+        _, _, secs = read_deimos(inp, det)
         if section == 'datasec':
             return secs[0], False, False
         elif section == 'oscansec':
@@ -914,7 +914,7 @@ def read_deimos(raw_file, det=None):
     -------
     array : ndarray
       Combined image
-    header : FITS header
+    hdu: HDUList
     sections : tuple
       List of datasec, oscansec sections
     """
@@ -988,7 +988,7 @@ def read_deimos(raw_file, det=None):
         dsec.append(idsec)
         osec.append(iosec)
     # Return
-    return image, head0, (dsec,osec)
+    return image, hdu, (dsec,osec)
 
 
 def indexing(itt, postpix, det=None):

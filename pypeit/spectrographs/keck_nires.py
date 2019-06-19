@@ -39,8 +39,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 3.8,
                             ronoise         = 5.0,
-                            datasec         = '[1:2048,1:1024]',
-                            oscansec        = '[1:2048,980:1024]'
+                            datasec         = '[:,:]',
+                            oscansec        = '[980:1024,:]'  # Is this a hack??
                             )]
         self.norders = 5
         # Uses default timeunit
@@ -99,13 +99,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
-        # Do not bias subtract
-        par['scienceframe']['useframe'] ='overscan'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
-
-
+        # Overscan but not bias
+        #  This seems like a kludge of sorts
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
 
         # Set the default exposure time ranges for the frame typing
@@ -254,10 +250,12 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         # Check
         if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.error("Bad echelle input for VLT X-Shooter VIS")
-
-        # Return
-        return orders[iorder]
+            msgs.warn("Bad echelle format for Keck-NIRES or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return orders[iorder]
+        else:
+            return orders[iorder]
 
 
     def order_platescale(self, order_vec, binning=None):
