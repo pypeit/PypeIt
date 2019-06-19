@@ -1483,7 +1483,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
 
     slit_spat_pos = (np.interp(slit_spec_pos, spec_vec, slit_left), np.interp(slit_spec_pos, spec_vec, slit_righ))
 
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg = trim_edg)
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
     # If a mask was not passed in, create it
     if inmask is None:
@@ -1505,6 +1505,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0,
     flux_mean_med = np.median(flux_mean[smash_mask])
     flux_mean[np.invert(smash_mask)] = 0.0
     if (nsamp < 9.0*fwhm):
+        # This may lead to many negative fluxsub values..
+        # TODO: Calculate flux_mean_med by avoiding the peak
         fluxsub = flux_mean - flux_mean_med
     else:
         kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd

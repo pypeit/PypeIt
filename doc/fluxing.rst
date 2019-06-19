@@ -49,6 +49,7 @@ To flux one or more spec1d files, generate a `flux read`, e.g.::
 
 The first entry of each row is the spec1d file to be fluxed
 and the second provides the output filename.
+One separates the two entries by *a single space*!
 
 .. _fluxspec-script:
 
