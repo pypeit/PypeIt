@@ -436,9 +436,10 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                               newimg, new_ivar, new_rn2, files=new_files)
         #TODO: KW properly handle adding the bits
         #embed(header='279 in sciImg')
-        crmask_diff = new_sciImg.build_crmask()
-        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
-        new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
+        if self.par['cr_reject']:
+            crmask_diff = new_sciImg.build_crmask()
+            # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
+            new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
         # Note that the following uses the saturation and mincounts held in
         # self.spectrograph.detector[self.det-1]
         new_sciImg.build_mask()
