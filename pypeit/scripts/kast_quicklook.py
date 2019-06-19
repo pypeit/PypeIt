@@ -41,38 +41,34 @@ def main(pargs):
 
     from pypeit import pypeit
     from pypeit import pypeitsetup
+    from pypeit.core import framematch
 
-    if pargs.camers == 'blue':
+    if pargs.camera == 'blue':
         spec = 'shane_kast_blue'
-    elif pargs.camers == 'red':
+    elif pargs.camera == 'red':
         spec = 'shane_kast_red'
     else:
         msgs.error("Camera needs to be blue or red")
 
     # Setup
-    data_files = [os.path.join(pargs.full_rawpath, pargs.fileA), os.path.join(pargs.full_rawpath,pargs.fileB)]
+    data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
+                  os.path.join(pargs.full_rawpath,pargs.flat),
+                  os.path.join(pargs.full_rawpath,pargs.science)]
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec)
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
-    ps.fitstbl.set_frame_types(np.array([32]*2))  # 1=arc, 32=science
+    bm = framematch.FrameTypeBitMask()
+    bits = [bm.bits[iftype] for iftype in ['arc', 'pixelflat', 'trace', 'science']]
+    ps.fitstbl.set_frame_types(np.array([2**bits[0], 2**bits[1] + 2**bits[2], 2**bits[3]]))  # 1=arc, 16=pixelflat, 32=science, trace=128
     ps.fitstbl.set_combination_groups()
     # Extras
     ps.fitstbl['setup'] = 'A'
-    # A-B
-    ps.fitstbl['bkg_id'] = [2,1]
-
-    # Calibrations
-    master_dir = os.getenv('NIRES_MASTERS')
-    if master_dir is None:
-        msgs.error("You need to set an Environmental variable NIRES_MASTERS that points at the Master Calibs")
 
     # Config the run
     cfg_lines = ['[rdx]']
-    cfg_lines += ['    spectrograph = {0}'.format('keck_nires')]
-    cfg_lines += ['    redux_path = {0}'.format(os.path.join(os.getcwd(),'keck_nires_A'))]
+    cfg_lines += ['    spectrograph = {0}'.format(spec)]
+    cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
     cfg_lines += ['[calibrations]']
-    cfg_lines += ['    caldir = {0}'.format(master_dir)]
-    # Skip CR
     cfg_lines += ['    [[scienceframe]]']
     cfg_lines += ['        [[process]]']
     cfg_lines += ['              cr_reject = False']
@@ -91,7 +87,7 @@ def main(pargs):
     # Instantiate the main pipeline reduction object
     pypeIt = pypeit.PypeIt(ofiles[0], verbosity=2,
                            reuse_masters=True, overwrite=True,
-                           logname='nires_proc_AB.log', show=False)
+                           logname='kast.log', show=False)
     # Run
     pypeIt.reduce_all()
     msgs.info('Data reduction complete')

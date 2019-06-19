@@ -17,7 +17,8 @@ from pypeit.core import qa
 from pypeit.core import wave
 from pypeit.core import save
 from pypeit.core import load
-from pypeit.core import pixels as ppixels
+from pypeit.core import pixels
+from pypeit.core import extract
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
@@ -564,7 +565,7 @@ class PypeIt(object):
                 self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
 
         # Update mask for slitmask
-        slitmask = ppixels.tslits2mask(self.caliBrate.tslits_dict)
+        slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
         self.sciImg.update_mask_slitmask(slitmask)
 
         # For QA on crash
@@ -608,25 +609,29 @@ class PypeIt(object):
         if self.nobj > 0:
             if self.par['scienceimage']['boxcar_only']:  # ONLY FOR ECHELLE + NEAR-IR SO FAR!
                 # Quick loop over the objects
-                from pypeit.core import pixels, extract
                 slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
                 for iord in range(self.nobj):
-                    thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)# pos indices of objects for this slit
-                    thismask = (slitmask == iord) # pixels for this slit
+                    if self.spectrograph.pypeline == 'Echelle':
+                        thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)# pos indices of objects for this slit
+                        sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
+                        plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
+                    else:
+                        thisobj = iord
+                        sobj = self.sobjs_obj[thisobj]
+                        plate_scale = self.spectrograph.detector[self.det-1]['platescale']
                     # True  = Good, False = Bad for inmask
+                    thismask = (slitmask == iord) # pixels for this slit
                     inmask = (self.sciImg.mask == 0) & thismask
                     # Do it
-                    sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
-                    plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
                     extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
                                                    self.caliBrate.mswave, self.initial_sky, self.sciImg.rn2img,
                                                    self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
-                    self.sobjs = self.sobjs_obj
-                    # Fill me up -- Should sync with the nobj=0 case  -- Could just set this as the DEFAULTS before optimal
-                    self.skymodel = self.initial_sky
-                    self.objmodel = np.zeros_like(self.sciImg.image)
-                    self.ivarmodel = np.copy(self.sciImg.ivar)
-                    self.outmask = self.sciImg.mask
+                # Fill me up -- Should sync with the nobj=0 case  -- Could just set this as the DEFAULTS before optimal
+                self.sobjs = self.sobjs_obj
+                self.skymodel = self.initial_sky
+                self.objmodel = np.zeros_like(self.sciImg.image)
+                self.ivarmodel = np.copy(self.sciImg.ivar)
+                self.outmask = self.sciImg.mask
             else:
                 # Global sky subtraction second pass. Uses skymask from object finding
                 self.global_sky = self.initial_sky if self.std_redux else \
