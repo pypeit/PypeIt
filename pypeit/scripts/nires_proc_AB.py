@@ -62,10 +62,14 @@ def main(pargs):
     cfg_lines += ['    redux_path = {0}'.format(os.path.join(os.getcwd(),'keck_nires_A'))]
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    caldir = {0}'.format(master_dir)]
-    # Boxcar radius
+    # Skip CR
+    cfg_lines += ['    [[scienceframe]]']
+    cfg_lines += ['        [[process]]']
+    cfg_lines += ['              cr_reject = False']
     cfg_lines += ['[scienceimage]']
     cfg_lines += ['    boxcar_only = True']
     cfg_lines += ['    skip_second_find = True']
+    # Boxcar radius
     if pargs.box_radius is not None:
         cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
 

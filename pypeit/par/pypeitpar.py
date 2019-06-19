@@ -99,7 +99,8 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, number=None, exprng=None, process=None):
+    def __init__(self, frametype=None, useframe=None, number=None, exprng=None,
+                 process=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -191,7 +192,8 @@ class ProcessImagesPar(ParSet):
     """
     def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
+                 cr_reject=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -245,6 +247,10 @@ class ProcessImagesPar(ParSet):
         dtypes['satpix'] = str
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
+
+        defaults['cr_reject'] = False
+        dtypes['cr_reject'] = bool
+        descr['cr_reject'] = 'Reject CRs. Presently this only can happen for Science frames'
 
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
@@ -308,7 +314,8 @@ class ProcessImagesPar(ParSet):
         parkeys = [ 'bias', 'overscan', 'overscan_par', 'match',
                     'combine', 'satpix', 'sigrej', 'n_lohi',
                     'sig_lohi', 'replace', 'lamaxiter', 'grow',
-                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+                    'rmcompact', 'sigclip', 'sigfrac', 'objlim',
+                    'cr_reject']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2020,7 +2027,7 @@ class PypeItPar(ParSet):
         dtypes['calibrations'] = [ ParSet, dict ]
         descr['calibrations'] = 'Parameters for the calibration algorithms'
 
-        defaults['scienceframe'] = FrameGroupPar(frametype='science')
+        defaults['scienceframe'] = FrameGroupPar(frametype='science', process=ProcessImagesPar(cr_reject=False))
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 

@@ -143,8 +143,9 @@ class ImageMask(object):
         mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
 
         # Cosmic rays
-        indx = self.crmask.astype(bool)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
+        if self.crmask is not None:
+            indx = self.crmask.astype(bool)
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
 
         # Saturated pixels
         indx = image >= saturation
