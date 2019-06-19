@@ -325,3 +325,5 @@ def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     edgemask = (slitpix > 0) & np.any([pixleft < trim_edg[0], pixright < trim_edg[1]], axis=0)
     # Return
     return ximg, edgemask
+
+

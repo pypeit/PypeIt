@@ -490,12 +490,11 @@ def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe
         msgs.error("Cannot set both varframe and snframe")
 
     # Fold in the slit profile
+    final_flat = flatframe.copy()
     if illum_flat is not None:
         if np.any(illum_flat != 1.0):
-            msgs.info('Dividing by illumination flat')
-            final_flat = flatframe * illum_flat  # Previous code was modifying flatframe!
-        else:
-            final_flat = flatframe.copy()
+            msgs.info('Applying illumination flat')
+            final_flat *= illum_flat  # Previous code was modifying flatframe!
 
     # New image
     retframe = np.zeros_like(sciframe)

@@ -303,7 +303,7 @@ class Calibrations(object):
         self.msarc = self.arcImage.load()
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
-            self.msarc = self.arcImage.build_image()
+            self.msarc = self.arcImage.build_image(bias=self.msbias, bpm=self.msbpm)
             # Save to Masters
             if self.save_masters:
                 self.arcImage.save()
@@ -367,7 +367,7 @@ class Calibrations(object):
         TODO -- Should consider doing this outside of calibrations as it is
         more specific to the science frame
 
-        This needs to be for the *trimmed* image!
+        This needs to be for the *trimmed* and correctly oriented image!
 
         Requirements:
            Instrument dependent
@@ -388,12 +388,14 @@ class Calibrations(object):
 
         # Build the data-section image
         sci_image_file = self.fitstbl.frame_paths(self.frame)
-        dsec_img = self.spectrograph.get_datasec_img(sci_image_file, det=self.det)
+        rdsec_img = self.spectrograph.get_rawdatasec_img(sci_image_file, det=self.det)
 
         # Instantiate the shape here, based on the shape of the science
         # image. This is the shape of most calibrations, although we are
         # allowing for arcs of different shape because of X-shooter etc.
-        self.shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+        trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+        orient = self.spectrograph.orient_image(trim, self.det)
+        self.shape = orient.shape
 
         # Build it
         self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_file, det=self.det)
@@ -600,9 +602,9 @@ class Calibrations(object):
             # Build the trace image
             self.traceImage = traceimage.TraceImage(self.spectrograph,
                                                     files=self.trace_image_files, det=self.det,
-                                                    par=self.par['traceframe'])
-            self.traceImage.process(bias_subtract=self.msbias, trim=self.par['trim'],
-                                    apply_gain=True)
+                                                    par=self.par['traceframe'],
+                                                    bias=self.msbias)
+            self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
             binspectral, binspatial = parse.parse_binning(self.binning)
@@ -621,10 +623,12 @@ class Calibrations(object):
                                                                   self.det, rm=True)
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(self.traceImage.stack, self.binning,
+                self.tslits_dict = self.traceSlits.run(self.traceImage.image,
+                                                       self.binning,
                                                        add_user_slits=add_user_slits,
                                                        rm_user_slits=rm_user_slits,
-                                                       plate_scale=plate_scale, show=self.show,
+                                                       plate_scale=plate_scale,
+                                                       show=self.show,
                                                        write_qa=write_qa)
             except:
                 self.traceSlits.save(traceImage=self.traceImage)
@@ -680,7 +684,8 @@ class Calibrations(object):
         # Instantiate
         # TODO we are regenerating this mask a lot in this module. Could reduce that
         self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'],
-                                             self.wv_calib, self.spectrograph, self.tslits_dict['maskslits'],
+                                             self.wv_calib, self.spectrograph, self.det,
+                                             self.tslits_dict['maskslits'],
                                              master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)

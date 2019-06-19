@@ -2,9 +2,10 @@
 """
 import numpy as np
 
+from IPython import embed
 from pypeit import msgs
 
-def comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None,
+def comb_frames(frames_arr, saturation=None,
                      maskvalue=1048577, method='weightmean', satpix='reject', cosmics=None,
                      n_lohi=[0,0], sig_lohi=[3.,3.], replace='maxnonsat'):
     """
@@ -22,14 +23,9 @@ def comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None
     weights : str, or None (optional)
       How should the frame combination by weighted (not currently
       implemented)
-    frametype : str, optional
-      What is the type of frame being combining?
     maskvalue : int (optional)
       What should the masked values be set to (should be greater than
       the detector's saturation value -- Default = 1 + 2**20)
-    printtype : str (optional)
-      The frame type string that should be printed by armsgs. If None,
-      frametype will be used
     reject : dict, optional
       Set the rejection parameters:  cosmics, lowhigh, level, replace
       Perhaps these should be called out separately
@@ -46,18 +42,15 @@ def comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None
     # FIRST DO SOME CHECKS ON THE INPUT
     ###########
     # Was printtype specified
-    if printtype is None:
-        printtype = frametype
-    # Check the number of frames
     if frames_arr is None:
-        msgs.error("No '{0:s}' frames were given to comb_frames to combine".format(printtype))
+        msgs.error("No frames were given to comb_frames to combine")
     (sz_x, sz_y, num_frames) = np.shape(frames_arr)
     if num_frames == 1:
         msgs.info("Only one frame to combine!")
         msgs.info("Returning input frame")
         return frames_arr[:, :, 0]
     else:
-        msgs.info("Combining {0:d} {1:s} frames".format(num_frames, printtype))
+        msgs.info("Combining {0:d} frames".format(num_frames))
 
     # Check if the user has allowed the combination of long and short
     # frames (e.g. different exposure times)
@@ -210,7 +203,7 @@ def comb_frames(frames_arr, printtype=None, frametype='Unknown', saturation=None
 
     ##############
     # And return a 2D numpy array
-    msgs.info("{0:d} {1:s} frames combined successfully!".format(num_frames, printtype))
+    msgs.info("{0:d} frames combined successfully!".format(num_frames))
     # Make sure the returned array is the correct type
     comb_frame = np.array(comb_frame, dtype=np.float)
     return comb_frame
