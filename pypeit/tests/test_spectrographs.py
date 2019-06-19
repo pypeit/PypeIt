@@ -21,9 +21,9 @@ def test_keckdeimos():
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS',
                                 '830G_L_8400', 'd0914_0002.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck DEIMOS read.'
-    data, _ = s.load_raw_frame(example_file)
-    #
     det = 2
+    data, _ = s.load_raw_frame(example_file, det=det)
+    #
     rdsec_img = s.get_rawdatasec_img(example_file, det=det)
     trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
     orient = s.orient_image(trim, det)
@@ -39,9 +39,9 @@ def test_kecklrisblue():
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_blue',
                                 'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS blue read.'
-    data, _ = s.load_raw_frame(example_file)
-    #
     det = 2
+    data, _ = s.load_raw_frame(example_file, det=det)
+    #
     rdsec_img = s.get_rawdatasec_img(example_file, det=det)
     trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
     orient = s.orient_image(trim, det)
@@ -57,9 +57,9 @@ def test_kecklrisred():
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS red read.'
-    data, _ = s.load_raw_frame(example_file)
-    #
     det = 1
+    data, _ = s.load_raw_frame(example_file, det=det)
+    #
     rdsec_img = s.get_rawdatasec_img(example_file, det=det)
     trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
     orient = s.orient_image(trim, det)

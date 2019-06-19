@@ -52,16 +52,16 @@ def main(args):
     # RAW_LRIS??
     if args.raw_lris:
         # 
-        img, head, _ = keck_lris.read_lris(args.file)
+        img, _, _ = keck_lris.read_lris(args.file)
     # RAW_DEIMOS??
     elif args.raw_deimos:
         #
-        img, head, _ = keck_deimos.read_deimos(args.file)
+        img, _, _ = keck_deimos.read_deimos(args.file)
     # RAW_GEMINI??
     elif args.raw_gmos:
         # TODO this routine should show the whole mosaic if no detector number is passed in!
         # Need to figure out the number of amps
-        img, head, _ = gemini_gmos.read_gmos(args.file, det=args.det)
+        img, _, _ = gemini_gmos.read_gmos(args.file, det=args.det)
     else:
         hdu = fits.open(args.file)
         img = hdu[args.exten].data

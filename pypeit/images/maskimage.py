@@ -90,10 +90,7 @@ class ImageMask(object):
             np.ndarray: Copy of self.crmask (boolean)
 
         """
-        if subtract_img is not None:
-            use_img = image - subtract_img
-        else:
-            use_img = image
+        use_img = image if subtract_img is None else image - subtract_img
         # Run LA Cosmic to get the cosmic ray mask
         self.crmask = procimg.lacosmic(det, use_img,
                                   spectrograph.detector[det-1]['saturation'],
@@ -184,16 +181,11 @@ class ImageMask(object):
             slitmask (np.ndarray):
                 Slitmask with -1 values pixels *not* in a slit
 
-        Returns:
-            np.ndarray: new mask image
-
         """
         # Pixels excluded from any slit.
-        mask_new = np.copy(self.mask)
         indx = slitmask == -1
-        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'OFFSLITS')
         # Finish
-        self.mask = mask_new
+        self.mask[indx] = self.bitmask.turn_on(self.mask[indx], 'OFFSLITS')
 
     def update_mask_cr(self, crmask_new):
         """
@@ -205,11 +197,8 @@ class ImageMask(object):
         Args:
             crmask_new (np.ndarray):
                 New CR mask
-
-        Returns:
-            np.ndarray: new mask image
-
         """
+        '''
         # Unset the CR bit from all places where it was set
         CR_old = (self.bitmask.unpack(self.mask, flag='CR'))[0]
         mask_new = np.copy(self.mask)
@@ -219,6 +208,10 @@ class ImageMask(object):
         mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'CR')
         # Save
         self.mask = mask_new.copy()
+        '''
+        self.mask = self.bitmask.turn_off(self.mask, 'CR')
+        indx = crmask_new.astype(bool)
+        self.mask[indx] = self.bitmask.turn_on(self.mask[indx], 'CR')
 
 
 
