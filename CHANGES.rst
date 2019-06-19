@@ -16,7 +16,7 @@
 - Add find_trim_edge and std_prof_nsigma parameters
 - A bit of tuning for MagE
 - Fixes for Echelle in fluxspec
--
+
 
 0.10.1 (22 May 2019)
 --------------------
