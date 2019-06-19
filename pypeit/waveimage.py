@@ -14,8 +14,7 @@ from pypeit.masterframe import MasterFrame
 from pypeit.core import pixels
 from pypeit.images import pypeitimage
 from pypeit.core import trace_slits
-
-from IPython import embed
+import IPython
 
 class WaveImage(pypeitimage.PypeItImage, MasterFrame):
     """
@@ -64,7 +63,13 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
         self.tslits_dict = tslits_dict
         self.tilts = tilts
         self.wv_calib = wv_calib
-        self.slitmask = pixels.tslits2mask(self.tslits_dict) if tslits_dict is not None else None
+        if tslits_dict is not None:
+            self.slitmask = pixels.tslits2mask(self.tslits_dict)
+            self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+        else:
+            self.slitmask = None
+            self.slit_spat_pos = None
+
         # TODO: only echelle is ever used.  Do we need to keep the whole
         # thing?
         self.par = wv_calib['par'] if wv_calib is not None else None
@@ -72,7 +77,6 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
         self.maskslits = maskslits
 
         # For echelle order, primarily
-        self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
 
         # List to hold ouptut from inspect about what module create the image?
         self.steps = []
@@ -152,7 +156,7 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load_wave(self, ifile=None, return_header=False):
+    def load(self, ifile=None, return_header=False):
         """
         Load the wavelength image data from a saved master frame.
 
@@ -167,7 +171,7 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
             tuple: Returns an `numpy.ndarray`_ with the wavelength
             image.  Also returns the primary header, if requested.
         """
-        return super(WaveImage, self).load_master('WAVE', ifile=ifile, return_header=return_header)
+        return super(WaveImage, self).load('WAVE', ifile=ifile, return_header=return_header)
 
     @staticmethod
     def load_from_file(filename, return_header=False):

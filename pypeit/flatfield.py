@@ -16,11 +16,11 @@ from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit.core import trace_slits
-from pypeit.images import combinedimage
+from pypeit.images import calibrationimage
 
 from pypeit import debugger
 
-class FlatField(combinedimage.CombinedImage, masterframe.MasterFrame):
+class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
     Builds pixel-level flat-field and the illumination flat-field.
 
@@ -80,8 +80,7 @@ class FlatField(combinedimage.CombinedImage, masterframe.MasterFrame):
 
         # Instantiate the base classes
         #   - Basic processing of the raw images
-        combinedimage.CombinedImage.__init__(self, spectrograph, det, self.par['process'],
-                                             files=files, frametype=self.frametype)
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
         #   - Construction and interface as a master frame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
@@ -141,18 +140,16 @@ class FlatField(combinedimage.CombinedImage, masterframe.MasterFrame):
             pixel-flat data.
         """
         if self.rawflatimg is None or force:
-            # Load
-            self.load_images()
-            # Process
-            process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
+            # Process steps
+            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
             if trim:
-                process_steps += ['trim']
-            process_steps += ['apply_gain']
-            self.process_images(process_steps, bias=self.msbias, bpm=self.msbpm)
-            # Combine
-            self.rawflatimg = self.combine()
-            #
+                self.process_steps += ['trim']
+            self.process_steps += ['apply_gain']
+            self.process_steps += ['orient']
             self.steps.append(inspect.stack()[0][3])
+            # Do it
+            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias,
+                                                                 bpm=self.msbpm)
         return self.rawflatimg
 
     # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
@@ -306,7 +303,7 @@ class FlatField(combinedimage.CombinedImage, masterframe.MasterFrame):
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load_flats(self, ifile=None, return_header=False):
+    def load(self, ifile=None, return_header=False):
         """
         Load the flat-field data from a save master frame.
 
@@ -323,6 +320,6 @@ class FlatField(combinedimage.CombinedImage, masterframe.MasterFrame):
             illumination flat.  Also returns the primary header, if
             requested.
         """
-        return super(FlatField, self).load_master(['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], ifile=ifile,
+        return super(FlatField, self).load(['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], ifile=ifile,
                                            return_header=return_header)
 

@@ -74,7 +74,6 @@ def multi_caliBrate_reuse(multi_caliBrate):
     multi_caliBrate.save_masters = True
     return multi_caliBrate
 
-
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
@@ -240,7 +239,7 @@ def test_reuse(multi_caliBrate_reuse):
                     multi_caliBrate_reuse.master_key_dict['arc']), 'Should find cached data.'
     assert os.path.isfile(multi_caliBrate_reuse.arcImage.file_path), \
             'Should find master file.'
-    assert multi_caliBrate_reuse.arcImage.load_arcimage() is not None, \
+    assert multi_caliBrate_reuse.arcImage.load() is not None, \
             'Load should not return None'
     # TODO: Not a great test because this should be true regardless of
     # whether or not the master was actually reused...

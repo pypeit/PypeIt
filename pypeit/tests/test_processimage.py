@@ -8,7 +8,7 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit.images import processimage
+from pypeit.images import processrawimage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -34,32 +34,20 @@ def kast_blue_bias_files():
                                   '600_4310_d55', 'b1?.fits*'))
 
 
-def test_instantiate():
-    processImage = processimage.ProcessImage(None, kast_blue, 1, par)
-    for key in processImage.steps.keys():
-        assert processImage.steps[key] is False
-
-
 @dev_suite_required
-def test_load(deimos_flat_files, kast_blue_bias_files):
+def test_instantiate(deimos_flat_files, kast_blue_bias_files):
     one_file = deimos_flat_files[0]
     spectograph = load_spectrograph('keck_deimos')
     # DEIMOS
-    deimos_flat = processimage.ProcessImage(one_file, spectograph, 3, par, frametype='pixelflat')
-    # Load
-    img, head0 = deimos_flat.load_rawimage()
+    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par)
     # Test
-    assert isinstance(img, np.ndarray)
+    assert isinstance(deimos_flat.image, np.ndarray)
     assert deimos_flat.rawdatasec_img.shape == (4096, 2128)
 
     # Kast blue
     one_file = kast_blue_bias_files[0]
     spectograph2 = load_spectrograph('shane_kast_blue')
-    kastb_bias = processimage.ProcessImage(one_file, spectograph2, 1, par)
-    # Load
-    kastb_bias.load_rawimage()
-    # Check datasec
-    assert kastb_bias.datasec_img.shape == (350,2112)  # Not oriented yet
+    kastb_bias = processrawimage.ProcessRawImage(one_file, spectograph2, 1, par)
 
 
 @dev_suite_required
@@ -67,9 +55,7 @@ def test_overscan_subtract(deimos_flat_files):
     one_file = deimos_flat_files[0]
     spectograph = load_spectrograph('keck_deimos')
     # DEIMOS
-    deimos_flat = processimage.ProcessImage(one_file, spectograph, 3, par, frametype='pixelflat')
-    # Load
-    deimos_flat.load_rawimage()
+    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par)
     # Bias subtract
     pre_sub = deimos_flat.image.copy()
     _ = deimos_flat.subtract_overscan()

@@ -10,7 +10,7 @@ with extras.  Run above the Science/ folder.
 import argparse
 from astropy.table import Table
 from pypeit import ginga
-from pypeit.images.processimage import ProcessImagesBitMask as bitmask
+from pypeit.images.maskimage import ImageBitMask
 from pypeit.core import pixels
 from pypeit.masterframe import MasterFrame
 from pypeit.traceslits import TraceSlits
@@ -145,7 +145,7 @@ def main(args):
                   '                          No objects were extracted.')
 
     # Unpack the bitmask
-    bitMask = bitmask()
+    bitMask = ImageBitMask()
     bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
             = bitMask.unpack(mask)
 
