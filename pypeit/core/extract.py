@@ -724,9 +724,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     wave_max = waveimg[thismask].max()
 
     # This adds an error floor to the fluxivar_sm, preventing too much rejection at high-S/N (i.e. standard stars)
-    adderr = 0.01
-    gmask = fluxivar_sm0 > 0
-    fluxivar_sm =gmask/(1.0/(fluxivar_sm0 + np.invert(gmask)) + adderr**2*(np.abs(flux_sm))**2)
+    # TODO implement the ivar_cap function here in utils.
+    sn_cap = 100.0
+    fluxivar_sm = utils.cap_ivar(flux_sm,fluxivar_sm0, sn_cap)
     indsp = (wave >= wave_min) & (wave <= wave_max) & \
              np.isfinite(flux_sm) & \
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)

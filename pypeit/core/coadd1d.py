@@ -6,6 +6,7 @@ from scipy import interpolate
 from astropy import stats
 from astropy.io import fits
 from astropy import convolution
+import IPython
 from astropy.table import Table
 
 from pkg_resources import resource_filename
@@ -1275,7 +1276,9 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
         # the noise model is not quite right
         this_sigma_corr, igood = renormalize_errors(chi, mask_tot, clip=6.0, max_corr=5.0, title='spec_reject', debug=debug)
         ivar_tot_corr = ivar_tot/this_sigma_corr ** 2
-        ivar_cap = np.minimum(ivar_tot_corr, (sn_cap/(thisflux_stack + (thisflux_stack <= 0.0))) ** 2)
+        # TODO is this correct below? JFH Thinks now
+        ivar_cap = utils.cap_ivar(thisflux_stack, ivar_tot_corr, sn_cap, mask=mask_tot)
+        #ivar_cap = np.minimum(ivar_tot_corr, (sn_cap/(thisflux_stack + (thisflux_stack <= 0.0))) ** 2)
         # if nexp>1:  #JXP TOUCHED THIS
         if fluxes.ndim>1:
             sigma_corrs[iexp] = this_sigma_corr
@@ -1290,7 +1293,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
     return rejivars, sigma_corrs, outchi, maskchi
 
-def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.0, lower=3.0, upper=3.0,
+def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, debug=False):
     '''
     Routine for rejections and combining

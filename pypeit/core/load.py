@@ -12,7 +12,7 @@ from astropy.table import Table
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
 import linetools.utils
-
+import IPython
 
 from pypeit import msgs
 from pypeit import specobjs
@@ -126,7 +126,10 @@ def load_specobjs(fname,order=None):
         spec = Table(hdu.data)
         shape = (len(spec), 1024)  # 2nd number is dummy
         specobj.shape = shape
-        specobj.trace_spat = spec['TRACE']
+        try:
+            specobj.trace_spat = spec['TRACE']
+        except KeyError:
+            pass
         # Add spectrum
         if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:
@@ -151,7 +154,7 @@ def load_specobjs(fname,order=None):
     # Return
     return sobjs, head0
 
-
+# TODO I don't think we need this routine
 def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True, nmaskedge=None):
     '''
     It will be called by load_1dspec_to_array.
@@ -202,6 +205,7 @@ def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True, nmaskedg
 
     return wave, flux, ivar, mask
 
+# TODO merge this with unpack orders
 def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_value=True, nmaskedge=None):
     '''
     Load the spectra from the 1d fits file into arrays.
@@ -227,8 +231,12 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     '''
 
     # read in the first fits file
-    nexp = np.size(fnames)
-    fname0 = fnames[0]
+    if isinstance(fnames, (list, np.ndarray)):
+        nexp = np.size(fnames)
+        fname0 = fnames[0]
+    elif isinstance(fnames, str):
+        nexp = 1
+        fname0 = fnames
 
     hdulist = fits.open(fname0)
     header = hdulist[0].header
@@ -241,6 +249,8 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     for ii in range(ntrace0):
         idx_orders.append(int(hdulist[ii+1].name.split('-')[1][5:])) # slit ID or order ID
 
+
+    IPython.embed()
     if pypeline == "Echelle":
         ## np.unique automatically sort the returned array which is not what I want!!!
         ## order_vec = np.unique(idx_orders)
@@ -249,6 +259,10 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         norder = np.size(order_vec)
     else:
         norder = 1
+
+    #TODO This is unneccessarily complicated. The nexp=1 case does the same operations as the nexp > 1 case. Refactor
+    # this so that it just does the same set of operations once and then reshapes the array at the end to give you what
+    # you want. Let's merge this with unpack orders
 
     ## Loading data from a single fits file
     if nexp == 1:
