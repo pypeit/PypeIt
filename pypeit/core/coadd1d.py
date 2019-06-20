@@ -1647,20 +1647,13 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
 
     ## Stack with the first method: combine the stacked individual order spectra directly
     # Get weights for individual order stacks
-    # ToDo: The sensfunc need to be put in here for the order merge, i.e. the weights should be sensfunc
     if sensfile is None:
         rms_sn_stack, weights_stack = sn_weights(waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale,
                                                  masks_stack_orders, dv_smooth=dv_smooth, const_weights=const_weights,
                                                  ivar_weights=True, verbose=True)
-        #waves_stack_orders_flat = None
-        #telluric_orders_flat = None
-        #telluric_orders = None
     else:
         rms_sn_stack = None
         weights_stack, masks_stack_orders = sens_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
-        #telluric_orders = get_tell_from_file(sensfile, waves_stack_orders, masks_stack_orders, iord=None)
-        #waves_stack_orders_flat = waves_stack_orders[masks_stack_orders]
-        #telluric_orders_flat = telluric_orders[masks_stack_orders]
 
     # TODO Will we use this reject/stack below? It is the straight combine of the stacked individual orders.
     #  This does not take advantage
@@ -1705,7 +1698,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
             weights_new[:,iord,iexp] = weights[:,iord,iexp] * weight_iord_interp
 
     # reshaping 3D arrays (npix, norder, nexp) to 2D arrays (npix, norder*nexp)
-    # need Fortran like order reshaping to make sure you are getting the right spectrum for each expsoure
+    # need Fortran like order reshaping to make sure you are getting the right spectrum for each exposure
     waves_2d = np.reshape(waves,(npix, norder*nexp),order='F')
     fluxes_2d = np.reshape(fluxes_scale, np.shape(waves_2d),order='F')
     ivars_2d = np.reshape(ivars_scale, np.shape(waves_2d),order='F')
