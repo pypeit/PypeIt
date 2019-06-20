@@ -39,8 +39,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 3.8,
                             ronoise         = 5.0,
-                            datasec         = '[1:2048,1:1024]',
-                            oscansec        = '[1:2048,980:1024]'
+                            datasec         = '[:,:]',
+                            oscansec        = '[980:1024,:]'  # Is this a hack??
                             )]
         self.norders = 5
         # Uses default timeunit
@@ -73,7 +73,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # Reidentification parameters
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
@@ -99,13 +99,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
-        # Do not bias subtract
-        par['scienceframe']['useframe'] ='overscan'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
-
-
+        # Overscan but not bias
+        #  This seems like a kludge of sorts
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
 
         # Set the default exposure time ranges for the frame typing
@@ -234,59 +230,48 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         slitmask[order7bad] = -1
         return slitmask
 
-    def slit2order(self, islit):
+    def slit2order(self, slit_spat_pos):
+        """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
+
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+
+        Returns:
+            int: order number
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
-
+        order_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
+                                   0.70260714, 0.86335914])
         orders = np.arange(7, 2, -1, dtype=int)
-        return orders[islit]
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
-    def order_vec(self):
-        return self.slit2order(np.arange(self.norders))
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.warn("Bad echelle format for Keck-NIRES or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return orders[iorder]
+        else:
+            return orders[iorder]
 
 
-    def order_platescale(self, binning=None):
+    def order_platescale(self, order_vec, binning=None):
+        """
+        NIRES has no binning
 
+        Args:
+            order_vec (np.ndarray):
+            binning (optional):
+
+        Returns:
+            np.ndarray:
 
         """
-        Returns the plate scale in arcseconds for each order
-
-        Parameters
-        ----------
-        None
-
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
-
-        """
-
-        # NIRES has no binning, but for an instrument with binning we would do this
-        #binspatial, binspectral = parse.parse_binning(binning)
-        return np.full(5, 0.15)
+        norders = order_vec.size
+        return np.full(norders, 0.15)
 
 
     @property

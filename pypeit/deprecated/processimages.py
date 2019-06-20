@@ -433,6 +433,7 @@ class ProcessImages(object):
                 temp = image-msbias
             elif isinstance(msbias, str) and msbias == 'overscan':
                 msgs.info("Using overscan to subtract")
+                msgs.error("THE FOLLOWING IS OLD AND DEPRECATED")
                 temp = procimg.subtract_overscan(image, numamplifiers, self.datasec[kk],
                                                  self.oscansec[kk],
                                                  method=self.proc_par['overscan'],
@@ -446,6 +447,11 @@ class ProcessImages(object):
             if kk==0:
                 # Instantiate proc_images
                 self.proc_images = np.zeros((temp.shape[0], temp.shape[1], self.nloaded))
+            # Flip?
+            if self.spectrograph.detector[self.det-1]['specflip']:
+                temp = np.flip(temp, axis=0)
+            if self.spectrograph.detector[self.det-1]['spatflip']:
+                temp = np.flip(temp, axis=1)
             self.proc_images[:,:,kk] = temp.copy()
         # Step
         self.steps.append(inspect.stack()[0][3])

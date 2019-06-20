@@ -67,6 +67,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
         par['calibrations']['arcframe']['number'] = 1
+        # No overscan
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'none'
 
         # Slits
         par['calibrations']['slits']['sigdetect'] = 50.
@@ -84,7 +88,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.6
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         # JFH This is provisional these IDs should be checked.
@@ -120,10 +124,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
 
         # Do not bias subtract
-        par['scienceframe']['useframe'] ='overscan'
+        #par['scienceframe']['useframe'] = 'overscan'
         # This is a hack for now until we can specify for each image type what to do. Bias currently
         # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
 
 
@@ -185,7 +189,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 #    def parse_binning(self, inp, det=1):
 #        return '1,1'
 
-    def order_platescale(self, binning=None):
+    def order_platescale(self, order_vec, binning=None):
 
 
         """
@@ -204,41 +208,36 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         order_platescale: ndarray, float
 
         """
-
-        # Right now I just assume a simple linear trend
-        return np.full(self.norders, 0.15)
+        return np.full(order_vec.size, 0.15)
 
 
 
-    def slit2order(self, islit):
+    def slit2order(self, slit_spat_pos):
+        """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
+
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+
+        Returns:
+            int: order number
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+        order_spat_pos = np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
 
         orders = np.arange(8,2,-1, dtype=int)
-        return orders[islit]
+        # Find closest
+        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
-
-    def order_vec(self):
-        return self.slit2order(np.arange(self.norders))
+        # Check
+        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
+            msgs.warn("Bad echelle format for GNIRS or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return orders[iorder]
+        else:
+            return orders[iorder]
 
 
     def slit_minmax(self, nslits, binspectral=1):
@@ -303,11 +302,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def loglam_minmax(self):
         return np.log10(7000), np.log10(26000)
 
-    def wavegrid(self, binning=None, midpoint=False):
+    def wavegrid(self, binning=None, samp_fact=1.0, midpoint=False):
 
         # Define the grid for GNIRS
         logmin, logmax = self.loglam_minmax
-        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam)
+        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam, samp_fact=samp_fact)
         if midpoint:
             loglam_grid = loglam_grid + self.dloglam/2.0
         return np.power(10.0,loglam_grid)

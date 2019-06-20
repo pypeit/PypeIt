@@ -181,7 +181,7 @@ def main(args):
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
                 sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
                 sci_dict[det]['specobjs'] \
-                        = coadd2d.extract_coadd2d(stack_dict, master_dir, ir_redux=ir_redux,
+                        = coadd2d.extract_coadd2d(stack_dict, master_dir, det, ir_redux=ir_redux,
                                                   par=par, show=args.show, show_peaks=args.peaks,
                                                   std=args.std, samp_fact=args.samp_fact)
 

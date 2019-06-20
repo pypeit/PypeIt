@@ -43,8 +43,8 @@ from pypeit.spectrographs.util import load_spectrograph
 def test_run():
     # Masters
     spectrograph = load_spectrograph('shane_kast_blue')
-    tslits_dict, mstrace, tilts_dict, datasec_img \
-                = load_kast_blue_masters(tslits=True, tilts=True, datasec=True)
+    tslits_dict, mstrace, tilts_dict, \
+                = load_kast_blue_masters(tslits=True, tilts=True)
     # Instantiate
     frametype = 'pixelflat'
     par = pypeitpar.FrameGroupPar(frametype)

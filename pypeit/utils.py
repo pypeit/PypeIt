@@ -644,9 +644,24 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     return sset, outmask, yfit, reduced_chi, exit_status
 
 
+def inverse(a, positive=False):
+    """ Calculate and return the inverse of the input array
+
+    Args:
+        a (np.ndarray):
+        positive (bool, optional):
+
+    Returns:
+        np.ndarray:
+
+    """
+    return np.ma.power(np.ma.MaskedArray(a, mask=a<0 if positive else None), -1).filled(0.0)
+
 
 def calc_ivar(varframe):
     """ Calculate the inverse variance based on the input array
+
+    Wrapper to inverse()
 
     Args:
         varframe (ndarray):  Variance image
@@ -654,8 +669,8 @@ def calc_ivar(varframe):
     Returns:
         ndarray:  Inverse variance image
     """
-    ivar = (varframe > 0.) / (np.abs(varframe) + (varframe == 0))
-    return ivar
+    # THIS WILL BE DEPRECATED!!
+    return inverse(varframe, positive=True)
 
 
 

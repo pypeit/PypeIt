@@ -97,7 +97,7 @@ class SpecObj(object):
         self.flex_shift = 0.
 
         # Some things for echelle functionality
-        self.ech_order = None
+        self.ech_order = 0 # Needs a default value
         self.ech_orderindx = orderindx
         self.ech_objid = 999
         self.ech_snr = None
@@ -172,10 +172,11 @@ class SpecObj(object):
             else:
                 self.idx += '{:04d}'.format(self.ech_objid)
             self.idx += '-'+naming_model['order']
+            # Order
             if self.ech_orderindx is None:
                 self.idx += '----'
             else:
-                self.idx += '{:04d}'.format(self.ech_orderindx)
+                self.idx += '{:04d}'.format(self.ech_order)
         else:
             # Spat
             self.idx = naming_model['spat']

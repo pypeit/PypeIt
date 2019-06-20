@@ -23,7 +23,6 @@ from pypeit.core import pca
 from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit import debugger
-from pypeit.utils import calc_ivar
 from pypeit.core import extract
 from pypeit.core import arc
 from pypeit.core import pydl
@@ -2937,7 +2936,7 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     if invvar is None:
         invvar = np.zeros_like(fimage) + 1.
 
-    var =calc_ivar(invvar)
+    var = utils.inverse(invvar, positive=True)
     # More setting up
     x_int = np.rint(xinit).astype(int)
     nstep = 2*int(3.0*np.max(sigma_out)) - 1
@@ -3253,4 +3252,17 @@ def slit_trace_qa(frame, ltrace, rtrace, slitmask, extslit, setup, desc="",
     plt.rcdefaults()
 
 
+def slit_spat_pos(tslits_dict):
+    """
+    Generate an array of the slit spat positions
+    from the tslits_dict
 
+    Parameters:
+        tslits_dict (dict):  Trace slits dict
+
+    Returns:
+        np.ndarray
+
+    """
+    return (tslits_dict['slit_left'][tslits_dict['nspec']//2, :] +
+            tslits_dict['slit_righ'][tslits_dict['nspec']//2,:]) /2/tslits_dict['nspat']

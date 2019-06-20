@@ -16,7 +16,8 @@ from astropy.stats import sigma_clipped_stats
 import matplotlib as mpl
 from matplotlib.lines import Line2D
 import scipy
-from pypeit.core import pydl
+
+from IPython import embed
 
 try:
     from pypeit import ginga
@@ -361,11 +362,12 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     dev_mad_dist_median = np.median(dev_mad[good_line])
     dev_mad_dist_mad = 1.4826*np.median(np.abs(dev_mad[good_line] - dev_mad_dist_median)) # i.e. this is like the sigma
     # Reject lines that are sigrej trace outliers
-    mad_rej = np.abs((dev_mad - dev_mad_dist_median)/dev_mad_dist_mad) < sigrej_trace
+    mad_rej = ((dev_mad - dev_mad_dist_median)/dev_mad_dist_mad) < sigrej_trace
 
     # Do we need this dev_mad < maxdev step?
     use_tilt = (mad_rej) & (bad_frac < max_badpix_frac) & good_line & (dev_mad < maxdev)
     nuse = np.sum(use_tilt)
+
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse,nlines))
 
     tilts_mad = np.outer(np.ones(nspat),dev_mad)

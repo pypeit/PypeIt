@@ -69,6 +69,7 @@ Instruments
    instruments
    deimos
    lris
+   mage
 
 
 Object Algorithms
@@ -92,14 +93,15 @@ Documentation
    inst_settings
    internals
 
-Other
-+++++
+For Developers
+++++++++++++++
 
 .. toctree::
    :maxdepth: 1
 
    scripts
    flow
+   new_spectrograph
    PypeIt API <api/pypeit>
 
 Contents
