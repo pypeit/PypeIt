@@ -912,6 +912,12 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     # New mask for the stack
     mask_stack = (weights_total > 0.0) & (nused > 0.0)
 
+    ## In extreme cases (i.e. reject too many pixels in the telluric order), one need to sort the data
+    ## to make sure the wavelength is from blue to red. some pixels even have exactly the same wavelength
+    #indsort = np.argsort(wave_stack)
+    #wave_stack, flux_stack, ivar_stack, mask_stack, nused = wave_stack[indsort], flux_stack[indsort], \
+    #                                                        ivar_stack[indsort], mask_stack[indsort], nused[indsort]
+
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
 def get_ylim(flux, ivar, mask):
@@ -1217,7 +1223,6 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.
         nused: same size with flux_stack, how many exposures used in the stack of each pixel
 
     '''
-
     nexp = np.shape(waves)[1]
     iIter = 0
     qdone = False
@@ -1572,9 +1577,14 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     #  This does not take advantage
     #  of the fact that we have many samples in the order overlap regions allowing us to better reject. It does
     #  however have the advatnage that it operates on higher S/N ratio stacked spectra.
-    wave_merge, flux_merge, ivar_merge, mask_merge, outmask, nused = spec_reject_comb(
+    #  should we compute the stack directly with compute_stack or do more rejections with spec_reject_comb?
+    #  spec_reject_comb will reject tons of pixels for overlap in telluric region.
+    wave_merge, flux_merge, ivar_merge, mask_merge, nused = compute_stack(
         wave_grid, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
-        weights_stack, sn_cap=sn_cap, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject,debug=debug)
+        weights_stack)
+    #wave_merge, flux_merge, ivar_merge, mask_merge, outmask, nused = spec_reject_comb(
+    #    wave_grid, waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale, masks_stack_orders,
+    #    weights_stack, sn_cap=sn_cap, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject,debug=debug)
 
     if debug or show:
         coadd_qa(wave_merge, flux_merge, ivar_merge, nused, mask=mask_merge,
