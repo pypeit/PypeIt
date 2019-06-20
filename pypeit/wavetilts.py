@@ -445,7 +445,6 @@ class WaveTilts(masterframe.MasterFrame):
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
         return self.load_from_file(_ifile, return_header=return_header)
 
-    # TODO: Allows for a read one-liner...
     @staticmethod
     def load_from_file(filename, return_header=False):
         """

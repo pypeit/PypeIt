@@ -17,4 +17,10 @@ Entirely New
     - Or generate a custom reader if these are variable
 #.  Set custom parameters
 
+Near-IR
++++++++
+
+If this is a near-IR instrument, you may wish to turn
+off overscan subtraction.  See Gemini_GNIRS for an example.
+
 

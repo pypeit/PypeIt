@@ -40,5 +40,5 @@ def test_process(deimos_flat_files):
     traceImage.build_image()
     assert isinstance(traceImage.image, np.ndarray)
     for key in ['subtract_overscan', 'apply_gain']:
-        assert traceImage.pimages[0].steps[key]
+        assert key in traceImage.process_steps
 

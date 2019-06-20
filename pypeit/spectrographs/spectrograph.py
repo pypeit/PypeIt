@@ -41,6 +41,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
+from pypeit.core import procimg
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.metadata import PypeItMetaData
@@ -197,23 +198,26 @@ class Spectrograph(object):
                 1-indexed detector number.
 
         Returns:
-            Returns an `numpy.ndarray`_ with the image data and an
-            `astropy.io.fits.Header`_ object with the image and header
+            Returns an `numpy.ndarray`_ with the image data and
+            `astropy.io.fits.HDUList`_ object with the image and header
             data, respectively.  The image data is always returned with
             floating-point type.
         """
         # Check the detector is defined
         self._check_detector()
 
+        hdu = fits.open(raw_file)
+        raw_img = hdu[self.detector[det-1]['dataext']].data
+        '''
         # Load the raw image
-        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=self.detector[det-1]['dataext'],
+        raw_img, hdu = self.load_raw_img_hdu(raw_file, dataext=self.detector[det-1]['dataext'],
                                                 det=det)
-
+        '''
         # Turn to float
         img = raw_img.astype(float)
 
         # Return
-        return img, head0
+        return img, hdu
 
     def raw_is_transposed(self, det=1):
         """
@@ -231,7 +235,8 @@ class Spectrograph(object):
         """
         return self.detector[det-1]['specaxis'] == 1
 
-    def load_raw_img_head(self, raw_file, dataext=0, headext=0, **null_kwargs):
+    '''
+    def load_raw_img_hdu(self, raw_file, dataext=0, **null_kwargs):
         """
         Generic raw image reader
 
@@ -246,13 +251,14 @@ class Spectrograph(object):
               Captured and never used
 
         Returns:
-            Returns an `numpy.ndarray`_ with the image data and an
-            `astropy.io.fits.Header`_ object with the image and header
-            data, respectively.
+            Returns an `numpy.ndarray`_ with the image data and
+            the `astropy.io.fits.HDUList`_ object with the image and HDU,
+            respectively.
         """
         # Open and go
         hdu = fits.open(raw_file)
-        return hdu[dataext].data, hdu[headext].header
+        return hdu[dataext].data, hdu
+    '''
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
@@ -352,8 +358,7 @@ class Spectrograph(object):
         """
         if self.rawdatasec_img is None or force:
             return self.get_pixel_img(filename, 'datasec', det)
-        else:
-            return self.rawdatasec_img
+        return self.rawdatasec_img
 
     def get_oscansec_img(self, filename, det, force=True):
         """
@@ -374,8 +379,23 @@ class Spectrograph(object):
         """
         if self.oscansec_img is None or force:
             return self.get_pixel_img(filename, 'oscansec', det)
-        else:
-            return self.oscansec_img
+        return self.oscansec_img
+
+    def get_datasec_img(self, filename, det):
+        """
+        Generate and return the datasec image in the PypeIt reference
+        frame, e.g. trimmed + oriented
+
+        Returns:
+            np.ndarray
+
+        """
+        rdimg = self.get_rawdatasec_img(filename=filename, det=det)
+        # Fuss
+        rdimg = procimg.trim_frame(rdimg, rdimg < 1)
+        dimg = self.orient_image(rdimg, det)
+        # Return
+        return dimg
 
     def get_pixel_img(self, filename, section, det):
         """
@@ -388,7 +408,19 @@ class Spectrograph(object):
             - Consider renaming this datasec_ampid or something like
               that.  I.e., the image's main purpose is to tell you where
               the amplifiers are for the data section
-          
+
+        Note on data format
+        --------------------
+         binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
+         binning_raw = the binning in the format of the raw data.
+         In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
+         files are stored the other way with spat as the first dimension (as read into python), then the transpose
+         flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
+         (Note also that BTW the python convention of storing images is transposed relative to the fits convention
+         and the datasec typically written to headers. However this flip is dealt with explicitly in the
+         parse.spec2slice code and is NOT the transpose we are describing and flipping here).
+         TODO Add a blurb on the PypeIt data model.
+
         Args:
             filename (str):
                 Name of the file from which to read the image size.
@@ -405,26 +437,10 @@ class Spectrograph(object):
         # Get the image shape
         raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-        binning_pypeit = self.get_meta_value(filename, 'binning')
+        binning_raw = self.get_meta_value(filename, 'binning')
 
         data_sections, one_indexed, include_end \
                     = self.get_image_section(filename, det, section=section)
-        # Note on data format
-        #--------------------
-        # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
-        # binning_raw = the binning in the format of the raw data.
-        # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
-        # files are stored the other way with spat as the first dimension (as read into python), then the transpose
-        # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
-        # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
-        # and the datasec typically written to headers. However this flip is dealt with explicitly in the
-        # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
-        # TODO Add a blurb on the PypeIt data model.
-
-        #if transpose:
-        #   binning_raw = (',').join(binning_pypeit.split(',')[::-1])
-        #else:
-        binning_raw = binning_pypeit
 
         # Initialize the image (0 means no amplifier)
         pix_img = np.zeros(raw_naxis, dtype=int)

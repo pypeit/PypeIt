@@ -100,6 +100,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the bluest orders
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
+        par['scienceimage']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
@@ -288,12 +289,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Find closest
         iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
 
+
         # Check
         if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.error("Bad echelle format for MagE or you have discovered one of the bluest 3 orders!")
+            msgs.warn("Bad echelle format for Magellan-MAGE or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return orders[iorder]
+        else:
+            return orders[iorder]
 
-        # Return
-        return orders[iorder]
 
 
     def order_platescale(self, order_vec, binning=None):
@@ -308,10 +313,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             np.ndarray: Platescale
 
         """
-        # MAGE has no binning, but for an instrument with binning we would do this
-        #binspatial, binspectral = parse.parse_binning(binning)
         norders = len(order_vec)
         binspatial, binspec = parse.parse_binning(binning)
-        return np.full(norders, 0.15*binspatial)
+        return np.full(norders, 0.30*binspatial)
 
 
