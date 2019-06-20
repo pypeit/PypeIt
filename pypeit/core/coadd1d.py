@@ -469,13 +469,14 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
     '''
     Interpolate all spectra to the page of wave_new
     Args:
-        wave_new: (1d or 2d array) new wavelength
-        waves: (1d or 2d array) old wavelength
+        wave_new: new wavelength grid, can have shape (nspec,) or (nspec, nimgs)
+        waves:  old wavelength grid, can have shape (nspec,) or (nspec, nexp) where nexp, need not
+                equal nimgs
         fluxes: same size with waves, old flux
         ivars: same size with waves, old ivar
         masks: same size with waves, old mask, True=good
     Returns:
-        Interpolated flux, ivar and mask with the size exactly same with wave_new
+        Interpolated flux, ivar and mask with the size and shape matching wave_new
     '''
 
     # First case: interpolate either an (nspec, nexp) array of spectra onto a single wavelength grid
