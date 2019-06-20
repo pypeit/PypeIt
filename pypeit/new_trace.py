@@ -803,7 +803,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             A list of strings indicating the main methods applied
             when tracing.
     """
-    master_type = 'Trace'   # For MasterFrame base
+#    master_type = 'Trace'   # For MasterFrame base
+    master_type = 'Edges'
     bitmask = TraceBitMask()            # Object used to define and toggle tracing mask bits
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
                  trace_img=None, mask=None, det=1, binning=None, auto=False, save=False,
@@ -1545,9 +1546,21 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 plotted. Otherwise, only trace locations flagged by
                 the specified bits are plotted.
         """
-        # TODO: color/type-code the masked trace coordinates...
         if in_ginga:
-            raise NotImplementedError('Someone want to do this?')
+            # Currently can only show in ginga if the edges are
+            # synchronized into slits
+            if not self.is_synced:
+                raise ValueError('To show in ginga, slit edges must be left-right synchronized.')
+            ginga.connect_to_ginga(raise_err=True, allow_new=True)
+            # Show Image
+            viewer, ch = ginga.show_image(self.trace_img, 'Trace Image')
+            right = self.traceid > 0
+            trace = self.spat_cen if self.spat_fit is None else self.spat_fit
+            ginga.show_slits(viewer, ch, trace[:,np.invert(right)], trace[:,right],
+                             self.traceid[right], pstep=thin)
+            return
+
+        # TODO: color/type-code the masked trace coordinates...
 
         # Build the data to plot. Any masked data is excluded; masked
         # data to be plotted are held in a separate array. This means
