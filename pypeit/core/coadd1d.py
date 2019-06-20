@@ -1181,6 +1181,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
         # the noise model is not quite right
         this_sigma_corr, igood = renormalize_errors(chi, mask_tot, clip=6.0, max_corr=5.0, title='spec_reject', debug=debug)
         ivar_tot_corr = ivar_tot/this_sigma_corr ** 2
+        # TODO is this correct below? JFH Thinks now
         ivar_cap = np.minimum(ivar_tot_corr, (sn_cap/(thisflux_stack + (thisflux_stack <= 0.0))) ** 2)
         # if nexp>1:  #JXP TOUCHED THIS
         if fluxes.ndim>1:
