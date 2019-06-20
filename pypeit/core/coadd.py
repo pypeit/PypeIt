@@ -1085,6 +1085,8 @@ def write_to_disk(spectrograph, gdfiles, spec1d, outfile):
             continue
         else:
             spec1d_header[card.upper()] = orig_headers[0][card.upper()]
+    # INSTRUME
+    spec1d_header['INSTRUME'] = spectrograph.instrume.strip()
     # Add em
     spec1d.meta['headers'][0] = spec1d_header
     #
