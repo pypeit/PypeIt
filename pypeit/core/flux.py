@@ -728,7 +728,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             - 'dec': str -- DEC(J2000)
     """
     # Priority
-    std_sets = [load_calspec, load_esofil, load_xshooter]
+    std_sets = [load_xshooter, load_calspec, load_esofil]
     std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format; 3= XSHOOTER ASCII format.
 
     # SkyCoord
