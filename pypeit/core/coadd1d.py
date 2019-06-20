@@ -1341,7 +1341,7 @@ def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxite
 def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='pixel', A_pix=None, v_pix=None,
                    samp_fact = 1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                    sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
-                   dv_smooth=1000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
+                   dv_smooth=1000.0, const_weights=False, maxiter_reject=5, sn_cap=30.0, lower=3.0, upper=3.0,
                    maxrej=None, phot_scale_dicts=None, nmaskedge=2,
                    qafile=None, outfile = None, debug=False, show=False):
     '''
