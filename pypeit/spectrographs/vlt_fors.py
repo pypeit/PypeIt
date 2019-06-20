@@ -177,8 +177,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # Get it started
         super(VLTFORS2Spectrograph, self).__init__()
         self.spectrograph = 'vlt_fors2'
-        self.camera = 'vlt_fors2'
-        self.instrume = 'FORS2'  # For the Header
+        self.camera = 'FORS2'
         self.numhead = 1
 
     def set_detector(self, chip):
