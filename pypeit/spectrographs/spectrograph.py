@@ -502,11 +502,14 @@ class Spectrograph(object):
         These refer to the keys in the fitstbl
 
         Returns:
-            list:
+            list: Keys for header cards of spec1d
 
         """
         core_meta = PypeItMetaData.define_core_meta()
-        return list(core_meta.keys())
+        header_cards = list(core_meta.keys())
+        # Add a few more
+        header_cards += ['filename']  # For fluxing
+        return header_cards
 
     def orient_image(self, rawimage, det):
         """
