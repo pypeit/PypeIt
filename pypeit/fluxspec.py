@@ -15,14 +15,10 @@ from pypeit import msgs
 from pypeit.core import flux
 from pypeit.core import load
 from pypeit.core import save
-from pypeit import utils
-from pypeit import masterframe
 from pypeit import specobjs
-
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.par.pypeitpar import TelescopePar
-
 from pypeit import debugger
+
+from IPython import embed
 
 class FluxSpec(object):
     """Class to guide fluxing
@@ -283,7 +279,14 @@ class FluxSpec(object):
         #mag_func = utils.func_val(self.sens_dict['c'], wave, self.sens_dict['func'])
         #sens = 10.0**(0.4*mag_func)
         # Plot
-        debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
+        if self.spectrograph.pypeline == 'Echelle':
+            for iord in range(len(self.std)):
+                sord = str(iord)
+                debugger.plot1d(self.sens_dict[sord]['wave'],
+                                self.sens_dict[sord]['sensfunc'],
+                                xlbl='Wavelength', ylbl='Sensitivity Function')
+        else:
+            debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):
         """
@@ -361,10 +364,7 @@ class MultiSlit(FluxSpec):
             return None
 
         self.sens_dict = {}
-        try:
-            this_wave = self.std.optimal['WAVE_GRID']
-        except KeyError:
-            this_wave = self.std.optimal['WAVE']
+        this_wave = self.std.optimal['WAVE']
         sens_dict_long = flux.generate_sensfunc(this_wave,
                                                self.std.optimal['COUNTS'],
                                                self.std.optimal['COUNTS_IVAR'],
@@ -444,22 +444,27 @@ class Echelle(FluxSpec):
             return None
 
         ext_final = fits.getheader(self.par['std_file'], -1)
-        norder = ext_final['ECHORDER'] + 1
+        #norder = ext_final['ECHORDER'] + 1
+        norder = len(self.std)
 
         self.sens_dict = {}
         for iord in range(norder):
-            std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
-            std_idx = flux.find_standard(std_specobjs)
-            std = std_specobjs[std_idx]
+            #std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
+            #embed(header='447 of fluxspec')
+            #std_idx = flux.find_standard(std_specobjs)
+            std = self.std[iord] #std_specobjs[std_idx]
+
+            # THIS IS A CRAZY KLUDGE....
             try:
                 wavemask = std.optimal['WAVE_GRID'] > 0.0 #*units.AA
             except KeyError:
-                wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
-                this_wave = std.optimal['WAVE'][wavemask]
+                wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
+                this_wave = std.boxcar['WAVE'][wavemask]
             else:
                 this_wave = std.optimal['WAVE_GRID'][wavemask]
 
-            counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
+            #counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
+            counts, ivar = std.boxcar['COUNTS'][wavemask], std.boxcar['COUNTS_IVAR'][wavemask]
             sens_dict_iord = flux.generate_sensfunc(this_wave, counts, ivar,
                                                     float(self.std_header['AIRMASS']),
                                                     self.std_header['EXPTIME'],
@@ -473,8 +478,7 @@ class Echelle(FluxSpec):
                                                     poly_norder=self.poly_norder,
                                                     polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
-            self.sens_dict[str(iord)] = sens_dict_iord
-        ## add some keys to be saved into primary header in masterframe
+            self.sens_dict[str(iord)] = sens_dict_iord  # THIS SHOULD BE THE PHYSICAL ORDER!
         for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                     'std_name', 'cal_file']:
             try:
