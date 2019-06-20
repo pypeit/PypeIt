@@ -263,7 +263,7 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
         cols += [fits.Column(array=fluxes[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
         cols += [fits.Column(array=ivars[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
         cols += [fits.Column(array=sigs[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
-        cols += [fits.Column(array=masks[wave_mask], name='{:}_MASK'.format(ex_value), format='D')]
+        cols += [fits.Column(array=masks[wave_mask], name='{:}_MASK'.format(ex_value), format='L')]
 
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)

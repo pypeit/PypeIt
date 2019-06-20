@@ -1,4 +1,4 @@
-
+import os
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,6 +7,7 @@ from astropy import stats
 from astropy.io import fits
 from astropy import convolution
 import IPython
+from astropy.table import Table
 
 from pkg_resources import resource_filename
 from pypeit import utils
@@ -511,7 +512,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
 
         return fluxes_inter, ivars_inter, masks_inter
 
-def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=False, sens_weights=False, verbose=False):
+def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=False, ivar_weights=False, verbose=False):
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
     for coadding.
 
@@ -576,7 +577,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
 
-    if sens_weights:
+    if ivar_weights:
         # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
         if verbose:
             msgs.info("Using sensfunc weights for merging orders")
@@ -631,6 +632,84 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
                     rms_sn[iexp],np.mean(weights[:, iexp]), iexp))
     # Finish
     return rms_sn, weights
+
+def get_tell_from_file(sensfile, waves, masks, iord=None):
+
+    sens_param = Table.read(sensfile, 1)
+    sens_table = Table.read(sensfile, 2)
+    func = sens_param['FUNCTION']
+    wave_grid = sens_param['WAVE_GRID'].data.flatten()
+    telluric = np.zeros_like(waves)
+
+    if (waves.ndim == 1) and (iord is None):
+        msgs.info('Loading Telluric from Longslit sensfiles.')
+        tell_interp = interpolate.interp1d(wave_grid, sens_table['TELLURIC'], kind='cubic',
+                                        bounds_error=False, fill_value=np.nan)(waves[masks])
+        telluric[masks] = tell_interp
+    elif (waves.ndim == 1) and (iord is not None):
+        msgs.info('Loading order {:} Telluric from Echelle sensfiles.'.format(iord))
+        sens_table_ispec = sens_table[iord]
+        wave_tell_iord = wave_grid[sens_table_ispec['IND_LOWER']:sens_table_ispec['IND_UPPER']]
+        tell_iord = sens_table_ispec['TELLURIC'][sens_table_ispec['IND_LOWER']:sens_table_ispec['IND_UPPER']]
+        tell_iord_interp = interpolate.interp1d(wave_tell_iord, tell_iord, kind='cubic',
+                                        bounds_error=False, fill_value=np.nan)(waves[masks])
+        telluric[masks] = tell_iord_interp
+    else:
+        norder = np.shape(waves)[1]
+        for iord in range(norder):
+            wave_iord = waves[:, iord]
+            mask_iord = masks[:, iord]
+
+            # Interpolate telluric to the same grid with waves
+            # Since it will be only used for plotting, I just simply interpolate it rather than evaluate it based on the model
+            sens_table_ispec = sens_table[iord]
+            tell_iord = sens_table_ispec['TELLURIC']
+            tell_iord_interp = interpolate.interp1d(wave_grid, tell_iord, kind='cubic',
+                                                    bounds_error=False, fill_value=np.nan)(wave_iord[mask_iord])
+            telluric[mask_iord, iord] = tell_iord_interp
+
+    return telluric
+
+
+def sens_weights(sensfile, waves, masks, debug=False):
+
+    sens_param = Table.read(sensfile, 1)
+    sens_table = Table.read(sensfile, 2)
+    func = sens_param['FUNCTION']
+
+    weights = np.zeros_like(waves)
+    norder = np.shape(waves)[1]
+
+    if norder != len(sens_table):
+        msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+
+    for iord in range(norder):
+        wave_iord = waves[:, iord]
+        mask_iord = masks[:, iord]
+
+        # get sensfunc from the sens_table
+        sens_table_ispec = sens_table[iord]
+        coeff = sens_table_ispec['SENS_COEFF']
+        sensfunc_iord = np.exp(utils.func_val(coeff, wave_iord[mask_iord], func,
+                               minx=wave_iord[mask_iord].min(), maxx=wave_iord[mask_iord].max()))
+        mask_sens_iord = sensfunc_iord > 0.0
+        weights[mask_iord, iord] = 1.0 / (sensfunc_iord+(sensfunc_iord==0.))
+        masks[mask_iord, iord] = mask_sens_iord
+
+    if debug:
+        weights_qa(waves, weights, masks)
+        '''
+        for i in range(norder):
+            wavei = waves_stack_orders[:,i]
+            fluxi = fluxes_stack_orders_scale[:,i]
+            sigi = np.sqrt(utils.calc_ivar(ivars_stack_orders_scale[:,i]))
+            maski = masks_stack_orders[:,i]
+            weightsi = weights_stack[:,i]
+            #plt.plot(wavei[maski], fluxi[maski]/sigi[maski],zorder=1)
+            plt.plot(wavei[maski], weightsi[maski],zorder=2)
+        plt.show()
+        '''
+    return weights, masks
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=20.0, min_good=0.05,
                         maxiters=5, sigrej=3.0, max_factor=10.0):
@@ -736,15 +815,20 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         snr_median_red = np.median(flux_red[mask_both]*np.sqrt(ivar_red[mask_both]))
         snr_median_blue = np.median(flux_blue_inter[mask_both]*np.sqrt(ivar_blue_inter[mask_both]))
 
-        if (snr_median_blue>0.5) & (snr_median_red>0.5):
+        if (snr_median_blue>200.0) & (snr_median_red>200.0):
             order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
                                                    mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
                                                    maxiters=maxiters, max_factor=max_factor, sigrej=sigrej)
             order_ratios[iord - 1] = np.fmax(np.fmin(order_ratio_iord, max_factor), 1.0/max_factor)
             msgs.info('Scaled {}th order to {}th order by {:}'.format(iord-1, iord, order_ratios[iord-1]))
         else:
-            msgs.warn('The SNR in the overlapped region is too low or there is not enough overlapped pixels.'+ msgs.newline() +
-                      'Median scale between order {:} and order {:} was not attempted'.format(iord-1, iord))
+            if ii>0:
+                order_ratios[iord - 1] = order_ratios[iord]
+                msgs.warn('Scaled {}th order to {}th order by {:} using the redder order scaling '
+                          'factor'.format(iord-1, iord, order_ratios[iord-1]))
+            else:
+                msgs.warn('The SNR in the overlapped region is too low or there is not enough overlapped pixels.'+ msgs.newline() +
+                          'Median scale between order {:} and order {:} was not attempted'.format(iord-1, iord))
 
         if debug:
             plt.figure(figsize=(12, 8))
@@ -1068,10 +1152,11 @@ def weights_qa(waves, weights, masks):
         plt.plot(this_wave[wave_mask], this_weights[wave_mask] * this_mask[wave_mask])
     plt.xlim([waves[wave_mask_all].min(), waves[wave_mask_all].max()])
     plt.xlabel('Wavelength (Angstrom)')
-    plt.ylabel('(S/N)^2 weights')
+    plt.ylabel('Weights')
+    #plt.ylabel('(S/N)^2 weights')
     plt.show()
 
-def coadd_qa(wave, flux, ivar, nused, mask=None, title=None, qafile=None):
+def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=None):
     '''
     QA plot of the final stacked spectrum
     Args:
@@ -1108,11 +1193,14 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, title=None, qafile=None):
     ymin, ymax = get_ylim(flux, ivar, mask)
 
     # Plot transmission
-    if (np.max(wave[mask])>9000.0):
+    if (np.max(wave[mask])>9000.0) and (tell is None):
         skytrans_file = resource_filename('pypeit', '/data/skisim/atm_transmission_secz1.5_1.6mm.dat')
         skycat = np.genfromtxt(skytrans_file,dtype='float')
         scale = 0.8*ymax
         spec_plot.plot(skycat[:,0]*1e4,skycat[:,1]*scale,'m-',alpha=0.5,zorder=11)
+    elif (tell is not None):
+        scale = 0.8*ymax
+        spec_plot.plot(wave[wave_mask], tell[wave_mask]*scale, drawstyle='steps-mid', color='m',alpha=0.5,zorder=11)
 
     spec_plot.set_ylim([ymin, ymax])
     spec_plot.set_xlim([wave_min, wave_max])
@@ -1424,7 +1512,7 @@ def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method=
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
-def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
+def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
                  samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                  sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                  dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
@@ -1541,8 +1629,13 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
             upper=upper, maxrej=maxrej, debug=debug)
 
         if show:
+            if sensfile is not None:
+                tell_iord = get_tell_from_file(sensfile, waves_stack_orders[:, ii], masks_stack_orders[:, ii], iord=ii)
+            else:
+                tell_iord = None
             coadd_qa(waves_stack_orders[:, ii], fluxes_stack_orders[:, ii], ivars_stack_orders[:, ii], nused_iord,
-                     mask=masks_stack_orders[:, ii], title='Stacked spectrum of order {:}'.format(ii+1))
+                     mask=masks_stack_orders[:, ii], tell=tell_iord,
+                     title='Stacked spectrum of order {:}'.format(ii+1))
 
         # store new masks, scales and weights, all of these arrays are in native wave grid
         scales[:,ii,:] = scales_iord
@@ -1558,23 +1651,13 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
 
     ## Stack with the first method: combine the stacked individual order spectra directly
     # Get weights for individual order stacks
-    # ToDo: The sensfunc need to be put in here for the order merge, i.e. the weights should be sensfunc**2
-    rms_sn_stack, weights_stack = sn_weights(waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale,
-                                             masks_stack_orders, dv_smooth=dv_smooth, const_weights=const_weights,
-                                             sens_weights=True, verbose=True)
-    '''
-    from IPython import embed
-    embed()
-    for i in range(norder):
-        wavei = waves_stack_orders[:,i]
-        fluxi = fluxes_stack_orders_scale[:,i]
-        sigi = np.sqrt(utils.calc_ivar(ivars_stack_orders_scale[:,i]))
-        maski = masks_stack_orders[:,i]
-        weightsi = weights_stack[:,i]
-        plt.plot(wavei[maski], fluxi[maski]/sigi[maski],zorder=1)
-        plt.plot(wavei[maski], weightsi[maski],zorder=2)
-    plt.show()
-    '''
+    if sensfile is None:
+        rms_sn_stack, weights_stack = sn_weights(waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale,
+                                                 masks_stack_orders, dv_smooth=dv_smooth, const_weights=const_weights,
+                                                 ivar_weights=True, verbose=True)
+    else:
+        rms_sn_stack = None
+        weights_stack, masks_stack_orders = sens_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
 
     # TODO Will we use this reject/stack below? It is the straight combine of the stacked individual orders.
     #  This does not take advantage
@@ -1590,7 +1673,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     #    weights_stack, sn_cap=sn_cap, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject,debug=debug)
 
     if debug or show:
-        coadd_qa(wave_merge, flux_merge, ivar_merge, nused, mask=mask_merge,
+        coadd_qa(wave_merge, flux_merge, ivar_merge, nused, mask=mask_merge, tell = None,
                  title='Straight combined spectrum of the stacked individual orders', qafile=qafile_merge)
 
     # Save stacked individual order spectra
@@ -1608,7 +1691,6 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
     ivars_scale = ivars/scales_new**2
 
     # apply the sensfunc weights to the orginal weights: sensfunc_weights*weights
-    # TODO: need to make sure whether we can times these two weights directly, seems working correctly
     weights_new = np.copy(weights)
     for iord in range(norder):
         weight_iord = weights_stack[:, iord]
@@ -1620,7 +1702,7 @@ def ech_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='l
             weights_new[:,iord,iexp] = weights[:,iord,iexp] * weight_iord_interp
 
     # reshaping 3D arrays (npix, norder, nexp) to 2D arrays (npix, norder*nexp)
-    # need Fortran like order reshaping to make sure you are getting the right spectrum for each expsoure
+    # need Fortran like order reshaping to make sure you are getting the right spectrum for each exposure
     waves_2d = np.reshape(waves,(npix, norder*nexp),order='F')
     fluxes_2d = np.reshape(fluxes_scale, np.shape(waves_2d),order='F')
     ivars_2d = np.reshape(ivars_scale, np.shape(waves_2d),order='F')
