@@ -962,17 +962,17 @@ def load_standard_file(std_dict):
         msgs.info("Loading standard star file: {:s}".format(fil))
         msgs.info("Fluxes are flambda, normalized to 1e-17")
 
-    if std_dict['fmt'] == 3: # XSHOOTER files
+    if std_dict['fmt'] == 1: # XSHOOTER files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
         std_dict['flux'] = 10*std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 1: # Calspec
+    elif std_dict['fmt'] == 2: # Calspec
         std_spec = fits.open(fil)[1].data
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
         std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 2: # ESO files
+    elif std_dict['fmt'] == 3: # ESO files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
