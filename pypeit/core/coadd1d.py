@@ -1205,7 +1205,7 @@ def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_
 
     return rejivars, sigma_corrs, outchi, maskchi
 
-def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=20.0, lower=3.0, upper=3.0,
+def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, debug=False):
     '''
     Routine for rejections and combining
