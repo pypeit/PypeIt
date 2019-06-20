@@ -1075,13 +1075,13 @@ def write_to_disk(spectrograph, gdfiles, spec1d, outfile):
     spec1d_header = {}
     for card in header_cards:
         # Special cases
-        if card == 'exptime':
+        if card == 'exptime':   # Total
             tot_time = np.sum([ihead['EXPTIME'] for ihead in orig_headers])
             spec1d_header['EXPTIME'] = tot_time
-        elif card.upper() == 'AIRMASS':
-            airmass = np.mean([ihead['AIRMASS'] for ihead in orig_headers])
-            spec1d_header['AIRMASS'] = airmass
-        elif card.upper() in ['MJD', 'MJD-OBS', 'FILENAME']:
+        elif card.upper() in ['AIRMASS', 'MJD']:  # Average
+            mean = np.mean([ihead[card.upper()] for ihead in orig_headers])
+            spec1d_header[card.upper()] = mean
+        elif card.upper() in ['MJD-OBS', 'FILENAME']:  # Skip
             continue
         else:
             spec1d_header[card.upper()] = orig_headers[0][card.upper()]
