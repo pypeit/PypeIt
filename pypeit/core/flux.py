@@ -943,9 +943,9 @@ def load_standard_file(std_dict):
       Info on standard star indcluding filename in 'file'
       May be compressed
 
-      fmt==1  Calsepec
-      fmt==2  ESO files
-      fmt==3  XSHOOTER files
+      fmt==1  XSHOOTER
+      fmt==2  Calsepec
+      fmt==3  ESO files
 
     Returns
     -------
