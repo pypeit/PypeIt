@@ -966,7 +966,7 @@ def load_standard_file(std_dict):
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
-        std_dict['flux'] = 10*std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
+        std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
     elif std_dict['fmt'] == 2: # Calspec
         std_spec = fits.open(fil)[1].data
         # Load
@@ -976,7 +976,7 @@ def load_standard_file(std_dict):
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
-        std_dict['flux'] = 10*std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
+        std_dict['flux'] = std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
     else:
         msgs.error("Bad Standard Star Format")
     return
