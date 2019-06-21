@@ -815,7 +815,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         snr_median_red = np.median(flux_red[mask_both]*np.sqrt(ivar_red[mask_both]))
         snr_median_blue = np.median(flux_blue_inter[mask_both]*np.sqrt(ivar_blue_inter[mask_both]))
 
-        if (snr_median_blue>3.0) & (snr_median_red>3.0):
+        if (snr_median_blue>300.0) & (snr_median_red>300.0):
             order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
                                                    mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
                                                    maxiters=maxiters, max_factor=max_factor, sigrej=sigrej)
@@ -866,7 +866,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
             ymax.append(ymax_ii)
             ymin.append(ymin_ii)
         plt.xlim([np.min(waves[masks]), np.max(waves[masks])])
-        plt.ylim([np.min(ymin), np.max(ymax)])
+        plt.ylim([-0.15*np.median(ymax), 1.5*np.median(ymax)])
         plt.xlabel('Wavelength ($\\rm\\AA$)')
         plt.ylabel('Flux')
         plt.show()
@@ -1596,9 +1596,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
     outfile_stack = 'spec1d_stack_{:}'.format(outfile)
 
     if qafile is None:
-        qafile = header['TARGET']
-    else:
-        qafile = outfile.split('.')[0]
+        qafile = outfile.split('.')[0]+'.pdf'
     qafile_merge = 'spec1d_merge_{:}'.format(qafile)
     qafile_stack = 'spec1d_stack_{:}'.format(qafile)
     qafile_chi = 'spec1d_chi_{:}'.format(qafile)
