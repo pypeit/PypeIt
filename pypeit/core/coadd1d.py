@@ -729,7 +729,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
         sigrej: sigma for sigma_clip
         max_factor: maximum value of the returned ratio
     Returns:
-        median ratio
+        median ratio: float, the number that must be multiplied into flux in order to get it to match up with flux_ref
     '''
     ## Mask for reference spectrum and your spectrum
     if mask is None:
