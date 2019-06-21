@@ -250,7 +250,6 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         idx_orders.append(int(hdulist[ii+1].name.split('-')[1][5:])) # slit ID or order ID
 
 
-    IPython.embed()
     if pypeline == "Echelle":
         ## np.unique automatically sort the returned array which is not what I want!!!
         ## order_vec = np.unique(idx_orders)

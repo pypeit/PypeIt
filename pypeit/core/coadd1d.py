@@ -814,7 +814,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         snr_median_red = np.median(flux_red[mask_both]*np.sqrt(ivar_red[mask_both]))
         snr_median_blue = np.median(flux_blue_inter[mask_both]*np.sqrt(ivar_blue_inter[mask_both]))
 
-        if (snr_median_blue>200.0) & (snr_median_red>200.0):
+        if (snr_median_blue>3.0) & (snr_median_red>3.0):
             order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
                                                    mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
                                                    maxiters=maxiters, max_factor=max_factor, sigrej=sigrej)
