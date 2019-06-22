@@ -23,6 +23,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit import debugger
 from pkg_resources import resource_filename
 
+from IPython import embed
 
 # TODO
     # Shift spectra
@@ -861,7 +862,7 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     return std_dev, dev_sig
 
 
-def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
+def coadd_spectra(spectrograph, gdfiles, spectra, wave_grid_method='concatenate', niter=5,
                   flux_scale=None,
                   scale_method='auto', do_offset=False, sigrej_final=3.,
                   do_var_corr=True, qafile=None, outfile=None,
@@ -1073,14 +1074,34 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Write to disk?
     if outfile is not None:
-        write_to_disk(spec1d, outfile)
+        write_to_disk(spectrograph, gdfiles, spec1d, outfile)
     return spec1d
 
 
-def write_to_disk(spec1d, outfile):
+def write_to_disk(spectrograph, gdfiles, spec1d, outfile):
     """ Small method to write file to disk
     """
-    msgs.work("Need to include header info")
+    # Header
+    header_cards = spectrograph.header_cards_for_spec()
+    orig_headers = [fits.open(gdfile)[0].header for gdfile in gdfiles]
+    spec1d_header = {}
+    for card in header_cards:
+        # Special cases
+        if card == 'exptime':   # Total
+            tot_time = np.sum([ihead['EXPTIME'] for ihead in orig_headers])
+            spec1d_header['EXPTIME'] = tot_time
+        elif card.upper() in ['AIRMASS', 'MJD']:  # Average
+            mean = np.mean([ihead[card.upper()] for ihead in orig_headers])
+            spec1d_header[card.upper()] = mean
+        elif card.upper() in ['MJD-OBS', 'FILENAME']:  # Skip
+            continue
+        else:
+            spec1d_header[card.upper()] = orig_headers[0][card.upper()]
+    # INSTRUME
+    spec1d_header['INSTRUME'] = spectrograph.camera.strip()
+    # Add em
+    spec1d.meta['headers'][0] = spec1d_header
+    #
     if '.hdf5' in outfile:
         spec1d.write_to_hdf5(outfile)
     elif '.fits' in outfile:

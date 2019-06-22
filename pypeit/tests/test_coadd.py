@@ -11,8 +11,14 @@ from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit.core import coadd
+<<<<<<< .merge_file_2MBrtT
 from pypeit import utils
+=======
+from pypeit.spectrographs.util import load_spectrograph
+>>>>>>> .merge_file_IGG60S
 from pypeit import msgs
+
+kast_blue = load_spectrograph('shane_kast_blue')
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
@@ -287,7 +293,7 @@ def test_coadd():
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    spec1d = coadd.coadd_spectra(dspec, wave_grid_method='concatenate')
+    spec1d = coadd.coadd_spectra(kast_blue, None, dspec, wave_grid_method='concatenate')
     assert np.isclose(np.median(spec1d.flux.value), 1., atol=0.003)
 
 
@@ -299,7 +305,7 @@ def test_coadd_with_fluxing():
     dspec = dummy_spectra(s2n=10.)
     dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
     dspec.data['sig'][0, 700] *= 500.
-    spec1d = coadd.coadd_spectra(dspec, wave_grid_method='concatenate', flux_scale=scale_dict)
+    spec1d = coadd.coadd_spectra(kast_blue, None, dspec, wave_grid_method='concatenate', flux_scale=scale_dict)
     # Test
     assert np.median(spec1d.flux.value) > 6.61
 
