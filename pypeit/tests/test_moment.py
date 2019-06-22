@@ -82,7 +82,6 @@ def test_center_uniform():
     for c in xt:
         img[0,:] += (erf((x-c+0.5)/np.sqrt(2)/2) - erf((x-c-0.5)/np.sqrt(2)/2))/2.
 
-    #xr, xe, bad = new_trace.recenter_moment(img, xi, ycen=np.zeros(xi.size), width=10.)
     xr, xe, bad = moment.moment1d(img, xi, 10., row=0, order=1)
 
     assert np.mean(np.absolute(xi-xt)) - np.mean(np.absolute(xr-xt)) > 0, \
@@ -105,8 +104,6 @@ def test_center_gaussian():
     for c in xt:
         img[0,:] += (erf((x-c+0.5)/np.sqrt(2)/2) - erf((x-c-0.5)/np.sqrt(2)/2))/2.
 
-    #xr, xe, bad = new_trace.recenter_moment(img, xi, ycen=np.zeros(xi.size), width=4.,
-    #                                        weighting='gaussian')
     xr, xe, bad = moment.moment1d(img, xi, 4., row=0, weighting='gaussian', order=1)
 
     assert np.mean(np.absolute(xi-xt)) - np.mean(np.absolute(xr-xt)) > 0, \
@@ -131,7 +128,6 @@ def test_extract():
     for c in xt:
         img[0,:] += (erf((x-c+0.5)/np.sqrt(2)/sig) - erf((x-c-0.5)/np.sqrt(2)/sig))/2.
 
-    #xr, xe, bad = new_trace.extract_aperture(img, xt-delt, xt+delt, ycen=np.zeros(xi.size))
     xr, xe, bad = moment.moment1d(img, xt, delt*2, row=0, order=0)
 
     truth = (erf(delt/np.sqrt(2)/sig) - erf(-delt/np.sqrt(2)/sig))/2.

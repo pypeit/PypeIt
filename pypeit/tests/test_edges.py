@@ -4,7 +4,7 @@ import numpy as np
 
 from scipy.special import erf
 
-from pypeit import new_trace
+from pypeit import edgetrace
 
 def test_recenter_moment_uniform():
     """
@@ -22,7 +22,7 @@ def test_recenter_moment_uniform():
     for c in xt:
         img[0,:] += (erf((x-c+0.5)/np.sqrt(2)/2) - erf((x-c-0.5)/np.sqrt(2)/2))/2.
 
-    xr, xe, bad = new_trace.recenter_moment(img, xi, ycen=np.zeros(xi.size), width=10.)
+    xr, xe, bad = edgetrace.recenter_moment(img, xi, ycen=np.zeros(xi.size), width=10.)
 
     assert np.mean(np.absolute(xi-xt)) - np.mean(np.absolute(xr-xt)) > 0, \
                 'Recentering did not improve the mean difference'
@@ -45,7 +45,7 @@ def test_recenter_moment_gaussian():
     for c in xt:
         img[0,:] += (erf((x-c+0.5)/np.sqrt(2)/2) - erf((x-c-0.5)/np.sqrt(2)/2))/2.
 
-    xr, xe, bad = new_trace.recenter_moment(img, xi, ycen=np.zeros(xi.size), width=4.,
+    xr, xe, bad = edgetrace.recenter_moment(img, xi, ycen=np.zeros(xi.size), width=4.,
                                             weighting='gaussian')
 
     assert np.mean(np.absolute(xi-xt)) - np.mean(np.absolute(xr-xt)) > 0, \
@@ -71,20 +71,9 @@ def test_extract():
     for c in xt:
         img[0,:] += (erf((x-c+0.5)/np.sqrt(2)/sig) - erf((x-c-0.5)/np.sqrt(2)/sig))/2.
 
-    xr, xe, bad = new_trace.extract(img, xt-delt, xt+delt, ycen=np.zeros(xi.size))
+    xr, xe, bad = edgetrace.extract(img, xt-delt, xt+delt, ycen=np.zeros(xi.size))
 
     truth = (erf(delt/np.sqrt(2)/sig) - erf(-delt/np.sqrt(2)/sig))/2.
     assert np.mean(np.absolute(xr-truth)) < 1e-3, 'Extraction inaccurate'
-
-
-def test_closest_unmasked():
-    arr = np.ma.MaskedArray(np.arange(10))
-    arr[3] = np.ma.masked
-    arr[8] = np.ma.masked
-    closest = new_trace.closest_unmasked(arr)
-    assert np.array_equal(closest, np.array([1, 0, 1, 2, 5, 4, 5, 6, 7, 7])), \
-            'Closest indices did not match expected result'
-    assert np.array_equal(closest, new_trace.closest_unmasked(arr, use_indices=True)), \
-            'Result should be independent of use_indices for this array' 
 
 

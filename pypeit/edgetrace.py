@@ -51,15 +51,13 @@ image as follows::
 With the trace image, you then instantiate the edge tracing object as follows::
 
     # Instantiate edge tracing
-    par = new_trace.EdgeTracePar()
-    return new_trace.EdgeTraceSet(rdx.spectrograph, par, master_key=trace_master_key,
-                                  master_dir=rdx.caliBrate.master_dir,
-                                  qa_path=rdx.caliBrate.qa_path, img=traceImage,
-                                  bpm=rdx.caliBrate.msbpm, det=det)
-
+    return edges.EdgeTraceSet(rdx.spectrograph, rdx.caliBrate.par['slitedges'],
+                              master_key=trace_master_key, master_dir=rdx.caliBrate.master_dir,
+                              qa_path=rdx.caliBrate.qa_path, img=traceImage,
+                              bpm=rdx.caliBrate.msbpm, det=det)
 
 .. todo::
-    - Should provide a simpler example for how to generate a trace image
+    - Should simplify example for how to generate a trace image
 
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """

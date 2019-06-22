@@ -51,7 +51,7 @@ def main(args):
     import os
     import numpy as np
     from pypeit.spectrographs.util import load_spectrograph
-    from pypeit import traceslits, traceimage, new_trace
+    from pypeit import traceslits, traceimage, edgetrace
     from pypeit.pypeit import PypeIt
     from pypeit.core import parse
 
@@ -82,7 +82,7 @@ def main(args):
         # Trace image processing parameters
         proc_par = rdx.caliBrate.par['traceframe']
         # Slit tracing parameters
-        trace_par = rdx.caliBrate.par['slits']
+        trace_par = rdx.caliBrate.par['slitedges'] if args.use_new else rdx.caliBrate.par['slits']
     else:
         spec = load_spectrograph(args.spectrograph)
         master_key_base = 'A_1'
@@ -94,7 +94,8 @@ def main(args):
                                      if args.redux_path is None else args.redux_path)
         par = spec.default_pypeit_par()
         proc_par = par['calibrations']['traceframe']
-        trace_par = par['calibrations']['slits']
+        trace_par = par['calibrations']['slitedges'] if args.use_new \
+                        else par['calibrations']['slits']
     
     detectors = np.arange(spec.ndet)+1 if args.detector is None else [args.detector]
     master_dir = os.path.join(redux_path, args.master_dir)
@@ -115,9 +116,9 @@ def main(args):
         # Trace the slit edges
         if args.use_new:
             t = time.perf_counter()
-            par = new_trace.EdgeTracePar(max_nudge=0, sync_to_edge=False, sync_clip=False)
-            edges = new_trace.EdgeTraceSet(spec, par, master_key=master_key, master_dir=master_dir,
-                                           trace_img=traceImage, det=det, auto=True)
+            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                           master_dir=master_dir, trace_img=traceImage, det=det,
+                                           auto=True)
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
             edges.save()
         else:
