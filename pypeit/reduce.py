@@ -9,8 +9,7 @@ from pypeit import ginga, utils, msgs, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.core import procimg
 from pypeit.images import scienceimage
-
-from IPython import embed
+import IPython
 
 class Reduce(object):
     """
