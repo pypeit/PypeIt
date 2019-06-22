@@ -29,6 +29,8 @@ import numpy
 from scipy import interpolate
 import astropy.constants
 
+from pypeit.core import moment
+
 def spectral_coordinate_step(wave, log=False, base=10.0):
     """
     Return the sampling step for the input wavelength vector.
@@ -602,5 +604,125 @@ class Resample:
         
         return numpy.sqrt(out) if quad else out
 
+
+def rectify_image(img, col, bpm=None, ocol=None, max_ocol=None, extract_width=None,
+                  mask_threshold=0.5):
+    r"""
+    Rectify the image by shuffling flux along columns using the provided
+    column mapping.
+
+    The image recification is one dimensional, treating each image row
+    independently. It can be done either by a direct resampling of the
+    image columns using the provided mapping of output to input column
+    location (see `col` and :class:`Resample`) or by an extraction along
+    the provided column locations (see `extract_width`). The latter is
+    generally faster; however, when resampling each row, the flux is
+    explicitly conserved (see the `conserve` argument of
+    :class:`Resample`).
+
+    Args:
+        img (`numpy.ndarray`_):
+            The 2D image to rectify. Shape is :math:`(N_{\rm row},
+            N_{\rm col})`.
+        col (`numpy.ndarray`_):
+            The array mapping each output column to its location in
+            the input image. That is, e.g., `col[:,0]` provides the
+            column coordinate in `img` that should be rectified to
+            column 0 in the output image. Shape is :math:`(N_{\rm
+            row}, N_{\rm map})`.
+        bpm (`numpy.ndarray`_, optional):
+            Boolean bad-pixel mask for pixels to ignore in input
+            image. If None, no pixels are masked in the
+            rectification. If provided, shape must match `img`.
+        ocol (`numpy.ndarray`_, optional):
+            The column in the output image for each column in `col`.
+            If None, assume::
+
+                ocol = numpy.arange(col.shape[1])
+
+            These coordinates can fall off the output image (i.e.,
+            :math:`<0` or :math:`\geq N_{\rm out,col}`), but those
+            columns are removed from the output).
+        max_ocol (:obj:`int`, optional):
+            The last viable column *index* to include in the output
+            image; ie., for an image with `ncol` columns, this should
+            be `ncol-1`. If None, assume `max(ocol)`.
+        extract_width (:obj:`float`, optional):
+            The width of the extraction aperture to use for the image
+            rectification. If None, the image recification is performed
+            using :class:`Resample` along each row.
+        mask_threshold (:obj:`float`, optional):
+            Either due to `bpm` or the bounds of the provided `img`,
+            pixels in the rectified image may not be fully covered by
+            valid pixels in `img`. Pixels in the output image with
+            less than this fractional coverage of an input pixel are
+            flagged in the output.
+
+    Returns:
+        Two `numpy.ndarray`_ objects are returned both with shape
+        `(nrow,max_ocol+1)`, the rectified image and its boolean
+        bad-pixel mask.
+    """
+    # Check the input
+    if img.ndim != 2:
+        raise ValueError('Input image must be 2D.')
+    if bpm is not None and bpm.shape != img.shape:
+        raise ValueError('Image bad-pixel mask must match image shape.')
+    _img = numpy.ma.MaskedArray(img, mask=bpm)
+    nrow, ncol = _img.shape
+    if col.ndim != 2:
+        raise ValueError('Column mapping array must be 2D.')
+    if col.shape[0] != nrow:
+        raise ValueError('Number of rows in column mapping array must match image to rectify.')
+    _ocol = numpy.arange(col.shape[1]) if ocol is None else numpy.atleast_1d(ocol)
+    if _ocol.ndim != 1:
+        raise ValueError('Output column indices must be provided as a vector.')
+    if _ocol.size != col.shape[1]:
+        raise ValueError('Output column indices must match columns in column mapping array.')
+    _max_ocol = numpy.amax(_ocol) if max_ocol is None else max_ocol
+
+    # Use an aperture extraction to rectify the image
+    if extract_width is not None:
+        # Select viable columns
+        indx = (_ocol >= 0) & (_ocol <= _max_ocol)
+        # Initialize the output image as all masked
+        out_img = numpy.ma.masked_all((nrow,_max_ocol+1), dtype=float)
+        # Perform the extraction
+        out_img[:,_ocol[indx]] = moment.moment1d(_img.data, col[:,indx], extract_width,
+                                                 bpm=_img.mask)[0]
+        # Determine what fraction of the extraction fell off the image
+        coo = col[:,indx,None] + numpy.arange(numpy.ceil(extract_width)).astype(int)[None,None,:] \
+                    - extract_width/2
+        in_image = (coo >= 0) | (coo < ncol)
+        out_bpm = numpy.sum(in_image, axis=2)/extract_width < mask_threshold
+        # Return the filled numpy.ndarray and boolean mask
+        return out_img.filled(0.0)/extract_width, out_img.mask | out_bpm
+
+    # Directly resample the image
+    # 
+    # `col` provides the column in the input image that should
+    # resampled to a given position in the output image: the value of
+    # the flux at img[:,col[:,0]] should be rectified to `outimg[:,0]`.
+    # To run the resampling algorithm we need to invert this. That is,
+    # instead of having a function that provides the output column as a
+    # function of the input column, we want a function that provies the
+    # input column as a function of the output column.
+
+    # Instantiate the output image
+    out_img = numpy.zeros((nrow,_max_ocol+1), dtype=float)
+    out_bpm = numpy.zeros((nrow,_max_ocol+1), dtype=bool)
+    icol = numpy.arange(ncol)
+    for i in range(nrow):
+        # Get the coordinate vector of the output column
+        _icol = interpolate.interp1d(col[i,:], _ocol, copy=False, bounds_error=False,
+                                     fill_value='extrapolate', assume_sorted=True)(icol)
+        # Resample it
+        r = Resample(_img[i,:], x=_icol, newRange=[0,_max_ocol], newpix=_max_ocol+1, newLog=False,
+                     conserve=True)
+        # Save the resampled data
+        out_img[i,:] = r.outy
+        # Flag pixels
+        out_bpm[i,:] = r.outf < mask_threshold
+    return out_img, out_bpm
 
 

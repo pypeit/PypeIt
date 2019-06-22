@@ -1518,6 +1518,375 @@ class TraceSlitsPar(ParSet):
             if not isinstance(e, int):
                 raise ValueError('PCA extrapolation values must be integers.')
 
+
+class EdgeTracePar(ParSet):
+    """
+    Parameters used for slit edge tracing.
+    
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
+    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, follow_span=None,
+                 minimum_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
+                 max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
+                 fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None, pca_n=None,
+                 pca_var_percent=None, pca_function=None, pca_order=None, pca_sigrej=None,
+                 pca_maxrej=None, pca_maxiter=None, smash_range=None, edge_detect_clip=None,
+                 trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
+                 fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
+                 sync_predict=None, sync_center=None, sync_to_edge=None, min_slit_gap=None,
+                 minimum_slit_length=None, length_range=None, clip=None, sync_clip=None,
+                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
+                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        defaults['filt_iter'] = 0
+        dtypes['filt_iter'] = int
+        descr['filt_iter'] = 'Number of median-filtering iterations to perform on sqrt(trace) ' \
+                             'image before applying to Sobel filter to detect slit/order edges.'
+
+        defaults['sobel_mode'] = 'nearest'
+        options['sobel_mode'] = EdgeTracePar.valid_sobel_modes()
+        dtypes['sobel_mode'] = str
+        descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\'; note we find' \
+                              '\'constant\' works best for DEIMOS.'
+
+        defaults['edge_thresh'] = 20.
+        dtypes['edge_thresh'] = [int, float]
+        descr['edge_thresh'] = 'Threshold for finding edges in the Sobel-filtered significance' \
+                               ' image.'
+
+        defaults['follow_span'] = 20
+        dtypes['follow_span'] = int
+        descr['follow_span'] = 'In the initial connection of spectrally adjacent edge ' \
+                               'detections, this sets the number of previous spectral rows ' \
+                               'to consider when following slits forward.'
+
+        defaults['minimum_spec_length'] = 1/3.
+        dtypes['minimum_spec_length'] = [int, float]
+        descr['minimum_spec_length'] = 'The minimum spectral length of a trace allowed as a ' \
+                                       'fraction of the full detector spectral span.'
+        
+        defaults['valid_flux_thresh'] = 500.
+        dtypes['valid_flux_thresh'] = [int, float]
+        descr['valid_flux_thresh'] = 'The flux in the image used to construct the edge traces ' \
+                                     'is valid if its median value is above this threshold.  ' \
+                                     'Any edge tracing issues are then assumed not to be an ' \
+                                     'issue with the trace image itself.'
+
+        defaults['max_shift_abs'] = 0.5
+        dtypes['max_shift_abs'] = [int, float]
+        descr['max_shift_abs'] = 'Maximum spatial shift in pixels between an input edge ' \
+                                 'location and the recentroided value.'
+
+        defaults['max_shift_adj'] = 0.15
+        dtypes['max_shift_adj'] = [int, float]
+        descr['max_shift_adj'] = 'Maximum spatial shift in pixels between the edges in ' \
+                                 'adjacent spectral positions.'
+
+        defaults['max_spat_error'] = 0.2
+        dtypes['max_spat_error'] = [int, float]
+        descr['max_spat_error'] = 'Maximum error in the spatial position of edges in pixels.'
+
+        defaults['match_tol'] = 3.
+        dtypes['match_tol'] = [int, float]
+        descr['match_tol'] = 'Same-side slit edges below this separation in pixels are ' \
+                             'considered part of the same edge.'
+
+        defaults['fit_function'] = 'legendre'
+        options['fit_function'] = EdgeTracePar.valid_functions()
+        dtypes['fit_function'] = str
+        descr['fit_function'] = 'Function fit to edge measurements.  ' \
+                                'Options are: {0}'.format(', '.join(options['fit_function']))
+
+        defaults['fit_order'] = 5
+        dtypes['fit_order'] = int
+        descr['fit_order'] = 'Order of the function fit to edge measurements.'
+
+        defaults['fit_maxdev'] = 5.0
+        dtypes['fit_maxdev'] = [int, float]
+        descr['fit_maxdev'] = 'Maximum deviation between the fitted and measured edge position ' \
+                              'for rejection in spatial pixels.'
+
+        defaults['fit_maxiter'] = 25
+        dtypes['fit_maxiter'] = int
+        descr['fit_maxiter'] = 'Maximum number of rejection iterations during edge fitting.'
+
+        defaults['fit_niter'] = 9
+        dtypes['fit_niter'] = int
+        descr['fit_niter'] = 'Number of iterations of re-measuring and re-fitting the edge ' \
+                             'data; see :func:`pypeit.core.trace.fit_trace`.'
+
+        dtypes['pca_n'] = int
+        descr['pca_n'] = 'The number of PCA components to keep, which must be less than the ' \
+                         'number of detected traces.  If not provided, determined by ' \
+                         'calculating the minimum number of components required to explain a ' \
+                         'given percentage of variance in the edge data; see `pca_var_percent`.'
+            
+        defaults['pca_var_percent'] = 99.8
+        dtypes['pca_var_percent'] = [int, float]
+        descr['pca_var_percent'] = 'The percentage (i.e., not the fraction) of the variance in ' \
+                                   'the edge data accounted for by the PCA used to truncate ' \
+                                   'the number of PCA coefficients to keep (see `pca_n`).  ' \
+                                   'Ignored if `pca_n` is provided directly.'
+        
+        defaults['pca_function'] = 'polynomial'
+        dtypes['pca_function'] = str
+        options['pca_function'] = EdgeTracePar.valid_functions()
+        descr['pca_function'] = 'Type of function fit to the PCA coefficients for each ' \
+                                'component.  Options are: {0}'.format(
+                                    ', '.join(options['pca_function']))
+        
+        defaults['pca_order'] = 3
+        dtypes['pca_order'] = int
+        descr['pca_order'] = 'Order of the function fit to the PCA coefficients.'
+        
+        defaults['pca_sigrej'] = [2., 2.]
+        dtypes['pca_sigrej'] = [int, float, list]
+        descr['pca_sigrej'] = 'Sigma rejection threshold for fitting PCA components. Individual ' \
+                              'numbers are used for both lower and upper rejection. A list of ' \
+                              'two numbers sets these explicitly (e.g., [2., 3.]).'
+
+        defaults['pca_maxrej'] = 1
+        dtypes['pca_maxrej'] = int
+        descr['pca_maxrej'] = 'Maximum number of PCA coefficients rejected during a given fit ' \
+                              'iteration.'
+
+        defaults['pca_maxiter'] = 25
+        dtypes['pca_maxiter'] = int
+        descr['pca_maxiter'] = 'Maximum number of rejection iterations when fitting the PCA ' \
+                               'coefficients.'
+
+        defaults['smash_range'] = [0., 1.]
+        dtypes['smash_range'] = list
+        descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional ' \
+                               'units) to smash when searching for slit edges.  If the ' \
+                               'spectrum covers only a portion of the image, use that range.'
+
+        dtypes['edge_detect_clip'] = [int, float]
+        descr['edge_detect_clip'] = 'Sigma clipping level for peaks detected in the collapsed, ' \
+                                    'Sobel-filtered significance image.'
+
+        dtypes['trace_median_frac'] = [int, float]
+        descr['trace_median_frac'] = 'After detection of peaks in the rectified Sobel-filtered ' \
+                                     'image and before refitting the edge traces, the rectified ' \
+                                     'image is median filtered with a kernel width of ' \
+                                     '`trace_median_frac*nspec` along the spectral dimension.'
+        
+        dtypes['trace_thresh'] = [int, float]
+        descr['trace_thresh'] = 'After rectification and median filtering of the Sobel-filtered ' \
+                                'image (see `trace_median_frac`), values in the median-filtered ' \
+                                'image *below* this threshold are masked in the refitting of ' \
+                                'the edge trace data.'
+
+        defaults['fwhm_uniform'] = 3.0
+        dtypes['fwhm_uniform'] = [int, float]
+        descr['fwhm_uniform'] = 'The `fwhm` parameter to use when using uniform weighting in ' \
+                                ':func:`pypeit.core.trace.fit_trace` when refining the PCA ' \
+                                'predictions of edges.  See description of ' \
+                                ':func:`pypeit.core.trace.peak_trace`.'
+
+        defaults['niter_uniform'] = 9
+        dtypes['niter_uniform'] = int
+        descr['niter_uniform'] = 'The number of iterations of ' \
+                                 ':func:`pypeit.core.trace.fit_trace` to use when using ' \
+                                 'uniform weighting.'
+
+        defaults['fwhm_gaussian'] = 3.0
+        dtypes['fwhm_gaussian'] = [int, float]
+        descr['fwhm_gaussian'] = 'The `fwhm` parameter to use when using Gaussian weighting in ' \
+                                 ':func:`pypeit.core.trace.fit_trace` when refining the PCA ' \
+                                 'predictions of edges.  See description ' \
+                                 ':func:`pypeit.core.trace.peak_trace`.'
+
+        defaults['niter_gaussian'] = 6
+        dtypes['niter_gaussian'] = int
+        descr['niter_gaussian'] = 'The number of iterations of ' \
+                                  ':func:`pypeit.core.trace.fit_trace` to use when using ' \
+                                  'Gaussian weighting.'
+
+        defaults['det_buffer'] = 5
+        dtypes['det_buffer'] = int
+        descr['det_buffer'] = 'The minimum separation between the detector edges and a slit ' \
+                              'edge for any added edge traces.  Must be positive.'
+
+#        defaults['max_nudge'] = 100
+        dtypes['max_nudge'] = int
+        descr['max_nudge'] = 'If parts of any (predicted) trace fall off the detector edge, ' \
+                             'allow them to be nudged away from the detector edge up to and ' \
+                             'including this maximum number of pixels.  If None, no limit is ' \
+                             'set; otherwise should be 0 or larger.'
+
+        defaults['sync_predict'] = 'pca'
+        options['sync_predict'] = EdgeTracePar.valid_predict_modes()
+        dtypes['sync_predict'] = str
+        descr['sync_predict'] = 'Mode to use when predicting the form of the trace to insert.  ' \
+                                'Use `pca` to use the PCA decomposition or `nearest` to ' \
+                                'reproduce the shape of the nearest trace.'
+                      
+        defaults['sync_center'] = 'median'
+        options['sync_center'] = EdgeTracePar.valid_center_modes()
+        dtypes['sync_center'] = str
+        descr['sync_center'] = 'Mode to use for determining the location of traces to insert.  ' \
+                               'Use `median` to use the median of the matched left and right ' \
+                               'edge pairs or `nearest` to ue the length of the nearest slit`.'
+
+        defaults['sync_to_edge'] = True
+        dtypes['sync_to_edge'] = bool
+        descr['sync_to_edge'] = 'If adding a first left edge or a last right edge, ignore ' \
+                                '`center_mode` for these edges and place them at the edge of ' \
+                                'the detector (with the relevant shape).'
+
+        defaults['min_slit_gap'] = 1.
+        dtypes['min_slit_gap'] = [int, float]
+        descr['min_slit_gap'] = 'Minimum allowed gap in pixels between the mean spatial ' \
+                                'location of left and right edges.'
+
+#        defaults['minimum_slit_length'] = 6.
+        dtypes['minimum_slit_length'] = [int, float]
+        descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Shorter slits are ' \
+                                       'masked or clipped.'
+
+#        defaults['length_range'] = 0.3
+        dtypes['length_range'] = [int, float]
+        descr['length_range'] = 'Range in relative slit length.  For example, a value of 0.3 ' \
+                                'means that slit lengths should not vary more than 30%.  ' \
+                                'Relatively shorter or longer slits are masked or clipped.'
+
+        defaults['clip'] = True
+        dtypes['clip'] = bool
+        descr['clip'] = 'Instead of just masking bad slit trace edges, remove them.'
+
+        defaults['sync_clip'] = True
+        dtypes['sync_clip'] = bool
+        descr['sync_clip'] = 'For synchronized edges specifically, remove both edge traces, ' \
+                             'even if only one is selected for removal.'
+
+        # TODO: Make these mask registration parameters a separate
+        # (nested) parameter set? Would making saving the paramters to
+        # the master file header annoying ...
+        dtypes['mask_reg_maxiter'] = int
+        descr['mask_reg_maxiter'] = 'Maximum number of fit iterations to perform for ' \
+                                    'registering slit-mask design and trace locations. If None, ' \
+                                    'rejection iterations are performed until no points are ' \
+                                    'rejected. If 1, only a single fit is performed without any ' \
+                                    'rejection.'
+
+        dtypes['mask_reg_maxsep'] = [int, float]
+        descr['mask_reg_maxsep'] = 'Maximum allowed separation between the calibrated ' \
+                                   'coordinates of the designed slit position in pixels and the ' \
+                                   'matched trace. If None, rejection is done iteratively using ' \
+                                   'sigma clipping.  See mask_reg_sigrej.'
+        
+        defaults['mask_reg_sigrej'] = 5
+        dtypes['mask_reg_sigrej'] = [int, float]
+        descr['mask_reg_sigrej'] = 'Number of sigma for sigma-clipping during rejection ' \
+                                   'iterations during the slit-mask design registration. If ' \
+                                   'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
+
+        defaults['ignore_alignment'] = False
+        dtypes['ignore_alignment'] = bool
+        descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
+
+#        # Force trim to be a tuple
+#        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
+#            try:
+#                pars['trim'] = tuple(pars['trim'])
+#            except:
+#                raise TypeError('Could not convert provided trim to a tuple.')
+#        defaults['trim'] = (0,0)
+#        dtypes['trim'] = tuple
+#        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
+#                        'or positive'
+
+        defaults['pad'] = 0
+        dtypes['pad'] = int
+        descr['pad'] = 'Integer number of pixels to consider beyond the slit edges.'
+
+        dtypes['add_slits'] = [str, list]
+        descr['add_slits'] = 'Add one or more user-defined slits.  The syntax to define a ' \
+                             'slit to add is: \'det:spec:spat_left:spat_right\' where ' \
+                             'det=detector, spec=spectral pixel, spat_left=spatial pixel of ' \
+                             'left slit boundary, and spat_righ=spatial pixel of right slit ' \
+                             'boundary.  For example, \'2:2000:2121:2322,3:2000:1201:1500\' ' \
+                             'will add a slit to detector 2 passing through spec=2000 ' \
+                             'extending spatially from 2121 to 2322 and another on detector 3 ' \
+                             'at spec=2000 extending from 1201 to 1500.'
+
+        dtypes['rm_slits'] = [str, list]
+        descr['rm_slits'] = 'Remove one or more user-specified slits.  The syntax used to ' \
+                            'define a slit to remove is: \'det:spec:spat\' where det=detector, ' \
+                            'spec=spectral pixel, spat=spatial pixel.  For example, ' \
+                            '\'2:2000:2121,3:2000:1500\' will remove the slit on detector 2 ' \
+                            'that contains pixel (spat,spec)=(2000,2121) and on detector 3 ' \
+                            'that contains pixel (2000,2121).'
+
+        # Instantiate the parameter set
+        super(EdgeTracePar, self).__init__(list(pars.keys()), values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           options=list(options.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'minimum_spec_length',
+                   'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
+                   'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
+                   'fit_niter', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
+                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
+                   'trace_median_frac', 'trace_thresh', 'fwhm_uniform', 'niter_uniform',
+                   'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict',
+                   'sync_center', 'sync_to_edge', 'minimum_slit_length', 'length_range', 'clip',
+                   'sync_clip', 'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej',
+                   'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    @staticmethod
+    def valid_functions():
+        """
+        Return the list of valid functions to use for slit tracing.
+        """
+        return ['polynomial', 'legendre', 'chebyshev']
+
+    @staticmethod
+    def valid_sobel_modes():
+        """Return the valid sobel modes."""
+        return ['nearest', 'constant']
+
+    @staticmethod
+    def valid_predict_modes():
+        """Return the valid trace prediction modes."""
+        return ['pca', 'nearest']
+
+    @staticmethod
+    def valid_center_modes():
+        """Return the valid center prediction modes."""
+        return ['median', 'nearest']
+
+    def validate(self):
+        pass
+
+
 class WaveTiltsPar(ParSet):
     """
     The parameter set used to hold arguments for tracing the
@@ -1815,7 +2184,7 @@ class CalibrationsPar(ParSet):
     def __init__(self, caldir=None, setup=None, trim=None, badpix=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
-                 wavelengths=None, slits=None, tilts=None):
+                 wavelengths=None, slits=None, slitedges=None, tilts=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1895,6 +2264,10 @@ class CalibrationsPar(ParSet):
         dtypes['slits'] = [ ParSet, dict ]
         descr['slits'] = 'Define how the slits should be traced using the trace frames'
 
+        defaults['slitedges'] = EdgeTracePar()
+        dtypes['slitedges'] = [ ParSet, dict ]
+        descr['slitedges'] = 'Slit-edge tracing parameters'
+
         defaults['tilts'] = WaveTiltsPar()
         dtypes['tilts'] = [ ParSet, dict ]
         descr['tilts'] = 'Define how to trace the slit tilts using the trace frames'
@@ -1941,6 +2314,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = WavelengthSolutionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'slits'
         kwargs[pk] = TraceSlitsPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'slitedges'
+        kwargs[pk] = EdgeTracePar.from_dict(cfg[pk]) if pk in k else None
         pk = 'tilts'
         kwargs[pk] = WaveTiltsPar.from_dict(cfg[pk]) if pk in k else None
 
