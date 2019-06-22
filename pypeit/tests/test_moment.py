@@ -4,7 +4,7 @@ import numpy as np
 
 from scipy.special import erf
 
-from pypeit import moment
+from pypeit.core import moment
 
 def test_basics():
     c = [45,50,55]

@@ -41,12 +41,16 @@ class PypeItImage(object):
         self.binning = None          # Binning in PypeIt orientation (spec, spat)
         self.exptime = None          # Required to generate variance image
 
+    @property
+    def shape(self):
+        return () if self.image is None else self.image.shape
 
     def show(self):
         """
-        Simple show method
+        Show the image in a ginga viewer.
         """
         if self.image is None:
+            # TODO: This should fault.
             msgs.warn("No image to show!")
             return
         ginga.show_image(self.image, chname='image')

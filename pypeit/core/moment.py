@@ -7,7 +7,7 @@ Module to compute moments.
 import numpy as np
 from scipy import special
 
-def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weighting='uniform',
+def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighting='uniform',
              order=0, bounds=None, fill_error=-1., mesh=True):
     r"""
     Compute one-dimensional moments of the provided image within an
@@ -99,7 +99,7 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
         The function has significant setup/input checking overhead.
         If repetitive calls to the function are expected, one may
         make efficiency gains by providing pre-built arguments
-        directly (particularly `ivar`, `mask`, and `fwgt` for large
+        directly (particularly `ivar`, `bpm`, and `fwgt` for large
         images) so that they are not reinstantiated for every call.
 
     Args:
@@ -129,11 +129,11 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
             Inverse variance of the image intensity.  If not provided,
             unity variance is used.  If provided, must have the same
             shape as `flux`.
-        mask (`numpy.ndarray`_, optional):
-            Mask for the input image.  True values are ignored, False
-            values are included.  If not provided, all pixels are
-            included.  If provided, must have the same shape as
-            `flux`.
+        bpm (`numpy.ndarray`_, optional):
+            Boolean bad-pixel mask for the input image. True values
+            are ignored, False values are included. If not provided,
+            all pixels are included. If provided, must have the same
+            shape as `flux`.
         fwgt (`numpy.ndarray`_, optional):
             An additional weight to apply to each pixel in `flux`.  If
             None, weights are uniform.  Otherwise, the :math:`w_i` from
@@ -179,9 +179,10 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
                 order=[0,1], bounds=([0,-1], [None,1])
             
         fill_error (:obj:`float`, optional):
-            Value to use as filler for undetermined moments, resulting
-            from either the input mask or computational issues (division
-            by zero, etc.; see return description below).
+            Value to use as filler for undetermined moments,
+            resulting from either the input bad-pixel mask or
+            computational issues (division by zero, etc.; see return
+            description below).
         mesh (:obj:`bool`, optional):
             If `col` and `row` are 1D vectors of the same length,
             this determines if each `col` and `row` should be paired
@@ -205,8 +206,8 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
               moments.  Errors are only meaningful if `ivar` is
               provided. Masked values (indicated by the third object
               returned) are set to `fill_error`.
-            - A boolean mask for output data; True values should be
-              ignored, False values are valid measurements.
+            - A boolean bad-pixel mask for output data; True values
+              should be ignored, False values are valid measurements.
 
     Raises:
         ValueError:
@@ -287,7 +288,7 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
         raise ValueError('Weighting must be uniform or gaussian')
 
     # Check image input
-    # TODO: For large images, instantiating ivar, mask, and fwgt can be
+    # TODO: For large images, instantiating ivar, bpm, and fwgt can be
     # a *significant* time sink if there are only a few moments
     # calculated
     if flux.ndim != 2:
@@ -296,9 +297,9 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
     _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
     if _ivar.shape != flux.shape:
         raise ValueError('Inverse variance must have the same shape as the input image.')
-    _mask = np.zeros_like(flux, dtype=bool) if mask is None else mask
-    if _mask.shape != flux.shape:
-        raise ValueError('Pixel mask must have the same shape as the input image.')
+    _bpm = np.zeros_like(flux, dtype=bool) if bpm is None else bpm
+    if _bpm.shape != flux.shape:
+        raise ValueError('Pixel bad-pixel mask must have the same shape as the input image.')
     _fwgt = np.ones_like(flux, dtype=float) if fwgt is None else fwgt
     if _fwgt.shape != flux.shape:
         raise ValueError('Pixel weights must have the same shape as the input image.')
@@ -417,7 +418,7 @@ def moment1d(flux, col, width, ivar=None, mask=None, fwgt=None, row=None, weight
     ih = np.clip(c,0,ncol-1)
 
     # Set the weight over the window; masked pixels have 0 weight
-    good = (c >= 0) & (c < ncol) & np.invert(_mask[_row[:,None],ih]) & (_ivar[_row[:,None],ih] > 0)
+    good = (c >= 0) & (c < ncol) & np.invert(_bpm[_row[:,None],ih]) & (_ivar[_row[:,None],ih] > 0)
     if _weighting == 'uniform':
         # Weight according to the fraction of each pixel within in the
         # integration window

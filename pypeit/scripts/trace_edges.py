@@ -104,7 +104,10 @@ def main(args):
 
         # Build the trace image
         traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par)
-        traceImage.process(bias_subtract='overscan', trim=True, apply_gain=True)
+        traceImage.build_image()
+
+#        traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par)
+#        traceImage.process(bias_subtract='overscan', trim=True, apply_gain=True)
 
         # Platescale
         plate_scale = parse.parse_binning(binning)[1]*spec.detector[det-1]['platescale']
@@ -121,7 +124,7 @@ def main(args):
             t = time.perf_counter()
             traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
                                                master_dir=master_dir)
-            traceSlits.run(traceImage.stack, binning, plate_scale=plate_scale, write_qa=False)
+            traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False)
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
             traceSlits.save(traceImage=traceImage)
 

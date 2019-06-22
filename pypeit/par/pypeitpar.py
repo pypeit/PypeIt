@@ -209,10 +209,11 @@ class ProcessImagesPar(ParSet):
         defaults['bias'] = 'as_available'
         options['bias'] = ProcessImagesPar.valid_bias()
         dtypes['bias'] = str
-        descr['bias'] = 'Parameter for bias subtraction. ' \
-                        'as_available: Bias subtract if bias frames were provided' \
-                        'force: Require bias subtraction, i.e., break if bias frames were not provided' \
-                        'skip: Skip bias subtraction even if bias frames were provided'
+        descr['bias'] = 'Parameter for bias subtraction. Options are:\n' \
+                        '    `as_available`: Bias subtract if bias frames were provided\n' \
+                        '    `force`: Require bias subtraction; exception raised if no ' \
+                        'biases available.\n' \
+                        '    `skip`: Skip bias subtraction even if bias frames were provided'
 
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
@@ -964,9 +965,9 @@ class ReducePar(ParSet):
         descr['qadir'] = 'Directory relative to calling directory to write quality ' \
                          'assessment files.'
 
-        defaults['redux_path'] = os.getcwd()
         dtypes['redux_path'] = str
-        descr['redux_path'] = 'Path to folder for performing reductions.'
+        descr['redux_path'] = 'Path to folder for performing reductions.  Default is the ' \
+                              'current working directory.'
 
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
@@ -1892,11 +1893,11 @@ class CalibrationsPar(ParSet):
 
         defaults['slits'] = TraceSlitsPar()
         dtypes['slits'] = [ ParSet, dict ]
-        descr['slits'] = 'Define how the slits should be traced using the trace ?PINHOLE? frames'
+        descr['slits'] = 'Define how the slits should be traced using the trace frames'
 
         defaults['tilts'] = WaveTiltsPar()
         dtypes['tilts'] = [ ParSet, dict ]
-        descr['tilts'] = 'Define how to tract the slit tilts using the trace frames'
+        descr['tilts'] = 'Define how to trace the slit tilts using the trace frames'
 
         # Instantiate the parameter set
         super(CalibrationsPar, self).__init__(list(pars.keys()),

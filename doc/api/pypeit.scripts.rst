@@ -19,6 +19,7 @@ Submodules
    pypeit.scripts.setup
    pypeit.scripts.show_1dspec
    pypeit.scripts.show_2dspec
+   pypeit.scripts.trace_edges
    pypeit.scripts.view_fits
 
 Module contents

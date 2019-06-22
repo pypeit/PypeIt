@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
 
     pypeit.core
+    pypeit.images
     pypeit.par
     pypeit.scripts
     pypeit.spectrographs
@@ -31,13 +32,11 @@ Submodules
    pypeit.metadata
    pypeit.moment
    pypeit.new_trace
-   pypeit.processimages
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.reduce
    pypeit.sampling
-   pypeit.scienceimage
    pypeit.setup_package
    pypeit.specobjs
    pypeit.telescopes

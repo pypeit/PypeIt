@@ -4,9 +4,9 @@
 
 .. _pypeitpar:
 
-================
+=================
 PypeIt Parameters
-================
+=================
 
 PypeIt allows you to customize its execution without having to change the
 code directly.
@@ -117,18 +117,18 @@ ReducePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReducePar`
 
-======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``spectrograph``        str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_longonly``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``vlt_fors2``  ..                                            Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_longonly, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, vlt_fors2
-``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                             
-``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ===========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             Default      Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ===========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``spectrograph``        str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_longonly``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``vlt_fors2``  ..           Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_longonly, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, vlt_fors2
+``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..           Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..           A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                             
+``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0            The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``Science``  Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``QA``       Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..           Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                               
+``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  False        Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ===========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -155,8 +155,8 @@ Key                 Type                                                 Options
 ``standardframe``   :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                        
 ``flatfield``       :class:`pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
 ``wavelengths``     :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
-``slits``           :class:`pypeit.par.pypeitpar.TraceSlitsPar`          ..       `TraceSlitsPar Keywords`_          Define how the slits should be traced using the trace ?PINHOLE? frames                                                                                                                   
-``tilts``           :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to tract the slit tilts using the trace frames                                                                                                                                
+``slits``           :class:`pypeit.par.pypeitpar.TraceSlitsPar`          ..       `TraceSlitsPar Keywords`_          Define how the slits should be traced using the trace frames                                                                                                                             
+``tilts``           :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
 
 
@@ -292,7 +292,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``tilt``, ``pixelflat``, ``pinhole``, ``dark``, ``standard``, ``arc``, ``bias``, ``trace``, ``science``  ``science``                   Frame type.  Options are: tilt, pixelflat, pinhole, dark, standard, arc, bias, trace, science                                                                                                                                                                  
+``frametype``  str                                             ``arc``, ``pixelflat``, ``tilt``, ``dark``, ``standard``, ``science``, ``bias``, ``trace``, ``pinhole``  ``science``                   Frame type.  Options are: arc, pixelflat, tilt, dark, standard, science, bias, trace, pinhole                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -307,25 +307,29 @@ ProcessImagesPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
 
-================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
-Key               Type        Options                                                                Default         Description                                                                                                                                                                                                                                
-================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
-``overscan``      str         ``polynomial``, ``savgol``, ``median``                                 ``savgol``      Method used to fit the overscan.  Options are: polynomial, savgol, median                                                                                                                                                                  
-``overscan_par``  int, list   ..                                                                     5, 65           Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.
-``match``         int, float  ..                                                                     -1              (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                    
-``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``  Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                      
-``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``      Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                         
-``sigrej``        int, float  ..                                                                     20.0            Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                             
-``n_lohi``        list        ..                                                                     0, 0            Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                           
-``sig_lohi``      list        ..                                                                     3.0, 3.0        Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                     
-``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``   If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                    
-``lamaxiter``     int         ..                                                                     1               Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                       
-``grow``          int, float  ..                                                                     1.5             Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                     
-``rmcompact``     bool        ..                                                                     True            Remove compact detections in LA cosmics routine                                                                                                                                                                                            
-``sigclip``       int, float  ..                                                                     4.5             Sigma level for rejection in LA cosmics routine                                                                                                                                                                                            
-``sigfrac``       int, float  ..                                                                     0.3             Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                           
-``objlim``        int, float  ..                                                                     3.0             Object detection limit in LA cosmics routine                                                                                                                                                                                               
-================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
+================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
+Key               Type        Options                                                                Default           Description                                                                                                                                                                                                                                                    
+================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
+``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan.  Options are: polynomial, savgol, median, none                                                                                                                                                                                
+``overscan_par``  int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                    
+``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                                        
+``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                                          
+``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                             
+``sigrej``        int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                                                 
+``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                               
+``sig_lohi``      list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                                         
+``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                                        
+``lamaxiter``     int         ..                                                                     1                 Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                                           
+``grow``          int, float  ..                                                                     1.5               Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                                         
+``rmcompact``     bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                                                
+``sigclip``       int, float  ..                                                                     4.5               Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                
+``sigfrac``       int, float  ..                                                                     0.3               Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                                               
+``objlim``        int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                                                   
+``bias``          str         ``as_available``, ``force``, ``skip``                                  ``as_available``  Parameter for bias subtraction. Options are:
+    `as_available`: Bias subtract if bias frames were provided
+    `force`: Require bias subtraction; exception raised if no biases available.
+    `skip`: Skip bias subtraction even if bias frames were provided
+================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
 
 
 ----
@@ -341,10 +345,12 @@ Key                  Type        Options  Default  Description
 ``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                               
 ``boxcar_radius``    int, float  ..       1.5      Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                                                                  
 ``trace_npoly``      int         ..       5        Order of legendre polynomial fits to object traces.                                                                                                                                                                                                                                                                                     
-``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
+``global_sky_std``   bool        ..       ..       Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
 ``sig_thresh``       int, float  ..       10.0     Significance threshold for object finding.                                                                                                                                                                                                                                                                                              
 ``maxnumber``        int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit.                                                                                                                                                                                                                                                        
 ``sn_gauss``         int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                                                                        
+``find_trim_edge``   list        ..       5, 5     Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                                                                                
+``std_prof_nsigma``  float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                                                                      
 ``model_full_slit``  bool        ..       False    If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits                                           
 ``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                          
 ``manual``           list        ..       ..       List of manual extraction parameter sets                                                                                                                                                                                                                                                                                                
@@ -411,7 +417,6 @@ Alterations to the default parameters are::
       spectrograph = keck_deimos
   [calibrations]
       [[biasframe]]
-          useframe = overscan
           number = 5
           exprng = None, 2
       [[darkframe]]
@@ -614,7 +619,7 @@ Alterations to the default parameters are::
       spectrograph = keck_nires
   [calibrations]
       [[biasframe]]
-          useframe = overscan
+          useframe = none
       [[darkframe]]
           exprng = 20, None
       [[arcframe]]
@@ -643,13 +648,12 @@ Alterations to the default parameters are::
           lamps = OH_NIRES
           nonlinear_counts = 760000.0
           fwhm = 5.0
-          reid_arxiv = keck_nires.json
+          reid_arxiv = keck_nires.fits
           rms_threshold = 0.2
           n_final = 3, 4, 4, 4, 4
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
-      useframe = overscan
       exprng = 20, None
       [[process]]
           satpix = nothing
@@ -941,10 +945,8 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_vis
   [calibrations]
       [[biasframe]]
-          useframe = overscan
           number = 5
       [[arcframe]]
-          useframe = overscan
           number = 1
           [[[process]]]
               overscan = median
@@ -956,7 +958,6 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
       [[traceframe]]
-          useframe = overscan
           number = 3
           [[[process]]]
               overscan = median
@@ -971,7 +972,7 @@ Alterations to the default parameters are::
           lamps = ThAr_XSHOOTER_VIS
           nonlinear_counts = 56360.1
           fwhm = 11.0
-          reid_arxiv = vlt_xshooter_vis1x1.json
+          reid_arxiv = vlt_xshooter_vis1x1.fits
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_threshold = 0.5
@@ -1026,7 +1027,7 @@ Alterations to the default parameters are::
           nonlinear_counts = 172000.0
           sigdetect = 10.0
           fwhm = 5.0
-          reid_arxiv = vlt_xshooter_nir.json
+          reid_arxiv = vlt_xshooter_nir.fits
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_threshold = 0.25
@@ -1057,24 +1058,40 @@ Alterations to the default parameters are::
       spectrograph = gemini_gnirs
   [calibrations]
       [[biasframe]]
-          useframe = overscan
+          useframe = none
+          [[[process]]]
+              overscan = none
+      [[darkframe]]
+          [[[process]]]
+              overscan = none
       [[arcframe]]
           number = 1
           [[[process]]]
+              overscan = none
               sigrej = -1
       [[tiltframe]]
           number = 1
           [[[process]]]
+              overscan = none
               sigrej = -1
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              overscan = none
+      [[pinholeframe]]
+          [[[process]]]
+              overscan = none
       [[traceframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              overscan = none
       [[standardframe]]
           number = 1
           exprng = None, 30
+          [[[process]]]
+              overscan = none
       [[flatfield]]
           illumflatten = False
           tweak_slits_thresh = 0.9
@@ -1086,7 +1103,7 @@ Alterations to the default parameters are::
           ech_sigrej = 3.0
           lamps = OH_GNIRS
           nonlinear_counts = 106500.0
-          reid_arxiv = gemini_gnirs.json
+          reid_arxiv = gemini_gnirs.fits
           cc_thresh = 0.6
           rms_threshold = 1.0
           n_final = 1, 3, 3, 3, 3, 3
@@ -1098,7 +1115,6 @@ Alterations to the default parameters are::
           sig_neigh = 5.0
           nfwhm_neigh = 2.0
   [scienceframe]
-      useframe = overscan
       exprng = 30, None
   [scienceimage]
       bspline_spacing = 0.8
@@ -1241,15 +1257,15 @@ Alterations to the default parameters are::
           satpix = nothing
           sigclip = 20.0
 
-MAGELLAN MAGE
--------------
+MAGELLAN magellan_mage
+----------------------
 Alterations to the default parameters are::
 
   [rdx]
       spectrograph = magellan_mage
   [calibrations]
       [[biasframe]]
-          useframe = overscan
+          number = 5
       [[darkframe]]
           exprng = 20, None
       [[arcframe]]
@@ -1262,20 +1278,25 @@ Alterations to the default parameters are::
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 3
+          number = 5
       [[traceframe]]
           number = 3
       [[standardframe]]
           number = 1
           exprng = None, 20
       [[wavelengths]]
+          method = reidentify
           echelle = True
           ech_sigrej = 3.0
-          lamps = ThAr
+          lamps = ThAr_MagE
           nonlinear_counts = 64879.65
+          reid_arxiv = magellan_mage.fits
+          cc_thresh = 0.5
+          cc_local_thresh = 0.5
           rms_threshold = 0.2
       [[slits]]
           maxshift = 3.0
+          sigdetect = 10.0
       [[tilts]]
           tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
   [scienceframe]
@@ -1283,6 +1304,8 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
+  [scienceimage]
+      find_trim_edge = 4, 4
 
 KECK HIRES_R
 ------------

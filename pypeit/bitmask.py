@@ -315,13 +315,8 @@ class BitMask:
             bit.
 
         Raises:
-            ValueError
-            KeyError:
-
-                Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
-
-            Exception: Raised if the provided *flag* is not a string.
+            ValueError:
+                Raised if the provided flag is None.
         """ 
         if flag is None:
             raise ValueError('Provided bit name cannot be None.')
@@ -431,10 +426,9 @@ class BitMask:
         Write the bits to a fits header.
 
         .. todo::
-            - This is very similar to the function in ParSet.
-            Abstract to a general routine?
-             - The comment might have a limited length and be
-            truncated.
+            - This is very similar to the function in ParSet.  Abstract
+              to a general routine?
+            - The comment might have a limited length and be truncated.
 
         Args:
             hdr (`astropy.io.fits.Header`):
@@ -461,10 +455,10 @@ class BitMask:
         Instantiate the BitMask using data parsed from a fits header.
 
         .. todo::
-            - This is very similar to the function in ParSet.
-            Abstract to a general routine?
+            - This is very similar to the function in ParSet.  Abstract
+              to a general routine?
             - If comments are truncated by the comment line length,
-            they'll be different than a direct instantiation.
+              they'll be different than a direct instantiation.
 
         Args:
             hdr (`astropy.io.fits.Header`):
@@ -491,8 +485,8 @@ class BitMask:
         Parse bit names, values, and descriptions from a fits header.
 
         .. todo::
-            - This is very similar to the function in ParSet.
-            Abstract to a general routine?
+            - This is very similar to the function in ParSet.  Abstract
+              to a general routine?
 
         Args:
             hdr (`astropy.io.fits.Header`):

@@ -43,8 +43,6 @@ class CalibrationImage(pypeitimage.PypeItImage):
         process_steps (list): List of processing steps to be used
 
     """
-
-
     def __init__(self, spectrograph, det, proc_par, files=None):
 
         # Init me
@@ -65,16 +63,9 @@ class CalibrationImage(pypeitimage.PypeItImage):
         self.process_steps = []
 
     @property
-    def shape(self):
-        return () if self.image is None else self.image.shape
-
-    @property
     def nfiles(self):
         """
-
-        Returns:
-            int: Number of files in the file_list
-
+        The number of calibration files
         """
         return len(self.file_list)
 
@@ -130,37 +121,42 @@ class CalibrationImage(pypeitimage.PypeItImage):
 
         Returns:
             np.ndarray: Copy of self.image
-
         """
+        # Check there are files to combine
         if self.nfiles == 0:
-            msgs.warn("Need to provide a non-zero list of files")
-            return
+            msgs.error('No files to combine!')
+
         # Load up image array
+        shape = None
         image_arr = None
+        self.binning = None
         for kk,file in enumerate(self.file_list):
             # Process raw file
-            processrawImage = processrawimage.ProcessRawImage(file, self.spectrograph,
-                                                           self.det, self.proc_par)
-            image = processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
+            processrawImage = processrawimage.ProcessRawImage(file, self.spectrograph, self.det,
+                                                              self.proc_par)
+            processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
             # Instantiate the image stack
             if image_arr is None:
-                image_arr = np.zeros((image.shape[0], image.shape[1], self.nfiles))
-            # Hold
-            image_arr[:,:,kk] = image
+                shape = processrawImage.shape
+                image_arr = np.zeros(shape + (self.nfiles,))
+                self.binning = processrawImage.binning
+            # Check shape and binning consistency
+            if processrawImage.shape != shape:
+                msgs.error('All images to combine must have the same shape.')
+            if processrawImage.binning != self.binning:
+                msgs.error('All images to combine must have the same binning.')
+            # Store
+            image_arr[:,:,kk] = processrawImage.image
 
         # Combine
-        if self.nfiles == 1:
-            self.image = image_arr[:,:,0]
-        else:
-            self.image = combine.comb_frames(image_arr,
-                                         saturation=self.spectrograph.detector[self.det-1]['saturation'],
-                                         method=self.proc_par['combine'],
-                                         satpix=self.proc_par['satpix'],
-                                         cosmics=self.proc_par['sigrej'],
-                                         n_lohi=self.proc_par['n_lohi'],
-                                         sig_lohi=self.proc_par['sig_lohi'],
-                                         replace=self.proc_par['replace'])
-        # Return
+        self.image = image_arr[:,:,0] if self.nfiles == 1 \
+                else combine.comb_frames(image_arr,
+                                saturation=self.spectrograph.detector[self.det-1]['saturation'],
+                                method=self.proc_par['combine'], satpix=self.proc_par['satpix'],
+                                cosmics=self.proc_par['sigrej'], n_lohi=self.proc_par['n_lohi'],
+                                sig_lohi=self.proc_par['sig_lohi'],
+                                replace=self.proc_par['replace'])
+        # Return a copy image array for direct use
         return self.image.copy()
 
     def __repr__(self):
