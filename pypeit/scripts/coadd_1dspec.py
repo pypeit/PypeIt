@@ -33,10 +33,14 @@ def main(args, unit_test=False, path=''):
     from pypeit import msgs
     from pypeit.core import coadd
     from pypeit import specobjs
+    from pypeit.spectrographs import util
 
     # Load the input file
     with open(args.infile, 'r') as infile:
         coadd_dict = yaml.load(infile)
+
+    # Spectrograph
+    spectrograph = util.load_spectrograph(coadd_dict.pop('spectrograph'))
 
     # Grab object names in the spectra
     filelist = coadd_dict.pop('filenames')
@@ -199,6 +203,6 @@ def main(args, unit_test=False, path=''):
             spectra = coadd.load_spec(gdfiles, iextensions=extensions,
                                         extract=ex_value, flux=flux_value)
             # Coadd!
-            coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
+            coadd.coadd_spectra(spectrograph, gdfiles, spectra, qafile=qafile, outfile=outfile,
                                 flux_scale=scale_dict, **gparam)
 

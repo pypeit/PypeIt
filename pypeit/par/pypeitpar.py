@@ -190,7 +190,7 @@ class ProcessImagesPar(ParSet):
     """
     def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -206,6 +206,14 @@ class ProcessImagesPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+        defaults['bias'] = 'as_available'
+        options['bias'] = ProcessImagesPar.valid_bias()
+        dtypes['bias'] = str
+        descr['bias'] = 'Parameter for bias subtraction. ' \
+                        'as_available: Bias subtract if bias frames were provided' \
+                        'force: Require bias subtraction, i.e., break if bias frames were not provided' \
+                        'skip: Skip bias subtraction even if bias frames were provided'
+
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
         dtypes['overscan'] = str
@@ -296,20 +304,28 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = [ 'overscan', 'overscan_par', 'match', 'combine', 'satpix', 'sigrej', 'n_lohi',
-                    'sig_lohi', 'replace', 'lamaxiter', 'grow', 'rmcompact', 'sigclip', 'sigfrac',
-                    'objlim' ]
+        parkeys = [ 'bias', 'overscan', 'overscan_par', 'match',
+                    'combine', 'satpix', 'sigrej', 'n_lohi',
+                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
+                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
     @staticmethod
+    def valid_bias():
+        """
+        Return the valid bias methods.
+        """
+        return ['as_available', 'force', 'skip']
+
+    @staticmethod
     def valid_overscan():
         """
         Return the valid overscan methods.
         """
-        return [ 'polynomial', 'savgol', 'median' ]
+        return ['polynomial', 'savgol', 'median','none']
 
     @staticmethod
     def valid_combine_methods():
@@ -1671,6 +1687,7 @@ class ScienceImagePar(ParSet):
 
     def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
+                 find_trim_edge=None, std_prof_nsigma=None,
                  model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
@@ -1703,6 +1720,9 @@ class ScienceImagePar(ParSet):
         dtypes['sky_sigrej'] = float
         descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
 
+        # TODO: Consider adding a parameter for trim_edg for skysub+object model
+
+        # Boxcar Parameters
         defaults['boxcar_radius'] = 1.5
         dtypes['boxcar_radius'] = [int, float]
         descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
@@ -1711,7 +1731,10 @@ class ScienceImagePar(ParSet):
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of legendre polynomial fits to object traces.'
 
-        defaults['global_sky_std'] = True
+        defaults['std_prof_nsigma'] = 30.
+        dtypes['std_prof_nsigma'] = float
+        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
+
         dtypes['global_sky_std'] = bool
         descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
                                   'off for example for near-IR reductions with narrow slits, since bright standards can' \
@@ -1726,6 +1749,10 @@ class ScienceImagePar(ParSet):
         dtypes['maxnumber'] = int
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'
+
+        defaults['find_trim_edge'] = [5,5]
+        dtypes['find_trim_edge'] = list
+        descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
 
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]
@@ -1761,6 +1788,7 @@ class ScienceImagePar(ParSet):
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
+                   'find_trim_edge', 'std_prof_nsigma',
                    'sky_sigrej']
         kwargs = {}
         for pk in parkeys:

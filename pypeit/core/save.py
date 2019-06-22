@@ -10,6 +10,8 @@ from astropy.io import fits
 from astropy.table import Table
 import copy
 
+from IPython import embed
+
 
 import linetools.utils
 from pypeit import msgs
@@ -120,7 +122,8 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
         prihdu = fits.PrimaryHDU()
         hdus = [prihdu]
         # Add critical data to header
-        for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'filename']:
+        core_keys = spectrograph.header_cards_for_spec()
+        for key in core_keys: #['ra', 'dec', 'exptime', 'target', 'airmass', 'filename']:
             # Allow for fitstbl vs. header
             try:
                 prihdu.header[key.upper()] = header[key.upper()]
@@ -167,12 +170,6 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
         # FWHM fit from extraction
         if sobj.fwhmfit is not None:
             cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
-        if ext == 1:
-            # TODO -- FIX THIS KLUDGE
-            try:
-                npix = len(sobj['trace'])
-            except:  # THIS IS A DUMB KLUDGE
-                npix = len(sobj['trace_spat'])
         # Boxcar
         for key in sobj.boxcar.keys():
             # Skip some
@@ -206,7 +203,7 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
 
     # A few more for the header
     prihdu.header['NSPEC'] = len(hdus) - 1
-    prihdu.header['NPIX'] = npix
+    prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
     # If this is echelle write the objid and the orderindx to the header as well
 
 

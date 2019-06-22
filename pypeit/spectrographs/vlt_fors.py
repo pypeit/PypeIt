@@ -44,6 +44,12 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
 
+        # Median overscan
+        #   IF YOU CHANGE THIS, YOU WILL NEED TO DEAL WITH THE OVERSCAN GOING ALONG ROWS
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'median'
+
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['trace_npoly'] = 3
@@ -171,7 +177,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         # Get it started
         super(VLTFORS2Spectrograph, self).__init__()
         self.spectrograph = 'vlt_fors2'
-        self.camera = 'vlt_fors2'
+        self.camera = 'FORS2'
         self.numhead = 1
 
     def set_detector(self, chip):
@@ -191,8 +197,8 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 numamplifiers   = 1,
                 gain            = 0.70,
                 ronoise         = 2.9, # High gain
-                datasec         = '[:,10:]',  # For 1x binning, I think
-                oscansec        = '[:,0:10]',
+                datasec         = '[11:2059,:]',  # For 1x binning, I think
+                oscansec        = '[2062:,:]',
                 suffix          = '_Thor'),
             # Detector 2 (Belenos)
             pypeitpar.DetectorPar(
