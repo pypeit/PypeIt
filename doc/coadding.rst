@@ -49,6 +49,7 @@ object identifier string (used to ID the object)
 and the name of an output file.  Here is an example
 case::
 
+    'spectrograph': 'shane_kast_blue'
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'a':
         'object': 'O503-S4701-D01-I0035'
@@ -65,6 +66,7 @@ string could be very different from exposure to exposure.
 For this case, there is functionality to specifiy an object identifier
 string for each specified file. The .yaml file would look like this::
 
+    'spectrograph': 'shane_kast_blue'
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'a':
         'object': ['O290-S1592-D02-I0002', 'O457-S1592-D02-I0003
@@ -201,6 +203,7 @@ You can adjust the default methods by which PypeIt coadds
 spectra by adding a dict named 'global' or a 'local' dict
 in the object block::
 
+    'spectrograph': 'shane_kast_blue'
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'global':
         'wave_grid_method': 'velocity'
