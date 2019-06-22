@@ -91,9 +91,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Keck LRISb reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 20.
         par['calibrations']['slits']['trace_npoly'] = 3
+        par['calibrations']['slitedges']['edge_thresh'] = 20.
+        par['calibrations']['slitedges']['fit_order'] = 3
         # TODO: No longer a parameter
 #        par['calibrations']['slits']['fracignore'] = 0.02
 #        par['calibrations']['slits']['pcapar'] = [3,2,1,0]

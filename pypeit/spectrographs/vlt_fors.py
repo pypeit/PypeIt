@@ -48,6 +48,9 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['trace_npoly'] = 3
         par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 3
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] = 25.0

@@ -34,6 +34,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slitedges']['edge_thresh'] = 30.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters
@@ -380,6 +381,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['slits']['mask_frac_thresh'] = 0.45
             par['calibrations']['slits']['smash_range'] = [0.5, 1.]
+            par['calibrations']['slitedges']['pca_min_spec_length'] = 0.45
+            par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
 
         # Return
         return par
@@ -481,6 +484,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['rdx']['spectrograph'] = 'keck_lris_red'
         #
         par['calibrations']['slits']['sigdetect'] = 50.
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']

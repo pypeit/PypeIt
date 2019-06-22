@@ -2052,9 +2052,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         uses the parametrized trace fits.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are `pca_n`,
-        `pca_var_percent`, `pca_function`, `pca_order`, `pca_sigrej`,
-        `pca_maxrej`, and `pca_maxiter`.
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        `pca_min_spec_length`, `pca_n`, `pca_var_percent`,
+        `pca_function`, `pca_order`, `pca_sigrej`, `pca_maxrej`, and
+        `pca_maxiter`.
 
         Args:
             use_center (:obj:`bool`, optional):
@@ -2075,6 +2076,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         else (self.par['pca_sigrej'],)*2
         maxrej = self.par['pca_maxrej']
         maxiter = self.par['pca_maxiter']
+        min_spec_length = self.par['pca_min_spec_length']
 
         if npca is not None:
             msgs.info('Restricted number of PCA components: {0}'.format(npca))
@@ -2099,11 +2101,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         bpm = self.bitmask.flagged(self.spat_msk)
 
         # Only use traces that are unmasked for at least some fraction of the detector
-        # TODO: Make this minimum length check a paramter
-        minimum_pca_length=0.9
         # TODO: Is there a way to propagate the mask to the PCA?
         # TODO: Keep a separate mask specifically for the fit data?
-        use_trace = np.sum(np.invert(bpm), axis=0)/self.nspec > minimum_pca_length
+        use_trace = np.sum(np.invert(bpm), axis=0)/self.nspec > min_spec_length
         if np.sum(use_trace) < 2:
             msgs.error('Insufficient traces for PCA decomposition.')
         trace_inp = self.spat_cen[:,use_trace] if self.spat_fit is None or use_center \

@@ -204,8 +204,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['trace_npoly'] = 3
-        par['calibrations']['slits']['fracignore'] = 0.02
-#        par['calibrations']['slits']['pcapar'] = [3, 2, 1, 0]
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 3
 
         # Overscan subtract the images
         par['calibrations']['biasframe']['useframe'] = 'overscan'

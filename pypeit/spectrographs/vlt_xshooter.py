@@ -190,6 +190,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 120.
         par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slitedges']['edge_thresh'] = 120.
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  25.0
@@ -497,7 +500,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 8.0
         par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+#        par['calibrations']['slits']['number'] = -1
         #par['calibrations']['slits']['fracignore'] = 0.01
 
         # These are the defaults
@@ -533,7 +539,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.5
-        par['calibrations']['slits']['trace_npoly'] = 8
+#        par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
@@ -759,7 +765,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # problems.
 #        par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = -1
+#        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['slitedges']['edge_thresh'] = 8.
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
 
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
