@@ -11,7 +11,7 @@ from abc import ABCMeta
 
 from astropy.io import fits
 from astropy.table import Table
-from IPython import embed
+import IPython
 
 from pypeit import msgs
 from pypeit import masterframe
@@ -642,7 +642,6 @@ class Calibrations(object):
             # Save to disk
             if self.save_masters:
                 self.traceSlits.save(traceImage=self.traceImage)
-
         # Save, initialize maskslits, and return
         # TODO: We're not caching self.mstrace.  And actually there is
         # no mstrace in Calibrations anymore; only in TraceSlits?
