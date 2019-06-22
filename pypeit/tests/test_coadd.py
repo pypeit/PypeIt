@@ -11,11 +11,7 @@ from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit.core import coadd
-<<<<<<< .merge_file_2MBrtT
-from pypeit import utils
-=======
 from pypeit.spectrographs.util import load_spectrograph
->>>>>>> .merge_file_IGG60S
 from pypeit import msgs
 
 kast_blue = load_spectrograph('shane_kast_blue')

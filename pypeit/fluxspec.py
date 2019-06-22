@@ -447,23 +447,6 @@ class Echelle(FluxSpec):
                       'AIRMASS, EXPTIME.')
             return None
 
-        #ext_final = fits.getheader(self.par['std_file'], -1)
-        #norder = ext_final['ECHORDER'] + 1
-        # Todo: In some cases norder != ext_pri['NSPEC'], fix this asap!
-        ext_first = fits.getheader(self.par['std_file'], 1)
-        ext_final = fits.getheader(self.par['std_file'], -1)
-<<<<<<< .merge_file_5lbkk6
-        norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER'])+1
-
-        self.sens_dict = {}
-        for ii in range(norder):
-            ext_ii = fits.getheader(self.par['std_file'], ii+1)
-            iord = ext_ii['ECHORDER']
-            std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
-            std_idx = flux.find_standard(std_specobjs)
-            std = std_specobjs[std_idx]
-=======
-        #norder = ext_final['ECHORDER'] + 1
         norder = len(self.std)
 
         self.sens_dict = {}
@@ -474,17 +457,15 @@ class Echelle(FluxSpec):
             std = self.std[iord] #std_specobjs[std_idx]
 
             # THIS IS A CRAZY KLUDGE....
->>>>>>> .merge_file_xHKWDa
             try:
                 wavemask = std.optimal['WAVE_GRID'] > 0.0 #*units.AA
             except KeyError:
-                wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
-                this_wave = std.boxcar['WAVE'][wavemask]
+                wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
+                this_wave = std.optimal['WAVE'][wavemask]
             else:
                 this_wave = std.optimal['WAVE_GRID'][wavemask]
 
-            #counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
-            counts, ivar = std.boxcar['COUNTS'][wavemask], std.boxcar['COUNTS_IVAR'][wavemask]
+            counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
             sens_dict_iord = flux.generate_sensfunc(this_wave, counts, ivar,
                                                     float(self.std_header['AIRMASS']),
                                                     self.std_header['EXPTIME'],
@@ -498,12 +479,8 @@ class Echelle(FluxSpec):
                                                     poly_norder=self.poly_norder,
                                                     polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
-<<<<<<< .merge_file_5lbkk6
-            self.sens_dict[str(ii)] = sens_dict_iord
+            self.sens_dict[str(iord)] = sens_dict_iord
         ## add some keys to be saved into primary header in masterframe
-=======
-            self.sens_dict[str(iord)] = sens_dict_iord  # THIS SHOULD BE THE PHYSICAL ORDER!
->>>>>>> .merge_file_xHKWDa
         for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                     'std_name', 'cal_file']:
             try:
