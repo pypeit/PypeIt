@@ -1645,7 +1645,6 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
 
     # Now that we have high S/N ratio individual order stacks, let's compute re-scaling fractors from the order
     # overlaps. We will work from red to blue.
-    show =  True
     fluxes_stack_orders_scale, ivars_stack_orders_scale, order_ratios = \
         order_median_scale(waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
                            min_good=min_good, maxiters=maxiters, max_factor=max_factor, sigrej=sigrej,
