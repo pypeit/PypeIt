@@ -323,8 +323,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
             x1 = np.arange(nspec)
             y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
             plt.figure(figsize=(14, 6))
-            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1')
-            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, shift & stretch')
+            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1, input spectrum')
+            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
             plt.title('shift= {:5.3f}'.format(shift_out) +
                       ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
             plt.legend()
