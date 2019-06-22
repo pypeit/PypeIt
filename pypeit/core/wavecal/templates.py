@@ -94,7 +94,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
 def pypeit_arcspec(in_file, slit):
     wv_dict = ltu.loadjson(in_file)
     iwv_calib = wv_dict[str(slit)]
-    x = np.arange(iwv_calib['nspec'])
+    x = np.arange(len(iwv_calib['spec']))
     wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
     # Return
@@ -486,6 +486,21 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
+    # ##############################
+    if flg & (2**19):  # GMOS R400
+        binspec = 2
+        outroot='gemini_gmos_r400.fits'
+        # 1 : 4728 - 6044
+        # 2 : 6100 - 7750
+        ifiles = [0, 1, 2]
+        slits = [0, 0, 0]
+        lcut = [6040., 7750]
+        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_01_aa.json')
+        wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_02_aa.json')
+        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
+        #
+        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
+                       outroot, lowredux=False, ifiles=ifiles)
 
 # Command line execution
 if __name__ == '__main__':
@@ -527,7 +542,10 @@ if __name__ == '__main__':
     #flg += 2**17  # Convert JSON to FITS
 
     # Gemini/GNIRS
-    flg += 2**18  # Convert JSON to FITS
+    #flg += 2**18  # Convert JSON to FITS
+
+    # Gemini/GMOS
+    flg += 2**19  # Convert JSON to FITS
 
     main(flg)
 

@@ -102,6 +102,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.  # Doesn't work for reddest chip
         par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['nsnippet'] = 1  # 3 detectors splitting is already a lot
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -120,6 +122,33 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Set the default exposure time ranges for the frame typing
         #par['scienceframe']['exprng'] = [30, None]
 
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+        if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400.fits'
+        #
         return par
 
     def configuration_keys(self):
@@ -231,58 +260,60 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
 
-class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
+
+class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
-    Child to handle Gemini/GMOS-S instrument
+    Child to handle Gemini/GMOS-S instrument with Hamamatsu detector
     """
     def __init__(self):
 
         # Get it started
-        super(GeminiGMOSSSpectrograph, self).__init__()
-        self.telescope = telescopes.GeminiSTelescopePar()
-        self.spectrograph = 'gemini_gmos_south'
+        super(GeminiGMOSSHamSpectrograph, self).__init__()
+        self.spectrograph = 'gemini_gmos_south_ham'
         self.camera = 'GMOS-S'
-        self.detector = [
+        self.telescope = telescopes.GeminiSTelescopePar()
+
+        self.detector = [  #  Hamamatsu (since 2014)
             # Detector 1
-            DetectorPar(dataext         = 1,
-                        specaxis        = 0,  # Device is fussed with by the image reader
+            DetectorPar(dataext         = 1,  # Not sure this is used
+                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
                         platescale      = 0.080,
                         darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
+                        saturation      = 129000.,
+                        nonlinear       = 0.95,
                         numamplifiers   = 4,
                         gain            = [1.83]*4,
                         ronoise         = [3.98]*4,
                         suffix          = '_01'
                         ),
             # Detector 2
-            DetectorPar(dataext         = 2,
+            DetectorPar(dataext         = 2,  # Not sure this is used
                         specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
                         platescale      = 0.080,
                         darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
+                        saturation      = 123000.,
+                        nonlinear       = 0.95,
                         numamplifiers   = 4,
                         gain            = [1.83]*4,
                         ronoise         = [3.98]*4,
                         suffix          = '_02'
                         ),
             # Detector 3
-            DetectorPar(dataext         = 3,
+            DetectorPar(dataext         = 3,  # Not sure this is used
                         specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
                         platescale      = 0.080,
                         darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
+                        saturation      = 125000.,
+                        nonlinear       = 0.95,
                         numamplifiers   = 4,
                         gain            = [1.83]*4,
                         ronoise         = [3.98]*4,
@@ -332,7 +363,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
             # Apply the mask
             xbin = int(binning.split(' ')[0])
             if xbin != 2:
-                debugger.set_trace() # NEED TO CHECK FOR YOUR BINNING
+                embed()
             # Up high
             badr = (898*2)//xbin # Transposed
             self.bpm_img[badr:badr+(8*2)//xbin,:] = 1
@@ -350,72 +381,11 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
             # Apply the mask
             xbin = int(binning.split(' ')[0])
             if xbin != 2:
-                debugger.set_trace() # NEED TO CHECK FOR YOUR BINNING
+                embed()
             badr = (281*2)//xbin # Transposed
             self.bpm_img[badr:badr+(2*2)//xbin,:] = 1
 
         return self.bpm_img
-
-
-
-class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
-    """
-    Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
-    """
-    def __init__(self):
-
-        # Get it started
-        super(GeminiGMOSSHamSpectrograph, self).__init__()
-        self.spectrograph = 'gemini_gmos_south_ham'
-
-        self.detector = [  #  Hamamatsu (since 201?)
-            # Detector 1
-            DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 129000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_01'
-                        ),
-            # Detector 2
-            DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 123000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_02'
-                        ),
-            # Detector 3
-            DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 125000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_03'
-                        ),
-        ]
-        self.numhead = 13
 
 
 

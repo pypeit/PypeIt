@@ -592,6 +592,9 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     ----------------
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
+    #debug_peaks = True
+    debug_reid = True
+    debug_xcorr = True
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
@@ -682,6 +685,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
     for iarxiv in range(narxiv):
+        embed(header='688')
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
@@ -893,13 +897,14 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         # Cross-correlate
         shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
+        debug=True
         if debug:
             xvals = np.arange(ncomb)
             plt.clf()
             ax = plt.gca()
             #
-            ax.plot(xvals, temp_spec)
-            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')
+            ax.plot(xvals, temp_spec)  # Template
+            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')  # Input
             plt.show()
             debugger.set_trace()
         i0 = npad // 2 + int(shift_cc)
