@@ -19,7 +19,7 @@
 - Writes a chosen set of header cards to the spec1D and coadd files
 - Updates for FORS2
 - Introduced new coadd1d module and some new coadd functinality.
-- modified interface to robust_polyfit_djs, robust_optimize, and djs_reject. 
+- modified interface to robust_polyfit_djs, robust_optimize, and djs_reject.
 - Added utility routine cap_ivar for capping the noise level.
 
 
