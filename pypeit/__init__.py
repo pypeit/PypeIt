@@ -11,7 +11,7 @@ import signal
 import warnings
 
 # Set version
-__version__ = '0.11.0dev'
+__version__ = '0.11.0'
 
 # Report current coverage
 __coverage__ = 0.55
