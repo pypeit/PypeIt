@@ -115,9 +115,8 @@ def main(args):
     # Get waveimg
     mdir = head0['PYPMFDIR']+'/'
     if not os.path.exists(mdir):
-        mdir_base = os.path.basename(os.path.dirname(mdir)) + '/'
-        IPython.embed()
-        msgs.warn('Master file dir: {0} does not exist. Using ./{1}'.format(mdir, mdir_base))
+        mdir_base = os.path.join(os.getcwd(), os.path.basename(os.path.dirname(mdir)))
+        msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir=mdir_base
 
     trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
