@@ -1,6 +1,9 @@
 import sys
+
 from astropy.io import fits
 from astropy.io import ascii
+from astropy.table import Table
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -212,6 +215,15 @@ def append_FORS():
     # Write
     hdulist.writeto('filtercurves.fits', overwrite=True)
 
+def write_filter_list():
+    # Write the filter list
+    hdulist = fits.open('filtercurves.fits')
+    all_filters = [hdu.name for hdu in hdulist]
+    tbl = Table()
+    tbl['filter'] = all_filters
+    # Write
+    tbl.write('filter_list.ascii', format='ascii', overwrite=True)
+
 
 #### ########################## #########################
 def main(flg):
@@ -222,9 +234,13 @@ def main(flg):
     if flg & (2**0):
         orig_build()
 
-    # PRIMUS
+    # FORS filters
     if flg & (2**1):
         append_FORS()
+
+    # Filter list
+    if flg & (2**2):
+        write_filter_list()
 
 
 # Command line execution
@@ -233,7 +249,8 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         flg = 0
         #flg += 2**0   # First build
-        flg += 2**1   # FORS filters
+        #flg += 2**1   # FORS filters
+        flg += 2**2   # Filter list
     else:
         flg = sys.argv[1]
 
