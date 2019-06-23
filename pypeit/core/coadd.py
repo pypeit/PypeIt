@@ -253,7 +253,7 @@ def sn_weights(wave, flux, ivar, mask = None, dv_smooth=10000.0, const_weights=F
     """
 
     if mask is None:
-        mask = (ivar > 0.0)
+        mask = ivar > 0.0
 
     if flux.ndim == 1:
         nstack = 1
@@ -1328,10 +1328,10 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
 
     return collate(spectra_list_new)
 
-def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pixels=50, SN_MIN_MEDSCALE=5.0, debug=False):
+def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pixels=50, sn_min_medscale=5.0, debug=False):
     '''
     Scale different orders using the median of overlap regions. It starts from the reddest order, i.e. scale H to K,
-      and then scale J to H+K, etc.
+      and then scale J to H+K, etc. Spectra is already scaled after executing this function.
     Parameters:
       spectra: XSpectrum1D spectra
       nsig: float
@@ -1343,11 +1343,10 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
       num_min_pixels: int
         minum required good pixels. The code only scale orders when the overlapped
         pixels > max(num_min_pixels,overlapfrac*len(wave))
-      SN_MIN_MEDSCALE: float
+      sn_min_medscale: float
         Maximum RMS S/N allowed to automatically apply median scaling
       Show QA plot if debug=True
-    Return:
-        No return, but the spectra is already scaled after executing this function.
+
     '''
     norder = spectra.nspec
     fluxes, sigs, wave = unpack_spec(spectra, all_wave=False)
@@ -1358,15 +1357,15 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
         iord = norder - i - 1
         sn_iord_iref = fluxes[iord] * (1. / sigs[iord])
         sn_iord_scale = fluxes[iord - 1] * (1. / sigs[iord - 1])
-        allok = (sigs[iord - 1, :] > 0) & (sigs[iord, :] > 0) & (sn_iord_iref > SN_MIN_MEDSCALE) & (
-        sn_iord_scale > SN_MIN_MEDSCALE)
+        allok = (sigs[iord - 1, :] > 0) & (sigs[iord, :] > 0) & (sn_iord_iref > sn_min_medscale) & \
+                (sn_iord_scale > sn_min_medscale)
 
         if sum(allok) > np.maximum(num_min_pixels, len(wave) * overlapfrac):
             # Ratio
             med_flux = spectra.data['flux'][iord, allok] / spectra.data['flux'][iord - 1, allok]
             # Clip
             mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
-            med_scale = np.maximum(np.minimum(med_scale, 1.5),0.5)
+            med_scale = np.clip(med_scale, 1.5, 0.5)
             spectra.data['flux'][iord - 1, :] *= med_scale
             spectra.data['sig'][iord - 1, :] *= med_scale
             msgs.info('Scaled %s order by a factor of %s'%(iord,str(med_scale)))
@@ -1491,7 +1490,7 @@ def order_median_scale_new(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, nite
 
 
 
-def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5, sigrej_final=3., SN_MIN_MEDSCALE = 5.0,
+def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5, sigrej_final=3., sn_min_medscale = 5.0,
                 overlapfrac = 0.01, num_min_pixels=10,phot_scale_dicts=None, qafile=None, outfile=None, debug=False):
     """
         routines for merging orders of echelle spectra.
@@ -1532,7 +1531,7 @@ def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5,
         ## scaling different orders
         #norder = spectra.nspec
         order_median_scale(spectra, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
-                           num_min_pixels=num_min_pixels, SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
+                           num_min_pixels=num_min_pixels, sn_min_medscale=sn_min_medscale, debug=debug)
 
         #fluxes, sigs, wave = unpack_spec(spectra, all_wave=False)
         #fluxes_scale, sigs_scale = order_median_scale_new(wave, fluxes, sigs, nsig=sigrej_final, niter=niter,

@@ -1086,7 +1086,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
     ymin, ymax = get_ylim(flux, ivar, mask)
 
     # Plot spectrum
-    rejmask = (mask == False) & (wave_mask == True)
+    rejmask = np.invert(mask)  & wave_mask
     spec_plot.plot(wave[rejmask], flux[rejmask],'s',zorder=10,mfc='None', mec='r', label='rejected pixels')
 
     if norder is None:
