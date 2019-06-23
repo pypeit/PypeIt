@@ -116,11 +116,14 @@ def main(args):
         # Trace the slit edges
         if args.use_new:
             t = time.perf_counter()
-            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                           master_dir=master_dir, trace_img=traceImage, det=det,
-                                           auto=True)
-            print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
-            edges.save()
+            try:
+                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                               master_dir=master_dir, img=traceImage, det=det,
+                                               auto=True)
+                print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+                edges.save()
+            except:
+                pass
         else:
             t = time.perf_counter()
             traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
