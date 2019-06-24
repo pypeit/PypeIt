@@ -46,8 +46,9 @@ def extrapolate_trace(traces_in, traces_min_in, traces_max_in):
 
     Args:
         traces (np.ndarray): Array with size (nspec,) or (nspec, ntrace) containing object or slit boundary traces
-        traces_min (int, float, or np.ndarray): Minimum spectral pixel for which trace is valid. If trace has shape
-        (nspec,) this should be a scalar. If it has size (nspec, ntrace), this should be an array with size (ntrace)
+        traces_min (int, float, or np.ndarray): Minimum spectral pixel for which trace is valid.  If this is a scalar,
+        the same number will be used for all traces in  traces_in.  If an array, then this must be an ndarray of shape
+        (ntrace,) giving the value for each trace
         traces_max (int, float, or np.ndarray): Same as trace_min but for maximum spectral pixel where trace is valid.
 
     Returns:
@@ -59,11 +60,17 @@ def extrapolate_trace(traces_in, traces_min_in, traces_max_in):
     # vectors of size (nspec)
     if traces_in.ndim == 2:
         nslits = traces_in.shape[1]
-        if (traces_min_in.size != nslits) or (traces_max_in.size != nslits):
-            msgs.error('traces_min and traces_max need to be arrays with the same size as traces.shape[1]')
+        if isinstance(traces_min_in, (int, float)) and isinstance(traces_max_in, (int, float)):
+            traces_min = np.full(nslits, traces_min_in)
+            traces_max = np.full(nslits, traces_max_in)
+        elif isinstance(traces_min_in, np.ndarray) and isinstance(traces_max_in, np.ndarray):
+            if (traces_min_in.size != nslits) or (traces_max_in.size != nslits):
+                msgs.error('If input as arrays, traces_min and traces_max need to have the same size as traces.shape[1]')
+            traces_min = traces_min_in
+            traces_max = traces_max_in
+        else:
+            msgs.error('Invalid shapes for traces_min and traces_max')
         traces = traces_in
-        traces_min = traces_min_in
-        traces_max = traces_max_in
     else:
         nslits = 1
         traces = traces_in.reshape(traces_in.size, 1)
