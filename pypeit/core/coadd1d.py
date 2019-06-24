@@ -77,10 +77,9 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
     wave_mask = waves>1.0
 
     if wave_method == 'velocity':  # Constant km/s
-        spl = 299792.458
         if v_pix is None:
             # Find the median velocity of a pixel in the input
-            dv = spl * np.abs(waves - np.roll(waves,1,axis=0)) / waves   # km/s
+            dv = c_kms * np.abs(waves - np.roll(waves,1,axis=0)) / waves   # km/s
             v_pix = np.median(dv)
 
         # to make the wavelength grid finer or coarser
@@ -91,7 +90,7 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
             wave_grid_min = np.min(waves[wave_mask])
         if wave_grid_max is None:
             wave_grid_max = np.max(waves[wave_mask])
-        x = np.log10(v_pix/spl + 1)
+        x = np.log10(v_pix/c_kms + 1)
         npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
         wave_grid = wave_grid_min * 10.0**(x*np.arange(npix))
 
