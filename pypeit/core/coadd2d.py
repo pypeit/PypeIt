@@ -21,7 +21,7 @@ from pypeit.traceslits import TraceSlits
 from pypeit.images import scienceimage
 from pypeit import reduce
 
-from pypeit.core import load, coadd, pixels
+from pypeit.core import load, coadd1d, pixels
 from pypeit.core import parse
 from pypeit.spectrographs import util
 import IPython
@@ -63,7 +63,7 @@ def get_brightest_obj(specobjs_list, echelle=True):
                     ivar = sobjs[ind][0].optimal['COUNTS_IVAR']
                     wave = sobjs[ind][0].optimal['WAVE']
                     mask = sobjs[ind][0].optimal['MASK']
-                    rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask = mask, const_weights=True)
+                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, const_weights=True)
                     order_snr[iord, iobj] = rms_sn
 
             # Compute the average SNR and find the brightest object
