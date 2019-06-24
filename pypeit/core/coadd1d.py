@@ -110,7 +110,7 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
         dloglam = np.median(dloglam_n[logwave_mask])
         wave_grid_max = np.max(waves[wave_mask])
         wave_grid_min = np.min(waves[wave_mask])
-        # ToDo: merge  wvutils.wavegrid with this function
+        # TODO: merge  wvutils.wavegrid with this function
         loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, \
                                        dloglam,samp_fact=samp_fact)
         wave_grid = 10.0**loglam_grid
@@ -508,6 +508,9 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
                 wave_new[:, ii], waves, fluxes, ivars, masks)
 
         return fluxes_inter, ivars_inter, masks_inter
+
+    else:
+        msgs.error('Invalid size for wave_new')
 
 def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=False, ivar_weights=False, verbose=False):
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
