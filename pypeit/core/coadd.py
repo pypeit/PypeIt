@@ -1355,8 +1355,8 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
     # scaling spectrum order by order. We use the reddest order as the reference since slit loss in redder is smaller
     for i in range(norder - 1):
         iord = norder - i - 1
-        sn_iord_iref = fluxes[iord] * (1. / sigs[iord])
-        sn_iord_scale = fluxes[iord - 1] * (1. / sigs[iord - 1])
+        sn_iord_iref = fluxes[iord]/sigs[iord]
+        sn_iord_scale = fluxes[iord - 1]/sigs[iord - 1]
         allok = (sigs[iord - 1, :] > 0) & (sigs[iord, :] > 0) & (sn_iord_iref > sn_min_medscale) & \
                 (sn_iord_scale > sn_min_medscale)
 
@@ -1389,7 +1389,7 @@ def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pix
         else:
             msgs.warn('Not enough overlap region for sticking different orders.')
 
-
+# TODO THis code is on its way out.
 def order_median_scale_new(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, niter=5, min_overlap_pix=21, min_overlap_frac=0.03,
                        max_rescale_percent=50.0, sn_min=1.0, debug=False):
     '''

@@ -33,7 +33,7 @@ plt.rcParams["xtick.labelsize"] = 15
 plt.rcParams["ytick.labelsize"] = 15
 plt.rcParams["axes.labelsize"] = 17
 
-# ToDo: update README and descriptions
+# TODO: update README and descriptions
 
 def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
                   A_pix=None,v_pix=None,samp_fact=1.0, **kwargs):

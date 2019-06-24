@@ -337,7 +337,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
 
     return waves, fluxes, ivars, masks, header
 
-def load_spec_order(fname,norder, objid=None,order=None,extract='OPT',flux=True):
+def load_spec_order(fname,norder, objid=None, order=None, extract='OPT', flux=True):
     """Loading single order spectrum from a PypeIt 1D specctrum fits file.
         it will be called by ech_load_spec
     Parameters:
