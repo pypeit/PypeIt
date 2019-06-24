@@ -76,20 +76,21 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
     #    waves = np.ma.array(waves,mask=waves<1.0)
     wave_mask = waves>1.0
 
+    if wave_grid_min is None:
+        wave_grid_min = np.min(waves[wave_mask])
+    if wave_grid_max is None:
+        wave_grid_max = np.max(waves[wave_mask])
+
     if wave_method == 'velocity':  # Constant km/s
         if v_pix is None:
             # Find the median velocity of a pixel in the input
-            dv = c_kms * np.abs(waves - np.roll(waves,1,axis=0)) / waves   # km/s
+            dv = c_kms * np.diff(waves, axis=0)/waves[1:]   # km/s
             v_pix = np.median(dv)
 
         # to make the wavelength grid finer or coarser
         v_pix = v_pix/samp_fact
 
         # Generate wavelength array
-        if wave_grid_min is None:
-            wave_grid_min = np.min(waves[wave_mask])
-        if wave_grid_max is None:
-            wave_grid_max = np.max(waves[wave_mask])
         x = np.log10(v_pix/c_kms + 1)
         npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
         wave_grid = wave_grid_min * 10.0**(x*np.arange(npix))
@@ -100,10 +101,6 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
             A_pix = np.median(dA)
 
         # Generate wavelength array
-        if wave_grid_min is None:
-            wave_grid_min = np.min(waves[wave_mask])
-        if wave_grid_max is None:
-            wave_grid_max = np.max(waves[wave_mask])
         wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max + A_pix, \
                                      A_pix,samp_fact=samp_fact)
 
@@ -113,6 +110,7 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
         dloglam = np.median(dloglam_n[logwave_mask])
         wave_grid_max = np.max(waves[wave_mask])
         wave_grid_min = np.min(waves[wave_mask])
+        # ToDo: merge  wvutils.wavegrid with this function
         loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, \
                                        dloglam,samp_fact=samp_fact)
         wave_grid = 10.0**loglam_grid
@@ -149,7 +147,7 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
 
     return wave_grid
 
-def gauss1(x, mean, sigma, area):
+def gauss1d(x, mean, sigma, area):
     '''
     Simple Gaussian function
     Args:
@@ -183,8 +181,8 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', q
     bins_histo = -sig_range + np.arange(n_bins)*binsize+binsize/2.0
 
     xvals = np.arange(-10.0,10,0.02)
-    ygauss = gauss1(xvals,0.0,1.0,1.0)
-    ygauss_new = gauss1(xvals,0.0,sigma_corr,1.0)
+    ygauss = gauss1d(xvals,0.0,1.0,1.0)
+    ygauss_new = gauss1d(xvals,0.0,sigma_corr,1.0)
 
     plt.figure(figsize=(12, 8))
     plt.hist(chi[maskchi],bins=bins_histo,normed=True,histtype='step', align='mid',color='k',linewidth=3,label='Chi distribution')
@@ -446,24 +444,24 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
     '''
 
     # Do not interpolate if the wavelength is exactly same with wave_new
-    if np.sum(wave_new == wave_old) == wave_new.size:
+    if np.array_equal(wave_new, wave_old):
         return flux_old, ivar_old, mask_old
-    else:
-        # make the mask array to be float, used for interpolation
-        masks_float = np.zeros_like(flux_old)
-        masks_float[mask_old] = 1.0
-        #TODO Should this be linear interpolation??
-        flux_new = interpolate.interp1d(wave_old[mask_old], flux_old[mask_old], kind='cubic',
+
+    # make the mask array to be float, used for interpolation
+    masks_float = np.zeros_like(flux_old)
+    masks_float[mask_old] = 1.0
+    #TODO Should this be linear interpolation??
+    flux_new = interpolate.interp1d(wave_old[mask_old], flux_old[mask_old], kind='cubic',
+                                    bounds_error=False, fill_value=np.nan)(wave_new)
+    ivar_new = interpolate.interp1d(wave_old[mask_old], ivar_old[mask_old], kind='cubic',
+                                    bounds_error=False, fill_value=np.nan)(wave_new)
+    mask_new_tmp = interpolate.interp1d(wave_old[mask_old], masks_float[mask_old], kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(wave_new)
-        ivar_new = interpolate.interp1d(wave_old[mask_old], ivar_old[mask_old], kind='cubic',
-                                        bounds_error=False, fill_value=np.nan)(wave_new)
-        mask_new_tmp = interpolate.interp1d(wave_old[mask_old], masks_float[mask_old], kind='cubic',
-                                            bounds_error=False, fill_value=np.nan)(wave_new)
-        # Don't allow the ivar to be every less than zero
-        neg_ivar = ivar_new < 0.0
-        ivar_new[neg_ivar] = 0.0
-        mask_new = (mask_new_tmp > 0.5) & (ivar_new > 0.0) & np.isfinite(flux_new)
-        return flux_new, ivar_new, mask_new
+    # Don't allow the ivar to be every less than zero
+    neg_ivar = ivar_new < 0.0
+    ivar_new[neg_ivar] = 0.0
+    mask_new = (mask_new_tmp > 0.5) & (ivar_new > 0.0) & np.isfinite(flux_new)
+    return flux_new, ivar_new, mask_new
 
 def interp_spec(wave_new, waves, fluxes, ivars, masks):
     '''
