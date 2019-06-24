@@ -129,7 +129,10 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
             try:
                 prihdu.header[key.upper()] = header[key.upper()]
             except KeyError:
-                prihdu.header[key.upper()] = header[key]
+                # TODO FW: commented it out at this moment since the dispname/decker/binning and mjd are not saved in
+                # the spec1d file that reduced before.
+                # prihdu.header[key.upper()] = header[key]
+                msgs.warn('Header key {:} is not found.'.format(key))
         try:
             prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
         except KeyError:

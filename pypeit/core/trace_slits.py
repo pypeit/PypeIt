@@ -10,6 +10,7 @@ import numpy as np
 from scipy import ndimage
 from scipy.special import erf
 from scipy import signal
+from scipy import interpolate
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
@@ -35,6 +36,60 @@ except ImportError:
 
 # Testing
 import time
+
+
+def extrapolate_trace(traces_in, traces_min_in, traces_max_in):
+    """
+    Linearly extrapolates trace to fill in pixels that lie outside of the range (trace_min, trace_max). This
+    routine is useful for echelle spectrographs where the orders are shorter than the image by a signfiicant
+    amount, since the polynomial trace fits often go wild.
+
+    Args:
+        traces (np.ndarray): Array with size (nspec,) or (nspec, ntrace) containing object or slit boundary traces
+        traces_min (int, float, or np.ndarray): Minimum spectral pixel for which trace is valid.  If this is a scalar,
+        the same number will be used for all traces in  traces_in.  If an array, then this must be an ndarray of shape
+        (ntrace,) giving the value for each trace
+        traces_max (int, float, or np.ndarray): Same as trace_min but for maximum spectral pixel where trace is valid.
+
+    Returns:
+        trace_extrap (np.ndarray): Array with same size as trace containing the linearly extrapolated values for the bad
+        spectral pixels.
+    """
+
+    # This little bit of code allows the input traces to either be (nspec, nslit) arrays or a single
+    # vectors of size (nspec)
+    if traces_in.ndim == 2:
+        nslits = traces_in.shape[1]
+        if isinstance(traces_min_in, (int, float)) and isinstance(traces_max_in, (int, float)):
+            traces_min = np.full(nslits, traces_min_in)
+            traces_max = np.full(nslits, traces_max_in)
+        elif isinstance(traces_min_in, np.ndarray) and isinstance(traces_max_in, np.ndarray):
+            if (traces_min_in.size != nslits) or (traces_max_in.size != nslits):
+                msgs.error('If input as arrays, traces_min and traces_max need to have the same size as traces.shape[1]')
+            traces_min = traces_min_in
+            traces_max = traces_max_in
+        else:
+            msgs.error('Invalid shapes for traces_min and traces_max')
+        traces = traces_in
+    else:
+        nslits = 1
+        traces = traces_in.reshape(traces_in.size, 1)
+        traces_min = np.array([traces_min_in])
+        traces_max = np.array([traces_max_in])
+
+    nspec = traces.shape[0]
+    spec_vec = np.arange(nspec)
+    traces_extrap = traces.copy()
+
+    # TODO should we be doing a more careful extrapolation here rather than just linearly using the nearest pixel
+    # values??
+    for islit in range(nslits):
+        igood = (spec_vec >= traces_min[islit]) & (spec_vec <= traces_max[islit])
+        ibad = np.invert(igood)
+        traces_extrap[ibad, islit] = interpolate.interp1d(spec_vec[igood], traces[igood, islit], kind='linear',
+                                                          bounds_error=False, fill_value='extrapolate')(spec_vec[ibad])
+
+    return traces_extrap
 
 
 def add_user_edges(lcen, rcen, add_slits):
