@@ -2378,7 +2378,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, slit_m
     # Loop over the objects one by one and adjust/predict the traces
     pca_fits = np.zeros((nspec, norders, nobj_trim))
 
-    embed(header='2431 of extract')
+    #embed(header='2431 of extract')
 
     for iobj in range(nobj_trim):
         indx_obj_id = sobjs_final.ech_objid == (iobj + 1)
