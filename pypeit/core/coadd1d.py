@@ -914,7 +914,7 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, s
     to be the higher S/N ratio spectrum. If the scale_method is not specified, the code will make a decision about
     which method to use based on the S/N ratio of the input spectrum flux.
 
-    Arguments: 
+    Args:
     wave: ndarray, (nspec,) wavelengths grid for the spectra
     flux: ndarray, (nspec,) spectrum that will be rescaled.
     ivar: ndarray, (nspec,) inverse variance for the spectrum that will be rescaled.
@@ -1005,18 +1005,60 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, s
     return flux_scale, ivar_scale, scale, scale_method
 
 
-def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, debug=False):
+def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     '''
-    Compute the stacked spectrum based on spectra and wave_grid with weights being taken into account.
+    Compute a stacked spectrum from a set of exposures on the specified wave_grid with proper treatment of
+    weights and masking. This code uses np.histogram to combine the data using NGP and does not perform any
+    interpolations and thus does not correlate errors. It uses wave_grid to determine the set of wavelength bins that
+    the data are averaged on. The final spectrum will be on an ouptut wavelength grid which is not the same as wave_grid.
+    The ouput wavelength grid is the weighted average of the individual wavelengths used for each exposure that fell into
+    a given wavelength bin in the input wave_grid. This 1d coadding routine thus maintains the independence of the
+    errors for each pixel in the combined spectrum and computes the weighted averaged wavelengths of each pixel
+    in an analogous way to the 2d extraction procedure which also never interpolates to avoid correlating erorrs.
+
     Args:
-        wave_grid: new wavelength grid
-        waves, fluxes, ivars, masks: spectra that you want to stack
-        weights: weights for your spectra, same size with fluxes
+        wave_grid: ndarray, (ngrid +1,)
+            new wavelength grid desired. This will typically be a reguarly spaced grid created by the new_wave_grid routine.
+            The reason for the ngrid+1 is that this is the general way to specify a set of  bins if you desire ngrid
+            bin centers, i.e. the output stacked spectra have ngrid elements.  The spacing of this grid can be regular in
+            lambda (better for multislit) or log lambda (better for echelle). This new wavelength grid should be designed
+            with the sampling of the data in mind. For example, the code will work fine if you choose the sampling to be
+            too fine, but then the number of exposures contributing to any given wavelength bin will be one or zero in the
+            limiting case of very small wavelength bins. For larger wavelength bins, the number of exposures contributing
+            to a given bin will be larger.
+        waves: ndarray, (nspec, nexp)
+            wavelength arrays for spectra to be stacked. Note that the wavelength grids can in general be different for
+            each exposure and irregularly spaced.
+        fluxes: ndarray, (nspec, nexp)
+            fluxes for each exposure on the waves grid
+        ivars: ndarray, (nspec, nexp)
+            Inverse variances for each exposure on the waves grid
+        masks: ndarray, bool, (nspec, nexp)
+            Masks for each exposure on the waves grid. True=Good.
+        weights: ndarray, (nspec, nexp)
+            Weights to be used for combining your spectra. These are computed using sn_weights
     Returns:
-        weighted stacked wavelength, flux and ivar
+        wave_stack, flux_stack, ivar_stack, mask_stack, nused
+
+        wave_stack: ndarray, (ngrid,)
+             Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
+             of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
+             elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
+             wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
+        flux_stack: ndarray, (ngrid,)
+             Final stacked spectrum on wave_stack wavelength grid
+        ivar_stack: ndarray, (ngrid,)
+             Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
+             masking.
+        mask_stack: ndarray, bool, (ngrid,)
+             Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
+        nused: ndarray, (ngrid,)
+             Numer of exposures which contributed to each pixel in the wave_stack. Note that this is in general
+             different from nexp because of masking, but also becuse of the sampling specified by wave_grid. In other
+             words, sometimes more spectral pixels in the irregularly gridded input wavelength array waves will land in
+             one bin versus another depending on the sampling.
     '''
-    if debug:
-        IPython.embed()
+
     ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0)
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
