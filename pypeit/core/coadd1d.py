@@ -1353,7 +1353,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     return
 
-def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, sn_cap=20.0, debug=False):
+def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, sn_cap=30.0, debug=False):
     '''
     Deterimine corrections to errors using the residuals of each exposure about a preliminary stack. This routine is
     used as part of the iterative masking/stacking loop to determine the corrections to the errors used to reject pixels
@@ -1373,8 +1373,8 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
         masks_stack: ndarray, bool, (nspec, nexp)
             Mask of stacked spectrum for this iteration interpolated on the native wavelength grid of the fluxes exposures.
         sn_cap: float, default=20.0,
-            Errors are capped so that the S/N is never greater than sn_cap. This prevents overly aggressive rejection
-            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            Errors are capped in output rejivars so that the S/N is never greater than sn_cap. This prevents overly
+            aggressive rejection in high S/N ratio spectra which neverthless differ at a level greater than the implied S/N due to
             systematics.
         debug: bool, default=False, Show QA plots useful for debuggin.
 
@@ -1456,8 +1456,37 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
 def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.0, lower=3.0, upper=3.0,
                      maxrej=None, maxiter_reject=5, debug=False):
     '''
-    Routine for rejections and combining
+    Routine for executing the iterative combine and rejection of a set of spectra to compute a final stacked spectrum.
+
     Args:
+        wave_grid: ndarray, (ngrid +1,)
+            new wavelength grid desired. This will typically be a reguarly spaced grid created by the new_wave_grid routine.
+            The reason for the ngrid+1 is that this is the general way to specify a set of  bins if you desire ngrid
+            bin centers, i.e. the output stacked spectra have ngrid elements.  The spacing of this grid can be regular in
+            lambda (better for multislit) or log lambda (better for echelle). This new wavelength grid should be designed
+            with the sampling of the data in mind. For example, the code will work fine if you choose the sampling to be
+            too fine, but then the number of exposures contributing to any given wavelength bin will be one or zero in the
+            limiting case of very small wavelength bins. For larger wavelength bins, the number of exposures contributing
+            to a given bin will be larger.
+        waves: ndarray, (nspec, nexp)
+            wavelength arrays for spectra to be stacked. Note that the wavelength grids can in general be different for
+            each exposure and irregularly spaced.
+        fluxes: ndarray, (nspec, nexp)
+            fluxes for each exposure on the waves grid
+        ivars: ndarray, (nspec, nexp)
+            Inverse variances for each exposure on the waves grid
+        masks: ndarray, bool, (nspec, nexp)
+            Masks for each exposure on the waves grid. True=Good.
+        weights: ndarray, (nspec, nexp)
+            Weights to be used for combining your spectra. These are computed using sn_weights
+        sn_cap: float, default=20.0,
+            Errors are capped during rejection so that the S/N is never greater than sn_cap. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+
+    Args:
+
+
         wave_grid: wave length grid
         waves, fluxes, ivars, masks: your spectra
         weights: weights for your spectra
@@ -1473,7 +1502,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.
         nused: same size with flux_stack, how many exposures used in the stack of each pixel
 
     '''
-    nexp = np.shape(waves)[1]
+    nexp = waves.shape[1]
     iIter = 0
     qdone = False
     thismask = np.copy(masks)
@@ -1501,8 +1530,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.
     outmask = np.copy(thismask)
 
     # Compute the final stack using this outmask
-    wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(
-        wave_grid, waves, fluxes, ivars, outmask, weights)
+    wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, outmask, weights)
 
     # Used only for plotting below
     if debug:
@@ -1521,9 +1549,10 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.
 
 def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
              scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
-             const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0, maxrej=None, debug=False):
+             const_weights=False, maxiter_reject=5, sn_cap=30.0, lower=3.0, upper=3.0, maxrej=None, debug=False):
     '''
-    Routine for combspec longslit spectra or individual orders
+    Routine for optimally combining long or multi-slit spectra or echelle spectra of individual orders
+
     Args:
         wave_grid: wave length grid
         waves, fluxes, ivars, masks: your spectra
@@ -1675,7 +1704,7 @@ def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method=
 def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
                  samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                  sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
-                 dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
+                 dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=30.0, lower=3.0, upper=3.0,
                  maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, nmaskedge=2,
                  qafile=None, outfile = None, debug=False, show=False):
     '''
