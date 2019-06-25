@@ -1877,6 +1877,23 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
 
 def remap_orders(xinit, spec_min_max, inverse=False):
 
+    """
+    This code remaps echelle orders to all extend over the same numer of pixels. It is meant to deal with cases
+    where the echelle orders do not completely span the detector. Initial tests with PCA using this remapping
+    indicate (for vlt_xshooter_nir) that the remapping does not work as well as simply linear extroplating the traces
+    in the PCA. The traces appear to compress better onto a PCA when they are not remapped. So this functionality
+    is experimemtnal and not currently used.
+
+
+    Args:
+        xinit: ndarray, (nspec, norders) Array of input traces that one wants to remap.
+        spec_min_max: ndarray, (2, norders) Array containing the spec_min and spec_max defined for each order
+        inverse: bool, default = False, If True, perform the inverse re-mapping rather than the re-mapping.
+
+    Returns:
+
+    """
+
     nspec, norders = xinit.shape
     spec_vec = np.arange(nspec)
     spec_vec_norm = spec_vec/float(nspec-1)
