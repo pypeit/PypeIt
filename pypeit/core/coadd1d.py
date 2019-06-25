@@ -962,7 +962,7 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, m
     return flux_scale, ivar_scale, scale, scale_method
 
 
-def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
+def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, debug=False):
     '''
     Compute the stacked spectrum based on spectra and wave_grid with weights being taken into account.
     Args:
@@ -972,6 +972,8 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     Returns:
         weighted stacked wavelength, flux and ivar
     '''
+    if debug:
+        IPython.embed()
     ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0)
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
@@ -1405,6 +1407,7 @@ def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxite
 
     # Compute an initial stack as the reference, this has its own wave grid based on the weighted averages
     wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, masks, weights)
+
     # Interpolate the stack onto each individual exposures native wavelength grid
     flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
 
