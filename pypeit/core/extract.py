@@ -245,7 +245,7 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
 
 
 
-def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radius, specobj):
+def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radius, specobj, min_frac_use = 0.05):
 
     """ Calculate the spatial FWHM from an object profile. Utitlit routine for fit_profile
 
@@ -269,6 +269,9 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
         Size of boxcar window in floating point pixels in the spatial direction.
     specobj: SpecObj object (from the SpecObj class in specobj.py). This is the container that holds object, trace,
     and extraction information for the object in question. This routine operates one object at a time.
+    min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
+           are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
+           object profile has been masked
 
     Returns
     -------
@@ -359,8 +362,10 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     rn_opt[np.isnan(rn_opt)]=0.0
 
     tot_weight = np.nansum(mask_sub*ivar_sub*oprof_sub, axis=1)
-    mask_opt = (tot_weight > 0.0) & (mivar_num > 0.0) & (ivar_denom > 0.0)
-    frac_use = np.nansum((mask_sub*ivar_sub > 0.0)*oprof_sub, axis=1)
+    prof_norm = np.nansum(oprof_sub, axis=1)
+    frac_use = (prof_norm > 0.0)*np.nansum((mask_sub*ivar_sub > 0.0)*oprof_sub, axis=1)/(prof_norm + (prof_norm == 0.0))
+
+    mask_opt = (tot_weight > 0.0) & (frac_use > min_frac_use) & (mivar_num > 0.0) & (ivar_denom > 0.0)
     # Use the same weights = oprof^2*mivar for the wavelenghts as the flux.
     # Note that for the flux, one of the oprof factors cancels which does
     # not for the wavelengths.
@@ -396,8 +401,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
-    if specobj.ech_order == 21:
-        embed(header='extract_optimal 399')
+#    if specobj.ech_order == 21:
+#        embed(header='extract_optimal 399')
 
     # Fill in the boxcar extraction tags
     flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
