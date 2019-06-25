@@ -349,7 +349,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     # analog of the numerator in Horne's variance formula. Note that we
     # are only weighting by the profile (ivar_sub=1) because
     # otherwise the result depends on the signal (bad).
-    nivar_num =np.nansum(mask_sub*oprof_sub**2, axis=1) # Uses unit weights
+    nivar_num = np.nansum(mask_sub*oprof_sub**2, axis=1) # Uses unit weights
     nvar_opt = ivar_denom*((mask_sub*vno_sub*oprof_sub**2).sum(axis=1))/(nivar_num**2 + (nivar_num**2 == 0.0))
     nivar_opt = 1.0/(nvar_opt + (nvar_opt == 0.0))
     # Optimally extract sky and (read noise)**2 in a similar way
@@ -395,6 +395,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.optimal['COUNTS_RN'] = rn_opt        # Square root of optimally extracted read noise squared
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
+
+    embed(header='extract_optimal 399')
 
     # Fill in the boxcar extraction tags
     flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
@@ -2224,7 +2226,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, slit_m
     isort_frac = uni_frac.argsort()
     uni_obj_id = uni_obj_id[isort_frac]
     uni_frac = uni_frac[isort_frac]
-    iord_vec = np.arange(norders)
 
     sobjs_align = sobjs.copy()
     # Loop over the orders and assign each specobj a fractional position and a obj_id number
@@ -2256,22 +2257,21 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, slit_m
             # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
             # Performa  linear fit to fractional slit position
-
             msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
                                                                  function='polynomial', maxiter=20, lower=2, upper=2,
                                                                  use_mad= True, sticky=False,
                                                                  minx = order_vec.min(), maxx=order_vec.max())
             frac_mean_new = np.zeros(norders)
-            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, iord_vec[badorder], 'polynomial',
+            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, order_vec[badorder], 'polynomial',
                                                      minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
             if debug:
-                frac_mean_fit = utils.func_val(poly_coeff_frac, iord_vec, 'polynomial')
-                plt.plot(iord_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(iord_vec[goodorder][~msk_frac], frac_mean_new[goodorder][~msk_frac], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
-                plt.plot(iord_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
-                plt.plot(iord_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
-                plt.plot(iord_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
+                frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
+                plt.plot(order_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
+                plt.plot(order_vec[goodorder][np.invert(msk_frac)], frac_mean_new[goodorder][np.invert(msk_frac)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
+                plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
+                plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
                 plt.xlabel('Order Index', fontsize=14)
                 plt.ylabel('Fractional Slit Position', fontsize=14)
                 plt.title('Fractional Slit Position Fitting')
