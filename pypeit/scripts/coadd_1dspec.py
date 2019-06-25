@@ -30,14 +30,11 @@ def main(args, unit_test=False, path=''):
 
     import numpy as np
     from numpy import isnan
-    import pdb as debugger
 
     from astropy.io import fits
 
     from pypeit import msgs
-    from pypeit.core import coadd
     from pypeit.core import coadd1d
-    from pypeit.core import load
     from pypeit import specobjs
     from pypeit.spectrographs import util
 
