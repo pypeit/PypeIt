@@ -1483,23 +1483,43 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.
             Errors are capped during rejection so that the S/N is never greater than sn_cap. This prevents overly aggressive rejection
             in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
             systematics.
+                definition of sticky.
+        lower: float, default=3.0,
+            lower rejection threshold for djs_reject
+        upper: float: default=3.0,
+            upper rejection threshold for djs_reject
+        maxrej: int, default=None,
+            maximum number of pixels to reject in each iteration for djs_reject.
+        maxiter_reject: int, default=5
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+        debug: bool, default=False,
+            Show QA plots useful for debugging.
 
-    Args:
-
-
-        wave_grid: wave length grid
-        waves, fluxes, ivars, masks: your spectra
-        weights: weights for your spectra
-        sn_cap: cap SNR
-        lower: lower sigma for djs_reject
-        upper: upper sigma for djs_reject
-        maxrej: maximum value for djs_reject
-        maxiter_reject: maximum number of interations
-        debug: show QA plots or not
     Return:
-        wave_stack, flux_stack, ivar_stack, mask_stack: stacked spectrum
-        outmask: new mask for your individual spectra, same size with fluxes
-        nused: same size with flux_stack, how many exposures used in the stack of each pixel
+
+        wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused
+
+        wave_stack: ndarray, (ngrid,)
+             Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
+             of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
+             elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
+             wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
+        flux_stack: ndarray, (ngrid,)
+             Final stacked spectrum on wave_stack wavelength grid
+        ivar_stack: ndarray, (ngrid,)
+             Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
+             masking.
+        mask_stack: ndarray, bool, (ngrid,)
+             Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
+        outmask: ndarray, bool, (nspec, nexp)
+             Output mask indicating which pixels are rejected in each exposure of the original input spectra after
+             performing all of the iterations of combine/rejection
+        nused: ndarray, (ngrid,)
+             Numer of exposures which contributed to each pixel in the wave_stack. Note that this is in general
+             different from nexp because of masking, but also becuse of the sampling specified by wave_grid. In other
+             words, sometimes more spectral pixels in the irregularly gridded input wavelength array waves will land in
+             one bin versus another depending on the sampling.
 
     '''
     nexp = waves.shape[1]
