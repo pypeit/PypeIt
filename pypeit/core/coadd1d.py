@@ -962,7 +962,7 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, m
     return flux_scale, ivar_scale, scale, scale_method
 
 
-def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
+def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, debug=False):
     '''
     Compute the stacked spectrum based on spectra and wave_grid with weights being taken into account.
     Args:
@@ -972,6 +972,8 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     Returns:
         weighted stacked wavelength, flux and ivar
     '''
+    if debug:
+        IPython.embed()
     ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0)
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
@@ -1405,6 +1407,13 @@ def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxite
 
     # Compute an initial stack as the reference, this has its own wave grid based on the weighted averages
     wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, masks, weights)
+    # TODO: change to astropy sigma_clip median/mean for the initial guess
+    #flux_grid, ivar_grid, mask_grid = interp_spec(wave_grid, waves, fluxes, ivars, masks)
+    #wave_stack = wave_grid.copy()
+    #flux_stack = np.nanmedian(flux_grid,axis=1)
+    #ivar_stack = np.nanmedian(ivar_grid,axis=1) # TODO: this is incorrect!
+    #mask_stack = np.isfinite(flux_stack) & np.isfinite(ivar_stack) & (ivar_stack>0.0)
+
     # Interpolate the stack onto each individual exposures native wavelength grid
     flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
 
