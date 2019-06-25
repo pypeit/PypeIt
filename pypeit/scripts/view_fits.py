@@ -17,7 +17,9 @@ def parser(options=None):
     parser.add_argument('--raw_lris', action="store_true")
     parser.add_argument('--raw_deimos', action="store_true")
     parser.add_argument('--raw_gmos', action="store_true")
+    parser.add_argument('--raw_desi', action="store_true")
     parser.add_argument('--exten', type=int, default = 0, help="FITS extension")
+    parser.add_argument('--camera', type=str, default=None, help="Camera")
     parser.add_argument('--det', type=int, default=1, help="Detector number")
 
     if options is None:
@@ -62,6 +64,12 @@ def main(args):
         # TODO this routine should show the whole mosaic if no detector number is passed in!
         # Need to figure out the number of amps
         img, head, _ = gemini_gmos.read_gmos(args.file, det=args.det)
+    elif args.raw_desi:
+        hdu = fits.open(args.file)
+        if args.camera is None:
+            img = hdu[1].data
+        else:
+            img = hdu[args.camera].data
     else:
         hdu = fits.open(args.file)
         img = hdu[args.exten].data
