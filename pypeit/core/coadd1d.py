@@ -1097,6 +1097,17 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
 def get_ylim(flux, ivar, mask):
+    """
+    Utility
+    Args:
+        flux:
+        ivar:
+        mask:
+
+    Returns:
+
+    """
+
     med_width = (2.0 * np.ceil(0.1 / 2.0 * np.size(flux[mask])) + 1).astype(int)
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     mask_lim = ivar_med > np.percentile(ivar_med, 20)
