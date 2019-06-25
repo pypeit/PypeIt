@@ -1098,13 +1098,14 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
 
 def get_ylim(flux, ivar, mask):
     """
-    Utility
+    Utility routine for setting the plot limits for QA plots.
     Args:
-        flux:
-        ivar:
-        mask:
+        flux: ndarray, (nspec,) flux array
+        ivar: ndarray, (nspec,) inverse variance array
+        mask: ndarray, bool, (nspec,) mask array. True=Good
 
     Returns:
+        ymin, ymax: limits for plotting.
 
     """
 
@@ -1116,16 +1117,32 @@ def get_ylim(flux, ivar, mask):
     return ymin, ymax
 
 def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
-                  mask=None, mask_ref=None, ylim = None, median_frac = 0.03, title=''):
+                  mask=None, mask_ref=None, ylim = None, title=''):
     '''
-    QA plot for spectrum scaling
-        wave, flux, ivar, mask: spectrum need to be scaled
-        flux_ref, ivar_ref, mask_ref: reference spectrum
-        ymult: scale factor array
-    scale_method: scale method, will be shown in the qa plot
-    ylim: ylim for plotting
-    median_frac: used for estimating ylim, if ylim set to None
-    title: QA plot title
+    QA plot for spectrum scaling.
+
+    Args:
+        wave: ndarray, (nspec,)
+            wavelength array for spectrum to be scaled and reference spectrum.
+        flux: ndarray, (nspec,)
+            flux for spectrum to be scaled
+        ivar: ndarray, (nspec,)
+             inverse variance for spectrum to be scaled.
+        mask: ndarray, bool, (nspec,) optional,
+             mask for spectrum to be scaled. True=Good. If not specified determined form inverse variance
+        flux_ref: ndarray (nspec,)
+             reference flux
+        ivar_ref: ndarray (nspec,)
+            inverse variance of reference flux
+        mask_ref: ndarray, bool, (nspec,)
+            mask for reference flux. True=Good.
+        ymult: ndarray (nspec,)
+            scale factor array
+        scale_method: str,
+            method used for rescaling which will be shown on QA plot.
+        ylim: ylim, default=None,
+            tuple for limits of the QA plot. If None, will be determined automtically with get_ylim
+        title: str, QA plot title
     '''
 
     if mask is None:
@@ -1161,14 +1178,26 @@ def scale_spec_qa(wave, flux, ivar, flux_ref, ivar_ref, ymult, scale_method,
 def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stack=None,
                   norder=None, qafile=None):
     '''
-    QA for showing the iexp spectra with the combine, showing the rejected pixels
+    Routine to creqate QA for showing the individual spectrum compared to the combined stacked spectrum indicating
+     which pixels were rejected.
     Args:
-        wave, flux, ivar, mask: iexp spectrum
-        flux_stack, ivar_stack, mask_stack: stacked spectrum
-        norder: give how many orders you have if Echelle
+        wave: ndarray, (nspec,)
+            wavelength array for spectrum of the exposure in question.
+        flux: ndarray, (nspec,)
+            flux for the exposure in question
+        ivar: ndarray, (nspec,)
+             inverse variance for the exposure in question
+        mask: ndarray, bool, (nspec,) optional,
+             mask for the exposure in question True=Good. If not specified determined form inverse variance
+        flux_stack: ndarray (nspec,)
+             Stacked spectrum to be compared to the exposure in question.
+        ivar_ref: ndarray (nspec,)
+            inverse variance of the stacked spectrum
+        mask_ref: ndarray, bool, (nspec,)
+            mask for stacked spectrum
+        norder: int, default=None, Indicate the number of orders if this is an echelle stack
         qafile: QA file name
-    Return:
-        None
+
     '''
 
     if mask is None:
@@ -1231,15 +1260,18 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
         msgs.info("Wrote QA: {:s}".format(qafile))
     plt.show()
 
-    return
 
 def weights_qa(waves, weights, masks):
     '''
-    QA plot routine for weights
+    Routine to make a QA plot for the weights used to compute a stacked spectrum.
+
     Args:
-        waves: wavelength array
-        weights:  weights array
-        masks: mask array, True=good
+        wave: ndarray, (nspec, nexp)
+            wavelength array for spectra that went into a stack
+        weights: ndarray, (nspec, nexp,)
+            (S/N)^2 weights for the exposures that went into a stack. This would have been computed by sn_weights
+        mask: ndarray, bool, (nspec, nexp)
+            Pixels which were masked in each individual exposure which go into the stack.
     '''
 
     nexp = np.shape(waves)[1]
@@ -1259,7 +1291,7 @@ def weights_qa(waves, weights, masks):
 
 def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=None):
     '''
-    QA plot of the final stacked spectrum
+    Routine to make QA plot of the final stacked spectrum
     Args:
         wave, flux, ivar, mask:
         nused: same size with flux, how many exposures used in the stack for each pixel
@@ -1321,19 +1353,45 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     return
 
-def update_errors(waves, fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, sn_cap=20.0, debug=False):
+def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, sn_cap=20.0, debug=False):
     '''
-    Adjust errors after rejection to reflect the statistics of the distribution of errors.
+    Deterimine corrections to errors using the residuals of each exposure about a preliminary stack. This routine is
+    used as part of the iterative masking/stacking loop to determine the corrections to the errors used to reject pixels
+    for the next iteration of the stack. The routine returns a set of corrections for each of the exposores that is input.
     Args:
-        waves, fluxes, ivars, masks: your spectra
-        fluxes_stack, ivars_stack, masks_stack: stacked spectrum
-        sn_cap: cap SNR
-        debug: show QA plot or not
-    Return:
-        rejivars: cap ivar
-        sigma_corrs: new corrected sigma
-        outchi: chi
-        maskchi: mask for chi, True=good
+        fluxes: ndarray, (nspec, nexp)
+            fluxes for each exposure on the native wavelength grids
+        ivars: ndarray, (nspec, nexp)
+            Inverse variances for each exposure on the native wavelength grids
+        masks: ndarray, bool, (nspec, nexp)
+            Masks for each exposure on the native wavelength grids. True=Good.
+        fluxes_stack: ndarray, (nspec, nexp)
+            Stacked spectrum for this iteration interpolated on the native wavelength grid of the fluxes exposures.
+        ivars_stack: ndarray, (nspec, nexp)
+            Inverse variances of stacked spectrum for this iteration interpolated on the native wavelength grid of the
+            fluxes exposures.
+        masks_stack: ndarray, bool, (nspec, nexp)
+            Mask of stacked spectrum for this iteration interpolated on the native wavelength grid of the fluxes exposures.
+        sn_cap: float, default=20.0,
+            Errors are capped so that the S/N is never greater than sn_cap. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+        debug: bool, default=False, Show QA plots useful for debuggin.
+
+    Returns:
+        rejivars, sigma_corrs, outchi, maskchi
+
+        rejivars: ndarray, (nspec, nexp)
+             Updated inverse variances to be used in rejection
+        sigma_corrs, ndarray, (nexp)
+             Array of correction factors applied to the original ivars to get the new rejivars
+        outchi: ndarray, (nspec, nexp)
+             The original chi=(fluxes-fluxes_stack)*np.sqrt(ivars) used to determine the correction factors. This
+             quantity is useful for plotting. Note that the outchi is computed using the original non-corrected errors.
+        maskchi: ndarray, bool, (nspec, nexp)
+             Mask returned by renormalize_erorrs indicating which pixels were used in the computation of the correction
+             factors. This is basically the union of the input masks but with chi > clip (clip=6.0 is the default)
+             values clipped out.
     '''
 
     if fluxes.ndim == 1:
@@ -1424,7 +1482,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.
             wave_grid, waves, fluxes, ivars, thismask, weights)
         flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(
             waves, wave_stack, flux_stack, ivar_stack, mask_stack)
-        rejivars, sigma_corrs, outchi, maskchi = update_errors(waves, fluxes, ivars, thismask,
+        rejivars, sigma_corrs, outchi, maskchi = update_errors(fluxes, ivars, thismask,
                                                                flux_stack_nat, ivar_stack_nat, mask_stack_nat,
                                                                sn_cap=sn_cap)
         thismask, qdone = pydl.djs_reject(fluxes, flux_stack_nat, outmask=thismask,inmask=masks, invvar=rejivars,
@@ -1826,7 +1884,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
         mask_stack_2d_exps = mask_stack_2d.reshape(np.shape(waves_2d_exps),order='F')
 
         rejivars_2d, sigma_corrs_2d, outchi_2d, maskchi_2d = update_errors(
-            waves_2d_exps, fluxes_2d_exps, ivars_2d_exps, masks_2d_exps, flux_stack_2d_exps, ivar_stack_2d_exps,
+            fluxes_2d_exps, ivars_2d_exps, masks_2d_exps, flux_stack_2d_exps, ivar_stack_2d_exps,
             mask_stack_2d_exps, sn_cap=sn_cap)
 
         if debug:
@@ -1843,7 +1901,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
                               mask_stack=mask_stack_2d_exps[:,iexp], norder=norder, qafile=None)
         # Global QA
         rejivars_1d, sigma_corrs_1d, outchi_1d, maskchi_1d = update_errors(
-            waves_2d_exps.flatten(), fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), masks_2d_exps.flatten(),
+            fluxes_2d_exps.flatten(), ivars_2d_exps.flatten(), masks_2d_exps.flatten(),
             flux_stack_2d_exps.flatten(), ivar_stack_2d_exps.flatten(), mask_stack_2d_exps.flatten(), sn_cap=sn_cap)
         renormalize_errors_qa(outchi_1d, maskchi_1d, sigma_corrs_1d[0], qafile=qafile_chi, title='Global Chi distribution')
         # show the final coadded spectrum
