@@ -2,11 +2,10 @@ import os
 import scipy
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import interpolate
 from astropy import stats
 from astropy.io import fits
 from astropy import convolution
-import IPython
+from IPython import embed
 from astropy.table import Table
 
 from pkg_resources import resource_filename
@@ -33,10 +32,10 @@ plt.rcParams["xtick.labelsize"] = 15
 plt.rcParams["ytick.labelsize"] = 15
 plt.rcParams["axes.labelsize"] = 17
 
-# TODO: update README and descriptions
+# TODO: merge with wavegrid routine in wvutils
 
 def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
-                  A_pix=None,v_pix=None,samp_fact=1.0, **kwargs):
+                  A_pix=None,v_pix=None,samp_fact=1.0):
     """ Create a new wavelength grid for the spectra to be rebinned and coadded on
 
     Parameters
@@ -147,20 +146,20 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
 
     return wave_grid
 
-def gauss1d(x, mean, sigma, area):
-    '''
-    Simple Gaussian function
-    Args:
-        x: variable
-        mean: mean value
-        sigma: sigma value
-        area: total area of the Gaussian function
-    Return:
-        one-d array of your Gaussian function
-    '''
-    ygauss = np.exp(-np.power(x - mean, 2.) / (2 * np.power(sigma, 2.)))
-    norm = area / (sigma * np.sqrt(2 * np.pi))
-    return norm * ygauss
+#def gauss1d(x, mean, sigma, area):
+#    '''
+#    Simple Gaussian function
+#    Args:
+#        x: variable
+#        mean: mean value
+#        sigma: sigma value
+#        area: total area of the Gaussian function
+#    Return:
+#        one-d array of your Gaussian function
+#    '''
+#    ygauss = np.exp(-np.power(x - mean, 2.) / (2 * np.power(sigma, 2.)))
+#    norm = area / (sigma * np.sqrt(2 * np.pi))
+#    return norm * ygauss
 
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
     '''
@@ -181,13 +180,15 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', q
     bins_histo = -sig_range + np.arange(n_bins)*binsize+binsize/2.0
 
     xvals = np.arange(-10.0,10,0.02)
-    ygauss = gauss1d(xvals,0.0,1.0,1.0)
-    ygauss_new = gauss1d(xvals,0.0,sigma_corr,1.0)
+    gauss = scipy.stats.norm(loc=0.0,scale=1.0)
+    gauss_corr = scipy.stats.norm(loc=0.0,scale=sigma_corr)
+    #ygauss = gauss1d(xvals,0.0,1.0,1.0)
+    #ygauss_new = gauss1d(xvals,0.0,sigma_corr,1.0)
 
     plt.figure(figsize=(12, 8))
     plt.hist(chi[maskchi],bins=bins_histo,normed=True,histtype='step', align='mid',color='k',linewidth=3,label='Chi distribution')
-    plt.plot(xvals,ygauss,'c-',lw=3,label='sigma=1')
-    plt.plot(xvals,ygauss_new,'m--',lw=2,label='new sigma={:4.2f}'.format(round(sigma_corr,2)))
+    plt.plot(xvals,gauss.pdf(xvals),'c-',lw=3,label='sigma=1')
+    plt.plot(xvals,gauss_corr.pdf(xvals),'m--',lw=2,label='new sigma={:4.2f}'.format(round(sigma_corr,2)))
     plt.xlabel('Residual distribution')
     plt.xlim([-6.05,6.05])
     plt.legend(fontsize=13,loc=2)
@@ -209,13 +210,13 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
     Args:
         chi: one-d array of your chi
         mask: mask for chi, True is good
-        clip: X sigma outliers will be masked
-        max_corr: maximum corrected sigma
+        clip: X,  threshold for outliers which will be clipped for the purpose of computing the renormalization factor
+        max_corr: maximum corrected sigma allowed.
         title: title for QA plot, will parsed to renormalize_errors_qa
         debug: whether or not show the QA plot
     Returns:
         sigma_corr: corrected new sigma
-        maskchi: new mask
+        maskchi: new mask (True=good) which indicates the values used to compute the correction (i.e it includes clipping)
     '''
 
     chi2 = chi**2
@@ -246,28 +247,31 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
 
 def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     """
-    Function to be optimized for poly_ratio rescaling
+    Function for computing the chi^2 loss function for solving for the polynomial rescaling of one spectrum to another.
+    There are two non-standard things implemented here which increase ther robustness. The first is a non-standard error used for the
+    chi, which adds robustness and increases the stability of the optimization. This was taken from the idlutils
+    solve_poly_ratio code. The second thing is that the chi is remapped using the scipy huber loss function to
+    reduce sensitivity to outliers, ased on the scipy cookbook on robust optimization.
+
 
     Args:
-        theta:
-        flux_ref:
-        ivar_ref:
-        thismask:
-        arg_dict:
+        theta: parameter vector for the polymomial fit
+        flux_ref: ndarray, reference flux that data will be rescaled to match
+        thismask: mask for the current iteration of the optimization, True=good
+        arg_dict: dictionary containing arguments
 
     Returns:
-
+        loss_function: float, this is effectively the chi^2, i.e. the quantity to be minimized by the optimizer. Note
+                       that this is not formally the chi^2 since the huber loss function re-maps the chi to be less
+                       sensitive to outliers.
     """
 
     # Unpack the data to be rescaled, the mask for the reference spectrum, and the wavelengths
-    flux = arg_dict['flux']
-    ivar = arg_dict['ivar']
     mask = arg_dict['mask']
     flux_med = arg_dict['flux_med']
     ivar_med = arg_dict['ivar_med']
     flux_ref_med = arg_dict['flux_ref_med']
     ivar_ref_med = arg_dict['ivar_ref_med']
-    ivar_ref = arg_dict['ivar_ref']
     wave = arg_dict['wave']
     wave_min = arg_dict['wave_min']
     wave_max = arg_dict['wave_max']
@@ -304,13 +308,24 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
 
 def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     '''
-    Function that we are optimizing
+    Function to be optimized by robust_optimize for solve_poly_ratio polynomial rescaling of one spectrum to
+    match a reference spectrum. This function has the correct format for running robust_optimize optimization. In addition
+    to running the optimization, this function recomputes the error vector ivartot for the error rejection that takes
+    place at each iteration of the robust_optimize optimization. The ivartot is also renormalized using the
+    renormalize_errors function enabling rejection. A scale factor is multiplied into the true errors to allow one
+    to reject based on the statistics of the actual error distribution.
+
     Args:
-        flux_ref:
-        thismask:
-        arg_dict:
-        kwargs_opt:
+        flux_ref: ndarray, reference flux that we are trying to rescale our spectrum to match
+        thismask: ndarray, bool, mask for the current iteration of the optimization. True=good
+        arg_dict: dictionary containing arguments
+        kwargs_opt: arguments to be passed to the optimizer, which in this case is just vanilla scipy.minimize with
+                    the default optimizer
     Return:
+        result: scipy optimization object
+        flux_scale: scale factor to be applied to the data to match the reference spectrum flux_ref
+        ivartot: error vector to be used for the rejection that takes place at each iteration of the robust_optimize
+                 optimization
     '''
 
     # flux_ref, ivar_ref act like the 'data', the rescaled flux will be the 'model'
@@ -322,10 +337,6 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     flux = arg_dict['flux']
     ivar = arg_dict['ivar']
     mask = arg_dict['mask']
-    flux_med = arg_dict['flux_med']
-    ivar_med = arg_dict['ivar_med']
-    flux_ref_med = arg_dict['flux_ref_med']
-    ivar_ref_med = arg_dict['ivar_ref_med']
     ivar_ref = arg_dict['ivar_ref']
     wave = arg_dict['wave']
     wave_min = arg_dict['wave_min']
@@ -351,14 +362,15 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
 
 def median_filt_spec(flux, ivar, mask, med_width):
     '''
-    Median filter you spectrum.
+    Utility routine to median filter a spectrum using the mask and propagating the errors using the
+    utils.fast_running_median function.
     Args:
-        flux: flux array
-        ivar: ivar array
-        mask: mask array, True = good
-        med_width: width for median filter
+        flux: ndarray, (nspec,) flux
+        ivar: ndarray, (nspec,) inverse variance
+        mask: ndarray, bool, (nspec,) True = good
+        med_width: width for median filter in pixels
     Return:
-        filtered flux and ivar
+        flux_med, ivar_med: median filtered flux and corresponding propagated errors
     '''
 
     flux_med = np.zeros_like(flux)
@@ -374,21 +386,39 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                      scale_min = 0.05, scale_max = 100.0, func='legendre',
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01, debug=False):
     '''
-    Routine for solving the poly_ratio
+    Routine for solving for the polynomial rescaling of an input spectr flux to match a reference spectrum flux_ref.
+    The code will work best if you choose the reference to be the higher S/N ratio spectrum. Note that the code
+    multiplies in the square of a polnomial of order norder to ensure positivity of the scale factor.  It also
+    operates on median filtered spectra to be more robust against outliers
+
     Args:
-        wave, flux, ivar, mask: spectrum that you want to scale
-        flux_ref, ivar_ref, mask_ref: reference spectrum
-        norder: order of your polynomial
-        scale_min: minimum scaling factor
-        scale_max: maximum scaling factor
-        func: which kind of function you want to use, default is 'legendre'
-        maxiter: maximum iteration for robust_optimize
-        sticky: whether you want to sticky or not with robust_optimize
-        lower: lower sigma for robust_optimize
-        upper: upper sigma for robust_optimize
-        median_frac: used for estimating the median filter width
-        debug: show QA plot or not
+        wave: ndarray, (nspec,) wavelength. flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
+        flux: ndarray, (nspec,) flux that you want to rescale to match flux_ref
+        mask: ndarray, bool, (nspec,)  mask for spectrum that you want to rescale, True=Good
+        flux_ref: ndarray, (nspec,) reference flux that you want to rescale flux to match.
+        ivar_ref: ndarray, (nspec,) inverse variance for reference flux
+        mask_ref: ndarray, bool (nspec,) mask for reference flux
+        norder: order of polynomial rescaling.  Note that the code multiplies in by the
+                square of a polynomail of order norder to ensure positivity of the scale factor.
+        scale_min: minimum scaling factor allowed
+        scale_max: maximum scaling factor allowed
+        func: function you want to use, default='legendre'
+        maxiter: maximum number of iterations for robust_optimize
+        sticky: whether you want the rejection to be sticky or not with robust_optimize. See docs for djs_reject for
+                definition of sticky.
+        lower: lower sigrej rejection threshold for robust_optimize
+        upper: upper sigrej rejection threshold for robust_optimize
+        median_frac: default = 0.01, the code rescales median filtered spectra with 'reflect' boundary conditions. The
+                     with of the median filter will be median_frac*nspec, where nspec is the number of spectral pixels.
+        debug: bool, default=False show interactive QA plot
     Return:
+        ymult, flux_rescale, ivar_rescale, outmask
+
+        ymult: ndarray, (nspec,) rescaling factor to be multiplied into flux to match flux_ref
+        flux_rescale: ndarray, (nspec,) rescaled flux, i.e. ymult multiplied into flux
+        ivar_rescale: ndarray, (nspec,) rescaled inverse variance
+        outmask: ndarray, bool, (nspec,) output mask determined from the robust_optimize optimization/rejection
+                 iterations. True=Good
     '''
 
     if mask is None:
@@ -451,11 +481,11 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
     masks_float = np.zeros_like(flux_old)
     masks_float[mask_old] = 1.0
     #TODO Should this be linear interpolation??
-    flux_new = interpolate.interp1d(wave_old[mask_old], flux_old[mask_old], kind='linear',
+    flux_new = scipy.interpolate.interp1d(wave_old[mask_old], flux_old[mask_old], kind='linear',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    ivar_new = interpolate.interp1d(wave_old[mask_old], ivar_old[mask_old], kind='linear',
+    ivar_new = scipy.interpolate.interp1d(wave_old[mask_old], ivar_old[mask_old], kind='linear',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    mask_new_tmp = interpolate.interp1d(wave_old[mask_old], masks_float[mask_old], kind='linear',
+    mask_new_tmp = scipy.interpolate.interp1d(wave_old[mask_old], masks_float[mask_old], kind='linear',
                                         bounds_error=False, fill_value=np.nan)(wave_new)
     # Don't allow the ivar to be every less than zero
     neg_ivar = ivar_new < 0.0
@@ -643,7 +673,7 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
 
     if (waves.ndim == 1) and (iord is None):
         msgs.info('Loading Telluric from Longslit sensfiles.')
-        tell_interp = interpolate.interp1d(wave_grid, sens_table['TELLURIC'], kind='cubic',
+        tell_interp = scipy.interpolate.interp1d(wave_grid, sens_table['TELLURIC'], kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(waves[masks])
         telluric[masks] = tell_interp
     elif (waves.ndim == 1) and (iord is not None):
@@ -651,7 +681,7 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
         sens_table_ispec = sens_table[iord]
         wave_tell_iord = wave_grid[sens_table_ispec['IND_LOWER']:sens_table_ispec['IND_UPPER']]
         tell_iord = sens_table_ispec['TELLURIC'][sens_table_ispec['IND_LOWER']:sens_table_ispec['IND_UPPER']]
-        tell_iord_interp = interpolate.interp1d(wave_tell_iord, tell_iord, kind='cubic',
+        tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord, tell_iord, kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(waves[masks])
         telluric[masks] = tell_iord_interp
     else:
@@ -664,7 +694,7 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
             # Since it will be only used for plotting, I just simply interpolate it rather than evaluate it based on the model
             sens_table_ispec = sens_table[iord]
             tell_iord = sens_table_ispec['TELLURIC']
-            tell_iord_interp = interpolate.interp1d(wave_grid, tell_iord, kind='cubic',
+            tell_iord_interp = scipy.interpolate.interp1d(wave_grid, tell_iord, kind='cubic',
                                                     bounds_error=False, fill_value=np.nan)(wave_iord[mask_iord])
             telluric[mask_iord, iord] = tell_iord_interp
 
