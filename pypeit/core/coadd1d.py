@@ -463,14 +463,19 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
 
 def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
     '''
+    Utility routine to perform 1d linear nterpolation of spectra onto a new wavelength grid
     Args:
-       wave_new: (one-D array) New wavelength
-       wave_old: (one-D array) Old wavelength
-       flux_old: (one-D array) Old flux
-       ivar_old: (one-D array) Old ivar
-       mask_old: (one-D array) Old float mask
+       wave_new: ndarray, (nspec_new) New wavelengths that you want to interpolate onto.
+       wave_old: ndarray, (nspec_old) Old wavelength grid
+       flux_old: ndarray, (nspec_old) Old flux on the wave_old grid
+       ivar_old: ndarray, (nspec_old) Old ivar on the wave_old grid
+       mask_old: ndarray, bool, (nspec_old), Old mask on the wave_old grid. True=Good
     Returns :
-       flux_new, ivar_new, mask_new (bool)
+       flux_new, ivar_new, mask_new
+
+       flux_new: ndarray, (nspec_new,) interpolated flux
+       ivar_new: ndarray, (nspec_new,) interpolated ivar
+       mask_new: ndarray, bool, (nspec_new,) interpolated mask. True=Good
     '''
 
     # Do not interpolate if the wavelength is exactly same with wave_new
@@ -480,7 +485,6 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
     # make the mask array to be float, used for interpolation
     masks_float = np.zeros_like(flux_old)
     masks_float[mask_old] = 1.0
-    #TODO Should this be linear interpolation??
     flux_new = scipy.interpolate.interp1d(wave_old[mask_old], flux_old[mask_old], kind='linear',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
     ivar_new = scipy.interpolate.interp1d(wave_old[mask_old], ivar_old[mask_old], kind='linear',
@@ -495,16 +499,17 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
 
 def interp_spec(wave_new, waves, fluxes, ivars, masks):
     '''
-    Interpolate all spectra to the page of wave_new
+    Utility routien to interpolate a set of spectra onto a new wavelength grid, wave_new
     Args:
-        wave_new: new wavelength grid, can have shape (nspec,) or (nspec, nimgs)
-        waves:  old wavelength grid, can have shape (nspec,) or (nspec, nexp) where nexp, need not
-                equal nimgs
-        fluxes: same size with waves, old flux
-        ivars: same size with waves, old ivar
-        masks: same size with waves, old mask, True=good
+        wave_new: ndarray, shape (nspec,) or (nspec, nimgs), new wavelength grid
+        waves:  ndarray, shape (nspec,) or (nspec, nexp) where nexp, need not equal nimgs. Old wavelength grids
+        fluxes: ndarray, same size with waves, old flux
+        ivars: ndarray, same size with waves, old ivar
+        masks: ndarray, bool, same size with waves, old mask, True=Good
     Returns:
-        Interpolated flux, ivar and mask with the size and shape matching wave_new
+        fluxes_inter, ivars_inter, masks_inter
+
+        Interpolated flux, ivar and mask with the size and shape matching wave_new. masks_inter is bool with True=Good
     '''
 
     # First case: interpolate either an (nspec, nexp) array of spectra onto a single wavelength grid
@@ -543,15 +548,15 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
         msgs.error('Invalid size for wave_new')
 
 def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=False, ivar_weights=False, verbose=False):
-    """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
-    for coadding.
+
+    """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used for coadding.
 
     Parameters
     ----------
     fluxes: float ndarray, shape = (nspec, nexp)
         Stack of (nspec, nexp) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
-    sigs: float ndarray, shape = (nspec, nexp)
-        1-sigm noise vectors for the spectra
+    ivars: float ndarray, shape = (nspec, nexp)
+        Inverse variance noise vectors for the spectra
     masks: bool ndarray, shape = (nspec, nexp)
         Mask for stack of spectra. True=Good, False=Bad.
     waves: flota ndarray, shape = (nspec,) or (nspec, nexp)
@@ -565,7 +570,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
 
     Returns
     -------
-    rms_sn : array
+    rms_sn : ndarray, shape (nexp)
         Root mean square S/N value for each input spectra
     weights : ndarray
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
@@ -607,8 +612,8 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     rms_sn_stack = np.sqrt(np.mean(sn2))
 
+    # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
     if ivar_weights:
-        # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
         if verbose:
             msgs.info("Using sensfunc weights for merging orders")
         #weights = ivar_stack
