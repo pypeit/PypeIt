@@ -386,8 +386,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                      scale_min = 0.05, scale_max = 100.0, func='legendre',
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01, debug=False):
     '''
-    Routine for solving for the polynomial rescaling of an input spectr flux to match a reference spectrum flux_ref.
-    The code will work best if you choose the reference to be the higher S/N ratio spectrum. Note that the code
+    Routine for solving for the polynomial rescaling of an input spectrum flux to match a reference spectrum flux_ref.
+    The two spectra need to be defined on the same wavelength grid. The code will work best if you choose the reference
+    to be the higher S/N ratio spectrum. Note that the code
     multiplies in the square of a polnomial of order norder to ensure positivity of the scale factor.  It also
     operates on median filtered spectra to be more robust against outliers
 
@@ -572,7 +573,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     -------
     rms_sn : ndarray, shape (nexp)
         Root mean square S/N value for each input spectra
-    weights : ndarray
+    weights : ndarray, shape = (nspec, nexp)
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
 
@@ -613,11 +614,12 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     rms_sn_stack = np.sqrt(np.mean(sn2))
 
     # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
+    # TODO Should ivar weights be deprecated??
     if ivar_weights:
         if verbose:
             msgs.info("Using sensfunc weights for merging orders")
         #weights = ivar_stack
-        weights = np.ones_like(flux_stack) #((fluxes.shape[0], fluxes.shape[1]))
+        weights = np.ones_like(flux_stack) # Should this be zeros_like?
         spec_vec = np.arange(nspec)
         for iexp in range(nstack):
             imask = mask_stack[:, iexp]
@@ -706,7 +708,7 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
     return telluric
 
 
-def sens_weights(sensfile, waves, masks, debug=False):
+def sensfunc_weights(sensfile, waves, masks, debug=False):
 
     sens_param = Table.read(sensfile, 1)
     sens_table = Table.read(sensfile, 2)
@@ -733,17 +735,8 @@ def sens_weights(sensfile, waves, masks, debug=False):
 
     if debug:
         weights_qa(waves, weights, masks)
-        '''
-        for i in range(norder):
-            wavei = waves_stack_orders[:,i]
-            fluxi = fluxes_stack_orders_scale[:,i]
-            sigi = np.sqrt(utils.calc_ivar(ivars_stack_orders_scale[:,i]))
-            maski = masks_stack_orders[:,i]
-            weightsi = weights_stack[:,i]
-            #plt.plot(wavei[maski], fluxi[maski]/sigi[maski],zorder=1)
-            plt.plot(wavei[maski], weightsi[maski],zorder=2)
-        plt.show()
-        '''
+
+
     return weights, masks
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=20.0, min_good=0.05,
@@ -912,28 +905,43 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
     return fluxes_new, ivars_new, order_ratios
 
 
-def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, min_good=0.05,
+def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, scale_method=None, min_good=0.05,
                ref_percentile=20.0, maxiters=5, sigrej=3, max_median_factor=10,
-               npoly=None, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=True):
+               npoly=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=True):
     '''
-    Scale the spectra into the same page with the reference spectrum.
-    wave, flux, ivar, mask: spectrum that will be scaled
-    flux_ref, ivar_ref, mask_ref: reference spectrum
+    Routine for solving for the best way to rescale an input spectrum flux to match a reference spectrum flux_ref.
+    The two spectra need to be defined on the same wavelength grid. The code will work best if you choose the reference
+    to be the higher S/N ratio spectrum. If the scale_method is not specified, the code will make a decision about
+    which method to use based on the S/N ratio of the input spectrum flux.
+
+    Arguments: 
+    wave: ndarray, (nspec,) wavelengths grid for the spectra
+    flux: ndarray, (nspec,) spectrum that will be rescaled.
+    ivar: ndarray, (nspec,) inverse variance for the spectrum that will be rescaled.
+    mask: ndarray, bool, (nspec,) mask for the spectrum that will be rescaled. True=Good. If not input, computed from inverse variance
+    flux_ref: ndarray, (nspec,) reference spectrum.
+    ivar_ref: ndarray, (nspec,) inverse variance of reference spectrum.
+    mask_ref: ndarray, bool, (nspec,) mask for reference spectrum. True=Good. If not input, computed from inverse variance.
     min_good: minmum fraction of the total number of good pixels needed for estimate the median ratio
-    maxiters: maximum iterations for rejecting outliers
-    max_median_factor: maximum scale factor
-    sigrej: sigma used for rejecting outliers
-    ref_percentile: percentile fraction cut used for selecting minimum SNR cut
-    npoly: order for the poly ratio scaling
-    scale_method: scale method
-    hand_scale: array of hand scale factors
-    sn_max_medscale: maximum SNR for perforing median scale
-    sn_min_medscale: minimum SNR for perforing median scale
-    debug: show QA plot or not
-    Return:
-        flux_scale, ivar_scale: scaled spectrum
-        scale: scale factor
-        scale_method: actually used scale method
+    maxiters: maximum number of iterations for rejecting outliers used by the robust_median_ratio routine if median
+              rescaling is the  method used.
+    max_median_factor: maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
+    sigrej: rejection threshold used for rejecting outliers by robsut_median_ratio
+    ref_percentile: percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+    npoly: order for the poly ratio scaling if polynomial rescaling is the method used.
+    scale_method: scale method, str, default=None. Options are poly, median, none, or hand. Hand is not well tested.
+                  User can optionally specify the rescaling method. Default is to let the
+                  code determine this automitically which works well.
+    hand_scale: array of hand scale factors, not well tested
+    sn_max_medscale: maximum SNR for perforing median scaling
+    sn_min_medscale: minimum SNR for perforing median scaling
+    debug: show interactive QA plot
+
+    Returns:
+        flux_scale: ndarray (nspec,) scaled spectrum
+        ivar_scale: ndarray (nspec,) inverse variance for scaled spectrum
+        scale: ndarray (nspec,) scale factor applied to the spectrum and inverse variance
+        scale_method: str, method that was used to scale the spectra.
     '''
 
     if mask is None:
@@ -969,8 +977,8 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, m
                                                                       mask=mask, mask_ref=mask_ref, debug=debug)
     elif scale_method == 'median':
         # Median ratio (reference to spectrum)
-        med_scale = robust_median_ratio(flux,ivar,flux_ref,ivar_ref,ref_percentile=ref_percentile,min_good=min_good,\
-                                        mask=mask, mask_ref=mask_ref, maxiters=maxiters,\
+        med_scale = robust_median_ratio(flux,ivar,flux_ref,ivar_ref,ref_percentile=ref_percentile,min_good=min_good,
+                                        mask=mask, mask_ref=mask_ref, maxiters=maxiters,
                                         max_factor=max_median_factor,sigrej=sigrej)
         # Apply
         flux_scale = flux * med_scale
@@ -1557,7 +1565,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
                  samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                  sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                  dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=20.0, lower=3.0, upper=3.0,
-                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
+                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, nmaskedge=2,
                  qafile=None, outfile = None, debug=False, show=False):
     '''
     Routine for coadding Echelle spectra
@@ -1696,7 +1704,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
                                                  ivar_weights=True, verbose=True)
     else:
         rms_sn_stack = None
-        weights_stack, masks_stack_orders = sens_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
+        weights_stack, masks_stack_orders = sensfunc_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
 
     # TODO Will we use this reject/stack below? It is the straight combine of the stacked individual orders.
     #  This does not take advantage
