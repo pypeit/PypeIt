@@ -28,6 +28,7 @@ from pypeit.core import extract
 from pypeit.core import arc
 from pypeit.core import pydl
 from astropy.stats import sigma_clipped_stats
+from IPython import embed
 
 try:
     from pypeit import ginga
@@ -60,7 +61,7 @@ def extrapolate_trace(traces_in, traces_min_in, traces_max_in):
     # vectors of size (nspec)
     if traces_in.ndim == 2:
         nslits = traces_in.shape[1]
-        if isinstance(traces_min_in, (int, float)) and isinstance(traces_max_in, (int, float)):
+        if isinstance(traces_min_in, (int, float, np.int64, np.float)) and isinstance(traces_max_in, (int, float, np.int64, np.float)):
             traces_min = np.full(nslits, traces_min_in)
             traces_max = np.full(nslits, traces_max_in)
         elif isinstance(traces_min_in, np.ndarray) and isinstance(traces_max_in, np.ndarray):

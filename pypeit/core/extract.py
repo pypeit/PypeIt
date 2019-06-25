@@ -396,7 +396,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
-    embed(header='extract_optimal 399')
+    if specobj.ech_order == 21:
+        embed(header='extract_optimal 399')
 
     # Fill in the boxcar extraction tags
     flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
@@ -2099,8 +2100,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, slit_m
       Skymask indicating which pixels can be used for global sky subtraction
     """
 
-    show_trace = True
-    debug=True
+    #show_trace = True
+    #debug=True
     if specobj_dict is None:
         specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999,
                         'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
