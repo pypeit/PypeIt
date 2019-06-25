@@ -21,7 +21,10 @@
 - Introduced new coadd1d module and some new coadd functinality.
 - modified interface to robust_polyfit_djs, robust_optimize, and djs_reject.
 - Added utility routine cap_ivar for capping the noise level.
-
+- Fixed a bug in optimal extraction which was causing hot pixels when a large fraction of the pixels on
+the object profile were masked.
+- Major bug fixes and improvements to echelle object finding. Orders which did not cover the entire detector
+were not being treated properly.
 
 0.10.1 (22 May 2019)
 --------------------

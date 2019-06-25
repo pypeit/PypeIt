@@ -720,6 +720,7 @@ class Echelle(Reduce):
         sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = \
             extract.ech_objfind(image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
+                                spec_min_max=np.vstack((self.tslits_dict['spec_min'],self.tslits_dict['spec_max'])),
                                 inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
                                 order_vec=order_vec,
                                 hand_extract_dict=manual_extract_dict,

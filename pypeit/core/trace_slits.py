@@ -39,18 +39,17 @@ except ImportError:
 import time
 
 
-def extrapolate_trace(traces_in, traces_min_in, traces_max_in):
+def extrapolate_trace(traces_in, spec_min_max_in):
     """
-    Linearly extrapolates trace to fill in pixels that lie outside of the range (trace_min, trace_max). This
+    Linearly extrapolates trace to fill in pixels that lie outside of the range spec_min, spec_max). This
     routine is useful for echelle spectrographs where the orders are shorter than the image by a signfiicant
     amount, since the polynomial trace fits often go wild.
 
     Args:
-        traces (np.ndarray): Array with size (nspec,) or (nspec, ntrace) containing object or slit boundary traces
-        traces_min (int, float, or np.ndarray): Minimum spectral pixel for which trace is valid.  If this is a scalar,
-        the same number will be used for all traces in  traces_in.  If an array, then this must be an ndarray of shape
-        (ntrace,) giving the value for each trace
-        traces_max (int, float, or np.ndarray): Same as trace_min but for maximum spectral pixel where trace is valid.
+        traces (np.ndarray): Tuple or array with size (nspec,) or (nspec, ntrace) containing object or slit boundary traces
+        spec_min_max: Minimum and maximum pectral pixel for which trace is valid.  If this is a 2-d array,
+        the same numbers will be used for all traces in traces_in.  If an array, then this must be an ndarray of shape
+        (2, ntrace,) where the spec_min_max[0,:] are the minimua and spec_min_max[1,:] are the maxima.
 
     Returns:
         trace_extrap (np.ndarray): Array with same size as trace containing the linearly extrapolated values for the bad
@@ -59,24 +58,22 @@ def extrapolate_trace(traces_in, traces_min_in, traces_max_in):
 
     # This little bit of code allows the input traces to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
+    spec_min_max_tmp = np.array(spec_min_max_in)
     if traces_in.ndim == 2:
-        nslits = traces_in.shape[1]
-        if isinstance(traces_min_in, (int, float, np.int64, np.float)) and isinstance(traces_max_in, (int, float, np.int64, np.float)):
-            traces_min = np.full(nslits, traces_min_in)
-            traces_max = np.full(nslits, traces_max_in)
-        elif isinstance(traces_min_in, np.ndarray) and isinstance(traces_max_in, np.ndarray):
-            if (traces_min_in.size != nslits) or (traces_max_in.size != nslits):
-                msgs.error('If input as arrays, traces_min and traces_max need to have the same size as traces.shape[1]')
-            traces_min = traces_min_in
-            traces_max = traces_max_in
+        traces = traces_in
+        nslits = traces.shape[1]
+        if np.array(spec_min_max_in).ndim == 1:
+            spec_min_max = np.outer(spec_min_max_tmp, np.ones(nslits))
+        elif spec_min_max_tmp.ndim == 2:
+            if (spec_min_max_tmp.shape[1] != nslits):
+                msgs.error('If input as any arrays, spec_min_max needs to have dimensions (2,nslits)')
+            spec_min_max = spec_min_max_tmp
         else:
             msgs.error('Invalid shapes for traces_min and traces_max')
-        traces = traces_in
     else:
         nslits = 1
         traces = traces_in.reshape(traces_in.size, 1)
-        traces_min = np.array([traces_min_in])
-        traces_max = np.array([traces_max_in])
+        spec_min_max = spec_min_max_tmp
 
     nspec = traces.shape[0]
     spec_vec = np.arange(nspec)
@@ -85,7 +82,7 @@ def extrapolate_trace(traces_in, traces_min_in, traces_max_in):
     # TODO should we be doing a more careful extrapolation here rather than just linearly using the nearest pixel
     # values??
     for islit in range(nslits):
-        igood = (spec_vec >= traces_min[islit]) & (spec_vec <= traces_max[islit])
+        igood = (spec_vec >= spec_min_max[0,islit]) & (spec_vec <= spec_min_max[1,islit])
         ibad = np.invert(igood)
         traces_extrap[ibad, islit] = interpolate.interp1d(spec_vec[igood], traces[igood, islit], kind='linear',
                                                           bounds_error=False, fill_value='extrapolate')(spec_vec[ibad])
@@ -3137,7 +3134,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
         edges_fit, npca=npca, pca_explained_var = pca_explained_var,coeff_npoly=coeff_npoly_pca, order_vec=edges_ref,
         xinit_mean=edges_ref, upper = upper, lower = lower, minv = 0.0, maxv = float(nspat-1), debug= debug,
-    maxrej=maxrej)
+        maxrej=maxrej)
 
     # pca_poly_fit is list
     npca_out = len(poly_fit_dict)
