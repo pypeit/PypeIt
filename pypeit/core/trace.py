@@ -205,6 +205,8 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
 
     # Reorder the traces and remove any that do not meet the specified
     # length.
+    # TODO: This duplicates functionality in EdgeTraceSet. Rethink
+    # this.
     #   - Left edges.  Given negative IDs starting with -1
     indx = y < 0
     left, reconstruct, counts = np.unique(traceid[indx], return_inverse=True, return_counts=True)
@@ -461,13 +463,14 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     Returns:
         `numpy.ndarray`_: The smoothed image.
     """
+    # NOTE: This performs the operations of what was previously
+    # performed on the object passed to trace_crude_init, as well as
+    # the smoothing done at the beginning of that function
     if side not in ['left', 'right', None]:
         raise ValueError('Side must be left, right, or None.')
-    if side is None:
-        img = sobel_sig
-    else:
-        img = np.maximum(sobel_sig, -0.1) if side == 'left' \
-                    else np.maximum(-1*sobel_sig, -0.1)
+    # Keep both sides if the side is undefined.
+    img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, -0.1)
+    # Returned the smoothed image
     return utils.boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
 
 
@@ -573,6 +576,8 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
     xe = np.zeros_like(xc, dtype=float)
     xm = np.zeros_like(xc, dtype=bool) if bitmask is None \
                 else np.zeros_like(xc, dtype=bitmask.minimum_dtype())
+
+    # NOTE: This is effectively the old trace_crude_init
 
     # Recenter the starting row
     i = start_row

@@ -39,6 +39,8 @@ def parser():
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
 
+    parser.add_argument('--debug', default=False, action='store_true', help='Run in debug mode.')
+
     parser.add_argument('-n', '--use_new', default=False, action='store_true',
                         help='Use the new code.')
 

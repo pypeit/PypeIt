@@ -676,8 +676,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are `filt_iter`,
-        `sobel_mode`, `edge_thresh`, `minimum_spec_length`,
-        `follow_span`, and `valid_flux_thresh`.
+        `sobel_mode`, `edge_thresh`, `follow_span`, and
+        `valid_flux_thresh`.
 
         The results of this are, by default, saved to the master
         frame; see `save` argument and :func:`save`.
@@ -734,11 +734,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.det = det
 
         # Lightly smooth the image before using it to trace edges
+        # TODO: Make this filter size a parameter?
+        # NOTE: This was _make_binarr()
         _img = ndimage.uniform_filter(self.img, size=(3, 1), mode='mirror')
 
         # Replace bad-pixel columns if they exist
         # TODO: Do this before passing the image to this function?
         # Instead of just replacing columns, replace all bad pixels...
+        # NOTE: This was previously done at the beginning of
+        # edgearr_from_binarr
         if np.any(self.bpm):
             # Do we need to replace bad *rows* instead of bad columns?
             flip = self.spectrograph.raw_is_transposed(det=self.det)
@@ -759,6 +763,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Decide if mask should be passed to this or not,
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
+        # NOTE: This used to be edgearr_from_binarr
         self.sobel_sig, edge_img \
                 = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
@@ -771,12 +776,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Identify traces by following the detected edges in adjacent
         # spectral pixels.
-        minimum_spec_pix = self.nspec * self.par['minimum_spec_length']
+        # TODO: Use the user parameter instead of the hard-coded
+        # number?
+#        minimum_spec_length = self.nspec * self.par['det_min_spec_length']
+        minimum_spec_length = 50
+        # NOTE: This used to be match_edges()
         trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
-                                             minimum_spec_length=minimum_spec_pix)
+                                             minimum_spec_length=minimum_spec_length)
 
         # Update the traces by handling single orphan edges and/or
         # traces without any left or right edges.
+        # NOTE: This combines the functionality of
+        # edgearr_add_left_right and edgearr_final_left_right
         flux_valid = np.median(_img) > self.par['valid_flux_thresh']
         trace_id_img = trace.handle_orphan_edge(trace_id_img, self.sobel_sig, bpm=self.bpm,
                                                 flux_valid=flux_valid, copy=True)
@@ -1111,7 +1122,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                             for b in np.unique(self.spat_msk)])).tolist()
 
     def show(self, trace=None, include_error=False, thin=1, in_ginga=False, include_img=False,
-             img_buffer=100, flag=None):
+             include_sobel=False, img_buffer=100, flag=None):
         """
         Show a scatter plot of the current trace data and fit, if
         it's available.
@@ -1131,7 +1142,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Show the trace against the trace image in a ginga
                 viewer instead of a line and scatter plot.
             include_img (:obj:`bool`, optional):
-                Overlay the trace data on the trace image.
+                Overlay the trace data on the trace image; mutually
+                exclusive with `include_sobel`.
+            include_sobel (:obj:`bool`, optional):
+                Overlay the trace data on the Sobel-filtered trace
+                image; mutually exclusive with `include_img`.
             img_buffer (:obj:`int`, optional):
                 Buffer for plot window with respect to trace image
                 size.
@@ -1143,6 +1158,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 plotted. Otherwise, only trace locations flagged by
                 the specified bits are plotted.
         """
+        if include_img and include_savgol:
+            raise ValueError('Cannot show both the trace image and the filtered version.')
         if in_ginga:
             # Currently can only show in ginga if the edges are
             # synchronized into slits
@@ -1176,6 +1193,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Show the traced image
         if include_img:
             plt.imshow(self.img.T, origin='lower', interpolation='nearest', aspect='auto')
+        elif include_sobel:
+            plt.imshow(self.sobel_sig.T, origin='lower', interpolation='nearest', aspect='auto')
 
         # Select the traces to show
         trace_indx = np.ones(self.ntrace, dtype=bool) if trace is None \
@@ -1476,10 +1495,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         maxshift_start = self.par['max_shift_abs']
         maxshift_follow = self.par['max_shift_adj']
         maxerror = self.par['max_spat_error']
+        minimum_spec_length = self.par['det_min_spec_length']*self.nspec
 
         msgs.info('Width of window for centroiding the edges: {0:.1f}'.format(width))
         msgs.info('Max shift between spectrally adjacent pixels: {0:.2f}'.format(maxshift_follow))
         msgs.info('Max centroid error: {0:.2f}'.format(maxerror))
+        msgs.info('Minimum spectral pixels for a valid trace: {0}'.format(minimum_spec_length))
     
         # To improve performance, generate bogus ivar and mask once
         # here so that they don't have to be generated multiple times.
@@ -1533,7 +1554,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Check the traces
             mincol = None if side == 'left' else 0
             maxcol = _sobel_sig.shape[1]-1 if side == 'left' else None
-            good, bad = self.check_traces(cen, err, msk, subset=indx, mincol=mincol, maxcol=maxcol)
+            good, bad = self.check_traces(cen=cen, err=err, msk=msk, subset=indx, mincol=mincol,
+                                          maxcol=maxcol, minimum_spec_length=minimum_spec_length)
 
             # Save the results and update the book-keeping
             self.spat_cen[:,good] = cen[:,good]
@@ -1559,44 +1581,44 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Add to the log
         self.log += [inspect.stack()[0][3]]
 
-    def check_traces(self, cen, err, msk, subset=None, mincol=None, maxcol=None):
+    def check_traces(self, cen=None, msk=None, subset=None, mincol=None, maxcol=None,
+                     minimum_spec_length=None):
         r"""
         Validate new trace data to be added.
 
         Steps are:
             - Remove duplicates based on the provided matching
-              tolerance (`match_tol` in :attr:`par`).
-            - Remove traces that do not cover at least some fraction of
-              the detector (`minimum_spec_length` in :attr:`par`).
+              tolerance (`match_tol` in :attr:`par`). Beware that
+              this should be done by providing `cen` directly.
+            - Remove traces that do not cover at least some fraction
+              of the detector (see `minimum_spec_length`).
             - Remove traces that are at a minimum or maximum column
-              (typically the edge of the detector).
+              (typically the edge of the detector; see `mincol` and
+              `maxcol`).
 
-        Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are `match_tol`
-        and `minimum_spec_length`.
+        The only used parameter from :attr:`par`
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is `match_tol`.
 
         .. warning::
             `msk` is edited in-place
 
         Args:
-            cen (`numpy.ndarray`_):
+            cen (`numpy.ndarray`_, optional):
                 The adjusted center of the refined traces. Shape is
-                :math:`(N_{\rm spec}, N_{\rm refine},)`.
-            err (`numpy.ndarray`_):
-                The errors in the adjusted center of the refined
-                traces. Shape is :math:`(N_{\rm spec}, N_{\rm
-                refine},)`.
-            msk (`numpy.ndarray`_):
+                :math:`(N_{\rm spec}, N_{\rm refine},)`. If None, use
+                :attr:`spat_cen`.
+            msk (`numpy.ndarray`_, optional):
                 The mask bits for the adjusted center of the refined
                 traces. Shape is :math:`(N_{\rm spec}, N_{\rm
-                refine},)`.  This is edited in-place!
+                refine},)`. If None, use :attr:`spat_msk`. This is
+                edited in-place!
             subset (`numpy.ndarray`_, optional):
                 Boolean array selecting the traces to compare. Shape
                 is :math:`(N_{\rm trace},)`, with :math:`N_{\rm
                 refine}` True values. It is expected that all the
                 traces selected by a subset must be from the same
                 slit side (left or right). If None, no repeat traces
-                can be identified.
+                can be identified. 
             mincol (:obj:`int`, optional):
                 Clip traces that hit this minimum column value at the
                 center row (`self.nspec//2`). If None, no traces
@@ -1605,6 +1627,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Clip traces that hit this maximum column value at the
                 center row (`self.nspec//2`). If None, no traces
                 clipped.
+            minimum_spec_length (:obj:`int`, optional):
+                The minimum number of spectral rows in an edge trace.
 
         Returns:
             Returns two boolean arrays selecting the good and bad
@@ -1612,6 +1636,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         # Indices of traces to check
         indx = np.ones(self.ntrace, dtype=bool) if subset is None else subset
+        # Data to compare
+        _cen = self.spat_cen if cen is None else cen
+        _msk = self.spat_msk if msk is None else msk
 
         # Find repeat traces; comparison of traces must include
         # unmasked trace data, be traces of the same edge (left or
@@ -1619,11 +1646,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         repeat = np.zeros_like(indx, dtype=bool)
         if subset is not None:
             msgs.info('Tolerance for finding repeat traces: {0:.1f}'.format(self.par['match_tol']))
-            s = -1 if np.all(self.traceid[indx] < 0) else 1
-            compare = (s*self.traceid > 0) & np.invert(indx)
+            side = -1 if np.all(self.traceid[indx] < 0) else 1
+            compare = (side*self.traceid > 0) & np.invert(indx)
             if np.any(compare):
                 # Use masked arrays to ease exclusion of masked data
-                _col = np.ma.MaskedArray(np.round(cen).astype(int), mask=msk > 0)
+                _col = np.ma.MaskedArray(np.round(_cen).astype(int), mask=_msk > 0)
                 spat_bpm = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags)
                 spat_img = np.ma.MaskedArray(self.spat_img, mask=spat_bpm)
                 mindiff = np.ma.amin(np.absolute(_col[:,indx,None]-spat_img[:,None,compare]),
@@ -1633,37 +1660,36 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 # coordinates....
                 repeat[indx] =  (mindiff.data < self.par['match_tol']) & np.invert(mindiff.mask)
                 if np.any(repeat):
-                    msk[:,repeat] = self.bitmask.turn_on(msk[:,repeat], 'DUPLICATE')
+                    _msk[:,repeat] = self.bitmask.turn_on(_msk[:,repeat], 'DUPLICATE')
                     msgs.info('Found {0} repeat trace(s).'.format(np.sum(repeat)))
 
         # Find short traces
         short = np.zeros_like(indx, dtype=bool)
-        if self.par['minimum_spec_length'] is not None:
+        if minimum_spec_length is not None:
             msgs.info('Minimum trace length (detector fraction): {0:.2f}'.format(
-                        self.par['minimum_spec_length']))
-            short[indx] = (np.sum(msk[:,indx] == 0, axis=0)
-                                < self.par['minimum_spec_length']*self.nspec)
+                        minimum_spec_length))
+            short[indx] = np.sum(_msk[:,indx] == 0, axis=0) < minimum_spec_length
             if np.any(short):
-                msk[:,short] = self.bitmask.turn_on(msk[:,short], 'SHORTRANGE')
+                _msk[:,short] = self.bitmask.turn_on(_msk[:,short], 'SHORTRANGE')
                 msgs.info('Found {0} short trace(s).'.format(np.sum(short)))
 
         # Find traces that are at the minimum column at the center row
         # TODO: Why only the center row?
-        col = np.round(cen).astype(int)
+        col = np.round(_cen).astype(int)
         hit_min = np.zeros_like(indx, dtype=bool)
         if mincol is not None:
-            hit_min[indx] = (col[self.nspec//2,indx] <= mincol) & (msk[self.nspec//2,indx] == 0)
+            hit_min[indx] = (col[self.nspec//2,indx] <= mincol) & (_msk[self.nspec//2,indx] == 0)
             if np.any(hit_min):
-                msk[:,hit_min] = self.bitmask.turn_on(msk[:,hit_min], 'HITMIN')
+                _msk[:,hit_min] = self.bitmask.turn_on(_msk[:,hit_min], 'HITMIN')
                 msgs.info('{0} trace(s) hit the minimum centroid value.'.format(np.sum(hitmin)))
             
         # Find traces that are at the maximum column at the center row
         # TODO: Why only the center row?
         hit_max = np.zeros_like(indx, dtype=bool)
         if maxcol is not None:
-            hit_max[indx] = (col[self.nspec//2,indx] >= maxcol) & (msk[self.nspec//2,indx] == 0)
+            hit_max[indx] = (col[self.nspec//2,indx] >= maxcol) & (_msk[self.nspec//2,indx] == 0)
             if np.any(hit_max):
-                msk[:,hit_max] = self.bitmask.turn_on(msk[:,hit_max], 'HITMAX')
+                _msk[:,hit_max] = self.bitmask.turn_on(_msk[:,hit_max], 'HITMAX')
                 msgs.info('{0} trace(s) hit the maximum centroid value.'.format(np.sum(hitmax)))
 
         # Good traces
@@ -1977,6 +2003,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         maxdev = self.par['fit_maxdev']
         maxiter = self.par['fit_maxiter']
         niter = self.par['fit_niter']
+        minimum_spec_length = self.par['fit_min_spec_length']*self.nspec
         xmin = 0.
         xmax = self.nspec-1.
 
@@ -1989,6 +2016,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msgs.info('Maximum deviation for fitted data: {0:.1f}'.format(maxdev))
         msgs.info('Maximum number of rejection iterations: {0}'.format(maxiter))
         msgs.info('Number of remeasuring and refitting iterations: {0}'.format(niter))
+
+        # Check the traces to make sure they meet the minimum length.
+        # This modifies self.spat_msk directly.
+        self.check_traces(minimum_spec_length=minimum_spec_length)
 
         # Generate bogus ivar and mask once here so that they don't
         # have to be generated multiple times.
@@ -2053,7 +2084,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `pca_min_spec_length`, `pca_n`, `pca_var_percent`,
+        `fit_min_spec_length`, `pca_n`, `pca_var_percent`,
         `pca_function`, `pca_order`, `pca_sigrej`, `pca_maxrej`, and
         `pca_maxiter`.
 
@@ -2076,7 +2107,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         else (self.par['pca_sigrej'],)*2
         maxrej = self.par['pca_maxrej']
         maxiter = self.par['pca_maxiter']
-        min_spec_length = self.par['pca_min_spec_length']
+        minimum_spec_length = self.par['fit_min_spec_length']*self.nspec
 
         if npca is not None:
             msgs.info('Restricted number of PCA components: {0}'.format(npca))
@@ -2088,6 +2119,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msgs.info('Upper sigma rejection: {0:.1f}'.format(upper))
         msgs.info('Maximum number of rejections per iteration: {0}'.format(maxrej))
         msgs.info('Maximum number of rejection iterations: {0}'.format(maxiter))
+        msgs.info('Minium length of traces to include in the PCA: {0}'.format(minimum_spec_length))
 
         # Check the state of the current object
         if self.pca is not None:
@@ -2096,14 +2128,23 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.warn('No trace fits exits.  PCA based on trace centroid measurements.')
         self.pca_type = 'center' if self.spat_fit is None or use_center else 'fit'
 
+        # Check the traces to make sure they meet the minimum length.
+        # This modifies self.spat_msk directly.
+        self.check_traces(minimum_spec_length=minimum_spec_length)
+
         # When constructing the PCA, ignore bad trace measurements
         # *and* any traces inserted by hand.
         bpm = self.bitmask.flagged(self.spat_msk)
 
-        # Only use traces that are unmasked for at least some fraction of the detector
         # TODO: Is there a way to propagate the mask to the PCA?
         # TODO: Keep a separate mask specifically for the fit data?
-        use_trace = np.sum(np.invert(bpm), axis=0)/self.nspec > min_spec_length
+
+        # Only use traces that are unmasked for at least some fraction
+        # of the detector
+        # NOTE: Because of the run of check_traces above, this
+        # comparison could replace `minimum_spec_length` with 0 and it
+        # should give the same result.
+        use_trace = np.sum(np.invert(bpm), axis=0) > minimum_spec_length
         if np.sum(use_trace) < 2:
             msgs.error('Insufficient traces for PCA decomposition.')
         trace_inp = self.spat_cen[:,use_trace] if self.spat_fit is None or use_center \
@@ -2184,7 +2225,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
         `edge_thresh`, `smash_range`, `edge_detect_clip`,
-        trace_median_frac`, `trace_thresh`, `fit_function`,
+        `trace_median_frac`, `trace_thresh`, `fit_function`,
         `fit_order`, `fwhm_uniform`, `fwhm_uniform`,
         `niter_gaussian`, `niter_gaussian`, `fit_maxdev`, and
         `fit_maxiter`.

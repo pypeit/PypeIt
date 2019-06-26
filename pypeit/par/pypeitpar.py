@@ -1528,10 +1528,10 @@ class EdgeTracePar(ParSet):
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
     def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, follow_span=None,
-                 minimum_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
+                 det_min_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
                  max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
                  fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None,
-                 pca_min_spec_length=None, pca_n=None, pca_var_percent=None, pca_function=None,
+                 fit_min_spec_length=None, pca_n=None, pca_var_percent=None, pca_function=None,
                  pca_order=None, pca_sigrej=None, pca_maxrej=None, pca_maxiter=None,
                  smash_range=None, edge_detect_clip=None, trace_median_frac=None,
                  trace_thresh=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
@@ -1577,10 +1577,13 @@ class EdgeTracePar(ParSet):
                                'detections, this sets the number of previous spectral rows ' \
                                'to consider when following slits forward.'
 
-        defaults['minimum_spec_length'] = 1/3.
-        dtypes['minimum_spec_length'] = [int, float]
-        descr['minimum_spec_length'] = 'The minimum spectral length of a trace allowed as a ' \
-                                       'fraction of the full detector spectral span.'
+        defaults['det_min_spec_length'] = 0.33
+        dtypes['det_min_spec_length'] = [int, float]
+        descr['det_min_spec_length'] = 'The minimum spectral length (as a fraction of the ' \
+                                       'detector size) of a trace determined by direct ' \
+                                       'measurements of the detector data (as opposed to what ' \
+                                       'should be included in any modeling approach; see '\
+                                       'fit_min_spec_length).'
         
         defaults['valid_flux_thresh'] = 500.
         dtypes['valid_flux_thresh'] = [int, float]
@@ -1632,10 +1635,11 @@ class EdgeTracePar(ParSet):
         descr['fit_niter'] = 'Number of iterations of re-measuring and re-fitting the edge ' \
                              'data; see :func:`pypeit.core.trace.fit_trace`.'
 
-        defaults['pca_min_spec_length'] = 0.6
-        dtypes['pca_min_spec_length'] = float
-        descr['pca_min_spec_length'] = 'Minimum unmasked spectral length of a traced slit edge ' \
-                                       'to use in the PCA decomposition.'
+        defaults['fit_min_spec_length'] = 0.6
+        dtypes['fit_min_spec_length'] = float
+        descr['fit_min_spec_length'] = 'Minimum unmasked spectral length of a traced slit edge ' \
+                                       'to use in any modeling procedure (polynomial fitting ' \
+                                       'or PCA decomposition).'
 
         dtypes['pca_n'] = int
         descr['pca_n'] = 'The number of PCA components to keep, which must be less than the ' \
@@ -1697,7 +1701,7 @@ class EdgeTracePar(ParSet):
         descr['trace_thresh'] = 'After rectification and median filtering of the Sobel-filtered ' \
                                 'image (see `trace_median_frac`), values in the median-filtered ' \
                                 'image *below* this threshold are masked in the refitting of ' \
-                                'the edge trace data.'
+                                'the edge trace data.  If None, no masking applied.'
 
         defaults['fwhm_uniform'] = 3.0
         dtypes['fwhm_uniform'] = [int, float]
@@ -1765,7 +1769,8 @@ class EdgeTracePar(ParSet):
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
         descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Shorter slits are ' \
-                                       'masked or clipped.'
+                                       'masked or clipped.  If None, no minimum slit length' \
+                                       'applied.'
 
 #        defaults['length_range'] = 0.3
         dtypes['length_range'] = [int, float]
@@ -1852,10 +1857,10 @@ class EdgeTracePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'minimum_spec_length',
+        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
                    'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
                    'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
-                   'fit_niter', 'pca_min_spec_length', 'pca_n', 'pca_var_percent', 'pca_function',
+                   'fit_niter', 'fit_min_spec_length', 'pca_n', 'pca_var_percent', 'pca_function',
                    'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range',
                    'edge_detect_clip', 'trace_median_frac', 'trace_thresh', 'fwhm_uniform',
                    'niter_uniform', 'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge',
