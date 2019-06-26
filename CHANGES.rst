@@ -2,6 +2,8 @@
 0.11.1dev
 ---------
 
+- Add VLT/FORS filters to our database
+
 
 0.11.0 (22 Jun 2019)
 --------------------
