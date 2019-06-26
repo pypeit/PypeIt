@@ -22,7 +22,7 @@ from itertools import islice
 from bisect import insort, bisect_left
 from pypeit.core import pydl
 from pypeit import msgs
-import IPython
+from IPython import embed
 
 def rebin(a, newshape):
     '''Rebin an array to a new shape using slicing. This routine is taken from:
@@ -480,7 +480,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     return sset, outmask, yfit, reduced_chi, exit_status
 
 
-def cap_ivar(flux, ivar, sn_cap, mask=None):
+def clip_ivar(flux, ivar, sn_cap, mask=None):
     # This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars, bright objects)
     if mask is None:
         mask = (ivar > 0.0)
