@@ -3,7 +3,7 @@
 import os
 import numpy as np
 import time
-import IPython
+from IPython import embed
 
 import subprocess
 

@@ -16,6 +16,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 from astropy import constants
 
+
 from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 
 ## Plotting parameters
@@ -69,8 +70,8 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
     wave_grid : ndarray
         New wavelength grid, not masked
     """
-    c_kms = constants.c.to('km/s').value
 
+    c_kms = constants.c.to('km/s').value
     #if not isinstance(waves, np.ma.MaskedArray):
     #    waves = np.ma.array(waves,mask=waves<1.0)
     wave_mask = waves>1.0
@@ -90,8 +91,8 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
         v_pix = v_pix/samp_fact
 
         # Generate wavelength array
-        x = np.log10(v_pix/c_kms + 1)
-        npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
+        x = np.log10(v_pix/c_kms + 1.0)
+        npix = int(np.log10(wave_grid_max/wave_grid_min)/x) + 1
         wave_grid = wave_grid_min * 10.0**(x*np.arange(npix))
 
     elif wave_method == 'pixel': # Constant Angstrom
@@ -576,8 +577,8 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     weights : ndarray, shape = (nspec, nexp)
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
-    c_kms = constants.c.to('km/s').value
 
+    c_kms = constants.c.to('km/s').value
     sigs = np.sqrt(utils.calc_ivar(ivars))
 
     if fluxes.ndim == 1:
@@ -1473,7 +1474,7 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
         this_sigma_corr, igood = renormalize_errors(chi, mask_tot, clip=6.0, max_corr=5.0, title='spec_reject', debug=debug)
         ivar_tot_corr = ivar_tot/this_sigma_corr ** 2
         # TODO is this correct below? JFH Thinks now
-        ivar_cap = utils.cap_ivar(thisflux_stack, ivar_tot_corr, sn_cap, mask=mask_tot)
+        ivar_cap = utils.clip_ivar(thisflux_stack, ivar_tot_corr, sn_cap, mask=mask_tot)
         #ivar_cap = np.minimum(ivar_tot_corr, (sn_cap/(thisflux_stack + (thisflux_stack <= 0.0))) ** 2)
         # if nexp>1:  #JXP TOUCHED THIS
         if fluxes.ndim>1:
