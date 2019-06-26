@@ -125,7 +125,7 @@ def optimal_weights(specobjs_list, slitid, objid):
         mask_stack[iexp,:] = sobjs[ithis][0].optimal['MASK']
 
     # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-    rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask = mask_stack)
+    rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack)
 
     return rms_sn, weights, trace_stack, wave_stack
 
