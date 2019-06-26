@@ -128,7 +128,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         meta['dec'] = dict(ext=0, card='DEC')
         meta['target'] = dict(ext=0, card='OBJECT')
         #TODO: Check decker is correct
-        meta['decker'] = dict(ext=0, card='SLITENC')
+        meta['decker'] = dict(ext=0, card='SLITNAME')
         meta['binning'] = dict(card=None, compound=True)
 #        self.meta['binning'] = dict(ext=0, card='BINNING')
         meta['mjd'] = dict(ext=0, card=None, compound=True)
