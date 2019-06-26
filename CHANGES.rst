@@ -3,6 +3,7 @@
 ---------
 
 - Add VLT/FORS filters to our database
+- Improved DEIMOS frame typing
 
 
 0.11.0 (22 Jun 2019)
