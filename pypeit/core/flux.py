@@ -142,13 +142,13 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             ## vega spectrum from STSCI
             #vega_file = resource_filename('pypeit', '/data/standards/vega_04_to_06.dat')
             #vega_data = Table.read(vega_file, comment='#', format='ascii')
-            #std_dict = dict(cal_file='Vega_04_to_06', name=star_type, fmt=1,
+            #std_dict = dict(cal_file='Vega_04_to_06', name=star_type, std_source='vega',
             #                std_ra=None, std_dec=None)
             #std_dict['wave'] = vega_data['col1'] * units.AA
             ## Vega model from TSPECTOOL
             vega_file = resource_filename('pypeit', '/data/standards/vega_tspectool_vacuum.dat')
             vega_data = Table.read(vega_file, comment='#', format='ascii')
-            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, fmt=1,
+            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, std_source='vega',
                             std_ra=None, std_dec=None)
             std_dict['wave'] = vega_data['col1'] * units.AA
 
@@ -164,7 +164,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
             star_lam = 10 ** star_loglam
             # Generate a dict matching the output of find_standard_file
-            std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
+            std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, std_source='KuruczModel',
                             std_ra=None, std_dec=None)
             std_dict['wave'] = star_lam * units.AA
             std_dict['flux'] = star_flux / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
@@ -721,7 +721,6 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
         a dictionary with the matching standard star with the following
         meta data::
             - 'file': str -- Filename
-            - 'fmt': int -- Format flag 1=Calspec style FITS binary
               table
             - 'name': str -- Star name
             - 'ra': str -- RA(J2000)
@@ -729,7 +728,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
     # Priority
     std_sets = [load_xshooter, load_calspec, load_esofil]
-    std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format; 3= XSHOOTER ASCII format.
+    std_file_source = ['xshooter', 'calspec', 'eso']  # XSHOOTER ASCII format; Calspec style FITS binary table; ESO ASCII format.
 
     # SkyCoord
     if ':' in ra:
@@ -753,7 +752,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 # Generate a dict
                 _idx = int(idx)
                 std_dict = dict(cal_file=os.path.join(path,star_tbl[_idx]['File']),
-                                name=star_tbl[_idx]['Name'], fmt=std_file_fmt[qq],
+                                name=star_tbl[_idx]['Name'], std_source=std_file_source[qq],
                                 std_ra=star_tbl[_idx]['RA_2000'],
                                 std_dec=star_tbl[_idx]['DEC_2000'])
                 # Return
@@ -943,10 +942,6 @@ def load_standard_file(std_dict):
       Info on standard star indcluding filename in 'file'
       May be compressed
 
-      fmt==1  XSHOOTER
-      fmt==2  Calsepec
-      fmt==3  ESO files
-
     Returns
     -------
     wave, flux: Quantity, Quantity filled in place in std_dict
@@ -962,17 +957,17 @@ def load_standard_file(std_dict):
         msgs.info("Loading standard star file: {:s}".format(fil))
         msgs.info("Fluxes are flambda, normalized to 1e-17")
 
-    if std_dict['fmt'] == 1: # XSHOOTER files
+    if std_dict['std_source'] == 'xshooter': # XSHOOTER files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
         std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 2: # Calspec
+    elif std_dict['std_source'] == 'calspec': # Calspec
         std_spec = fits.open(fil)[1].data
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
         std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 3: # ESO files
+    elif std_dict['std_source'] == 'eso': # ESO files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
