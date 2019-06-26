@@ -1867,7 +1867,10 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
                  maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
                  qafile=None, outfile = None, debug=False, show=False):
     '''
-    Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm.
+    Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
+    three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
+    (straight combine of stacked individual orders), spec1d_stack_XX.fits (a giant stack of all exposures and all orders).
+    In most cases, you should use spec1d_stack_XX.fits for your scientific analyses since it reject most outliers.
 
     Args:
         fnames: list
@@ -1952,17 +1955,17 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
              Show key QA plots or not
 
     Returns:
-        wave_stack: ndarray, (ngrid,)
+        wave_giant_stack: ndarray, (ngrid,)
              Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
              of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
              elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
-             wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
-        flux_stack: ndarray, (ngrid,)
+             wave_giant_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
+        flux_giant_stack: ndarray, (ngrid,)
              Final stacked spectrum on wave_stack wavelength grid
-        ivar_stack: ndarray, (ngrid,)
+        ivar_giant_stack: ndarray, (ngrid,)
              Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
              masking.
-        mask_stack: ndarray, bool, (ngrid,)
+        mask_giant_stack: ndarray, bool, (ngrid,)
              Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
     '''
 
