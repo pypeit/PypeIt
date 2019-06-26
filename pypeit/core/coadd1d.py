@@ -742,23 +742,33 @@ def sensfunc_weights(sensfile, waves, masks, debug=False):
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=20.0, min_good=0.05,
                         maxiters=5, sigrej=3.0, max_factor=10.0):
     '''
-    Calculate the ratio between reference spectrum and your spectrum.
-    Need to be in the same wave grid !!!
+    Robustly determine the ratio between input spectrum flux and reference spectrum flux_ref. The code will perform
+    best if the reference spectrum is chosen to be the higher S/N ratio spectrum, i.e. a preliminary stack that you want
+    to scale each exposure to match. Note that the flux and flux_ref need to be on the same wavelength grid!!
+
     Args:
-        flux: one-d array of your flux
-        ivar: one-d array of ivar
-        flux_ref: reference flux
-        ivar_ref: reference ivar
-        mask: one-d array of your mask, True=good
-        mask_ref: reference mask
-        ref_percentile: percentile fraction cut used for selecting minimum SNR cut
-        min_good: minimum fraction of good pixels of total pixels for estimating the median ratio
-        maxiters: maximum iterations for sigma_clip
-        sigrej: sigma for sigma_clip
-        max_factor: maximum value of the returned ratio
+        wave: ndarray, (nspec,) wavelengths grid for the spectra
+        flux: ndarray, (nspec,) spectrum that will be rescaled.
+        ivar: ndarray, (nspec,) inverse variance for the spectrum that will be rescaled.
+        mask: ndarray, bool, (nspec,) mask for the spectrum that will be rescaled. True=Good. If not input, computed from inverse variance
+        flux_ref: ndarray, (nspec,) reference spectrum.
+        ivar_ref: ndarray, (nspec,) inverse variance of reference spectrum.
+        mask_ref: ndarray, bool, (nspec,) mask for reference spectrum. True=Good. If not input, computed from inverse variance.
+        ref_percentile: float, default=20.0
+           Percentile fraction used for selecting the minimum SNR cut. Pixels above this cut are deemed the "good"
+           pixels and are used to compute the ratio. This must be a number between 0 and 100.
+        min_good: float, default = 0.05
+           Minimum fraction of good pixels determined as a fraction of the total pixels for estimating the median ratio
+        maxiters: int, defrault = 5,
+           Maximum number of iterations for astropy.stats.SigmaClip
+        sigrej: float, default = 3.0
+           Rejection threshold for astropy.stats.SigmaClip
+        max_factor: float, default = 10.0,
+           Maximum allowed value of the returned ratio
     Returns:
-        median ratio: float, the number that must be multiplied into flux in order to get it to match up with flux_ref
+        ratio: float, the number that must be multiplied into flux in order to get it to match up with flux_ref
     '''
+
     ## Mask for reference spectrum and your spectrum
     if mask is None:
         mask = ivar > 0.0
@@ -800,7 +810,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     return ratio
 
-def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, max_factor=10., sigrej=3,
+def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, max_factor=10., sigrej_scale=3,
                        debug=False, show=False):
     '''
     Args:
@@ -846,7 +856,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         if (snr_median_blue>300.0) & (snr_median_red>300.0):
             order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
                                                    mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
-                                                   maxiters=maxiters, max_factor=max_factor, sigrej=sigrej)
+                                                   maxiters=maxiters, max_factor=max_factor, sigrej=sigrej_scale)
             order_ratios[iord - 1] = np.fmax(np.fmin(order_ratio_iord, max_factor), 1.0/max_factor)
             msgs.info('Scaled {}th order to {}th order by {:}'.format(iord-1, iord, order_ratios[iord-1]))
         else:
@@ -906,7 +916,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
 
 
 def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, scale_method=None, min_good=0.05,
-               ref_percentile=20.0, maxiters=5, sigrej=3, max_median_factor=10,
+               ref_percentile=20.0, maxiters=5, sigrej=3, max_median_factor=10.0,
                npoly=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=True):
     '''
     Routine for solving for the best way to rescale an input spectrum flux to match a reference spectrum flux_ref.
@@ -915,27 +925,45 @@ def scale_spec(wave, flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, s
     which method to use based on the S/N ratio of the input spectrum flux.
 
     Args:
-    wave: ndarray, (nspec,) wavelengths grid for the spectra
-    flux: ndarray, (nspec,) spectrum that will be rescaled.
-    ivar: ndarray, (nspec,) inverse variance for the spectrum that will be rescaled.
-    mask: ndarray, bool, (nspec,) mask for the spectrum that will be rescaled. True=Good. If not input, computed from inverse variance
-    flux_ref: ndarray, (nspec,) reference spectrum.
-    ivar_ref: ndarray, (nspec,) inverse variance of reference spectrum.
-    mask_ref: ndarray, bool, (nspec,) mask for reference spectrum. True=Good. If not input, computed from inverse variance.
-    min_good: minmum fraction of the total number of good pixels needed for estimate the median ratio
-    maxiters: maximum number of iterations for rejecting outliers used by the robust_median_ratio routine if median
-              rescaling is the  method used.
-    max_median_factor: maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
-    sigrej: rejection threshold used for rejecting outliers by robsut_median_ratio
-    ref_percentile: percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
-    npoly: order for the poly ratio scaling if polynomial rescaling is the method used.
+    wave: ndarray, (nspec,)
+       wavelengths grid for the spectra
+    flux: ndarray, (nspec,)
+       spectrum that will be rescaled.
+    ivar: ndarray, (nspec,)
+       inverse variance for the spectrum that will be rescaled.
+    mask: ndarray, bool, (nspec,)
+       mask for the spectrum that will be rescaled. True=Good. If not input, computed from inverse variance
+    flux_ref: ndarray, (nspec,)
+       reference spectrum.
+    ivar_ref: ndarray, (nspec,)
+       inverse variance of reference spectrum.
+    mask_ref: ndarray, bool, (nspec,)
+       mask for reference spectrum. True=Good. If not input, computed from inverse variance.
+    min_good: float, default = 0.05
+       minmum fraction of the total number of good pixels needed for estimate the median ratio
+    maxiters: int,
+       maximum number of iterations for rejecting outliers used by the robust_median_ratio routine if median
+       rescaling is the  method used.
+    max_median_factor: float, default=10.0
+       maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
+    sigrej: float, default=3.0
+       rejection threshold used for rejecting outliers by robsut_median_ratio
+    ref_percentile: float, default=20.0
+       percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+    npoly: int, default=None
+       order for the poly ratio scaling if polynomial rescaling is the method used. Default is to automatically compute
+       this based on S/N ratio of data.
     scale_method: scale method, str, default=None. Options are poly, median, none, or hand. Hand is not well tested.
                   User can optionally specify the rescaling method. Default is to let the
                   code determine this automitically which works well.
-    hand_scale: array of hand scale factors, not well tested
-    sn_max_medscale: maximum SNR for perforing median scaling
-    sn_min_medscale: minimum SNR for perforing median scaling
-    debug: show interactive QA plot
+    hand_scale: ndarray, (nexp,)
+        array of hand scale factors, not well tested
+    sn_max_medscale: float, default=2.0
+       maximum SNR for perforing median scaling
+    sn_min_medscale: float, default=0.5
+       minimum SNR for perforing median scaling
+    debug: bool, default=False
+       show interactive QA plot
 
     Returns:
         flux_scale: ndarray (nspec,) scaled spectrum
@@ -1567,34 +1595,104 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_cap=30.
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused
 
-def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxiter_scale=5, sigrej=3,
+def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxiter_scale=5, sigrej_scale=3,
              scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, dv_smooth=10000.0,
              const_weights=False, maxiter_reject=5, sn_cap=30.0, lower=3.0, upper=3.0, maxrej=None, debug=False):
+
     '''
-    Routine for optimally combining long or multi-slit spectra or echelle spectra of individual orders
+    Routine for optimally combining long or multi-slit spectra or echelle spectra of individual orders. It will
+    compute a stacked spectrum from a set of exposures on the specified wave_grid with proper treatment of
+    weights and masking. This code calls the stacking code compute_stack, which uses np.histogram to combine the data using
+    NGP and does not perform any interpolations and thus does not correlate errors. It uses wave_grid to determine the set
+    of wavelength bins that the data are averaged on. The final spectrum will be on an ouptut wavelength grid which is not
+    the same as wave_grid. The ouput wavelength grid is the weighted average of the individual wavelengths used for each
+    exposure that fell into a given wavelength bin in the input wave_grid. This 1d coadding routine thus maintains the
+    independence of the errors for each pixel in the combined spectrum and computes the weighted averaged wavelengths of
+    each pixel in an analogous way to the 2d extraction procedure which also never interpolates to avoid correlating
+    erorrs. It performs a number of iterations where it combines the spectra and performs rejection of outlier pixels
+    using the spec_reject_comb code. The outliers are rejected using the true noise of the individual exposures, but
+    uses the distribution of the pixel values about the stack to apply correction factors to the errors before rejecting.
+    These corrected errors are currently only used in rejection but are not applied to the data.  This code is based
+    on the xidl long_combpsec.pro routine but with significant improvements.
 
     Args:
-        wave_grid: wave length grid
-        waves, fluxes, ivars, masks: your spectra
-        weights: weights for your spectra
-
-        sn_cap: cap SNR
-        lower: lower sigma for djs_reject
-        upper: upper sigma for djs_reject
-        maxrej: maximum value for djs_reject
-        maxiter_reject: maximum number of interations
-
-        ref_percentile: percentile fraction cut used for selecting minimum SNR cut
-        scale_method: scale method
-        hand_scale: array of hand scale factors
-        sn_max_medscale: maximum SNR for perforing median scale
-        sn_min_medscale: minimum SNR for perforing median scale
-
+        wave_grid: ndarray, (ngrid +1,)
+            new wavelength grid desired. This will typically be a reguarly spaced grid created by the new_wave_grid routine.
+            The reason for the ngrid+1 is that this is the general way to specify a set of  bins if you desire ngrid
+            bin centers, i.e. the output stacked spectra have ngrid elements.  The spacing of this grid can be regular in
+            lambda (better for multislit) or log lambda (better for echelle). This new wavelength grid should be designed
+            with the sampling of the data in mind. For example, the code will work fine if you choose the sampling to be
+            too fine, but then the number of exposures contributing to any given wavelength bin will be one or zero in the
+            limiting case of very small wavelength bins. For larger wavelength bins, the number of exposures contributing
+            to a given bin will be larger.
+        waves: ndarray, (nspec, nexp)
+            wavelength arrays for spectra to be stacked. Note that the wavelength grids can in general be different for
+            each exposure and irregularly spaced.
+        fluxes: ndarray, (nspec, nexp)
+            fluxes for each exposure on the waves grid
+        ivars: ndarray, (nspec, nexp)
+            Inverse variances for each exposure on the waves grid
+        masks: ndarray, bool, (nspec, nexp)
+            Masks for each exposure on the waves grid. True=Good.
+        sn_cap: float, default=20.0,
+            Errors are capped during rejection so that the S/N is never greater than sn_cap. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+                definition of sticky.
+        sigrej_scale: flaot, default=3.0
+            Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
+        lower: float, default=3.0,
+            lower rejection threshold for djs_reject
+        upper: float: default=3.0,
+            upper rejection threshold for djs_reject
+        maxrej: int, default=None,
+            maximum number of pixels to reject in each iteration for djs_reject.
+        maxiter_reject: int, default=5
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+        ref_percentile: float, default=20.0
+            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+        maxiter_scale: int, default=5
+            Maximum number of iterations performed for rescaling spectra.
+        scale_method: scale method, str, default=None. Options are poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default is to let the
+            code determine this automitically which works well.
         dv_smooth: float, 10000.0
-         Velocity smoothing used for determining smoothly varying S/N ratio weights.
-        const_weights: whether you want constant weights or not
+            Velocity smoothing used for determining smoothly varying S/N ratio weights by sn_weights
+        hand_scale: array of hand scale factors, not well tested
+        sn_max_medscale: maximum SNR for perforing median scaling
+        sn_min_medscale: minimum SNR for perforing median scaling
+         debug: show interactive QA plot
 
-        debug: show QA plots or not
+    Returns:
+        wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused, weights, scales, rms_sn
+
+        wave_stack: ndarray, (ngrid,)
+             Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
+             of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
+             elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
+             wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
+        flux_stack: ndarray, (ngrid,)
+             Final stacked spectrum on wave_stack wavelength grid
+        ivar_stack: ndarray, (ngrid,)
+             Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
+             masking.
+        mask_stack: ndarray, bool, (ngrid,)
+             Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
+        outmask: ndarray, bool, (nspec, nexp)
+             Output mask indicating which pixels are rejected in each exposure of the original input spectra after
+             performing all of the iterations of combine/rejection
+        nused: ndarray, (ngrid,)
+             Numer of exposures which contributed to each pixel in the wave_stack. Note that this is in general
+             different from nexp because of masking, but also becuse of the sampling specified by wave_grid. In other
+             words, sometimes more spectral pixels in the irregularly gridded input wavelength array waves will land in
+             one bin versus another depending on the sampling.
+        weights: ndarray, (nspec, nexp)
+            Weights used for combining your spectra which are computed using sn_weights
+        scales: ndarray, (nspec, nexp)
+            Scale factors applied to each individual spectrum before the combine computed by scale_spec
+        rms_sn: ndarray, (nexp,)
+            Root mean square S/N ratio of each of your individual exposures computed by sn_weights
 
     Returns:
         wave_stack, flux_stack, ivar_stack, mask_stack: stacked spectrum
@@ -1637,27 +1735,99 @@ def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxite
 #Todo: This should probaby take a parset?
 #Todo: Make this works for multiple objects after the coadd script input file format is fixed.
 def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='pixel', A_pix=None, v_pix=None,
-                   samp_fact = 1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
-                   sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
+                   samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
+                   sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                    dv_smooth=1000.0, const_weights=False, maxiter_reject=5, sn_cap=30.0, lower=3.0, upper=3.0,
                    maxrej=None, phot_scale_dicts=None, nmaskedge=2,
                    qafile=None, outfile = None, debug=False, show=False):
+
     '''
     Routine for coadding longslit/multi-slit spectra
     Args:
-        fnames (list): a list of fits file names
-        objids (list): objid you want to combine, i.e the extension name (e.g. 'SPAT0764-SLIT0000-DET07') of
-                that spectrum in the fits files
-        ex_value (string): 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
-        flux_value (bool): if True coadd fluxed spectrum, if False coadd un-fluxed (counts) spectrum.
-        wave_method (string): method for generating new wavelength grid (set to 'pixel' for long/multi-slit)
-        A_pix (float): dispersion in units of A in case you want to specify it in the wave_grid, otherwise using a median
-        v_pix (float): dispersion in units of km/s in case you want to specify it in the wave_grid, otherwise using a median
-        samp_fact (float):
+        fnames: list
+           a list of spec1d fits file names
+        objids: list
+           objids you want to combine, i.e the extension name (e.g. 'SPAT0764-SLIT0000-DET07') of
+           that spectrum in the spec1d fits files
+        ex_value: str, default = 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
+        flux_value: bool, default=True
+           if True coadd fluxed spectrum, if False coadd spectra in counts
+        wave_method: str, default=pixel
+           method for generating new wavelength grid with new_wave_grid. Deafult is 'pixel' which creates a uniformly
+           space grid in lambda
+        A_pix: float,
+           dispersion in units of A in case you want to specify it for new_wave_grid, otherwise the code computes the
+           median spacing from the data.
+        v_pix: float,
+           Dispersion in units of km/s in case you want to specify it in the new_wave_grid  (for the 'velocity' option),
+           otherwise a median value is computed from the data.
+        samp_fact: float, default=1.0
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser)
-        wave_grid_min (float): in case you want to specify the minimum wavelength in your wavelength grid, default is None
-        wave_grid_max (float): in case you want to specify the maximu wavelength in your wavelength grid, default is None
+           samp_fact < 1.0 undersamples (coarser).
+        wave_grid_min: float, default=None
+           In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_max: float, default=None
+           In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+        sn_cap: float, default=20.0,
+            Errors are capped during rejection so that the S/N is never greater than sn_cap. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+                definition of sticky.
+        lower: float, default=3.0,
+            lower rejection threshold for djs_reject
+        upper: float: default=3.0,
+            upper rejection threshold for djs_reject
+        maxrej: int, default=None,
+            maximum number of pixels to reject in each iteration for djs_reject.
+        maxiter_reject: int, default=5
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+        ref_percentile:
+            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+        maxiter_scale: int, default=5
+            Maximum number of iterations performed for rescaling spectra.
+        scale_method: scale method, str, default=None. Options are poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default is to let the
+            code determine this automitically which works well.
+        dv_smooth: float, 10000.0
+            Velocity smoothing used for determining smoothly varying S/N ratio weights by sn_weights
+        hand_scale: array of hand scale factors, not well tested
+        sn_max_medscale: maximum SNR for perforing median scaling
+        sn_min_medscale: minimum SNR for perforing median scaling
+
+
+        maxiter_scale:
+        sigrej:
+        scale_method:
+        hand_scale:
+        sn_max_medscale:
+        sn_min_medscale:
+        dv_smooth:
+        const_weights:
+        maxiter_reject:
+        sn_cap:
+        lower:
+        upper:
+        maxrej:
+        phot_scale_dicts:
+        nmaskedge:
+        qafile:
+        outfile:
+        debug:
+        show:
+
+
+        scale_method: scale method, str, default=None. Options are poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default is to let the
+            code determine this automitically which works well.
+        dv_smooth: float, 10000.0
+         Velocity smoothing used for determining smoothly varying S/N ratio weights by sn_weights
+        hand_scale: array of hand scale factors, not well tested
+        sn_max_medscale: maximum SNR for perforing median scaling
+        sn_min_medscale: minimum SNR for perforing median scaling
+         debug: show interactive QA plot
+
+
 
         ref_percentile: percentile fraction cut used for selecting minimum SNR cut
         maxiters_scale: maximum iterations for rejecting outliers in scale_spec
@@ -1705,7 +1875,7 @@ def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method=
     # Coadd
     wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused, weights, scales, rms_sn = \
         combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=ref_percentile,
-                 maxiter_scale=maxiter_scale, sigrej=sigrej, scale_method=scale_method, hand_scale=hand_scale,
+                 maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
                  sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, dv_smooth=dv_smooth,
                  const_weights=const_weights, maxiter_reject=maxiter_reject, sn_cap=sn_cap, lower=lower,
                  upper=upper, maxrej=maxrej, debug=debug)
@@ -1723,7 +1893,7 @@ def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method=
 
 def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
                  samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
-                 sigrej=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
+                 sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                  dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=30.0, lower=3.0, upper=3.0,
                  maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, nmaskedge=2,
                  qafile=None, outfile = None, debug=False, show=False):
@@ -1830,7 +2000,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
         waves_stack_orders[:, ii], fluxes_stack_orders[:, ii], ivars_stack_orders[:, ii], masks_stack_orders[:, ii], \
         outmask_iord, nused_iord, weights_iord, scales_iord, rms_sn_iord = combspec(
             wave_grid, waves_iord, fluxes_iord, ivars_iord, masks_iord, ref_percentile=ref_percentile,
-            maxiter_scale=maxiter_scale, sigrej=sigrej, scale_method=scale_method, hand_scale=hand_scale,
+            maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
             sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, dv_smooth=dv_smooth,
             const_weights=const_weights, maxiter_reject=maxiter_reject, sn_cap=sn_cap, lower=lower,
             upper=upper, maxrej=maxrej, debug=debug)
@@ -1853,7 +2023,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
     # overlaps. We will work from red to blue.
     fluxes_stack_orders_scale, ivars_stack_orders_scale, order_ratios = \
         order_median_scale(waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
-                           min_good=min_good, maxiters=maxiters, max_factor=max_factor, sigrej=sigrej,
+                           min_good=min_good, maxiters=maxiters, max_factor=max_factor, sigrej_scale=sigrej_scale,
                            debug=debug, show=show)
 
     ## Stack with the first method: combine the stacked individual order spectra directly
