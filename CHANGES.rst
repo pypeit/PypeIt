@@ -1,5 +1,12 @@
-0.10.2dev
+
+0.11.1dev
 ---------
+
+- Add VLT/FORS filters to our database
+
+
+0.11.0 (22 Jun 2019)
+--------------------
 
 - Add magellan_mage, including a new ThAr linelist and an archived solution
 - Polish several key echelle methods

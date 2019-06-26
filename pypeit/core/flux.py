@@ -894,6 +894,7 @@ def load_filter_file(filter):
         ndarray, ndarray: wavelength, instrument throughput
 
     """
+    '''
     # Optical filters
     BASS_MZLS_filters = ['BASS-MZLS-{}'.format(i) for i in ['G', 'R','Z']]
     CFHT_filters = ['CFHT-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
@@ -916,12 +917,17 @@ def load_filter_file(filter):
     allowed_options = BASS_MZLS_filters + CFHT_filters + DECAM_filters + HSC_filters \
                       + LSST_filters + PS1_filters + SDSS_filters + UKIDSS_filters\
                       + VISTA_filters + TMASS_filters + GAIA_filters + GALEX_filters + WISE_filters
+    '''
+    filter_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filter_list.ascii'))
+    tbl = Table.read(filter_file, format='ascii')
+
+    allowed_options = tbl['filter'].data
 
     # Check
     if filter not in allowed_options:
         msgs.error("PypeIt is not ready for filter = {}".format(filter))
 
-    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves_20190215.fits'))
+    trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves.fits'))
     trans = fits.open(trans_file)
     wave = trans[filter].data['lam']  # Angstroms
     instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
@@ -1023,7 +1029,8 @@ def scale_in_filter(xspec, scale_dict):
         scale_dict (dict):
 
     Returns:
-        linetools.spectra.xspectrum1d.XSpectrum1D:  Scaled spectrum
+        linetools.spectra.xspectrum1d.XSpectrum1D, float:  Scaled spectrum
+
 
     """
     # Parse the spectrum
