@@ -14,8 +14,7 @@ from pypeit import msgs
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
-from astropy import constants as const
-c_kms = const.c.to('km/s').value
+from astropy import constants
 
 from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 
@@ -70,6 +69,7 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
     wave_grid : ndarray
         New wavelength grid, not masked
     """
+    c_kms = constants.c.to('km/s').value
 
     #if not isinstance(waves, np.ma.MaskedArray):
     #    waves = np.ma.array(waves,mask=waves<1.0)
@@ -576,6 +576,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     weights : ndarray, shape = (nspec, nexp)
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
+    c_kms = constants.c.to('km/s').value
 
     sigs = np.sqrt(utils.calc_ivar(ivars))
 
