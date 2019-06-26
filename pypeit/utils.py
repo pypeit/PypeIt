@@ -1381,10 +1381,8 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     # Perform a final fit using the final outmask if new pixels were rejected on the last iteration
     if qdone is False:
         ret_tuple = fitfunc(ydata, outmask, arg_dict, **kwargs_optimizer)
-    if (len(ret_tuple) == 2):
-        return ret_tuple[0], ret_tuple[1], outmask
-    elif (len(ret_tuple) == 3):
-        return ret_tuple[0], ret_tuple[1], ret_tuple[2], outmask
+
+    return ret_tuple + (outmask,)
 
     #return result, ymodel, outmask
 
