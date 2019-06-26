@@ -187,7 +187,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 120.
+        par['calibrations']['slits']['sigdetect'] = 80.
         par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
 
@@ -241,7 +241,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # This is a hack for now until we can specify for each image type what to do. Bias currently
         # controls everything
         par['calibrations']['biasframe']['useframe'] = 'none'
-
         return par
 
     def check_headers(self, headers):
