@@ -14,8 +14,8 @@ from pypeit import msgs
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
-from astropy import constants as const
-c_kms = const.c.to('km/s').value
+from astropy import constants
+
 
 from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
 
@@ -71,6 +71,7 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
         New wavelength grid, not masked
     """
 
+    c_kms = constants.c.to('km/s').value
     #if not isinstance(waves, np.ma.MaskedArray):
     #    waves = np.ma.array(waves,mask=waves<1.0)
     wave_mask = waves>1.0
@@ -90,8 +91,8 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
         v_pix = v_pix/samp_fact
 
         # Generate wavelength array
-        x = np.log10(v_pix/c_kms + 1)
-        npix = int(np.log10(wave_grid_max/wave_grid_min) / x) + 1
+        x = np.log10(v_pix/c_kms + 1.0)
+        npix = int(np.log10(wave_grid_max/wave_grid_min)/x) + 1
         wave_grid = wave_grid_min * 10.0**(x*np.arange(npix))
 
     elif wave_method == 'pixel': # Constant Angstrom
@@ -577,6 +578,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
 
+    c_kms = constants.c.to('km/s').value
     sigs = np.sqrt(utils.calc_ivar(ivars))
 
     if fluxes.ndim == 1:
