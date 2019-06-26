@@ -702,11 +702,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     Args:
         ra (str):
-            Object right-ascension in hh:mm:ss string format (e.g.,
-            '05:06:36.6').
+            Object right-ascension in hh:mm:ss string format or in degrees (e.g.,
+            '05:06:36.6' or 76.6525). astropy.coordinates.SkyCoord is used to parse the coordinates
         dec (str):
             Object declination in dd:mm:ss string format (e.g.,
-            52:52:01.0')
+            52:52:01.0' or 52.86694) astropy.coordinates.SkyCoord is used to parse the coordinates
         toler (:class:`astropy.units.quantity.Quantity`, optional):
             Tolerance on matching archived standards to input.  Expected
             to be in arcmin.
