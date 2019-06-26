@@ -10,7 +10,7 @@ with extras.  Run above the Science/ folder.
 import argparse
 from astropy.table import Table
 from pypeit import ginga
-from pypeit.images.processimage import ProcessImagesBitMask as bitmask
+from pypeit.images.maskimage import ImageBitMask
 from pypeit.core import pixels
 from pypeit.masterframe import MasterFrame
 from pypeit.traceslits import TraceSlits
@@ -115,8 +115,8 @@ def main(args):
     # Get waveimg
     mdir = head0['PYPMFDIR']+'/'
     if not os.path.exists(mdir):
-        mdir_base = os.path.basename(os.path.dirname(mdir)) + '/'
-        msgs.warn('Master file dir: {0} does not exist. Using ./{1}'.format(mdir, mdir_base))
+        mdir_base = os.path.join(os.getcwd(), os.path.basename(os.path.dirname(mdir)))
+        msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir=mdir_base
 
     trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
@@ -145,7 +145,7 @@ def main(args):
                   '                          No objects were extracted.')
 
     # Unpack the bitmask
-    bitMask = bitmask()
+    bitMask = ImageBitMask()
     bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
             = bitMask.unpack(mask)
 

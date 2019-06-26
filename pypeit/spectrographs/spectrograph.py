@@ -41,6 +41,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
+from pypeit.core import procimg
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.metadata import PypeItMetaData
@@ -197,23 +198,26 @@ class Spectrograph(object):
                 1-indexed detector number.
 
         Returns:
-            Returns an `numpy.ndarray`_ with the image data and an
-            `astropy.io.fits.Header`_ object with the image and header
+            Returns an `numpy.ndarray`_ with the image data and
+            `astropy.io.fits.HDUList`_ object with the image and header
             data, respectively.  The image data is always returned with
             floating-point type.
         """
         # Check the detector is defined
         self._check_detector()
 
+        hdu = fits.open(raw_file)
+        raw_img = hdu[self.detector[det-1]['dataext']].data
+        '''
         # Load the raw image
-        raw_img, head0 = self.load_raw_img_head(raw_file, dataext=self.detector[det-1]['dataext'],
+        raw_img, hdu = self.load_raw_img_hdu(raw_file, dataext=self.detector[det-1]['dataext'],
                                                 det=det)
-
+        '''
         # Turn to float
         img = raw_img.astype(float)
 
         # Return
-        return img, head0
+        return img, hdu
 
     def raw_is_transposed(self, det=1):
         """
@@ -231,7 +235,8 @@ class Spectrograph(object):
         """
         return self.detector[det-1]['specaxis'] == 1
 
-    def load_raw_img_head(self, raw_file, dataext=0, headext=0, **null_kwargs):
+    '''
+    def load_raw_img_hdu(self, raw_file, dataext=0, **null_kwargs):
         """
         Generic raw image reader
 
@@ -246,13 +251,14 @@ class Spectrograph(object):
               Captured and never used
 
         Returns:
-            Returns an `numpy.ndarray`_ with the image data and an
-            `astropy.io.fits.Header`_ object with the image and header
-            data, respectively.
+            Returns an `numpy.ndarray`_ with the image data and
+            the `astropy.io.fits.HDUList`_ object with the image and HDU,
+            respectively.
         """
         # Open and go
         hdu = fits.open(raw_file)
-        return hdu[dataext].data, hdu[headext].header
+        return hdu[dataext].data, hdu
+    '''
 
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
@@ -352,8 +358,7 @@ class Spectrograph(object):
         """
         if self.rawdatasec_img is None or force:
             return self.get_pixel_img(filename, 'datasec', det)
-        else:
-            return self.rawdatasec_img
+        return self.rawdatasec_img
 
     def get_oscansec_img(self, filename, det, force=True):
         """
@@ -374,8 +379,23 @@ class Spectrograph(object):
         """
         if self.oscansec_img is None or force:
             return self.get_pixel_img(filename, 'oscansec', det)
-        else:
-            return self.oscansec_img
+        return self.oscansec_img
+
+    def get_datasec_img(self, filename, det):
+        """
+        Generate and return the datasec image in the PypeIt reference
+        frame, e.g. trimmed + oriented
+
+        Returns:
+            np.ndarray
+
+        """
+        rdimg = self.get_rawdatasec_img(filename=filename, det=det)
+        # Fuss
+        rdimg = procimg.trim_frame(rdimg, rdimg < 1)
+        dimg = self.orient_image(rdimg, det)
+        # Return
+        return dimg
 
     def get_pixel_img(self, filename, section, det):
         """
@@ -388,7 +408,19 @@ class Spectrograph(object):
             - Consider renaming this datasec_ampid or something like
               that.  I.e., the image's main purpose is to tell you where
               the amplifiers are for the data section
-          
+
+        Note on data format
+        --------------------
+         binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
+         binning_raw = the binning in the format of the raw data.
+         In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
+         files are stored the other way with spat as the first dimension (as read into python), then the transpose
+         flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
+         (Note also that BTW the python convention of storing images is transposed relative to the fits convention
+         and the datasec typically written to headers. However this flip is dealt with explicitly in the
+         parse.spec2slice code and is NOT the transpose we are describing and flipping here).
+         TODO Add a blurb on the PypeIt data model.
+
         Args:
             filename (str):
                 Name of the file from which to read the image size.
@@ -405,26 +437,10 @@ class Spectrograph(object):
         # Get the image shape
         raw_naxis = self.get_raw_image_shape(filename, det=det)
 
-        binning_pypeit = self.get_meta_value(filename, 'binning')
+        binning_raw = self.get_meta_value(filename, 'binning')
 
         data_sections, one_indexed, include_end \
                     = self.get_image_section(filename, det, section=section)
-        # Note on data format
-        #--------------------
-        # binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
-        # binning_raw = the binning in the format of the raw data.
-        # In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
-        # files are stored the other way with spat as the first dimension (as read into python), then the transpose
-        # flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
-        # (Note also that BTW the python convention of storing images is transposed relative to the fits convention
-        # and the datasec typically written to headers. However this flip is dealt with explicitly in the
-        # parse.spec2slice code and is NOT the transpose we are describing and flipping here).
-        # TODO Add a blurb on the PypeIt data model.
-
-        #if transpose:
-        #   binning_raw = (',').join(binning_pypeit.split(',')[::-1])
-        #else:
-        binning_raw = binning_pypeit
 
         # Initialize the image (0 means no amplifier)
         pix_img = np.zeros(raw_naxis, dtype=int)
@@ -479,6 +495,21 @@ class Spectrograph(object):
         # Use a file
         self._check_detector()
         return (self.load_raw_frame(filename, det=det)[0]).shape
+
+    def header_cards_for_spec(self):
+        """
+        Define the header cards to be written to spec1d (and maybe spec2d) files.
+        These refer to the keys in the fitstbl
+
+        Returns:
+            list: Keys for header cards of spec1d
+
+        """
+        core_meta = PypeItMetaData.define_core_meta()
+        header_cards = list(core_meta.keys())
+        # Add a few more
+        header_cards += ['filename']  # For fluxing
+        return header_cards
 
     def orient_image(self, rawimage, det):
         """
@@ -798,89 +829,10 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
-#    def parse_binning(self, inp, det=1, key='BINNING'):
-#        """
-#        Get the pixel binning for an image.
-#
-#        Args:
-#            inp (:obj:`str`, `astropy.io.fits.Header`):
-#                String providing the file name to read, or the relevant
-#                header object.
-#            det (:obj:`int`, optional):
-#                1-indexed detector number.
-#            key (:obj:`str`, optional):
-#                Header key with the binning.  This is included as an
-#                argument in the base-class implementation so that it can
-#                be called by the derived classes for most cases, when
-#                the binning is in a single keyword.
-#
-#        Returns:
-#            str: String representation of the binning.  The ordering is
-#            as provided in the header, regardless of which axis is
-#            designated as the dispersion axis.  It is expected that this
-#            be used with :func:`pypeit.core.parse.sec2slice` to setup
-#            the data and overscane sections of the image data.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if `inp` is not one of the accepted types.
-#        """
-#        # Get the header
-#        # TODO: Read primary header by default instead?
-#        if isinstance(inp, str):
-#            hdu = fits.open(inp)
-#            hdr = hdu[self.detector[det-1]['dataext']].header
-#        elif isinstance(inp, fits.Header):
-#            hdr = inp
-#        else:
-#            msgs.error('Input must be a filename or fits.Header object')
-#
-#        # Parse the keyword
-#        binning = parse.parse_binning(hdr[key])
-#
-#        # Return comma-separated string
-#        return ','.join([ str(b) for b in binning])
-
     @property
     def ndet(self):
         """Return the number of detectors."""
         return 0 if self.detector is None else len(self.detector)
-
-    '''
-    def archive_sky_spectrum(self):
-        """
-        Load an archived sky spectrum based on :attr:`sky_file`.
-        
-        Returns:
-            str, :class:`linetools.xspectrum1d.XSpectrum1D`: The name of
-            the file and the instance of :class:`XSpectrum1D` with the
-            spectrum data.
-
-        Raises:
-            FileNotFoundError:
-                Raised if the file does not exist as written or in the
-                pypeit/data/sky_spec/ directory in the source
-                distribution.
-        """
-        # No file was defined
-        if self.sky_file is None:
-            self.sky_file = Spectrograph.default_sky_spectrum()
-            warnings.warn('Using default sky spectrum: {0}'.format(self.sky_file))
-
-        if os.path.isfile(self.sky_file):
-            # Found directly
-            return self.sky_file, xspectrum1d.XSpectrum1D.from_file(self.sky_file)
-
-        root = resource_filename('pypeit', 'data/sky_spec/')
-        _sky_file = os.path.join(root, self.sky_file)
-        if os.path.isfile(_sky_file):
-            # Found within the source distribution
-            return self.sky_file, xspectrum1d.XSpectrum1D.from_file(_sky_file)
-
-        # File could not be read
-        raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
-                                    self.sky_file, _sky_file))
-    '''
 
     @property
     def pypeline(self):

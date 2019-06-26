@@ -30,8 +30,5 @@ def test_load(kast_blue_bias_files):
     one_file = kast_blue_bias_files[0]
     #
     pypeitImage = pypeitimage.PypeItImage(kast_blue, 1)
-    # Load
-    img, head0 = pypeitImage.load_rawimage(one_file)
-    assert isinstance(head0, fits.header.Header)
 
 

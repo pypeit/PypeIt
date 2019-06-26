@@ -9,6 +9,7 @@ from astropy import units
 from astropy.io import fits
 from astropy.table import Table
 import copy
+
 from IPython import embed
 
 
@@ -121,7 +122,8 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
         prihdu = fits.PrimaryHDU()
         hdus = [prihdu]
         # Add critical data to header
-        for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'filename']:
+        core_keys = spectrograph.header_cards_for_spec()
+        for key in core_keys: #['ra', 'dec', 'exptime', 'target', 'airmass', 'filename']:
             # Allow for fitstbl vs. header
             try:
                 prihdu.header[key.upper()] = header[key.upper()]

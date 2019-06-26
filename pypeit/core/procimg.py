@@ -7,8 +7,6 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
-from pypeit.core import pixels
-
 
 
 def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
@@ -239,6 +237,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
+'''
 def gain_frame(datasec_img, gain_list, trim=True):
     """ Generate a gain image
 
@@ -254,6 +253,7 @@ def gain_frame(datasec_img, gain_list, trim=True):
     gain_img : ndarray
 
     """
+    # TODO: Remove this or actually do it
     msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Loop on amplifiers
@@ -266,6 +266,37 @@ def gain_frame(datasec_img, gain_list, trim=True):
         gain_img = trim_frame(gain_img, datasec_img < 1)
     # Return
     return gain_img
+'''
+
+def gain_frame(amp_img, gain, trim=True):
+    """
+    Generate an image with the gain for each pixel.
+
+    Args:
+        amp_img (`numpy.ndarray`_):
+            Integer array that identifies which (1-indexed) amplifier
+            was used to read each pixel.
+        gain (:obj:`list`):
+            List of amplifier gain values.  Must be that the gain for
+            amplifier 1 is provided by `gain[0]`, etc.
+        trim (:obj:`bool`, optional):
+            Trim the overscan section from the image.
+
+    Returns:
+        `numpy.ndarray`: Image with the gain for each pixel.
+    """
+    # TODO: Remove this or actually do it.
+    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
+
+    # Build the gain image
+    gain_img = np.zeros_like(amp_img, dtype=float)
+    for i,_gain in enumerate(gain):
+        gain_img[amp_img == i+1] = _gain
+
+    # Return the image, trimming if requested
+    return trim_frame(gain_img, amp_img < 1) if trim else gain_img
+
+
 
 
 def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
@@ -299,6 +330,27 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
     # amplifier are given a noise of 0.
     return np.ma.MaskedArray(np.square(_ronoise[amp]) + np.square(0.5*_gain[amp]),
                              mask=indx).filled(0.0)
+
+
+def rect_slice_with_mask(image, mask, mask_val=1):
+    """
+    Generate rectangular slices from a mask image
+
+    Args:
+        image (np.ndarray): Image to mask
+        mask (np.ndarray): Mask image
+        mask_val (int,optiona): Value to mask on
+
+    Returns:
+        np.ndarray, list:  Image at mask values, slices describing the mask
+
+    """
+    pix = np.where(mask == mask_val)
+    slices = [slice(np.min(pix[0]), np.max(pix[0])+1),
+              slice(np.min(pix[1]), np.max(pix[1])+1)]
+    sub_img = image[slices]
+    #
+    return sub_img, slices
 
 
 def subtract_overscan(rawframe, datasec_img, oscansec_img,
@@ -335,9 +387,9 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     # Perform the bias subtraction for each amplifier
     for amp in amps:
         # Pull out the overscan data
-        overscan, _ = pixels.slice_with_mask(rawframe, oscansec_img, amp)
+        overscan, _ = rect_slice_with_mask(rawframe, oscansec_img, amp)
         # Pull out the real data
-        data, data_slice = pixels.slice_with_mask(rawframe, datasec_img, amp)
+        data, data_slice = rect_slice_with_mask(rawframe, datasec_img, amp)
 
         # Shape along at least one axis must match
         data_shape = data.shape
@@ -766,51 +818,6 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     var = var + adderr ** 2 * (np.abs(sciframe)) ** 2
     embed(header='this appears to be broken!')
     return
-
-
-def update_mask_slitmask(bitmask, mask_old, slitmask):
-    """
-    Update a mask using the slitmask
-
-    Args:
-        bitmask (pypeit.images.processimage.ProcessImagesBitMask):
-        mask_old (np.ndarray):
-        slitmask (np.ndarray):
-
-    Returns:
-        np.ndarray: new mask image
-
-    """
-    # Pixels excluded from any slit.
-    mask_new = np.copy(mask_old)
-    indx = slitmask == -1
-    mask_new[indx] = bitmask.turn_on(mask_new[indx], 'OFFSLITS')
-    return mask_new
-
-
-def update_mask_cr(bitmask, mask_old, crmask_new):
-    """
-    Update the mask bits for cosmic rays
-
-    Args:
-        bitmask (pypeit.images.processimage.ProcessImagesBitMask):
-        mask_old (np.ndarray):
-        crmask_new:
-
-    Returns:
-        np.ndarray: new mask image
-
-    """
-
-    # Unset the CR bit from all places where it was set
-    CR_old = (bitmask.unpack(mask_old, flag='CR'))[0]
-    mask_new = np.copy(mask_old)
-    mask_new[CR_old] = bitmask.turn_off(mask_new[CR_old], 'CR')
-    # Now set the CR bit using the new crmask
-    indx = crmask_new.astype(bool)
-    mask_new[indx] = bitmask.turn_on(mask_new[indx], 'CR')
-    return mask_new
-
 
 
 
