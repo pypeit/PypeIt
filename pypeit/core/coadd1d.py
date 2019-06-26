@@ -1648,7 +1648,7 @@ def combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=30.0, maxite
             in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
             systematics.
                 definition of sticky.
-        sigrej_scale: flaot, default=3.0
+        sigrej_scale: float, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
         lower: float, default=3.0,
             lower rejection threshold for djs_reject
@@ -1811,7 +1811,7 @@ def multi_combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method=
         nmaskedge: int, default=2
             Number of edge pixels to mask. This should be removed/fixed.
         qafile: str, default=None
-            Root name for QA, if None, it will be determined either from the outfile
+            Root name for QA, if None, it will be determined from the outfile
         outfile: str, default=None,
             Root name for QA, if None, it will come from the target name from the fits header.
         debug: bool, default=False,
@@ -1864,59 +1864,106 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
                  samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                  sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                  dv_smooth=10000.0, const_weights=False, maxiter_reject=5, sn_cap=30.0, lower=3.0, upper=3.0,
-                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, nmaskedge=2,
+                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
                  qafile=None, outfile = None, debug=False, show=False):
     '''
-    Routine for coadding Echelle spectra
+    Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm.
+
     Args:
-        fnames (list): a list of fits file names
-        objids (list): objid you want to combine, i.e the extension name (e.g. 'SPAT0764-SLIT0000-DET07') of
-                that spectrum in the fits files
-        ex_value (string): 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
-        flux_value (bool): if True coadd fluxed spectrum, if False coadd un-fluxed (counts) spectrum.
-        wave_method (string): method for generating new wavelength grid (set to 'pixel' for long/multi-slit)
-        A_pix (float): dispersion in units of A in case you want to specify it in the wave_grid, otherwise using a median
-        v_pix (float): dispersion in units of km/s in case you want to specify it in the wave_grid, otherwise using a median
-        samp_fact (float):
+        fnames: list
+           a list of spec1d fits file names
+        objids: list
+           objids (e.g. 'OBJ0001') you want to combine of that spectrum in the spec1d fits files
+        sensfile: str, default = None for a smoothed ivar weighting when sticking different orders
+        ex_value: str, default = 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
+        flux_value: bool, default=True
+           if True coadd fluxed spectrum, if False coadd spectra in counts
+        wave_method: str, default=pixel
+           method for generating new wavelength grid with new_wave_grid. Deafult is 'pixel' which creates a uniformly
+           space grid in lambda
+        A_pix: float,
+           dispersion in units of A in case you want to specify it for new_wave_grid, otherwise the code computes the
+           median spacing from the data.
+        v_pix: float,
+           Dispersion in units of km/s in case you want to specify it in the new_wave_grid  (for the 'velocity' option),
+           otherwise a median value is computed from the data.
+        samp_fact: float, default=1.0
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser)
-        wave_grid_min (float): in case you want to specify the minimum wavelength in your wavelength grid, default is None
-        wave_grid_max (float): in case you want to specify the maximu wavelength in your wavelength grid, default is None
-
-        ref_percentile: percentile fraction cut used for selecting minimum SNR cut
-        maxiters_scale: maximum iterations for rejecting outliers in scale_spec
-        max_median_factor: maximum scale factor in scale_spec
-        sigrej: sigma used for rejecting outliers in scale_spec
-        npoly: order for the poly ratio scaling
-        scale_method: scale method
-        hand_scale: array of hand scale factors
-        sn_max_medscale: maximum SNR for perforing median scale
-        sn_min_medscale: minimum SNR for perforing median scale
-
-        maxiter_reject: maximum number of interations
-        sn_cap: cap SNR
-        lower: lower sigma for djs_reject
-        upper: upper sigma for djs_reject
-        maxrej: maximum value for djs_reject
-
-        nmaskedge (int): how many edge pixels you want to mask
-
+           samp_fact < 1.0 undersamples (coarser).
+        wave_grid_min: float, default=None
+           In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_max: float, default=None
+           In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+        ref_percentile:
+            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+        maxiter_scale: int, default=5
+            Maximum number of iterations performed for rescaling spectra.
+        max_median_factor: float, default=10.0
+            maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
+        sigrej_scale: flaot, default=3.0
+            Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
+        scale_method: scale method, str, default=None.
+            Options are poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default is to let the
+            code determine this automitically which works well.
+        hand_scale: ndarray,
+            Array of hand scale factors, not well tested
+        sn_max_medscale: float, default = 2.0,
+            maximum SNR for perforing median scaling
+        sn_min_medscale: float, default = 0.5
+            minimum SNR for perforing median scaling
         dv_smooth: float, 10000.0
-         Velocity smoothing used for determining smoothly varying S/N ratio weights.
-        const_weights: whether you want constant weights or not
-
-        qafile: root name for QA, if None, it will be either from outfile or from fits header
-        outfile: root name for QA, if None, it will come from the target name from the fits header.
-        debug: show QA plots or not (do not set to True unless you really want to look at all QA plots)
-        show: show key QA plots or not
+            Velocity smoothing used for determining smoothly varying S/N ratio weights by sn_weights
+        maxiter_reject: int, default=5
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+        const_weights: ndarray, (nexp,)
+             Constant weight factors specif
+        maxiter_reject: int, default=5
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+        sn_cap: float, default=20.0,
+            Errors are capped during rejection so that the S/N is never greater than sn_cap. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+        lower: float, default=3.0,
+            lower rejection threshold for djs_reject
+        upper: float: default=3.0,
+            upper rejection threshold for djs_reject
+        maxrej: int, default=None,
+            maximum number of pixels to reject in each iteration for djs_reject.
+        max_factor: float, default = 10.0,
+            Maximum allowed value of the returned ratio
+        maxiters: int, defrault = 5,
+            Maximum number of iterations for astropy.stats.SigmaClip
+        min_good: float, default = 0.05
+            Minimum fraction of good pixels determined as a fraction of the total pixels for estimating the median ratio
+        phot_scale_dicts: dict,
+            Dictionary for rescaling spectra to match photometry. Not yet implemented.
+        nmaskedge: int, default=2
+            Number of edge pixels to mask. This should be removed/fixed.
+        qafile: str, default=None
+            Root name for QA, if None, it will be determined either the outfile
+        outfile: str, default=None,
+            Root name for QA, if None, it will come from the target name from the fits header.
+        debug: bool, default=False,
+            Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
+        show: bool, default=False,
+             Show key QA plots or not
 
     Returns:
-        wave_stack, flux_stack, ivar_stack, mask_stack: stacked spectrum
-        outmask: new mask for your individual spectra, same size with fluxes
-        nused: same size with flux_stack, how many exposures used in the stack of each pixel
-        weights: weights for each individual spectrum
-        scales: scale factors
-        rms_sn: SNR of each individual spectrum.
+        wave_stack: ndarray, (ngrid,)
+             Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
+             of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
+             elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
+             wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
+        flux_stack: ndarray, (ngrid,)
+             Final stacked spectrum on wave_stack wavelength grid
+        ivar_stack: ndarray, (ngrid,)
+             Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
+             masking.
+        mask_stack: ndarray, bool, (ngrid,)
+             Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
     '''
 
     # Loading Echelle data
