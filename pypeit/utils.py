@@ -482,13 +482,16 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
 
 def clip_ivar(flux, ivar, sn_cap, mask=None):
     # This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars, bright objects)
-    if mask is None:
-        mask = (ivar > 0.0)
-    adderr = 1.0/sn_cap
-    gmask = (ivar > 0) & mask
-    ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
-    ivar_out = np.minimum(ivar, ivar_cap)
-    return ivar_out
+    if sn_cap is None:
+        return ivar
+    else:
+        if mask is None:
+            mask = (ivar > 0.0)
+        adderr = 1.0/sn_cap
+        gmask = (ivar > 0) & mask
+        ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
+        ivar_out = np.minimum(ivar, ivar_cap)
+        return ivar_out
 
 def inverse(a, positive=False):
     """ Calculate and return the inverse of the input array
