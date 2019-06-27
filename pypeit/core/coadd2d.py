@@ -24,7 +24,7 @@ from pypeit import reduce
 from pypeit.core import load, coadd1d, pixels
 from pypeit.core import parse
 from pypeit.spectrographs import util
-import IPython
+from IPython import embed
 
 
 def get_brightest_obj(specobjs_list, echelle=True):
@@ -125,9 +125,9 @@ def optimal_weights(specobjs_list, slitid, objid):
         mask_stack[iexp,:] = sobjs[ithis][0].optimal['MASK']
 
     # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-    rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack)
+    rms_sn, weights = coadd1d.sn_weights(wave_stack.T, flux_stack.T, ivar_stack.T, mask_stack.T)
 
-    return rms_sn, weights, trace_stack, wave_stack
+    return rms_sn, weights.T, trace_stack, wave_stack
 
 def det_error_msg(exten, sdet):
     # Print out error message if extension is not found
@@ -980,7 +980,6 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         sigclip = astropy.stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median')
         data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
         mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
-        IPython.embed()
     else:
         if sigma_clip and nimgs < 3:
             msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
