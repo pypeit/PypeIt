@@ -840,20 +840,18 @@ def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False,
     sciImage.build_mask(slitmask=slitmask_psuedo)
 
 
-    redux = reduce.instantiate_me(sciImage, spectrograph, tslits_dict_psuedo, ir_redux=ir_redux, par=par,
+    redux = reduce.instantiate_me(sciImage, spectrograph, tslits_dict_psuedo, par, tilts_psuedo, ir_redux=ir_redux,
                                   objtype = 'science', binning=binning)
 
     if show:
         redux.show('image', image=imgminsky_psuedo*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
     # Object finding
-    sobjs_obj, nobj, skymask_init = redux.find_objects(ir_redux=ir_redux, std=std,
+    sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, ir_redux=ir_redux, std=std,
                                                        show_peaks=show_peaks, show=show)
     # Local sky-subtraction
     global_sky_psuedo = np.zeros_like(imgminsky_psuedo) # No global sky for co-adds since we go straight to local
-    rn2img_psuedo = global_sky_psuedo # No rn2img for co-adds since we go do not model noise
     skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs = \
-        redux.local_skysub_extract(tilts_psuedo, waveimg_psuedo, global_sky_psuedo,
-                                   rn2img_psuedo, sobjs_obj, spat_pix=spat_psuedo, std=std,
+        redux.local_skysub_extract(waveimg_psuedo, global_sky_psuedo, sobjs_obj, spat_pix=spat_psuedo, std=std,
                                    model_noise=False, show_profile=show, show=show)
 
     if ir_redux:
