@@ -9,7 +9,7 @@ from pypeit import ginga, utils, msgs, specobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.core import procimg
 from pypeit.images import scienceimage
-import IPython
+from IPython import embed
 
 class Reduce(object):
     """
@@ -735,17 +735,13 @@ class Echelle(Reduce):
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # ToDO implement parsets here!
         sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
-        sobjs_ech, skymask[self.slitmask > -1] = \
-            extract.ech_objfind(image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
-                                spec_min_max=np.vstack((self.tslits_dict['spec_min'],self.tslits_dict['spec_max'])),
-                                inmask=inmask, ncoeff=self.redux_par['trace_npoly'],
-                                order_vec=order_vec,
-                                hand_extract_dict=manual_extract_dict,
-                                plate_scale=plate_scale, std_trace=std_trace,
-                                specobj_dict=specobj_dict,sig_thresh=sig_thresh,
-                                show_peaks=show_peaks, show_fits=show_fits,
-                                trim_edg=self.redux_par['find_trim_edge'],
-                                show_trace=show_trace, debug=debug)
+        sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
+            image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
+            spec_min_max=np.vstack((self.tslits_dict['spec_min'],self.tslits_dict['spec_max'])),
+            inmask=inmask, ncoeff=self.redux_par['trace_npoly'], order_vec=order_vec,
+            hand_extract_dict=manual_extract_dict, plate_scale=plate_scale, std_trace=std_trace,
+            specobj_dict=specobj_dict,sig_thresh=sig_thresh, show_peaks=show_peaks, show_fits=show_fits,
+            trim_edg=self.redux_par['find_trim_edge'], show_trace=show_trace, debug=debug)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
