@@ -303,9 +303,7 @@ class Calibrations(object):
         self.msarc = self.arcImage.load()
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
-            ## FW: turn off bias subtraction for Arc since XSHOOTER will only take arc with 1x1.
-            #self.msarc = self.arcImage.build_image(bias=self.msbias, bpm=self.msbpm)
-            self.msarc = self.arcImage.build_image()
+            self.msarc = self.arcImage.build_image(bias=self.msbias, bpm=self.msbpm)
             # Save to Masters
             if self.save_masters:
                 self.arcImage.save()
