@@ -14,6 +14,7 @@ from pypeit.core import coadd1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import msgs
 from pypeit import utils
+from IPython import embed
 
 kast_blue = load_spectrograph('shane_kast_blue')
 
@@ -50,7 +51,9 @@ def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     ispec = XSpectrum1D.from_tuple((wave,flux,sig))
     # Noise and append
     spec = ispec.add_noise(rstate=rstate)
-    return spec
+    flux, sig, mask = spec.data['flux'], spec.data['sig'], spec.data['flux'].mask
+    ivar = utils.inverse(sig**2)
+    return flux, ivar, mask
 
 #@pytest.fixture
 def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
