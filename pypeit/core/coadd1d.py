@@ -300,7 +300,8 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     Args:
         flux_ref: ndarray, reference flux that we are trying to rescale our spectrum to match
         thismask: ndarray, bool, mask for the current iteration of the optimization. True=good
-        arg_dict: dictionary containing arguments
+        arg_dict: dictionary containing arguments for the optimizing function. See poly_ratio_fitfunc_chi2 for how arguments
+                  are used. They are mask, flux_med, flux_ref_med, ivar_ref_med, wave, wave_min, wave_max, func
         kwargs_opt: arguments to be passed to the optimizer, which in this case is just vanilla scipy.minimize with
                     the default optimizer
     Return:
@@ -312,10 +313,8 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
 
     # flux_ref, ivar_ref act like the 'data', the rescaled flux will be the 'model'
 
-    #result = scipy.optimize.differential_evolution(poly_ratio_fitfunc_chi2, args=(flux_ref, ivar_ref, thismask, arg_dict,), **kwargs_opt)
     guess = arg_dict['guess']
     result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(flux_ref, thismask, arg_dict),  **kwargs_opt)
-    #result = scipy.optimize.least_squares(poly_ratio_fitfunc_chi, guess, args=(flux_ref, thismask, arg_dict),  **kwargs_opt)
     flux = arg_dict['flux']
     ivar = arg_dict['ivar']
     mask = arg_dict['mask']
@@ -375,33 +374,52 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     operates on median filtered spectra to be more robust against outliers
 
     Args:
-        wave: ndarray, (nspec,) wavelength. flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
-        flux: ndarray, (nspec,) flux that you want to rescale to match flux_ref
-        mask: ndarray, bool, (nspec,)  mask for spectrum that you want to rescale, True=Good
-        flux_ref: ndarray, (nspec,) reference flux that you want to rescale flux to match.
-        ivar_ref: ndarray, (nspec,) inverse variance for reference flux
-        mask_ref: ndarray, bool (nspec,) mask for reference flux
-        norder: order of polynomial rescaling.  Note that the code multiplies in by the
-                square of a polynomail of order norder to ensure positivity of the scale factor.
-        scale_min: minimum scaling factor allowed
-        scale_max: maximum scaling factor allowed
-        func: function you want to use, default='legendre'
-        maxiter: maximum number of iterations for robust_optimize
-        sticky: whether you want the rejection to be sticky or not with robust_optimize. See docs for djs_reject for
-                definition of sticky.
-        lower: lower sigrej rejection threshold for robust_optimize
-        upper: upper sigrej rejection threshold for robust_optimize
-        median_frac: default = 0.01, the code rescales median filtered spectra with 'reflect' boundary conditions. The
-                     with of the median filter will be median_frac*nspec, where nspec is the number of spectral pixels.
-        debug: bool, default=False show interactive QA plot
+        wave: ndarray, (nspec,)
+            wavelength. flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
+        flux: ndarray, (nspec,)
+             flux that you want to rescale to match flux_ref
+        mask: ndarray, bool, (nspec,)
+            mask for spectrum that you want to rescale, True=Good
+        flux_ref: ndarray, (nspec,)
+            reference flux that you want to rescale flux to match.
+        ivar_ref: ndarray, (nspec,)
+            inverse variance for reference flux
+        mask_ref: ndarray, bool (nspec,)
+            mask for reference flux
+        norder: int
+            order of polynomial rescaling.  Note that the code multiplies in by the square of a polynomail of order
+            norder to ensure positivity of the scale factor.
+        scale_min: float, default =0.05
+             minimum scaling factor allowed
+        scale_max: float, default=100.0
+             maximum scaling factor allowed
+        func: str, default='legendre'
+             function you want to use,
+        maxiter: int, default=3
+             maximum number of iterations for robust_optimize
+        sticky: bool, default=True
+             whether you want the rejection to be sticky or not with robust_optimize. See docs for djs_reject for
+             definition of sticky.
+        lower: float, default=3.0
+             lower sigrej rejection threshold for robust_optimize
+        upper: float, default=3.0
+             upper sigrej rejection threshold for robust_optimize
+        median_frac: float default = 0.01,
+             the code rescales median filtered spectra with 'reflect' boundary conditions. The
+              with of the median filter will be median_frac*nspec, where nspec is the number of spectral pixels.
+        debug: bool, default=False
+             show interactive QA plot
     Return:
         ymult, flux_rescale, ivar_rescale, outmask
 
-        ymult: ndarray, (nspec,) rescaling factor to be multiplied into flux to match flux_ref
-        flux_rescale: ndarray, (nspec,) rescaled flux, i.e. ymult multiplied into flux
-        ivar_rescale: ndarray, (nspec,) rescaled inverse variance
-        outmask: ndarray, bool, (nspec,) output mask determined from the robust_optimize optimization/rejection
-                 iterations. True=Good
+        ymult: ndarray, (nspec,)
+            rescaling factor to be multiplied into flux to match flux_ref
+        flux_rescale: ndarray, (nspec,)
+            rescaled flux, i.e. ymult multiplied into flux
+        ivar_rescale: ndarray, (nspec,)
+            rescaled inverse variance
+        outmask: ndarray, bool, (nspec,)
+            output mask determined from the robust_optimize optimization/rejection iterations. True=Good
     '''
 
     if mask is None:
@@ -447,18 +465,27 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
 def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
     '''
     Utility routine to perform 1d linear nterpolation of spectra onto a new wavelength grid
+
     Args:
-       wave_new: ndarray, (nspec_new) New wavelengths that you want to interpolate onto.
-       wave_old: ndarray, (nspec_old) Old wavelength grid
-       flux_old: ndarray, (nspec_old) Old flux on the wave_old grid
-       ivar_old: ndarray, (nspec_old) Old ivar on the wave_old grid
-       mask_old: ndarray, bool, (nspec_old), Old mask on the wave_old grid. True=Good
+       wave_new: ndarray, (nspec_new)
+            New wavelengths that you want to interpolate onto.
+       wave_old: ndarray, (nspec_old)
+            Old wavelength grid
+       flux_old: ndarray, (nspec_old)
+            Old flux on the wave_old grid
+       ivar_old: ndarray, (nspec_old)
+            Old ivar on the wave_old grid
+       mask_old: ndarray, bool, (nspec_old),
+            Old mask on the wave_old grid. True=Good
     Returns :
        flux_new, ivar_new, mask_new
 
-       flux_new: ndarray, (nspec_new,) interpolated flux
-       ivar_new: ndarray, (nspec_new,) interpolated ivar
-       mask_new: ndarray, bool, (nspec_new,) interpolated mask. True=Good
+       flux_new: ndarray, (nspec_new,)
+            interpolated flux
+       ivar_new: ndarray, (nspec_new,)
+            interpolated ivar
+       mask_new: ndarray, bool, (nspec_new,)
+            interpolated mask. True=Good
     '''
 
     # Do not interpolate if the wavelength is exactly same with wave_new
@@ -482,13 +509,18 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
 
 def interp_spec(wave_new, waves, fluxes, ivars, masks):
     '''
-    Utility routien to interpolate a set of spectra onto a new wavelength grid, wave_new
+    Utility routine to interpolate a set of spectra onto a new wavelength grid, wave_new
     Args:
-        wave_new: ndarray, shape (nspec,) or (nspec, nimgs), new wavelength grid
-        waves:  ndarray, shape (nspec,) or (nspec, nexp) where nexp, need not equal nimgs. Old wavelength grids
-        fluxes: ndarray, same shape as waves, old flux
-        ivars: ndarray, same shape as waves, old ivar
-        masks: ndarray, bool, same shape as waves, old mask, True=Good
+        wave_new: ndarray, shape (nspec,) or (nspec, nimgs),
+             new wavelength grid
+        waves:  ndarray, shape (nspec,) or (nspec, nexp)
+             where nexp, need not equal nimgs. Old wavelength grids
+        fluxes: ndarray,
+             same shape as waves, old flux
+        ivars: ndarray,
+             same shape as waves, old ivar
+        masks: ndarray, bool,
+             same shape as waves, old mask, True=Good
     Returns:
         fluxes_inter, ivars_inter, masks_inter
 
@@ -534,7 +566,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
 
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used for coadding.
 
-    Parameters
+    Args:
     ----------
     fluxes: float ndarray, shape = (nspec, nexp)
         Stack of (nspec, nexp) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
@@ -545,10 +577,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     waves: flota ndarray, shape = (nspec,) or (nspec, nexp)
         Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
         that all spectra are on the same wavelength grid. If wave is a 2-d array, it will use the individual
-
-    Optional Parameters:
-    --------------------
-    dv_smooth: float, 10000.0
+    dv_smooth: float, optional, default = 10000.0
          Velocity smoothing used for determining smoothly varying S/N ratio weights.
 
     Returns
@@ -1331,14 +1360,22 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
     '''
     Routine to make QA plot of the final stacked spectrum. It works for both longslit/mulitslit, coadded individual
     order spectrum of the Echelle data and the final coadd of the Echelle data.
+
     Args:
-        wave (ndarray): one-d wavelength array of your spectrum
-        flux (ndarray): one-d flux array of your spectrum
-        ivar (ndarray): one-d ivar array of your spectrum
-        mask (ndarray, bool): mask array for your spectrum
-        nused (ndarray): how many exposures used in the stack for each pixel, the same size with flux
-        title (str): plot title
-        qafile (str): QA file name
+        wave: ndarray, (nspec,)
+            one-d wavelength array of your spectrum
+        flux: ndarray, (nspec,)
+            one-d flux array of your spectrum
+        ivar: ndarray, (nspec,)
+            one-d ivar array of your spectrum
+        mask: ndarray, bool (nspec,)
+            mask array for your spectrum
+        nused: ndarray, (nspec,)
+            how many exposures used in the stack for each pixel, the same size with flux
+        title: str
+            plot title
+        qafile: str
+           QA file name
     '''
     #TODO: This routine should take a parset
 

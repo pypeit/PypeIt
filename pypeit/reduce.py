@@ -404,21 +404,6 @@ class Reduce(object):
                 self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
                 return self.maskslits
 
-# JFH previous logic is what is elow which appears flawed, since it crashes if self.maskslits was not assigned yet.
-# Another solution would be to simply assign self.maskslits to be None before entering this call which seems silly
-# since this function assigns it.
-#        # Identify the slits that we want to consider.
-#        if maskslits is not None:
-#            # If maskslits was passed in use it, and update self
-#            self.maskslits = maskslits
-#        elif (self.maskslits is None):
-#            # If maskslits was not passed, and it does not exist in self, reduce all slits
-#            self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
-#        else: # Otherwise, if self.maskslits exists, use the previously set maskslits
-#            pass
-#        return self.maskslits
-
-
 
     def show(self, attr, image=None, showmask=False, sobjs=None, chname=None, slits=False,clear=False):
         """

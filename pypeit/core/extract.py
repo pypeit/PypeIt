@@ -267,8 +267,9 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
         Image containing the profile of the object that we are extracting
     box_radius: float
         Size of boxcar window in floating point pixels in the spatial direction.
-    specobj: SpecObj object (from the SpecObj class in specobj.py). This is the container that holds object, trace,
-    and extraction information for the object in question. This routine operates one object at a time.
+    specobj: SpecObj object (from the SpecObj class in specobj.py).
+         This is the container that holds object, trace,
+         and extraction information for the object in question. This routine operates one object at a time.
     min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
            are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
            object profile has been masked
@@ -400,9 +401,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     specobj.optimal['COUNTS_RN'] = rn_opt        # Square root of optimally extracted read noise squared
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
-
-#    if specobj.ech_order == 21:
-#        embed(header='extract_optimal 399')
 
     # Fill in the boxcar extraction tags
     flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
@@ -1392,14 +1390,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
     """ Find the location of objects in a slitmask slit or a echelle order.
 
 
-    Parameters
-    ----------
+    Args:
     image :  float ndarray
         Image to search for objects from. This image has shape (nspec, nspat) image.shape where the first dimension (nspec)
         is spectral, and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
         Object finding works best on sky-subtracted images, but often one runs on the frame with sky first to identify the brightest
         objects which are then masked (see skymask below) in sky subtraction.
-
     thismask:  boolean ndarray
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order
@@ -1407,18 +1403,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
     slit_left:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
         or (nspec)
-
     slit_righ:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
         or (nspec)
-
-
-    Optional Parameters
-    -------------------
     inmask: float ndarray, default = None
         Input mask image.
-    spec_min_max: tuple of float or int, (2), default=None. This is tuple of two elements which defines the minimum and maximum of the slit in the
-       spectral direction on the detector. If not passed in it will be determined automatically from the thismask
+    spec_min_max: tuple of float or int, (2), default=None.
+        This is tuple of two elements which defines the minimum and maximum of the slit in the
+        spectral direction on the detector. If not passed in it will be determined automatically from the thismask
     fwhm: float, default = 3.0
         Estimated fwhm of the objects in pixels
     hand_extract_dict: dict, default = None
@@ -1461,8 +1453,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
          slitid, detector, object type, and pipeline. The default is None, in which case the following dictionary will be used.
          specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
 
-    Returns
-    -------
+    Returns:
     sobjs:   SpecoObjs object
          Object containing the information about the objects found on the slit/order
     np.ndarray: Skymask image
@@ -1886,9 +1877,12 @@ def remap_orders(xinit, spec_min_max, inverse=False):
 
 
     Args:
-        xinit: ndarray, (nspec, norders) Array of input traces that one wants to remap.
-        spec_min_max: ndarray, (2, norders) Array containing the spec_min and spec_max defined for each order
-        inverse: bool, default = False, If True, perform the inverse re-mapping rather than the re-mapping.
+        xinit: ndarray, (nspec, norders)
+           Array of input traces that one wants to remap.
+        spec_min_max: ndarray, (2, norders)
+           Array containing the spec_min and spec_max defined for each order
+        inverse: bool, default = False,
+           If True, perform the inverse re-mapping rather than the re-mapping.
 
     Returns:
 
