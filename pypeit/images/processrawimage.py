@@ -94,6 +94,8 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                                     det=self.det)
         return self._bpm
 
+    # TODO all of these steps below should be consoliated into one method which reads the files. It is silly and extremely
+    #  slow to re-read the images every time for each one of these stpes
     @property
     def rawdatasec_img(self):
         """
