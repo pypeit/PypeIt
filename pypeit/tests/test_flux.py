@@ -75,7 +75,7 @@ def test_find_standard():
     assert std_dict['name'] == 'G191B2B'
 #    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_mod_005.fits'
     assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_stisnic_002.fits'
-    assert std_dict['fmt'] == 2
+    assert std_dict['std_source'] == 'calspec'
     # Fail to find
     # near G191b2b
     std_ra = '05:06:36.6'
