@@ -89,7 +89,6 @@ def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
     # Collate
     dspec = collate(slist, masking='edges')
     #
-    embed()
     return dspec
 
 def test_qa():

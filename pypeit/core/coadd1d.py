@@ -40,9 +40,9 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
 
     Parameters
     ----------
-    waves : masked ndarray
+    waves : ndarray (nspec, nexp,)
         Set of N original wavelength arrays
-        nspec, nexp
+
     wave_method : str, optional
         Desired method for creating new wavelength grid.
         'iref' -- Use the first wavelength array (default)
