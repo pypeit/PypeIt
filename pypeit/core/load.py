@@ -365,10 +365,6 @@ def load_spec_order(fname,norder, objid=None, order=None, extract='OPT', flux=Tr
         extnames[kk] = primary_header['EXT' + '{0:04}'.format(kk + 1)]
 
     # Figure out which extension is the required data
-    #extnameroot = extnames[0]
-    #ordername = '{0:04}'.format(order)
-    #extname = extnameroot.replace('OBJ0001', objid)
-    #extname = extname.replace('ORDER0000', 'ORDER' + ordername)
     extnames_array = np.reshape(np.array(extnames),(norder,int(nspec/norder)))
     extnames_good = extnames_array[:,int(objid[3:])-1]
     extname = extnames_good[order]
