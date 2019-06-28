@@ -220,7 +220,8 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
     return outfile
 
 
-def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_value='OPT', overwrite=True):
+def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
+                         header=None, ex_value='OPT', overwrite=True):
     '''
     Args:
         outfile: name of fitsfile you want to save to
@@ -236,12 +237,7 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
     '''
 
     # Estimate sigma from ivar
-    sigs = np.sqrt(utils.calc_ivar(ivars))
-
-    # Init for spec1d as need be
-    #if outfile is not None:
-    #    if (len(outfile.split('.'))==1) or (outfile.split('.')[-1]!='fits'):
-    #        outfile = outfile+'.fits'
+    sigs = np.sqrt(utils.inverse(ivars))
 
     if (os.path.exists(outfile)) and (np.invert(overwrite)):
         hdulist = fits.open(outfile)
@@ -255,11 +251,6 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
             prihdu.header = header
         hdulist = fits.HDUList([prihdu])
 
-    #if outfile is None:
-    #    outfile = 'spec1d_pypeit.fits'
-    #if len(outfile.split('.')) == 1:
-    #    outfile = outfile + '.fits'
-
     if waves.ndim == 1:
         wave_mask = waves > 1.0
         # Add Spectrum Table
@@ -269,16 +260,20 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, header=None, ex_v
         cols += [fits.Column(array=ivars[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
         cols += [fits.Column(array=sigs[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
         cols += [fits.Column(array=masks[wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
+        if telluric is not None:
+            cols += [fits.Column(array=telluric[wave_mask], name='TELLURIC', format='D')]
+        if obj_model is not None:
+            cols += [fits.Column(array=obj_model[wave_mask], name='OBJ_MODEL', format='D')]
 
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
         tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
         hdulist.append(tbhdu)
     else:
-        nspec = np.shape(waves)[1]
+        nspec = waves.shape[1]
 
         for ispec in range(nspec):
-            wave_mask = waves[:,ispec]>1.0
+            wave_mask = waves[:,ispec] > 1.0
             # Add Spectrum Table
             cols = []
             cols += [fits.Column(array=waves[:,ispec][wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
