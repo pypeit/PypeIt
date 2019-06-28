@@ -1359,9 +1359,6 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     if inmask is None:
         inmask = np.ones(ydata.size, dtype=bool)
 
-    #if sigma is not None and invvar is not None:
-    #    msgs.error('You cannot specify both sigma and invvar')
-
     iter = 0
     qdone = False
     thismask = np.copy(inmask)
