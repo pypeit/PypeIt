@@ -335,6 +335,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     # Check coordinate input.  For both col and width, the atleast_1d
     # function does not result in a copy if the provided object is a
     # numpy.ndarray
+    array_input = isinstance(col, np.ndarray)
     _col = np.atleast_1d(col)
     _width = np.atleast_1d(width)
     if _width.size == 1:
@@ -368,7 +369,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
 
     # Fill the columns and rows so that they have matching shape
     rmrowdim = _row.size == 1
-    rmcoldim = _col.size == 1
+    rmcoldim = _col.size == 1 and not array_input
     if _col.ndim == 1 and _row.ndim == 1:
         if _row.size == 1 or _row.size == _col.size and not mesh:
             if _row.size == 1:
@@ -488,7 +489,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
         mue[i] = mue[i].filled(fill_error)
 
     # Return with the correct shape
-    singlenum = outshape == (1,)
+    singlenum = outshape == (1,) and not array_input
     return (mu[_order][0][0], mue[_order][0][0], mum[_order][0][0]) if singlenum \
             else (np.concatenate(mu[_order]).reshape(outshape),
                   np.concatenate(mue[_order]).reshape(outshape),

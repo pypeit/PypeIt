@@ -381,7 +381,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['slits']['mask_frac_thresh'] = 0.45
             par['calibrations']['slits']['smash_range'] = [0.5, 1.]
-            par['calibrations']['slitedges']['pca_min_spec_length'] = 0.45
+            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.45
             par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
 
         # Return

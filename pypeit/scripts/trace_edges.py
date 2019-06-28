@@ -118,19 +118,25 @@ def main(args):
         # Trace the slit edges
         if args.use_new:
             t = time.perf_counter()
-            try:
-                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                               master_dir=master_dir, img=traceImage, det=det,
-                                               auto=True)
-                print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
-                edges.save()
-            except:
-                pass
+#            try:
+#                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+#                                               master_dir=master_dir, img=traceImage, det=det,
+#                                               auto=True)
+#                print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+#                edges.save()
+#            except:
+#                pass
+            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                           master_dir=master_dir, img=traceImage, det=det,
+                                           auto=True, debug=args.debug)
+            print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+            edges.save()
         else:
             t = time.perf_counter()
             traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
                                                master_dir=master_dir)
-            traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False)
+            traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
+                           debug=args.debug)
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
             traceSlits.save(traceImage=traceImage)
 

@@ -3,6 +3,8 @@ Implement principle-component-analysis tools.
 """
 import numpy as np
 
+from matplotlib import pyplot as plt
+
 from sklearn.decomposition import PCA
 
 from pypeit import msgs

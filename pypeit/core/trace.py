@@ -417,9 +417,9 @@ def most_common_trace_row(trace_bpm, valid_frac=1/3.):
     Returns:
         :obj:`int`: The row that crosses the most valid trace data.
     """
-    if trace_bpm.ndim == 1:
+    if trace_bpm.ndim == 1 or trace_bpm.shape[1] == 1:
         # Only a single vector provided. Use the central valid pixel
-        rows = np.where(np.invert(trace_bpm))[0]
+        rows = np.where(np.invert(np.squeeze(trace_bpm)))[0]
         return rows[rows.size//2]
 
     s,e = ((0.5 + np.array([-1,1])*valid_frac/2)*trace_bpm.shape[0]).astype(int)
@@ -469,7 +469,8 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     if side not in ['left', 'right', None]:
         raise ValueError('Side must be left, right, or None.')
     # Keep both sides if the side is undefined.
-    img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, -0.1)
+    # TODO: This 0.1 is drawn out of the ether and different from what is done in peak_trace
+    img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, 0.1)
     # Returned the smoothed image
     return utils.boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
 
@@ -1334,8 +1335,9 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
         # Image to trace: flip when tracing the troughs and clip low
         # values
-        # TODO: This -1 is drawn out of the ether
-        _flux = np.clip(s*(flux - flux_median), -1, None)
+        # TODO: This 1 is drawn out of the ether; this is different
+        # from what is done in prepare_sobel_for_trace
+        _flux = np.clip(s*(flux - flux_median), 1, None)
 
         # Construct the trace mask
         trace_peak_bpm = np.zeros(trace_peak.shape, dtype=bool) if trace_thresh is None \

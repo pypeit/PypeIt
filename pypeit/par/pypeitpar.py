@@ -1602,7 +1602,7 @@ class EdgeTracePar(ParSet):
         descr['max_shift_adj'] = 'Maximum spatial shift in pixels between the edges in ' \
                                  'adjacent spectral positions.'
 
-        defaults['max_spat_error'] = 0.2
+#        defaults['max_spat_error'] = 0.2
         dtypes['max_spat_error'] = [int, float]
         descr['max_spat_error'] = 'Maximum error in the spatial position of edges in pixels.'
 
@@ -1630,7 +1630,7 @@ class EdgeTracePar(ParSet):
         dtypes['fit_maxiter'] = int
         descr['fit_maxiter'] = 'Maximum number of rejection iterations during edge fitting.'
 
-        defaults['fit_niter'] = 9
+        defaults['fit_niter'] = 1
         dtypes['fit_niter'] = int
         descr['fit_niter'] = 'Number of iterations of re-measuring and re-fitting the edge ' \
                              'data; see :func:`pypeit.core.trace.fit_trace`.'
@@ -1661,7 +1661,7 @@ class EdgeTracePar(ParSet):
                                 'component.  Options are: {0}'.format(
                                     ', '.join(options['pca_function']))
         
-        defaults['pca_order'] = 3
+        defaults['pca_order'] = 2
         dtypes['pca_order'] = int
         descr['pca_order'] = 'Order of the function fit to the PCA coefficients.'
         

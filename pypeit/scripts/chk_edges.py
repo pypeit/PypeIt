@@ -29,7 +29,6 @@ def parser(options=None):
 
 def main(pargs):
 
-    import pdb as debugger
     import time
 
     from pypeit import ginga
