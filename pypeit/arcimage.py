@@ -65,7 +65,6 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
-
         # Process steps
         self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
         self.process_steps += ['trim']

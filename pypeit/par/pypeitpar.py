@@ -2208,7 +2208,6 @@ class PypeItPar(ParSet):
         # Evaluate the strings if requested
         if evaluate:
             cfg = util.recursive_dict_evaluate(cfg)
-        
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 

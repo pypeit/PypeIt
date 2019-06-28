@@ -189,9 +189,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             self.subtract_overscan()
         if 'trim' in process_steps:
             self.trim()
-        ## FW: turn off bias subtraction for Arc since XSHOOTER will only take arc with 1x1.
-        #if 'subtract_bias' in process_steps: # Bias frame, if it exists, is trimmed
-        if ('subtract_bias' in process_steps) and (bias is not None): # Bias frame, if it exists, is trimmed
+        if 'subtract_bias' in process_steps: # Bias frame, if it exists, is trimmed
             self.subtract_bias(bias)
         if 'apply_gain' in process_steps:
             self.apply_gain()

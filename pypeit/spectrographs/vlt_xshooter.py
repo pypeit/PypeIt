@@ -493,6 +493,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to parameters for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        # X-SHOOTER arcs are also have different binning with bias frames
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
