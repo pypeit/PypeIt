@@ -214,11 +214,14 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     Args:
         fnames (list): 1D spectra fits file(s)
         gdobj (list): extension name (longslit/multislit) or objID (Echelle)
-        order: None or an int number
-        ex_value: 'OPT' or 'BOX'
-        flux_value: True or False
+        order (None or int): order number
+        ex_value (str): 'OPT' or 'BOX'
+        flux_value (bool): if True it will load fluxed spectra, otherwise load counts
     Returns:
-        waves, fluxes, ivars, masks
+        waves (ndarray): wavelength array of your spectra, see below for the shape information of this array.
+        fluxes (ndarray): flux array of your spectra
+        ivars (ndarray): ivars of your spectra
+        masks (ndarray, bool): mask array of your spectra
         The shapes of all returns are exactly the same.
         Case 1: np.size(fnames)=np.size(gdobj)=1, order=None for Longslit or order=N (an int number) for Echelle
             Longslit/single order for a single fits file, they are 1D arrays with the size equal to Nspec

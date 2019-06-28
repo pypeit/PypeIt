@@ -139,6 +139,8 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             msgs.info('Using vega spectrum to correct telluric')
             std_dict={'stellar_type':star_type , 'Vmag': star_mag}
 
+            ## TODO: we should get a higher resolution spectra and then convolve it to the resolution of your data!
+            ##       the Tspec one works well for GNIRS and NIRES, but apparently not X-SHOOTER.
             ## vega spectrum from STSCI
             #vega_file = resource_filename('pypeit', '/data/standards/vega_04_to_06.dat')
             #vega_data = Table.read(vega_file, comment='#', format='ascii')
@@ -701,11 +703,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     standard star files (hopefully).  Priority is by order of search.
 
     Args:
-        ra (str):
+        ra (str or float):
             Object right-ascension in hh:mm:ss string format or in degrees (e.g.,
             '05:06:36.6' or 76.6525). astropy.coordinates.SkyCoord is used to parse the coordinates
-        dec (str):
-            Object declination in dd:mm:ss string format (e.g.,
+        dec (str or float):
+            Object declination in dd:mm:ss string format or in degrees (e.g.,
             52:52:01.0' or 52.86694) astropy.coordinates.SkyCoord is used to parse the coordinates
         toler (:class:`astropy.units.quantity.Quantity`, optional):
             Tolerance on matching archived standards to input.  Expected
@@ -731,7 +733,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     std_file_source = ['xshooter', 'calspec', 'eso']  # XSHOOTER ASCII format; Calspec style FITS binary table; ESO ASCII format.
 
     # SkyCoord
-    if ':' in ra:
+    if isinstance(ra, str):
         obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
     else:
         obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))

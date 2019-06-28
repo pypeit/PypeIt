@@ -481,7 +481,19 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
 
 
 def clip_ivar(flux, ivar, sn_cap, mask=None):
-    # This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars, bright objects)
+    '''
+    This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars, bright objects)
+    Args:
+        flux (ndarray): flux array
+        ivar (ndarray): ivar array
+        sn_cap (float):
+            Errors are capped in output rejivars so that the S/N is never greater than sn_cap. This prevents overly
+            aggressive rejection in high S/N ratio spectra which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+        mask (ndarray, bool): mask array, True=good
+    Returns:
+         ivar_out (ndarray): new ivar array
+    '''
     if sn_cap is None:
         return ivar
     else:

@@ -130,9 +130,6 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
                 prihdu.header[key.upper()] = header[key.upper()]
             except KeyError:
                 prihdu.header[key.upper()] = header[key]
-                # TODO FW: commented it out at this moment since the dispname/decker/binning and mjd are not saved in
-                # the spec1d file that reduced before.
-                #msgs.warn('Header key {:} is not found.'.format(key))
         try:
             prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
         except KeyError:
@@ -224,14 +221,14 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, ob
                          header=None, ex_value='OPT', overwrite=True):
     '''
     Args:
-        outfile: name of fitsfile you want to save to
-        waves: one-D or two-D (nspec by nexp/norder) wavelength array
-        fluxes: flux array
-        ivars: ivar array
-        masks: mask array
-        header: primary fits header
-        ext_value: 'OPT' or 'BOX'
-        overwrite: True or False
+        outfile (str): name of fitsfile you want to save to
+        waves (ndarray): one-D or two-D (nspec by nexp/norder) wavelength array
+        fluxes (ndarray): flux array
+        ivars (ndarray): ivar array
+        masks (ndarray): mask array
+        header (dict): primary fits header
+        ext_value (str): 'OPT' for optimal, and 'BOX' for boxcar
+        overwrite (bool): if True, overwrite the old one, otherwise append it to the exist fits file.
     Returns:
         None
     '''

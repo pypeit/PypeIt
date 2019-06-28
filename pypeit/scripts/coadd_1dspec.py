@@ -27,6 +27,7 @@ def main(args, unit_test=False, path=''):
 
     import glob
     import yaml
+    import IPython
 
     import numpy as np
     from numpy import isnan
@@ -37,8 +38,6 @@ def main(args, unit_test=False, path=''):
     from pypeit.core import coadd1d
     from pypeit import specobjs
     from pypeit.spectrographs import util
-
-    from IPython import embed
 
     # Load the input file
     with open(args.infile, 'r') as infile:
@@ -213,17 +212,7 @@ def main(args, unit_test=False, path=''):
                 gdfiles, gdobj, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
                 outfile=outfile, qafile=qafile, **gparam)
 
-            ## Old version coadd
-            #spec1d = coadd.ech_coadd(gdfiles, objids=gdobj, extract=ex_value, flux=flux_value, phot_scale_dicts=scale_dict,
-            #                         outfile=outfile, qafile=qafile,**gparam)
-
         else:
             wave_stack, flux_stack, ivar_stack, mask_stack = coadd1d.multi_combspec(
                 gdfiles, gdobj, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
                 outfile=outfile, qafile=qafile, **gparam)
-
-            ## Old version coadd
-            #spectra = coadd.load_spec(gdfiles, iextensions=extensions,
-            #                            extract=ex_value, flux=flux_value)
-            #coadd.coadd_spectra(spectra, qafile=qafile, outfile=outfile,
-            #                    flux_scale=scale_dict, **gparam)

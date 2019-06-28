@@ -32,48 +32,46 @@ plt.rcParams["xtick.labelsize"] = 15
 plt.rcParams["ytick.labelsize"] = 15
 plt.rcParams["axes.labelsize"] = 17
 
+# Used it in several places, so make it global.
+c_kms = constants.c.to('km/s').value
+
+
 # TODO: merge with wavegrid routine in wvutils
 
 def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
                   A_pix=None,v_pix=None,samp_fact=1.0):
-    """ Create a new wavelength grid for the spectra to be rebinned and coadded on
+    """
+    Create a new wavelength grid for the spectra to be rebinned and coadded on
 
-    Parameters
-    ----------
-    waves : ndarray (nspec, nexp,)
-        Set of N original wavelength arrays
-
-    wave_method : str, optional
-        Desired method for creating new wavelength grid.
-        'iref' -- Use the first wavelength array (default)
-        'velocity' -- Constant velocity
-        'pixel' -- Constant pixel grid
-        'concatenate' -- Meld the input wavelength arrays
-    iref : int, optional
-      Reference spectrum
-    wave_grid_min: float, optional
-      min wavelength value for the final grid
-    wave_grid_max: float, optional
-      max wavelength value for the final grid
-    A_pix : float
-      Pixel size in same units as input wavelength array (e.g. Angstroms)
-      If not input, the median pixel size is calculated and used
-    v_pix : float
-      Pixel size in km/s for velocity method
-      If not input, the median km/s per pixel is calculated and used
-    samp_fact: float
-      sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-      samp_fact < 1.0 undersamples (coarser)
+    Args:
+        waves (ndarray): (nspec, nexp,)
+            Set of N original wavelength arrays
+        wave_method (str): optional
+            Desired method for creating new wavelength grid.
+            'iref' -- Use the first wavelength array (default)
+            'velocity' -- Constant velocity
+            'pixel' -- Constant pixel grid
+            'concatenate' -- Meld the input wavelength arrays
+        iref (int): optional
+            Reference spectrum
+        wave_grid_min (float): optional
+            min wavelength value for the final grid
+        wave_grid_max (float): optional
+            max wavelength value for the final grid
+        A_pix (float):
+            Pixel size in same units as input wavelength array (e.g. Angstroms)
+            If not input, the median pixel size is calculated and used
+        v_pix (float):
+            Pixel size in km/s for velocity method
+            If not input, the median km/s per pixel is calculated and used
+        samp_fact (float):
+            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
+            samp_fact < 1.0 undersamples (coarser)
 
     Returns
-    -------
-    wave_grid : ndarray
-        New wavelength grid, not masked
+        wave_grid (ndarray): New wavelength grid, not masked
     """
 
-    c_kms = constants.c.to('km/s').value
-    #if not isinstance(waves, np.ma.MaskedArray):
-    #    waves = np.ma.array(waves,mask=waves<1.0)
     wave_mask = waves>1.0
 
     if wave_grid_min is None:
@@ -147,31 +145,16 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
 
     return wave_grid
 
-#def gauss1d(x, mean, sigma, area):
-#    '''
-#    Simple Gaussian function
-#    Args:
-#        x: variable
-#        mean: mean value
-#        sigma: sigma value
-#        area: total area of the Gaussian function
-#    Return:
-#        one-d array of your Gaussian function
-#    '''
-#    ygauss = np.exp(-np.power(x - mean, 2.) / (2 * np.power(sigma, 2.)))
-#    norm = area / (sigma * np.sqrt(2 * np.pi))
-#    return norm * ygauss
-
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
     '''
     Histogram QA plot of your chi distribution.
     Args:
-        chi: one-d array of your chi values
-        maskchi: mask for your chi array, True is good
-        sigma_corr: corrected sigma
-        sig_range: used for set binsize, default 6-sigma
-        title:  plot title
-        qafile: output QA file name
+        chi (ndarray): your chi values
+        maskchi (ndarray, bool): True = good, mask for your chi array
+        sigma_corr (float): corrected sigma
+        sig_range (float): used for set binsize, default 6-sigma
+        title (str):  plot title
+        qafile (str or None): output QA file name
     Return:
         None
     '''
@@ -183,8 +166,6 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', q
     xvals = np.arange(-10.0,10,0.02)
     gauss = scipy.stats.norm(loc=0.0,scale=1.0)
     gauss_corr = scipy.stats.norm(loc=0.0,scale=sigma_corr)
-    #ygauss = gauss1d(xvals,0.0,1.0,1.0)
-    #ygauss_new = gauss1d(xvals,0.0,sigma_corr,1.0)
 
     plt.figure(figsize=(12, 8))
     plt.hist(chi[maskchi],bins=bins_histo,normed=True,histtype='step', align='mid',color='k',linewidth=3,label='Chi distribution')
@@ -209,15 +190,15 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
     '''
     Function for renormalizing your chi distribution
     Args:
-        chi: one-d array of your chi
-        mask: mask for chi, True is good
-        clip: X,  threshold for outliers which will be clipped for the purpose of computing the renormalization factor
-        max_corr: maximum corrected sigma allowed.
-        title: title for QA plot, will parsed to renormalize_errors_qa
-        debug: whether or not show the QA plot
+        chi (ndarray): your chi values
+        mask (ndarray, bool): True = good, mask for your chi array
+        clip (float):  threshold for outliers which will be clipped for the purpose of computing the renormalization factor
+        max_corr (float): maximum corrected sigma allowed.
+        title (str): title for QA plot, will parsed to renormalize_errors_qa
+        debug (bool): whether or not show the QA plot
     Returns:
-        sigma_corr: corrected new sigma
-        maskchi: new mask (True=good) which indicates the values used to compute the correction (i.e it includes clipping)
+        sigma_corr (float): corrected new sigma
+        maskchi (ndarray, bool): new mask (True=good) which indicates the values used to compute the correction (i.e it includes clipping)
     '''
 
     chi2 = chi**2
@@ -256,13 +237,13 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
 
 
     Args:
-        theta: parameter vector for the polymomial fit
-        flux_ref: ndarray, reference flux that data will be rescaled to match
-        thismask: mask for the current iteration of the optimization, True=good
-        arg_dict: dictionary containing arguments
+        theta (ndarray): parameter vector for the polymomial fit
+        flux_ref (ndarray): reference flux that data will be rescaled to match
+        thismask (ndarray, bool): mask for the current iteration of the optimization, True=good
+        arg_dict (dict): dictionary containing arguments
 
     Returns:
-        loss_function: float, this is effectively the chi^2, i.e. the quantity to be minimized by the optimizer. Note
+        loss_function (float): this is effectively the chi^2, i.e. the quantity to be minimized by the optimizer. Note
                        that this is not formally the chi^2 since the huber loss function re-maps the chi to be less
                        sensitive to outliers.
     """
@@ -283,8 +264,8 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     mask_both = mask & thismask
     # This is the formally correct ivar used for the rejection, but not used in the fitting. This appears to yield
     # unstable results
-    #totvar = utils.calc_ivar(ivar_ref) + ymult**2*utils.calc_ivar(ivar)
-    #ivartot = mask_both*utils.calc_ivar(totvar)
+    #totvar = utils.inverse(ivar_ref, positive=True) + ymult**2*utils.inverse(ivar, positive=True)
+    #ivartot = mask_both*utils.inverse(totvar, positive=True)
 
     # The errors are rescaled at every function evaluation, but we only allow the errors to get smaller by up to a
     # factor of 1e4, and we only allow them to get larger slowly (as the square root).  This should very strongly
@@ -347,8 +328,8 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     ymult = (utils.func_val(result.x, wave, func, minx=wave_min, maxx=wave_max))**2
     flux_scale = ymult*flux
     mask_both = mask & thismask
-    totvar = utils.calc_ivar(ivar_ref) + ymult**2*utils.calc_ivar(ivar)
-    ivartot1 = mask_both*utils.calc_ivar(totvar)
+    totvar = utils.inverse(ivar_ref, positive=True) + ymult**2*utils.inverse(ivar, positive=True)
+    ivartot1 = mask_both*utils.inverse(totvar, positive=True)
     # Now rescale the errors
     chi = (flux_scale - flux_ref)*np.sqrt(ivartot1)
     try:
@@ -378,9 +359,9 @@ def median_filt_spec(flux, ivar, mask, med_width):
     ivar_med = np.zeros_like(ivar)
     flux_med0 = utils.fast_running_median(flux[mask], med_width)
     flux_med[mask] = flux_med0
-    var = utils.calc_ivar(ivar)
+    var = utils.inverse(ivar, positive=True)
     var_med0 =  utils.smooth(var[mask], med_width)
-    ivar_med[mask] = utils.calc_ivar(var_med0)
+    ivar_med[mask] = utils.inverse(var_med0, positive=True)
     return flux_med, ivar_med
 
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
@@ -578,8 +559,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
 
-    c_kms = constants.c.to('km/s').value
-    sigs = np.sqrt(utils.calc_ivar(ivars))
+    sigs = np.sqrt(utils.inverse(ivars, positive=True))
 
     if fluxes.ndim == 1:
         nstack = 1
@@ -673,6 +653,16 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     return rms_sn, weights
 
 def get_tell_from_file(sensfile, waves, masks, iord=None):
+    '''
+    Get the telluric model from the sensfile.
+    Args:
+        sensfile (str): the name of your fits format sensfile
+        waves (ndarray): wavelength grid for your output telluric model
+        masks (ndarray, bool): mask for the wave
+        iord (int or None): if None returns telluric model for all orders, otherwise return the order you want
+    Returns:
+         telluric (ndarray): telluric model on your wavelength grid
+    '''
 
     sens_param = Table.read(sensfile, 1)
     sens_table = Table.read(sensfile, 2)
@@ -711,6 +701,17 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
 
 
 def sensfunc_weights(sensfile, waves, masks, debug=False):
+    '''
+    Get the weights based on the sensfunc
+    Args:
+        sensfile (str): the name of your fits format sensfile
+        waves (ndarray): wavelength grid for your output weights
+        masks (ndarray, bool): mask for the wave s
+        debug (bool): whether you want show the weights QA
+    Returns:
+        weights (ndarray): weights on you wavelength grid
+        masks (ndarray, bool): mask for your weights
+    '''
 
     sens_param = Table.read(sensfile, 1)
     sens_table = Table.read(sensfile, 2)
@@ -822,18 +823,21 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, max_factor=10., sigrej=3,
                        debug=False, show=False):
     '''
+    Function for scaling different orders
     Args:
-        waves: 2D array of wavelength
-        fluxes: 2D array of flux
-        ivars: 2D array of ivar
-        masks: 2D array of mask
-        min_good: minmum fraction of the total number of good pixels needed for estimate the median ratio
-        maxiters: maximum iterations for rejecting outliers
-        max_factor: maximum scale factor
-        sigrej: sigma used for rejecting outliers
-        debug: True or False
+        waves (ndarray): wavelength array of your spectra with the shape of (nspec, norder)
+        fluxes (ndarray): flux array of your spectra with the shape of (nspec, norder)
+        ivars (ndarray): ivar array of your spectra with the shape of (nspec, norder)
+        masks (ndarray, bool): mask for your spectra with the shape of (nspec, norder)
+        min_good (float): minmum fraction of the total number of good pixels needed for estimate the median ratio
+        maxiters (int or float): maximum iterations for rejecting outliers
+        max_factor (float): maximum scale factor
+        sigrej (float): sigma used for rejecting outliers
+        debug (bool): if True show the QA
     Returns:
-        re-scaled fluxes, ivars and an array of scale factor
+        fluxes_new (ndarray): re-scaled fluxes with the shape of (nspec, norder)
+        ivars_new (ndarray): re-scaled ivars with the shape of (nspec, norder)
+        order_ratios (ndarray): an array of scale factor with the length of norder
     '''
 
     norder = np.shape(waves)[1]
@@ -862,6 +866,9 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
         snr_median_red = np.median(flux_red[mask_both]*np.sqrt(ivar_red[mask_both]))
         snr_median_blue = np.median(flux_blue_inter[mask_both]*np.sqrt(ivar_blue_inter[mask_both]))
 
+        ## TODO: we set the SNR to be minimum of 300 to turn off the scaling but we need the QA plot
+        ##       need to think more about whether we need to scale different orders, it seems make the spectra
+        ##       much bluer than what it should be.
         if (snr_median_blue>300.0) & (snr_median_red>300.0):
             order_ratio_iord = robust_median_ratio(flux_blue_inter, ivar_blue_inter, flux_red, ivar_red, mask=mask_blue_inter,
                                                    mask_ref=mask_red, ref_percentile=percentile_iord, min_good=min_good,
@@ -1100,7 +1107,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
     ivars_flat = ivars[ubermask].flatten()
-    vars_flat = utils.calc_ivar(ivars_flat)
+    vars_flat = utils.inverse(ivars_flat, positive=True)
     weights_flat = weights[ubermask].flatten()
 
     # Counts how many pixels in each wavelength bin
@@ -1120,16 +1127,10 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     # Calculate the stacked ivar
     var_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=vars_flat*weights_flat**2)
     var_stack = (weights_total > 0.0)*var_stack_total/(weights_total+(weights_total==0.))**2
-    ivar_stack = utils.calc_ivar(var_stack)
+    ivar_stack = utils.inverse(var_stack, positive=True)
 
     # New mask for the stack
     mask_stack = (weights_total > 0.0) & (nused > 0.0)
-
-    ## In extreme cases (i.e. reject too many pixels in the telluric order), one need to sort the data
-    ## to make sure the wavelength is from blue to red. some pixels even have exactly the same wavelength
-    #indsort = np.argsort(wave_stack)
-    #wave_stack, flux_stack, ivar_stack, mask_stack, nused = wave_stack[indsort], flux_stack[indsort], \
-    #                                                        ivar_stack[indsort], mask_stack[indsort], nused[indsort]
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
@@ -1256,7 +1257,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
     if norder is None:
         spec_plot.plot(wave[wave_mask], flux[wave_mask], color='dodgerblue', linestyle='steps-mid',
                        zorder=2, alpha=0.5,label='single exposure')
-        spec_plot.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(ivar[wave_mask])),zorder=3,
+        spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(ivar[wave_mask], positive=True)),zorder=3,
                        color='0.7', alpha=0.5, linestyle='steps-mid')
         spec_plot.plot(wave[wave_mask],flux_stack[wave_mask]*mask_stack[wave_mask],color='k',
                        linestyle='steps-mid',lw=2,zorder=3, alpha=0.5, label='coadd')
@@ -1275,7 +1276,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
                            flux[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
                            linestyle='steps-mid', zorder=1, alpha=0.7)
             #spec_plot.plot(wave[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
-            #               np.sqrt(utils.calc_ivar(ivar[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]])),
+            #               np.sqrt(utils.inverse(ivar[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]], positive=True)),
             #               zorder=3, color='0.7', linestyle='steps-mid')
             spec_plot.plot(wave[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
                            flux_stack[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]]*
@@ -1328,13 +1329,18 @@ def weights_qa(waves, weights, masks):
 
 def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=None):
     '''
-    Routine to make QA plot of the final stacked spectrum
+    Routine to make QA plot of the final stacked spectrum. It works for both longslit/mulitslit, coadded individual
+    order spectrum of the Echelle data and the final coadd of the Echelle data.
     Args:
-        wave, flux, ivar, mask:
-        nused: same size with flux, how many exposures used in the stack for each pixel
-        title: plot title
-        qafile: QA file name
+        wave (ndarray): one-d wavelength array of your spectrum
+        flux (ndarray): one-d flux array of your spectrum
+        ivar (ndarray): one-d ivar array of your spectrum
+        mask (ndarray, bool): mask array for your spectrum
+        nused (ndarray): how many exposures used in the stack for each pixel, the same size with flux
+        title (str): plot title
+        qafile (str): QA file name
     '''
+    #TODO: This routine should take a parset
 
     if mask is None:
         mask = ivar > 0.0
@@ -1356,7 +1362,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     # Plot spectrum
     spec_plot.plot(wave[wave_mask], flux[wave_mask], color='black', drawstyle='steps-mid',zorder=1,alpha=0.8, label='Single exposure')
-    spec_plot.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(ivar[wave_mask])),zorder=2, color='red', alpha=0.7,
+    spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(ivar[wave_mask], positive=True)),zorder=2, color='red', alpha=0.7,
                    drawstyle='steps-mid', linestyle=':')
 
     # Get limits
@@ -1452,7 +1458,7 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
             thismask = outmasks[:,iexp]
             # Grab the stack interpolated with the same grid as the current exposure
             thisflux_stack = fluxes_stack[:, iexp]
-            thisvar_stack = utils.calc_ivar(ivars_stack[:, iexp])
+            thisvar_stack = utils.inverse(ivars_stack[:, iexp], positive=True)
             thismask_stack = masks_stack[:, iexp]
         else:
             thisflux = fluxes
@@ -1460,12 +1466,12 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
             thismask = outmasks
             # Grab the stack interpolated with the same grid as the current exposure
             thisflux_stack = fluxes_stack
-            thisvar_stack = utils.calc_ivar(ivars_stack)
+            thisvar_stack = utils.inverse(ivars_stack, positive=True)
             thismask_stack = masks_stack
 
         # var_tot
-        var_tot = thisvar_stack + utils.calc_ivar(thisivar)
-        ivar_tot = utils.calc_ivar(var_tot)
+        var_tot = thisvar_stack + utils.inverse(thisivar, positive=True)
+        ivar_tot = utils.inverse(var_tot, positive=True)
         mask_tot = thismask & thismask_stack
         # TODO Do we need the offset code? If so add it right here into the chi
         chi = np.sqrt(ivar_tot)*(thisflux - thisflux_stack)
