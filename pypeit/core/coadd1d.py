@@ -485,18 +485,18 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
         return flux_old, ivar_old, mask_old
 
     # make the mask array to be float, used for interpolation
-    masks_float = np.zeros_like(flux_old)
-    masks_float[mask_old] = 1.0
-    flux_new = scipy.interpolate.interp1d(wave_old[mask_old], flux_old[mask_old], kind='linear',
+    masks_float = mask_old.astype(float)
+    wave_mask = wave_old > 1.0 # Deal with the zero wavelengths
+    flux_new = scipy.interpolate.interp1d(wave_old[wave_mask], flux_old[wave_mask], kind='linear',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    ivar_new = scipy.interpolate.interp1d(wave_old[mask_old], ivar_old[mask_old], kind='linear',
+    ivar_new = scipy.interpolate.interp1d(wave_old[wave_mask], ivar_old[wave_mask], kind='linear',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    mask_new_tmp = scipy.interpolate.interp1d(wave_old[mask_old], masks_float[mask_old], kind='linear',
+    mask_new_tmp = scipy.interpolate.interp1d(wave_old[wave_mask], masks_float[wave_mask], kind='linear',
                                         bounds_error=False, fill_value=np.nan)(wave_new)
     # Don't allow the ivar to be every less than zero
     neg_ivar = ivar_new < 0.0
     ivar_new[neg_ivar] = 0.0
-    mask_new = (mask_new_tmp > 0.5) & (ivar_new > 0.0) & np.isfinite(flux_new)
+    mask_new = (mask_new_tmp > 0.8) & (ivar_new > 0.0) & np.isfinite(flux_new)
     return flux_new, ivar_new, mask_new
 
 def interp_spec(wave_new, waves, fluxes, ivars, masks):
@@ -505,9 +505,9 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
     Args:
         wave_new: ndarray, shape (nspec,) or (nspec, nimgs), new wavelength grid
         waves:  ndarray, shape (nspec,) or (nspec, nexp) where nexp, need not equal nimgs. Old wavelength grids
-        fluxes: ndarray, same size with waves, old flux
-        ivars: ndarray, same size with waves, old ivar
-        masks: ndarray, bool, same size with waves, old mask, True=Good
+        fluxes: ndarray, same shape as waves, old flux
+        ivars: ndarray, same shape as waves, old ivar
+        masks: ndarray, bool, same shape as waves, old mask, True=Good
     Returns:
         fluxes_inter, ivars_inter, masks_inter
 
