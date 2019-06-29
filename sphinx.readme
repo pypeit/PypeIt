@@ -1,3 +1,9 @@
+# Buiding the docs:
+
+# ./update_docs
+# cd doc
+# make html
+
 
 We use Sphinx to build our documentation:
 https://www.sphinx-doc.org/en/master/index.html
