@@ -249,7 +249,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Coadd them
         weights = np.ones(nimages)/float(nimages)
         img_list = [sciimg_stack]
-        var_stack = utils.inverse(sciivar_stack, positive=True)
+        var_stack = utils.inverse(sciivar_stack)
         var_list = [var_stack, rn2img_stack]
         img_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
             weights, img_list, var_list, (mask_stack == 0),
@@ -257,7 +257,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
         # Build the last one
         slf = ScienceImage.from_images(spectrograph, det, par, bpm, img_list_out[0],
-                                       utils.inverse(var_list_out[0], positive=True),
+                                       utils.inverse(var_list_out[0]),
                                        var_list_out[1], np.invert(outmask), files=file_list)
         slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
                        mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
@@ -293,7 +293,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         """
         return super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
-                                                      utils.inverse(self.ivar, positive=True),
+                                                      utils.inverse(self.ivar),
                                                       subtract_img=subtract_img).copy()
 
     def build_mask(self, saturation=1e10, mincounts=-1e10, slitmask=None):
@@ -339,7 +339,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                                   darkcurr=detector['darkcurr'],
                                                   exptime=self.exptime)
         # Ivar
-        self.ivar = utils.inverse(rawvarframe, positive=True)
+        self.ivar = utils.inverse(rawvarframe)
         # Return
         return self.ivar.copy()
 
@@ -385,7 +385,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Generate the CR mask (and save in self.crmask)
         super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
                                                       self.par, self.image,
-                                                      utils.inverse(self.ivar, positive=True),
+                                                      utils.inverse(self.ivar),
                                                       subtract_img=subtract_img).copy()
         # Now update the mask
         super(ScienceImage, self).update_mask_cr(self.crmask)
@@ -412,7 +412,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
         # Variance
         if self.ivar is not None:
-            new_ivar = utils.inverse(utils.inverse(self.ivar, positive=True) + utils.inverse(other.ivar, positive=True))
+            new_ivar = utils.inverse(utils.inverse(self.ivar) + utils.inverse(other.ivar))
             new_ivar[np.invert(outmask_comb)] = 0
         else:
             new_ivar = None

@@ -545,7 +545,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     adderr = 0.03
     tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0))*np.sqrt(np.abs(tilts_mad)**2 + adderr**2)
 
-    tilts_ivar = utils.inverse((tilts_sigma.flatten()/xnspecmin1)**2, positive=True)
+    tilts_ivar = utils.inverse((tilts_sigma.flatten()/xnspecmin1)**2)
     fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spec.flatten()/xnspecmin1, (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
                                                fitxy, x2=tilts_dspat.flatten()/xnspatmin1, inmask = tot_mask.flatten(),
                                                invvar = tilts_ivar,
