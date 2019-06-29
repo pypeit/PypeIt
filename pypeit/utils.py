@@ -505,7 +505,7 @@ def clip_ivar(flux, ivar, sn_cap, mask=None):
         ivar_out = np.minimum(ivar, ivar_cap)
         return ivar_out
 
-def inverse(a, positive=False):
+def inverse(a):
     """ Calculate and return the inverse of the input array
 
     Args:
@@ -516,7 +516,8 @@ def inverse(a, positive=False):
         np.ndarray:
 
     """
-    return np.ma.power(np.ma.MaskedArray(a, mask=a<0 if positive else None), -1).filled(0.0)
+    return (a > 0.0)/(np.abs(a) + (a == 0.0))
+#    return np.ma.power(np.ma.MaskedArray(a, mask=a<0 if positive else None), -1).filled(0.0)
 
 
 def calc_ivar(varframe):
@@ -531,7 +532,7 @@ def calc_ivar(varframe):
         ndarray:  Inverse variance image
     """
     # THIS WILL BE DEPRECATED!!
-    return inverse(varframe, positive=True)
+    return inverse(varframe)
 
 
 

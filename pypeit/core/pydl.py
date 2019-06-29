@@ -1836,7 +1836,7 @@ def djs_reject(data, model, outmask=None, inmask=None,
                 sigma = 1.4826*np.median(np.abs(data[igood] - model[igood]))
             else:
                 sigma = np.std(data[igood] - model[igood])
-            invvar = utils.inverse(sigma**2, positive=True)
+            invvar = utils.inverse(sigma**2)
         else:
             invvar = 0.0
 

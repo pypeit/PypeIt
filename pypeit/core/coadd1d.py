@@ -327,8 +327,8 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     ymult = (utils.func_val(result.x, wave, func, minx=wave_min, maxx=wave_max))**2
     flux_scale = ymult*flux
     mask_both = mask & thismask
-    totvar = utils.inverse(ivar_ref, positive=True) + ymult**2*utils.inverse(ivar, positive=True)
-    ivartot1 = mask_both*utils.inverse(totvar, positive=True)
+    totvar = utils.inverse(ivar_ref) + ymult**2*utils.inverse(ivar)
+    ivartot1 = mask_both*utils.inverse(totvar)
     # Now rescale the errors
     chi = (flux_scale - flux_ref)*np.sqrt(ivartot1)
     try:
@@ -358,9 +358,9 @@ def median_filt_spec(flux, ivar, mask, med_width):
     ivar_med = np.zeros_like(ivar)
     flux_med0 = utils.fast_running_median(flux[mask], med_width)
     flux_med[mask] = flux_med0
-    var = utils.inverse(ivar, positive=True)
+    var = utils.inverse(ivar)
     var_med0 =  utils.smooth(var[mask], med_width)
-    ivar_med[mask] = utils.inverse(var_med0, positive=True)
+    ivar_med[mask] = utils.inverse(var_med0)
     return flux_med, ivar_med
 
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
@@ -588,7 +588,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
 
-    sigs = np.sqrt(utils.inverse(ivars, positive=True))
+    sigs = np.sqrt(utils.inverse(ivars))
 
     if fluxes.ndim == 1:
         nstack = 1
@@ -681,6 +681,7 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
     # Finish
     return rms_sn, weights
 
+# TODO Rename this function to something sensfunc related
 def get_tell_from_file(sensfile, waves, masks, iord=None):
     '''
     Get the telluric model from the sensfile.
@@ -693,23 +694,22 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
          telluric (ndarray): telluric model on your wavelength grid
     '''
 
+
     sens_param = Table.read(sensfile, 1)
     sens_table = Table.read(sensfile, 2)
-    func = sens_param['FUNCTION']
-    wave_grid = sens_param['WAVE_GRID'].data.flatten()
     telluric = np.zeros_like(waves)
 
     if (waves.ndim == 1) and (iord is None):
         msgs.info('Loading Telluric from Longslit sensfiles.')
-        tell_interp = scipy.interpolate.interp1d(wave_grid, sens_table['TELLURIC'], kind='cubic',
+        tell_interp = scipy.interpolate.interp1d(sens_table[0]['WAVE'], sens_table[0]['TELLURIC'], kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(waves[masks])
         telluric[masks] = tell_interp
     elif (waves.ndim == 1) and (iord is not None):
         msgs.info('Loading order {:} Telluric from Echelle sensfiles.'.format(iord))
-        sens_table_ispec = sens_table[iord]
-        wave_tell_iord = wave_grid[sens_table_ispec['IND_LOWER']:sens_table_ispec['IND_UPPER']]
-        tell_iord = sens_table_ispec['TELLURIC'][sens_table_ispec['IND_LOWER']:sens_table_ispec['IND_UPPER']]
-        tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord, tell_iord, kind='cubic',
+        wave_tell_iord = sens_table[iord]['WAVE']
+        tell_mask = (wave_tell_iord > 1.0)
+        tell_iord = sens_table[iord]['TELLURIC']
+        tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(waves[masks])
         telluric[masks] = tell_iord_interp
     else:
@@ -720,9 +720,10 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
 
             # Interpolate telluric to the same grid with waves
             # Since it will be only used for plotting, I just simply interpolate it rather than evaluate it based on the model
-            sens_table_ispec = sens_table[iord]
-            tell_iord = sens_table_ispec['TELLURIC']
-            tell_iord_interp = scipy.interpolate.interp1d(wave_grid, tell_iord, kind='cubic',
+            wave_tell_iord = sens_table[iord]['WAVE']
+            tell_mask = (wave_tell_iord > 1.0)
+            tell_iord = sens_table[iord]['TELLURIC']
+            tell_iord_interp = scipy.interpolate.interp1d(wave_tell_iord[tell_mask], tell_iord[tell_mask], kind='cubic',
                                                     bounds_error=False, fill_value=np.nan)(wave_iord[mask_iord])
             telluric[mask_iord, iord] = tell_iord_interp
 
@@ -742,12 +743,13 @@ def sensfunc_weights(sensfile, waves, masks, debug=False):
         masks (ndarray, bool): mask for your weights
     '''
 
-    sens_param = Table.read(sensfile, 1)
+    sens_meta= Table.read(sensfile, 1)
     sens_table = Table.read(sensfile, 2)
-    func = sens_param['FUNCTION']
+    func = sens_meta['FUNC'][0]
+    polyorder_vec = sens_meta['POLYORDER_VEC'][0]
 
     weights = np.zeros_like(waves)
-    norder = np.shape(waves)[1]
+    norder = waves.shape[1]
 
     if norder != len(sens_table):
         msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
@@ -755,14 +757,15 @@ def sensfunc_weights(sensfile, waves, masks, debug=False):
     for iord in range(norder):
         wave_iord = waves[:, iord]
         mask_iord = masks[:, iord]
+        wave_mask = wave_iord > 1.0
 
         # get sensfunc from the sens_table
-        sens_table_ispec = sens_table[iord]
-        coeff = sens_table_ispec['SENS_COEFF']
-        sensfunc_iord = np.exp(utils.func_val(coeff, wave_iord[mask_iord], func,
-                               minx=wave_iord[mask_iord].min(), maxx=wave_iord[mask_iord].max()))
+        coeff = sens_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+        wave_min=sens_table[iord]['WAVE_MIN']
+        wave_max = sens_table[iord]['WAVE_MAX']
+        sensfunc_iord = np.exp(utils.func_val(coeff, wave_iord[wave_mask], func, minx=wave_min, maxx=wave_max))
         mask_sens_iord = sensfunc_iord > 0.0
-        weights[mask_iord, iord] = 1.0 / (sensfunc_iord+(sensfunc_iord==0.))
+        weights[mask_iord, iord] = 1.0/(sensfunc_iord+(sensfunc_iord==0.))
         masks[mask_iord, iord] = mask_sens_iord
 
     if debug:
@@ -1136,7 +1139,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
     ivars_flat = ivars[ubermask].flatten()
-    vars_flat = utils.inverse(ivars_flat, positive=True)
+    vars_flat = utils.inverse(ivars_flat)
     weights_flat = weights[ubermask].flatten()
 
     # Counts how many pixels in each wavelength bin
@@ -1156,7 +1159,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     # Calculate the stacked ivar
     var_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=vars_flat*weights_flat**2)
     var_stack = (weights_total > 0.0)*var_stack_total/(weights_total+(weights_total==0.))**2
-    ivar_stack = utils.inverse(var_stack, positive=True)
+    ivar_stack = utils.inverse(var_stack)
 
     # New mask for the stack
     mask_stack = (weights_total > 0.0) & (nused > 0.0)
@@ -1286,7 +1289,7 @@ def coadd_iexp_qa(wave, flux, ivar, flux_stack, ivar_stack, mask=None, mask_stac
     if norder is None:
         spec_plot.plot(wave[wave_mask], flux[wave_mask], color='dodgerblue', linestyle='steps-mid',
                        zorder=2, alpha=0.5,label='single exposure')
-        spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(ivar[wave_mask], positive=True)),zorder=3,
+        spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(ivar[wave_mask])),zorder=3,
                        color='0.7', alpha=0.5, linestyle='steps-mid')
         spec_plot.plot(wave[wave_mask],flux_stack[wave_mask]*mask_stack[wave_mask],color='k',
                        linestyle='steps-mid',lw=2,zorder=3, alpha=0.5, label='coadd')
@@ -1399,7 +1402,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
 
     # Plot spectrum
     spec_plot.plot(wave[wave_mask], flux[wave_mask], color='black', drawstyle='steps-mid',zorder=1,alpha=0.8, label='Single exposure')
-    spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(ivar[wave_mask], positive=True)),zorder=2, color='red', alpha=0.7,
+    spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(ivar[wave_mask])),zorder=2, color='red', alpha=0.7,
                    drawstyle='steps-mid', linestyle=':')
 
     # Get limits
@@ -1495,7 +1498,7 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
             thismask = outmasks[:,iexp]
             # Grab the stack interpolated with the same grid as the current exposure
             thisflux_stack = fluxes_stack[:, iexp]
-            thisvar_stack = utils.inverse(ivars_stack[:, iexp], positive=True)
+            thisvar_stack = utils.inverse(ivars_stack[:, iexp])
             thismask_stack = masks_stack[:, iexp]
         else:
             thisflux = fluxes
@@ -1503,12 +1506,12 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
             thismask = outmasks
             # Grab the stack interpolated with the same grid as the current exposure
             thisflux_stack = fluxes_stack
-            thisvar_stack = utils.inverse(ivars_stack, positive=True)
+            thisvar_stack = utils.inverse(ivars_stack)
             thismask_stack = masks_stack
 
         # var_tot
-        var_tot = thisvar_stack + utils.inverse(thisivar, positive=True)
-        ivar_tot = utils.inverse(var_tot, positive=True)
+        var_tot = thisvar_stack + utils.inverse(thisivar)
+        ivar_tot = utils.inverse(var_tot)
         mask_tot = thismask & thismask_stack
         # TODO Do we need the offset code? If so add it right here into the chi
         chi = np.sqrt(ivar_tot)*(thisflux - thisflux_stack)

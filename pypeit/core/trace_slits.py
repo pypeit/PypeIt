@@ -2989,7 +2989,7 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     if invvar is None:
         invvar = np.zeros_like(fimage) + 1.
 
-    var = utils.inverse(invvar, positive=True)
+    var = utils.inverse(invvar)
     # More setting up
     x_int = np.rint(xinit).astype(int)
     nstep = 2*int(3.0*np.max(sigma_out)) - 1
