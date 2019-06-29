@@ -40,6 +40,8 @@ def parser():
                         help='Overwrite any existing files/directories')
 
     parser.add_argument('--debug', default=False, action='store_true', help='Run in debug mode.')
+    parser.add_argument('--show', default=False, action='store_true',
+                        help='For the new tracing routine, show the stages of trace refinements.')
 
     parser.add_argument('-n', '--use_new', default=False, action='store_true',
                         help='Use the new code.')
@@ -128,7 +130,7 @@ def main(args):
 #                pass
             edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
                                            master_dir=master_dir, img=traceImage, det=det,
-                                           auto=True, debug=args.debug)
+                                           auto=True, debug=args.debug, show_stages=args.show)
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
             edges.save()
         else:

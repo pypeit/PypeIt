@@ -1892,7 +1892,7 @@ class EdgeTracePar(ParSet):
     @staticmethod
     def valid_center_modes():
         """Return the valid center prediction modes."""
-        return ['median', 'nearest']
+        return ['median', 'gap', 'nearest']
 
     def validate(self):
         pass
