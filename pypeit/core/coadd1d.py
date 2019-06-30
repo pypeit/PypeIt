@@ -2607,7 +2607,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
         ivars_pre_scale = ivars_scale.copy()
 
     # Now go right to the final stack
-    
+
     # Arrays to store stacked individual order spectra.
     waves_stack_orders = np.zeros((np.size(wave_grid)-1, norder))
     fluxes_stack_orders = np.zeros_like(waves_stack_orders)
