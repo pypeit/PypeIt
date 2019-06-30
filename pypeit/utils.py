@@ -480,33 +480,38 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     return sset, outmask, yfit, reduced_chi, exit_status
 
 
-def clip_ivar(flux, ivar, sn_cap, mask=None):
+def clip_ivar(flux, ivar, sn_clip, mask=None):
     '''
     This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars, bright objects)
     Args:
-        flux (ndarray): flux array
-        ivar (ndarray): ivar array
-        sn_cap (float):
-            Errors are capped in output rejivars so that the S/N is never greater than sn_cap. This prevents overly
-            aggressive rejection in high S/N ratio spectra which neverthless differ at a level greater than the implied S/N due to
-            systematics.
+        flux (ndarray):
+           flux array
+        ivar (ndarray):
+           ivar array
+        sn_clip (float):
+            Small erorr is added to input ivar so that the output ivar_out will never give S/N greater than sn_clip.
+            This prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a
+            level greater than the theoretical S/N due to systematics.
         mask (ndarray, bool): mask array, True=good
     Returns:
          ivar_out (ndarray): new ivar array
     '''
-    if sn_cap is None:
+    if sn_clip is None:
         return ivar
     else:
         if mask is None:
             mask = (ivar > 0.0)
-        adderr = 1.0/sn_cap
+        adderr = 1.0/sn_clip
         gmask = (ivar > 0) & mask
         ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
         ivar_out = np.minimum(ivar, ivar_cap)
+        msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
         return ivar_out
 
-def inverse(a):
-    """ Calculate and return the inverse of the input array
+def inverse(array):
+    """ Calculate and return the inverse of the input array, enforcing positivity and setting values <= 0 to zero.
+    The input array should be a quantity expected to always be positive, like a variance or an inverse variance. The quantity
+    out = (array > 0.0)/(np.abs(array) + (array == 0.0)) is returned.
 
     Args:
         a (np.ndarray):
@@ -516,7 +521,7 @@ def inverse(a):
         np.ndarray:
 
     """
-    return (a > 0.0)/(np.abs(a) + (a == 0.0))
+    return (array > 0.0)/(np.abs(array) + (array == 0.0))
 #    return np.ma.power(np.ma.MaskedArray(a, mask=a<0 if positive else None), -1).filled(0.0)
 
 
