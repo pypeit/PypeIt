@@ -1217,15 +1217,15 @@ def sensfunc_weights(sensfile, waves, masks, debug=False):
     for iord in range(norder):
         wave_iord = waves[:, iord]
         mask_iord = masks[:, iord]
-        wave_mask = wave_iord > 1.0
+        wave_mask = waves[:, iord] > 1.0
 
         # get sensfunc from the sens_table
         coeff = sens_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
         wave_min=sens_table[iord]['WAVE_MIN']
         wave_max = sens_table[iord]['WAVE_MAX']
-        sensfunc_iord = np.exp(utils.func_val(coeff, wave_iord[wave_mask], func, minx=wave_min, maxx=wave_max))
+        sensfunc_iord = np.exp(utils.func_val(coeff, waves[wave_mask, iord], func, minx=wave_min, maxx=wave_max))
         mask_sens_iord = sensfunc_iord > 0.0
-        weights[mask_iord, iord] = 1.0/(sensfunc_iord+(sensfunc_iord==0.))
+        weights[wave_mask, iord] = 1.0/(sensfunc_iord+(sensfunc_iord==0.))
         masks[mask_iord, iord] = mask_sens_iord
 
     if debug:
@@ -1691,7 +1691,7 @@ def scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, ymult, scale_m
     #dwave_ref = wave_ref[wave_mask_ref].max() - wave_ref[wave_mask_ref].min()
     # Get limits
     if ylim is None:
-        ylim = get_ylim(flux, ivar, mask)
+        ylim = get_ylim(flux_ref, ivar_ref, mask_ref)
 
     nullfmt = NullFormatter()  # no labels
     fig = plt.figure(figsize=(12, 8))
@@ -1703,13 +1703,12 @@ def scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, ymult, scale_m
     poly_plot.legend()
     # This logic below allows more of the spectrum to be plotted if wave_ref is a multi-order stack which has broader
     # wavelength coverage. For the longslit or single order case, this will plot the correct range as well
-    wave_min = np.fmax(0.7*wave[wave_mask].min(), wave_ref[wave_mask_ref].min())
-    wave_max = np.fmin(1.3*wave[wave_mask].max(), wave_ref[wave_mask_ref].max())
+    wave_min = np.fmax(0.8*wave[wave_mask].min(), wave_ref[wave_mask_ref].min())
+    wave_max = np.fmin(1.2*wave[wave_mask].max(), wave_ref[wave_mask_ref].max())
     poly_plot.set_xlim((wave_min, wave_max))
     spec_plot.set_xlim((wave_min, wave_max))
     spec_plot.set_ylim(ylim)
 
-    spec_plot.set_xlim((wave_ref[wave_mask_ref].min(), wave_ref[wave_mask_ref].max()))
     spec_plot.plot(wave[wave_mask], flux[wave_mask], color='red', zorder=10,
                    marker='o', markersize=1.0, mfc='k', fillstyle='full', linestyle='None', label='original spectrum')
     spec_plot.plot(wave[wave_mask], flux[wave_mask]*ymult[wave_mask], color='dodgerblue', drawstyle='steps-mid', alpha=0.5, zorder=5, linewidth=2,
@@ -1720,7 +1719,7 @@ def scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, ymult, scale_m
     fig.suptitle(title)
     plt.show()
 
-def coadd_iexp_qa(wave, flux, mask, flux_stack, mask_stack, rejivar, outmask, norder=None, title='', qafile=None):
+def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack, mask_stack, outmask, norder=None, title='', qafile=None):
     '''
     Routine to creqate QA for showing the individual spectrum compared to the combined stacked spectrum indicating
      which pixels were rejected.
@@ -1751,11 +1750,12 @@ def coadd_iexp_qa(wave, flux, mask, flux_stack, mask_stack, rejivar, outmask, no
     spec_plot = fig.add_axes([0.1, 0.1, 0.8, 0.85])
 
     # Get limits
-    ymin, ymax = get_ylim(flux, rejivar, (mask & mask_stack & np.isfinite(rejivar)))
+    ymin, ymax = get_ylim(flux_stack, ivar_stack, mask_stack)
 
     # Plot spectrum
     rejmask = mask & np.invert(outmask)
     wave_mask = wave > 1.0
+    wave_stack_mask = wave_stack > 1.0
     spec_plot.plot(wave[rejmask], flux[rejmask],'s',zorder=10,mfc='None', mec='r', label='rejected pixels')
     spec_plot.plot(wave[np.invert(mask)], flux[np.invert(mask)],'v', zorder=10, mfc='None', mec='orange',
                    label='originally masked')
@@ -1765,7 +1765,7 @@ def coadd_iexp_qa(wave, flux, mask, flux_stack, mask_stack, rejivar, outmask, no
                        zorder=2, alpha=0.5,label='single exposure')
         spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(rejivar[wave_mask])),zorder=3,
                        color='0.7', alpha=0.5, linestyle='steps-mid')
-        spec_plot.plot(wave[wave_mask],flux_stack[wave_mask]*mask_stack[wave_mask],color='k',
+        spec_plot.plot(wave_stack[wave_stack_mask],flux_stack[wave_stack_mask]*mask_stack[wave_stack_mask],color='k',
                        linestyle='steps-mid',lw=2,zorder=3, alpha=0.5, label='coadd')
 
         # TODO Use one of our telluric models here instead
@@ -1790,10 +1790,15 @@ def coadd_iexp_qa(wave, flux, mask, flux_stack, mask_stack, rejivar, outmask, no
                            mask_stack[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
                            color='k', linestyle='steps-mid',lw=1,zorder=2)
 
+    # This logic below allows more of the spectrum to be plotted if wave_ref is a multi-order stack which has broader
+    # wavelength coverage. For the longslit or single order case, this will plot the correct range as well
+    wave_min = np.fmax(0.8*wave[wave_mask].min(), wave_stack[wave_stack_mask].min())
+    wave_max = np.fmin(1.2*wave[wave_mask].max(), wave_stack[wave_stack_mask].max())
+
     # properties
     spec_plot.legend(fontsize=13)
     spec_plot.set_ylim([ymin, ymax])
-    spec_plot.set_xlim([wave[wave_mask].min(), wave[wave_mask].max()])
+    spec_plot.set_xlim((wave_min, wave_max))
     spec_plot.set_xlabel('Wavelength ($\\rm\\AA$)')
     spec_plot.set_ylabel('Flux')
     spec_plot.set_title(title, fontsize=16, color='red')
@@ -2126,8 +2131,8 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
             title_coadd_iexp = title + ': nrej={:d} pixels rejected,'.format(nrej[iexp]) + \
                                ' norig={:d} originally masked,'.format(norig[iexp]) + \
                                ' for exposure {:d}/{:d}'.format(iexp,nexp)
-            coadd_iexp_qa(waves[:, iexp], fluxes[:, iexp], masks[:, iexp], flux_stack_nat[:, iexp], mask_stack_nat[:, iexp],
-                          rejivars[:, iexp], outmask[:, iexp], qafile=None, title=title_coadd_iexp)
+            coadd_iexp_qa(waves[:, iexp], fluxes[:, iexp], rejivars[:, iexp], masks[:, iexp], wave_stack, flux_stack,
+                          ivar_stack, mask_stack, outmask[:, iexp], qafile=None, title=title_coadd_iexp)
         # weights qa
         title_weights = title + ': Weights Used -- nrej={:d} total pixels rejected,'.format(np.sum(nrej)) + \
                         ' norig={:d} originally masked'.format(np.sum(norig))
@@ -2384,14 +2389,6 @@ def combspec(fnames, objids, ex_value='OPT', flux_value=True, wave_method='pixel
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
 
-    # Coadd
-    #wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused, weights, scales, rms_sn = \
-    #    combspec(wave_grid, waves, fluxes, ivars, masks, ref_percentile=ref_percentile,
-    #             maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
-    #             sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, dv_smooth=dv_smooth,
-    #             const_weights=const_weights, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower,
-    #             upper=upper, maxrej=maxrej, debug_scale=debug_scale, debug=debug, title='multi_combpsec')
-
     # Rejecting and coadding
     wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
         wave_grid, waves, fluxes_scale, ivars_scale, masks, weights, sn_clip=sn_clip, lower=lower, upper=upper,
@@ -2560,6 +2557,21 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, dv_smooth=dv_smooth, const_weights=const_weights,
                                  verbose=True)
+    # TODO tighten up and compute the sensfunc weights, and echelle weights
+    rms_sn_stack = None
+    order_weights, masks_stack_orders = sensfunc_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
+
+    #TODO think through whether this is the correct approach of multiplying weights?
+    # apply the sensfunc weights to the orginal weights: sensfunc_weights*weightsf
+    ech_weights = np.zeros_like(weights)
+    for iord in range(norder):
+        mask_weight_iord = masks_stack_orders[:, iord] & (order_weights[:, iord] > 0.0) & (waves_stack_orders[:, iord] > 1.0)
+        # Interpolate these order_weights onto the native wavelength grid of each exposure for this order
+        for iexp in range(nexp):
+            order_weight_interp = scipy.interpolate.interp1d(
+                waves_stack_orders[mask_weight_iord, iord], order_weights[mask_weight_iord, iord],  kind = 'cubic',
+                bounds_error = False, fill_value = np.nan)(waves[:,iord,iexp])
+            ech_weights[:,iord,iexp] = weights[:,iord,iexp] * order_weight_interp
 
     fluxes_scl_interord = np.zeros_like(fluxes)
     ivars_scl_interord = np.zeros_like(ivars)
@@ -2581,7 +2593,7 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
     masks_2d = np.reshape(masks, shape_2d, order='F')
     scales_2d = np.reshape(scales_interord, shape_2d, order='F')
     weights_2d = np.reshape(weights, shape_2d, order='F')
-    # Iteratively scale and stack the spectra
+    # Iteratively scale and stack the spectra, this takes or the order re-scaling we were doing previously
     fluxes_pre_scale = fluxes_2d.copy()
     ivars_pre_scale = ivars_2d.copy()
     for iter in range(niter_order_scale):
@@ -2594,7 +2606,8 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
         fluxes_pre_scale = fluxes_scale.copy()
         ivars_pre_scale = ivars_scale.copy()
 
-    embed()
+    # Now go right to the final stack
+    
     # Arrays to store stacked individual order spectra.
     waves_stack_orders = np.zeros((np.size(wave_grid)-1, norder))
     fluxes_stack_orders = np.zeros_like(waves_stack_orders)
@@ -2641,26 +2654,6 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
     ivars_scale = ivars/scales_new**2
 
 
-    # Get the new ech_weights for the stack which will merge all the orders
-    if sensfile is None:
-        rms_sn_stack, order_weights = sn_weights(waves_stack_orders, fluxes_stack_orders_scale, ivars_stack_orders_scale,
-                                                 masks_stack_orders, dv_smooth=dv_smooth, const_weights=const_weights,
-                                                 ivar_weights=True, verbose=True)
-    else:
-        rms_sn_stack = None
-        order_weights, masks_stack_orders = sensfunc_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
-
-    #TODO think through whether this is the correct approach of multiplying weights?
-    # apply the sensfunc weights to the orginal weights: sensfunc_weights*weightsf
-    ech_weights = np.zeros_like(weights)
-    for iord in range(norder):
-        mask_weight_iord = masks_stack_orders[:, iord] & (order_weights[:, iord] > 0.0) & (waves_stack_orders[:, iord] > 1.0)
-        # Interpolate these order_weights onto the native wavelength grid of each exposure for this order
-        for iexp in range(nexp):
-            order_weight_interp = scipy.interpolate.interp1d(
-                waves_stack_orders[mask_weight_iord, iord], order_weights[mask_weight_iord, iord],  kind = 'cubic',
-                bounds_error = False, fill_value = np.nan)(waves[:,iord,iexp])
-            ech_weights[:,iord,iexp] = weights[:,iord,iexp] * order_weight_interp
 
 
     # TODO Will we use this reject/stack below? It is the straight combine of the stacked individual orders.
