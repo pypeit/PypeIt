@@ -733,10 +733,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     std_file_source = ['xshooter', 'calspec', 'eso']  # XSHOOTER ASCII format; Calspec style FITS binary table; ESO ASCII format.
 
     # SkyCoord
-    if isinstance(ra, str):
-        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
-    else:
+    try:
+        ra, dec = float(ra), float(dec)
         obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
+    except:
+        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
 
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)
