@@ -16,7 +16,8 @@ from pypeit.core.wavecal import autoid, waveio
 from pypeit.core import trace_slits
 
 from pypeit import debugger
-from IPython import embed
+import IPython
+
 
 class WaveCalib(masterframe.MasterFrame):
     """

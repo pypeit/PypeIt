@@ -94,7 +94,7 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
 
         """
         # Loop on slits
-        ok_slits = np.where(~self.maskslits)[0]
+        ok_slits = np.where(np.invert(self.maskslits))[0]
         self.image = np.zeros_like(self.tilts)
         nspec = self.slitmask.shape[0]
 

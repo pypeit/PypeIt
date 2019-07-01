@@ -113,9 +113,9 @@ def main(args):
                    'Set with --det= or check file contents with --list'.format(sdet))
     objmodel = hdu[exten].data
     # Get waveimg
-    mdir = head0['PYPMFDIR']+'/'
+    mdir = head0['PYPMFDIR']
     if not os.path.exists(mdir):
-        mdir_base = os.path.join(os.getcwd(), os.path.basename(os.path.dirname(mdir)))
+        mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir=mdir_base
 

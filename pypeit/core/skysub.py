@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 
 from scipy.special import ndtr
 import scipy
+import IPython
 
 def skysub_npoly(thismask):
     """

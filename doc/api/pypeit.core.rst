@@ -14,7 +14,7 @@ Submodules
 .. toctree::
 
    pypeit.core.arc
-   pypeit.core.coadd
+   pypeit.core.coadd1d
    pypeit.core.coadd2d
    pypeit.core.combine
    pypeit.core.extract

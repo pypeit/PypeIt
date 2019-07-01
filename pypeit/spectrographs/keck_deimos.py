@@ -19,8 +19,7 @@ from pypeit.spectrographs import spectrograph
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
-
-from pypeit import debugger
+import IPython
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -328,7 +327,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             elif headarr[0]['GRATEPOS'] == 4:
                 return headarr[0]['G4TLTWAV']
             else:
-                debugger.set_trace()
+                msgs.warn('This is probably a problem. Non-standard DEIMOS GRATEPOS={0}.'.format(headarr[0]['GRATEPOS']))
         else:
             msgs.error("Not ready for this compound meta")
 

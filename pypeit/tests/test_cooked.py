@@ -21,3 +21,4 @@ def test_cooked_version():
         tmp = f.readlines()
     assert tmp[-1].strip() == '0.11.0'
 
+

@@ -139,16 +139,18 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             msgs.info('Using vega spectrum to correct telluric')
             std_dict={'stellar_type':star_type , 'Vmag': star_mag}
 
+            ## TODO: we should get a higher resolution spectra and then convolve it to the resolution of your data!
+            ##       the Tspec one works well for GNIRS and NIRES, but apparently not X-SHOOTER.
             ## vega spectrum from STSCI
             #vega_file = resource_filename('pypeit', '/data/standards/vega_04_to_06.dat')
             #vega_data = Table.read(vega_file, comment='#', format='ascii')
-            #std_dict = dict(cal_file='Vega_04_to_06', name=star_type, fmt=1,
+            #std_dict = dict(cal_file='Vega_04_to_06', name=star_type, std_source='vega',
             #                std_ra=None, std_dec=None)
             #std_dict['wave'] = vega_data['col1'] * units.AA
             ## Vega model from TSPECTOOL
             vega_file = resource_filename('pypeit', '/data/standards/vega_tspectool_vacuum.dat')
             vega_data = Table.read(vega_file, comment='#', format='ascii')
-            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, fmt=1,
+            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, std_source='vega',
                             std_ra=None, std_dec=None)
             std_dict['wave'] = vega_data['col1'] * units.AA
 
@@ -164,7 +166,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             star_loglam, star_flux, std_dict = telluric_sed(star_mag, star_type)
             star_lam = 10 ** star_loglam
             # Generate a dict matching the output of find_standard_file
-            std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, fmt=1,
+            std_dict = dict(cal_file='KuruczTelluricModel', name=star_type, std_source='KuruczModel',
                             std_ra=None, std_dec=None)
             std_dict['wave'] = star_lam * units.AA
             std_dict['flux'] = star_flux / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
@@ -264,7 +266,7 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         mask_model = flux_true <= 0
         msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
-                                                    invvar=None, guesses=None, maxiter=50, inmask=None, sigma=None, \
+                                                    invvar=None, guesses=None, maxiter=50, inmask=None, \
                                                     lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
                                                     groupsize=None,groupbadpix=False, grow=0, sticky=True, use_mad=True)
         star_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
@@ -531,7 +533,7 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
     # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
     _, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], poly_norder, \
                                                     function='polynomial', invvar=None, guesses=None, maxiter=maxiter, \
-                                                    inmask=None, sigma=None, lower=lower, upper=upper, maxdev=None, \
+                                                    inmask=None, lower=lower, upper=upper, maxdev=None, \
                                                     maxrej=None, groupdim=None, groupsize=None, groupbadpix=False, \
                                                     grow=0, sticky=True, use_mad=True)
     magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
@@ -701,12 +703,12 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     standard star files (hopefully).  Priority is by order of search.
 
     Args:
-        ra (str):
-            Object right-ascension in hh:mm:ss string format (e.g.,
-            '05:06:36.6').
-        dec (str):
-            Object declination in dd:mm:ss string format (e.g.,
-            52:52:01.0')
+        ra (str or float):
+            Object right-ascension in hh:mm:ss string format or in degrees (e.g.,
+            '05:06:36.6' or 76.6525). astropy.coordinates.SkyCoord is used to parse the coordinates
+        dec (str or float):
+            Object declination in dd:mm:ss string format or in degrees (e.g.,
+            52:52:01.0' or 52.86694) astropy.coordinates.SkyCoord is used to parse the coordinates
         toler (:class:`astropy.units.quantity.Quantity`, optional):
             Tolerance on matching archived standards to input.  Expected
             to be in arcmin.
@@ -721,18 +723,22 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
         a dictionary with the matching standard star with the following
         meta data::
             - 'file': str -- Filename
-            - 'fmt': int -- Format flag 1=Calspec style FITS binary
               table
             - 'name': str -- Star name
             - 'ra': str -- RA(J2000)
             - 'dec': str -- DEC(J2000)
     """
     # Priority
-    std_sets = [load_calspec, load_esofil, load_xshooter]
-    std_file_fmt = [1, 2, 3]  # 1=Calspec style FITS binary table; 2=ESO ASCII format; 3= XSHOOTER ASCII format.
+    std_sets = [load_xshooter, load_calspec, load_esofil]
+    std_file_source = ['xshooter', 'calspec', 'eso']  # XSHOOTER ASCII format; Calspec style FITS binary table; ESO ASCII format.
 
     # SkyCoord
-    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    try:
+        ra, dec = float(ra), float(dec)
+        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
+    except:
+        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)
     for qq, sset in enumerate(std_sets):
@@ -749,7 +755,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 # Generate a dict
                 _idx = int(idx)
                 std_dict = dict(cal_file=os.path.join(path,star_tbl[_idx]['File']),
-                                name=star_tbl[_idx]['Name'], fmt=std_file_fmt[qq],
+                                name=star_tbl[_idx]['Name'], std_source=std_file_source[qq],
                                 std_ra=star_tbl[_idx]['RA_2000'],
                                 std_dec=star_tbl[_idx]['DEC_2000'])
                 # Return
@@ -945,10 +951,6 @@ def load_standard_file(std_dict):
       Info on standard star indcluding filename in 'file'
       May be compressed
 
-      fmt==1  Calsepec
-      fmt==2  ESO files
-      fmt==3  XSHOOTER files
-
     Returns
     -------
     wave, flux: Quantity, Quantity filled in place in std_dict
@@ -964,21 +966,21 @@ def load_standard_file(std_dict):
         msgs.info("Loading standard star file: {:s}".format(fil))
         msgs.info("Fluxes are flambda, normalized to 1e-17")
 
-    if std_dict['fmt'] == 3: # XSHOOTER files
+    if std_dict['std_source'] == 'xshooter': # XSHOOTER files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
-        std_dict['flux'] = 10*std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 1: # Calspec
+        std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE  * units.erg / units.s / units.cm ** 2 / units.AA
+    elif std_dict['std_source'] == 'calspec': # Calspec
         std_spec = fits.open(fil)[1].data
         # Load
         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
         std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE * units.erg / units.s / units.cm ** 2 / units.AA
-    elif std_dict['fmt'] == 2: # ESO files
+    elif std_dict['std_source'] == 'eso': # ESO files
         std_spec = Table.read(fil, format='ascii')
         # Load
         std_dict['wave'] = std_spec['col1'] * units.AA
-        std_dict['flux'] = 10*std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
+        std_dict['flux'] = std_spec['col2'] * units.erg / units.s / units.cm ** 2 / units.AA
     else:
         msgs.error("Bad Standard Star Format")
     return
