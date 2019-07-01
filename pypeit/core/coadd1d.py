@@ -7,6 +7,7 @@ from astropy.io import fits
 from astropy import convolution
 from IPython import embed
 from astropy.table import Table
+from astropy import constants
 
 from pkg_resources import resource_filename
 from pypeit import utils
@@ -14,7 +15,6 @@ from pypeit import msgs
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
-from astropy import constants
 
 
 from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
@@ -32,8 +32,6 @@ plt.rcParams["xtick.labelsize"] = 15
 plt.rcParams["ytick.labelsize"] = 15
 plt.rcParams["axes.labelsize"] = 17
 
-# Used it in several places, so make it global.
-c_kms = constants.c.to('km/s').value
 
 
 # TODO: merge with wavegrid routine in wvutils
@@ -519,6 +517,8 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
     Returns
         wave_grid (ndarray): New wavelength grid, not masked
     """
+
+    c_kms = constants.c.to('km/s').value
 
     wave_mask = waves>1.0
 
@@ -1020,6 +1020,21 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
     else:
         msgs.error('Invalid size for wave_new')
 
+def get_dv_pix(wave, mask, dv_smooth):
+
+    c_kms = constants.c.to('km/s').value
+
+    nspec = wave.size
+    spec_vec = np.arange(nspec)
+    wave_now = wave_stack[mask]
+    spec_now = spec_vec[imask]
+    dwave = np.abs((wave_now - np.roll(wave_now, 1))[1:])
+    dv = (dwave/wave_now[1:])*c_kms
+    dv_pix = np.median(dv)
+    med_width = int(np.round(dv_smooth / dv_pix))
+
+    return med_width
+
 def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=False, ivar_weights=False, verbose=False):
 
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used for coadding.
@@ -1119,12 +1134,15 @@ def sn_weights(waves, fluxes, ivars, masks, dv_smooth=10000.0, const_weights=Fal
             imask = mask_stack[:, iexp]
             wave_now = wave_stack[imask, iexp]
             spec_now = spec_vec[imask]
-            dwave = (wave_now - np.roll(wave_now,1))[1:]
+            dwave = np.abs((wave_now - np.roll(wave_now,1))[1:])
             dv = (dwave/wave_now[1:])*c_kms
             dv_pix = np.median(dv)
             med_width = int(np.round(dv_smooth/dv_pix))
             sn_med1 = utils.fast_running_median(sn_val[imask,iexp]**2, med_width)
-            sn_med2 = np.interp(spec_vec, spec_now, sn_med1)
+            try:
+                sn_med2 = np.interp(spec_vec, spec_now, sn_med1)
+            except:
+                embed()
             ##sn_med2 = np.interp(wave_stack[iexp,:], wave_now,sn_med1)
             sig_res = np.fmax(med_width/10.0, 3.0)
             gauss_kernel = convolution.Gaussian1DKernel(sig_res)
@@ -2557,21 +2575,22 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, dv_smooth=dv_smooth, const_weights=const_weights,
                                  verbose=True)
+    embed()
     # TODO tighten up and compute the sensfunc weights, and echelle weights
-    rms_sn_stack = None
-    order_weights, masks_stack_orders = sensfunc_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
+    #rms_sn_stack = None
+    #order_weights, masks_stack_orders = sensfunc_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
 
     #TODO think through whether this is the correct approach of multiplying weights?
     # apply the sensfunc weights to the orginal weights: sensfunc_weights*weightsf
-    ech_weights = np.zeros_like(weights)
-    for iord in range(norder):
-        mask_weight_iord = masks_stack_orders[:, iord] & (order_weights[:, iord] > 0.0) & (waves_stack_orders[:, iord] > 1.0)
-        # Interpolate these order_weights onto the native wavelength grid of each exposure for this order
-        for iexp in range(nexp):
-            order_weight_interp = scipy.interpolate.interp1d(
-                waves_stack_orders[mask_weight_iord, iord], order_weights[mask_weight_iord, iord],  kind = 'cubic',
-                bounds_error = False, fill_value = np.nan)(waves[:,iord,iexp])
-            ech_weights[:,iord,iexp] = weights[:,iord,iexp] * order_weight_interp
+    #ech_weights = np.zeros_like(weights)
+    #for iord in range(norder):
+    #    mask_weight_iord = masks_stack_orders[:, iord] & (order_weights[:, iord] > 0.0) & (waves_stack_orders[:, iord] > 1.0)
+    #    # Interpolate these order_weights onto the native wavelength grid of each exposure for this order
+    #    for iexp in range(nexp):
+    #        order_weight_interp = scipy.interpolate.interp1d(
+    #            waves_stack_orders[mask_weight_iord, iord], order_weights[mask_weight_iord, iord],  kind = 'cubic',
+    #            bounds_error = False, fill_value = np.nan)(waves[:,iord,iexp])
+    #        ech_weights[:,iord,iexp] = weights[:,iord,iexp] * order_weight_interp
 
     fluxes_scl_interord = np.zeros_like(fluxes)
     ivars_scl_interord = np.zeros_like(ivars)
