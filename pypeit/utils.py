@@ -186,10 +186,13 @@ def fast_running_median(seq, window_size):
     See discussion at:
     http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
     """
+    # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
+    # upon return (very bad). Added by JFH
+
+    window_size = int(np.fmin(int(window_size), len(seq)-1))
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
-    window_size= int(window_size)
     seq_pad = iter(seq_pad)
     d = deque()
     s = []
