@@ -2674,7 +2674,7 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
     weights = weights_exp*weights_sens
     if debug:
-        weights_qa(waves, weights, masks, title='ech_combspec', debug=debug)
+        weights_qa(waves, weights, masks, title='ech_combspec')
 
     fluxes_scl_interord = np.zeros_like(fluxes)
     ivars_scl_interord = np.zeros_like(ivars)
