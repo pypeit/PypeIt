@@ -2511,7 +2511,7 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
                  qafile=None, outfile = None, order_scale=False,
-                 merge_stack=False, debug_scale=False, debug=False, show_order_scale=False, show=False):
+                 merge_stack=False, debug_scale=False, debug=False, show_order_scale=False, show_exp=False, show=False):
     '''
     Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
     three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
@@ -2774,7 +2774,7 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
         # Interpolate stack onto native 2d wavelength grids reshaped exposure-wise
         flux_stack_2d_exps, ivar_stack_2d_exps, mask_stack_2d_exps = interp_spec(
             waves_2d_exps, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack)
-        if debug:
+        if show_exp:
             # Show QA plots for each exposure
             rejivars_2d_exps, sigma_corrs_2d_exps, outchi_2d_exps, maskchi_2d_exps = update_errors(
                 fluxes_2d_exps, ivars_2d_exps, outmasks_2d_exps, flux_stack_2d_exps, ivar_stack_2d_exps,
