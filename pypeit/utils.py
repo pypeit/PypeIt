@@ -189,8 +189,10 @@ def fast_running_median(seq, window_size):
     # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
     # upon return (very bad). Added by JFH. Should we print out an error here?
 
+    if (window_size > (len(seq)-1)):
+        msgs.warn('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
+
     window_size = int(np.fmin(int(window_size), len(seq)-1))
-    msgs.warn('window_size > len(seq)-1. Truncating window_size. Something is probably wrong....')
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 

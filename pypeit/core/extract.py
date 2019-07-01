@@ -1528,7 +1528,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
         if frac_bad > 0.9:
             fluxsub = flux_mean - flux_mean_med
 
-    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548,mode='nearest')
+    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
 
     cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
                                          cont_frac_fwhm=2.0, sigthresh=sig_thresh,
