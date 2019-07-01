@@ -37,6 +37,50 @@ plt.rcParams["axes.labelsize"] = 17
 # TODO: merge with wavegrid routine in wvutils
 
 
+def sensfunc_weights_old(sensfile, waves, masks, debug=False):
+    '''
+    Get the weights based on the sensfunc
+    Args:
+        sensfile (str): the name of your fits format sensfile
+        waves (ndarray): wavelength grid for your output weights
+        masks (ndarray, bool): mask for the wave s
+        debug (bool): whether you want show the weights QA
+    Returns:
+        weights (ndarray): weights on you wavelength grid
+        masks (ndarray, bool): mask for your weights
+    '''
+
+    sens_meta= Table.read(sensfile, 1)
+    sens_table = Table.read(sensfile, 2)
+    func = sens_meta['FUNC'][0]
+    polyorder_vec = sens_meta['POLYORDER_VEC'][0]
+
+    weights = np.zeros_like(waves)
+    norder = waves.shape[1]
+
+    if norder != len(sens_table):
+        msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+
+    for iord in range(norder):
+        wave_iord = waves[:, iord]
+        mask_iord = masks[:, iord]
+        wave_mask = waves[:, iord] > 1.0
+
+        # get sensfunc from the sens_table
+        coeff = sens_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+        wave_min=sens_table[iord]['WAVE_MIN']
+        wave_max = sens_table[iord]['WAVE_MAX']
+        sensfunc_iord = np.exp(utils.func_val(coeff, waves[wave_mask, iord], func, minx=wave_min, maxx=wave_max))
+        mask_sens_iord = sensfunc_iord > 0.0
+        weights[wave_mask, iord] = 1.0/(sensfunc_iord+(sensfunc_iord==0.))
+        masks[mask_iord, iord] = mask_sens_iord
+
+    if debug:
+        weights_qa(waves, weights, masks)
+
+
+    return weights, masks
+
 def ech_combspec_old(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
                  samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                  sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
@@ -1141,6 +1185,50 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     # Finish
     return rms_sn, weights
 
+
+
+def sensfunc_weights(sensfile, waves, debug=False):
+    '''
+    Get the weights based on the sensfunc
+    Args:
+        sensfile (str):
+            the name of your fits format sensfile
+        waves (ndarray): (nspec, norders, nexp)
+            wavelength grid for your output weights
+        debug (bool): default=False
+            show the weights QA
+    Returns:
+        weights (ndarray):
+            sensfunc weights evaluated on the input waves wavelength grid
+    '''
+
+    sens_meta= Table.read(sensfile, 1)
+    sens_table = Table.read(sensfile, 2)
+    func = sens_meta['FUNC'][0]
+    polyorder_vec = sens_meta['POLYORDER_VEC'][0]
+
+    weights = np.zeros_like(waves)
+    nspec, norder, nexp = waves.shape
+
+    if norder != len(sens_table):
+        msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+
+    for iord in range(norder):
+        # Get sensfunc from the sens_table
+        coeff = sens_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+        wave_min = sens_table[iord]['WAVE_MIN']
+        wave_max = sens_table[iord]['WAVE_MAX']
+        for iexp in range(nexp):
+            wave_mask = waves[:, iord, iexp] > 1.0
+            sensfunc_iord = np.exp(utils.func_val(coeff, waves[wave_mask, iord, iexp], func, minx=wave_min, maxx=wave_max))
+            weights[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
+
+    if debug:
+        weights_qa(waves, weights, (waves > 1.0), title='sensfunc_weights')
+
+
+    return weights
+
 # TODO Rename this function to something sensfunc related
 def get_tell_from_file(sensfile, waves, masks, iord=None):
     '''
@@ -1189,50 +1277,6 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
 
     return telluric
 
-
-def sensfunc_weights(sensfile, waves, masks, debug=False):
-    '''
-    Get the weights based on the sensfunc
-    Args:
-        sensfile (str): the name of your fits format sensfile
-        waves (ndarray): wavelength grid for your output weights
-        masks (ndarray, bool): mask for the wave s
-        debug (bool): whether you want show the weights QA
-    Returns:
-        weights (ndarray): weights on you wavelength grid
-        masks (ndarray, bool): mask for your weights
-    '''
-
-    sens_meta= Table.read(sensfile, 1)
-    sens_table = Table.read(sensfile, 2)
-    func = sens_meta['FUNC'][0]
-    polyorder_vec = sens_meta['POLYORDER_VEC'][0]
-
-    weights = np.zeros_like(waves)
-    norder = waves.shape[1]
-
-    if norder != len(sens_table):
-        msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
-
-    for iord in range(norder):
-        wave_iord = waves[:, iord]
-        mask_iord = masks[:, iord]
-        wave_mask = waves[:, iord] > 1.0
-
-        # get sensfunc from the sens_table
-        coeff = sens_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        wave_min=sens_table[iord]['WAVE_MIN']
-        wave_max = sens_table[iord]['WAVE_MAX']
-        sensfunc_iord = np.exp(utils.func_val(coeff, waves[wave_mask, iord], func, minx=wave_min, maxx=wave_max))
-        mask_sens_iord = sensfunc_iord > 0.0
-        weights[wave_mask, iord] = 1.0/(sensfunc_iord+(sensfunc_iord==0.))
-        masks[mask_iord, iord] = mask_sens_iord
-
-    if debug:
-        weights_qa(waves, weights, masks)
-
-
-    return weights, masks
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=20.0, min_good=0.05,
                         maxiters=5, sigrej=3.0, max_factor=10.0):
@@ -1827,12 +1871,33 @@ def weights_qa(waves, weights, masks, title=''):
             Pixels which were masked in each individual exposure which go into the stack.
     '''
 
-    nexp = np.shape(waves)[1]
+    if waves.ndim == 1:
+        nstack = 1
+        nspec = waves.shape[0]
+        waves_stack = waves.reshape((nspec, nstack))
+        weights_stack = weights.reshape((nspec, nstack))
+        masks_stack = masks.reshape((nspec, nstack))
+    elif waves.ndim == 2:
+        nspec, nstack = waves.shape
+        waves_stack = waves
+        weights_stack = weights
+        masks_stack = masks
+    elif weights.ndim == 3:
+        nspec, norder, nexp = waves.shape
+        waves_stack = np.reshape(waves, (nspec, norder * nexp), order='F')
+        weights_stack = np.reshape(weights, (nspec, norder * nexp), order='F')
+        masks_stack = np.reshape(masks, (nspec, norder * nexp), order='F')
+        nstack = norder*nexp
+    else:
+        msgs.error('Unrecognized dimensionality for waves')
+
+
     fig = plt.figure(figsize=(12, 8))
-    wave_mask = waves > 1.0
-    for iexp in range(nexp):
-        plt.plot(waves[wave_mask[:,iexp],iexp], weights[wave_mask[:,iexp],iexp]*masks[wave_mask[:,iexp],iexp])
-    plt.xlim((waves[wave_mask].min(), waves[wave_mask].max()))
+    for iexp in range(nstack):
+        wave_mask = waves_stack[:, iexp] > 1.0
+        plt.plot(waves_stack[wave_mask,iexp], weights_stack[wave_mask,iexp]*masks_stack[wave_mask,iexp])
+
+    plt.xlim(waves_stack[(waves_stack > 1.0)].min(), waves_stack[(waves_stack > 1.0)].max())
     plt.xlabel('Wavelength (Angstrom)')
     plt.ylabel('Weights')
     plt.title(title, fontsize=16, color='red')
@@ -2432,7 +2497,7 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
-def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
+def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
                  samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                  niter_order_scale=3, sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
@@ -2571,6 +2636,11 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
 
     # data shape
     nspec, norder, nexp = waves.shape
+    if nbest is None:
+        # Decide how many orders to use for estimating the per exposure weights. If nbest was not passed in
+        # default to using one fourth of the orders
+        nbest = int(np.ceil(norder/4))
+
 
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:
@@ -2589,11 +2659,16 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
                               A_pix=A_pix, v_pix=v_pix, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights,
-                                 verbose=True)
-    # TODO tighten up and compute the sensfunc weights, and echelle weights
-    #sn = None
-    #order_weights, masks_stack_orders = sensfunc_weights(sensfile, waves_stack_orders, masks_stack_orders, debug=debug)
+    rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=True)
+    # Isolate the nbest best orders, and then use the average S/N of these to determine the per exposure relative weights.
+    mean_sn_ord = np.mean(rms_sn, axis=1)
+    best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]
+    rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
+    weights_exp = np.tile(rms_sn_per_exp**2, (nspec, norder, 1))
+    weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
+    weights = weights_exp*weights_sens
+    if debug:
+        weights_qa(waves, weights, masks, title='ech_combspec', debug=debug)
 
     #TODO think through whether this is the correct approach of multiplying weights?
     # apply the sensfunc weights to the orginal weights: sensfunc_weights*weightsf
@@ -2619,7 +2694,11 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
                              hand_scale=hand_scale,
                              sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, debug=debug_scale)
 
-    # Arrays to store rescaled spectra. Need Fortran like order reshaping to create a (nspec, norder*nexp) stack of spectra
+    embed()
+    # Arrays to store rescaled spectra. Need Fortran like order reshaping to create a (nspec, norder*nexp) stack of spectra.
+    # The order of the reshaping in the second dimension is such that blocks norder long for each exposure are stacked
+    # sequentially, i.e. for order number [:, 0:norder] would be the 1st exposure, [:,norder:2*norder] would be the
+    # 2nd exposure, etc.
     shape_2d = (nspec, norder * nexp)
     waves_2d = np.reshape(waves, shape_2d, order='F')
     fluxes_2d = np.reshape(fluxes_scl_interord, shape_2d, order='F')
@@ -2627,19 +2706,25 @@ def ech_combspec(fnames, objids, sensfile=None, ex_value='OPT', flux_value=True,
     masks_2d = np.reshape(masks, shape_2d, order='F')
     scales_2d = np.reshape(scales_interord, shape_2d, order='F')
     weights_2d = np.reshape(weights, shape_2d, order='F')
+    rms_sn_2d = np.reshape(rms_sn, (norder*nexp), order='F')
     # Iteratively scale and stack the spectra, this takes or the order re-scaling we were doing previously
     fluxes_pre_scale = fluxes_2d.copy()
     ivars_pre_scale = ivars_2d.copy()
+    # For the first iteration use the scale_method input as an argument (default=None, which will allow
+    # soly_poly_ratio scaling which is very slow). For all the other iterations simply use median rescaling since
+    # we are then applying tiny corrections and median scaling is much faster
+    scale_method_iter = [scale_method]  + ['median']*(niter_order_scale - 1)
     for iter in range(niter_order_scale):
         fluxes_scale, ivars_scale, scales_iter, scale_method_used = scale_spec_stack(
-            wave_grid, waves_2d, fluxes_pre_scale, ivars_pre_scale, masks_2d, weights_2d, ref_percentile=ref_percentile,
-            maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
+            wave_grid, waves_2d, fluxes_pre_scale, ivars_pre_scale, masks_2d, rms_sn_2d, weights_2d, ref_percentile=ref_percentile,
+            maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method_iter[iter], hand_scale=hand_scale,
             sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale,
             show=(show_order_scale & (iter == (niter_order_scale-1))))
         scales_2d *= scales_iter
         fluxes_pre_scale = fluxes_scale.copy()
         ivars_pre_scale = ivars_scale.copy()
 
+    embed()
     # Now go right to the final stack
 
     # Arrays to store stacked individual order spectra.
