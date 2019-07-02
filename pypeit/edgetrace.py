@@ -115,12 +115,15 @@ class EdgeTraceBitMask(BitMask):
                 ('DISCONTINUOUS', 'Pixel included in a trace but part of a diseontinuous segment'),
                     ('DUPLICATE', 'Trace is a duplicate based on trace matching tolerance'),
                    ('SHORTRANGE', 'Trace does not meet the minimum spectral range criterion'),
+#                ('SHORTDETRANGE', 'Trace length does not meet trace detection threshold.'),
+#                ('SHORTFITRANGE', 'Trace length does not meet fitting/PCA threshold.'),
                        ('HITMIN', 'Trace crosses the minimum allowed column'),
                        ('HITMAX', 'Trace crosses the maximum allowed column'),
                   ('OFFDETECTOR', 'Trace lands off the detector'),
                    ('USERINSERT', 'Trace was inserted as requested by user'),
                    ('SYNCINSERT', 'Trace was inserted during left and right edge sync'),
                    ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations'),
+                 ('ORPHANINSERT', 'Trace was inserted to match an orphaned edge'),
                     ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
                  ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length')
                            ])
@@ -139,7 +142,7 @@ class EdgeTraceBitMask(BitMask):
         List of flags used to mark traces inserted for various
         reasons.
         """
-        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT'] 
+        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT'] 
 
 
 class EdgeTracePCA:
@@ -670,9 +673,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Fit the trace locations with a polynomial
         self.fit_refine(debug=debug)
-        if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True)
-
         # Use the fits to determine if there are any discontinous trace
         # centroid measurements that are actually components of the
         # same slit edge
@@ -680,11 +680,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
+        import pdb
+        pdb.set_trace()
+
         # Use a PCA decomposition to parameterize the trace functional
         # forms
         self.pca_refine(debug=debug)
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
+
+        pdb.set_trace()
 
         # Use the results of the PCA decomposition to recify and detect
         # peaks/troughs in the spectrally collapsed Sobel-filtered
@@ -701,9 +706,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # `peak_refine` ends with the traces being described by a
         # polynomial. Instead finish by reconstructing the trace models
         # using the PCA decomposition
-        self.pca_refine(debug=debug)
-        if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True)
+#        self.pca_refine(debug=debug)
+#        if show_stages:
+#            self.show(thin=10, include_img=True, idlabel=True)
             
         # TODO: Add mask_refine() when it's ready
 
@@ -738,8 +743,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are `filt_iter`,
-        `sobel_mode`, `edge_thresh`, `follow_span`, and
-        `valid_flux_thresh`.
+        `sobel_mode`, `edge_thresh`, `follow_span`,
+        `valid_flux_thresh`, and `det_buffer`.
 
         The results of this are, by default, saved to the master
         frame; see `save` argument and :func:`save`.
@@ -847,7 +852,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 #        minimum_spec_length = self.nspec * self.par['det_min_spec_length']
         minimum_spec_length = 50
         # NOTE: This used to be match_edges()
-        trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
+        _trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
                                              minimum_spec_length=minimum_spec_length)
 
         # Update the traces by handling single orphan edges and/or
@@ -855,8 +860,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # NOTE: This combines the functionality of
         # edgearr_add_left_right and edgearr_final_left_right
         flux_valid = np.median(_img) > self.par['valid_flux_thresh']
-        trace_id_img = trace.handle_orphan_edge(trace_id_img, self.sobel_sig, bpm=self.bpm,
-                                                flux_valid=flux_valid, copy=True)
+        trace_id_img = trace.handle_orphan_edges(_trace_id_img, self.sobel_sig, bpm=self.bpm,
+                                                  flux_valid=flux_valid,
+                                                  buffer=self.par['det_buffer'], copy=True)
+        # Flag any inserted edges
+        inserted_edge = trace_id_img != _trace_id_img
 
         # Set the ID image to a MaskedArray to ease some subsequent
         # calculations; pixels without a detected edge are masked.
@@ -879,6 +887,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                     & (trace_id_img.data == self.traceid[i]))
             self.spat_img[row,i] = col
             self.spat_msk[row,i] = 0            # Turn-off the mask
+
+            # Flag any insert traces
+            row, col = np.where(np.invert(trace_id_img.mask) & inserted_edge
+                                    & (trace_id_img.data == self.traceid[i]))
+            if len(row) > 0:
+                self.spat_msk[row,i] = self.bitmask.turn_on(self.spat_msk[row,i], 'ORPHANINSERT')
+
 
         # Instantiate objects to store the floating-point trace
         # centroids and errors.
@@ -1623,19 +1638,30 @@ class EdgeTraceSet(masterframe.MasterFrame):
         err = np.zeros_like(self.spat_err)
         msk = np.zeros_like(self.spat_msk, dtype=self.bitmask.minimum_dtype())
 
+        # Ignore inserted traces
+        inserted = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.insert_flags),
+                                               axis=0)
+        if np.any(inserted):
+            cen[:,inserted] = self.spat_cen[:,inserted]
+            err[:,inserted] = self.spat_err[:,inserted]
+            msk[:,inserted] = self.spat_msk[:,inserted]
+
         # Refine left then right
         for side in ['left', 'right']:
             
             # Get the image relevant to tracing this side
             _sobel_sig = self._side_dependent_sobel(side)
 
-            # Identify the traces on the correct side: Traces on the
-            # left side are negative.
-            indx = self.is_left if side == 'left' else self.is_right
-            msgs.info('Number to retrace: {0}'.format(np.sum(indx)))
+            # Find the traces to refine, must be on the correct side
+            # and must not have been inserted
+            indx = (self.is_left if side == 'left' else self.is_right) & np.invert(inserted)
+            if not np.any(indx):
+                continue
+
+            msgs.info('Found {0} {1} edge trace(s) to refine'.format(np.sum(indx), side))
 
             if follow:
-                # Find the most common row index
+                # Find the bad trace positions
                 bpm = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags)
                 untraced = indx.copy()
                 while np.any(untraced):
@@ -1647,9 +1673,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     if not np.any(to_trace):
                         # Something has gone wrong
                         raise ValueError('Traces remain but could not select good starting row.')
-                    msgs.info('Following {0} {1} edge(s) starting from row {2};'.format(
-                                np.sum(to_trace), side, _start_row)
-                               + ' {0} trace(s) remain.'.format(np.sum(untraced)-np.sum(to_trace)))
+                    msgs.info('Following {0} {1} edge(s) '.format(np.sum(to_trace), side)
+                              + 'from row {0}; '.format(_start_row)
+                              + '{0} trace(s) remain.'.format(np.sum(untraced)-np.sum(to_trace)))
                     # Follow the centroid of the Sobel-filtered image
                     cen[:,to_trace], err[:,to_trace], msk[:,to_trace] \
                             = trace.follow_centroid(_sobel_sig, _start_row,
@@ -2320,6 +2346,35 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Append function execution to log
         self.log += [inspect.stack()[0][3]]
 
+    def can_pca(self):
+        """
+        Determine if traces are suitable for PCA decomposition.
+
+        The criterion is that at least 5 traces must cover more than
+        the fraction of the full spectral range specified by
+        `fit_min_spec_length` in :attr:`par`. Traces that are
+        inserted are ignored.
+
+        .. warning::
+            This function calls :func:`check_trace` using
+            `fit_min_spec_length` to flag short traces, meaning that
+            :attr:`spat_msk` will can be altered by this call.
+
+        Returns:
+            :obj:`bool`: Flag that traces meet criterion for PCA
+            decomposition.
+        """
+        # This call to check_traces will flag any trace with a length
+        # below minimum_spec_length as SHORTRANGE
+        # TODO: This means that SHORTRANGE can actually have two
+        # different meanings. Instead use one bit for "too short for
+        # detection" and a separate one for "too short to fit"?
+        self.check_traces(minimum_spec_length=self.par['fit_min_spec_length']*self.nspec)
+        # NOTE: Because of the run of check_traces above, short traces
+        # are fully flagged meaning that we can just check if the
+        # length of the trace is larger than 0.
+        return np.sum(np.sum(np.invert(self.bitmask.flagged(self.spat_msk)), axis=0) > 0) > 4
+
     def build_pca(self, use_center=False, debug=False):
         """
         Build a PCA model of the current edge data.
@@ -2381,31 +2436,30 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.warn('PCA model already exists and will be overwritten.')
         if self.spat_fit is None and not use_center:
             msgs.warn('No trace fits exits.  PCA based on trace centroid measurements.')
-        self.pca_type = 'center' if self.spat_fit is None or use_center else 'fit'
 
-        # Check the traces to make sure they meet the minimum length.
-        # This modifies self.spat_msk directly.
-        self.check_traces(minimum_spec_length=minimum_spec_length)
+        # Check if the PCA decomposition can be performed
+        if not self.can_pca():
+            msgs.error('There must be at least 5 good traces for PCA decomposition.')
+
+        # Set the data used to construct the PCA
+        self.pca_type = 'center' if self.spat_fit is None or use_center else 'fit'
 
         # When constructing the PCA, ignore bad trace measurements
         # *and* any traces inserted by hand.
         bpm = self.bitmask.flagged(self.spat_msk)
 
         # TODO: Is there a way to propagate the mask to the PCA?
-        # TODO: Keep a separate mask specifically for the fit data?
+        # TODO: Keep a separate mask specifically for the fit data? e.g., spat_fit_msk
 
-        # Only use traces that are unmasked for at least some fraction
-        # of the detector
-        # NOTE: Because of the run of check_traces above, this
-        # comparison could replace `minimum_spec_length` with 0 and it
-        # should give the same result.
-        use_trace = np.sum(np.invert(bpm), axis=0) > minimum_spec_length
-        if np.sum(use_trace) < 5:
-            msgs.error('There must be at least 5 good traces for PCA decomposition.')
+        # The call to can_pca means that short traces are fully masked,
+        # meaning that valid traces to use will automatically be longer
+        # than `fit_min_spec_length` if they have more than one valid
+        # measurement.
+        use_trace = np.sum(np.invert(bpm), axis=0) > 0
         trace_inp = self.spat_cen[:,use_trace] if self.spat_fit is None or use_center \
                         else self.spat_fit[:,use_trace]
-        msgs.info('Using {0}/{1} traces in the PCA analysis (omitting short traces).'.format(
-                  np.sum(use_trace), self.ntrace))
+        msgs.info('Using {0}/{1} traces in the PCA analysis.'.format(np.sum(use_trace),
+                                                                     self.ntrace))
 
         # Instantiate the PCA
         self.pca = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
@@ -2641,7 +2695,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # existing set
         add_indx = np.insert(add_indx, missing, missing)
         # Return the edges to add, their side, and where to insert them 
-
         return side, add_edge, add_indx
 
     def _get_reference_locations(self, trace, add_edge):
@@ -2844,18 +2897,25 @@ class EdgeTraceSet(masterframe.MasterFrame):
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
-        # Check input
-        if self.par['sync_predict'] not in ['pca', 'nearest']:
-            raise ValueError('Unknown trace mode: {0}'.format(self.par['sync_predict']))
-        if self.par['sync_predict'] == 'pca' and self.pca is None:
-            raise ValueError('The PCA decomposition does not exist.  Either run self.build_pca '
-                             'or use a different trace_mode.')
-
         # Make sure that the traces are sorted spatially
         # TODO: This should be the convention of the class and should
         # *always* be true; instead check for this and raise an error
         # if it's not?
         self.spatial_sort()
+
+        # Check if the traces are already synced. If so, check them,
+        # log the function as completed, and finish
+        if self.is_synced:
+            self.check_synced(rebuild_pca=rebuild_pca and self.pca is not None)
+            self.log += [inspect.stack()[0][3]]
+            return
+
+        # Edges are currently not synced, so check the input
+        if self.par['sync_predict'] not in ['pca', 'nearest']:
+            raise ValueError('Unknown trace mode: {0}'.format(self.par['sync_predict']))
+        if self.par['sync_predict'] == 'pca' and self.pca is None:
+            raise ValueError('The PCA decomposition does not exist.  Either run self.build_pca '
+                             'or use a different trace_mode.')
 
         # Find the edges to add, what side they're on, and where to
         # insert them into the existing trace array

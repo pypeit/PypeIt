@@ -24,14 +24,13 @@ Submodules
    pypeit.calibrations
    pypeit.check_requirements
    pypeit.debugger
+   pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxspec
    pypeit.ginga
    pypeit.io
    pypeit.masterframe
    pypeit.metadata
-   pypeit.moment
-   pypeit.new_trace
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs

@@ -1,7 +1,7 @@
-pypeit.new\_trace module
+pypeit.core.trace module
 ========================
 
-.. automodule:: pypeit.new_trace
+.. automodule:: pypeit.core.trace
     :members:
     :undoc-members:
     :show-inheritance:

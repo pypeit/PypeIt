@@ -254,7 +254,7 @@ def count_edge_traces(edge_img):
 
 
 # TODO: This needs to be better tested
-def atleast_one_edge(edge_img, bpm=None, flux_valid=True, copy=False):
+def atleast_one_edge(edge_img, bpm=None, flux_valid=True, buffer=0, copy=False):
     """
     Ensure that there is at least one left and one right slit edge
     identified.
@@ -275,6 +275,9 @@ def atleast_one_edge(edge_img, bpm=None, flux_valid=True, copy=False):
             The flux in the image used to construct the edge traces is
             valid meaning that any problems should not be an issue with
             the trace image itself.
+        buffer (:obj:`int`, optional):
+            If adding an edge, this is the minimum number of pixels
+            near the detector edge at which to place the edge.
         copy (:obj:`bool`, optional):
             Copy `edge_img` to a new array before making any
             modifications.  Otherwise, `edge_img` is modified in-place.
@@ -302,25 +305,25 @@ def atleast_one_edge(edge_img, bpm=None, flux_valid=True, copy=False):
         return None
 
     # Use the mask to determine the first and last valid pixel column
-    sum_bpm = np.ones(edge_img.shape[1]) if bpm is None else np.sum(bpm, axis=0) 
+    sum_bpm = np.zeros(edge_img.shape[1]) if bpm is None else np.sum(bpm, axis=0) 
 
     if nleft == 0:
         # Add a left edge trace at the first valid column
         msgs.warn('No left edge found. Adding one at the detector edge.')
-        gdi0 = np.min(np.where(sum_bpm == 0)[0])
+        gdi0 = np.min(np.where(sum_bpm[buffer:] == 0)[0]) + buffer
         _edge_img[:,gdi0] = -1
 
     if nright == 0:
         # Add a right edge trace at the last valid column
         msgs.warn('No right edge found. Adding one at the detector edge.')
-        gdi1 = np.max(np.where(sum_bpm == 0)[0])
+        gdi1 = np.max(np.where(sum_bpm[:-buffer] == 0)[0])
         _edge_img[:,gdi1] = 1
 
     return _edge_img
 
 
 # TODO: This needs to be better tested
-def handle_orphan_edge(edge_img, sobel_sig, bpm=None, flux_valid=True, copy=False):
+def handle_orphan_edges(edge_img, sobel_sig, bpm=None, flux_valid=True, buffer=0, copy=False):
     """
     In the case of single left/right traces and multiple matching
     traces, pick the most significant matching trace and remove the
@@ -345,6 +348,10 @@ def handle_orphan_edge(edge_img, sobel_sig, bpm=None, flux_valid=True, copy=Fals
             The flux in the image used to construct the edge traces is
             valid meaning that any problems should not be an issue with
             the trace image itself.
+        buffer (:obj:`int`, optional):
+            If adding an edge, this is the minimum number of pixels
+            near the detector edge at which to place the edge; see
+            :func:`atleast_one_edge`.
         copy (:obj:`bool`, optional):
             Copy `edge_img` to a new array before making any
             modifications. Otherwise, `edge_img` is modified
@@ -360,7 +367,10 @@ def handle_orphan_edge(edge_img, sobel_sig, bpm=None, flux_valid=True, copy=Fals
 
     if nleft == 0 or nright == 0:
         # Deal with no left or right edges
-        _edge_img = atleast_one_edge(edge_img, bpm=bpm, flux_valid=flux_valid, copy=copy)
+        _edge_img = atleast_one_edge(edge_img, bpm=bpm, flux_valid=flux_valid, buffer=buffer,
+                                     copy=copy)
+        # Update the number of edges
+        nleft, nright = count_edge_traces(_edge_img)
     else:
         # Just do basic setup
         _edge_img = edge_img.copy() if copy else edge_img
