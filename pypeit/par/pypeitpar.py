@@ -1687,7 +1687,7 @@ class ScienceImagePar(ParSet):
 
     def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
-                 find_trim_edge=None, std_prof_nsigma=None,
+                 find_trim_edge=None, find_cont_fit=None, std_prof_nsigma=None,
                  model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
@@ -1754,6 +1754,11 @@ class ScienceImagePar(ParSet):
         dtypes['find_trim_edge'] = list
         descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
 
+        defaults['find_cont_fit'] = True
+        dtypes['find_cont_fit'] = bool
+        descr['find_cont_fit'] = 'Fit a continuum to the illumination pattern across the trace rectified image' \
+                                 ' (masking objects) when searching for peaks to initially identify objects'
+
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]
         descr['sn_gauss'] = 'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
@@ -1788,7 +1793,7 @@ class ScienceImagePar(ParSet):
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
-                   'find_trim_edge', 'std_prof_nsigma',
+                   'find_trim_edge', 'find_cont_fit', 'std_prof_nsigma',
                    'sky_sigrej']
         kwargs = {}
         for pk in parkeys:
