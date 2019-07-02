@@ -1536,7 +1536,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
 
     if cont_fit:
         cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
-                                             cont_frac_fwhm=2.0, sigthresh=sig_thresh,
+                                             cont_frac_fwhm=2.0, sigthresh=3.0,
                                              sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True)
     else:
         cont = np.zeros_like(fluxconv)
