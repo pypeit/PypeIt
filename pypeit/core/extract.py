@@ -1210,8 +1210,8 @@ def parse_hand_dict(hand_extract_dict):
 
 
 
-def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwhm = 3.0, maxdev = 1.0, maxiter = 25,
-                  niter=9,gweight=False,show_fits=False, idx = None, verbose=False, xmin= None, xmax = None):
+def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwhm = 3.0, maxdev = 2.0, maxiter = 25,
+                  niter=9,gweight=False, show_fits=False, idx = None, verbose=False, xmin= None, xmax = None):
     """ Utility routine for object find to iteratively trace and fit. Used by both objfind and ech_objfind
 
     Parameters
@@ -1321,7 +1321,6 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         #errmask = (xerr1 > 990.0)  # bad pixels have errors set to 999 and are returned to lie on the input trace
         outmask = pos_set1.outmask.T
-        show_fits=True
         # Plot all the points that were not masked initially
         if(show_fits) & (iiter == niter - 1):
             for iobj in range(nobj):
@@ -1389,11 +1388,11 @@ def create_skymask_fwhm(sobjs, thismask):
 
         return skymask
 
-def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=1.0, spec_min_max=None,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
-            show_peaks=False, show_fits=False, show_trace=False, qa_title=''):
+            show_peaks=False, show_fits=False, show_trace=False, debug_all=False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
 
@@ -1420,7 +1419,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         spectral direction on the detector. If not passed in it will be determined automatically from the thismask
     fwhm: float, default = 3.0
         Estimated fwhm of the objects in pixels
-    maxdev (float): default=1.0
+    maxdev (float): default=2.0
         Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.
     hand_extract_dict: dict, default = None
         Dictionary containing information about apertures requested by user that should be place by hand in the object list.
@@ -1479,6 +1478,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
     23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
+
+    if debug_all:
+        show_peaks=True
+        show_fits = True
+        show_trace = True
+
     if specobj_dict is None:
         specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
 
@@ -1544,8 +1549,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
 
     cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
-                                         cont_frac_fwhm=2.0, sigthresh=3.0,
-                                         sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True)
+                                         cont_frac_fwhm=2.0, sigthresh=5.0,
+                                         sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True, debug=True)
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
 
 
@@ -1569,7 +1574,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     # Now find all the peaks without setting any threshold
     ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv_cont, cont_subtract = False, fwhm = fwhm,
-                                                            input_thresh = 'None',debug=False)
+                                                            input_thresh = 'None',debug=debug_all)
 
     # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
     # with the edgemask, but we do it here anyway
@@ -1868,7 +1873,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     skymask_fwhm = create_skymask_fwhm(sobjs,thismask)
     skymask = skymask_objflux | skymask_fwhm
     # If requested display the resulting traces on top of the image
-    if (nobj > 0) & (show_trace):
+    if show_trace:
         viewer, ch = ginga.show_image(image*(thismask*inmask))
         ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
         for iobj in range(nobj):
@@ -2090,9 +2095,9 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
                 fof_link=1.0, order_vec=None, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, min_snr=-np.inf, nabove_min_snr=1,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=1.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
+                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
-                trim_edg=(5,5), cont_fit=True, show_peaks=False, show_fits=False, show_single_fits=False,
+                trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False):
     """
     Object finding routine for Echelle spectrographs. This routine:
@@ -2121,7 +2126,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         Input mask for the input image.
     fwhm: float, default = 3.0
         Estimated fwhm of the objects in pixels
-    maxdev (float): default=1.0
+    maxdev (float): default=2.0
         Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.
     spec_min_max: float or int ndarray, (2, norders), default=None. This is a 2-d array which defines the minimum and maximum of each order in the
        spectral direction on the detector. This should only be used for echelle spectrographs for which the orders do not
@@ -2232,7 +2237,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                     inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
                     hand_extract_dict=hand_extract_dict,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
-                    peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit, show_peaks=show_peaks,
+                    peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
+                    npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace, specobj_dict=specobj_dict)
         # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
         for spec in sobjs_slit:

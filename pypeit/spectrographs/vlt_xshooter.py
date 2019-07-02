@@ -235,6 +235,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['scienceimage']['trace_npoly'] = 8
+        par['scienceimage']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
+        par['scienceimage']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
 
         # Do not bias subtract
         par['scienceframe']['useframe'] ='none'
@@ -540,6 +542,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         par['scienceimage']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
+        par['scienceimage']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         par['scienceimage']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames

@@ -589,17 +589,19 @@ class MultiSlit(Reduce):
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
 
-            sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
+            # JFH This is a bad idea
+            #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
             #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],
                                 self.tslits_dict['slit_righ'][:,slit], inmask=inmask,
                                 ncoeff=self.redux_par['trace_npoly'], std_trace=std_trace,
-                                sig_thresh=sig_thresh, hand_extract_dict=manual_extract_dict,
+                                sig_thresh=self.redux_par['sig_thresh'], hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
                                 show_fits=show_fits, show_trace=show_trace,
                                 trim_edg=self.redux_par['find_trim_edge'],
                                 cont_fit=self.redux_par['find_cont_fit'],
+                                npoly_cont=self.redux_par['find_npoly_cont'],
                                 fwhm=self.redux_par['find_fwhm'],
                                 maxdev=self.redux_par['find_maxdev'],
                                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
@@ -721,15 +723,16 @@ class Echelle(Reduce):
         # Find objects
         specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
-        # ToDO implement parsets here!
-        sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
+        # TODO This is a bad idea -- we want to find everything for standards
+        #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
             spec_min_max=np.vstack((self.tslits_dict['spec_min'],self.tslits_dict['spec_max'])),
             inmask=inmask, ncoeff=self.redux_par['trace_npoly'], order_vec=order_vec,
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale, std_trace=std_trace,
-            specobj_dict=specobj_dict,sig_thresh=sig_thresh, show_peaks=show_peaks, show_fits=show_fits,
+            specobj_dict=specobj_dict,sig_thresh=self.redux_par['sig_thresh'], show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.redux_par['find_trim_edge'], cont_fit=self.redux_par['find_cont_fit'],
+            npoly_cont=self.redux_par['find_npoly_cont'],
             fwhm=self.redux_par['find_fwhm'], maxdev=self.redux_par['find_maxdev'],
             show_trace=show_trace, debug=debug)
 

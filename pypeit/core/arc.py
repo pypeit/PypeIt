@@ -14,7 +14,8 @@ from pypeit import msgs
 from pypeit import utils
 #from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wvutils
-from pypeit import debugger
+from IPython import embed
+
 
 from pypeit.core import pydl
 from pypeit.core import qa
@@ -781,15 +782,14 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             #plt.plot(spec_vec, spec*cont_mask,'k', label='Spectrum*cont_mask')
             plt.plot(spec_vec, cont_now,'g',label='continuum')
             plt.plot(spec_vec, spec - cont_now,'b',label='spec-cont')
-            plt.plot(spec_vec[cont_mask], spec[cont_mask], color='green', markersize=3.0,
-                     mfc='green', linestyle='None', fillstyle='full',
+            plt.plot(spec_vec[cont_mask], spec[cont_mask], color='cyan', markersize=3.0,
+                     mfc='cyan', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'Used for cont')
             plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
                      mfc='red', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'masked for cont')
             plt.legend()
             plt.show()
-
 
     return cont_now, cont_mask
 

@@ -110,6 +110,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Extraction
         par['scienceimage']['sig_thresh'] = 5.0
         par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
+        par['scienceimage']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
+        par['scienceimage']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
+
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['scienceimage']['no_poly']  = True         # Do not use polynomial degree of freedom for global skysub
