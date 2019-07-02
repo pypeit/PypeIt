@@ -1534,16 +1534,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
 
-    if cont_fit:
-        cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
-                                             cont_frac_fwhm=2.0, sigthresh=3.0,
-                                             sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True)
-    else:
-        cont = np.zeros_like(fluxconv)
-        cont_mask = np.ones_like(fluxconv,dtype=bool)
+    cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
+                                         cont_frac_fwhm=2.0, sigthresh=3.0,
+                                         sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True)
+    fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
 
-    # TODO this is experimental, but I'm removing the linear continuum fit
-    fluxconv_cont = fluxconv - cont
 
     if np.any(cont_mask) == False:
         cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
