@@ -1321,16 +1321,22 @@ def iter_tracefit(image, xinit_in, ncoeff, inmask = None, trc_inmask = None, fwh
         xfit1 = pos_set1.yfit.T
         # bad pixels have errors set to 999 and are returned to lie on the input trace. Use this only for plotting below
         tracemask1 = (xerr1 > 990.0)  # bad pixels have errors set to 999 and are returned to lie on the input trace
+        outmask = pos_set1.outmask.T
+        show_fits=True
         # Plot all the points that were not masked initially
         if(show_fits) & (iiter == niter - 1):
             for iobj in range(nobj):
                 nomask = (tracemask1[:,iobj]==0)
+                rejmask = outmask[:, iobj]
                 plt.plot(spec_vec[nomask],xpos1[nomask,iobj],marker='o', c='k', markersize=3.0,linestyle='None',label=title_text + ' Centroid')
                 plt.plot(spec_vec,xinit[:,iobj],c='g', zorder = 25, linewidth=2.0,linestyle='--', label='initial guess')
                 plt.plot(spec_vec,xfit1[:,iobj],c='red',zorder=30,linewidth = 2.0, label ='fit to trace')
-                if np.any(~nomask):
+                if np.any(np.invert(nomask)):
                     plt.plot(spec_vec[np.invert(nomask)],xfit1[np.invert(nomask),iobj], c='blue',marker='+',
-                             markersize=5.0,linestyle='None',zorder= 20, label='masked points, set to init guess')
+                             markersize=5.0,linestyle='None',zorder= 20, label='masked by tracing, set to init guess')
+                if np.any(np.invert(rejmask)):
+                    plt.plot(spec_vec[np.invert(rejmask)],xfit1[np.invert(rejmask),iobj], c='magenta',marker='v',
+                             markersize=5.0,linestyle='None',zorder= 20, label='masked by polynomial fit')
                 if np.any(np.invert(trc_inmask_out)):
                     plt.plot(spec_vec[np.invert(trc_inmask_out[:,iobj])],xfit1[np.invert(trc_inmask_out[:,iobj]),iobj],
                              c='orange',marker='s',markersize=3.0,linestyle='None',zorder= 20, label='input masked points, not fit')
@@ -1381,7 +1387,7 @@ def create_skymask_fwhm(sobjs, thismask):
 
         return skymask
 
-def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_min_max=None,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=5.0, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
@@ -1399,7 +1405,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
     thismask:  boolean ndarray
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order
-
     slit_left:  float ndarray
         Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
         or (nspec)
@@ -1413,6 +1418,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
         spectral direction on the detector. If not passed in it will be determined automatically from the thismask
     fwhm: float, default = 3.0
         Estimated fwhm of the objects in pixels
+    maxdev (float): default=5.0
+        Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.
     hand_extract_dict: dict, default = None
         Dictionary containing information about apertures requested by user that should be place by hand in the object list.
         This option is useful for cases like an emission line obect that the code fails to find with its significance threshold
@@ -1727,10 +1734,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
         xinit_fweight = np.copy(sobjs.trace_spat.T)
         spec_mask = (spec_vec >= spec_min_max[0]) & (spec_vec <= spec_min_max[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
-        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm, idx = sobjs.idx,
+        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
+                                             maxdev=maxdev, idx = sobjs.idx,
                                              show_fits=show_fits)
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff,inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm, gweight = True,
+        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff,inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
+                                              maxdev=maxdev, gweight = True,
                                               idx = sobjs.idx, show_fits=show_fits)
         # Linearly extrapolate the traces where they are bad
         xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max)
@@ -2080,7 +2089,7 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
                 fof_link=1.0, order_vec=None, plate_scale=0.2,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, min_snr=-np.inf, nabove_min_snr=1,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
+                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=5.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False):
@@ -2092,8 +2101,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
           fractional position along the order.
        4) A PCA fit to the traces is performed using the routine above pca_fit
 
-    Parameters
-    ----------
+    Args:
     image:  float ndarray, shape (nspec, nspat)
         Image to search for objects from. This image has shape (nspec, nspat) where the first dimension (nspec) is spectral,
         and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
@@ -2108,12 +2116,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         Left boundary of orders to be extracted (given as floating pt pixels). This a 2-d array with shape (nspec, norders)
     slit_righ:  float ndarray
         Left boundary of orders to be extracted (given as floating pt pixels). This a 2-d array with shape (nspec, norders)
-
-
-    Optional Parameters
-    ----------
     inmask: ndarray, bool, shape (nspec, nspat), default = None
         Input mask for the input image.
+    fwhm: float, default = 3.0
+        Estimated fwhm of the objects in pixels
+    maxdev (float): default=5.0
+        Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.
     spec_min_max: float or int ndarray, (2, norders), default=None. This is a 2-d array which defines the minimum and maximum of each order in the
        spectral direction on the detector. This should only be used for echelle spectrographs for which the orders do not
        entirely cover the detector. The pca_trace code will re-map the traces such that they all have the same length,
@@ -2220,7 +2228,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             std_in = None
         sobjs_slit, skymask_objfind[thismask] = \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
-                    inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm,hand_extract_dict=hand_extract_dict,
+                    inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
+                    hand_extract_dict=hand_extract_dict,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace, specobj_dict=specobj_dict)
@@ -2461,11 +2470,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # TODO Input fwhm here
         #trc_inmask = (spec_vec >= spec_min_max[0]) & (spec_vec <= spec_min_max[1])
         xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, trc_inmask=trc_inmask,
-                                             fwhm=fwhm, show_fits=show_fits)
+                                             fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
         xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now,  trc_inmask=trc_inmask,
-                                              gweight=True, fwhm=fwhm, show_fits=show_fits)
+                                              gweight=True, fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
         xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max)
         # Assign the new traces
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
