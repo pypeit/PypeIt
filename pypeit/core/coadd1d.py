@@ -471,7 +471,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         scale_spec_qa(wave, flux_med, ivar_med, wave, flux_ref_med, ivar_ref_med, ymult, 'poly', mask = mask, mask_ref=mask_ref,
                       title='Median Filtered Spectra that were poly_ratio Fit')
 
-    return ymult, flux_rescale, ivar_rescale, outmask
+    return ymult, (result.x, wave_min, wave_max), flux_rescale, ivar_rescale, outmask
 
 
 def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
@@ -994,7 +994,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
                npoly=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
     '''
     Routine for solving for the best way to rescale an input spectrum flux to match a reference spectrum flux_ref.
-    The two spectra need to be defined on the same wavelength grid. The code will work best if you choose the reference
+    The code will work best if you choose the reference
     to be the higher S/N ratio spectrum. If the scale_method is not specified, the code will make a decision about
     which method to use based on the input S/N ratio.
 
@@ -1082,8 +1082,8 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
                 npoly = 2
             else:
                 npoly = 1
-        scale, flux_scale, ivar_scale, outmask = solve_poly_ratio(wave, flux, ivar, flux_ref_int, ivar_ref_int, npoly,
-                                                                      mask=mask, mask_ref=mask_ref_int, debug=debug)
+        scale, fit_tuple, flux_scale, ivar_scale, outmask = solve_poly_ratio(
+            wave, flux, ivar, flux_ref_int, ivar_ref_int, npoly,mask=mask, mask_ref=mask_ref_int, debug=debug)
     elif scale_method == 'median':
         # Median ratio (reference to spectrum)
         med_scale = robust_median_ratio(flux, ivar, flux_ref_int, ivar_ref_int,ref_percentile=ref_percentile,min_good=min_good,
