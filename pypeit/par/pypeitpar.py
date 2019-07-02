@@ -1759,7 +1759,7 @@ class ScienceImagePar(ParSet):
         descr['find_cont_fit'] = 'Fit a continuum to the illumination pattern across the trace rectified image' \
                                  ' (masking objects) when searching for peaks to initially identify objects'
 
-        defaults['find_maxdev'] = 5.0
+        defaults['find_maxdev'] = 1.0
         dtypes['find_maxdev'] = [int, float]
         descr['find_maxdev'] = 'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.'
 
