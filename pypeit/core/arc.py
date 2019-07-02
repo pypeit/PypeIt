@@ -697,7 +697,7 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
     Args:
-       spec:  ndarray, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
+       spec (ndarray, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
        inmask: ndarray, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
        niter_cont: int, default = 3
             Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
@@ -780,7 +780,7 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             plt.plot(spec_vec, spec,'k', label='Spectrum')
             #plt.plot(spec_vec, spec*cont_mask,'k', label='Spectrum*cont_mask')
             plt.plot(spec_vec, cont_now,'g',label='continuum')
-            plt.plot(spec_vec, spec_sub,'b',label='spec-cont')
+            plt.plot(spec_vec, spec - cont_now,'b',label='spec-cont')
             plt.plot(spec_vec[cont_mask], spec[cont_mask], color='green', markersize=3.0,
                      mfc='green', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'Used for cont')
