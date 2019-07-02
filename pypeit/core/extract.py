@@ -1384,7 +1384,7 @@ def create_skymask_fwhm(sobjs, thismask):
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            skymask_nthresh=1.0, specobj_dict=None,
+            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
             show_peaks=False, show_fits=False, show_trace=False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -1530,9 +1530,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
 
-    cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
-                                         cont_frac_fwhm=2.0, sigthresh=sig_thresh,
-                                         sigrej=2.0, cont_samp=3,npoly=1, cont_mask_neg=True)
+    if cont_fit:
+        cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
+                                             cont_frac_fwhm=2.0, sigthresh=sig_thresh,
+                                             sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True)
+    else:
+        cont = np.zeros_like(fluxconv)
+        cont_mask = np.ones_like(fluxconv,dtype=bool)
+
     # TODO this is experimental, but I'm removing the linear continuum fit
     fluxconv_cont = fluxconv - cont
 
