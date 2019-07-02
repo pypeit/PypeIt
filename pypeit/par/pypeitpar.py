@@ -1750,8 +1750,8 @@ class ScienceImagePar(ParSet):
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'
 
-        defaults['find_trim_edge'] = (5,5)
-        dtypes['find_trim_edge'] = tuple
+        defaults['find_trim_edge'] = [5,5]
+        dtypes['find_trim_edge'] = list
         descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
 
         defaults['find_cont_fit'] = True
