@@ -261,13 +261,12 @@ class Reduce(object):
 
         # Prep
         self.global_sky = np.zeros_like(self.sciImg.image)
-        if (std and not self.redux_par['global_sky_std']):
-            msgs.info('Skipping global sky-subtraction for standard star.')
-            return self.global_sky
-
         if std:
             sigrej = 7.0
             update_crmask = False
+            if not self.redux_par['global_sky_std']:
+                msgs.info('Skipping global sky-subtraction for standard star.')
+                return self.global_sky
         else:
             sigrej = 3.0
 

@@ -1736,6 +1736,7 @@ class ScienceImagePar(ParSet):
         dtypes['std_prof_nsigma'] = float
         descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
 
+        defaults['global_sky_std'] = True
         dtypes['global_sky_std'] = bool
         descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
                                   'off for example for near-IR reductions with narrow slits, since bright standards can' \
