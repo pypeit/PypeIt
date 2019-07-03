@@ -239,7 +239,7 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
 
     return sigma_corr, maskchi
 
-def poly_ratio_eval(theta, func, model, wave, wave_min, wave_max):
+def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     """
     Routine to evaluate the polynomial fit
     Args:
@@ -307,7 +307,7 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     wave_max = arg_dict['wave_max']
     func = arg_dict['func']
     model = arg_dict['model']
-    ymult = poly_ratio_eval(theta, func, model, wave, wave_min, wave_max)
+    ymult = poly_model_eval(theta, func, model, wave, wave_min, wave_max)
 
     flux_scale = ymult*flux_med
     mask_both = mask & thismask
@@ -374,7 +374,7 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     func = arg_dict['func']
     model = arg_dict['model']
     # Evaluate the polynomial for rescaling
-    ymult = poly_ratio_eval(result.x, func, model, wave, wave_min, wave_max)
+    ymult = poly_model_eval(result.x, func, model, wave, wave_min, wave_max)
     flux_scale = ymult*flux
     mask_both = mask & thismask
     totvar = utils.inverse(ivar_ref) + ymult**2*utils.inverse(ivar)
@@ -504,7 +504,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
 
     result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
-    ymult1 = poly_ratio_eval(result.x, func, model, wave, wave_min, wave_max)
+    ymult1 = poly(result.x, func, model, wave, wave_min, wave_max)
     ymult = np.fmin(np.fmax(ymult1, scale_min), scale_max)
     flux_rescale = ymult*flux
     ivar_rescale = ivar/ymult**2
