@@ -680,29 +680,35 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
-        import pdb
-        pdb.set_trace()
+        # Check if the PCA decomposition is possible; this should catch
+        # long slits
+        if self.can_pca():
+            # Use a PCA decomposition to parameterize the trace
+            # functional forms
+            self.pca_refine(debug=debug)
+            if show_stages:
+                self.show(thin=10, include_img=True, idlabel=True)
 
-        # Use a PCA decomposition to parameterize the trace functional
-        # forms
-        self.pca_refine(debug=debug)
-        if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True)
-
-        pdb.set_trace()
-
-        # Use the results of the PCA decomposition to recify and detect
-        # peaks/troughs in the spectrally collapsed Sobel-filtered
-        # image, then use those peaks to further refine the edge traces
-        self.peak_refine(rebuild_pca=True, debug=debug)
-        if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True)
+            # Use the results of the PCA decomposition to recify and
+            # detect peaks/troughs in the spectrally collapsed
+            # Sobel-filtered image, then use those peaks to further
+            # refine the edge traces
+            self.peak_refine(rebuild_pca=True, debug=debug)
+            if show_stages:
+                self.show(thin=10, include_img=True, idlabel=True)
+        elif self.par['sync_predict'] == 'pca':
+            # TODO: Maybe we should instead force a fault here instead
+            # of letting the code change a parameter?
+            msgs.warn('Sync predict cannot use PCA; using nearest instead.')
+            self.par['sync_predict'] = 'nearest'
 
         # Left-right synchronize the traces
         self.sync()
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
+        # TODO: Add a parameter and an if statement that will allow for
+        # this.
         # `peak_refine` ends with the traces being described by a
         # polynomial. Instead finish by reconstructing the trace models
         # using the PCA decomposition
@@ -711,6 +717,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 #            self.show(thin=10, include_img=True, idlabel=True)
             
         # TODO: Add mask_refine() when it's ready
+
+        import pdb
+        pdb.set_trace()
 
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
@@ -853,18 +862,23 @@ class EdgeTraceSet(masterframe.MasterFrame):
         minimum_spec_length = 50
         # NOTE: This used to be match_edges()
         _trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
-                                             minimum_spec_length=minimum_spec_length)
+                                              minimum_spec_length=minimum_spec_length)
 
         # Update the traces by handling single orphan edges and/or
         # traces without any left or right edges.
         # NOTE: This combines the functionality of
         # edgearr_add_left_right and edgearr_final_left_right
+
+        # TODO: Why is this needed? Comments say that this is primarily
+        # in place for LRISb, but can this be handled better with sync()?
         flux_valid = np.median(_img) > self.par['valid_flux_thresh']
         trace_id_img = trace.handle_orphan_edges(_trace_id_img, self.sobel_sig, bpm=self.bpm,
                                                   flux_valid=flux_valid,
                                                   buffer=self.par['det_buffer'], copy=True)
         # Flag any inserted edges
-        inserted_edge = trace_id_img != _trace_id_img
+        # TODO: handle_orphan_edge can delete or insert edges; deleted
+        # edges are ignored hereafter, inserted edges are flagged
+        inserted_edge = (trace_id_img != 0) & (trace_id_img != _trace_id_img)
 
         # Set the ID image to a MaskedArray to ease some subsequent
         # calculations; pixels without a detected edge are masked.
@@ -1356,8 +1370,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Limits and labels
         plt.xlim(-img_buffer, self.nspec+img_buffer)
         plt.ylim(-img_buffer, self.nspat+img_buffer)
-        left_line[0].set_label('left edge fit')
-        right_line[0].set_label('right edge fit')
+        if np.any(left):
+            left_line[0].set_label('left edge fit')
+        if np.any(right):
+            right_line[0].set_label('right edge fit')
         plt.xlabel('Spectral pixel index')
         plt.ylabel('Spatial pixel index')
         plt.legend()
@@ -1694,16 +1710,22 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                                 maxerror=maxerror, bitmask=self.bitmask,
                                                 fill='bound')
 
+            # Include previous mask in result
+            # TODO: This means if the edge was not detected by
+            # detect_slit_edges, it won't get used here. Need to check
+            # how this meshes with the previous behavior.
+            msk[:,indx] |= self.spat_msk[:,indx]
+
             # Check the traces
             mincol = None if side == 'left' else 0
             maxcol = _sobel_sig.shape[1]-1 if side == 'left' else None
             good, bad = self.check_traces(cen=cen, msk=msk, subset=indx, mincol=mincol,
                                           maxcol=maxcol, minimum_spec_length=minimum_spec_length)
 
-            # Save the results and update the book-keeping
+            # Save the results: only keep the good centroids, but merge all the masks
             self.spat_cen[:,good] = cen[:,good]
             self.spat_err[:,good] = err[:,good]
-            self.spat_msk[:,good | bad] |= msk[:,good | bad]
+            self.spat_msk[:,indx] |= msk[:,indx]
             rmtrace[bad] = True
 
         # Update the image coordinates
@@ -1917,6 +1939,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Match traces on the same side and 
             indx = np.where((self.is_left if side == 'left' else self.is_right)
                                 & np.invert(np.all(cen_match.mask, axis=0)))[0]
+            if indx.size == 0:
+                continue
+
             for i in range(indx.size - 1):
                 if rmtrace[indx[i]]:
                     continue
@@ -2319,6 +2344,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Select traces on this side and that are not fully masked
             indx = (self.is_left if side == 'left' else self.is_right) \
                         & np.invert(np.all(spat_bpm, axis=0))
+            if not np.any(indx):
+                continue
 
             # Perform the fit
             fit[:,indx], cen[:,indx], err[:,indx], msk[:,indx] \
@@ -2439,7 +2466,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Check if the PCA decomposition can be performed
         if not self.can_pca():
-            msgs.error('There must be at least 5 good traces for PCA decomposition.')
+            msgs.error('Traces do not meet necessary criteria for the PCA decomposition.')
 
         # Set the data used to construct the PCA
         self.pca_type = 'center' if self.spat_fit is None or use_center else 'fit'
@@ -2460,6 +2487,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         else self.spat_fit[:,use_trace]
         msgs.info('Using {0}/{1} traces in the PCA analysis.'.format(np.sum(use_trace),
                                                                      self.ntrace))
+
+        # TODO: Allow it to PCA the left and right traces separately?
 
         # Instantiate the PCA
         self.pca = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
@@ -2952,7 +2981,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         else self.nspat - np.amax(trace[:,0]) - self.par['det_buffer']
             # Construct the trace to add and insert it
             trace_add[:,0] = trace[:,0] + offset
-            self.insert_traces(side[add_edge], trace_add, loc=add_indx, mode='sync')
+            self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
             return
 
         # Get the reference locations for the new edges
@@ -3067,10 +3096,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         _traceid = np.empty(ntrace, dtype=int)
         indx = _side < 0
         if np.any(indx):
-            _traceid[indx] = np.amin(self.traceid) - 1 - np.arange(np.sum(indx))
+            last_left = np.amin(self.traceid) if np.sum(self.traceid < 0) > 0 else 0
+            _traceid[indx] = last_left - 1 - np.arange(np.sum(indx))
         indx = _side > 0
         if np.any(indx):
-            _traceid[indx] = np.amax(self.traceid) + 1 + np.arange(np.sum(indx))
+            last_right = np.amax(self.traceid) if np.sum(self.traceid > 0) > 0 else 0
+            _traceid[indx] = last_right + 1 + np.arange(np.sum(indx))
 
         # Add the new traces. The new traces are added to both the
         # fitted list and the center list!
@@ -3219,7 +3250,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 x_det_bpm[np.repeat(indx,2)] = True
 
         # Initial guess for the offset
-        try:
+        try: 
+            raise NotImplementedError()
             # Try using the spectrograph detector map
             self.spectrograph.get_detector_map()
             # Set the offset based on the location of this detector

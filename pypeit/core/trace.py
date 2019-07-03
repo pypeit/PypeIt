@@ -253,7 +253,6 @@ def count_edge_traces(edge_img):
     return 0 if nleft == 0 else -nleft, np.amax(edge_img)
 
 
-# TODO: This needs to be better tested
 def atleast_one_edge(edge_img, bpm=None, flux_valid=True, buffer=0, copy=False):
     """
     Ensure that there is at least one left and one right slit edge
@@ -300,9 +299,10 @@ def atleast_one_edge(edge_img, bpm=None, flux_valid=True, buffer=0, copy=False):
         return _edge_img
 
     if nleft == 0 and nright == 0 and not flux_valid:
-        # No traces and fluxes are invalid.  Warn the user and continue.
-        msgs.warn('Unable to trace any edges!  Image flux is low; check trace image is correct.')
-        return None
+        # No traces and fluxes are invalid.
+        # TODO: This used to just be a warning, but I'm having it stop
+        # the code if no traces are found and the flux is low.
+        msgs.error('Unable to trace any edges!  Image flux is low; check trace image is correct.')
 
     # Use the mask to determine the first and last valid pixel column
     sum_bpm = np.zeros(edge_img.shape[1]) if bpm is None else np.sum(bpm, axis=0) 
@@ -365,20 +365,24 @@ def handle_orphan_edges(edge_img, sobel_sig, bpm=None, flux_valid=True, buffer=0
     # Get the number of traces
     nleft, nright = count_edge_traces(edge_img)
 
-    if nleft == 0 or nright == 0:
-        # Deal with no left or right edges
-        _edge_img = atleast_one_edge(edge_img, bpm=bpm, flux_valid=flux_valid, buffer=buffer,
-                                     copy=copy)
-        # Update the number of edges
-        nleft, nright = count_edge_traces(_edge_img)
-    else:
-        # Just do basic setup
-        _edge_img = edge_img.copy() if copy else edge_img
+#    if nleft == 0 or nright == 0:
+#        # Deal with no left or right edges
+#        # TODO: I think we should skip this and handle it in sync()
+#        _edge_img = atleast_one_edge(edge_img, bpm=bpm, flux_valid=flux_valid, buffer=buffer,
+#                                     copy=copy)
+#        # Update the number of edges
+#        nleft, nright = count_edge_traces(_edge_img)
+#    else:
+#        # Just do basic setup
+#        _edge_img = edge_img.copy() if copy else edge_img
 
-    if nleft != 1 and nright != 1 or nleft == 1 and nright == 1:
+    _edge_img = edge_img.copy() if copy else edge_img
+    
+#    if nleft != 1 and nright != 1 or nleft == 1 and nright == 1:
+    if nleft == 0 or nright == 0 or nleft != 1 and nright != 1 or nleft == 1 and nright == 1:
         # Nothing to do
         return _edge_img
-    
+
     if nright > 1:
         # To get here, nleft must be 1.  This is mainly in here for
         # LRISb, which is a real pain..
@@ -904,7 +908,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     if trace_bpm.shape != trace_cen.shape:
         raise ValueError('Trace mask array shape is incorrect.')
 
-    # Allow for single vectors as input as well:
+    # Allow for single vectors as input
     _trace_cen = trace_cen.reshape(-1,1) if trace_cen.ndim == 1 else trace_cen
     _trace_bpm = trace_bpm.reshape(-1, 1) if trace_cen.ndim == 1 else trace_bpm
     nspec, ntrace = _trace_cen.shape
@@ -917,20 +921,19 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     if xmax is None:
         xmax = float(nspec-1)
 
-    # Abscissa for fitting; needs to be float type when passed to
-    # TraceSet
-    trace_coo = np.tile(np.arange(nspec), (ntrace,1)).astype(float)
-
     # Setup the width to use for each iteration depending on the weighting used
     width = np.full(niter, 2*fwhm if weighting == 'uniform' else fwhm/2.3548, dtype=float)
     if weighting == 'uniform':
         width[:niter//3] *= 1.3
         width[niter//3:2*niter//3] *= 1.1
 
+    # Abscissa for fitting; needs to be float type when passed to
+    # TraceSet
+    trace_coo = np.tile(np.arange(nspec), (ntrace,1)).astype(float)
+    # Values to fit
     trace_fit = np.copy(_trace_cen)
     # Uniform weighting during the fit
     trace_fit_ivar = np.ones_like(trace_fit)
-    # Bad positions that are replaced with the input
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data.

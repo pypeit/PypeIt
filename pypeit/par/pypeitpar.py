@@ -1577,6 +1577,7 @@ class EdgeTracePar(ParSet):
                                'detections, this sets the number of previous spectral rows ' \
                                'to consider when following slits forward.'
 
+        # TODO: Allow this to be a list so that it can be detector specific?
         defaults['det_min_spec_length'] = 0.33
         dtypes['det_min_spec_length'] = [int, float]
         descr['det_min_spec_length'] = 'The minimum spectral length (as a fraction of the ' \
@@ -1635,6 +1636,7 @@ class EdgeTracePar(ParSet):
         descr['fit_niter'] = 'Number of iterations of re-measuring and re-fitting the edge ' \
                              'data; see :func:`pypeit.core.trace.fit_trace`.'
 
+        # TODO: Allow this to be a list so that it can be detector specific?
         defaults['fit_min_spec_length'] = 0.6
         dtypes['fit_min_spec_length'] = float
         descr['fit_min_spec_length'] = 'Minimum unmasked spectral length of a traced slit edge ' \
