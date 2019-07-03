@@ -1550,7 +1550,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
                                          cont_frac_fwhm=2.0, sigthresh=5.0,
-                                         sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True, debug=True)
+                                         sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True, debug=debug_all)
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
 
 
