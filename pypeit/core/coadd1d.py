@@ -239,6 +239,42 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
 
     return sigma_corr, maskchi
 
+def poly_ratio_eval(theta, func, model, wave, wave_min, wave_max):
+    """
+    Routine to evaluate the polynomial fit
+    Args:
+        theta (float ndarray):
+           coefficient parameter vector
+        func (str):
+           polynomial type
+        model (str):
+           model type, valid model types are 'poly', 'square', or 'exp', corresponding to normal polynomial,
+           squared polynomial, or exponentiated polynomial
+        wave (float ndarray):
+           array of wavelength values
+        wave_min:
+           minimum wavelength for polynomial fit range
+        wave_max:
+           maximum wavelength for polynomial fit range
+
+    Returns:
+        ymult (float ndarray):
+           Array of evaluated polynomial with same shape as wave
+
+    """
+    # Evaluate the polynomial for rescaling
+    if 'poly' in model:
+        ymult = utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max)
+    elif 'square' in model:
+        ymult = (utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max)) ** 2
+    elif 'exp' in model:
+        ymult = np.exp(utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max))
+    else:
+        msgs.error('Unrecognized value of model requested')
+
+    return ymult
+
+
 def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     """
     Function for computing the chi^2 loss function for solving for the polynomial rescaling of one spectrum to another.
@@ -270,8 +306,9 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     wave_min = arg_dict['wave_min']
     wave_max = arg_dict['wave_max']
     func = arg_dict['func']
-    # Evaluate the polynomial for rescaling
-    ymult = (utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max))**2
+    model = arg_dict['model']
+    ymult = poly_ratio_eval(theta, func, model, wave, wave_min, wave_max)
+
     flux_scale = ymult*flux_med
     mask_both = mask & thismask
     # This is the formally correct ivar used for the rejection, but not used in the fitting. This appears to yield
@@ -335,8 +372,9 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     wave_min = arg_dict['wave_min']
     wave_max = arg_dict['wave_max']
     func = arg_dict['func']
+    model = arg_dict['model']
     # Evaluate the polynomial for rescaling
-    ymult = (utils.func_val(result.x, wave, func, minx=wave_min, maxx=wave_max))**2
+    ymult = poly_ratio_eval(result.x, func, model, wave, wave_min, wave_max)
     flux_scale = ymult*flux
     mask_both = mask & thismask
     totvar = utils.inverse(ivar_ref) + ymult**2*utils.inverse(ivar)
@@ -376,7 +414,7 @@ def median_filt_spec(flux, ivar, mask, med_width):
     return flux_med, ivar_med
 
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
-                     scale_min = 0.05, scale_max = 100.0, func='legendre',
+                     scale_min = 0.05, scale_max = 100.0, func='legendre', model ='square',
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01, debug=False):
     '''
     Routine for solving for the polynomial rescaling of an input spectrum flux to match a reference spectrum flux_ref.
@@ -390,6 +428,8 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
             wavelength. flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
         flux: ndarray, (nspec,)
              flux that you want to rescale to match flux_ref
+        ivar: ndarray, (nspec,)
+             inverse varaiance of the array that you want to rescale to match flux_ref
         mask: ndarray, bool, (nspec,)
             mask for spectrum that you want to rescale, True=Good
         flux_ref: ndarray, (nspec,)
@@ -407,6 +447,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
              maximum scaling factor allowed
         func: str, default='legendre'
              function you want to use,
+        model (str): defaut = 'square'
+           model type, valid model types are 'poly', 'square', or 'exp', corresponding to normal polynomial,
+           squared polynomial, or exponentiated polynomial
         maxiter: int, default=3
              maximum number of iterations for robust_optimize
         sticky: bool, default=True
@@ -457,11 +500,11 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                     flux_med = flux_med, ivar_med = ivar_med,
                     flux_ref_med = flux_ref_med, ivar_ref_med = ivar_ref_med,
                     ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
-                    wave_max = wave_max, func = func, norder = norder, guess = guess, debug=False)
+                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=False)
 
     result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
-    ymult1 = (utils.func_val(result.x, wave, func, minx=wave_min, maxx=wave_max))**2
+    ymult1 = poly_ratio_eval(result.x, func, model, wave, wave_min, wave_max)
     ymult = np.fmin(np.fmax(ymult1, scale_min), scale_max)
     flux_rescale = ymult*flux
     ivar_rescale = ivar/ymult**2
