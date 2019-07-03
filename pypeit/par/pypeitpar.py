@@ -1536,10 +1536,10 @@ class EdgeTracePar(ParSet):
                  smash_range=None, edge_detect_clip=None, trace_median_frac=None,
                  trace_thresh=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
                  niter_gaussian=None, det_buffer=None, max_nudge=None, sync_predict=None,
-                 sync_center=None, sync_to_edge=None, min_slit_gap=None, minimum_slit_length=None,
-                 length_range=None, clip=None, sync_clip=None, mask_reg_maxiter=None,
-                 mask_reg_maxsep=None, mask_reg_sigrej=None, ignore_alignment=None, pad=None,
-                 add_slits=None, rm_slits=None):
+                 sync_center=None, gap_offset=None, sync_to_edge=None, minimum_slit_length=None,
+                 length_range=None, minimum_slit_gap=None, clip=None, sync_clip=None,
+                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
+                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1755,30 +1755,45 @@ class EdgeTracePar(ParSet):
         dtypes['sync_center'] = str
         descr['sync_center'] = 'Mode to use for determining the location of traces to insert.  ' \
                                'Use `median` to use the median of the matched left and right ' \
-                               'edge pairs or `nearest` to ue the length of the nearest slit`.'
+                               'edge pairs, `nearest` to use the length of the nearest slit, ' \
+                               'or `gap` to offset by a fixed gap width from the next slit edge.'
 
+        defaults['gap_offset'] = 1.
+        dtypes['gap_offset'] = [int, float]
+        descr['gap_offset'] = 'Offset (pixels) used for the slit edge gap width when inserting ' \
+                              'slit edges (see `sync_center`) or when nudging predicted slit ' \
+                              'edges to avoid slit overlaps.  This should be larger than ' \
+                              '`minimum_slit_gap` when converted to arcseconds.'
+        
         defaults['sync_to_edge'] = True
         dtypes['sync_to_edge'] = bool
         descr['sync_to_edge'] = 'If adding a first left edge or a last right edge, ignore ' \
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
 
-        defaults['min_slit_gap'] = 1.
-        dtypes['min_slit_gap'] = [int, float]
-        descr['min_slit_gap'] = 'Minimum allowed gap in pixels between the mean spatial ' \
-                                'location of left and right edges.'
-
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
-        descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Shorter slits are ' \
-                                       'masked or clipped.  If None, no minimum slit length' \
-                                       'applied.'
+        descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Slit lengths are ' \
+                                       'determined by the median difference between the left ' \
+                                       'and right edge locations for the unmasked trace ' \
+                                       'locations.  Short slits are masked or clipped.  ' \
+                                       'If None, no minimum slit length applied.'
 
 #        defaults['length_range'] = 0.3
         dtypes['length_range'] = [int, float]
-        descr['length_range'] = 'Range in relative slit length.  For example, a value of 0.3 ' \
-                                'means that slit lengths should not vary more than 30%.  ' \
-                                'Relatively shorter or longer slits are masked or clipped.'
+        descr['length_range'] = 'Allowed range in slit length compared to the median slit ' \
+                                'length.  For example, a value of 0.3 means that slit lengths ' \
+                                'should not vary more than 30%.  Relatively shorter or longer ' \
+                                'slits are masked or clipped.'
+
+        # TODO: Define this in pixels instead of arcsec?
+        dtypes['minimum_slit_gap'] = [int, float]
+        descr['minimum_slit_gap'] = 'Minimum slit gap in arcsec.  Gaps between slits are ' \
+                                    'determined by the median difference between the right ' \
+                                    'and left edge locations of adjacent slits.  Slits with ' \
+                                    'small gaps are merged by removing the intervening traces.' \
+                                    'If None, no minimum slit gap is applied.  This should be ' \
+                                    'smaller than `gap_offset` when converted to pixels.'
 
         defaults['clip'] = True
         dtypes['clip'] = bool
@@ -1866,9 +1881,10 @@ class EdgeTracePar(ParSet):
                    'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range',
                    'edge_detect_clip', 'trace_median_frac', 'trace_thresh', 'fwhm_uniform',
                    'niter_uniform', 'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge',
-                   'sync_predict', 'sync_center', 'sync_to_edge', 'minimum_slit_length',
-                   'length_range', 'clip', 'sync_clip', 'mask_reg_maxiter', 'mask_reg_maxsep',
-                   'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
+                   'sync_predict', 'sync_center', 'gap_offset', 'sync_to_edge',
+                   'minimum_slit_length', 'length_range', 'minimum_slit_gap', 'clip', 'sync_clip',
+                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
+                   'pad', 'add_slits', 'rm_slits']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1894,7 +1910,7 @@ class EdgeTracePar(ParSet):
     @staticmethod
     def valid_center_modes():
         """Return the valid center prediction modes."""
-        return ['median', 'gap', 'nearest']
+        return ['median', 'nearest', 'gap']
 
     def validate(self):
         pass

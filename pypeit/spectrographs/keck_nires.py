@@ -81,6 +81,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  10.0
         #par['calibrations']['tilts']['spat_order'] =  3

@@ -1324,7 +1324,10 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         msgs.info('Found {0} good {1}(s) in the rectified, collapsed image'.format(
                     len(_cen[best]),l))
 
-        # Set the reference spatial locations to use for tracing the detected peaks
+        # Set the reference spatial locations to use for tracing the
+        # detected peaks
+        # TODO: Added this for a test case, not sure we should keep it
+        # in the long run.
         _cen = _cen[best]
         loc = np.round(_cen).astype(int) 
         if peak_clip is not None:

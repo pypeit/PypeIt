@@ -34,7 +34,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
-        par['calibrations']['slitedges']['edge_thresh'] = 30.
+        par['calibrations']['slitedges']['edge_thresh'] = 15.
+        par['calibrations']['slitedges']['fit_order'] = 3
+        par['calibrations']['slitedges']['sync_center'] = 'gap'
+        par['calibrations']['slitedges']['minimum_slit_length'] = 1.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters
@@ -317,6 +320,10 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         """
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_blue'
+
+        par['calibrations']['slitedges']['det_min_spec_length'] = 0.1
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
+
         # 1D wavelength solution -- Additional parameters are grism dependent
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -381,7 +388,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['slits']['mask_frac_thresh'] = 0.45
             par['calibrations']['slits']['smash_range'] = [0.5, 1.]
-            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.45
+#            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.45
             par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
 
         # Return
@@ -484,7 +491,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['rdx']['spectrograph'] = 'keck_lris_red'
         #
         par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['edge_thresh'] = 20.
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
