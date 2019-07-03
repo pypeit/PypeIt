@@ -324,9 +324,8 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     ivarfit = mask_both/(1.0/(ivar_med + np.invert(mask_both)) + np.square(vmult)/(ivar_ref_med + np.invert(mask_both)))
     chi_vec = mask_both * (flux_ref_med - flux_scale) * np.sqrt(ivarfit)
     # Robustly characterize the dispersion of this distribution
-    chi_mean, chi_median, chi_std = \
-        stats.sigma_clipped_stats(chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=stats.mad_std,
-                                  maxiters=5, sigma=2.0)
+    chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
+        chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=stats.mad_std, maxiters=5, sigma=2.0)
     # The Huber loss function smoothly interpolates between being chi^2/2 for standard chi^2 rejection and
     # a linear function of residual in the outlying tails for large residuals. This transition occurs at the
     # value of the first argument, which we have set to be 2.0*chi_std, which is 2-sigma given the modified
@@ -486,7 +485,15 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     nspec = wave.size
     # Determine an initial guess
     ratio = robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=mask_ref)
-    guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
+    if 'poly' in model:
+        guess = np.append(ratio, np.zeros(norder-1))
+    elif 'square' in model:
+        guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
+    elif 'exp' in model:
+        guess = np.append(np.log(ratio), np.zeros(norder-1))
+    else:
+        msgs.error('Unrecognized model type')
+
     wave_min = wave.min()
     wave_max = wave.max()
 
@@ -500,11 +507,11 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                     flux_med = flux_med, ivar_med = ivar_med,
                     flux_ref_med = flux_ref_med, ivar_ref_med = ivar_ref_med,
                     ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
-                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=False)
+                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=True)
 
     result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
-    ymult1 = poly(result.x, func, model, wave, wave_min, wave_max)
+    ymult1 = poly_model_eval(result.x, func, model, wave, wave_min, wave_max)
     ymult = np.fmin(np.fmax(ymult1, scale_min), scale_max)
     flux_rescale = ymult*flux
     ivar_rescale = ivar/ymult**2
