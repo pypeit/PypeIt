@@ -85,20 +85,22 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         # Append
         yvals.append(spec[gdi])
         lvals.append(wv_vac[gdi])
-        if kk == 2:
-            embed(header='89')
     # Normalize?
     if normalize:
+        norm_val = 10000.
+        # Max values
         maxs = []
-        for spec in yvals:
-            maxs.append(np.max(spec))
-        embed(header='90 of templates')
+        for kk,spec in enumerate(yvals):
+            mx = np.max(spec)
+            spec = spec * norm_val / mx
+            yvals[kk] = spec
     # Concatenate
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
     # Check
     if chk:
         debugger.plot1d(nwwv, nwspec)
+        embed(header='102')
     # Generate the table
     write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut)
 
