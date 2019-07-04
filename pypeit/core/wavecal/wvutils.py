@@ -154,22 +154,18 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=80.0, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0, debug=False):
+def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=False, sigdetect=10.0, fwhm=4.0, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
     (higher pixel values) relative to inspec1.
 
-    Parameters
-    ----------
+    Args:
     inspec1 : ndarray
       Reference spectrum
     inspec2 : ndarray
       Spectrum for which the shift and stretch are computed such that it will match inspec1
-
-    Optional Parameters
-    -------------------
-    smooth: float, default
+    smooth: float, default=1.0
       Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
     percent_ceil: float, default=90.0
       Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
@@ -179,8 +175,8 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=80.0, use_raw_arc=False,
       If this parameter is True the raw arc will be used rather than the continuum subtracted arc
     debug: boolean, default = False
 
-    Returns
-    -------
+    Returns:
+       shift, corr_max
     shift: float
       the shift which was determined
     cross_corr: float
@@ -222,15 +218,11 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     positive shift means inspec2 is shifted to the right (higher pixel values) relative to inspec1. The convention for the stretch is
     that it is float near unity that increases the size of the inspec2 relative to the original size (which is the size of inspec1)
 
-    Parameters
-    ----------
+    Args:
     inspec1 : ndarray
-      Reference spectrum
+       Reference spectrum
     inspec2 : ndarray
-      Spectrum for which the shift and stretch are computed such that it will match inspec1
-
-    Optional Parameters
-    -------------------
+       Spectrum for which the shift and stretch are computed such that it will match inspec1
     cc_thresh: float, default = -1.0
       A number in the range [-1.0,1.0] which is the threshold on the initial cross-correlation coefficient for the shift/stretch.
       If the value of the initial cross-correlation is < cc_thresh the code will just exit and return this value and the best shift.
@@ -257,8 +249,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     debug = False
        Show plots to the screen useful for debugging.
 
-    Returns
-    -------
+    Returns:
     success: int
       A flag indicating the exist status.
           success  = 1, shift and stretch performed via sucessful optimization

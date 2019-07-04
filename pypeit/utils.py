@@ -23,6 +23,8 @@ from bisect import insort, bisect_left
 from pypeit.core import pydl
 from pypeit import msgs
 from IPython import embed
+from numpy.lib.stride_tricks import as_strided
+
 
 def rebin(a, newshape):
     '''Rebin an array to a new shape using slicing. This routine is taken from:
@@ -217,6 +219,53 @@ def fast_running_median(seq, window_size):
 
     result = np.roll(result, -window_size//2 + 1)
     return result[window_size:-window_size]
+
+
+# Taken from stackoverflow
+# https://stackoverflow.com/questions/30677241/how-to-limit-cross-correlation-window-width-in-numpy
+# slightly modified to return lags
+
+def cross_correlate(x, y, maxlag):
+    """
+    Cross correlation with a maximum number of lags. This computes the same result as
+    numpy.correlate(x, y, mode='full')[len(a)-maxlag-1:len(a)+maxlag]. Edges are padded with zeros
+    using np.pad(mode='constant').
+
+    Args:
+        x (ndarray):
+            First vector of the cross-correlation.
+        y (ndarray):
+            Second vector of the cross-correlation. `x` and `y` must be one-dimensional numpy arrays with the same length.
+        maxlag (int):
+            The maximum lag for which to compute the cross-correlation. The cross correlation is computed at integer
+            lags from (-maxlag, maxlag)
+
+    Returns:
+        lags, xcorr
+
+        lags (ndarray):  shape = (2*maxlag + 1)
+             Lags for the cross-correlation. Integer spaced values from (-maxlag, maxlag)
+        xcorr (ndarray): shape = (2*maxlag + 1)
+             Cross-correlation at the lags
+
+
+    """
+
+    x = np.asarray(x)
+    y = np.asarray(y)
+    if x.ndim != 1:
+        msgs.error('x must be one-dimensional.')
+    if y.ndim != 1:
+        msgs.error('y must be one-dimensional.')
+
+
+    #py = np.pad(y.conj(), 2*maxlag, mode=mode)
+    py = np.pad(y, 2*maxlag, mode='constant')
+    T = as_strided(py[2*maxlag:], shape=(2*maxlag+1, len(y) + 2*maxlag),
+                   strides=(-py.strides[0], py.strides[0]))
+    px = np.pad(x, maxlag, mode='constant')
+    lags = np.arange(-maxlag, maxlag + 1,dtype=float)
+    return lags, T.dot(px)
 
 
 # TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere

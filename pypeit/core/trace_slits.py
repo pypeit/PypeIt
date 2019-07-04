@@ -29,6 +29,7 @@ from pypeit.core import arc
 from pypeit.core import pydl
 from astropy.stats import sigma_clipped_stats
 from IPython import embed
+import copy
 
 try:
     from pypeit import ginga
@@ -37,6 +38,35 @@ except ImportError:
 
 # Testing
 import time
+
+
+def shift_slits(tslits_dict, tilts_dict, waveimg, shift):
+    """
+    Routine to shift slits in a tslits_dict. This routine is used to compensate for flexure.
+
+    Args:
+        tslits_dict (dict):
+           Dictionary containing slit boundaries and other info
+
+        shift (float):
+           Shift to be added to the slit boundaries.
+
+    Returns:
+        tslits_shift (dict):
+           A copy of the original tslits_dict but with the slit boundaries and the slitcen shifted.
+
+    """
+
+    tslits_shift = copy.deepcopy(tslits_dict)
+    nspec, nslits = tslits_shift['nspec'], tslits_shift['nslits']
+
+    for islit in range(nslits):
+        tslits_shift['slit_left'][:,islit] += shift
+        tslits_shift['slit_righ'][:,islit] += shift
+        tslits_shift['slitcen'][:,islit] += shift
+
+    # Not shifting the orignal slit_left_orig or slit_righ_orig
+    return tslits_shift
 
 
 def extrapolate_trace(traces_in, spec_min_max_in):

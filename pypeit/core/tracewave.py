@@ -662,7 +662,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
 
 
-def fit2tilts(shape, coeff2, func2d):
+def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
     """
 
     Parameters
@@ -673,6 +673,8 @@ def fit2tilts(shape, coeff2, func2d):
         result of griddata tilt fit
     func2d: str
         the 2d function used to fit the tilts
+    spat_shift (float):
+        Spatial shift to be added to image pixels before evaluation to deal with flexure compensation.
     Returns
     -------
     tilts: ndarray, float
@@ -684,7 +686,7 @@ def fit2tilts(shape, coeff2, func2d):
     xnspecmin1 = float(nspec-1)
     xnspatmin1 = float(nspat-1)
     spec_vec = np.arange(nspec)
-    spat_vec = np.arange(nspat)
+    spat_vec = np.arange(nspat) + spat_shift
     spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
     tilts = utils.func_val(coeff2, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1, minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
