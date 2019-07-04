@@ -31,6 +31,7 @@ template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelength
 outpath=resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
+                   normalize=False,
                    lowredux=True, ifiles=None, det_cut=None, chk=False):
     """
     Generate a full_template for a given instrument
@@ -45,6 +46,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         ifiles:
         det_cut:
         chk:
+        normalize (bool, optional):
+            If provided multiple in_files, normalize each
+            snippet to have the same maximum amplitude.
 
     Returns:
 
@@ -81,6 +85,14 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         # Append
         yvals.append(spec[gdi])
         lvals.append(wv_vac[gdi])
+        if kk == 2:
+            embed(header='89')
+    # Normalize?
+    if normalize:
+        maxs = []
+        for spec in yvals:
+            maxs.append(np.max(spec))
+        embed(header='90 of templates')
     # Concatenate
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
@@ -500,7 +512,8 @@ def main(flg):
         wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
         #
         build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
-                       outroot, lowredux=False, ifiles=ifiles)
+                       outroot, lowredux=False, ifiles=ifiles, chk=True,
+                       normalize=True)
 
 # Command line execution
 if __name__ == '__main__':
