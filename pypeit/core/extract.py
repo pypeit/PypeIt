@@ -143,7 +143,7 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
         f_ivar = np.sum(temp2_wi, axis=2)
         fextract = fextract / (f_ivar + (f_ivar == 0)) * (f_ivar > 0)
     else:
-        # Might be more pythonic way to code this. I needed to switch the flattening order in order to get
+        # Might be a more pythonic way to code this. I needed to switch the flattening order in order to get
         # this to work
         temp = np.array([image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
         temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
