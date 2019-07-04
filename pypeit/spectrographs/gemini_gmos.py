@@ -105,6 +105,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['nsnippet'] = 1  # 3 detectors splitting is already a lot
 
+        par['calibrations']['tilts']['tracethresh'] = 10.  # Deals with faint CuAr lines
+
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
 
