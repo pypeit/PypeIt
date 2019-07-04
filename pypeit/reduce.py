@@ -191,14 +191,14 @@ class Reduce(object):
 
     def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False,
-                     manual_extract_dict=None):
+                     manual_extract_dict=None, debug=False):
 
         # Positive image
         parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_init, nobj_init, skymask_pos = \
             self.find_objects_pypeline(image, std=std, std_trace=std_trace, maskslits=maskslits,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
-                                       manual_extract_dict=parse_manual)
+                                       manual_extract_dict=parse_manual, debug=debug)
 
         # For nobj we take only the positive objects
         if ir_redux:
@@ -599,6 +599,7 @@ class MultiSlit(Reduce):
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
                                 show_fits=show_fits, show_trace=show_trace,
                                 trim_edg=self.redux_par['find_trim_edge'],
+                                debug=debug,
                                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'])
             sobjs.add_sobj(sobjs_slit)
 
