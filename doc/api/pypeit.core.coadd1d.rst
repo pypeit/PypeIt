@@ -1,7 +1,7 @@
-pypeit.scienceimage module
+pypeit.core.coadd1d module
 ==========================
 
-.. automodule:: pypeit.scienceimage
+.. automodule:: pypeit.core.coadd1d
     :members:
     :undoc-members:
     :show-inheritance:

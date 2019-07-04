@@ -23,6 +23,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit import debugger
 from pkg_resources import resource_filename
 
+from IPython import embed
 
 # TODO
     # Shift spectra
@@ -147,6 +148,14 @@ def new_wave_grid(waves, wave_method='iref', iref=0, wave_grid_min=None, wave_gr
         wave_grid = 10**newloglam
     elif wave_method == 'iref':  # Concatenate
         wave_grid = waves[iref, :].compressed()
+    elif wave_method == 'loggrid':
+        waves_ma = np.ma.array(waves, mask = waves <= 1.0)
+        dloglam_n = np.log10(waves) - np.roll(np.log10(waves), 1)
+        dloglam = np.median(dloglam_n.compressed())
+        wave_grid_max = np.max(waves_ma)
+        wave_grid_min = np.min(waves_ma)
+        loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, dloglam)
+        wave_grid = 10**loglam_grid
     else:
         msgs.error("Bad method for scaling: {:s}".format(wave_method))
     # Concatenate of any wavelengths in other indices that may extend beyond that of wavelengths[0]?
@@ -211,25 +220,27 @@ def unpack_spec(spectra, all_wave=False):
     # Return
     return fluxes, sigs, wave
 
-
-def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, debug=False, verbose=False):
+# TODO JFH: Switch this function to take inverse variances everywhere, calling sequence should also be
+# wave, flux, ivar mask = None
+def sn_weights(wave, flux, ivar, mask = None, dv_smooth=10000.0, const_weights=False, verbose=False):
     """ Calculate the S/N of each input spectrum and create an array of (S/N)^2 weights to be used
     for coadding.
 
     Parameters
     ----------
+    wave: flota ndarray, shape = (nspec,) or (nexp, nspec)
+       Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
+       that all spectra are on the same wavelength grid. If wave is a 2-d array, it will use the individual
     fluxes: float ndarray, shape = (nexp, nspec)
         Stack of (nexp, nspec) spectra where nexp = number of exposures, and nspec is the length of the spectrum.
-    sigs: float ndarray, shape = (nexp, nspec)
-        1-sigm noise vectors for the spectra
-    mask: bool ndarray, shape = (nexp, nspec)
-        Mask for stack of spectra. True=Good, False=Bad.
-    wave: flota ndarray, shape = (nspec,) or (nexp, nspec)
-        Reference wavelength grid for all the spectra. If wave is a 1d array the routine will assume
-        that all spectra are on the same wavelength grid. If wave is a 2-d array, it will use the individual
+    ivar: float ndarray, shape = (nexp, nspec)
+        1-sigm inverse variance vectors for the spectra
 
     Optional Parameters:
     --------------------
+    mask: bool ndarray, shape = (nexp, nspec)
+       Mask for stack of spectra. True=Good, False=Bad. If not passed in it will use mask = (ivar > 0)
+
     dv_smooth: float, 10000.0
          Velocity smoothing used for determining smoothly varying S/N ratio weights.
 
@@ -241,17 +252,20 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
         Weights to be applied to the spectra. These are signal-to-noise squared weights.
     """
 
+    if mask is None:
+        mask = ivar > 0.0
+
     if flux.ndim == 1:
         nstack = 1
         nspec = flux.shape[0]
         flux_stack = flux.reshape((nstack, nspec))
-        sig_stack = sig.reshape((nstack,nspec))
+        ivar_stack = ivar.reshape((nstack,nspec))
         mask_stack = mask.reshape((nstack, nspec))
     elif flux.ndim == 2:
         nstack = flux.shape[0]
         nspec = flux.shape[1]
         flux_stack = flux
-        sig_stack = sig
+        ivar_stack = ivar
         mask_stack = mask
     else:
         msgs.error('Unrecognized dimensionality for flux')
@@ -264,7 +278,6 @@ def sn_weights(flux, sig, mask, wave, dv_smooth=10000.0, const_weights=False, de
     else:
         msgs.error('wavelength array has an invalid size')
 
-    ivar_stack = utils.calc_ivar(sig_stack**2)
     # Calculate S/N
     sn_val = flux_stack*np.sqrt(ivar_stack)
     sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
@@ -640,7 +653,7 @@ def clean_cr(spectra, smask, n_grow_mask=1, cr_nsig=7., nrej_low=5.,
             idx = gd[srt]
             # The following may eliminate bright, narrow emission lines
             good, spl = utils.robust_polyfit_djs(waves[idx], flux[idx], 3, function='bspline',
-                                                 sigma=sig[gd][srt], lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
+                                                 lower=cr_bsigma, upper=cr_bsigma, use_mad=False)
             mask = ~good
             # Reject CR (with grow)
             spec_fit = utils.func_val(spl, wave, 'bspline')
@@ -849,7 +862,7 @@ def get_std_dev(irspec, rmask, ispec1d, s2n_min=2., wvmnx=None, **kwargs):
     return std_dev, dev_sig
 
 
-def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
+def coadd_spectra(spectrograph, gdfiles, spectra, wave_grid_method='concatenate', niter=5,
                   flux_scale=None,
                   scale_method='auto', do_offset=False, sigrej_final=3.,
                   do_var_corr=True, qafile=None, outfile=None,
@@ -898,10 +911,10 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
     rmask = rspec.data['sig'].filled(0.) > 0.0
 
     fluxes, sigs, wave = unpack_spec(rspec)
-
+    ivars = utils.calc_ivar(sigs)
 
     # S/N**2, weights
-    rms_sn, weights = sn_weights(fluxes, sigs, rmask, wave)
+    rms_sn, weights = sn_weights(wave, fluxes, ivars, mask = rmask)
 
     # Scale (modifies rspec in place)
     if echelle:
@@ -1061,14 +1074,34 @@ def coadd_spectra(spectra, wave_grid_method='concatenate', niter=5,
 
     # Write to disk?
     if outfile is not None:
-        write_to_disk(spec1d, outfile)
+        write_to_disk(spectrograph, gdfiles, spec1d, outfile)
     return spec1d
 
 
-def write_to_disk(spec1d, outfile):
+def write_to_disk(spectrograph, gdfiles, spec1d, outfile):
     """ Small method to write file to disk
     """
-    msgs.work("Need to include header info")
+    # Header
+    header_cards = spectrograph.header_cards_for_spec()
+    orig_headers = [fits.open(gdfile)[0].header for gdfile in gdfiles]
+    spec1d_header = {}
+    for card in header_cards:
+        # Special cases
+        if card == 'exptime':   # Total
+            tot_time = np.sum([ihead['EXPTIME'] for ihead in orig_headers])
+            spec1d_header['EXPTIME'] = tot_time
+        elif card.upper() in ['AIRMASS', 'MJD']:  # Average
+            mean = np.mean([ihead[card.upper()] for ihead in orig_headers])
+            spec1d_header[card.upper()] = mean
+        elif card.upper() in ['MJD-OBS', 'FILENAME']:  # Skip
+            continue
+        else:
+            spec1d_header[card.upper()] = orig_headers[0][card.upper()]
+    # INSTRUME
+    spec1d_header['INSTRUME'] = spectrograph.camera.strip()
+    # Add em
+    spec1d.meta['headers'][0] = spec1d_header
+    #
     if '.hdf5' in outfile:
         spec1d.write_to_hdf5(outfile)
     elif '.fits' in outfile:
@@ -1295,7 +1328,69 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
 
     return collate(spectra_list_new)
 
-def order_median_scale(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, niter=5, min_overlap_pix=21, min_overlap_frac=0.03,
+def order_median_scale(spectra, nsig=3.0, niter=5, overlapfrac=0.03, num_min_pixels=50, sn_min_medscale=5.0, debug=False):
+    '''
+    Scale different orders using the median of overlap regions. It starts from the reddest order, i.e. scale H to K,
+      and then scale J to H+K, etc. Spectra is already scaled after executing this function.
+    Parameters:
+      spectra: XSpectrum1D spectra
+      nsig: float
+        sigma used for sigma_clipping median
+      niter: int
+        number of iterations for sigma_clipping median
+      overlapfrac: float
+        minmum overlap fraction (number of overlapped pixels devided by number of pixels of the whole spectrum) between orders.
+      num_min_pixels: int
+        minum required good pixels. The code only scale orders when the overlapped
+        pixels > max(num_min_pixels,overlapfrac*len(wave))
+      sn_min_medscale: float
+        Maximum RMS S/N allowed to automatically apply median scaling
+      Show QA plot if debug=True
+
+    '''
+    norder = spectra.nspec
+    fluxes, sigs, wave = unpack_spec(spectra, all_wave=False)
+    fluxes_raw = fluxes.copy()
+
+    # scaling spectrum order by order. We use the reddest order as the reference since slit loss in redder is smaller
+    for i in range(norder - 1):
+        iord = norder - i - 1
+        sn_iord_iref = fluxes[iord]/sigs[iord]
+        sn_iord_scale = fluxes[iord - 1]/sigs[iord - 1]
+        allok = (sigs[iord - 1, :] > 0) & (sigs[iord, :] > 0) & (sn_iord_iref > sn_min_medscale) & \
+                (sn_iord_scale > sn_min_medscale)
+
+        if sum(allok) > np.maximum(num_min_pixels, len(wave) * overlapfrac):
+            # Ratio
+            med_flux = spectra.data['flux'][iord, allok] / spectra.data['flux'][iord - 1, allok]
+            # Clip
+            mn_scale, med_scale, std_scale = stats.sigma_clipped_stats(med_flux, sigma=nsig, iters=niter)
+            med_scale = np.clip(med_scale, 1.5, 0.5)
+            spectra.data['flux'][iord - 1, :] *= med_scale
+            spectra.data['sig'][iord - 1, :] *= med_scale
+            msgs.info('Scaled %s order by a factor of %s'%(iord,str(med_scale)))
+
+            if debug:
+                allok_iord = sigs[iord, :] > 0
+                allok_iordm1 = sigs[iord-1, :] > 0
+                plt.figure(figsize=(12, 6))
+                plt.plot(wave[allok], spectra.data['flux'][iord, allok], '-',lw=10,color='0.7', label='Scale region')
+                plt.plot(wave[allok_iord], spectra.data['flux'][iord,allok_iord], 'r-', label='reference spectrum')
+                plt.plot(wave[allok_iordm1], fluxes_raw[iord - 1,allok_iordm1], 'k-', label='raw spectrum')
+                plt.plot(spectra.data['wave'][iord - 1, allok_iordm1], spectra.data['flux'][iord - 1, allok_iordm1], 'b-',
+                         label='scaled spectrum')
+                mny, medy, stdy = stats.sigma_clipped_stats(fluxes[iord, allok], sigma=nsig, iters=niter)
+                plt.ylim([0.1 * medy, 4.0 * medy])
+                plt.xlim([np.min(wave[sigs[iord - 1, :] > 0]), np.max(wave[sigs[iord, :] > 0])])
+                plt.legend()
+                plt.xlabel('wavelength')
+                plt.ylabel('Flux')
+                plt.show()
+        else:
+            msgs.warn('Not enough overlap region for sticking different orders.')
+
+# TODO THis code is on its way out.
+def order_median_scale_new(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, niter=5, min_overlap_pix=21, min_overlap_frac=0.03,
                        max_rescale_percent=50.0, sn_min=1.0, debug=False):
     '''
     Scale different orders using the median of overlap regions. It starts from the reddest order, i.e. scale H to K,
@@ -1395,7 +1490,7 @@ def order_median_scale(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, niter=5,
 
 
 
-def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5, sigrej_final=3., SN_MIN_MEDSCALE = 5.0,
+def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5, sigrej_final=3., sn_min_medscale = 5.0,
                 overlapfrac = 0.01, num_min_pixels=10,phot_scale_dicts=None, qafile=None, outfile=None, debug=False):
     """
         routines for merging orders of echelle spectra.
@@ -1435,11 +1530,14 @@ def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5,
         # sn2, weights = coadd.sn_weights(fluxes, sigs, rmask, wave)
         ## scaling different orders
         #norder = spectra.nspec
-        fluxes, sigs, wave = unpack_spec(spectra, all_wave=False)
-        fluxes_scale, sigs_scale = order_median_scale(wave, fluxes, sigs, nsig=sigrej_final, niter=niter,
-                                                      overlapfrac=overlapfrac, num_min_pixels=num_min_pixels,
-                                                      SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
-        spectra = spec_from_array(wave*units.AA, fluxes_scale, sigs_scale)
+        order_median_scale(spectra, nsig=sigrej_final, niter=niter, overlapfrac=overlapfrac,
+                           num_min_pixels=num_min_pixels, sn_min_medscale=sn_min_medscale, debug=debug)
+
+        #fluxes, sigs, wave = unpack_spec(spectra, all_wave=False)
+        #fluxes_scale, sigs_scale = order_median_scale_new(wave, fluxes, sigs, nsig=sigrej_final, niter=niter,
+        #                                              overlapfrac=overlapfrac, num_min_pixels=num_min_pixels,
+        #                                              SN_MIN_MEDSCALE=SN_MIN_MEDSCALE, debug=debug)
+        #spectra = spec_from_array(wave*units.AA, fluxes_scale, sigs_scale)
 
     if orderscale not in ['photometry', 'median']:
         msgs.warn('No any scaling is performed between different orders.')
@@ -1525,7 +1623,7 @@ def merge_order(spectra, wave_grid, extract='OPT', orderscale='median', niter=5,
     return spec1d_final
 
 def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,orderscale='median',mergeorder=True,
-              wave_grid_method='velocity', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
+              wave_grid_method='loggrid', niter=5,wave_grid_min=None, wave_grid_max=None,v_pix=None,
               scale_method='auto', do_offset=False, sigrej_final=3.,do_var_corr=False,
               SN_MIN_MEDSCALE = 5.0, overlapfrac = 0.01, num_min_pixels=10,phot_scale_dicts=None,
               qafile=None, outfile=None,do_cr=True, debug=False,**kwargs):
@@ -1562,8 +1660,9 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
     if nfile>1:
         msgs.info('Coadding {:} spectra.'.format(nfile))
         fname = files[0]
+        ext_first = fits.getheader(fname, 1)
         ext_final = fits.getheader(fname, -1)
-        norder = ext_final['ECHORDER'] + 1
+        norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER'])+1
         msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
         if norder <= 1:
             msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')

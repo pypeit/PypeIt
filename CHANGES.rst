@@ -1,5 +1,13 @@
-0.10.2dev
+
+0.11.1dev
 ---------
+
+- Add VLT/FORS filters to our database
+- Improved DEIMOS frame typing
+
+
+0.11.0 (22 Jun 2019)
+--------------------
 
 - Add magellan_mage, including a new ThAr linelist and an archived solution
 - Polish several key echelle methods
@@ -16,7 +24,15 @@
 - Add find_trim_edge and std_prof_nsigma parameters
 - A bit of tuning for MagE
 - Fixes for Echelle in fluxspec
-
+- Writes a chosen set of header cards to the spec1D and coadd files
+- Updates for FORS2
+- Introduced new coadd1d module and some new coadd functinality.
+- modified interface to robust_polyfit_djs, robust_optimize, and djs_reject.
+- Added utility routine cap_ivar for capping the noise level.
+- Fixed a bug in optimal extraction which was causing hot pixels when a large fraction of the pixels on
+the object profile were masked.
+- Major bug fixes and improvements to echelle object finding. Orders which did not cover the entire detector
+were not being treated properly.
 
 0.10.1 (22 May 2019)
 --------------------

@@ -5,8 +5,7 @@ import time
 import os
 import numpy as np
 from collections import OrderedDict
-from IPython import embed
-
+import IPython
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations

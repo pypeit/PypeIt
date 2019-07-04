@@ -19,8 +19,7 @@ from pypeit.spectrographs import spectrograph
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
-
-from pypeit import debugger
+import IPython
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -299,6 +298,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         meta['hatch'] = dict(ext=0, card='HATCHPOS')
         meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
+        # Image type
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
         # Lamps
         meta['lampstat01'] = dict(ext=0, card='LAMPS')
 
@@ -326,7 +327,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             elif headarr[0]['GRATEPOS'] == 4:
                 return headarr[0]['G4TLTWAV']
             else:
-                debugger.set_trace()
+                msgs.warn('This is probably a problem. Non-standard DEIMOS GRATEPOS={0}.'.format(headarr[0]['GRATEPOS']))
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -351,17 +352,18 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
+            #return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & (fitstbl['lampstat01'] == 'Qz') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'IntFlat') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['lampstat01'] == 'Kr Xe Ar Ne') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)

@@ -1526,7 +1526,7 @@ class TraceSet(object):
                                                                 inmask = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minx = self.xmin, maxx = self.xmax,
-                                                                sigma=None,maxdev=self.maxdev,maxrej=None,groupdim=None,
+                                                                maxdev=self.maxdev,maxrej=None,groupdim=None,
                                                                 groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
                 ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minx=self.xmin, maxx=self.xmax)
 
@@ -1696,8 +1696,8 @@ def xy2traceset(xpos, ypos, **kwargs):
 
 
 
-def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
-               invvar=None, lower=None, upper=None, maxdev=None,
+def djs_reject(data, model, outmask=None, inmask=None,
+               invvar=None, lower=None, upper=None, percentile=False, maxdev=None,
                maxrej=None, groupdim=None, groupsize=None, groupbadpix=False,
                grow=0, sticky=False, use_mad=False):
     """Routine to reject points when doing an iterative fit to data.
@@ -1717,17 +1717,13 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         Input mask.  Bad points are marked with a value that evaluates to ``False``.
         Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
         will also always evaluate to "False" in the outmask
-    sigma : :class:`numpy.ndarray`, optional
-        Standard deviation of the data, used to reject points based on the values
-        of `upper` and `lower`.
     invvar : :class:`numpy.ndarray`, optional
         Inverse variance of the data, used to reject points based on the values
-        of `upper` and `lower`.  If both `sigma` and `invvar` are set, `invvar`
-        will be ignored.
+        of `upper` and `lower`.
     lower : :class:`int` or :class:`float`, optional
-        If set, reject points with data < model - lower * sigma.
+        If set, reject points with data < model - lower * sigm, where sigma = 1.0/sqrt(invvar)
     upper : :class:`int` or :class:`float`, optional
-        If set, reject points with data > model + upper * sigma.
+        If set, reject points with data > model + upper * sigma, where sigma = 1.0/sqrt(invvar)
     maxdev : :class:`int` or :class:`float`, optional
         If set, reject points with abs(data-model) > maxdev.  It is permitted to
         set all three of `lower`, `upper` and `maxdev`.
@@ -1755,7 +1751,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     use_mad : :class: `bool`, optional, defaul = False
         It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
         the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
-        and also pass in values for sigma or invvar, and the code will return an error if this is done.
+        and also pass in values invvar, and the code will return an error if this is done.
 
 
 
@@ -1785,9 +1781,9 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     if upper is None and lower is None and maxdev is None:
         msgs.warn('upper, lower, and maxdev are all set to None. No rejection performed since no rejection criteria were specified.')
 
-    if use_mad and ((sigma is not None) or (invvar is not None)):
-        raise ValueError('use_mad can only be set to True if both sigma = None and innvar = None. This code only computes a mad'
-                         ' if errors are not input (i.e. sigma or invvar)')
+    if (use_mad and (invvar is not None)):
+        raise ValueError('use_mad can only be set to True innvar = None. This code only computes a mad'
+                         ' if errors are not input')
 
     # Create outmask setting = True for good data.
     #
@@ -1830,19 +1826,24 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
             maxrej1 = np.asarray([maxrej])
         else:
             maxrej1 = maxrej
-    if sigma is None and invvar is None:
+    if invvar is None:
         if inmask is not None:
-            igood = (inmask & outmask).nonzero()[0]
+            igood = (inmask & outmask)
         else:
-            igood = outmask.nonzero()[0]
-        if len(igood > 1):
+            igood = outmask
+        if (np.sum(igood) > 1):
             if use_mad is True:
                 sigma = 1.4826*np.median(np.abs(data[igood] - model[igood]))
             else:
                 sigma = np.std(data[igood] - model[igood])
+            invvar = utils.inverse(sigma**2)
         else:
-            sigma = 0
+            invvar = 0.0
+
+
     diff = data - model
+    chi = diff * np.sqrt(invvar)
+
     #
     # The working array is badness, which is set to zero for good points
     # (or points already rejected), and positive values for bad points.
@@ -1851,26 +1852,39 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     # of multiples of maxdev away from the fit.
     #
     badness = np.zeros(outmask.shape, dtype=data.dtype)
+
+    if percentile:
+        if inmask is not None:
+            igood = (inmask & outmask)
+        else:
+            igood = outmask
+        if (np.sum(igood)> 1):
+            if lower is not None:
+                lower_chi = np.percentile(chi[igood],lower)
+            else:
+                lower_chi = -np.inf
+            if upper is not None:
+                upper_chi = np.percentile(chi[igood], upper)
+            else:
+                upper_chi = np.inf
     #
     # Decide how bad a point is according to lower.
     #
     if lower is not None:
-        if sigma is not None:
-            qbad = diff < (-lower * sigma)
-            badness += np.fmax(-diff/(sigma + (sigma == 0)),0.0)*qbad
+        if percentile:
+            qbad = chi < lower_chi
         else:
-            qbad = (diff * np.sqrt(invvar)) < -lower
-            badness += np.fmax(-diff*np.sqrt(invvar),0.0)*qbad
+            qbad = chi < -lower
+        badness += np.fmax(-chi,0.0)*qbad
     #
     # Decide how bad a point is according to upper.
     #
     if upper is not None:
-        if sigma is not None:
-            qbad = diff > (upper * sigma)
-            badness += np.fmax(diff/(sigma + (sigma == 0)),0.0) * qbad
+        if percentile:
+            qbad = chi > upper_chi
         else:
-            qbad = (diff * np.sqrt(invvar)) > upper
-            badness += np.fmax(diff*np.sqrt(invvar),0.0)*qbad
+            qbad = chi > upper
+        badness += np.fmax(chi,0.0)*qbad
     #
     # Decide how bad a point is according to maxdev.
     #
@@ -1996,6 +2010,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
 
     outmask = newmask
     return (outmask, qdone)
+
 
 
 def djs_laxisnum(dims, iaxis=0):
@@ -2823,3 +2838,5 @@ def gcirc(ra1, dec1, ra2, dec2, units=2):
     else:
         return rad2deg(dis)*3600.0
 ### Above part are imported from pydl spheregroup
+
+
