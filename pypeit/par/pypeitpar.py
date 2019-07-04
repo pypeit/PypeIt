@@ -1531,9 +1531,9 @@ class EdgeTracePar(ParSet):
                  det_min_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
                  max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
                  fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None,
-                 fit_min_spec_length=None, pca_n=None, pca_var_percent=None, pca_function=None,
-                 pca_order=None, pca_sigrej=None, pca_maxrej=None, pca_maxiter=None,
-                 smash_range=None, edge_detect_clip=None, trace_median_frac=None,
+                 fit_min_spec_length=None, left_right_pca=None, pca_n=None, pca_var_percent=None,
+                 pca_function=None, pca_order=None, pca_sigrej=None, pca_maxrej=None,
+                 pca_maxiter=None, smash_range=None, edge_detect_clip=None, trace_median_frac=None,
                  trace_thresh=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
                  niter_gaussian=None, det_buffer=None, max_nudge=None, sync_predict=None,
                  sync_center=None, gap_offset=None, sync_to_edge=None, minimum_slit_length=None,
@@ -1642,6 +1642,12 @@ class EdgeTracePar(ParSet):
         descr['fit_min_spec_length'] = 'Minimum unmasked spectral length of a traced slit edge ' \
                                        'to use in any modeling procedure (polynomial fitting ' \
                                        'or PCA decomposition).'
+
+        defaults['left_right_pca'] = False
+        dtypes['left_right_pca'] = bool
+        descr['left_right_pca'] = 'Construct a PCA decomposition for the left and right traces ' \
+                                  'separately.  This can be important for cross-dispersed ' \
+                                  'echelle spectrographs (e.g., Keck-NIRES)'
 
         dtypes['pca_n'] = int
         descr['pca_n'] = 'The number of PCA components to keep, which must be less than the ' \
@@ -1877,14 +1883,14 @@ class EdgeTracePar(ParSet):
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
                    'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
                    'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
-                   'fit_niter', 'fit_min_spec_length', 'pca_n', 'pca_var_percent', 'pca_function',
-                   'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range',
-                   'edge_detect_clip', 'trace_median_frac', 'trace_thresh', 'fwhm_uniform',
-                   'niter_uniform', 'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge',
-                   'sync_predict', 'sync_center', 'gap_offset', 'sync_to_edge',
-                   'minimum_slit_length', 'length_range', 'minimum_slit_gap', 'clip', 'sync_clip',
-                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
-                   'pad', 'add_slits', 'rm_slits']
+                   'fit_niter', 'fit_min_spec_length', 'left_right_pca', 'pca_n',
+                   'pca_var_percent', 'pca_function', 'pca_order', 'pca_sigrej', 'pca_maxrej',
+                   'pca_maxiter', 'smash_range', 'edge_detect_clip', 'trace_median_frac',
+                   'trace_thresh', 'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian',
+                   'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict', 'sync_center',
+                   'gap_offset', 'sync_to_edge', 'minimum_slit_length', 'length_range',
+                   'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter', 'mask_reg_maxsep',
+                   'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

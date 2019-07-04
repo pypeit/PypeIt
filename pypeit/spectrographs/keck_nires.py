@@ -83,6 +83,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+        par['calibrations']['slitedges']['left_right_pca'] = True
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  10.0

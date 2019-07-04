@@ -210,6 +210,10 @@ def fit_pca_coefficients(coeff, order, function='legendre', lower=3.0, upper=3.0
     coeff_used = np.ones(_coeff.shape, dtype=bool)
     fit_coeff = [None]*npca
 
+    # TODO: This fitting is fast. Maybe we should determine the best
+    # order for each PCA component, up to some maximum, by comparing
+    # reduction in chi-square vs added number of parameters?
+
     # Fit the coefficients of each PCA component so that they can be
     # interpolated to other coordinates.
     for i in range(npca):
@@ -277,5 +281,5 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
         c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function)
     # Calculate the predicted vectors and return them
     vectors = np.dot(c, pca_components) + pca_mean[None,:] + mean[:,None]
-    return vectors if _x.size > 1 else vectors[0,:]
+    return vectors if isinstance(x, np.ndarray) else vectors[0,:]
 

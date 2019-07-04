@@ -149,7 +149,7 @@ class Spectrograph(object):
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         return self.default_pypeit_par() if inp_par is None else inp_par

@@ -289,12 +289,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
     TODO: Include a method/check that determines if traces cross one
     another anywhere.
 
+    TODO: Describe left-right PCA functionality
+
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The object that sets the instrument used to take the
             observations. Used to set :attr:`spectrograph`.
         par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
-            The parameters used to guide slit tracing
+            The parameters used to guide slit tracing.
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
@@ -401,9 +403,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         spat_fit_type (:obj:`str`):
             An informational string identifier for the type of model
             used to fit the trace data.
-        pca (:class:`EdgeTracePCA`):
-            Result of a PCA decomposition of the edge traces and used
-            to predict new traces.
+        pca (:obj:`list`, :class:`EdgeTracePCA`):
+            Result of a PCA decomposition of the edge traces, used to
+            predict new traces. This can either be a single
+            :class:`EdgeTracePCA` object or a list of two
+            :class:`EdgeTracePCA` objects if the PCA decomposition is
+            peformed for the left (`pca[0]`) and right (`pca[1]`)
+            traces separately.
         pca_type (:obj:`str`)
             An informational string indicating which data were used
             in the PCA decomposition, 'center' for `spat_cen` or
@@ -457,7 +463,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit = None            # The result of modeling the slit edge positions
         self.spat_fit_type = None       # The type of fitting performed
         
-        self.pca = None                 # EdgeTracePCA with the PCA decomposition
+        self.pca = None                 # One or two EdgeTracePCA objects with PCA decomposition
         self.pca_type = None            # Measurements used to construct the PCA (center or fit)
 
         self.design = None              # Table that collates slit-mask design data matched to
@@ -571,7 +577,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                  description='Row index of relevant slit in the design table')
                            ])
 
-    def rectify(self, flux, bpm=None, extract_width=None, mask_threshold=0.5):
+    def rectify(self, flux, bpm=None, extract_width=None, mask_threshold=0.5, side='left'):
         r""""
         Rectify the provided image based on the current edge trace
         PCA model.
@@ -579,6 +585,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         The is primarily a wrapper for
         :func:`pypeit.sampling.rectify_image`; see its documentation
         for more detail.
+
+        Used parameters from :attr:`par`
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        `left_right_pca`.
 
         Args:
             flux (`numpy.ndarray`_):
@@ -601,6 +611,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 covered by valid pixels in `flux`. Pixels in the
                 output image with less than this fractional coverage
                 by input pixels are flagged in the output.
+            side (:obj:`str`, optional):
+                If the PCA decomposition was performed for the left
+                and right traces separately, this selects the PCA to
+                use when constructing the rectification coordinate
+                system. This is ignored if both were used in the PCA.
 
         Returns:
              Two `numpy.ndarray`_ objects are returned both with
@@ -609,16 +624,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.pca is None:
             raise ValueError('Must first run the PCA analysis for the traces; run build_pca.')
+        pca = self.pca[0 if side == 'left' else 1] if self.par['left_right_pca'] else self.pca
 
         # Get the traces that cross the reference row at the first and last pixels of the image
-        first_last_trace = self.pca.predict(np.array([0,self.nspat-1]))
+        first_last_trace = pca.predict(np.array([0,self.nspat-1]))
         # Use these two traces to define the spatial pixel coordinates to sample
         start = np.ceil(np.amax(np.amin(first_last_trace, axis=1))).astype(int)
         buffer = self.nspat - np.floor(np.amin(np.amax(first_last_trace, axis=1))).astype(int) \
                     + start
+        # TODO: This has its limitations if the PCA is highly non-linear
         # Rectify the image
         ocol = np.arange(self.nspat+buffer)-start
-        return sampling.rectify_image(flux, self.pca.predict(ocol), bpm=bpm, ocol=ocol,
+        return sampling.rectify_image(flux, pca.predict(ocol), bpm=bpm, ocol=ocol,
                                       max_ocol=self.nspat-1, extract_width=extract_width,
                                       mask_threshold=mask_threshold)
 
@@ -2294,7 +2311,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         else:
             # Sort according to the spatial position in one row
             reference_row = trace.most_common_trace_row(bpm) if self.pca is None \
-                                else self.pca.reference_row
+                                else (self.pca[0].reference_row if self.par['left_right_pca']
+                                    else self.pca.reference_row)
             msgs.info('Re-sorting edges based on where they cross row {0}'.format(reference_row))
             srt = np.argsort(cen[reference_row,:])
 
@@ -2463,6 +2481,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
         `fit_min_spec_length` in :attr:`par`. Traces that are
         inserted are ignored.
 
+        If the PCA decomposition will be performed on the left and
+        right traces separately, the function will return `False` if
+        there are fewer than 5 left *or* right edge traces.
+
+        Used parameters from :attr:`par`
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        `fit_min_spec_length` and `left_right_pca`.
+
         .. warning::
             This function calls :func:`check_trace` using
             `fit_min_spec_length` to flag short traces, meaning that
@@ -2472,36 +2498,107 @@ class EdgeTraceSet(masterframe.MasterFrame):
             :obj:`bool`: Flag that traces meet criterion for PCA
             decomposition.
         """
+        # Set and report the minimum length needed for the PCA in
+        # pixels
+        minimum_spec_length = self.par['fit_min_spec_length']*self.nspec
+        msgs.info('Minium length of traces to include in the PCA: {0}'.format(minimum_spec_length))
+
         # This call to check_traces will flag any trace with a length
         # below minimum_spec_length as SHORTRANGE
         # TODO: This means that SHORTRANGE can actually have two
         # different meanings. Instead use one bit for "too short for
         # detection" and a separate one for "too short to fit"?
-        self.check_traces(minimum_spec_length=self.par['fit_min_spec_length']*self.nspec)
+        self.check_traces(minimum_spec_length=minimum_spec_length)
+
+        # Find the valid traces
         # NOTE: Because of the run of check_traces above, short traces
         # are fully flagged meaning that we can just check if the
         # length of the trace is larger than 0.
-        return np.sum(np.sum(np.invert(self.bitmask.flagged(self.spat_msk)), axis=0) > 0) > 4
+        good = np.sum(np.invert(self.bitmask.flagged(self.spat_msk)), axis=0) > 0
+
+        # Returned value depends on whether or not the left and right
+        # traces are done separately
+        return np.sum(good[self.is_left]) > 4 and np.sum(good[self.is_right]) > 4 \
+                    if self.par['left_right_pca'] else np.sum(good) > 4
+
+    def predict_traces(self, col, side=None):
+        """
+        Use the PCA decomposition to predict traces.
+
+        The PCA decomposition must be available via :attr:`pca`; see
+        :func:`build_pca`. This is a convenience method to handle the
+        PCA predictions given that left and right traces can be
+        decomposed separately or simultaneously.
+
+        Args:
+            col (:obj:`float`, `numpy.ndarray`):
+                A single value or 1D array with the spatial location
+                (column) in pixel coordinates for 1 or more traces to
+                predict. The predicted traces will pass through these
+                columns and the reference row set for the PCA
+                decomposition; see :func:`build_pca`.
+            side (:obj:`float`, `numpy.ndarray`, optional):
+                A single value or 1D integer array indicating the
+                edge side to be predicted; -1 for left and 1 for
+                right. Must be the same length as `col`. This is only
+                used if the PCA is side-dependent, and *must* be
+                provided in the case that it is (see `left_right_pca`
+                in :attr:`par`).
+
+        Returns:
+            `numpy.ndarray`: A 1D or 2D array of size :attr:`nspec`
+            by the length of the column array provided. If a single
+            column is provided, a single trace vector is returned.
+        """
+        _col = np.atleast_1d(col)
+        _side = np.atleast_1d(side)
+        if _col.size != _side.size:
+            msgs.error('Spatial locations and side integers must have the same shape.')
+
+        if self.par['left_right_pca']:
+            trace_add = np.zeros((self.nspec,0), dtype='float')
+            for s,p in zip([-1,1], self.pca):
+                indx = _side == s
+                if not np.any(indx):
+                    continue
+                trace_add = np.hstack((trace_add, p.predict(np.atleast_1d(_col[indx]))))
+        else:
+            trace_add = self.pca.predict(_col)
+
+        return trace_add if isinstance(col, np.ndarray) else trace_add.ravel()
 
     def build_pca(self, use_center=False, debug=False):
         """
         Build a PCA model of the current edge data.
 
-        Primarily a wrapper that instantiates :attr:`pca`, which has
-        type :class:`EdgeTracePCA`. After executing this, traces can
-        be predicted using the pca by calling
-        `self.pca.predict(spat)`; see :func:`EdgeTracePCA.predict`.
+        Primarily a wrapper that instantiates :attr:`pca`. If left
+        and right traces are analyzed separately, :attr:`pca` will be
+        a list of two :class:`EdgeTracePCA` objects; otherwise
+        :attr:`pca` is a single :class:`EdgeTracePCA` object. After
+        executing this, traces can be predicted by calling
+        `self.pca.predict(spat)` (see :func:`EdgeTracePCA.predict`)
+        if both sides are analyzed simultaneously; otherwise, left
+        and tright traces can be predicted using
+        `self.pca[0].predict(spat)`. and `self.pca[1].predict(spat)`,
+        respectively. See :func:`predict_traces`.
 
         If no parametrized function has been fit to the trace data or
         if specifically requested (see `use_center`), the PCA is
-        based on the measured trace centroids; othwerwise, the PCA
-        uses the parametrized trace fits.
+        based on the measured trace centroids (:attr:`spat_cen`);
+        othwerwise, the PCA uses the parametrized trace fits
+        (:attr:`spat_fit`).
+
+        The reference row used for the decomposition (see
+        :class:`EdgeTracePCA`) is set by
+        :func:`pypeit.core.trace.most_common_trace_row` using the
+        existing mask. If treating left and right traces separately,
+        the reference row is the same for both PCA decompositions.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `fit_min_spec_length`, `pca_n`, `pca_var_percent`,
-        `pca_function`, `pca_order`, `pca_sigrej`, `pca_maxrej`, and
-        `pca_maxiter`.
+        `fit_min_spec_length`, `left_right_pca`, `pca_n`,
+        `pca_var_percent`, `pca_function`, `pca_order`, `pca_sigrej`,
+        `pca_maxrej`, and `pca_maxiter`.
 
         Args:
             use_center (:obj:`bool`, optional):
@@ -2514,6 +2611,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Run in debug mode.
         """
         # Parse parameters and report
+        left_right_pca = self.par['left_right_pca']
         npca = self.par['pca_n']
         pca_explained_var = self.par['pca_var_percent']
         function = self.par['pca_function']
@@ -2522,11 +2620,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         else (self.par['pca_sigrej'],)*2
         maxrej = self.par['pca_maxrej']
         maxiter = self.par['pca_maxiter']
-        minimum_spec_length = self.par['fit_min_spec_length']*self.nspec
 
         msgs.info('-'*50)
         msgs.info('{0:^50}'.format('Constructing PCA interpolator'))
         msgs.info('-'*50)
+        msgs.info('PCA composition of the left and right traces is done {0}.'.format(
+                    'separately' if left_right_pca else 'simultaneously'))
         if npca is not None:
             msgs.info('Restricted number of PCA components: {0}'.format(npca))
         if pca_explained_var is not None:
@@ -2537,7 +2636,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msgs.info('Upper sigma rejection: {0:.1f}'.format(upper))
         msgs.info('Maximum number of rejections per iteration: {0}'.format(maxrej))
         msgs.info('Maximum number of rejection iterations: {0}'.format(maxiter))
-        msgs.info('Minium length of traces to include in the PCA: {0}'.format(minimum_spec_length))
 
         # Check the state of the current object
         if self.pca is not None:
@@ -2559,31 +2657,55 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Is there a way to propagate the mask to the PCA?
         # TODO: Keep a separate mask specifically for the fit data? e.g., spat_fit_msk
 
-        # The call to can_pca means that short traces are fully masked,
-        # meaning that valid traces to use will automatically be longer
-        # than `fit_min_spec_length` if they have more than one valid
-        # measurement.
+        # The call to can_pca means that short traces are fully masked
+        # and that valid traces will be any trace with unmasked pixels.
         use_trace = np.sum(np.invert(bpm), axis=0) > 0
-        trace_inp = self.spat_cen[:,use_trace] if self.spat_fit is None or use_center \
-                        else self.spat_fit[:,use_trace]
-        msgs.info('Using {0}/{1} traces in the PCA analysis.'.format(np.sum(use_trace),
-                                                                     self.ntrace))
 
-        # TODO: Allow it to PCA the left and right traces separately?
+        # Set the reference row so that, regardless of whether the PCA
+        # is for the left, right, or all traces, the reference row is
+        # always the same.
+        reference_row = trace.most_common_trace_row(bpm[:,use_trace])
+#        reference_row = self.npec//2
 
-        # Instantiate the PCA
-        self.pca = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
-                                reference_row=trace.most_common_trace_row(bpm[:,use_trace]))
+        # Setup the list of traces to use in a single object so that we
+        # can loop though them, regardless of whether we're performing
+        # the PCA for left and right traces separately
+        pcaindx = [use_trace]
+        if left_right_pca:
+            pcaindx = [None, None]
+            for i, side in enumerate(['left', 'right']):
+                pcaindx[i] = (self.is_left if side == 'left' else self.is_right) & use_trace
+                msgs.info('Using {0}/{1} of the {2} traces in the PCA analysis.'.format(
+                                np.sum(pcaindx[i]), self.ntrace, side))
 
-        # Set the order of the function fit to the PCA coefficiencts:
-        # Order is set to cascade down to lower order for components
-        # that account for a smaller percentage of the variance.
-        _order = np.clip(order - np.arange(self.pca.npca), 1, None).astype(int)
-        msgs.info('Order of function fit to each component: {0}'.format(_order))
-        # Run the fit
-        self.pca.build_interpolator(_order, function=function, lower=lower, upper=upper, minx=0.,
-                                    maxx=self.nspat-1., maxrej=maxrej, maxiter=maxiter,
-                                    debug=debug)
+        # Run the PCA decomposition and construct its interpolator
+        self.pca = [None]*len(pcaindx)
+        for i,indx in enumerate(pcaindx):
+            # Grab the trace data. This uses all the data, even if some
+            # of it is masked.
+            trace_inp = self.spat_cen[:,indx] if self.spat_fit is None or use_center \
+                            else self.spat_fit[:,indx]
+
+            # Instantiate the PCA
+            self.pca[i] = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
+                                       reference_row=reference_row)
+
+            # Set the order of the function fit to the PCA
+            # coefficiencts: Order is set to cascade down to lower
+            # order for components that account for a smaller
+            # percentage of the variance.
+            _order = np.clip(order - np.arange(self.pca[i].npca), 1, None).astype(int)
+            msgs.info('Order of function fit to each component: {0}'.format(_order))
+            # Run the fit
+            self.pca[i].build_interpolator(_order, function=function, lower=lower, upper=upper,
+                                           minx=0., maxx=self.nspat-1., maxrej=maxrej,
+                                           maxiter=maxiter, debug=debug)
+
+            # TODO: Use the rejected pca coefficiencts to reject traces?
+
+        # If left and right use the same PCA, get rid of the list
+        if not left_right_pca:
+            self.pca = self.pca[0]
 
     def pca_refine(self, use_center=False, debug=False, force=False):
         """
@@ -2595,8 +2717,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         uses the parametrized trace fits.
 
         If needed or forced to, this first executes :func:`build_pca`
-        and then uses :func:`EdgeTracePCA.predict` to use the PCA to
-        reset the trace data.
+        and then uses :func:`predict_traces` to use the PCA to reset
+        the trace data.
+
+        Only used parameter from :attr:`par`
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is
+        `left_right_pca`.
 
         Args:
             use_center (:obj:`bool`, optional):
@@ -2611,25 +2737,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Force the recalculation of the PCA even if it has
                 already been done.
         """
-        # NOTE: All parameters parsed by build_pca
         # Perform the PCA decomposition if necessary
         _pca_type = 'center' if use_center or self.spat_fit is None else 'fit'
         if force or self.pca is None or self.pca_type != _pca_type:
             self.build_pca(use_center=use_center, debug=debug)
 
-        # TODO: Use the rejected pca coefficiencts to reject traces?
-
-        # Get the spatial positions of each trace at the reference row
-        trace_ref = self.spat_cen[self.pca.reference_row,:] if self.pca_type == 'center' \
-                        else self.spat_fit[self.pca.reference_row,:]
-
-        # Predict the traces
-        self.spat_fit = self.pca.predict(trace_ref)
         self.spat_fit_type = 'pca'
+
+        # Predict the traces using the PCA
+        reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+                            else self.pca.reference_row
+        trace_ref = self.spat_cen[reference_row,:] if self.pca_type == 'center' \
+                            else self.spat_fit[reference_row,:]
+        side = self.is_right.astype(int)*2-1
+        self.spat_fit = self.predict_traces(trace_ref, side)
 
         # TODO: Compare with the fit data. Remove traces where the mean
         # offset between the PCA prediction and the measured centroids
-        # are larger than some threshold
+        # are larger than some threshold?
 
         # Log what was done
         self.log += [inspect.stack()[0][3]]
@@ -2643,11 +2768,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
         :func:`build_pca` or :func:`pca_refine`. It is also primarily
         a wrapper for :func:`pypeit.core.trace.peak_trace`.
 
+        If the left and right traces have separate PCA
+        decompositions, this function makes one call to
+        :func:`pypeit.core.trace.peak_trace` for each side.
+        Otherwise, a single call is made to
+        :func:`pypeit.core.trace.peak_trace` where both the peak and
+        troughs in :attr:`sobel_sig` are detected and traced.
+
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `edge_thresh`, `smash_range`, `edge_detect_clip`,
-        `trace_median_frac`, `trace_thresh`, `fit_function`,
-        `fit_order`, `fwhm_uniform`, `fwhm_uniform`,
+        `left_right_pca`, `edge_thresh`, `smash_range`,
+        `edge_detect_clip`, `trace_median_frac`, `trace_thresh`,
+        `fit_function`, `fit_order`, `fwhm_uniform`, `fwhm_uniform`,
         `niter_gaussian`, `niter_gaussian`, `fit_maxdev`, and
         `fit_maxiter`.
 
@@ -2708,25 +2840,56 @@ class EdgeTraceSet(masterframe.MasterFrame):
         ivar = np.ones_like(self.sobel_sig, dtype=float)
         bpm = np.zeros_like(self.sobel_sig, dtype=bool) if self.bpm is None else self.bpm
 
-        # Get the image relevant to tracing
-        _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=None)
+        # Treatment is different if the PCA was done for all traces or
+        # separately for left and right traces
+        if self.par['left_right_pca']:
+            # Initialize the arrays holding the results for both sides
+            fit = np.zeros((self.nspec,0), dtype='float')
+            cen = np.zeros((self.nspec,0), dtype='float')
+            err = np.zeros((self.nspec,0), dtype='float')
+            msk = np.zeros((self.nspec,0), dtype=self.bitmask.minimum_dtype())
 
-        # TODO: Need to fix how the rest of this handles bad_trace
+            # Iterate through each side
+            for i,side in enumerate(['left', 'right']):
+                # Get the image relevant to tracing
+                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=side)
 
-        # Find and trace both peaks and troughs in the image. The input
-        # trace data (`trace` argument) is the PCA prediction of the
-        # trace that passes through each spatial position at the
-        # reference spectral pixel.
-        fit, cen, err, msk, nleft \
-                = trace.peak_trace(_sobel_sig, ivar=ivar, bpm=bpm,
-                                   trace_map=self.pca.predict(np.arange(self.nspat)),
-                                   smash_range=smash_range, peak_thresh=peak_thresh,
-                                   peak_clip=peak_clip, trough=True,
-                                   trace_median_frac=trace_median_frac, trace_thresh=trace_thresh,
-                                   fwhm_uniform=fwhm_uniform, fwhm_gaussian=fwhm_gaussian,
-                                   function=function, order=order, maxdev=maxdev, maxiter=maxiter,
-                                   niter_uniform=niter_uniform, niter_gaussian=niter_gaussian,
-                                   bitmask=self.bitmask, debug=debug)
+                _fit, _cen, _err, _msk, nside \
+                        = trace.peak_trace(_sobel_sig, ivar=ivar, bpm=bpm,
+                                           trace_map=self.pca[i].predict(np.arange(self.nspat)),
+                                           smash_range=smash_range, peak_thresh=peak_thresh,
+                                           peak_clip=peak_clip, trace_median_frac=trace_median_frac,
+                                           trace_thresh=trace_thresh, fwhm_uniform=fwhm_uniform,
+                                           fwhm_gaussian=fwhm_gaussian, function=function,
+                                           order=order, maxdev=maxdev, maxiter=maxiter,
+                                           niter_uniform=niter_uniform,
+                                           niter_gaussian=niter_gaussian, bitmask=self.bitmask,
+                                           debug=debug)
+                fit = np.hstack((fit,_fit))
+                cen = np.hstack((cen,_cen))
+                err = np.hstack((err,_err))
+                msk = np.hstack((msk,_msk))
+                if side == 'left':
+                    nleft = nside
+        else:
+            # Get the image relevant to tracing
+            _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=None)
+
+            # Find and trace both peaks and troughs in the image. The
+            # input trace data (`trace` argument) is the PCA prediction
+            # of the trace that passes through each spatial position at
+            # the reference spectral pixel.
+            fit, cen, err, msk, nleft \
+                    = trace.peak_trace(_sobel_sig, ivar=ivar, bpm=bpm,
+                                       trace_map=self.pca.predict(np.arange(self.nspat)),
+                                       smash_range=smash_range, peak_thresh=peak_thresh,
+                                       peak_clip=peak_clip, trough=True,
+                                       trace_median_frac=trace_median_frac,
+                                       trace_thresh=trace_thresh, fwhm_uniform=fwhm_uniform,
+                                       fwhm_gaussian=fwhm_gaussian, function=function, order=order,
+                                       maxdev=maxdev, maxiter=maxiter, niter_uniform=niter_uniform,
+                                       niter_gaussian=niter_gaussian, bitmask=self.bitmask,
+                                       debug=debug)
 
         # Assess the output
         ntrace = fit.shape[1]
@@ -2843,7 +3006,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # the use of inserted traces.
         bpm = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags)
         reference_row = trace.most_common_trace_row(bpm) if self.pca is None \
-                            else self.pca.reference_row
+                            else (self.pca[0].reference_row if self.par['left_right_pca']
+                                    else self.pca.reference_row)
 
         # Check that the trace data are sorted at this row
         if not np.array_equal(np.arange(trace_cen.shape[1]),
@@ -3000,8 +3164,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         :func:`check_synced`.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are `det_buffer`
-        and `sync_predict`.
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        `det_buffer`, `left_right_pca`, and `sync_predict`.
 
         .. warning::
             Synchronizing the left and right edges requires that
@@ -3098,7 +3262,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Predict the traces either using the PCA or using the nearest slit edge
         if self.par['sync_predict'] == 'pca':
-            trace_add = self.pca.predict(trace_ref[add_edge])
+            trace_add = self.predict_traces(trace_ref[add_edge], side[add_edge])
         elif self.par['sync_predict'] == 'nearest':
             # Index of trace nearest the ones to add
             # TODO: Force it to use the nearest edge of the same side;
@@ -3282,8 +3446,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `mask_reg_maxiter`, `mask_reg_maxsep`, `mask_reg_sigrej`, and
-        `ignore_alignment`.
+        `left_right_pca`, `mask_reg_maxiter`, `mask_reg_maxsep`,
+        `mask_reg_sigrej`, and `ignore_alignment`.
 
         Args:
             design_file (:obj:`str`, optional):
@@ -3325,7 +3489,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Match both left and right edges simultaneously
         x_design = np.array([self.spectrograph.slitmask.bottom[:,0],
                              self.spectrograph.slitmask.top[:,0]]).T.ravel()
-        x_det = self.spat_fit[self.pca.reference_row,:]
+        reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+                            else self.pca.reference_row
+        x_det = self.spat_fit[reference_row,:]
 
         # Mask traces that are fully masked, except if they were
         # specifically inserted in a previous step
@@ -3492,7 +3658,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Even indices are lefts, odd indices are rights
             side = missing % 2 * 2 - 1
             # Predict the traces using the PCA
-            missing_traces = self.pca.predict(register.match_coo[missing])
+            missing_traces = self.predict_traces(register.match_coo[missing], side)
             # Insert them
             self.insert_traces(side, missing_traces, mode='mask')
 
@@ -3505,9 +3671,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 self.sync(rebuild_pca=True)
             else:
                 self.check_synced(rebuild_pca=True)
-
+            reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+                            else self.pca.reference_row
             # Reset the match after removing/inserting traces
-            x_det = self.spat_fit[self.pca.reference_row,:]
+            x_det = self.spat_fit[reference_row,:]
             x_det_bpm = self.fully_masked_traces(flag=self.bitmask.bad_flags) \
                             & np.invert(self.fully_masked_traces(flag=self.bitmask.insert_flags))
             register = slitmask.SlitRegister(x_det, x_design, trace_mask=x_det_bpm,
@@ -3541,6 +3708,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         slit_index = register.match_index[register.match_index % 2 == 0]//2
         # Number of slits
         nslits = len(slit_index)
+        # Reference row
+        reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+                            else self.pca.reference_row
         # Instantiate as an empty table
         self.design = EdgeTraceSet.empty_design_table(rows=nslits)
         # Save the fit parameters and the source file as table metadata
@@ -3549,11 +3719,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.design.meta['MASKSCL'] = register.par[1]
         # Fill the columns
         self.design['TRACEID'] = np.arange(nslits, dtype=self.design['TRACEID'].dtype)
-        self.design['TRACESROW'] = np.full(nslits, self.pca.reference_row,
+        self.design['TRACESROW'] = np.full(nslits, reference_row,
                                            dtype=self.design['TRACESROW'].dtype)
-        self.design['TRACELPIX'] = self.spat_fit[self.pca.reference_row,self.traceid<0].astype(
+        self.design['TRACELPIX'] = self.spat_fit[reference_row,self.traceid<0].astype(
                                         dtype=self.design['TRACELPIX'].dtype)
-        self.design['TRACERPIX'] = self.spat_fit[self.pca.reference_row,self.traceid>0].astype(
+        self.design['TRACERPIX'] = self.spat_fit[reference_row,self.traceid>0].astype(
                                         dtype=self.design['TRACERPIX'].dtype)
         self.design['SLITID'] = self.spectrograph.slitmask.slitid[slit_index].astype(
                                         dtype=self.design['SLITID'].dtype)
