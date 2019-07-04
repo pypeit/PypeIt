@@ -685,12 +685,12 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     stretch_vec = np.zeros(narxiv)
     ccorr_vec = np.zeros(narxiv)
     for iarxiv in range(narxiv):
-        embed(header='688')
         msgs.info('Cross-correlating with arxiv slit # {:d}'.format(iarxiv))
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, fwhm = fwhm, seed = random_state,
+            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv],
+                                        cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
                                         debug=debug_xcorr)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
@@ -884,7 +884,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             wvcalib[str(slit)] = None
             continue
         msgs.info("Processing slit {}".format(slit))
-        #
+        # Grab the observed arc spectrum
         ispec = spec[:,slit]
 
         # Find the shift
@@ -894,10 +894,13 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         nspec = len(ispec)
         npad = ncomb - nspec
         pspec[npad // 2:npad // 2 + len(ispec)] = ispec
+        # Remove the continuum
+        _, _, _, _, pspec_cont_sub = wvutils.arc_lines_from_spec(pspec)
+        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec_cont_sub, debug=debug, percent_ceil=x_percentile)
+        #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
-        debug=True
         if debug:
             xvals = np.arange(ncomb)
             plt.clf()
@@ -906,7 +909,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             ax.plot(xvals, temp_spec)  # Template
             ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')  # Input
             plt.show()
-            debugger.set_trace()
+            embed(header='909')
         i0 = npad // 2 + int(shift_cc)
 
         # Generate the template snippet
