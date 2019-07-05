@@ -583,6 +583,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
            sky model for the pixels
 
     """
+    # TODO Force traces near edges to always be extracted with a Gaussian profile.
+
+
     if inmask is None:
         inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar)
 

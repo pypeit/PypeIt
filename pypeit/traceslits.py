@@ -319,6 +319,7 @@ class TraceSlits(masterframe.MasterFrame):
         self.tslits_dict['spec_min'], self.tslits_dict['spec_max'] = \
             self.spectrograph.slit_minmax(self.tslits_dict['nslits'], binspectral = binspectral)
 
+
         return self.tslits_dict
 
     def _final_left_right(self):
@@ -901,6 +902,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Adjust slit edges
         self.slit_left += self.par['trim'][0]
         self.slit_righ -= self.par['trim'][1]
+        # Extrapolate traces
 
         # These need to be done last!
         # Add user input slits

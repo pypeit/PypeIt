@@ -27,7 +27,7 @@ from pypeit.spectrographs import util
 from IPython import embed
 
 
-def get_brightest_obj(specobjs_list, echelle=True):
+def get_brightest_obj(specobjs_list, pypeline):
     """
     Utility routine to find the brightest object in each exposure given a specobjs_list. This currently only works
     for echelle.
@@ -50,7 +50,8 @@ def get_brightest_obj(specobjs_list, echelle=True):
     nexp = len(specobjs_list)
     objid = np.zeros(nexp, dtype=int)
     snr_bar = np.zeros(nexp)
-    if echelle:
+    embed()
+    if 'Echelle' in pypeline:
         norders = specobjs_list[0].ech_orderindx.max() + 1
         for iexp, sobjs in enumerate(specobjs_list):
             uni_objid = np.unique(sobjs.ech_objid)
@@ -80,7 +81,7 @@ def get_brightest_obj(specobjs_list, echelle=True):
 
 def optimal_weights(specobjs_list, slitid, objid):
     """
-    Determine optimal weights for a 2d coadds. This script grabs the information from SpecObjs list for the
+    Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
     object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
     each exposure. This routine will also pass back the trace and the wavelengths (optimally extracted) for each
     exposure.
@@ -674,7 +675,8 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
-def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False, par=None, std=False, show=False, show_peaks=False):
+def extract_coadd2d(stack_dict, master_dir, det, pypeline, samp_fact = 1.0, ir_redux=False, par=None, std=False,
+                    show=False, show_peaks=False):
     """
     Main routine to run the extraction for 2d coadds.
 
@@ -703,7 +705,7 @@ def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False,
 
     # Find the objid of the brighest object, and the average snr across all orders
     nslits = stack_dict['tslits_dict']['slit_left'].shape[1]
-    objid, snr_bar = get_brightest_obj(stack_dict['specobjs_list'], echelle=True)
+    objid, snr_bar = get_brightest_obj(stack_dict['specobjs_list'], pypeline)
     # TODO Print out a report here on the image stack, i.e. S/N of each image
 
     spectrograph = util.load_spectrograph(stack_dict['spectrograph'])

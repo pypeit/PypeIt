@@ -174,10 +174,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             )]
         self.numhead = 1
 
-    @property
-    def norders(self):
-        return 16
-
 
     def default_pypeit_par(self):
         """
@@ -326,35 +322,29 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return self.bpm_img
 
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
 
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+    @property
+    def norders(self):
+        return 16
 
-        Returns:
-            int: order number
-
-        """
-        order_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
                                    0.33141317, 0.38813936, 0.44310197, 0.49637422,
                                    0.54839496, 0.59948157, 0.65005956, 0.70074477,
                                    0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
-        orders = np.arange(26, 10, -1, dtype=int)
+        return ord_spat_pos
 
-        # Find closest
-        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
+    @property
+    def orders(self):
+        return np.arange(26, 10, -1, dtype=int)
 
-        # Check
-        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return orders[iorder]
-        else:
-            return orders[iorder]
+
+    @property
+    def spec_min_max(self):
+        spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
+        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
+        return np.vstack((spec_min, spec_max))
 
 
     def order_platescale(self, order_vec, binning=None):
@@ -382,18 +372,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Right now I just assume a simple linear trend
         plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
         return plate_scale
-
-    def slit_minmax(self, nslits, binspectral=1):
-
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        all_spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
-        all_spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
-
-        spec_min = all_spec_min[:nslits] # data with K blocking filter need to be trimed
-        spec_max = all_spec_max[:nslits]
-
-        return spec_min, spec_max
-
 
     def slitmask(self, tslits_dict, pad=None):
         """
@@ -482,9 +460,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         self.numhead = 1
 
 
-    @property
-    def norders(self):
-        return 15
 
     def default_pypeit_par(self):
         """
@@ -544,6 +519,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['scienceimage']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['scienceimage']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         par['scienceimage']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
+        par['scienceimage']['global_sky_std'] = False
+
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
@@ -564,35 +541,28 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
 
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
+    @property
+    def norders(self):
+        return 15
 
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
+                                 0.41289127, 0.4733839 , 0.53072208, 0.58509916,
+                                 0.63671413, 0.685754, 0.73236772, 0.77676367,
+                                 0.8191196 , 0.85968302, 0.89877932])
+        return ord_spat_pos
 
-        Returns:
-            int: order number
+    @property
+    def orders(self):
+        return np.arange(30, 15, -1, dtype=int)
 
-        """
-        order_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
-                                   0.41289127, 0.4733839 , 0.53072208, 0.58509916,
-                                   0.63671413, 0.685754, 0.73236772, 0.77676367,
-                                   0.8191196 , 0.85968302, 0.89877932])
-        orders = np.arange(30, 15, -1, dtype=int)
+    @property
+    def spec_min_max(self):
+        spec_max = np.asarray([4000]*14 + [3000])
+        spec_min = np.asarray([2000,1000] + [0]*13)
+        return np.vstack((spec_min, spec_max))
 
-        # Find closest
-        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
-
-        # Check
-        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return orders[iorder]
-        else:
-            return orders[iorder]
 
     def order_platescale(self, order_vec, binning=None):
         """
@@ -618,58 +588,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         return plate_scale*binspatial
 
 
-    def slit_minmax(self, nslits, binspectral=1):
-
-        spec_max = np.asarray([4000]*14 + [3000])//binspectral
-        spec_min = np.asarray([2000,1000] + [0]*13)//binspectral
-
-        return spec_min, spec_max
-
-    def slitmask(self, tslits_dict, pad=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        nslits = tslits_dict['lcen'].shape[1]
-        if nslits != self.norders:
-            msgs.error('Not all the orders were identified!')
-
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        binning = tslits_dict['binning']
-        binspectral, binspatial = parse.parse_binning(binning)
-        # These are the order boundaries determined by eye by JFH.
-        order_max = np.asarray([4000]*14 + [3000])//binspectral
-        order_min = np.asarray([2000,1000] + [0]*13)//binspectral
-        # TODO add binning adjustments to these
-        for iorder in range(self.norders):
-            orderbad = (slitmask == iorder) & ((spec_img < order_min[iorder]) | (spec_img > order_max[iorder]))
-            slitmask[orderbad] = -1
-
-        return slitmask
 
     @property
     def dloglam(self):

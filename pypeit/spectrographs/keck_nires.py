@@ -42,7 +42,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             datasec         = '[:,:]',
                             oscansec        = '[980:1024,:]'  # Is this a hack??
                             )]
-        self.norders = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -187,76 +186,28 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-    def slit_minmax(self, nslits, binspectral=1):
 
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+
+    @property
+    def norders(self):
+        return 5
+
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
+                                   0.70260714, 0.86335914])
+        return ord_spat_pos
+
+    @property
+    def orders(self):
+        return np.arange(7, 2, -1, dtype=int)
+
+
+    @property
+    def spec_min_max(self):
         spec_max = np.asarray([np.inf, np.inf, np.inf, np.inf, np.inf])
         spec_min = np.asarray([1024, -np.inf, -np.inf, -np.inf, -np.inf])
-
-        return spec_min, spec_max
-
-    def slitmask(self, tslits_dict, pad=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
-        slitmask[order7bad] = -1
-        return slitmask
-
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
-
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
-
-        Returns:
-            int: order number
-
-        """
-        order_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
-                                   0.70260714, 0.86335914])
-        orders = np.arange(7, 2, -1, dtype=int)
-        # Find closest
-        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
-
-        # Check
-        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.warn("Bad echelle format for Keck-NIRES or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return orders[iorder]
-        else:
-            return orders[iorder]
-
+        return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
         """

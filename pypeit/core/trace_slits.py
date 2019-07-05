@@ -69,7 +69,7 @@ def shift_slits(tslits_dict, tilts_dict, waveimg, shift):
     return tslits_shift
 
 
-def extrapolate_trace(traces_in, spec_min_max_in):
+def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.1):
     """
     Linearly extrapolates trace to fill in pixels that lie outside of the range spec_min, spec_max). This
     routine is useful for echelle spectrographs where the orders are shorter than the image by a signfiicant
@@ -86,6 +86,7 @@ def extrapolate_trace(traces_in, spec_min_max_in):
         spectral pixels.
     """
 
+    #embed()
     # This little bit of code allows the input traces to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
     spec_min_max_tmp = np.array(spec_min_max_in)
@@ -106,16 +107,32 @@ def extrapolate_trace(traces_in, spec_min_max_in):
         spec_min_max = spec_min_max_tmp
 
     nspec = traces.shape[0]
+    xnspecmin1 = float(nspec-1)
     spec_vec = np.arange(nspec)
     traces_extrap = traces.copy()
 
     # TODO should we be doing a more careful extrapolation here rather than just linearly using the nearest pixel
     # values??
     for islit in range(nslits):
+        ibad_max = spec_vec > spec_min_max[1,islit]
+        ibad_min = spec_vec < spec_min_max[0,islit]
         igood = (spec_vec >= spec_min_max[0,islit]) & (spec_vec <= spec_min_max[1,islit])
-        ibad = np.invert(igood)
-        traces_extrap[ibad, islit] = interpolate.interp1d(spec_vec[igood], traces[igood, islit], kind='linear',
-                                                          bounds_error=False, fill_value='extrapolate')(spec_vec[ibad])
+        nfit = int(np.round(fit_frac*np.sum(igood)))
+        good_ind = np.where(igood)[0]
+        igood_min = good_ind[0:nfit]
+        igood_max = good_ind[-nfit:]
+        if np.any(ibad_min):
+            coeff_min = utils.func_fit(spec_vec[igood_min], traces[igood_min, islit], 'legendre', 3,
+                                       minx=0.0, maxx=xnspecmin1)
+            traces_extrap[ibad_min, islit] = utils.func_val(coeff_min, spec_vec[ibad_min], 'legendre', minx=0.0,
+                                                             maxx=xnspecmin1)
+        if np.any(ibad_max):
+            coeff_max = utils.func_fit(spec_vec[igood_max], traces[igood_max, islit], 'legendre', 3,
+                                       minx=0.0, maxx=xnspecmin1)
+            traces_extrap[ibad_max, islit] = utils.func_val(coeff_max, spec_vec[ibad_max], 'legendre', minx=0.0, maxx=xnspecmin1)
+        #ibad = np.invert(igood)
+        #traces_extrap[ibad, islit] = interpolate.interp1d(spec_vec[igood], traces[igood, islit], kind='linear',
+        #bounds_error=False, fill_value='extrapolate')(spec_vec[ibad])
 
     return traces_extrap
 

@@ -2053,11 +2053,15 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
         xfit = order_vec[use_order]
         yfit = pca_coeffs_use[:,idim]
         ncoeff = npoly_vec[idim]
+        # Apply a 10% relative error to each coefficient. This performs better than use_mad, since larger coefficients
+        # will always be considered inliers, if the coefficients vary rapidly with order as they sometimes do.
+        sigma = np.fmax(0.1*np.abs(yfit), 0.1)
+        invvar = utils.inverse(sigma**2)
         # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, function='polynomial', maxiter=25,
+        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, invvar = invvar, function='polynomial', maxiter=25,
                                                      lower=lower, upper=upper,
                                                      maxrej=maxrej,
-                                                     sticky=False, minx = minv, maxx = maxv)
+                                                     sticky=False, use_mad=False, minx = minv, maxx = maxv)
         pca_coeffs_new[:,idim] = utils.func_val(poly_out, order_vec, 'polynomial')
         fit_dict[str(idim)] = {}
         fit_dict[str(idim)]['coeffs'] = poly_out
@@ -2098,7 +2102,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
-                show_trace=False, show_single_trace=False, debug=False):
+                show_trace=False, show_single_trace=False, debug=False, debug_all=False):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -2171,6 +2175,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     skymask: float ndarray, same shape as image
       Skymask indicating which pixels can be used for global sky subtraction
     """
+    if debug_all:
+        show_peaks = True
+        show_fits = True
+        show_single_fits = True
+        show_trace = True
+        show_single_trace = True
+        debug = True
+
 
     if specobj_dict is None:
         specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999,
@@ -2470,7 +2482,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                                  npca=npca, pca_explained_var=pca_explained_var,
-                                                 coeff_npoly=coeff_npoly, debug=debug)
+                                                 coeff_npoly=coeff_npoly, debug=True)
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
@@ -2500,6 +2512,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
     skymask = skymask_objfind | skymask_fwhm
 
+    show_trace=True
     if show_trace:
         viewer, ch = ginga.show_image(image*allmask)
 
@@ -2531,6 +2544,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         canvas_list = text_final + text_pca + text_fit + text_notfit
         canvas.add('constructedcanvas', canvas_list)
 
+    embed()
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
     return sobjs_final, skymask[allmask]

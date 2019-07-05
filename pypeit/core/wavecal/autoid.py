@@ -1174,7 +1174,7 @@ class ArchiveReid:
             # we only pass in the relevant arxiv spectrum to make this much faster
             if self.ech_fix_format:
                 # Grab the order (could have been input)
-                order = self.spectrograph.slit2order(slit_spat_pos[slit])
+                order, indx = self.spectrograph.slit2order(slit_spat_pos[slit])
                 # Find it
                 ind_sp = arxiv_orders.index(order)
             else:

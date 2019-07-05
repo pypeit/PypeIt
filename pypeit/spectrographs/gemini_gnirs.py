@@ -51,9 +51,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'Echelle'
 
-    @property
-    def norders(self):
-        return 6
 
     def default_pypeit_par(self):
         """
@@ -215,42 +212,25 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return np.full(order_vec.size, 0.15)
 
 
+    @property
+    def norders(self):
+        return 6
 
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
+        return ord_spat_pos
 
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
-
-        Returns:
-            int: order number
-
-        """
-        order_spat_pos = np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
-
-        orders = np.arange(8,2,-1, dtype=int)
-        # Find closest
-        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
-
-        # Check
-        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.warn("Bad echelle format for GNIRS or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return orders[iorder]
-        else:
-            return orders[iorder]
+    @property
+    def orders(self):
+        return np.arange(8,2,-1, dtype=int)
 
 
-    def slit_minmax(self, nslits, binspectral=1):
-
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+    @property
+    def spec_min_max(self):
         spec_max = np.asarray([1022,1022,1022,1022,1022,1022])
         spec_min = np.asarray([512,280, 0, 0, 0, 0])
-
-        return spec_min, spec_max
+        return np.vstack((spec_min, spec_max))
 
     def slitmask(self, tslits_dict, pad=None, binning=None):
         """
