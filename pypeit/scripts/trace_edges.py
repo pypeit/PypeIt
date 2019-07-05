@@ -111,28 +111,22 @@ def main(args):
         traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par)
         traceImage.build_image()
 
-#        traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par)
-#        traceImage.process(bias_subtract='overscan', trim=True, apply_gain=True)
-
         # Platescale
         plate_scale = parse.parse_binning(binning)[1]*spec.detector[det-1]['platescale']
 
         # Trace the slit edges
         if args.use_new:
-            t = time.perf_counter()
-#            try:
-#                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-#                                               master_dir=master_dir, img=traceImage, det=det,
-#                                               auto=True)
-#                print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
-#                edges.save()
-#            except:
-#                pass
-            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                           master_dir=master_dir, img=traceImage, det=det,
-                                           auto=True, debug=args.debug, show_stages=args.show)
-            print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
-            edges.save()
+            try:
+                t = time.perf_counter()
+                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                               master_dir=master_dir, img=traceImage, det=det,
+                                               auto=True, debug=args.debug, show_stages=args.show)
+                print('Tracing for detector {0} finished in {1} s.'.format(det,
+                                                                           time.perf_counter()-t))
+                edges.save()
+            except Exception as e:
+                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
+                print('Continuing...')
         else:
             t = time.perf_counter()
             traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,

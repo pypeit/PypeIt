@@ -764,9 +764,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             
         # TODO: Add mask_refine() when it's ready
 
-        import pdb
-        pdb.set_trace()
-
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
         if save:
@@ -979,7 +976,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if save:
             self.save()
 
-    def save(self, outfile=None, overwrite=True, checksum=True):
+    def save(self, outfile=None, overwrite=True, checksum=True, float_dtype='float32')
         """
         Save the trace object for later re-instantiation.
 
@@ -992,6 +989,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto` to add
                 the DATASUM and CHECKSUM keywords fits header(s).
+            float_dtype (:obj:`str`, optional):
+                Convert floating-point data to this data type before
+                writing.  Default is 32-bit precision.
         """
         _outfile = self.file_path if outfile is None else outfile
         # Check if it exists
@@ -1067,15 +1067,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # done in one go, where the binary tables will just be empty if
         # no design/object data is avialable.
         hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr),
-                            fits.ImageHDU(data=self.img, name='TRACEIMG'),
+                            fits.ImageHDU(data=self.img.astype(float_dtype), name='TRACEIMG'),
                             fits.ImageHDU(data=self.bpm.astype(np.int16), name='TRACEBPM'),
-                            fits.ImageHDU(data=self.sobel_sig, name='SOBELSIG'),
+                            fits.ImageHDU(data=self.sobel_sig.astype(float_dtype),
+                                          name='SOBELSIG'),
                             fits.ImageHDU(data=self.traceid, name='TRACEID'),
-                            fits.ImageHDU(data=self.spat_cen, name='CENTER'),
-                            fits.ImageHDU(data=self.spat_err, name='CENTER_ERR'),
+                            fits.ImageHDU(data=self.spat_cen.astype(float_dtype), name='CENTER'),
+                            fits.ImageHDU(data=self.spat_err.astype(float_dtype),
+                                          name='CENTER_ERR'),
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
-                            fits.ImageHDU(header=fithdr, data=self.spat_fit, name='CENTER_FIT')
-                          ])
+                            fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
+                                          name='CENTER_FIT')
+                            ])
         if self.design is not None: 
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
@@ -1753,6 +1756,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     to_trace = untraced & np.invert(bpm[_start_row,:])
                     if not np.any(to_trace):
                         # Something has gone wrong
+                        # TODO: Get rid of this when convinced it won't
+                        # get tripped...
                         msgs.error('Traces remain but could not select good starting row.')
                     msgs.info('Following {0} {1} edge(s) '.format(np.sum(to_trace), side)
                               + 'from row {0}; '.format(_start_row)
@@ -1798,7 +1803,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Erase any previous fitting, PCA, and slit-mask-match results
         # TODO: Should probably get sectioned off as a method because a
-        # few methods do this.
+        # few methods do this.  Add an option to _reinit_trace_data?
         self.spat_fit_type = None
         self.spat_fit = None
         self.pca_type = None
