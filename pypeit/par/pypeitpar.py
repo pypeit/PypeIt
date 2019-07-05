@@ -189,6 +189,7 @@ class ProcessImagesPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
+                 cr_reject=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
 
@@ -244,6 +245,10 @@ class ProcessImagesPar(ParSet):
         dtypes['satpix'] = str
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
+
+        defaults['cr_reject'] = False
+        dtypes['cr_reject'] = bool
+        descr['cr_reject'] = 'Perform cosmic ray rejection'
 
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
@@ -305,7 +310,7 @@ class ProcessImagesPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'bias', 'overscan', 'overscan_par', 'match',
-                    'combine', 'satpix', 'sigrej', 'n_lohi',
+                    'combine', 'satpix', 'cr_reject', 'sigrej', 'n_lohi',
                     'sig_lohi', 'replace', 'lamaxiter', 'grow',
                     'rmcompact', 'sigclip', 'sigfrac', 'objlim']
         kwargs = {}
