@@ -13,6 +13,10 @@ from pypeit.par import pypeitpar
 from IPython import embed
 
 
+# TODO JFH This routine needs to be reworked to always return images in counts, and to always return a noise model.
+# It is completely wrong to ever do anything with images in ADU.
+
+## TODO Cosmic Ray masking needs to be added as a method here by making this a child of MaskImage
 class ProcessRawImage(pypeitimage.PypeItImage):
     """
     Class to process a raw image

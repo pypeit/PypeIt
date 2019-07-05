@@ -47,7 +47,7 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     # Frametype is a class attribute
     frametype = 'tilt'
-    master_type = 'Tilt'
+    master_type = 'Tiltimg'
 
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False, msbias=None):
@@ -68,6 +68,7 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
         self.process_steps += ['trim']
         self.process_steps += ['orient']
+        # TODO apply the gain!!
         # NOT applying gain to deal 'properly' with saturation
 
     def save(self, outfile=None, overwrite=True):

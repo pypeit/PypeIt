@@ -68,6 +68,7 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     master_type = 'Tilts'
 
+    # TODO This needs to be modified to take an inmask
     def __init__(self, msarc, tslits_dict, spectrograph, par, wavepar, det=1, master_key=None,
                  master_dir=None, reuse_masters=False, qa_path=None, msbpm=None):
 

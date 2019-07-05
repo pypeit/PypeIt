@@ -25,7 +25,7 @@ except ImportError:
     pass
 
 
-def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=3.0,
+def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=2.0,
                     only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0,
                     max_frac_fwhm=2.0, cont_samp=30, niter_cont=3, debug_lines=False, debug_peaks=False):
     """
@@ -108,7 +108,7 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
         xrng = np.arange(nspec)
         plt.figure(figsize=(14, 6))
         plt.plot(xrng, arc_cont_sub, color='black', drawstyle='steps-mid', lw=3, label='arc', linewidth=1.0)
-        plt.plot(arcdet[~aduse], arc_ampl[~aduse], 'r+', markersize=6.0, label='bad for tilts')
+        plt.plot(arcdet[np.invert(aduse)], arc_ampl[np.invert(aduse)], 'r+', markersize=6.0, label='bad for tilts')
         plt.plot(arcdet[aduse], arc_ampl[aduse], 'g+', markersize=6.0, label='good for tilts')
         if nonlinear_counts < 1e9:
             plt.hlines(nonlinear_counts, xrng.min(), xrng.max(), color='orange', linestyle='--', linewidth=2.0,
@@ -605,10 +605,11 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     tilts_ivar1 = utils.calc_ivar((sigma[thismask_grow]/xnspecmin1)**2)
     fitmask_tilts, coeff2_tilts = utils.robust_polyfit_djs(tiltpix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
                                                            fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
-                                                           invvar = tilts_ivar1,
+                                                           invvar=tilts_ivar1,
                                                            upper=5.0, lower=5.0, maxdev=10.0/xnspecmin1,
                                                            inmask=inmask, function=func2d, maxiter=20,
-                                                           minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, use_mad=False)
+                                                           minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, use_mad=False, sticky=False)
+    # JFH changed this to be stick=False, to limit the amount of rejection
     irej = np.invert(fitmask_tilts) & inmask
     msgs.info('Rejected {:d}/{:d} pixels in final inversion tilts image fit'.format(np.sum(irej),np.sum(inmask)))
     # normalized tilts image
