@@ -22,8 +22,7 @@ from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
-
-from pypeit import debugger
+from IPython import embed
 
 # Initially tried to subclass this from astropy.table.Table, but that
 # proved too difficult.
@@ -298,7 +297,7 @@ class PypeItMetaData:
                 data[meta_key].append(value)
             msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
-        # JFH Changed the below to now crash if some files have None in their MJD. This is the desired behavior
+        # JFH Changed the below to not crash if some files have None in their MJD. This is the desired behavior
         # since if there are empty or corrupt files we still want this to run.
 
         # Validate, print out a warning if there is problem

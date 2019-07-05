@@ -105,7 +105,6 @@ class PypeIt(object):
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
         # --------------------------------------------------------------
-
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)

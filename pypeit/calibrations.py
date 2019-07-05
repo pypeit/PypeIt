@@ -312,6 +312,57 @@ class Calibrations(object):
         self._update_cache('arc', 'arc', self.msarc)
         return self.msarc
 
+
+    def get_tiltimage(self):
+        """
+        Load or generate the Arc image
+
+        Requirements:
+          master_key, det, par
+
+        Args:
+
+        Returns:
+            ndarray: :attr:`mstilt` image
+
+        """
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        tilt_rows = self.fitstbl.find_frames('tilt', calib_ID=self.calib_ID, index=True)
+        self.tilt_files = self.fitstbl.frame_paths(tilt_rows)
+        self.master_key_dict['tilt'] \
+                = self.fitstbl.master_key(tilt_rows[0] if len(tilt_rows) > 0 else self.frame,
+                                          det=self.det)
+
+        if self._cached('tilt', self.master_key_dict['tilt']):
+            # Previously calculated
+            self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tilt']
+            return self.mstilt
+
+        #TODO should there be a TiltImage class?
+        # Instantiate with everything needed to generate the image (in case we do)
+        self.tiltImage = arcimage.ArcImage(self.spectrograph, files=self.tilt_files,
+                                          det=self.det, msbias=self.msbias,
+                                          par=self.par['arcframe'],
+                                          master_key=self.master_key_dict['tilt'],
+                                          master_dir=self.master_dir,
+                                          reuse_masters=self.reuse_masters)
+
+        # Load the MasterFrame (if it exists and is desired)?
+        self.mstilt = self.tiltImage.load()
+        if self.mstilt is None:  # Otherwise build it
+            msgs.info("Preparing a master {0:s} frame".format(self.tiltImage.frametype))
+            self.mstilt = self.tiltImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            # Save to Masters
+            if self.save_masters:
+                self.tiltImage.save()
+
+        # Save & return
+        self._update_cache('tilt', 'tilt', self.mstilt)
+        return self.mstilt
+
     def get_bias(self):
         """
         Load or generate the bias frame/command
@@ -784,7 +835,7 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib']):
+        if not self._chk_objs(['mstilt', 'msbpm', 'tslits_dict', 'wv_calib']):
             msgs.error('dont have all the objects')
             self.tilts_dict = None
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
