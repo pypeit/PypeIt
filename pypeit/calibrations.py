@@ -965,6 +965,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tiltimg', 'tilts', 'flats', 'wave']
+        return ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
-
+    # Notes on order of steps if flexure compensation is implemented
+    #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']

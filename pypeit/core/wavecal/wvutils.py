@@ -9,10 +9,10 @@ from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
 from pypeit import msgs
-
+from IPython import embed
 
 from pypeit.core import arc
-from pypeit import debugger
+
 
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
@@ -136,7 +136,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
         ampl = tampl1_cont
         use_arc = arc1
 
-    if percent_ceil is not None:
+    if percent_ceil is not None and (ampl.size > 0):
         # If this is set, set a ceiling on the greater > 10sigma peaks
         ceil1 = np.percentile(ampl, percent_ceil)
         spec1 = np.fmin(use_arc, ceil1)
