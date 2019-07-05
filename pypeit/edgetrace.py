@@ -122,6 +122,7 @@ class EdgeTraceBitMask(BitMask):
                   ('OFFDETECTOR', 'Trace lands off, or within `det_buffer` of, the detector edge'),
                    ('USERINSERT', 'Trace was inserted as requested by user'),
                    ('SYNCINSERT', 'Trace was inserted during left and right edge sync'),
+                    ('SYNCERROR', 'Trace synchronization error, likely due to edge effects'),
                    ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations'),
                  ('ORPHANINSERT', 'Trace was inserted to match an orphaned edge'),
                     ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
@@ -245,7 +246,7 @@ class EdgeTracePCA:
             x})`.
         """
         if self.fit_coeff is None:
-            raise ValueError('PCA coefficients have not been modeled; run model_coeffs first.')
+            msgs.error('PCA coefficients have not been modeled; run model_coeffs first.')
         return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
                                function=self.function).T
 
@@ -475,8 +476,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.log = None                 # Log of methods applied
 
         if img is not None and load:
-            raise ValueError('Arguments img and load are mutually exclusive.  Choose to '
-                             'either trace a new image or load a previous trace.')
+            msgs.error('Arguments img and load are mutually exclusive.  Choose to either trace '
+                       'a new image or load a previous trace.')
 
         if load:
             # Attempt to load an existing master frame
@@ -488,6 +489,22 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                 show_stages=show_stages)
             else:
                 self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=save)
+
+    def _reinit_trace_data(self):
+        """
+        Convenience method to set all attributes related to trace data to `None`.
+        """
+        self.traceid = None
+        self.spat_img = None
+        self.spat_cen = None
+        self.spat_err = None
+        self.spat_msk = None
+        self.spat_fit = None
+        self.spat_fit_type = None
+        self.pca = None
+        self.pca_type = None
+        self.design = None
+        self.objects = None
 
     @property
     def file_path(self):
@@ -502,7 +519,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         The number of edges (left and right) traced.
         """
-        return self.traceid.size
+        return 0 if self.traceid is None else self.traceid.size
 
     @staticmethod
     def empty_design_table(rows=None):
@@ -622,7 +639,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
              image and its boolean bad-pixel mask.
         """
         if self.pca is None:
-            raise ValueError('Must first run the PCA analysis for the traces; run build_pca.')
+            msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
         pca = self.pca[0 if side == 'left' else 1] if self.par['left_right_pca'] else self.pca
 
         # Get the traces that cross the reference row at the first and last pixels of the image
@@ -687,14 +704,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
-        # Fit the trace locations with a polynomial
-        self.fit_refine(debug=debug)
-        # Use the fits to determine if there are any discontinous trace
-        # centroid measurements that are actually components of the
-        # same slit edge
-        self.merge_traces(debug=debug)
-        if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True)
+        if not self.is_empty:
+            # Fit the trace locations with a polynomial
+            self.fit_refine(debug=debug)
+            # Use the fits to determine if there are any discontinous
+            # trace centroid measurements that are actually components
+            # of the same slit edge
+            self.merge_traces(debug=debug)
+            if show_stages:
+                self.show(thin=10, include_img=True, idlabel=True)
 
         # Check if the PCA decomposition is possible; this should catch
         # long slits
@@ -833,12 +851,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Check the input
         if _img.ndim != 2:
-            raise ValueError('Trace image must be 2D.')
+            msgs.error('Trace image must be 2D.')
         self.img = _img
         self.nspec, self.nspat = self.img.shape
         self.bpm = np.zeros((self.nspec, self.nspat), dtype=bool) if bpm is None else bpm
         if self.bpm.shape != self.img.shape:
-            raise ValueError('Mask is not the same shape as the trace image.')
+            msgs.error('Mask is not the same shape as the trace image.')
         self.det = det
 
         # Lightly smooth the image before using it to trace edges
@@ -1111,7 +1129,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         filename = self.file_path
         # Check the file exists
         if not os.path.isfile(filename):
-            raise FileNotFoundError('File does not exit: {0}'.format(filename))
+            msgs.error('File does not exit: {0}'.format(filename))
         with fits.open(filename) as hdu:
             # Re-initialize and validate
             self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
@@ -1134,7 +1152,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         # Check the file exists
         if not os.path.isfile(filename):
-            raise FileNotFoundError('File does not exit: {0}'.format(filename))
+            msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
             this = cls(load_spectrograph(hdu[0].header['SPECT']),
@@ -1197,8 +1215,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.objects = table.Table(hdu['OBJECTS'].data)
 
         # Set the integer pixel values
-        self.spat_img = np.round(self.spat_cen if self.spat_fit is None
-                                 else self.spat_fit).astype(int)
+        self.spat_img = None if self.traceid is None \
+                            else (np.round(self.spat_cen if self.spat_fit is None
+                                    else self.spat_fit).astype(int))
 
         # Rebuild the PCA if it existed previously and requested
         self.pca_type = None if hdu[0].header['PCATYPE'] == 'None' else hdu[0].header['PCATYPE']
@@ -1223,7 +1242,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Test the spectrograph is the same
         if self.spectrograph.spectrograph != hdu[0].header['SPECT']:
-            raise ValueError('Data used for this master frame was from a different spectrograph!')
+            msgs.error('Data used for this master frame was from a different spectrograph!')
 
         # Test the parameters used are the same
         par = EdgeTracePar.from_header(hdu[0].header)
@@ -1231,7 +1250,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # TODO: The above inequality works for non-nested ParSets,
             # but will need to be more careful for nested ones, or just
             # avoid writing nested ParSets to headers...
-            raise ValueError('This master frame was generated using different parameter values!')
+            msgs.error('This master frame was generated using different parameter values!')
 
     @property
     def flagged_bits(self):
@@ -1242,8 +1261,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             list: List of the unique flags tripped by any trace
             datum.
         """
-        return np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
-                                            for b in np.unique(self.spat_msk)])).tolist()
+        return [] if self.spat_msk is None \
+                    else np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
+                                                    for b in np.unique(self.spat_msk)])).tolist()
 
     def show(self, traceid=None, include_error=False, thin=1, in_ginga=False, include_img=False,
              include_sobel=False, img_buffer=100, flag=None, idlabel=False):
@@ -1285,15 +1305,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Label each trace by their ID numbers.
         """
         if include_img and include_sobel:
-            raise ValueError('Cannot show both the trace image and the filtered version.')
+            msgs.error('Cannot show both the trace image and the filtered version.')
         if in_ginga:
             # Currently can only show in ginga if the edges are
             # synchronized into slits
             if not self.is_synced:
-                raise ValueError('To show in ginga, slit edges must be left-right synchronized.')
+                msgs.error('To show in ginga, slit edges must be left-right synchronized.')
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
             # Show Image
             viewer, ch = ginga.show_image(self.img, 'Trace Image')
+            if self.is_empty:
+                msgs.info('No traces defined.')
+                return
             # Plot traces
             # TODO: add masking
             right = self.traceid > 0
@@ -1301,20 +1324,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             ginga.show_slits(viewer, ch, cen[:,np.invert(right)], cen[:,right],
                              self.traceid[right], pstep=thin)
             return
-
-        # TODO: color/type-code the masked trace coordinates...
-
-        # Build the data to plot. Any masked data is excluded; masked
-        # data to be plotted are held in a separate array. This means
-        # that errors and fits are currently never plotted for masked
-        # data.
-        _flag = None if flag in ['any', None] else np.atleast_1d(flag)
-        cen = np.ma.MaskedArray(self.spat_cen, mask=self.bitmask.flagged(self.spat_msk))
-        msk = None if flag is None \
-                else np.ma.MaskedArray(self.spat_cen,
-                                       mask=np.invert(self.bitmask.flagged(self.spat_msk,
-                                                                           flag=_flag)))
-        err = np.ma.MaskedArray(self.spat_err, mask=np.ma.getmaskarray(cen).copy())
 
         # Show the traced image
         if include_img:
@@ -1325,6 +1334,26 @@ class EdgeTraceSet(masterframe.MasterFrame):
             sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
             plt.imshow(self.sobel_sig.T, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=sob_zlim[0], vmax=sob_zlim[1])
+
+        if self.is_empty:
+            msgs.info('No traces defined.')
+            plt.xlim(-img_buffer, self.nspec+img_buffer)
+            plt.ylim(-img_buffer, self.nspat+img_buffer)
+            plt.xlabel('Spectral pixel index')
+            plt.ylabel('Spatial pixel index')
+            plt.show()
+            return
+
+        # Build the data to plot. Any masked data is excluded; masked
+        # data to be plotted are held in a separate array. This means
+        # that errors and fits are currently never plotted for masked
+        # data.
+        _flag = None if flag in ['any', None] else np.atleast_1d(flag)
+        cen = np.ma.MaskedArray(self.spat_cen, mask=self.bitmask.flagged(self.spat_msk))
+        err = np.ma.MaskedArray(self.spat_err, mask=np.ma.getmaskarray(cen).copy())
+        msk = None if flag is None \
+                    else np.ma.MaskedArray(self.spat_cen, mask=np.invert(
+                                            self.bitmask.flagged(self.spat_msk, flag=_flag)))
 
         # Select the traces to show
         trace_indx = np.ones(self.ntrace, dtype=bool) if traceid is None \
@@ -1425,6 +1454,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 the minimum and maximum centroid of the plotted
                 trace.
         """
+        if self.is_empty:
+            msgs.error('No traces for QA plot.')
+
         # Restore matplotlib defaults
         # TODO: Is this going to screw up later plots?
         matplotlib.rcParams.update(matplotlib.rcParamsDefault)
@@ -1572,7 +1604,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 self.sobel_sig_right = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=boxcar,
                                                                      side='right')
             return self.sobel_sig_right
-        raise ValueError('Side must be left or right.')
+        msgs.error('Side must be left or right.')
 
     def centroid_refine(self, follow=True, start_row=None, continuous=False, check=True,
                         use_fit=False):
@@ -1647,9 +1679,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 :attr:`spat_fit` is None, the method will raise an
                 exception.
         """
+        # Check that there are traces to refine!
+        if self.is_empty:
+            # TODO: Continue to have this fault?
+            msgs.error('No traces are defined.')
+
         # Check input
         if use_fit and self.spat_fit is None:
-            raise ValueError('No fit data available.')
+            msgs.error('No fit data available.')
 
         # Parse parameters and report
         width = 2 * self.par['fwhm_uniform']
@@ -1716,7 +1753,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     to_trace = untraced & np.invert(bpm[_start_row,:])
                     if not np.any(to_trace):
                         # Something has gone wrong
-                        raise ValueError('Traces remain but could not select good starting row.')
+                        msgs.error('Traces remain but could not select good starting row.')
                     msgs.info('Following {0} {1} edge(s) '.format(np.sum(to_trace), side)
                               + 'from row {0}; '.format(_start_row)
                               + '{0} trace(s) remain.'.format(np.sum(untraced)-np.sum(to_trace)))
@@ -1829,6 +1866,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             Returns two boolean arrays selecting the good and bad
             traces.  Shapes are :math:`(N_{\rm trace},)`.
         """
+        if self.is_empty:
+            msgs.warn('No traces to check.')
+
         # Indices of traces to check
         indx = np.ones(self.ntrace, dtype=bool) if subset is None else subset
         # Data to compare
@@ -1952,8 +1992,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
             debug (:obj:`bool`, optional):
                 Only passed to :func:`fit_refine` if `refit` is True.
         """
+        if self.is_empty:
+            msgs.warn('No traces to merge.')
         if use_fit and self.spat_fit is None:
-            raise ValueError('Cannot use model because None have been fit yet!')
+            msgs.error('Cannot use model because None have been fit yet!')
         _refit = refit
         if refit and self.spat_fit is None:
             msgs.warn('No previous fits existed, so fitting will not be redone.')
@@ -2017,28 +2059,43 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
     @property
     def is_left(self):
+        """Boolean array selecting the left traces."""
+        if self.is_empty:
+            msgs.error('No traces!')
         return self.traceid < 0
     
     @property
     def is_right(self):
+        """Boolean array selecting the right traces."""
+        if self.is_empty:
+            msgs.error('No traces!')
         return self.traceid > 0
+
+    @property
+    def is_empty(self):
+        """Flag that object has no trace data."""
+        return self.traceid is None
         
     @property
     def is_synced(self):
         """
         Confirm slit edges are synced.
         """
+        if self.is_empty:
+            return False
         side = np.clip(self.traceid, -1, 1)
-        return side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
+        return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
 
     def check_synced(self, rebuild_pca=False):
         """
         Quality check and masking of the synchronized edges.
 
         Before executing this method, the slit edges must be
-        synchronized (see :func:`sync`) and ordered spatially
-        in left-right pairs (see :func:`spatial_sort`). The former is
-        checked explicitly.
+        synchronized (see :func:`sync`) and ordered spatially in
+        left-right pairs (see :func:`spatial_sort`). The former is
+        checked explicitly. Any traces fully masked as bad (see
+        :func:`clean_traces`) are removed, along with its
+        synchronized partner.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
@@ -2078,6 +2135,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 decomposition using the new traces and trace masks
                 and the previous parameter set.
         """
+        if self.is_empty:
+            msgs.warn('No traces to check.')
+
+        # Remove any fully masked traces and its synced counterpart
+        self.clean_traces(sync_rm='both')
+
         # Use the fit data if available
         trace_cen = self.spat_cen if self.spat_fit is None else self.spat_fit
 
@@ -2114,6 +2177,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msgs.info('Minimum slit length (binned pixels): {0}'.format(length_atol))
         msgs.info('Range in slit length not limited' if length_rtol is None else
                   'Range in slit length limited to +/-{0:.1f}%'.format(length_rtol*100))
+
+        # TODO: Should here and below only use the unmasked parts of
+        # the trace for the slit gap and length computations?
 
         # Keep track of whether or not any new masks were applied
         new_masks = False
@@ -2225,6 +2291,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if not np.any(indx):
             msgs.warn('No trace to remove.')
             return
+        # Check the input
+        _indx = np.atleast_1d(indx).copy()
+        if _indx.size != self.ntrace:
+            msgs.error('Boolean array selecting traces to remove has incorrect length.')
 
         # Deal with removing traces when they are left-right
         # synchronized
@@ -2238,6 +2308,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 msgs.info('Removing both traces only if both selected in synchonized pair.')
             else:
                 msgs.error('Unknown sync removal keyword: {0}'.format(sync_rm))
+
+        if np.all(_indx):
+            msgs.warn('All traces removed!')
+            self._reinit_trace_data()
+            return
             
         msgs.info('Removing {0} edge traces.'.format(np.sum(_indx)))
 
@@ -2257,6 +2332,32 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Reset the PCA
         self._reset_pca(rebuild_pca and self.pca is not None)
+
+    def clean_traces(self, sync_rm='ignore'):
+        """
+        Remove any traces that are fully masked as bad.
+
+        For removeal, the traces must be fully masked and
+        *none* of its pixels can be masked by one of the insertion
+        flags.
+        """
+        if self.is_empty:
+            msgs.warn('No traces to clean.')
+            return
+
+        # Traces to remove
+        rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags) 
+                    & np.invert(self.bitmask.flagged(self.spat_msk,
+                                                     flag=self.bitmask.insert_flags)), axis=0)
+        if np.any(rmtrace):
+            # The removed traces should not have been included in the
+            # PCA decomposition to begin with, but this call to remove
+            # traces has to rebuild the PCA; otherwise, the PCA will
+            # have been removed.
+            # TODO: Fix remove_traces to check if traces used in the
+            # construction of the PCA, and only then use the
+            # rebuild_pca flag to decide if it should rebuild.
+            self.remove_traces(rmtrace, rebuild_pca=True, sync_rm=sync_rm)
 
     def spatial_sort(self, use_mean=False, use_fit=True):
         """
@@ -2290,6 +2391,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 positions if they're available and the measured
                 location is masked.
         """
+        if self.is_empty:
+            msgs.error('No traces to sort.')
+
         # Check input
         if use_fit and self.spat_fit is None:
             msgs.warn('Fit data is not available; cannot use it for spatially sorting the edges.')
@@ -2351,6 +2455,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         edge in the original image.
         """
         edge_img = np.zeros((self.nspec, self.nspat), dtype=int)
+        if self.is_empty:
+            return edge_img
         i = np.tile(np.arange(self.nspec), (self.ntrace,1)).T.ravel()
         edge_img[i, self.spat_img.ravel()] = np.tile(self.traceid, (self.nspec,1)).ravel()
         return edge_img
@@ -2380,6 +2486,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 only if `debug` is true for the plotting. Default is
                 just a running number.
         """
+        # Check that there are traces to refine!
+        if self.is_empty:
+            msgs.error('No traces to refine!')
+
         # Parse parameters and report
         maxshift = self.par['max_shift_abs']
         maxerror = self.par['max_spat_error']
@@ -2497,6 +2607,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
             :obj:`bool`: Flag that traces meet criterion for PCA
             decomposition.
         """
+        # Check that there are traces to refine!
+        if self.is_empty:
+            return False
+
         # Set and report the minimum length needed for the PCA in
         # pixels
         minimum_spec_length = self.par['fit_min_spec_length']*self.nspec
@@ -2549,6 +2663,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             by the length of the column array provided. If a single
             column is provided, a single trace vector is returned.
         """
+        if self.pca is None:
+            msgs.error('Must first run the PCA analysis fo the traces; run build_pca.')
+
         _col = np.atleast_1d(col)
         _side = np.atleast_1d(side)
         if _col.size != _side.size:
@@ -2609,6 +2726,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
+        if self.is_empty:
+            msgs.error('No traces exist.')
+
         # Parse parameters and report
         left_right_pca = self.par['left_right_pca']
         npca = self.par['pca_n']
@@ -2736,6 +2856,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Force the recalculation of the PCA even if it has
                 already been done.
         """
+        if self.is_empty:
+            msgs.error('No traces to refine!')
+
         # Perform the PCA decomposition if necessary
         _pca_type = 'center' if use_center or self.spat_fit is None else 'fit'
         if force or self.pca is None or self.pca_type != _pca_type:
@@ -2794,8 +2917,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
+        # Check that there are traces to refine!
+        if self.is_empty:
+            msgs.error('No traces are defined.')
+
         if self.pca is None:
-            raise ValueError('Must first run the PCA analysis fo the traces; run build_pca.')
+            msgs.error('Must first run the PCA analysis fo the traces; run build_pca.')
 
         # Parse parameters and report
         peak_thresh = self.par['edge_thresh']
@@ -3000,6 +3127,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         msgs.info('Mode used to set spatial position of new traces: {0}'.format(center_mode))
         msgs.info('For first left and last right, set trace to the edge: {0}'.format(to_edge))
+        if center_mode == 'gap':
+            msgs.info('Gap offset for adjacent slits: {0}'.format(gap_offset))
 
         # Get the reference row for the placement calculation; allow
         # the use of inserted traces.
@@ -3011,7 +3140,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Check that the trace data are sorted at this row
         if not np.array_equal(np.arange(trace_cen.shape[1]),
                               np.argsort(trace_cen[reference_row,:])):
-            raise ValueError('Trace data must be spatially sorted.')
+            msgs.error('Trace data must be spatially sorted.')
 
         # Build a masked array with the trace positions at that row,
         # masked where new traces are supposed to go.
@@ -3066,7 +3195,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Nothing should now be masked. Get rid of this once
         # satisfied that the coding is correct.
         if np.any(trace_ref.mask):
-            raise ValueError('Coding error: this should not happen')
+            msgs.error('Coding error: this should not happen')
         trace_ref = trace_ref.data.ravel()
 
         # Check that the predicted reference positions don't cause slit
@@ -3117,7 +3246,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Nothing to do
             return trace_cen
         if trace_cen.shape[0] != self.nspec:
-            raise ValueError('Traces have incorrect length.')
+            msgs.error('Traces have incorrect length.')
         _buffer = self.par['det_buffer']
         if _buffer < 0:
             msgs.warn('Buffer must be greater than 0; ignoring.')
@@ -3132,6 +3261,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
         offset = np.clip(_buffer - np.amin(trace_cen, axis=0), 0, self.par['max_nudge']) \
                     + np.clip(self.nspat - 1 - _buffer - np.amax(trace_cen, axis=0),
                               None if self.par['max_nudge'] is None else -self.par['max_nudge'], 0)
+
+        # TODO: This nudging can actually make the slit length
+        # negative. This isn't handled in this method because it's only
+        # meant to nudge the traces away from the detector edge,
+        # independent of what edge it is or its counterpart. For now,
+        # check_synced handles what to do if the slit length is
+        # negative.
+
         # Offset and return the traces
         return trace_cen + offset[None,:]
 
@@ -3139,15 +3276,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Match left and right edge traces to construct slit edge pairs.
 
-        First, the method ensures that the edge traces are sorted
-        spatiall; see :func:`spatial_sort`. Then it determines where
-        traces need to be inserted to create a left-right pair (using
+        First, the method removes any fully masked traces (see
+        :func:`clean_traces`). If this leaves the object empty, two
+        traces are added at the edge of the detector; otherwise, the
+        method ensures that the edge traces are sorted spatially (see
+        :func:`spatial_sort`) and determines where traces need to be
+        inserted to create a full set of left-right pairs (see
         :func:`_get_insert_locations`).
 
-        The next steps are determine the reference positions where
+        The next steps are to determine the reference positions where
         the traces should be inserted and the shape the trace should
         take. The former is determined by the `sync_center` parameter
-        in :attr:`par`, and the latter is determined by `sync_predict`.
+        in :attr:`par` and the latter is determined by `sync_predict`.
 
         Current the position of the trace is determine either by the
         median of or the nearest slit length for the already
@@ -3183,29 +3323,22 @@ class EdgeTraceSet(masterframe.MasterFrame):
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
+        # Remove any fully masked traces
+        self.clean_traces()
 
-        # Make sure all the traces that are fully masked as bad are
-        # removed; to be remove the traces must be fully masked and
-        # *none* of its pixels can be masked by one of the insertion
-        # flags.
-        rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags) 
-                    & np.invert(self.bitmask.flagged(self.spat_msk,
-                                                     flag=self.bitmask.insert_flags)), axis=0)
+        # Make sure there are still traces left
+        if self.is_empty:
+            msgs.warn('No traces left!  Left and right edges placed at detector boundaries.')
+            self.bound_detector()
 
-        if np.any(rmtrace):
-            # No need to rebuild the PCA because the removed traces
-            # should not have been included in the PCA decomposition to
-            # begin with.  This call also resorts the traces.
-            self.remove_traces(rmtrace)
-        else:
-            # Make sure that the traces are sorted spatially
-            # TODO: This should be the convention of the class and
-            # should *always* be true; instead check for this and raise
-            # an error if it's not?
-            self.spatial_sort()
+        # Make sure that the traces are sorted spatially
+        # TODO: This should be the convention of the class and should
+        # *always* be true; instead check for this and raise an error
+        # if it's not?
+        self.spatial_sort()
 
-        # Check if the traces are already synced. If so, check them,
-        # log the function as completed, and finish
+        # If the traces are already synced, check them and log the
+        # function as completed
         if self.is_synced:
             self.check_synced(rebuild_pca=rebuild_pca and self.pca is not None)
             self.log += [inspect.stack()[0][3]]
@@ -3213,10 +3346,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Edges are currently not synced, so check the input
         if self.par['sync_predict'] not in ['pca', 'nearest']:
-            raise ValueError('Unknown trace mode: {0}'.format(self.par['sync_predict']))
+            msgs.error('Unknown trace mode: {0}'.format(self.par['sync_predict']))
         if self.par['sync_predict'] == 'pca' and self.pca is None:
-            raise ValueError('The PCA decomposition does not exist.  Either run self.build_pca '
-                             'or use a different trace_mode.')
+            msgs.error('The PCA decomposition does not exist.  Either run self.build_pca or use '
+                       'a different trace_mode.')
 
         # Find the edges to add, what side they're on, and where to
         # insert them into the existing trace array
@@ -3247,7 +3380,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # least two traces. Get rid of this test once satisfied
             # that this exception is never raised...
             if self.par['sync_predict'] == 'pca':
-                raise ValueError('Coding error: this should not happen.')
+                msgs.error('Coding error: this should not happen.')
             # Set the offset to add to the existing trace
             offset = self.par['det_buffer'] - np.amin(trace_cen[:,0]) if add_edge[0] \
                         else self.nspat - np.amax(trace_cen[:,0]) - self.par['det_buffer']
@@ -3276,11 +3409,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
             trace_add = trace_cen[:,indx[nearest[add_edge]]] + trace_ref[add_edge] \
                             - trace_ref[nearest[add_edge]]
 
-        # Insert the new traces
+        # Insert the new traces and resort them spatially
         self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
 
-        import pdb
-        pdb.set_trace()
+        # The sorted edges should now be arranged correctly. If not, it
+        # should be because the traces were nudged away from the
+        # detector edge and caused "negative" slit lengths...
+        side = np.clip(self.traceid, -1, 1)
+        indx = np.zeros(side.size, dtype=bool)
+        indx[::2] = side[::2] != -1
+        indx[1::2] = side[1::2] != 1
+        if np.all(indx):
+            msgs.error('Catastrophic error in left-right synchronization.  Edge order incorrect.')
+        if np.any(indx):
+            # Mask the traces as due to a synchronization error
+            # NOTE: These are only masked here so that they can be
+            # plotted if debug is True. Because the full traces are
+            # masked, they're immediately removed by check_synced.
+            self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'SYNCERROR')
 
         if debug:
             msgs.info('Show instance includes inserted traces but before checking the sync.')
@@ -3309,6 +3455,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         that any existing PCA decomposition will be unchanged.
         However, if `mode` is None, these inserted traces would be
         used in the construction of the PCA.
+
+        .. warning::
+            If the traces can be nudged away from the detector edge,
+            the offset can, e.g., place an inserted left edge to the
+            right of its associated right edge. This possibility is
+            currently *not* handled by this function.
 
         Args:
             side (:obj:`int`, `numpy.ndarray`_):
@@ -3342,12 +3494,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         ntrace = _side.size
         _trace_cen = trace_cen.reshape(-1,1) if trace_cen.ndim == 1 else trace_cen
         if _trace_cen.shape[1] != ntrace:
-            raise ValueError('Number of sides does not match the number of traces to insert.')
+            msgs.error('Number of sides does not match the number of traces to insert.')
         if loc is None:
             # Insertion locations not provided so append
             loc = np.full(ntrace, self.ntrace, dtype=int)
         if loc.size != ntrace:
-            raise ValueError('Number of sides does not match the number of insertion locations.')
+            msgs.error('Number of sides does not match the number of insertion locations.')
 
         msgs.info('Inserting {0} new traces.'.format(ntrace))
 
@@ -3371,12 +3523,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
         _traceid = np.empty(ntrace, dtype=int)
         indx = _side < 0
         if np.any(indx):
-            last_left = np.amin(self.traceid) if np.sum(self.traceid < 0) > 0 else 0
+            last_left = 0 if self.traceid is None or np.sum(self.is_left) == 0 \
+                            else np.amin(self.traceid)
             _traceid[indx] = last_left - 1 - np.arange(np.sum(indx))
         indx = _side > 0
         if np.any(indx):
-            last_right = np.amax(self.traceid) if np.sum(self.traceid > 0) > 0 else 0
+            last_right = 0 if self.traceid is None or np.sum(self.is_right) == 0 \
+                            else np.amax(self.traceid)
             _traceid[indx] = last_right + 1 + np.arange(np.sum(indx))
+
+        if self.is_empty:
+            # No traces exist, so set the internals directly
+            self.traceid = _traceid
+            self.spat_img = np.round(_trace_cen).astype(int)
+            self.spat_cen = _trace_cen
+            self.spat_err = np.zeros(_trace_cen.shape, dtype=float)
+            self.spat_msk = mask
+            self.spat_fit = _trace_cen
+            return
 
         # Add the new traces. The new traces are added to both the
         # fitted list and the center list!
@@ -3390,6 +3554,23 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         if resort:
             self.spatial_sort()
+
+    def bound_detector(self):
+        """
+        Insert traces at both detector boundaries.
+
+        Accounting for the requested detector buffer, a left and
+        right trace are placed at the detector edges. Traces are
+        masked as user-inserted.
+
+        Only used parameter from :attr:`par`
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is
+        `det_buffer`.
+        """
+        self.insert_traces(np.array([-1,1]),
+                           np.array([np.full(self.nspec, self.par['det_buffer'], dtype='float'),
+                                     np.full(self.nspec, self.nspat-1-self.par['det_buffer'],
+                                             dtype='float')]).T)
 
     def fully_masked_traces(self, flag=None):
         """
@@ -3405,7 +3586,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             `numpy.ndarray`_: Boolean array selecting traces that are
             flagged at all spectral pixels.
         """
-        return np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
+        return None if self.is_empty \
+                    else np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
     
     def mask_refine(self, design_file=None, allow_resync=False, debug=False):
         """
@@ -3462,6 +3644,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         # Still not done with this function...
         raise NotImplementedError()
+
+        # Check that there are traces to refine!
+        if self.is_empty:
+            msgs.error('No traces to refine.')
 
         # The PCA decomposition must have already been determined
         if self.pca is None:

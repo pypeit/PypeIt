@@ -286,7 +286,7 @@ def gain_frame(amp_img, gain, trim=True):
         `numpy.ndarray`: Image with the gain for each pixel.
     """
     # TODO: Remove this or actually do it.
-    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
+    # msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Build the gain image
     gain_img = np.zeros_like(amp_img, dtype=float)
