@@ -43,7 +43,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 4.19,
                             saturation      = 65535.,
-                            nonlinear=0.95,  # Changed by JFH from 0.86 to 0.95
+                            nonlinear       = 0.95,  # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.226,
                             ronoise         = 2.570,
