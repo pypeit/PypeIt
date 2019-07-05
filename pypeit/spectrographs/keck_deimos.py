@@ -43,7 +43,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 4.19,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear=0.95,  # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.226,
                             ronoise         = 2.570,
@@ -62,7 +62,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 3.46,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear       = 0.95,
                             numamplifiers   = 1,
                             gain            = 1.188,
                             ronoise         = 2.491,
@@ -81,7 +81,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 4.03,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear       = 0.95,  # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.248,
                             ronoise         = 2.618,
@@ -100,7 +100,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 3.80,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear       = 0.95,  # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.220,
                             ronoise         = 2.557,
@@ -119,7 +119,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 4.71,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear       = 0.95,  # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.184,
                             ronoise         = 2.482,
@@ -138,7 +138,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 4.28,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear       = 0.95, # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.177,
                             ronoise         = 2.469,
@@ -157,7 +157,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 3.33,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear       = 0.95, # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.201,
                             ronoise         = 2.518,
@@ -175,7 +175,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             platescale      = 0.1185,
                             darkcurr        = 3.69,
                             saturation      = 65535.,
-                            nonlinear       = 0.86,
+                            nonlinear       = 0.95,  # Changed by JFH from 0.86 to 0.95
                             numamplifiers   = 1,
                             gain            = 1.230,
                             ronoise         = 2.580,

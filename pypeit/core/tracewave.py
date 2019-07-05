@@ -391,7 +391,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
 def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False, fwhm=4.0,spat_order=5, maxdev_tracefit=0.2,
                 sigrej_trace=3.0, max_badpix_frac=0.20, tcrude_nave = 5,
-                npca = 1, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = False, show_tracefits=False):
+                npca = 2, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = False, show_tracefits=False):
 
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
@@ -603,6 +603,9 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     sigma = np.full_like(spec_img_pad, 10.0)
     # JFH What I find confusing is that this last fit was actually what Burles was doing on the raw tilts, so why was that failing?
     tilts_ivar1 = utils.calc_ivar((sigma[thismask_grow]/xnspecmin1)**2)
+    # JFH Something appers wrong in this fit for LRIS-red with a science frame as the tilt image. It appears to be rejecting
+    # too much in this fit, which is just a simple inversion of the fit above. Perhaps the noise and maxdev need to be cranked
+    # up. That is my suspicion.
     fitmask_tilts, coeff2_tilts = utils.robust_polyfit_djs(tiltpix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
                                                            fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
                                                            invvar=tilts_ivar1,
