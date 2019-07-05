@@ -929,6 +929,10 @@ class Spectrograph(object):
         pass
 
     @property
+    def spec_min_max(self):
+        return None
+
+    @property
     def dloglam(self):
         pass
 
@@ -969,13 +973,31 @@ class Spectrograph(object):
 
 
     def slit_minmax(self, slit_spat_pos, binspectral=1):
+        """
 
-        try:
-            iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
-        except TypeError:
-            iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
+        Args:
+            slit_spat_pos (float or ndarray):
+                normalized slit_spatial position as computed by trace_slits.slit_spat_pos
+            binspectral (int): default=1
+               spectral binning
 
-        return self.spec_min_max[:, iorder]/binspectral
+        Returns:
+
+        """
+
+        if self.spec_min_max is None:
+            try:
+                nslit = len(slit_spat_pos)
+            except TypeError:
+                nslit = 1
+            return np.vstack((np.asarray([-np.inf]*nslit), np.asarray([np.inf]*nslit)))
+
+        else:
+            try:
+                iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
+            except TypeError:
+                iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
+            return self.spec_min_max[:, iorder]/binspectral
 
 
     def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):

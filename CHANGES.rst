@@ -4,7 +4,12 @@
 
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
-
+- Fixed trace extrapolation, to fix bugs in object finding
+- Improved outlier rejection in pca_trace
+- Major improvements to coadd routines in coadd1d
+- Introduced telluric module and telluric correction routines
+- Implemented tilt image type which is now a required frame type
+- Streamlined and abstracted echelle properties and echelle routine in spectrograph classes.
 
 0.11.0 (22 Jun 2019)
 --------------------

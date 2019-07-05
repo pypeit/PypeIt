@@ -263,8 +263,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
     @property
     def spec_min_max(self):
-        spec_max = np.full(self.norders, -np.inf)
-        spec_min = np.full(self.norders, np.inf)
+        spec_max = np.full(self.norders, np.inf)
+        spec_min = np.full(self.norders, -np.inf)
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):

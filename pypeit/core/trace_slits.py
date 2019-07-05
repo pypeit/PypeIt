@@ -123,7 +123,7 @@ def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.1):
         igood_max = good_ind[-nfit:]
         if np.any(ibad_min):
             coeff_min = utils.func_fit(spec_vec[igood_min], traces[igood_min, islit], 'legendre', 3,
-                                       minx=0.0, maxx=xnspecmin1)
+                                           minx=0.0, maxx=xnspecmin1)
             traces_extrap[ibad_min, islit] = utils.func_val(coeff_min, spec_vec[ibad_min], 'legendre', minx=0.0,
                                                              maxx=xnspecmin1)
         if np.any(ibad_max):

@@ -2544,7 +2544,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         canvas_list = text_final + text_pca + text_fit + text_notfit
         canvas.add('constructedcanvas', canvas_list)
 
-    embed()
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
     return sobjs_final, skymask[allmask]
