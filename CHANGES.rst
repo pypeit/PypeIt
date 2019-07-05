@@ -4,6 +4,8 @@
 
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
+- Brings Gemini/GMOS into the suite (R400)
+- Also an important change for autoid.full_template()
 
 
 0.11.0 (22 Jun 2019)

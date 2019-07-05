@@ -592,9 +592,6 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     ----------------
     November 2018 by J.F. Hennawi. Built from an initial version of cross_match code written by Ryan Cooke.
     """
-    #debug_peaks = True
-    #debug_reid = True
-    #debug_xcorr = True
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
@@ -909,7 +906,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             ax.plot(xvals, temp_spec)  # Template
             ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')  # Input
             plt.show()
-            embed(header='909')
+            embed(header='909 autoid')
         i0 = npad // 2 + int(shift_cc)
 
         # Generate the template snippet
