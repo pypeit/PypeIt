@@ -2482,7 +2482,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                                  npca=npca, pca_explained_var=pca_explained_var,
-                                                 coeff_npoly=coeff_npoly, debug=True)
+                                                 coeff_npoly=coeff_npoly, debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask

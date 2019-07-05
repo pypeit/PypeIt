@@ -428,8 +428,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to parameters for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
-        # X-SHOOTER arcs are also have different binning with bias frames
+        # X-SHOOTER arcs/tilts are also have different binning with bias frames
         par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
@@ -648,6 +649,9 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        # X-SHOOTER UVB arcs/tilts have different binning with bias frames
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
