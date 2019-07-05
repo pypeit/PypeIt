@@ -250,7 +250,6 @@ class EdgeTracePCA:
                                function=self.function).T
 
 
-
 class EdgeTraceSet(masterframe.MasterFrame):
     r"""
     Core class that identifies, traces, and pairs edges in an image
@@ -747,8 +746,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             
         # TODO: Add mask_refine() when it's ready
 
-#        import pdb
-#        pdb.set_trace()
+        import pdb
+        pdb.set_trace()
 
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
@@ -3279,6 +3278,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Insert the new traces
         self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
+
+        import pdb
+        pdb.set_trace()
 
         if debug:
             msgs.info('Show instance includes inserted traces but before checking the sync.')

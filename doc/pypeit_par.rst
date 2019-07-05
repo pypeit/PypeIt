@@ -287,6 +287,7 @@ Key                      Type              Options                              
 ``fit_maxiter``          int               ..                                           25              Maximum number of rejection iterations during edge fitting.                                                                                                                                                                                                                                                                                                                                                                                                                
 ``fit_niter``            int               ..                                           1               Number of iterations of re-measuring and re-fitting the edge data; see :func:`pypeit.core.trace.fit_trace`.                                                                                                                                                                                                                                                                                                                                                                
 ``fit_min_spec_length``  float             ..                                           0.6             Minimum unmasked spectral length of a traced slit edge to use in any modeling procedure (polynomial fitting or PCA decomposition).                                                                                                                                                                                                                                                                                                                                         
+``left_right_pca``       bool              ..                                           False           Construct a PCA decomposition for the left and right traces separately.  This can be important for cross-dispersed echelle spectrographs (e.g., Keck-NIRES)                                                                                                                                                                                                                                                                                                                
 ``pca_n``                int               ..                                           ..              The number of PCA components to keep, which must be less than the number of detected traces.  If not provided, determined by calculating the minimum number of components required to explain a given percentage of variance in the edge data; see `pca_var_percent`.                                                                                                                                                                                                      
 ``pca_var_percent``      int, float        ..                                           99.8            The percentage (i.e., not the fraction) of the variance in the edge data accounted for by the PCA used to truncate the number of PCA coefficients to keep (see `pca_n`).  Ignored if `pca_n` is provided directly.                                                                                                                                                                                                                                                         
 ``pca_function``         str               ``polynomial``, ``legendre``, ``chebyshev``  ``polynomial``  Type of function fit to the PCA coefficients for each component.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                             
@@ -305,11 +306,12 @@ Key                      Type              Options                              
 ``det_buffer``           int               ..                                           5               The minimum separation between the detector edges and a slit edge for any added edge traces.  Must be positive.                                                                                                                                                                                                                                                                                                                                                            
 ``max_nudge``            int               ..                                           ..              If parts of any (predicted) trace fall off the detector edge, allow them to be nudged away from the detector edge up to and including this maximum number of pixels.  If None, no limit is set; otherwise should be 0 or larger.                                                                                                                                                                                                                                           
 ``sync_predict``         str               ``pca``, ``nearest``                         ``pca``         Mode to use when predicting the form of the trace to insert.  Use `pca` to use the PCA decomposition or `nearest` to reproduce the shape of the nearest trace.                                                                                                                                                                                                                                                                                                             
-``sync_center``          str               ``median``, ``gap``, ``nearest``             ``median``      Mode to use for determining the location of traces to insert.  Use `median` to use the median of the matched left and right edge pairs or `nearest` to ue the length of the nearest slit`.                                                                                                                                                                                                                                                                                 
+``sync_center``          str               ``median``, ``nearest``, ``gap``             ``median``      Mode to use for determining the location of traces to insert.  Use `median` to use the median of the matched left and right edge pairs, `nearest` to use the length of the nearest slit, or `gap` to offset by a fixed gap width from the next slit edge.                                                                                                                                                                                                                  
+``gap_offset``           int, float        ..                                           1.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                   
 ``sync_to_edge``         bool              ..                                           True            If adding a first left edge or a last right edge, ignore `center_mode` for these edges and place them at the edge of the detector (with the relevant shape).                                                                                                                                                                                                                                                                                                               
-``min_slit_gap``         int, float        ..                                           1.0             Minimum allowed gap in pixels between the mean spatial location of left and right edges.                                                                                                                                                                                                                                                                                                                                                                                   
-``minimum_slit_length``  int, float        ..                                           ..              Minimum slit length in arcsec.  Shorter slits are masked or clipped.  If None, no minimum slit lengthapplied.                                                                                                                                                                                                                                                                                                                                                              
-``length_range``         int, float        ..                                           ..              Range in relative slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.                                                                                                                                                                                                                                                                                              
+``minimum_slit_length``  int, float        ..                                           ..              Minimum slit length in arcsec.  Slit lengths are determined by the median difference between the left and right edge locations for the unmasked trace locations.  Short slits are masked or clipped.  If None, no minimum slit length applied.                                                                                                                                                                                                                             
+``length_range``         int, float        ..                                           ..              Allowed range in slit length compared to the median slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.                                                                                                                                                                                                                                                            
+``minimum_slit_gap``     int, float        ..                                           ..              Minimum slit gap in arcsec.  Gaps between slits are determined by the median difference between the right and left edge locations of adjacent slits.  Slits with small gaps are merged by removing the intervening traces.If None, no minimum slit gap is applied.  This should be smaller than `gap_offset` when converted to pixels.                                                                                                                                     
 ``clip``                 bool              ..                                           True            Instead of just masking bad slit trace edges, remove them.                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``sync_clip``            bool              ..                                           True            For synchronized edges specifically, remove both edge traces, even if only one is selected for removal.                                                                                                                                                                                                                                                                                                                                                                    
 ``mask_reg_maxiter``     int               ..                                           ..              Maximum number of fit iterations to perform for registering slit-mask design and trace locations. If None, rejection iterations are performed until no points are rejected. If 1, only a single fit is performed without any rejection.                                                                                                                                                                                                                                    
@@ -356,7 +358,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``tilt``, ``dark``, ``arc``, ``trace``, ``pixelflat``, ``science``, ``standard``, ``pinhole``, ``bias``  ``science``                   Frame type.  Options are: tilt, dark, arc, trace, pixelflat, science, standard, pinhole, bias                                                                                                                                                                  
+``frametype``  str                                             ``trace``, ``bias``, ``arc``, ``standard``, ``tilt``, ``science``, ``pinhole``, ``dark``, ``pixelflat``  ``science``                   Frame type.  Options are: trace, bias, arc, standard, tilt, science, pinhole, dark, pixelflat                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -566,7 +568,12 @@ Alterations to the default parameters are::
       [[slits]]
           sigdetect = 30.0
       [[slitedges]]
-          edge_thresh = 30.0
+          edge_thresh = 15.0
+          det_min_spec_length = 0.1
+          fit_order = 3
+          fit_min_spec_length = 0.2
+          sync_center = gap
+          minimum_slit_length = 1.0
   [scienceframe]
       exprng = 29, None
   [flexure]
@@ -610,7 +617,9 @@ Alterations to the default parameters are::
       [[slits]]
           sigdetect = 50.0
       [[slitedges]]
-          edge_thresh = 50.0
+          fit_order = 3
+          sync_center = gap
+          minimum_slit_length = 1.0
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -666,7 +675,9 @@ Alterations to the default parameters are::
       [[slits]]
           sigdetect = 50.0
       [[slitedges]]
-          edge_thresh = 50.0
+          fit_order = 3
+          sync_center = gap
+          minimum_slit_length = 1.0
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -724,6 +735,10 @@ Alterations to the default parameters are::
           reid_arxiv = keck_nires.fits
           rms_threshold = 0.2
           n_final = 3, 4, 4, 4, 4
+      [[slitedges]]
+          fit_min_spec_length = 0.4
+          left_right_pca = True
+          trace_thresh = 10.0
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
@@ -1012,6 +1027,9 @@ Alterations to the default parameters are::
       [[slitedges]]
           edge_thresh = 8.0
           max_shift_adj = 0.5
+          left_right_pca = True
+          trace_thresh = 10.0
+          length_range = 0.3
   [scienceframe]
       useframe = overscan
 
@@ -1063,6 +1081,9 @@ Alterations to the default parameters are::
           edge_thresh = 8.0
           max_shift_adj = 0.5
           fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          length_range = 0.3
       [[tilts]]
           tracethresh = 15
           spec_order = 5
@@ -1118,9 +1139,13 @@ Alterations to the default parameters are::
           sigdetect = 120.0
           trace_npoly = 8
       [[slitedges]]
-          edge_thresh = 120.0
+          edge_thresh = 50.0
           max_shift_adj = 0.5
           fit_order = 8
+          fit_min_spec_length = 0.4
+          left_right_pca = True
+          trace_thresh = 10.0
+          length_range = 0.3
       [[tilts]]
           tracethresh = 25.0
           maxdev_tracefit = 0.04
@@ -1199,6 +1224,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           max_shift_adj = 0.5
           fit_min_spec_length = 0.5
+          left_right_pca = True
           pca_order = 3
           trace_thresh = 10.0
       [[tilts]]
@@ -1349,6 +1375,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           edge_thresh = 50
           max_shift_adj = 0.5
+          left_right_pca = True
       [[tilts]]
           tracethresh = 10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10
   [scienceframe]
@@ -1400,6 +1427,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           edge_thresh = 10.0
           max_shift_adj = 3.0
+          left_right_pca = True
       [[tilts]]
           tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
   [scienceframe]
@@ -1446,6 +1474,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           edge_thresh = 600.0
           max_shift_adj = 0.5
+          left_right_pca = True
   [scienceframe]
       exprng = 600, None
       [[process]]

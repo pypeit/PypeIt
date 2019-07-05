@@ -106,6 +106,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['edge_thresh'] = 50
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
 #        par['calibrations']['slits']['pcatype'] = 'pixel'
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()

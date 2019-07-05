@@ -81,6 +81,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['pca_order'] = 3
 
         # Wavelengths
