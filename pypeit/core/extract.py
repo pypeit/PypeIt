@@ -2512,7 +2512,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
     skymask = skymask_objfind | skymask_fwhm
 
-    show_trace=True
     if show_trace:
         viewer, ch = ginga.show_image(image*allmask)
 
