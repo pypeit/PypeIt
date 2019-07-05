@@ -101,6 +101,11 @@ def main(args, unit_test=False, path=''):
         flux_value = coadd_dict.pop('flux')
     else:
         flux_value = True
+    # sensfunc weight
+    if 'sensfile' in coadd_dict.keys():
+        sensfile = coadd_dict.pop('sensfile')
+    else:
+        sensfile = None
 
     # Loop on sources
     for key in coadd_dict.keys():
@@ -209,7 +214,7 @@ def main(args, unit_test=False, path=''):
                     raise IOError("You need to specifiy the photometric information for every order.")
 
             wave_stack, flux_stack, ivar_stack, mask_stack = coadd1d.ech_combspec(
-                gdfiles, gdobj, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
+                gdfiles, gdobj, sensfile=sensfile, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
                 outfile=outfile, qafile=qafile, **gparam)
 
         else:

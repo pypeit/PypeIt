@@ -2230,8 +2230,14 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]
     rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
     weights_exp = np.tile(rms_sn_per_exp**2, (nspec, norder, 1))
-    weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
-    weights = weights_exp*weights_sens
+    if sensfile is not None:
+        weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
+        weights = weights_exp*weights_sens
+    else:
+        msgs.warn('No sensfunc is available for weighting, using smoothed ivar weights which is not optimal!')
+        _, weights_ivar = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights,
+                                     ivar_weights=True, verbose=True)
+        weights = weights_exp*weights_ivar
     if debug:
         weights_qa(waves, weights, masks, title='ech_combspec')
 
