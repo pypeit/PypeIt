@@ -2164,8 +2164,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if self.is_empty:
             msgs.warn('No traces to check.')
 
-        # Remove any fully masked traces and its synced counterpart
-        self.clean_traces(sync_rm='both')
+        # Remove any fully masked traces and its synced counterpart;
+        # force the removal of traces marked as SYNCERROR, even if
+        # those traces were inserted.
+        self.clean_traces(sync_rm='both', force_flag='SYNCERROR')
 
         # Use the fit data if available
         trace_cen = self.spat_cen if self.spat_fit is None else self.spat_fit
@@ -2365,27 +2367,42 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Reset the PCA
         self._reset_pca(rebuild_pca and self.pca is not None and self.can_pca())
 
-    def clean_traces(self, sync_rm='ignore'):
+    def clean_traces(self, sync_rm='ignore', force_flag=None):
         """
         Remove any traces that are fully masked as bad.
 
-        For removeal, the traces must be fully masked and
+        For removal, the traces must be fully masked and
         *none* of its pixels can be masked by one of the insertion
-        flags.
+        flags. To force removal of traces with certain flags,
+        regardless of their insertion status, use `force_flag`.
+
+        Args:
+            sync_rm (:obj:`str`, optional):
+                If the traces are left-right synchronized (see
+                :func:`sync` and :func:`is_synced`), use this method
+                to deal with edges paired with those to be removed.
+                See :func:`remove_traces`.
+            force_flag (:obj:`str`, :obj:`list`, optional):
+                Force removal of traces fully masked with these
+                flags, even if they are also flagged as having been
+                inserted.
         """
         if self.is_empty:
             msgs.warn('No traces to clean.')
             return
 
         # Traces to remove
-        rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags) 
+        rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags)
                     & np.invert(self.bitmask.flagged(self.spat_msk,
                                                      flag=self.bitmask.insert_flags)), axis=0)
+        if force_flag is not None:
+            rmtrace |= np.all(self.bitmask.flagged(self.spat_msk, flag=force_flag), axis=0)
+
         if np.any(rmtrace):
             # The removed traces should not have been included in the
             # PCA decomposition to begin with, but this call to remove
-            # traces has to rebuild the PCA; otherwise, the PCA will
-            # have been removed.
+            # traces has to "rebuild" the PCA because it will remove it
+            # otherwise.
             # TODO: Fix remove_traces to check if traces used in the
             # construction of the PCA, and only then use the
             # rebuild_pca flag to decide if it should rebuild.
@@ -3454,6 +3471,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if np.all(indx):
             msgs.error('Catastrophic error in left-right synchronization.  Edge order incorrect.')
         if np.any(indx):
+            msgs.warn('Synchronized traces are not properly ordered, likely because they '
+                      'have been placed close to the detector edges. Flagging '
+                      '{0} traces that are not properly sorted for removal.'.format(np.sum(indx)))
             # Mask the traces as due to a synchronization error
             # NOTE: These are only masked here so that they can be
             # plotted if debug is True. Because the full traces are

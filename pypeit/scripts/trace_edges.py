@@ -119,6 +119,7 @@ def main(args):
 #            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
 #                                           master_dir=master_dir, img=traceImage, det=det,
 #                                           auto=True, debug=args.debug, show_stages=args.show)
+#            edges.save()
             try:
                 t = time.perf_counter()
                 edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
