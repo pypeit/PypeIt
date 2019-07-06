@@ -14,6 +14,48 @@ from IPython import embed
 from pypeit.core import arc
 
 
+
+def get_sampling(waves, pix_per_R=3.0):
+    """
+    Computes the median wavelength sampling of wavelength vector(s)
+
+    Args:
+        waves (float ndarray): shape = (nspec,) or (nspec, nimgs)
+           Array of wavelengths. Can be one or two dimensional where the nimgs dimension
+            can represent the orders, exposures, or slits
+        pix_per_R (float):  default=3.0
+           Number of pixels per resolution element used for the resolution guess. The default of 3.0 assumes
+           roughly Nyquist smampling
+    Returns:
+        dlam, dloglam, resln_guess, pix_per_sigma
+
+
+        Computes the median wavelength sampling of the wavelength vector(s)
+
+    """
+
+    if waves.ndim == 1:
+        norders = 1
+        nspec = waves.shape[0]
+        waves_stack = waves.reshape((nspec, norders))
+    elif waves.ndim == 2:
+        waves_stack = waves
+
+    wave_mask = waves_stack > 1.0
+    waves_ma = np.ma.array(waves_stack, mask=np.invert(wave_mask))
+    loglam = np.ma.log10(waves_ma)
+    wave_diff = np.diff(waves_ma, axis=0)
+    loglam_diff = np.diff(loglam, axis=0)
+    dwave = np.ma.median(wave_diff)
+    dloglam = np.ma.median(loglam_diff)
+    #dloglam_ord = np.ma.median(loglam_roll, axis=0)
+    #dloglam = np.median(dloglam_ord)
+    resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
+    pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
+
+    return dwave, dloglam, resln_guess, pix_per_sigma
+
+
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
@@ -409,26 +451,32 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Fal
     return hist_wd, cent_w, cent_d
 
 
-def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0):
+def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
     """
     Utility routine to generate a uniform grid of wavelengths
     Args:
         wave_min: float
-           Mininum wavelength. Can be in linear or log.
+           Mininum wavelength. Must be linear even if log10 is requested
         wave_max: float
-           Maximum wavelength. Can be in linear or log.
+           Maximum wavelength. Must be linear even if log10 is requested.
         dwave: float
-           Delta wavelength interval
+           Delta wavelength interval. Must be linear if log10=False, or log10 if log10=True
         samp_fact: float
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
            samp_fact < 1.0 undersamples (coarser)
 
     Returns:
         wave_grid: float ndarray
-           Wavelength grid
+           Wavelength grid in Angstroms (i.e. log10 even if log10 is requested)
     """
 
     dwave_eff = dwave/samp_fact
-    ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
-    wave_grid = wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
+    if log10:
+        ngrid = int(np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff))
+        loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(int(np.ceil(ngrid)))
+        return np.power(10.0,loglam_grid)
+    else:
+        ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
+        return wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
+
     return wave_grid

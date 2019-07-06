@@ -24,10 +24,11 @@ from pypeit import reduce
 from pypeit.core import load, coadd1d, pixels
 from pypeit.core import parse
 from pypeit.spectrographs import util
+from matplotlib import pyplot as plt
 from IPython import embed
 
 
-def get_brightest_obj(specobjs_list, pypeline):
+def get_brightest_obj(specobjs_list, nslits, pypeline):
     """
     Utility routine to find the brightest object in each exposure given a specobjs_list. This currently only works
     for echelle.
@@ -39,7 +40,7 @@ def get_brightest_obj(specobjs_list, pypeline):
         echelle: bool, default=True
 
     Returns:
-    (objid, snr_bar), tuple
+        (objid, snr_bar), tuple
 
         objid: ndarray, int, shape (len(list),)
             Array of object ids representing the brightest object in each exposure
@@ -48,16 +49,16 @@ def get_brightest_obj(specobjs_list, pypeline):
 
     """
     nexp = len(specobjs_list)
-    objid = np.zeros(nexp, dtype=int)
-    snr_bar = np.zeros(nexp)
-    embed()
+    nspec = specobjs_list[0][0].shape[0]
     if 'Echelle' in pypeline:
-        norders = specobjs_list[0].ech_orderindx.max() + 1
+        objid = np.zeros(nexp, dtype=int)
+        snr_bar = np.zeros(nexp)
+        #norders = specobjs_list[0].ech_orderindx.max() + 1
         for iexp, sobjs in enumerate(specobjs_list):
             uni_objid = np.unique(sobjs.ech_objid)
             nobjs = len(uni_objid)
-            order_snr = np.zeros((norders, nobjs))
-            for iord in range(norders):
+            order_snr = np.zeros((nslits, nobjs))
+            for iord in range(nslits):
                 for iobj in range(nobjs):
                     ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
                     flux = sobjs[ind][0].optimal['COUNTS']
@@ -71,15 +72,43 @@ def get_brightest_obj(specobjs_list, pypeline):
             snr_bar_vec = np.mean(order_snr, axis=0)
             objid[iexp] = uni_objid[snr_bar_vec.argmax()]
             snr_bar[iexp] = snr_bar_vec[snr_bar_vec.argmax()]
+            return objid, None, snr_bar
     else:
-        msgs.error('Automated objid selection is not yet implemented for multislit')
-        # -- for multislit this routine will:
-        #  Determine which object on the slitmask is brightest and attempt to match them up somehow.  The problem is
-        #  how to associate the objects together on the slits if they have moved.
+        slit_snr_max = np.full((nslits, nexp), -np.inf)
+        objid_max = np.zeros((nslits, nexp),dtype=int)
+        # Loop over each exposure, slit, find the brighest object on that slit for every exposure
+        for iexp, sobjs in enumerate(specobjs_list):
+            for islit in range(nslits):
+                ithis = sobjs.slitid == islit
+                nobj_slit = np.sum(ithis)
+                if np.any(ithis):
+                    objid_this = sobjs[ithis].objid
+                    flux = np.zeros((nspec, nobj_slit))
+                    ivar = np.zeros((nspec, nobj_slit))
+                    wave = np.zeros((nspec, nobj_slit))
+                    mask = np.zeros((nspec, nobj_slit), dtype=bool)
+                    for iobj, spec in enumerate(sobjs[ithis]):
+                        flux[:, iobj] = spec.optimal['COUNTS']
+                        ivar[:,iobj]  = spec.optimal['COUNTS_IVAR']
+                        wave[:,iobj]  = spec.optimal['WAVE']
+                        mask[:,iobj]  = spec.optimal['MASK']
+                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
+                    imax = np.argmax(rms_sn)
+                    slit_snr_max[islit, iexp] = rms_sn[imax]
+                    objid_max[islit, iexp] = objid_this[imax]
+        # Find the highest snr object among all the slits
+        slit_snr = np.mean(slit_snr_max, axis=1)
+        slitid = slit_snr.argmax()
+        snr_bar_mean = slit_snr[slitid]
+        snr_bar = slit_snr_max[slitid, :]
+        objid = objid_max[slitid, :]
+        if (snr_bar_mean == -np.inf):
+            msgs.error('You do not appear to have a unique reference object that was traced as the highest S/N '
+                       'ratio on the same slit of every exposure')
+        return objid, slitid, snr_bar
 
-    return objid, snr_bar
 
-def optimal_weights(specobjs_list, slitid, objid):
+def optimal_weights(specobjs_list, slitid, objid, sn_smooth_npix):
     """
     Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
     object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
@@ -126,7 +155,7 @@ def optimal_weights(specobjs_list, slitid, objid):
         mask_stack[iexp,:] = sobjs[ithis][0].optimal['MASK']
 
     # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-    rms_sn, weights = coadd1d.sn_weights(wave_stack.T, flux_stack.T, ivar_stack.T, mask_stack.T)
+    rms_sn, weights = coadd1d.sn_weights(wave_stack.T, flux_stack.T, ivar_stack.T, mask_stack.T, sn_smooth_npix)
 
     return rms_sn, weights.T, trace_stack, wave_stack
 
@@ -361,7 +390,7 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
 
             If the images were dithered, then this object can either be
             the slitcen appropriately shifted with the dither pattern,
-            or it could the trace of the object of interest in each
+            or it could be the trace of the object of interest in each
             exposure determined by running PypeIt on the individual
             images.  Shape is (nimgs, nspec).
         sciimg_stack (`numpy.ndarray`_):
@@ -580,7 +609,7 @@ def img_list_error_check(sci_list, var_list):
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
     """
     Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
-    performs "recitifies" images using np.histogram2d which is extremely fast and effectiveluy performs
+    "recitifies" images using np.histogram2d which is extremely fast and effectiveluy performs
     nearest grid point interpolation.
 
     Args:
@@ -675,8 +704,9 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
-def extract_coadd2d(stack_dict, master_dir, det, pypeline, samp_fact = 1.0, ir_redux=False, par=None, std=False,
-                    show=False, show_peaks=False):
+def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, ir_redux=False, par=None, std=False,
+                    show=False, show_peaks=False, wave_method=None, iref=None,
+                    wave_grid_min=None, wave_grid_max=None, dwave=None, dv=None, dloglam=None, samp_fact=1.0):
     """
     Main routine to run the extraction for 2d coadds.
 
@@ -702,10 +732,17 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, samp_fact = 1.0, ir_r
     Returns:
 
     """
+    if wave_method is None:
+        if 'MultiSlit' in pypeline:
+            wave_method = 'linear'
+        elif 'Echelle' in pypeline:
+            wave_method = 'log10'
+        else:
+            msgs.error('Unrecognized pypeline')
 
     # Find the objid of the brighest object, and the average snr across all orders
-    nslits = stack_dict['tslits_dict']['slit_left'].shape[1]
-    objid, snr_bar = get_brightest_obj(stack_dict['specobjs_list'], pypeline)
+    nspec, nslits = stack_dict['tslits_dict']['slit_left'].shape
+    objid, slitid, snr_bar = get_brightest_obj(stack_dict['specobjs_list'], nslits, pypeline)
     # TODO Print out a report here on the image stack, i.e. S/N of each image
 
     spectrograph = util.load_spectrograph(stack_dict['spectrograph'])
@@ -713,12 +750,32 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, samp_fact = 1.0, ir_r
 
     binning = np.array([stack_dict['tslits_dict']['binspectral'],stack_dict['tslits_dict']['binspatial']])
     # Grab the wavelength grid that we will rectify onto
-    wave_grid = spectrograph.wavegrid(binning=binning,samp_fact=samp_fact)
-    wave_grid_mid = spectrograph.wavegrid(midpoint=True,binning=binning,samp_fact=samp_fact)
+    nobjs = [len(specobjs) for specobjs in stack_dict['specobjs_list']]
+    nobjs_tot = np.array(nobjs).sum()
+    waves = np.zeros((nspec, nobjs_tot))
+    indx = 0
+    for specobjs in stack_dict['specobjs_list']:
+        for spec in specobjs:
+            waves[:, indx] = spec.optimal['WAVE']
+            indx += 1
 
+    # Decide how much to smooth the spectra by if this number was not passed in
+    if sn_smooth_npix is None:
+        # This is the effective good number of spectral pixels in the stack
+        nspec_eff = np.sum(waves > 1.0)/nobjs_tot
+        sn_smooth_npix = int(np.round(0.1*nspec_eff))
+        msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
+
+    wave_grid, wave_grid_mid, dsamp = coadd1d.get_wave_grid(waves, wave_method=wave_method, iref=iref,
+                                                            wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
+                                                            dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
     coadd_list = []
     nspec_vec = np.zeros(nslits,dtype=int)
     nspat_vec = np.zeros(nslits,dtype=int)
+
+    if 'MultiSlit' in pypeline:
+        msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(slitid,np.mean(snr_bar)))
+        embed()
 
     # TODO: Generalize this to be a loop over detectors, such tha the
     # coadd_list is an ordered dict (perhaps) with all the slits on all
@@ -726,8 +783,7 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, samp_fact = 1.0, ir_r
     for islit in range(nslits):
         msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(islit,nslits-1))
         # Determine the wavelength dependent optimal weights and grab the reference trace
-        rms_sn, weights, trace_stack, wave_stack = optimal_weights(stack_dict['specobjs_list'],
-                                                                   islit, objid)
+        rms_sn, weights, trace_stack, wave_stack = optimal_weights(stack_dict['specobjs_list'], islit, objid, sn_smooth_npix)
         thismask_stack = stack_dict['slitmask_stack'] == islit
 
         # Perform the 2d coadd

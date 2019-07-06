@@ -34,8 +34,8 @@ plt.rcParams["axes.labelsize"] = 17
 
 
 
-def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
-                  A_pix=None,v_pix=None,samp_fact=1.0):
+def get_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
+                  dwave=None, dv=None, dloglam=None, samp_fact=1.0):
     """
     Create a new wavelength grid for the spectra to be rebinned and coadded on
 
@@ -70,48 +70,42 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
 
     c_kms = constants.c.to('km/s').value
 
-    wave_mask = waves>1.0
+    wave_mask = waves > 1.0
+    nspec, nimgs = waves.shape
 
     if wave_grid_min is None:
-        wave_grid_min = np.min(waves[wave_mask])
+        wave_grid_min = waves[wave_mask].min()
     if wave_grid_max is None:
-        wave_grid_max = np.max(waves[wave_mask])
+        wave_grid_max = waves[wave_mask].max()
 
-    if wave_method == 'velocity':  # Constant km/s
-        if v_pix is None:
-            # Find the median velocity of a pixel in the input
-            dv = c_kms * np.diff(waves, axis=0)/waves[1:]   # km/s
-            v_pix = np.median(dv)
+    dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(waves)
 
-        # to make the wavelength grid finer or coarser
-        v_pix = v_pix/samp_fact
-
+    if ('velocity' in wave_method) or ('log10' in wave_method):
+        if dv is not None and dloglam is not None:
+            msgs.error('You can only specify dv or dloglam but not both')
+        elif dv is not None:
+            dloglam_pix = dv/c_kms/np.log(10.0)
+        elif dloglam is not None:
+            dloglam_pix = dloglam
+        else:
+            dloglam_pix = dloglam_data
         # Generate wavelength array
-        x = np.log10(v_pix/c_kms + 1.0)
-        npix = int(np.log10(wave_grid_max/wave_grid_min)/x) + 1
-        wave_grid = wave_grid_min * 10.0**(x*np.arange(npix))
+        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dloglam_pix, samp_fact=samp_fact, log10=True)
+        loglam_grid_mid = np.log10(wave_grid) + dloglam_pix/samp_fact/2.0
+        wave_grid_mid = np.power(10.0,loglam_grid_mid)
+        dsamp = dloglam_pix
 
-    elif wave_method == 'pixel': # Constant Angstrom
-        if A_pix is None:
-            dA =  np.abs(waves - np.roll(waves,1,axis=0))
-            A_pix = np.median(dA)
-
+    elif 'linear' in wave_method: # Cosntant Angstrom
+        if dwave is not None:
+            dwave_pix = dwave
+        else:
+            dwave_pix = dwave_data
         # Generate wavelength array
-        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max + A_pix, \
-                                     A_pix,samp_fact=samp_fact)
+        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dwave_pix, samp_fact=samp_fact)
+        wave_grid_mid = wave_grid + dwave_pix/samp_fact/2.0
+        dsamp = dwave_pix
 
-    elif wave_method == 'loggrid':
-        dloglam_n = np.log10(waves) - np.roll(np.log10(waves), 1,axis=0)
-        logwave_mask = wave_mask & np.roll(wave_mask, 1, axis=0)
-        dloglam = np.median(dloglam_n[logwave_mask])
-        wave_grid_max = np.max(waves[wave_mask])
-        wave_grid_min = np.min(waves[wave_mask])
-        # TODO: merge  wvutils.wavegrid with this function
-        loglam_grid = wvutils.wavegrid(np.log10(wave_grid_min), np.log10(wave_grid_max)+dloglam, \
-                                       dloglam,samp_fact=samp_fact)
-        wave_grid = 10.0**loglam_grid
-
-    elif wave_method == 'concatenate':  # Concatenate
+    elif 'concatenate' in wave_method:  # Concatenate
         # Setup
         loglam = np.log10(waves) # This deals with padding (0's) just fine, i.e. they get masked..
         nexp = waves.shape[1]
@@ -132,16 +126,29 @@ def new_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
                 kmin = np.argmin(np.abs(iloglam - newloglam[-1] - dloglam_n))
                 newloglam = np.concatenate([newloglam, iloglam[kmin:]])
         # Finish
-        wave_grid = 10**newloglam
+        wave_grid = np.power(10.0,newloglam)
 
-    elif wave_method == 'iref':
+    elif 'iref' in wave_method:
         wave_tmp = waves[:, iref]
-        wave_grid = wave_tmp[wave_tmp>1.0]
+        wave_grid = wave_tmp[ wave_tmp > 1.0]
 
     else:
-        msgs.error("Bad method for scaling: {:s}".format(wave_method))
+        msgs.error("Bad method for wavelength grid: {:s}".format(wave_method))
 
-    return wave_grid
+    if ('iref' in wave_method) | ('concatenate' in wave_method):
+        wave_grid_diff = np.diff(wave_grid)
+        wave_grid_diff = np.append(wave_grid_diff, wave_grid_diff[-1])
+        wave_grid_mid = wave_grid + wave_grid_diff / 2.0
+        dsamp = np.median(wave_grid_diff)
+
+
+    waves_flat = waves[waves > 1.0].flatten()
+    # Counts how many pixels in each wavelength bin
+    nused, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False)
+
+    embed()
+
+    return wave_grid, wave_grid_mid, dsamp
 
 def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', qafile=None):
     '''
@@ -1177,7 +1184,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
 
     Args:
         wave_grid: ndarray, (ngrid +1,)
-            new wavelength grid desired. This will typically be a reguarly spaced grid created by the new_wave_grid routine.
+            new wavelength grid desired. This will typically be a reguarly spaced grid created by the get_wave_grid routine.
             The reason for the ngrid+1 is that this is the general way to specify a set of  bins if you desire ngrid
             bin centers, i.e. the output stacked spectra have ngrid elements.  The spacing of this grid can be regular in
             lambda (better for multislit) or log lambda (better for echelle). This new wavelength grid should be designed
@@ -1659,7 +1666,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
 
     Args:
         wave_grid: ndarray, (ngrid +1,)
-            new wavelength grid desired. This will typically be a reguarly spaced grid created by the new_wave_grid routine.
+            new wavelength grid desired. This will typically be a reguarly spaced grid created by the get_wave_grid routine.
             The reason for the ngrid+1 is that this is the general way to specify a set of  bins if you desire ngrid
             bin centers, i.e. the output stacked spectra have ngrid elements.  The spacing of this grid can be regular in
             lambda (better for multislit) or log lambda (better for echelle). This new wavelength grid should be designed
@@ -1797,7 +1804,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
 
     Args:
         wave_grid: ndarray, (ngrid +1,)
-            new wavelength grid desired. This will typically be a reguarly spaced grid created by the new_wave_grid routine.
+            new wavelength grid desired. This will typically be a reguarly spaced grid created by the get_wave_grid routine.
             The reason for the ngrid+1 is that this is the general way to specify a set of  bins if you desire ngrid
             bin centers, i.e. the output stacked spectra have ngrid elements.  The spacing of this grid can be regular in
             lambda (better for multislit) or log lambda (better for echelle). This new wavelength grid should be designed
@@ -1908,8 +1915,9 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
 
 
 #Todo: This should probaby take a parset?
-def combspec(waves, fluxes, ivars, masks, sn_smooth_npix, wave_method='pixel', A_pix=None, v_pix=None,
-             samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
+def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
+             wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+             ref_percentile=20.0, maxiter_scale=5,
              sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
              maxrej=None, qafile=None, title='', debug=False, debug_scale=False, show_scale=False, show=False):
@@ -1922,13 +1930,13 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix, wave_method='pixel', A
         sn_smooth_npix (int):
            Numbe of pixels to median filter by when computing S/N used to decide how to scale and weight spectra
         wave_method: str, default=pixel
-           method for generating new wavelength grid with new_wave_grid. Deafult is 'pixel' which creates a uniformly
+           method for generating new wavelength grid with get_wave_grid. Deafult is 'pixel' which creates a uniformly
            space grid in lambda
         A_pix: float,
-           dispersion in units of A in case you want to specify it for new_wave_grid, otherwise the code computes the
+           dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
            median spacing from the data.
         v_pix: float,
-           Dispersion in units of km/s in case you want to specify it in the new_wave_grid  (for the 'velocity' option),
+           Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
         samp_fact: float, default=1.0
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
@@ -2007,8 +2015,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix, wave_method='pixel', A
 
 
     # Generate a giant wave_grid
-    wave_grid = new_wave_grid(waves, wave_method=wave_method, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
-                              A_pix=A_pix, v_pix=v_pix, samp_fact=samp_fact)
+    wave_grid, _, _ = get_wave_grid(waves, wave_method=wave_method, wave_grid_min=wave_grid_min,
+                                    wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=True)
@@ -2029,12 +2037,13 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix, wave_method='pixel', A
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
 #Todo: Make this work for multiple objects after the coadd script input file format is fixed.
-def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_value=True, wave_method='pixel', A_pix=None, v_pix=None,
-             samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
-             sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
-            const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
-             maxrej=None, nmaskedge=2, phot_scale_dicts=None,
-             qafile=None, outfile = None, debug=False, debug_scale=False, show_scale=False, show=False):
+def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_value=True,
+                   wave_method='pixel', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
+                   wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
+                   sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
+                   const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
+                   maxrej=None, nmaskedge=2, phot_scale_dicts=None,
+                   qafile=None, outfile = None, debug=False, debug_scale=False, show_scale=False, show=False):
 
     # Loading Echelle data
     waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
@@ -2046,10 +2055,10 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
         # This is the effective good number of spectral pixels in the stack
         nspec_eff = np.sum(waves > 1.0)/nexp
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
-        msgs.info('Using a sn_smooth_pix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
+        msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
     wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
-        waves, fluxes,ivars, masks, wave_method=wave_method, A_pix=A_pix, v_pix=v_pix,
+        waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         samp_fact=samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_max_medscale=sn_min_medscale, sn_min_medscale=sn_max_medscale, sn_smooth_npix=sn_smooth_npix,
@@ -2064,8 +2073,9 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
-def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux_value=True, wave_method='loggrid', A_pix=None, v_pix=None,
-                 samp_fact=1.0, wave_grid_min=None, wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
+def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux_value=True, wave_method='loggrid',
+                 dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+                 ref_percentile=20.0, maxiter_scale=5,
                  niter_order_scale=3, sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
@@ -2087,13 +2097,13 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
         flux_value: bool, default=True
            if True coadd fluxed spectrum, if False coadd spectra in counts
         wave_method: str, default=pixel
-           method for generating new wavelength grid with new_wave_grid. Deafult is 'pixel' which creates a uniformly
+           method for generating new wavelength grid with get_wave_grid. Deafult is 'pixel' which creates a uniformly
            space grid in lambda
         A_pix: float,
-           dispersion in units of A in case you want to specify it for new_wave_grid, otherwise the code computes the
+           dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
            median spacing from the data.
         v_pix: float,
-           Dispersion in units of km/s in case you want to specify it in the new_wave_grid  (for the 'velocity' option),
+           Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
         samp_fact: float, default=1.0
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
@@ -2220,8 +2230,9 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     scales = np.zeros_like(waves)
 
     # Generate a giant wave_grid
-    wave_grid = new_wave_grid(waves, wave_method=wave_method, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
-                              A_pix=A_pix, v_pix=v_pix, samp_fact=samp_fact)
+    wave_grid, _, _ = get_wave_grid(waves, wave_method=wave_method,
+                                    wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
+                                    dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=True)

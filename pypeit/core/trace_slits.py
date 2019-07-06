@@ -71,7 +71,7 @@ def shift_slits(tslits_dict, tilts_dict, waveimg, shift):
 
 def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.1):
     """
-    Linearly extrapolates trace to fill in pixels that lie outside of the range spec_min, spec_max). This
+    Extrapolates trace to fill in pixels that lie outside of the range spec_min, spec_max). This
     routine is useful for echelle spectrographs where the orders are shorter than the image by a signfiicant
     amount, since the polynomial trace fits often go wild.
 
