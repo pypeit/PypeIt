@@ -698,12 +698,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
-        # Refine the locations of the trace using centroids of the
-        # features in the Sobel-filtered image.
-        self.centroid_refine()
-        if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True)
+        # Initial trace can result in no edges found
+        if not self.is_empty:
+            # Refine the locations of the trace using centroids of the
+            # features in the Sobel-filtered image.
+            self.centroid_refine()
+            if show_stages:
+                self.show(thin=10, include_img=True, idlabel=True)
 
+        # Initial trace can result in no edges found, or centroid
+        # refinement could have removed all traces (via `check_traces`)
         if not self.is_empty:
             # Fit the trace locations with a polynomial
             self.fit_refine(debug=debug)
@@ -907,21 +911,38 @@ class EdgeTraceSet(masterframe.MasterFrame):
         _trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
                                               minimum_spec_length=minimum_spec_length)
 
-        # Update the traces by handling single orphan edges and/or
-        # traces without any left or right edges.
-        # NOTE: This combines the functionality of
-        # edgearr_add_left_right and edgearr_final_left_right
+        ################################################################
+        #
+        # TODO: Make this an option
+#        # Update the traces by handling single orphan edges and/or
+#        # traces without any left or right edges.
+#        # NOTE: This combines the functionality of
+#        # edgearr_add_left_right and edgearr_final_left_right
+#
+#        # TODO: Why is this needed? Comments say that this is primarily
+#        # in place for LRISb, but can this be handled better with sync()?
+#
+#        flux_valid = np.median(_img) > self.par['valid_flux_thresh']
+#        trace_id_img = trace.handle_orphan_edges(_trace_id_img, self.sobel_sig, bpm=self.bpm,
+#                                                  flux_valid=flux_valid,
+#                                                  buffer=self.par['det_buffer'], copy=True)
+#
+#        # Flag any inserted edges
+#        # TODO: handle_orphan_edge can delete or insert edges; deleted
+#        # edges are ignored hereafter, inserted edges are flagged
+#        inserted_edge = (trace_id_img != 0) & (trace_id_img != _trace_id_img)
+        trace_id_img = _trace_id_img
+        inserted_edge = np.zeros(trace_id_img.shape, dtype=bool)
+        ################################################################
 
-        # TODO: Why is this needed? Comments say that this is primarily
-        # in place for LRISb, but can this be handled better with sync()?
-        flux_valid = np.median(_img) > self.par['valid_flux_thresh']
-        trace_id_img = trace.handle_orphan_edges(_trace_id_img, self.sobel_sig, bpm=self.bpm,
-                                                  flux_valid=flux_valid,
-                                                  buffer=self.par['det_buffer'], copy=True)
-        # Flag any inserted edges
-        # TODO: handle_orphan_edge can delete or insert edges; deleted
-        # edges are ignored hereafter, inserted edges are flagged
-        inserted_edge = (trace_id_img != 0) & (trace_id_img != _trace_id_img)
+        # Check that edges were found
+        if np.all(trace_id_img == 0):
+            msgs.warn('No edges found!  Trace data will be empty.')
+            self._reinit_trace_data()
+            self.log = [inspect.stack()[0][3]]
+            if save:
+                self.save()
+            return
 
         # Set the ID image to a MaskedArray to ease some subsequent
         # calculations; pixels without a detected edge are masked.
@@ -976,7 +997,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if save:
             self.save()
 
-    def save(self, outfile=None, overwrite=True, checksum=True, float_dtype='float32')
+    def save(self, outfile=None, overwrite=True, checksum=True, float_dtype='float32'):
         """
         Save the trace object for later re-instantiation.
 
@@ -1224,7 +1245,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Rebuild the PCA if it existed previously and requested
         self.pca_type = None if hdu[0].header['PCATYPE'] == 'None' else hdu[0].header['PCATYPE']
-        self._reset_pca(rebuild_pca and self.pca_type is not None)
+        self._reset_pca(rebuild_pca and self.pca_type is not None and self.can_pca())
 
         self.log = io.parse_hdr_key_group(hdu[0].header, prefix='LOG')
 
@@ -2199,6 +2220,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             np.sum(indx), self.par['minimum_slit_gap'], gap_atol))
                 rmtrace = np.concatenate(([False],np.repeat(indx,2),[False]))
                 self.remove_traces(rmtrace, rebuild_pca=rebuild_pca)
+                # TODO: This should never happen, but keep this around
+                # until we're sure it doesn't.
+                if self.is_empty:
+                    msgs.error('Coding error: Removing gaps removed all traces.')
+                # Reset the trace center data to use
+                trace_cen = self.spat_cen if self.spat_fit is None else self.spat_fit
 
         # Calculate the slit length and gap
         slit_length = np.median(np.squeeze(np.diff(trace_cen.reshape(self.nspec,-1,2), axis=-1)),
@@ -2236,8 +2263,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     # also the simplest approach.
                     self.sync(rebuild_pca=False)
                     return
-
-                msgs.error('All slits are too short!')
+                msgs.warn('All slits are too short!')
             if np.any(indx):
                 new_masks = True
                 msgs.info('Rejecting {0} slits that are too short.'.format(np.sum(indx)))
@@ -2259,12 +2285,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Remove traces that have been fully flagged as bad
             rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags),
                              axis=0)
-            if np.sum(rmtrace) == self.ntrace:
-                msgs.error('All slit edges are fully masked!')
             self.remove_traces(rmtrace, rebuild_pca=rebuild_pca, sync_rm='both')
+            if self.is_empty:
+                msgs.warn('Assuming a single long-slit and continuing.')
+                self.bound_detector()
         elif new_masks:
             # Reset the PCA if new masks are applied
-            self._reset_pca(rebuild_pca and self.pca is not None)
+            self._reset_pca(rebuild_pca and self.pca is not None and self.can_pca())
 
     def remove_traces(self, indx, resort=True, rebuild_pca=False, sync_rm='ignore'):
         r"""
@@ -2336,7 +2363,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.spatial_sort()
 
         # Reset the PCA
-        self._reset_pca(rebuild_pca and self.pca is not None)
+        self._reset_pca(rebuild_pca and self.pca is not None and self.can_pca())
 
     def clean_traces(self, sync_rm='ignore'):
         """
@@ -3049,7 +3076,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Spatially sort the traces
         self.spatial_sort()
         # Reset the PCA
-        self._reset_pca(rebuild_pca)
+        self._reset_pca(rebuild_pca and self.can_pca())
         self.log += [inspect.stack()[0][3]]
 
     # TODO: Make this a core function?

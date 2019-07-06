@@ -151,9 +151,9 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
     msgs.info('Finding unique traces among detected edges.')
     # Check the input
     if edge_img.ndim > 2:
-        raise ValueError('Provided edge image must be 2D.')
+        msgs.error('Provided edge image must be 2D.')
     if not np.array_equal(np.unique(edge_img), [-1,0,1]):
-        raise ValueError('Edge image must only have -1, 0, or 1 values.')
+        msgs.error('Edge image must only have -1, 0, or 1 values.')
 
     # Find the left and right coordinates
     lx, ly = np.where(edge_img == -1)
@@ -217,6 +217,7 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
     left[:] = 0
     left[good_trace] = -1-np.arange(np.sum(good_trace))
     traceid[indx] = left[reconstruct]
+
     #   - Right edges.  Given positive IDs starting with 1
     indx = np.invert(indx)
     right, reconstruct, counts = np.unique(traceid[indx], return_inverse=True, return_counts=True)

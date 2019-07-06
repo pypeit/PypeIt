@@ -116,6 +116,9 @@ def main(args):
 
         # Trace the slit edges
         if args.use_new:
+#            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+#                                           master_dir=master_dir, img=traceImage, det=det,
+#                                           auto=True, debug=args.debug, show_stages=args.show)
             try:
                 t = time.perf_counter()
                 edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
@@ -128,13 +131,18 @@ def main(args):
                 print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
                 print('Continuing...')
         else:
-            t = time.perf_counter()
-            traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
-                                               master_dir=master_dir)
-            traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
-                           debug=args.debug)
-            print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
-            traceSlits.save(traceImage=traceImage)
+            try:
+                t = time.perf_counter()
+                traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
+                                                   master_dir=master_dir)
+                traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
+                               debug=args.debug)
+                print('Tracing for detector {0} finished in {1} s.'.format(det,
+                      time.perf_counter()-t))
+                traceSlits.save(traceImage=traceImage)
+            except Exception as e:
+                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
+                print('Continuing...')
 
     return 0
 

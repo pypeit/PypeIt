@@ -208,7 +208,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['trace_npoly'] = 3
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
-        par['calibrations']['slitedges']['minimum_slit_length'] = 1.
+        # Slightly larger than 2 pixels to catch cold columns
+        par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
+        # Slightly larger than that to catch hot columns
+        par['calibrations']['slitedges']['minimum_slit_length'] = 0.5
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
