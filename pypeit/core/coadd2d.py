@@ -187,10 +187,8 @@ def load_coadd2d_stacks(spec2d_files, det):
     sdet = parse.get_dnum(det, prefix=False)
 
     # Get the master dir
-    head0 = fits.getheader(spec2d_files[0])
-    master_dir = os.path.basename(head0['PYPMFDIR'])
+
     redux_path =  os.getcwd()
-    master_path = os.path.join(redux_path, master_dir)
 
     # Grab the files
     head2d_list=[]
@@ -200,6 +198,12 @@ def load_coadd2d_stacks(spec2d_files, det):
     spec1d_files = []
     for f in spec2d_files:
         head = fits.getheader(f)
+        if os.path.exists(head['PYPMFDIR']):
+            master_path = head['PYPMFDIR']
+        else:
+            master_dir = os.path.basename(head['PYPMFDIR'])
+            master_path = os.path.join(os.path.split(os.path.split(f)[0])[0],master_dir)
+
         trace_key = '{0}_{1:02d}'.format(head['TRACMKEY'], det)
         wave_key = '{0}_{1:02d}'.format(head['ARCMKEY'], det)
 
@@ -267,8 +271,9 @@ def load_coadd2d_stacks(spec2d_files, det):
         skymodel_stack[ifile,:,:] = skymodel
 
         sobjs, head = load.load_specobjs(spec1d_files[ifile])
+        this_det = sobjs.det == det
         head1d_list.append(head)
-        specobjs_list.append(sobjs)
+        specobjs_list.append(sobjs[this_det])
 
     # Right now we assume there is a single tslits_dict for all images and read in the first one
     # TODO this needs to become a tslits_dict for each file to accomodate slits defined by flats taken on different
@@ -293,7 +298,7 @@ def load_coadd2d_stacks(spec2d_files, det):
                       skymodel_stack=skymodel_stack, mask_stack=mask_stack,
                       tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
                       head1d_list = head1d_list, head2d_list=head2d_list,
-                      redux_path=redux_path, master_path=master_path, master_dir=master_dir,
+                      redux_path=redux_path, # master_path=master_path, master_dir=master_dir,
                       master_key_dict=master_key_dict,
                       spectrograph = tslits_dict['spectrograph'])
 
@@ -716,7 +721,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
 # TODO Break up into separate methods?
 def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, ir_redux=False, par=None, std=False,
                     show=False, show_peaks=False, wave_method=None, iref=None,
-                    wave_grid_min=None, wave_grid_max=None, dwave=None, dv=None, dloglam=None, samp_fact=1.0):
+                    wave_grid_min=None, wave_grid_max=None, dwave=None, dv=None, dloglam=None, samp_fact=1.0, debug=False):
     """
     Main routine to run the extraction for 2d coadds.
 
@@ -789,7 +794,6 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, 
     if 'MultiSlit' in pypeline:
         msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(
             slitid_ref,np.mean(snr_bar)))
-        offsets = np.zeros(nexp)
         thismask_stack = stack_dict['slitmask_stack'] == slitid_ref
         trace_stack = np.zeros((nspec, nexp))
         # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
@@ -811,24 +815,38 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, 
         slit_left = np.full(nspec_psuedo, 0.0)
         slit_righ = np.full(nspec_psuedo, nspat_psuedo)
         inmask = norm_rebin_stack > 0
+        traces_rect = np.zeros((nspec_psuedo, nexp))
         sobjs = specobjs.SpecObjs()
         specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': det, 'objtype': 'unknown', 'pypeline': pypeline + '_coadd_2d'}
         for iexp in range(nexp):
-            sobjs_exp = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
-                                        inmask=inmask[iexp,:,:], fwhm=3.0,maxdev=2.0, ncoeff=5, sig_thresh=10.0, debug_all=True)
+            sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
+                                        inmask=inmask[iexp,:,:], fwhm=3.0, maxdev=2.0, ncoeff=3, sig_thresh=10.0, nperslit=1,
+                                        debug_all=debug, specobj_dict=specobj_dict)
             sobjs.add_sobj(sobjs_exp)
-        # Now deterimine the offsets
-        embed()
+            traces_rect[:, iexp] = sobjs_exp.trace_spat
+        # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
+        med_traces_rect = np.median(traces_rect,axis=0)
+        offsets = med_traces_rect[0] - med_traces_rect
+        if debug:
+            for iexp in range(nexp):
+                plt.plot(traces_rect[:, iexp],linestyle='--',label='original trace')
+                plt.plot(traces_rect[:, iexp] + offsets[iexp], label='shifted traces')
+                plt.legend()
+            plt.show()
+        rms_sn, weights, trace_stack, wave_stack = optimal_weights(stack_dict['specobjs_list'], slitid_ref, objid_ref,
+                                                                   sn_smooth_npix)
+        # TODO compute the variance in the registration of the traces and write that out?
 
-    # TODO: Generalize this to be a loop over detectors, such tha the
-    # coadd_list is an ordered dict (perhaps) with all the slits on all
-    # detectors
     for islit in range(nslits):
         msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(islit,nslits-1))
         # Determine the wavelength dependent optimal weights and grab the reference trace
-        rms_sn, weights, trace_stack, wave_stack = optimal_weights(stack_dict['specobjs_list'], islit, objid_ref, sn_smooth_npix)
-        thismask_stack = stack_dict['slitmask_stack'] == islit
+        if 'MultiSlit' in pypeline:
+            slit_cen = (stack_dict['tslits_dict']['slit_left'][:,islit] + stack_dict['tslits_dict']['slit_righ'][:,islit])/2.0
+            trace_stack = np.tile(slit_cen, (nexp,1)).T + np.outer(np.ones(nspec), offsets)
+        else:
+            rms_sn, weights, trace_stack, wave_stack = optimal_weights(stack_dict['specobjs_list'], islit, objid_ref, sn_smooth_npix)
 
+        thismask_stack = stack_dict['slitmask_stack'] == islit
         # Perform the 2d coadd
         coadd_dict = coadd2d(trace_stack, stack_dict['sciimg_stack'], stack_dict['sciivar_stack'],
                              stack_dict['skymodel_stack'], stack_dict['mask_stack'] == 0,

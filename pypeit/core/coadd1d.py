@@ -2032,7 +2032,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
 #Todo: Make this work for multiple objects after the coadd script input file format is fixed.
 def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_value=True,
-                   wave_method='pixel', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
+                   wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
                    sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,

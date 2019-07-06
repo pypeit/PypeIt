@@ -58,9 +58,9 @@ def read_coadd2d_file(ifile):
         prs = line.split(' ')
         # TODO: This needs to allow for the science directory to be
         # defined by the user.
-        spec2d_files.append(os.path.join('Science/', os.path.basename(prs[0])))
+        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
+        spec2d_files.append(prs[0])
     is_config[s-1:e+1] = False
-
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
     cfg = ConfigObj(cfg_lines)
