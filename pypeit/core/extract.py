@@ -245,9 +245,9 @@ def extract_boxcar(image,trace_in, radius_in, ycen = None):
 
 
 
-def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radius, specobj, min_frac_use = 0.05):
+def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, specobj, min_frac_use = 0.05):
 
-    """ Calculate the spatial FWHM from an object profile. Utitlit routine for fit_profile
+    """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
 
     Parameters
     ----------
@@ -263,6 +263,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
         Image containing our model of the sky
     rn2_img: float ndarray shape (nspec, nspat)
         Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+    thismask: bool ndarray shape (nspec, nspat)
+        Image indicating which pixels are on the slit/order in question. True=Good.
     oprof: float ndarray shape (nspec, nspat)
         Image containing the profile of the object that we are extracting
     box_radius: float
@@ -284,7 +286,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     11-Mar-2005  Written by J. Hennawi and S. Burles.
     28-May-2018  Ported to python by J. Hennawi
     """
-
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
@@ -330,6 +331,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     nsub = maxcol - mincol
 
     mask_sub = mask[:,mincol:maxcol]
+    thismask_sub = thismask[:, mincol:maxcol]
     wave_sub = waveimg[:,mincol:maxcol]
     ivar_sub = np.fmax(ivar[:,mincol:maxcol],0.0) # enforce positivity since these are used as weights
     vno_sub = np.fmax(var_no[:,mincol:maxcol],0.0)
@@ -366,23 +368,27 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     prof_norm = np.nansum(oprof_sub, axis=1)
     frac_use = (prof_norm > 0.0)*np.nansum((mask_sub*ivar_sub > 0.0)*oprof_sub, axis=1)/(prof_norm + (prof_norm == 0.0))
 
-    mask_opt = (tot_weight > 0.0) & (frac_use > min_frac_use) & (mivar_num > 0.0) & (ivar_denom > 0.0)
     # Use the same weights = oprof^2*mivar for the wavelenghts as the flux.
     # Note that for the flux, one of the oprof factors cancels which does
     # not for the wavelengths.
     wave_opt = np.nansum(mask_sub*ivar_sub*wave_sub*oprof_sub**2, axis=1)/(mivar_num + (mivar_num == 0.0))
+    mask_opt = (tot_weight > 0.0) & (frac_use > min_frac_use) & (mivar_num > 0.0) & (ivar_denom > 0.0) & \
+               np.isfinite(wave_opt) & (wave_opt > 0.0)
+
     # Interpolate wavelengths over masked pixels
-    badwvs = (mivar_num <= 0) | (np.isfinite(wave_opt) == False) | (wave_opt <= 0.0)
+    badwvs = (mivar_num <= 0) | np.invert(np.isfinite(wave_opt)) | (wave_opt <= 0.0)
     if badwvs.any():
-        oprof_smash = np.nansum(oprof_sub**2, axis=1)
+        oprof_smash = np.nansum(thismask_sub*oprof_sub**2, axis=1)
         # Can we use the profile average wavelengths instead?
         oprof_good = badwvs & (oprof_smash > 0.0)
         if oprof_good.any():
-            wave_opt[oprof_good] = np.nansum(wave_sub[oprof_good,:]*oprof_sub[oprof_good,:]**2, axis=1)/np.nansum(oprof_sub[oprof_good,:]**2, axis=1)
+            wave_opt[oprof_good] = np.nansum(
+                wave_sub[oprof_good,:]*thismask_sub[oprof_good,:]*oprof_sub[oprof_good,:]**2, axis=1)/\
+                                   np.nansum(thismask_sub[oprof_good,:]*oprof_sub[oprof_good,:]**2, axis=1)
         oprof_bad = badwvs & ((oprof_smash <= 0.0) | (np.isfinite(oprof_smash) == False) | (wave_opt <= 0.0) | (np.isfinite(wave_opt) == False))
         if oprof_bad.any():
             # For pixels with completely bad profile values, interpolate from trace.
-            f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg)
+            f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg*thismask)
             wave_opt[oprof_bad] = f_wave(specobj.trace_spec[oprof_bad], specobj.trace_spat[oprof_bad],grid=False)
 
     flux_model = np.outer(flux_opt,np.ones(nsub))*oprof_sub
@@ -417,9 +423,10 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, oprof, box_radi
     rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
     pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
     # If every pixel is masked then mask the boxcar extraction
-    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot)
+    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot) & \
+               np.isfinite(wave_box) & (wave_box > 0.0)
 
-    bad_box = (wave_box <= 0.0) | (np.isfinite(wave_box) == False) | (box_denom == 0.0)
+    bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
         f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
@@ -2482,7 +2489,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                                  npca=npca, pca_explained_var=pca_explained_var,
-                                                 coeff_npoly=coeff_npoly, debug=True)
+                                                 coeff_npoly=coeff_npoly, debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
@@ -2512,7 +2519,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
     skymask = skymask_objfind | skymask_fwhm
 
-    show_trace=True
     if show_trace:
         viewer, ch = ginga.show_image(image*allmask)
 
