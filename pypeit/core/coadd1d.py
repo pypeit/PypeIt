@@ -34,7 +34,7 @@ plt.rcParams["axes.labelsize"] = 17
 
 
 
-def get_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
+def get_wave_grid(waves, masks=None, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
                   dwave=None, dv=None, dloglam=None, samp_fact=1.0):
     """
     Create a new wavelength grid for the spectra to be rebinned and coadded on
@@ -70,13 +70,13 @@ def get_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
 
     c_kms = constants.c.to('km/s').value
 
-    wave_mask = waves > 1.0
-    nspec, nimgs = waves.shape
+    if masks is None:
+        masks = waves > 1.0
 
     if wave_grid_min is None:
-        wave_grid_min = waves[wave_mask].min()
+        wave_grid_min = waves[masks].min()
     if wave_grid_max is None:
-        wave_grid_max = waves[wave_mask].max()
+        wave_grid_max = waves[masks].max()
 
     dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(waves)
 
@@ -141,12 +141,6 @@ def get_wave_grid(waves, wave_method='iref',iref=0, wave_grid_min=None, wave_gri
         wave_grid_mid = wave_grid + wave_grid_diff / 2.0
         dsamp = np.median(wave_grid_diff)
 
-
-    waves_flat = waves[waves > 1.0].flatten()
-    # Counts how many pixels in each wavelength bin
-    nused, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False)
-
-    embed()
 
     return wave_grid, wave_grid_mid, dsamp
 
@@ -2015,7 +2009,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
 
     # Generate a giant wave_grid
-    wave_grid, _, _ = get_wave_grid(waves, wave_method=wave_method, wave_grid_min=wave_grid_min,
+    wave_grid, _, _ = get_wave_grid(waves, masks = masks, wave_method=wave_method, wave_grid_min=wave_grid_min,
                                     wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
@@ -2230,7 +2224,7 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     scales = np.zeros_like(waves)
 
     # Generate a giant wave_grid
-    wave_grid, _, _ = get_wave_grid(waves, wave_method=wave_method,
+    wave_grid, _, _ = get_wave_grid(waves, masks=masks, wave_method=wave_method,
                                     wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
                                     dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 

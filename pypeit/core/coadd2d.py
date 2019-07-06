@@ -20,12 +20,15 @@ from pypeit.wavetilts import WaveTilts
 from pypeit.traceslits import TraceSlits
 from pypeit.images import scienceimage
 from pypeit import reduce
+from pypeit.core import extract
 
 from pypeit.core import load, coadd1d, pixels
 from pypeit.core import parse
 from pypeit.spectrographs import util
 from matplotlib import pyplot as plt
 from IPython import embed
+from pypeit import ginga
+from pypeit import specobjs
 
 
 def get_brightest_obj(specobjs_list, nslits, pypeline):
@@ -140,22 +143,22 @@ def optimal_weights(specobjs_list, slitid, objid, sn_smooth_npix):
     nexp = len(specobjs_list)
     nspec = specobjs_list[0][0].trace_spat.shape[0]
     # Grab the traces, flux, wavelength and noise for this slit and objid.
-    trace_stack = np.zeros((nexp, nspec), dtype=float)
-    flux_stack = np.zeros((nexp, nspec), dtype=float)
-    ivar_stack = np.zeros((nexp, nspec), dtype=float)
-    wave_stack = np.zeros((nexp, nspec), dtype=float)
-    mask_stack = np.zeros((nexp, nspec), dtype=bool)
+    trace_stack = np.zeros((nspec, nexp), dtype=float)
+    flux_stack = np.zeros((nspec, nexp), dtype=float)
+    ivar_stack = np.zeros((nspec, nexp), dtype=float)
+    wave_stack = np.zeros((nspec, nexp), dtype=float)
+    mask_stack = np.zeros((nspec, nexp), dtype=bool)
 
     for iexp, sobjs in enumerate(specobjs_list):
         ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
-        trace_stack[iexp, :] = sobjs[ithis].trace_spat
-        flux_stack[iexp,:] = sobjs[ithis][0].optimal['COUNTS']
-        ivar_stack[iexp,:] = sobjs[ithis][0].optimal['COUNTS_IVAR']
-        wave_stack[iexp,:] = sobjs[ithis][0].optimal['WAVE']
-        mask_stack[iexp,:] = sobjs[ithis][0].optimal['MASK']
+        trace_stack[:,iexp] = sobjs[ithis].trace_spat
+        flux_stack[:,iexp] = sobjs[ithis][0].optimal['COUNTS']
+        ivar_stack[:,iexp] = sobjs[ithis][0].optimal['COUNTS_IVAR']
+        wave_stack[:,iexp] = sobjs[ithis][0].optimal['WAVE']
+        mask_stack[:,iexp] = sobjs[ithis][0].optimal['MASK']
 
     # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-    rms_sn, weights = coadd1d.sn_weights(wave_stack.T, flux_stack.T, ivar_stack.T, mask_stack.T, sn_smooth_npix)
+    rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, sn_smooth_npix)
 
     return rms_sn, weights.T, trace_stack, wave_stack
 
@@ -369,8 +372,47 @@ def broadcast_weights(weights, shape):
 
     return weights_stack
 
+def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
+
+    # Determine the wavelength grid that we will use for the current slit/order
+    # TODO This cut on waveimg_stack should not be necessary
+    wavemask = thismask_stack & (waveimg_stack > 1.0)
+    wave_lower = waveimg_stack[wavemask].min()
+    wave_upper = waveimg_stack[wavemask].max()
+    ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
+    wave_bins = wave_grid[ind_lower:ind_upper + 1]
+
+    return wave_bins
+
+
+def get_spat_bins(thismask_stack, trace_stack):
+
+    nimgs, nspec, nspat = thismask_stack.shape
+    # Create the slit_cen_stack and determine the minimum and maximum
+    # spatial offsets that we need to cover to determine the spatial
+    # bins
+    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    dspat_stack = np.zeros_like(thismask_stack,dtype=float)
+    spat_min = np.inf
+    spat_max = -np.inf
+    for img in range(nimgs):
+        # center of the slit replicated spatially
+        slit_cen_img = np.outer(trace_stack[:, img], np.ones(nspat))
+        dspat_iexp = (spat_img - slit_cen_img)
+        dspat_stack[img, :, :] = dspat_iexp
+        thismask_now = thismask_stack[img, :, :]
+        spat_min = np.fmin(spat_min, dspat_iexp[thismask_now].min())
+        spat_max = np.fmax(spat_max, dspat_iexp[thismask_now].max())
+
+    spat_min_int = int(np.floor(spat_min))
+    spat_max_int = int(np.ceil(spat_max))
+    dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1,dtype=float)
+
+    return dspat_bins, dspat_stack
+
+
 def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack,
-            waveimg_stack, thismask_stack, weights=None, loglam_grid=None, wave_grid=None):
+            thismask_stack, waveimg_stack, wave_grid, weights=None):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -464,46 +506,14 @@ def coadd2d(trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_sta
     nimgs, nspec, nspat = sciimg_stack.shape
 
     # Determine the wavelength grid that we will use for the current slit/order
-    # TODO This cut on waveimg_stack should not be necessary
-    wavemask = thismask_stack & (waveimg_stack > 1.0)
-    wave_lower = waveimg_stack[wavemask].min()
-    wave_upper = waveimg_stack[wavemask].max()
-    if loglam_grid is not None:
-        ind_lower, ind_upper = get_wave_ind(loglam_grid, np.log10(wave_lower), np.log10(wave_upper))
-        loglam_bins = loglam_grid[ind_lower:ind_upper + 1]
-        wave_bins = np.power(10.0, loglam_bins)
-    elif wave_grid is not None:
-        ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
-        wave_bins = wave_grid[ind_lower:ind_upper + 1]
-        loglam_bins = np.log10(wave_bins)
-    else:
-        msgs.error('You must input either a uniformly space loglam grid or wave grid')
+    wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
+    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, trace_stack)
 
     if weights is None:
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
 
     weights_stack = broadcast_weights(weights, sciimg_stack.shape)
-
-    # Create the slit_cen_stack and determine the minimum and maximum
-    # spatial offsets that we need to cover to determine the spatial
-    # bins
-    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
-    dspat_stack = np.zeros_like(sciimg_stack)
-    spat_min = np.inf
-    spat_max = -np.inf
-    for img in range(nimgs):
-        # center of the slit replicated spatially
-        slit_cen_img = np.outer(trace_stack[img, :], np.ones(nspat))
-        dspat_iexp = (spat_img - slit_cen_img)
-        dspat_stack[img, :, :] = dspat_iexp
-        thismask_now = thismask_stack[img, :, :]
-        spat_min = np.fmin(spat_min, dspat_iexp[thismask_now].min())
-        spat_max = np.fmax(spat_max, dspat_iexp[thismask_now].max())
-
-    spat_min_int = int(np.floor(spat_min))
-    spat_max_int = int(np.ceil(spat_max))
-    dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1)
 
     sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack,
                 waveimg_stack, dspat_stack]
@@ -742,7 +752,8 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, 
 
     # Find the objid of the brighest object, and the average snr across all orders
     nspec, nslits = stack_dict['tslits_dict']['slit_left'].shape
-    objid, slitid, snr_bar = get_brightest_obj(stack_dict['specobjs_list'], nslits, pypeline)
+    nexp = len(stack_dict['specobjs_list'])
+    objid_ref, slitid_ref, snr_bar = get_brightest_obj(stack_dict['specobjs_list'], nslits, pypeline)
     # TODO Print out a report here on the image stack, i.e. S/N of each image
 
     spectrograph = util.load_spectrograph(stack_dict['spectrograph'])
@@ -750,13 +761,15 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, 
 
     binning = np.array([stack_dict['tslits_dict']['binspectral'],stack_dict['tslits_dict']['binspatial']])
     # Grab the wavelength grid that we will rectify onto
-    nobjs = [len(specobjs) for specobjs in stack_dict['specobjs_list']]
+    nobjs = [len(spec) for spec in stack_dict['specobjs_list']]
     nobjs_tot = np.array(nobjs).sum()
     waves = np.zeros((nspec, nobjs_tot))
+    masks = np.zeros_like(waves, dtype=bool)
     indx = 0
-    for specobjs in stack_dict['specobjs_list']:
-        for spec in specobjs:
+    for spec_this in stack_dict['specobjs_list']:
+        for spec in spec_this:
             waves[:, indx] = spec.optimal['WAVE']
+            masks[:, indx] = spec.optimal['MASK']
             indx += 1
 
     # Decide how much to smooth the spectra by if this number was not passed in
@@ -766,7 +779,7 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, 
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
         msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
-    wave_grid, wave_grid_mid, dsamp = coadd1d.get_wave_grid(waves, wave_method=wave_method, iref=iref,
+    wave_grid, wave_grid_mid, dsamp = coadd1d.get_wave_grid(waves, masks=masks, wave_method=wave_method, iref=iref,
                                                             wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
                                                             dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
     coadd_list = []
@@ -774,7 +787,37 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, 
     nspat_vec = np.zeros(nslits,dtype=int)
 
     if 'MultiSlit' in pypeline:
-        msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(slitid,np.mean(snr_bar)))
+        msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(
+            slitid_ref,np.mean(snr_bar)))
+        offsets = np.zeros(nexp)
+        thismask_stack = stack_dict['slitmask_stack'] == slitid_ref
+        trace_stack = np.zeros((nspec, nexp))
+        # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
+        for iexp in range(nexp):
+            trace_stack[:,iexp] = (stack_dict['tslits_dict']['slit_left'][:,slitid_ref] +
+                                   stack_dict['tslits_dict']['slit_righ'][:,slitid_ref])/2.0
+        # Determine the wavelength grid that we will use for the current slit/order
+        wave_bins = get_wave_bins(thismask_stack, stack_dict['waveimg_stack'], wave_grid)
+        dspat_bins, dspat_stack = get_spat_bins(thismask_stack, trace_stack)
+
+        sci_list = [stack_dict['sciimg_stack'] - stack_dict['skymodel_stack'], stack_dict['waveimg_stack'], dspat_stack]
+        var_list = [utils.calc_ivar(stack_dict['sciivar_stack'])]
+
+        sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = rebin2d(
+            wave_bins, dspat_bins, stack_dict['waveimg_stack'], dspat_stack, thismask_stack,
+            (stack_dict['mask_stack'] == 0), sci_list, var_list)
+        thismask = np.ones_like(sci_list_rebin[0][0,:,:],dtype=bool)
+        nspec_psuedo, nspat_psuedo = thismask.shape
+        slit_left = np.full(nspec_psuedo, 0.0)
+        slit_righ = np.full(nspec_psuedo, nspat_psuedo)
+        inmask = norm_rebin_stack > 0
+        sobjs = specobjs.SpecObjs()
+        specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': det, 'objtype': 'unknown', 'pypeline': pypeline + '_coadd_2d'}
+        for iexp in range(nexp):
+            sobjs_exp = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
+                                        inmask=inmask[iexp,:,:], fwhm=3.0,maxdev=2.0, ncoeff=5, sig_thresh=10.0, debug_all=True)
+            sobjs.add_sobj(sobjs_exp)
+        # Now deterimine the offsets
         embed()
 
     # TODO: Generalize this to be a loop over detectors, such tha the
@@ -783,14 +826,14 @@ def extract_coadd2d(stack_dict, master_dir, det, pypeline, sn_smooth_npix=None, 
     for islit in range(nslits):
         msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(islit,nslits-1))
         # Determine the wavelength dependent optimal weights and grab the reference trace
-        rms_sn, weights, trace_stack, wave_stack = optimal_weights(stack_dict['specobjs_list'], islit, objid, sn_smooth_npix)
+        rms_sn, weights, trace_stack, wave_stack = optimal_weights(stack_dict['specobjs_list'], islit, objid_ref, sn_smooth_npix)
         thismask_stack = stack_dict['slitmask_stack'] == islit
 
         # Perform the 2d coadd
         coadd_dict = coadd2d(trace_stack, stack_dict['sciimg_stack'], stack_dict['sciivar_stack'],
                              stack_dict['skymodel_stack'], stack_dict['mask_stack'] == 0,
-                             stack_dict['tilts_stack'], stack_dict['waveimg_stack'],
-                             thismask_stack, weights=weights, wave_grid=wave_grid)
+                             stack_dict['tilts_stack'], thismask_stack, stack_dict['waveimg_stack'],
+                             wave_grid, weights=weights)
         coadd_list.append(coadd_dict)
         nspec_vec[islit]=coadd_dict['nspec']
         nspat_vec[islit]=coadd_dict['nspat']

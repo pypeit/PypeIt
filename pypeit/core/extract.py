@@ -1492,7 +1492,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         show_trace = True
 
     if specobj_dict is None:
-        specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
+        specobj_dict = dict(setup=None, slitid=999, det=1, objtype='unknown', pypeline='unknown', orderindx=999)
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
