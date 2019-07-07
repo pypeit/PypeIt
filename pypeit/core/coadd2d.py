@@ -943,7 +943,7 @@ class CoAdd2d(object):
     def reduce(self, psuedo_dict, show=None, show_peaks=None):
 
         show = self.show if show is None else show
-        show_peaks = self.show_peaks if show_peaks is None else show_peak
+        show_peaks = self.show_peaks if show_peaks is None else show_peaks
 
         # Generate a ScienceImage
         sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
@@ -961,6 +961,7 @@ class CoAdd2d(object):
         if show:
             redux.show('image', image=psuedo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
         # Object finding
+        embed()
         sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, ir_redux=self.ir_redux, show_peaks=show_peaks, show=show)
         # Local sky-subtraction
         global_sky_psuedo = np.zeros_like(psuedo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
@@ -1313,14 +1314,14 @@ class MultiSlit(CoAdd2d):
         offsets = med_traces_rect[0] - med_traces_rect
         # Print out a report on the offsets
         msg_string = msgs.newline()  + '---------------------------------------------'
-        msg_string += msgs.newline() + '  Summary of offsets for highest S/N object  '
-        msg_string += msgs.newline() + '      found on slitid = {:d}            '.format(slitid_bri)
-        msg_string += msgs.newline() + '--------------------------------------------'
-        msg_string += msgs.newline() + '           exp#       offset                '
+        msg_string += msgs.newline() + ' Summary of offsets for highest S/N object   '
+        msg_string += msgs.newline() + '         found on slitid = {:d}              '.format(slitid_bri)
+        msg_string += msgs.newline() + '---------------------------------------------'
+        msg_string += msgs.newline() + '           exp#      offset                  '
         for iexp, off in enumerate(offsets):
             msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
 
-        msg_string += msgs.newline() + '-------------------------------------'
+        msg_string += msgs.newline() + '-----------------------------------------------'
         msgs.info(msg_string)
         if self.debug_offsets:
             for iexp in range(self.nexp):

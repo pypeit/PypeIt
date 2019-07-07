@@ -178,7 +178,7 @@ def main(args):
     detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
     if len(detectors) != spectrograph.ndet:
         msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
-        set(np.arange(spectrograph.ndet)) - set(detectors)])))
+        set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
 
     # Loop on detectors
     for det in detectors:
