@@ -87,6 +87,8 @@ def parser(options=None):
     parser.add_argument("--basename", type=str, default=None, help="Basename of files to save the parameters, spec1d, and spec2d")
     parser.add_argument('--samp_fact', default=1.0, type=float, help="Make the wavelength grid finer (samp_fact > 1.0) "
                                                                      "or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument("--wave_method", type=str, default=None, help="Wavelength method for wavelength grid. If not set, code will use"
+                                                                      "linear for Multislit and log10 for Echelle")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
@@ -171,6 +173,15 @@ def main(args):
         msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
         set(np.arange(spectrograph.ndet)) - set(detectors)])))
 
+    # Grab the wavelength grid that we will rectify onto
+    if args.wave_method is None:
+        if 'MultiSlit' in spectrograph.pypeline:
+            wave_method = 'linear'
+        elif 'Echelle' in spectrograph.pypeline:
+            wave_method = 'log10'
+        else:
+            msgs.error('Unrecognized pypeline')
+
     # Loop on detectors
     for det in detectors:
         msgs.info("Working on detector {0}".format(det))
@@ -182,7 +193,9 @@ def main(args):
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
                 sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
                 sci_dict[det]['specobjs'] \
-                        = coadd2d.extract_coadd2d(stack_dict, master_dir, det, spectrograph.pypeline, ir_redux=ir_redux,
+                        = coadd2d.extract_coadd2d(stack_dict, master_dir, det, spectrograph.pypeline,
+                                                  wave_method=wave_method,
+                                                  ir_redux=ir_redux,
                                                   par=parset, show=args.show, show_peaks=args.peaks,
                                                   std=args.std, samp_fact=args.samp_fact)
 

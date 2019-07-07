@@ -529,7 +529,6 @@ class MultiSlit(Reduce):
         super(MultiSlit, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
 
-
     def find_objects_pypeline(self, image, std=False, std_trace = None, maskslits=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
