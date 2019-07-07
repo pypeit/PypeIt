@@ -1533,6 +1533,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym)
     mask_spec = extract_asymbox2(totmask, left_asym, righ_asym) < 0.3
     flux_mean, flux_median, flux_sig = sigma_clipped_stats(flux_spec,mask = mask_spec, axis=0, sigma = 4.0)
+    if specobj_dict['slitid'] == 11:
+        embed()
     smash_mask = np.isfinite(flux_mean)
     flux_mean_med = np.median(flux_mean[smash_mask])
     flux_mean[np.invert(smash_mask)] = 0.0
