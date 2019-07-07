@@ -9,8 +9,8 @@ import os
 import numpy as np
 import scipy
 
-import astropy.stats
 from astropy.io import fits
+from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
@@ -118,7 +118,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         # sigma clip if we have enough images
         # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
         data = np.ma.MaskedArray(sigma_clip_stack, np.invert(inmask_stack))
-        sigclip = astropy.stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median')
+        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=stats.mad_std)
         data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
         mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
     else:
