@@ -78,8 +78,6 @@ def parser(options=None):
     parser.add_argument("--obj", type=str, default=None,
                         help="Object name in lieu of extension, e.g if the spec2d files are named "
                              "'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits. then obj=J1234+5678")
-    parser.add_argument("--std", default=False, action="store_true",
-                        help="This is a standard star reduction.")
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--peaks", default=False, action="store_true",
@@ -87,9 +85,16 @@ def parser(options=None):
     parser.add_argument("--basename", type=str, default=None, help="Basename of files to save the parameters, spec1d, and spec2d")
     parser.add_argument('--samp_fact', default=1.0, type=float, help="Make the wavelength grid finer (samp_fact > 1.0) "
                                                                      "or coarser (samp_fact < 1.0) by this sampling factor")
-    parser.add_argument("--wave_method", type=str, default=None, help="Wavelength method for wavelength grid. If not set, code will use"
-                                                                      "linear for Multislit and log10 for Echelle")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+
+    # TODO implement an option to only do certian slits
+    #parser.add_argument("--only_slits", type=list, default=None, help="Only coadd the following slits")
+
+    #parser.add_argument("--wave_method", type=str, default=None, help="Wavelength method for wavelength grid. If not set, code will use"
+    #                                                                  "linear for Multislit and log10 for Echelle")
+    #parser.add_argument("--std", default=False, action="store_true",
+    #                    help="This is a standard star reduction.")
+
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -187,17 +192,21 @@ def main(args):
         msgs.info("Working on detector {0}".format(det))
         sci_dict[det] = {}
 
-        # Read in the images stacks and other clibration/meta data for this detector
-        stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det)
+        # Instantiate Coadd2d
+        coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det, offsets=None, par=parset,
+                                         ir_redux=ir_redux,  debug_offsets=args.show_offset, debug=args.debug,
+                                         samp_fact=args.samp_fact)
 
-        sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
-                sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
-                sci_dict[det]['specobjs'] \
-                        = coadd2d.extract_coadd2d(stack_dict, master_dir, det, spectrograph.pypeline,
-                                                  wave_method=wave_method,
-                                                  ir_redux=ir_redux,
-                                                  par=parset, show=args.show, show_peaks=args.peaks,
-                                                  std=args.std, samp_fact=args.samp_fact)
+        # Coadd the slits
+        coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
+        # Create the psuedo images
+        psuedo_dict = coadd.create_psuedo_image(coadd_dict_list)
+        # Reduce
+        sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
+        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
+            psuedo_dict, show = args.show, show_peaks = args.peaks)
+        # Save psuedo image master files
+        coadd.save_masters(psuedo_dict, master_dir)
 
     # Make the new Science dir
     # TODO: This needs to be defined by the user
@@ -207,6 +216,8 @@ def main(args):
         os.makedirs(scipath)
 
     # Save the results
-    save.save_all(sci_dict, stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
+    save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
                   head2d, scipath, basename)
+
+
 
