@@ -56,7 +56,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
           Inverse variance image
 
     tilts: float ndarray, shape (nspec, nspat)
-          Tilgs indicating how wavelengths move across the slit
+          Tilts indicating how wavelengths move across the slit
 
     thismask : numpy boolean array, shape (nspec, nspat)
       Specifies pixels in the slit in question
@@ -170,6 +170,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
 
     # Perform the full fit now
+    msgs.info("Full fit in global sky sub.")
     skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar,poly_basis,inmask = inmask_fit,
                                                                   nord=4,upper=sigrej, lower=sigrej,
                                                                   maxiter=maxiter,

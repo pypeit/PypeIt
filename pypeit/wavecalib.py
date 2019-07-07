@@ -204,7 +204,8 @@ class WaveCalib(masterframe.MasterFrame):
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det, self.binspectral,
+            final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det,
+                                             self.binspectral,
                                              nsnippet=self.par['nsnippet'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
