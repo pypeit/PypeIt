@@ -339,10 +339,18 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
 
     diff = wave_grid - wave_min
     diff[diff > 0] = np.inf
-    ind_lower = np.argmin(np.abs(diff))
+    if not np.any(diff < 0):
+        ind_lower = 0
+        msgs.warn('Your wave grid does not extend blue enough. Taking bluest point')
+    else:
+        ind_lower = np.argmin(np.abs(diff))
     diff = wave_max - wave_grid
     diff[diff > 0] = np.inf
-    ind_upper = np.argmin(np.abs(diff))
+    if not np.any(diff < 0):
+        ind_upper = wave_grid.size-1
+        msgs.warn('Your wave grid does not extend red enough. Taking reddest point')
+    else:
+        ind_upper = np.argmin(np.abs(diff))
 
     return ind_lower, ind_upper
 
@@ -728,7 +736,6 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
             var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
 
 
-
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
@@ -800,7 +807,7 @@ class CoAdd2d(object):
         self.ir_redux = ir_redux
         self.show = show
         self.show_peaks = show_peaks
-        self.debug_offsets = self.debug_offsets
+        self.debug_offsets = debug_offsets
         self.debug = debug
 
         self.objid_bri = None
@@ -1018,8 +1025,8 @@ class CoAdd2d(object):
         nspec, nslits = tslits_dict_list[0]['slit_left'].shape
         ref_trace_stack = np.zeros((nspec, nexp))
         for iexp, tslits_dict in enumerate(tslits_dict_list):
-            ref_trace_stack[:, iexp] = (tslits_dict[:, slitid]['slit_left'] + tslits_dict[:, slitid][
-            'slit_righ']) / 2.0 + offsets[iexp]
+            ref_trace_stack[:, iexp] = (tslits_dict['slit_left'][:, slitid] +
+                                        tslits_dict['slit_righ'][:, slitid])/2.0 + offsets[iexp]
         return ref_trace_stack
 
     def coadd(self, only_slits=None):
@@ -1103,8 +1110,8 @@ class CoAdd2d(object):
                 master_dir = os.path.basename(head['PYPMFDIR'])
                 master_path = os.path.join(os.path.split(os.path.split(f)[0])[0], master_dir)
 
-            trace_key = '{0}_{1:02d}'.format(head['TRACMKEY'], det)
-            wave_key = '{0}_{1:02d}'.format(head['ARCMKEY'], det)
+            trace_key = '{0}_{1:02d}'.format(head['TRACMKEY'], self.det)
+            wave_key = '{0}_{1:02d}'.format(head['ARCMKEY'], self.det)
 
             head2d_list.append(head)
             spec1d_files.append(f.replace('spec2d', 'spec1d'))
@@ -1179,7 +1186,7 @@ class CoAdd2d(object):
             # Specobjs
             head1d_list.append(head)
             sobjs, head = load.load_specobjs(spec1d_files[ifile])
-            this_det = sobjs.det == det
+            this_det = sobjs.det == self.det
             specobjs_list.append(sobjs[this_det])
 
         # slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
@@ -1187,12 +1194,12 @@ class CoAdd2d(object):
         # Fill the master key dict
         head2d = head2d_list[0]
         master_key_dict = {}
-        master_key_dict['frame'] = head2d['FRAMMKEY'] + '_{:02d}'.format(det)
-        master_key_dict['bpm'] = head2d['BPMMKEY'] + '_{:02d}'.format(det)
-        master_key_dict['bias'] = head2d['BIASMKEY'] + '_{:02d}'.format(det)
-        master_key_dict['arc'] = head2d['ARCMKEY'] + '_{:02d}'.format(det)
-        master_key_dict['trace'] = head2d['TRACMKEY'] + '_{:02d}'.format(det)
-        master_key_dict['flat'] = head2d['FLATMKEY'] + '_{:02d}'.format(det)
+        master_key_dict['frame'] = head2d['FRAMMKEY'] + '_{:02d}'.format(self.det)
+        master_key_dict['bpm'] = head2d['BPMMKEY'] + '_{:02d}'.format(self.det)
+        master_key_dict['bias'] = head2d['BIASMKEY'] + '_{:02d}'.format(self.det)
+        master_key_dict['arc'] = head2d['ARCMKEY'] + '_{:02d}'.format(self.det)
+        master_key_dict['trace'] = head2d['TRACMKEY'] + '_{:02d}'.format(self.det)
+        master_key_dict['flat'] = head2d['FLATMKEY'] + '_{:02d}'.format(self.det)
 
         # TODO In the future get this stuff from the headers once data model finalized
         spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
@@ -1243,7 +1250,7 @@ class MultiSlit(CoAdd2d):
         #  3) offsets not None, auto_weights=True (Do not support)
 
         # Default wave_method for Multislit is linear
-        self.wave_method = kwargs_wave['wave_method'] if 'wave_method' in kwargs_wave else 'linear'
+        kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
 
         if offsets is None:
             self.objid_bri, self.slitid_bri, self.snr_bar_bri, self.offsets = self.compute_offsets()
@@ -1268,13 +1275,13 @@ class MultiSlit(CoAdd2d):
     def compute_offsets(self):
 
         objid_bri, slitid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits)
-        msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(self.slitid_bri,np.mean(self.snr_bar_bri)))
-        thismask_stack = self.stack_dict['slitmask_stack'] == self.slitid_bri
+        msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(slitid_bri,np.mean(snr_bar_bri)))
+        thismask_stack = self.stack_dict['slitmask_stack'] == slitid_bri
         trace_stack_bri = np.zeros((self.nspec, self.nexp))
         # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
         for iexp in range(self.nexp):
-            trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict']['slit_left'][:,slitid_bri] +
-                                       self.stack_dict['tslits_dict']['slit_righ'][:,slitid_bri])/2.0
+            trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
+                                       self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
         # Determine the wavelength grid that we will use for the current slit/order
         wave_bins = get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
         dspat_bins, dspat_stack = get_spat_bins(thismask_stack, trace_stack_bri)
@@ -1298,18 +1305,29 @@ class MultiSlit(CoAdd2d):
             sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], fwhm=3.0, maxdev=2.0, ncoeff=3, sig_thresh=10.0,
                                            nperslit=1,
-                                           debug_all=self.debug_offsets, specobj_dict=specobj_dict)
+                                           debug_all=False, specobj_dict=specobj_dict)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.trace_spat
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
         med_traces_rect = np.median(traces_rect,axis=0)
         offsets = med_traces_rect[0] - med_traces_rect
+        # Print out a report on the offsets
+        msg_string = msgs.newline()  + '---------------------------------------------'
+        msg_string += msgs.newline() + '  Summary of offsets for highest S/N object  '
+        msg_string += msgs.newline() + '      found on slitid = {:d}            '.format(slitid_bri)
+        msg_string += msgs.newline() + '--------------------------------------------'
+        msg_string += msgs.newline() + '           exp#       offset                '
+        for iexp, off in enumerate(offsets):
+            msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
+
+        msg_string += msgs.newline() + '-------------------------------------'
+        msgs.info(msg_string)
         if self.debug_offsets:
             for iexp in range(self.nexp):
                 plt.plot(traces_rect[:, iexp], linestyle='--', label='original trace')
                 plt.plot(traces_rect[:, iexp] + offsets[iexp], label='shifted traces')
                 plt.legend()
-                plt.show()
+            plt.show()
 
 
         return objid_bri, slitid_bri, snr_bar_bri, offsets
@@ -1399,7 +1417,8 @@ class Echelle(CoAdd2d):
                                       **kwargs_wave)
 
         # Default wave_method for Echelle is log10
-        self.wave_method = kwargs_wave['wave_method'] if 'wave_method' in kwargs_wave else 'log10'
+        kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
+
 
         self.objid_bri = None
         self.slitid_bri  = None
@@ -1497,7 +1516,7 @@ class Echelle(CoAdd2d):
 
 
 
-def instantiate_me(spectrograph, spec2d_files, **kwargs):
+def instantiate_me(spec2d_files, spectrograph, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -1521,7 +1540,7 @@ def instantiate_me(spectrograph, spec2d_files, **kwargs):
     indx = [ c.__name__ == spectrograph.pypeline for c in CoAdd2d.__subclasses__() ]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return CoAdd2d.__subclasses__()[np.where(indx)[0][0]](spectrograph, spec2d_files, **kwargs)
+    return CoAdd2d.__subclasses__()[np.where(indx)[0][0]](spec2d_files, spectrograph, **kwargs)
 
 
 # Determine brightest object either if offsets were not input, or if automatic weight determiniation is desired

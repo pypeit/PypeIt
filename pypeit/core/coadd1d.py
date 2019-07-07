@@ -34,7 +34,7 @@ plt.rcParams["axes.labelsize"] = 17
 
 
 
-def get_wave_grid(waves, masks=None, wave_method='iref',iref=0, wave_grid_min=None, wave_grid_max=None,
+def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None, wave_grid_max=None,
                   dwave=None, dv=None, dloglam=None, samp_fact=1.0):
     """
     Create a new wavelength grid for the spectra to be rebinned and coadded on

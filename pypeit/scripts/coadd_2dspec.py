@@ -80,6 +80,8 @@ def parser(options=None):
                              "'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits. then obj=J1234+5678")
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
+    parser.add_argument("--debug_offsets", default=False, action="store_true",
+                        help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
     parser.add_argument("--basename", type=str, default=None, help="Basename of files to save the parameters, spec1d, and spec2d")
@@ -178,15 +180,6 @@ def main(args):
         msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
         set(np.arange(spectrograph.ndet)) - set(detectors)])))
 
-    # Grab the wavelength grid that we will rectify onto
-    if args.wave_method is None:
-        if 'MultiSlit' in spectrograph.pypeline:
-            wave_method = 'linear'
-        elif 'Echelle' in spectrograph.pypeline:
-            wave_method = 'log10'
-        else:
-            msgs.error('Unrecognized pypeline')
-
     # Loop on detectors
     for det in detectors:
         msgs.info("Working on detector {0}".format(det))
@@ -194,7 +187,7 @@ def main(args):
 
         # Instantiate Coadd2d
         coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det, offsets=None, par=parset,
-                                         ir_redux=ir_redux,  debug_offsets=args.show_offset, debug=args.debug,
+                                         ir_redux=ir_redux, debug_offsets=args.debug_offsets, debug=args.debug,
                                          samp_fact=args.samp_fact)
 
         # Coadd the slits
