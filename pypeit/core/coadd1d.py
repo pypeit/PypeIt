@@ -326,7 +326,7 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     chi_vec = mask_both * (flux_ref_med - flux_scale) * np.sqrt(ivarfit)
     # Robustly characterize the dispersion of this distribution
     chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
-        chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=stats.mad_std, maxiters=5, sigma=2.0)
+        chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
     # The Huber loss function smoothly interpolates between being chi^2/2 for standard chi^2 rejection and
     # a linear function of residual in the outlying tails for large residuals. This transition occurs at the
     # value of the first argument, which we have set to be 2.0*chi_std, which is 2-sigma given the modified
@@ -901,7 +901,7 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     if (np.sum(calc_mask) > min_good*nspec):
         # Take the best part of the higher SNR reference spectrum
-        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=stats.mad_std)
+        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
 
         flux_ref_ma = np.ma.MaskedArray(flux_ref, np.invert(calc_mask))
         flux_ref_clipped, lower, upper = sigclip(flux_ref_ma, masked=True, return_bounds=True)

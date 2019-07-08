@@ -118,7 +118,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         # sigma clip if we have enough images
         # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
         data = np.ma.MaskedArray(sigma_clip_stack, np.invert(inmask_stack))
-        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=stats.mad_std)
+        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
         data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
         mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
     else:
@@ -1005,9 +1005,9 @@ class CoAdd2d(object):
         if slitid is not None:
             msg_string += msgs.newline() + '      found on slitid = {:d}            '.format(slitid)
         msg_string += msgs.newline() + '-------------------------------------'
-        msg_string += msgs.newline() + '           exp#       S/N'
+        msg_string += msgs.newline() + '           exp#        S/N'
         for iexp, snr in enumerate(snr_bar):
-            msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, snr)
+            msg_string += msgs.newline() + '            {:d}         {:5.2f}'.format(iexp, snr)
 
         msg_string += msgs.newline() + '-------------------------------------'
         msgs.info(msg_string)
@@ -1304,9 +1304,13 @@ class MultiSlit(CoAdd2d):
                         'pypeline': 'MultiSLit' + '_coadd_2d'}
         for iexp in range(self.nexp):
             sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
-                                           inmask=inmask[iexp,:,:], fwhm=3.0, maxdev=2.0, ncoeff=3, sig_thresh=10.0,
-                                           nperslit=1,
-                                           debug_all=False, specobj_dict=specobj_dict)
+                                           inmask=inmask[iexp,:,:], ir_redux=self.ir_redux,
+                                           fwhm=self.par['scienceimage']['find_fwhm'],
+                                           trim_edg=self.par['scienceimage']['find_trim_edge'],
+                                           npoly_cont=self.par['scienceimage']['find_npoly_cont'],
+                                           maxdev=self.par['scienceimage']['find_maxdev'],
+                                           ncoeff=3, sig_thresh=10.0, nperslit=1,
+                                           debug_all=self.debug_offsets, specobj_dict=specobj_dict)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.trace_spat
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference

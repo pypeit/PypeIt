@@ -10,7 +10,7 @@ import scipy
 
 #from matplotlib import gridspec, font_manager
 
-from astropy.stats import sigma_clipped_stats
+from astropy import stats
 
 from pypeit import msgs
 from pypeit.core import pydl
@@ -38,14 +38,13 @@ from IPython import embed
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
+def extract_asymbox2(image,left_in,right_in, ycen=None, weight_image=None):
     """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
     specified by the left_in and right_in traces.  The ycen position is optional. If it is not provied, it is assumed to be integers
     in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
     extract_  routines. Based on idlspec2d/spec2d/extract_asymbox2.pro
 
-    Parameters
-    ----------
+    Args:
     image :  float ndarray
         Image to extract from. It is a 2-d array with shape (nspec, nspat)
     left  :  float ndarray
@@ -57,8 +56,7 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
         (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
 
 
-    Optional Parameters
-    -------------------
+    Returns:
     ycen :  float ndarray
         Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
         are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
@@ -134,7 +132,7 @@ def extract_asymbox2(image,left_in,right_in,ycen = None,weight_image = None):
     del fracright
     bigy = np.fmin(np.fmax(bigy, 0), nspec - 1)
 
-    if weight_image != None:
+    if weight_image is not None:
         temp = np.array([weight_image[x1, y1] * image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
         temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
         fextract = np.sum(temp2, axis=2)
@@ -757,7 +755,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     ind_nonzero = (sn2 > 0)
     nonzero = np.sum(ind_nonzero)
     if(nonzero >0):
-        (mean, med_sn2, stddev) = sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
+        (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
     else:
         med_sn2 = 0.0
 
@@ -781,7 +779,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     cmask2 = np.zeros(nspec,dtype='bool')
     cmask2[indsp] = cmask
     cont_flux1 = pydl.djs_maskinterp(cont_flux1,(cmask2 == False))
-    (_, _, sigma1) = sigma_clipped_stats(flux[indsp],sigma_lower=3.0,sigma_upper=5.0)
+    (_, _, sigma1) = stats.sigma_clipped_stats(flux[indsp],sigma_lower=3.0,sigma_upper=5.0)
 
     sn2_med_filt = scipy.ndimage.filters.median_filter(sn2, size=9, mode='reflect')
     if np.any(totmask):
@@ -1395,7 +1393,7 @@ def create_skymask_fwhm(sobjs, thismask):
 
         return skymask
 
-def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, spec_min_max=None,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
@@ -1526,57 +1524,67 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     thisimg =image*totmask
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
-    nsamp = np.ceil(np.median(xsize))
+    #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
+    nsamp = np.ceil(xsize.max())
     # Mask skypixels with 2 fwhm of edge
     left_asym = np.outer(slit_left,np.ones(int(nsamp))) + np.outer(xsize/nsamp, np.arange(nsamp))
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
     # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
-    flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym)
-    mask_spec = extract_asymbox2(totmask, left_asym, righ_asym) < 0.3
-    flux_mean, flux_median, flux_sig = sigma_clipped_stats(flux_spec,mask = mask_spec, axis=0, sigma = 4.0)
-    if specobj_dict['slitid'] == 11:
-        embed()
+    # TODO Should we be passing the mask here with extract_asymbox or not?
+    flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym, weight_image=totmask.astype(float))
+    mask_spec = extract_asymbox2(totmask, left_asym, righ_asym, weight_image=totmask.astype(float)) < 0.3
+    flux_mean, flux_median, flux_sig = stats.sigma_clipped_stats(flux_spec, mask = mask_spec, axis=0, sigma = 3.0,
+                                                           cenfunc='median', stdfunc=utils.nan_mad_std) #, stdfunc=stats.mad_std)
+
     smash_mask = np.isfinite(flux_mean)
     flux_mean_med = np.median(flux_mean[smash_mask])
     flux_mean[np.invert(smash_mask)] = 0.0
-    if (nsamp < 9.0*fwhm):
-        # This may lead to many negative fluxsub values..
-        # TODO: Calculate flux_mean_med by avoiding the peak
-        fluxsub = flux_mean - flux_mean_med
-    else:
-        kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
-        # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
-        fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
-        # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
-        # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
-        # everywhere the same as the profile itself, and fluxsub is full of zeros (bad!). If 90% or more of fluxsub is zero,
-        # default to use the unfiltered case
-        isub_bad = (fluxsub == 0.0)
-        frac_bad = np.sum(isub_bad)/nsamp
-        if frac_bad > 0.9:
+    ## JFH Changed 07-07-19 disabling this part for now.
+    old_algorithm = False
+    if old_algorithm:
+        if (nsamp < 9.0*fwhm):
+            # This may lead to many negative fluxsub values..
+            # TODO: Calculate flux_mean_med by avoiding the peak
             fluxsub = flux_mean - flux_mean_med
+        else:
+            kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
+            # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
+            fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
+            # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
+            # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
+            # everywhere the same as the profile itself, and fluxsub is full of zeros (bad!). If 90% or more of fluxsub is zero,
+            # default to use the unfiltered case
+            isub_bad = (fluxsub == 0.0)
+            frac_bad = np.sum(isub_bad)/nsamp
+            if frac_bad > 0.9:
+                fluxsub = flux_mean - flux_mean_med
+    else:
+        fluxsub = flux_mean.copy()
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
 
+    cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
     cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
-                                         cont_frac_fwhm=2.0, sigthresh=5.0,
-                                         sigrej=2.0, cont_samp=3,npoly=npoly_cont, cont_mask_neg=True, debug=debug_all)
+                                         cont_frac_fwhm=2.0, sigthresh=2.0,
+                                         sigrej=2.0, cont_samp=cont_samp,
+                                         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont),
+                                         cont_mask_neg=ir_redux, debug=debug_all)
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
 
 
     if np.any(cont_mask) == False:
         cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    (mean, med, skythresh) = sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
-    (mean, med, sigma)     = sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
+    (mean, med, skythresh) = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
+    (mean, med, sigma)     = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
 
     if(skythresh == 0.0) & (sigma != 0.0):
         skythresh = sigma
-    elif(skythresh == 0.0) & (sigma==0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
+    elif(skythresh == 0.0) & (sigma == 0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
         good = fluxconv_cont > 0.0
         if np.any(good) == True:
-            (mean, med_sn2, skythresh) = sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
-            (mean, med_sn2, sigma) = sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
+            (mean, med_sn2, skythresh) = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
+            (mean, med_sn2, sigma) = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
             msgs.error('Object finding failed. All the elements of the fluxconv_cont spatial profile array are zero')
     else:
@@ -1602,15 +1610,15 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     # If the user requested the nperslit most significant peaks have been requested, then grab and return only these lines
     if nperslit is not None:
-        if nperslit > len(ypeak):
-            msgs.warn('Requested nperslit = {:}'.format(nperslit) + ' most significant objects but only npeak = {:}'.format(len(xcen)) +
-                      ' were found. Returning all the objects found.')
-        else:
-            ikeep = (ypeak.argsort()[::-1])[0:nperslit]
-            xcen = xcen[ikeep]
-            ypeak = ypeak[ikeep]
-    npeak = len(xcen)
+        #if nperslit > len(ypeak):
+        #    msgs.warn('Requested nperslit = {:}'.format(nperslit) + ' most significant objects but only npeak = {:}'.format(len(xcen)) +
+        #              ' were found. Returning all the objects found.')
+        #else:
+        ikeep = (ypeak.argsort()[::-1])[0:nperslit]
+        xcen = xcen[ikeep]
+        ypeak = ypeak[ikeep]
 
+    npeak = len(xcen)
     # Instantiate a null specobj
     sobjs = specobjs.SpecObjs()
     # Choose which ones to keep and discard based on threshold params. Create SpecObj objects
@@ -2107,7 +2115,7 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
-                fof_link=1.0, order_vec=None, plate_scale=0.2,
+                fof_link=1.0, order_vec=None, plate_scale=0.2, ir_redux=False,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, min_snr=-np.inf, nabove_min_snr=1,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
@@ -2257,7 +2265,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         sobjs_slit, skymask_objfind[thismask] = \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
-                    hand_extract_dict=hand_extract_dict,
+                    hand_extract_dict=hand_extract_dict, ir_redux=ir_redux,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
@@ -2439,7 +2447,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
             mask_box[:,iord,iobj] = mask_tmp
-            (mean, med_sn, stddev) = sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
+            (mean, med_sn, stddev) = stats.sigma_clipped_stats(flux_box[mask_tmp,iord,iobj]*np.sqrt(ivar_box[mask_tmp,iord,iobj]),
             sigma_lower=5.0,sigma_upper=5.0)
             # ToDO assign this to sobjs_align for use in the extraction
             SNR_arr[iord,iobj] = med_sn

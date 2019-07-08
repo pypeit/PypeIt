@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 
 import scipy
-from astropy.stats import sigma_clipped_stats, sigma_clip
+from astropy import stats
 
 from pypeit import debugger
 
@@ -502,7 +502,7 @@ def get_censpec(slit_cen, slitmask, arcimg, inmask = None, box_rad = 3.0, xfrac 
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
-        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
+        this_mean, this_med, this_sig = stats.sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
                                                             , sigma=3.0, axis=1)
         imask = np.isnan(this_med)
         this_med[imask]=0.0
@@ -749,15 +749,16 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     for iter in range(niter_cont):
         spec_sub = spec - cont_now
         mask_sigclip = np.invert(cont_mask & inmask)
-        (mean, med, stddev) = sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej, sigma_upper=sigrej)
+        (mean, med, stddev) = stats.sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej,
+                                                        sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
         thresh = med + sigthresh*stddev
-        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75)
+        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75, show=debug)
         # mask out the peaks we find for the next continuum iteration
         cont_mask_fine = np.ones_like(cont_now)
         cont_mask_fine[pixt_now] = 0.0
         if cont_mask_neg is True:
-            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75)
+            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75, show=debug)
             cont_mask_fine[pixt_now_neg] = 0.0
         # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
         cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999) & inmask
@@ -903,7 +904,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = detns - cont_now
     if input_thresh is None:
-        (mean, med, stddev) = sigma_clipped_stats(arc[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
+        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
     else:
         med = 0.0

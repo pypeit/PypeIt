@@ -196,7 +196,7 @@ class Reduce(object):
         # Positive image
         parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.find_objects_pypeline(image, std=std, std_trace=std_trace, maskslits=maskslits,
+            self.find_objects_pypeline(image, std=std, ir_redux=ir_redux, std_trace=std_trace, maskslits=maskslits,
                                    show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
                                        manual_extract_dict=parse_manual, debug=debug)
 
@@ -205,7 +205,7 @@ class Reduce(object):
             # Parses
             parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
-                self.find_objects_pypeline(-image, std=std, std_trace=std_trace, maskslits=maskslits,
+                self.find_objects_pypeline(-image, std=std, ir_redux=ir_redux, std_trace=std_trace, maskslits=maskslits,
                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
                                            manual_extract_dict=parse_manual)
             #self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
@@ -221,7 +221,7 @@ class Reduce(object):
         return sobjs_obj_init, nobj_init, skymask
 
 
-    def find_objects_pypeline(self, image, std=False, std_trace=None, maskslits=None,
+    def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                               show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False,
                               manual_extract_dict=None):
 
@@ -529,7 +529,7 @@ class MultiSlit(Reduce):
         super(MultiSlit, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
 
-    def find_objects_pypeline(self, image, std=False, std_trace = None, maskslits=None,
+    def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace = None, maskslits=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, debug=False):
@@ -592,7 +592,7 @@ class MultiSlit(Reduce):
             #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],
-                                self.tslits_dict['slit_righ'][:,slit], inmask=inmask,
+                                self.tslits_dict['slit_righ'][:,slit], inmask=inmask, ir_redux=ir_redux,
                                 ncoeff=self.redux_par['trace_npoly'], std_trace=std_trace,
                                 sig_thresh=self.redux_par['sig_thresh'], hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
@@ -602,7 +602,7 @@ class MultiSlit(Reduce):
                                 npoly_cont=self.redux_par['find_npoly_cont'],
                                 fwhm=self.redux_par['find_fwhm'],
                                 maxdev=self.redux_par['find_maxdev'],
-                                qa_title=qa_title, nperslit=self.redux_par['maxnumber'], debug=debug)
+                                qa_title=qa_title, nperslit=self.redux_par['maxnumber'], debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
@@ -706,7 +706,7 @@ class Echelle(Reduce):
         super(Echelle, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
 
-    def find_objects_pypeline(self, image, std=False, std_trace = None, maskslits=None,
+    def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace = None, maskslits=None,
                               show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
                               manual_extract_dict=None):
         # For echelle orders
@@ -726,7 +726,7 @@ class Echelle(Reduce):
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
             spec_min_max=np.vstack((self.tslits_dict['spec_min'],self.tslits_dict['spec_max'])),
-            inmask=inmask, ncoeff=self.redux_par['trace_npoly'], order_vec=order_vec,
+            inmask=inmask, ir_redux=ir_redux, ncoeff=self.redux_par['trace_npoly'], order_vec=order_vec,
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale, std_trace=std_trace,
             specobj_dict=specobj_dict,sig_thresh=self.redux_par['sig_thresh'], show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.redux_par['find_trim_edge'], cont_fit=self.redux_par['find_cont_fit'],

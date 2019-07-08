@@ -14,6 +14,7 @@ from scipy.optimize import curve_fit
 from scipy import interpolate
 
 from astropy import units
+from astropy import stats
 from matplotlib import pyplot as plt
 
 # Imports for fast_running_median
@@ -24,6 +25,29 @@ from pypeit.core import pydl
 from pypeit import msgs
 from IPython import embed
 from numpy.lib.stride_tricks import as_strided
+
+
+
+def nan_mad_std(data, axis=None, func=None):
+    """
+    Wrapper for astropy.stats.mad_stad which ignores nans, so as to prevent bugs when using sigma_clipped_stats with
+    the axis keyword and stdfunc=astropy.stats.mad_std
+
+    Args:
+       data : array-like
+          Data array or object that can be converted to an array.
+    axis : {int, sequence of int, None}, optional
+         Axis along which the robust standard deviations are computed.
+         The default (`None`) is to compute the robust standard deviation
+         of the flattened array.
+
+    Returns:
+    mad_std : float or `~numpy.ndarray`
+        The robust standard deviation of the input data.  If ``axis`` is
+        `None` then a scalar will be returned, otherwise a
+        `~numpy.ndarray` will be returned.
+    """
+    return stats.mad_std(data, axis=axis, func=func, ignore_nan=True)
 
 
 def rebin(a, newshape):
