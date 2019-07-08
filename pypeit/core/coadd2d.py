@@ -1219,18 +1219,18 @@ class MultiSlit(CoAdd2d):
         inmask = norm_rebin_stack > 0
         traces_rect = np.zeros((nspec_psuedo, self.nexp))
         sobjs = specobjs.SpecObjs()
-        specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': self.det, 'objtype': 'unknown',
-                        'pypeline': 'MultiSLit' + '_coadd_2d'}
+        #specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': self.det, 'objtype': 'unknown',
+        #                'pypeline': 'MultiSLit' + '_coadd_2d'}
         for iexp in range(self.nexp):
             sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], ir_redux=self.ir_redux,
                                            fwhm=self.par['scienceimage']['find_fwhm'],
-                                           trim_edg=self.par['scienceimage']['find_trim_edge'],
+                                           trim_edge = (0.1*nspat_psuedo, 0.1*nspat_psuedo),
+                                           #trim_edg=self.par['scienceimage']['find_trim_edge'],
                                            npoly_cont=self.par['scienceimage']['find_npoly_cont'],
                                            maxdev=self.par['scienceimage']['find_maxdev'],
                                            ncoeff=3, sig_thresh=10.0, nperslit=1,
-                                           show_trace=self.debug_offsets, show_peaks=self.debug_offsets,
-                                           specobj_dict=specobj_dict)
+                                           show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.trace_spat
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
@@ -1253,7 +1253,6 @@ class MultiSlit(CoAdd2d):
                 plt.plot(traces_rect[:, iexp] + offsets[iexp], label='shifted traces')
                 plt.legend()
             plt.show()
-
 
         return objid_bri, slitid_bri, snr_bar_bri, offsets
 

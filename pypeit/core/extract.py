@@ -1539,27 +1539,22 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     smash_mask = np.isfinite(flux_mean)
     flux_mean_med = np.median(flux_mean[smash_mask])
     flux_mean[np.invert(smash_mask)] = 0.0
-    ## JFH Changed 07-07-19 disabling this part for now.
-    old_algorithm = False
-    if old_algorithm:
-        if (nsamp < 9.0*fwhm):
-            # This may lead to many negative fluxsub values..
-            # TODO: Calculate flux_mean_med by avoiding the peak
-            fluxsub = flux_mean - flux_mean_med
-        else:
-            kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
-            # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
-            fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
-            # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
-            # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
-            # everywhere the same as the profile itself, and fluxsub is full of zeros (bad!). If 90% or more of fluxsub is zero,
-            # default to use the unfiltered case
-            isub_bad = (fluxsub == 0.0)
-            frac_bad = np.sum(isub_bad)/nsamp
-            if frac_bad > 0.9:
-                fluxsub = flux_mean - flux_mean_med
+    if (nsamp < 3.0*bg_smth*fwhm):
+        # This may lead to many negative fluxsub values..
+        # TODO: Calculate flux_mean_med by avoiding the peak
+        fluxsub = flux_mean - flux_mean_med
     else:
-        fluxsub = flux_mean.copy()
+        kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
+        # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
+        fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
+        # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
+        # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
+        # everywhere the same as the profile itself, and fluxsub is full of zeros (bad!). If 90% or more of fluxsub is zero,
+        # default to use the unfiltered case
+        isub_bad = (fluxsub == 0.0)
+        frac_bad = np.sum(isub_bad)/nsamp
+        if frac_bad > 0.9:
+            fluxsub = flux_mean - flux_mean_med
 
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
 
@@ -1592,7 +1587,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     # Now find all the peaks without setting any threshold
     ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv_cont, cont_subtract = False, fwhm = fwhm,
-                                                            input_thresh = 'None',debug=debug_all)
+                                                            input_thresh = 'None', debug=debug_all)
 
     # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
     # with the edgemask, but we do it here anyway
@@ -1622,10 +1617,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # Instantiate a null specobj
     sobjs = specobjs.SpecObjs()
     # Choose which ones to keep and discard based on threshold params. Create SpecObj objects
+
+    # Possible thresholds    [significance,  fraction of brightest, absolute]
+    thresh_peak = peak_thresh * ypeak.max() if len(ypeak) > 0 else 0.0
+    threshvec = np.array([sig_thresh * sigma, thresh_peak, abs_thresh])
+    threshold = threshvec.max()
     if npeak > 0:
-        # Possible thresholds    [significance,  fraction of brightest, absolute]
-        threshvec = np.array([sig_thresh*sigma, peak_thresh*ypeak.max(), abs_thresh])
-        threshold = threshvec.max()
         if threshvec.argmax() == 0:
             msgs.info('Used SIGNIFICANCE threshold: sig_thresh = {:3.1f}'.format(sig_thresh) +
                       ' * sigma = {:5.2f}'.format(sigma))
@@ -1659,9 +1656,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
-
         # Define the plotting function
-        #def plot_show_peaks():
         #plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
         plt.plot(spat_approx_vec, fluxconv_cont/sigma, color='black', label = 'Collapsed flux (FWHM convol)')
         plt.plot(spat_approx_vec[cont_mask], fluxconv_cont[cont_mask]/sigma, color='red', markersize=3.0,
@@ -2079,9 +2074,10 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
         # will always be considered inliers, if the coefficients vary rapidly with order as they sometimes do.
         sigma = np.fmax(0.1*np.abs(yfit), 0.1)
         invvar = utils.inverse(sigma**2)
+        use_weights =  coeff_weights[use_order] if coeff_weights is not None else None
         # TODO Note that we are doing a weighted fit using the coeff_weights, but the rejection is still done
         # usnig the ad-hoc invvar created in the line above. I cannot think of a better way.
-        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, invvar = invvar, weights=coeff_weights[use_order],
+        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, invvar = invvar, weights=use_weights, 
                                                      function='polynomial', maxiter=25,
                                                      lower=lower, upper=upper,
                                                      maxrej=maxrej,
@@ -2200,6 +2196,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     skymask: float ndarray, same shape as image
       Skymask indicating which pixels can be used for global sky subtraction
     """
+
+    debug_all=True
     if debug_all:
         show_peaks = True
         show_fits = True
@@ -2372,7 +2370,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             slit_frac_good = (xcen_good-slit_left[:,goodorder])/slit_width[:,goodorder]
             # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
-            # Performa  linear fit to fractional slit position
+            # Perform a  linear fit to fractional slit position
+            #TODO Do this as a S/N weighted fit similar to what is now in the pca_trace algorithm?
             msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
                                                                  function='polynomial', maxiter=20, lower=2, upper=2,
                                                                  use_mad= True, sticky=False,
@@ -2390,7 +2389,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
                 plt.xlabel('Order Index', fontsize=14)
                 plt.ylabel('Fractional Slit Position', fontsize=14)
-                plt.title('Fractional Slit Position Fitting')
+                plt.title('Fractional Slit Position Fit')
                 plt.legend()
                 plt.show()
         else:
@@ -2505,7 +2504,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
-        pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
+        pca_fits[:, :, iobj], _, _, _ = pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                                  npca=npca, pca_explained_var=pca_explained_var,
                                                  coeff_npoly=coeff_npoly,
                                                  coeff_weights =(sobjs_final[indx_obj_id].ech_snr)**2,
@@ -2513,8 +2512,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
-        # TODO Input fwhm here
-        #trc_inmask = (spec_vec >= spec_min_max[0]) & (spec_vec <= spec_min_max[1])
         xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, trc_inmask=trc_inmask,
                                              fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
         # Perform iterative Gaussian weighted centroiding
@@ -2522,10 +2519,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now,  trc_inmask=trc_inmask,
                                               gweight=True, fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
         xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max, npoly=extrap_npoly)
-        # Assign the new traces
+        #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
+        # well, we will avoid doing all of the iter_tracefits above to make the code faster.
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
-            spec.trace_spat = xfit_final[:,iord]
-            spec.spat_pixpos = spec.trace_spat[specmid]
+            # JFH added the condition on ech_frac_was_fit on 7-7-19
+            if spec.ech_frac_was_fit:
+                spec.trace_spat = xfit_final[:,iord]
+                spec.spat_pixpos = spec.trace_spat[specmid]
 
     #TODO Put in some criterion here that does not let the fractional position change too much during the iterative
     # tracefitting. The problem is spurious apertures identified on one slit can be pulled over to the center of flux
@@ -2543,7 +2543,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         viewer, ch = ginga.show_image(image*allmask)
 
         for spec in sobjs_trim:
-            color = 'green' if spec.ech_frac_was_fit else 'magenta'
+            color = 'red' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
             ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
 
@@ -2562,7 +2562,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
 
         text_pca = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 30, 'PCA fit'),kwargs=dict(color='yellow', fontsize=20))]
 
-        text_fit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'predicted'),kwargs=dict(color='green', fontsize=20))]
+        text_fit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 60, 'predicted'),kwargs=dict(color='red', fontsize=20))]
 
         text_notfit = [dict(type='text', args=(nspat / 2 -40, nspec / 2 - 90, 'originally found'),kwargs=dict(color='magenta', fontsize=20))]
 
