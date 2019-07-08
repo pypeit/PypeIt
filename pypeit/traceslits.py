@@ -319,9 +319,9 @@ class TraceSlits(masterframe.MasterFrame):
         slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
         spec_min_max = self.spectrograph.slit_minmax(slit_spat_pos, binspectral = binspectral)
         self.tslits_dict['spec_min'], self.tslits_dict['spec_max'] = spec_min_max[0, :], spec_min_max[1, :]
-        # Now extrapolate the traces
-        self.tslits_dict['slit_left'] = trace_slits.extrapolate_trace(self.tslits_dict['slit_left'], spec_min_max)
-        self.tslits_dict['slit_righ'] = trace_slits.extrapolate_trace(self.tslits_dict['slit_righ'], spec_min_max)
+        # Now extrapolate the traces JFH turning this off for now.
+        #self.tslits_dict['slit_left'] = trace_slits.extrapolate_trace(self.tslits_dict['slit_left'], spec_min_max)
+        #self.tslits_dict['slit_righ'] = trace_slits.extrapolate_trace(self.tslits_dict['slit_righ'], spec_min_max)
 
         return self.tslits_dict
 

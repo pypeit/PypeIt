@@ -577,6 +577,9 @@ class PypeIt(object):
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
 
+        if self.show:
+            self.redux.show('image', image=self.sciImg.image, chname='processed', slits=True,clear=True)
+
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 

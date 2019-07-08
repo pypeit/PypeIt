@@ -693,7 +693,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
-                   cont_mask_neg=False, npoly=None, debug=False):
+                   cont_mask_neg=False, qa_title='', npoly=None, debug_peak_find=False, debug=False):
     """
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
@@ -753,12 +753,12 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
                                                         sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
         thresh = med + sigthresh*stddev
-        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75, show=debug)
+        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75, show=debug_peak_find)
         # mask out the peaks we find for the next continuum iteration
         cont_mask_fine = np.ones_like(cont_now)
         cont_mask_fine[pixt_now] = 0.0
         if cont_mask_neg is True:
-            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75, show=debug)
+            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75, show=debug_peak_find)
             cont_mask_fine[pixt_now_neg] = 0.0
         # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
         cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999) & inmask
@@ -789,6 +789,7 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
                      mfc='red', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'masked for cont')
+            plt.title(qa_title)
             plt.legend()
             plt.show()
 
