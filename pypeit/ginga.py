@@ -337,14 +337,15 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
         y = (np.arange(trace.size)[::pstep]).tolist()
     else:
         y = yval[::pstep].tolist()
-    xy = [trace[::pstep].tolist(), y]
+    trace_list = trace[::pstep].tolist()
+    xy = [trace_list, y]
     if rotate:
         xy[0], xy[1] = xy[1], xy[0]
     points = list(zip(xy[0], xy[1]))
     canvas.add(str('path'), points, color=str(color))
     # Text
-    ohf = trace.size // (2*pstep)
-    xyt = [float(trace[ohf]), float(y[ohf])]
+    ohf = len(trace_list)//2
+    xyt = [float(trace_list[ohf]), float(y[ohf])]
     if rotate:
         xyt[0], xyt[1] = xyt[1], xyt[0]
     # Do it
