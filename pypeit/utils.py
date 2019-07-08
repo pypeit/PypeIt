@@ -1222,22 +1222,29 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
 # TODO This should replace robust_polyfit. #ToDO This routine needs to return dicts with the minx and maxx set
 def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial', minx = None, maxx = None, minx2 = None, maxx2 = None,
                        bspline_par = None,
-                       guesses = None, maxiter=10, inmask=None,invvar=None, lower=None, upper=None,
+                       guesses = None, maxiter=10, inmask=None, weights=None, invvar=None, lower=None, upper=None,
                        maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
                        sticky=True, use_mad=True):
     """
     A robust polynomial fit is performed to the xarray, yarray pairs
     mask[i] = 1 are good values
 
-    xarray: independent variable values
-    yarray: dependent variable values
-    order: the order of the polynomial to be used in the fitting
+    xarray:
+        independent variable values
+    yarray:
+        dependent variable values
+    order:
+        the order of the polynomial to be used in the fitting
     x2: ndarray, default = None
-       Do a 2d fit?
-    function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
-    minx: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    maxx: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
-    guesses : tuple
+        Do a 2d fit?
+    function:
+        which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
+    minx:
+        minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
+    maxx:
+         maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
+    guesses:
+         tuple
     bspline_par : dict
         Passed to bspline_fit()
     maxiter : :class:`int`, optional
@@ -1250,6 +1257,10 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
         Inverse variance of the data, used to reject points based on the values
         of `upper` and `lower`.  This can either be a single float for the entire yarray or a ndarray with the same
         shape as the yarray.
+    weights (np.ndarray): shape same as xarray and yarray
+        If input the code will do a weighted fit. If not input, the code will use invvar as the weights. If both
+        invvar and weights are input. The fit will be done with weights, but the rejection will be based on
+        chi = (data-model)*np.sqrt(invvar)
     lower : :class:`int` or :class:`float`, optional
         If set, reject points with data < model - lower * sigma, where sigma = 1.0/sqrt(invvar)
     upper : :class:`int` or :class:`float`, optional
@@ -1291,10 +1302,11 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
     if inmask is None:
         inmask = np.ones(xarray.size, dtype=bool)
 
-    if invvar is not None:
-        weights = np.copy(invvar)
-    else:
-        weights = np.ones(xarray.size,dtype=float)
+    if weights is None:
+        if invvar is not None:
+            weights = np.copy(invvar)
+        else:
+            weights = np.ones(xarray.size,dtype=float)
 
     # Iterate, and mask out new values on each iteration
     ct = guesses

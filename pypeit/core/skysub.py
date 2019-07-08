@@ -1060,7 +1060,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                 sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debug_bkpts,
                 show_resids=show_resids, show_profile=show_profile)
         except:
-            embed(header='1037 of skysub.py')
+            embed(header='1063 of skysub.py')
 
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord)

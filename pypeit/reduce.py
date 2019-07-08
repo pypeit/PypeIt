@@ -602,6 +602,7 @@ class MultiSlit(Reduce):
                                 npoly_cont=self.redux_par['find_npoly_cont'],
                                 fwhm=self.redux_par['find_fwhm'],
                                 maxdev=self.redux_par['find_maxdev'],
+                                extrap_npoly=self.redux_par['find_extrap_npoly'],
                                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'], debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
 
@@ -730,8 +731,8 @@ class Echelle(Reduce):
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale, std_trace=std_trace,
             specobj_dict=specobj_dict,sig_thresh=self.redux_par['sig_thresh'], show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.redux_par['find_trim_edge'], cont_fit=self.redux_par['find_cont_fit'],
-            npoly_cont=self.redux_par['find_npoly_cont'],
-            fwhm=self.redux_par['find_fwhm'], maxdev=self.redux_par['find_maxdev'],
+            npoly_cont=self.redux_par['find_npoly_cont'], fwhm=self.redux_par['find_fwhm'],
+            maxdev=self.redux_par['find_maxdev'], extrap_npoly=self.redux_par['find_extrap_npoly'],
             show_trace=show_trace, debug=debug)
 
         # Steps

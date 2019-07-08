@@ -8,6 +8,7 @@ import os
 
 import numpy as np
 import scipy
+import copy
 
 from astropy.io import fits
 from astropy import stats
@@ -742,7 +743,6 @@ class CoAdd2d(object):
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
-        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
 
     def create_psuedo_image(self, coadd_list):
@@ -863,7 +863,11 @@ class CoAdd2d(object):
         slitmask_psuedo = pixels.tslits2mask(psuedo_dict['tslits_dict'])
         sciImage.build_mask(slitmask=slitmask_psuedo)
 
-        redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], self.par, psuedo_dict['tilts'],
+        # Make changes to parset specific to 2d coadds
+        parcopy = copy.deepcopy(self.par)
+        parcopy['scienceimage']['trace_npoly'] = 3        # Low order traces since we are rectified
+        parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
+        redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], parcopy, psuedo_dict['tilts'],
                                       ir_redux=self.ir_redux, objtype = 'science', det=self.det, binning=self.binning)
 
         if show:
@@ -1166,6 +1170,7 @@ class MultiSlit(CoAdd2d):
 
         # Default wave_method for Multislit is linear
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
+        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
         if offsets is None:
             self.objid_bri, self.slitid_bri, self.snr_bar_bri, self.offsets = self.compute_offsets()
@@ -1329,16 +1334,16 @@ class Echelle(CoAdd2d):
 
 
     """
-    def __init__(self, spec2d_files, spectrograph, offsets=None, weights='auto', sn_smooth_npix=None,
+    def __init__(self, spec2d_files, spectrograph, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
                  ir_redux=False, par=None, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(Echelle, self).__init__(spec2d_files, spectrograph, offsets=offsets, weights=weights,
+        super(Echelle, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                       sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                       show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                                       **kwargs_wave)
 
         # Default wave_method for Echelle is log10
         kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
-
+        self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
         self.objid_bri = None
         self.slitid_bri  = None
@@ -1438,7 +1443,7 @@ class Echelle(CoAdd2d):
 
 def instantiate_me(spec2d_files, spectrograph, **kwargs):
     """
-    Instantiate the Reduce subclass appropriate for the provided
+    Instantiate the CoAdd2d subclass appropriate for the provided
     spectrograph.
 
     The class must be subclassed from Reduce.  See :class:`Reduce` for

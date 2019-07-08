@@ -199,7 +199,7 @@ def main(args):
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
             psuedo_dict, show = args.show, show_peaks = args.peaks)
         # Save psuedo image master files
-        coadd.save_masters(psuedo_dict, master_dir)
+        coadd.save_masters(master_dir)
 
     # Make the new Science dir
     # TODO: This needs to be defined by the user
@@ -210,7 +210,7 @@ def main(args):
 
     # Save the results
     save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
-                  head2d, scipath, basename)
+                  head2d, scipath, basename, binning=coadd.binning)
 
 
 

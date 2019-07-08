@@ -1394,7 +1394,7 @@ def create_skymask_fwhm(sobjs, thismask):
         return skymask
 
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
-            hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None, bg_smth=5.0,
+            hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
             show_peaks=False, show_fits=False, show_trace=False, debug_all=False, qa_title=''):
@@ -1767,7 +1767,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                                               maxdev=maxdev, gweight = True,
                                               idx = sobjs.idx, show_fits=show_fits)
         # Linearly extrapolate the traces where they are bad
-        xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max)
+        xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max, npoly=extrap_npoly)
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -1941,55 +1941,59 @@ def remap_orders(xinit, spec_min_max, inverse=False):
                                                              bounds_error=False, fill_value='extrapolate')(spec_vec_norm)
     return xinit_remap
 
-
+# TODO: JFH It would be really ideal if we could replace this pca with a weighted PCA!!
 def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_explained_var=99.0,
-              coeff_npoly = None, debug=True, order_vec = None, lower = 3.0,
+              coeff_npoly = None, coeff_weights=None, debug=True, order_vec = None, lower = 3.0,
               upper = 3.0, minv = None,maxv = None, maxrej=1,
               xinit_mean = None):
 
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
 
-    Parameters
-    ----------
-    xinit:  ndarray, (nspec, norders)
-       Array of input traces that one wants to PCA model. For object finding this will be the traces for orders where
-       an object was detected. If an object was not detected on some orders (see ech_objfind), the standard star
-       (or order boundaries)  will be  assigned to these orders at the correct fractional slit position, and a joint PCA
-       fit will be performed to the detected traces and the standard/slit traces.
+    Args:
+      xinit:  ndarray, (nspec, norders)
+         Array of input traces that one wants to PCA model. For object finding this will be the traces for orders where
+         an object was detected. If an object was not detected on some orders (see ech_objfind), the standard star
+         (or order boundaries)  will be  assigned to these orders at the correct fractional slit position, and a joint PCA
+         fit will be performed to the detected traces and the standard/slit traces.
 
-    Optional Parameters
-    -------------------
-    spec_min_max: float or int ndarray, (2, norders), default=None.  This is a 2-d array which defines the minimum and maximum of each order in the
-       spectral direction on the detector. This should only be used for echelle spectrographs for which the orders do not
-       entirely cover the detector, and each order passed in for xinit_in is a succession of orders on the detector.
-       The code will re-map the traces such that they all have the same length, compute the PCA, and then re-map the orders
-       back. This improves performanc for echelle spectrographs by removing the nonlinear shrinking of the orders so that
-       the linear pca operation can better predict the traces. THIS IS AN EXPERIMENTAL FEATURE. INITIAL TESTS WITH
-       XSHOOTER-NIR INDICATED THAT IT DID NOT IMPROVE PERFORMANCE AND SIMPLY LINEAR EXTRAPOLATION OF THE ORDERS INTO THE
-       REGIONS THAT ARE NOT ILLUMINATED PERFORMED SIGNIFICANTLY BETTER. DO NOT USE UNTIL FURTHER TESTING IS PERFORMED. IT
-       COULD HELP WITH OTHER MORE NONLINEAR SPECTROGRAPHS.
+    spec_min_max: float or int ndarray, (2, norders), default=None.
+         This is a 2-d array which defines the minimum and maximum of each order in the
+         spectral direction on the detector. This should only be used for echelle spectrographs for which the orders do not
+         entirely cover the detector, and each order passed in for xinit_in is a succession of orders on the detector.
+         The code will re-map the traces such that they all have the same length, compute the PCA, and then re-map the orders
+         back. This improves performanc for echelle spectrographs by removing the nonlinear shrinking of the orders so that
+         the linear pca operation can better predict the traces. THIS IS AN EXPERIMENTAL FEATURE. INITIAL TESTS WITH
+         XSHOOTER-NIR INDICATED THAT IT DID NOT IMPROVE PERFORMANCE AND SIMPLY LINEAR EXTRAPOLATION OF THE ORDERS INTO THE
+         REGIONS THAT ARE NOT ILLUMINATED PERFORMED SIGNIFICANTLY BETTER. DO NOT USE UNTIL FURTHER TESTING IS PERFORMED. IT
+         COULD HELP WITH OTHER MORE NONLINEAR SPECTROGRAPHS.
     predict: ndarray, bool (norders,), default = None
-       Orders which have True are those that will be predicted by extrapolating the fit of the PCA coefficents for those
-       orders which have False set in this array. The default is None, which means that the coefficients of all orders
-       will be fit simultaneously and no extrapolation will be performed. For object finding, we use the standard star
-       (or slit boundaries) as the input for orders for which a trace is not identified and fit the coefficients of all
-       simultaneously. Thus no extrapolation is performed. For tracing slit boundaries it may be useful to perform
-       extrapolations.
+         Orders which have True are those that will be predicted by extrapolating the fit of the PCA coefficents for those
+         orders which have False set in this array. The default is None, which means that the coefficients of all orders
+         will be fit simultaneously and no extrapolation will be performed. For object finding, we use the standard star
+         (or slit boundaries) as the input for orders for which a trace is not identified and fit the coefficients of all
+         simultaneously. Thus no extrapolation is performed. For tracing slit boundaries it may be useful to perform
+          extrapolations.
     npca: int, default = None
-       number of PCA components to be kept. The maximum number of possible PCA components would be = norders, which is to say
-       that no PCA compression woulud be performed. For the default of None, npca will be automatically determinedy by
-       calculating the minimum number of components required to explain 99% (pca_explained_var) of the variance in the different orders.
+         number of PCA components to be kept. The maximum number of possible PCA components would be = norders, which is to say
+         that no PCA compression woulud be performed. For the default of None, npca will be automatically determinedy by
+         calculating the minimum number of components required to explain 99% (pca_explained_var) of the variance in the different orders.
     pca_explained_var: float, default = 99
-       Amount of explained variance cut used to determine where to truncate the PCA, i.e. to determine npca.
-
+         Amount of explained variance cut used to determine where to truncate the PCA, i.e. to determine npca.
     coeff_npoly: int, default = None
-       Order of polynomial fits used for PCA coefficients fitting. The defualt is None, which means that coeff_noly
-       will be automatically determined by taking the number of orders into account. PCA components that explain
-       less variance (and are thus much noiser) are fit with lower order.
+         Order of polynomial fits used for PCA coefficients fitting. The defualt is None, which means that coeff_noly
+         will be automatically determined by taking the number of orders into account. PCA components that explain
+         less variance (and are thus much noiser) are fit with lower order.
+    coeff_weights (np.ndarray): shape = (norders,), default=None
+         If input these weights will be used for the polynomial fit to the PCA coefficients. Even if you are predicting
+         orders and hence only fitting a subset of the orders != norders, the shape of coeff_weights must be norders.
+         Just give the orders you don't plan to fit a weight of zero. This option is useful for fitting object
+         traces since the weights can be set to (S/N)^2 of each order.
+         TODO: Perhaps we should get rid of the predict option and simply allow the user to set the weights of the orders
+         they want predicted to be zero. That would be more straightforward, but would require a rework of the code.
 
     debug: bool, default = False
-        Show plots useful for debugging.
+         Show plots useful for debugging.
 
     Returns:
     --------
@@ -2075,11 +2079,14 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
         # will always be considered inliers, if the coefficients vary rapidly with order as they sometimes do.
         sigma = np.fmax(0.1*np.abs(yfit), 0.1)
         invvar = utils.inverse(sigma**2)
-        # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, invvar = invvar, function='polynomial', maxiter=25,
+        # TODO Note that we are doing a weighted fit using the coeff_weights, but the rejection is still done
+        # usnig the ad-hoc invvar created in the line above. I cannot think of a better way.
+        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, invvar = invvar, weights=coeff_weights[use_order],
+                                                     function='polynomial', maxiter=25,
                                                      lower=lower, upper=upper,
                                                      maxrej=maxrej,
                                                      sticky=False, use_mad=False, minx = minv, maxx = maxv)
+        # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
         pca_coeffs_new[:,idim] = utils.func_val(poly_out, order_vec, 'polynomial')
         fit_dict[str(idim)] = {}
         fit_dict[str(idim)]['coeffs'] = poly_out
@@ -2116,7 +2123,7 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
                 fof_link=1.0, order_vec=None, plate_scale=0.2, ir_redux=False,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, min_snr=-np.inf, nabove_min_snr=1,
+                std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, min_snr=-np.inf, nabove_min_snr=1,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
@@ -2264,7 +2271,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             std_in = None
         sobjs_slit, skymask_objfind[thismask] = \
             objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
-                    inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
+                    inmask=inmask_iord,std_trace=std_in, extrap_npoly=extrap_npoly, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
                     hand_extract_dict=hand_extract_dict, ir_redux=ir_redux,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
@@ -2500,7 +2507,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:, :, iobj], _, _, _= pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
                                                  npca=npca, pca_explained_var=pca_explained_var,
-                                                 coeff_npoly=coeff_npoly, debug=debug)
+                                                 coeff_npoly=coeff_npoly,
+                                                 coeff_weights =(sobjs_final[indx_obj_id].ech_snr)**2,
+                                                 debug=debug)
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
@@ -2512,7 +2521,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         xinit_gweight = xfit_fweight.copy()
         xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now,  trc_inmask=trc_inmask,
                                               gweight=True, fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
-        xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max)
+        xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max, npoly=extrap_npoly)
         # Assign the new traces
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
             spec.trace_spat = xfit_final[:,iord]
@@ -2560,7 +2569,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         canvas = viewer.canvas(ch._chname)
         canvas_list = text_final + text_pca + text_fit + text_notfit
         canvas.add('constructedcanvas', canvas_list)
-
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
     return sobjs_final, skymask[allmask]

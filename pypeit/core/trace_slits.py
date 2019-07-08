@@ -69,21 +69,31 @@ def shift_slits(tslits_dict, tilts_dict, waveimg, shift):
     return tslits_shift
 
 
-def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.1):
+def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.2, npoly=1, method='poly'):
     """
     Extrapolates trace to fill in pixels that lie outside of the range spec_min, spec_max). This
     routine is useful for echelle spectrographs where the orders are shorter than the image by a signfiicant
     amount, since the polynomial trace fits often go wild.
 
     Args:
-        traces (np.ndarray): Tuple or array with size (nspec,) or (nspec, ntrace) containing object or slit boundary traces
-        spec_min_max: Minimum and maximum pectral pixel for which trace is valid.  If this is a 2-d array,
-        the same numbers will be used for all traces in traces_in.  If an array, then this must be an ndarray of shape
-        (2, ntrace,) where the spec_min_max[0,:] are the minimua and spec_min_max[1,:] are the maxima.
-
+        traces (np.ndarray): shape = (nspec,) or (nspec, ntrace)
+            Array containing object or slit boundary traces
+        spec_min_max (np.ndarray):  shape = (2, ntrace)
+            Array contaning the minimum  and maximum spectral region covered by each trace. If this is an array with
+            ndim=1 array, the same numbers will be used for all traces in traces_in.  If a 2d array, then this must be
+            an ndarray of shape (2, ntrace,) where the spec_min_max[0,:] are the minimua and spec_min_max[1,:] are the maxima.
+        fit_frac (float):
+            fraction of the good pixels to be used to fit when extrapolating traces. The upper fit_frac
+            pixels are used to extrapolate to larger spectral position, and vice versa for lower spectral
+            positions.
+        npoly (int):
+            Order of polynomial fit used for extrapolation
+        method (str):
+            Method used for extrapolation. Options are 'poly' or 'edge'. If 'poly' the code does a polynomial fit. If
+            'edge' it just attaches the last good pixel everywhere. 'edge' is not currently used.
     Returns:
-        trace_extrap (np.ndarray): Array with same size as trace containing the linearly extrapolated values for the bad
-        spectral pixels.
+        trace_extrap (np.ndarray):
+            Array with same size as trace containing the linearly extrapolated values for the bad spectral pixels.
     """
 
     #embed()
@@ -107,8 +117,8 @@ def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.1):
         spec_min_max = spec_min_max_tmp
 
     nspec = traces.shape[0]
-    xnspecmin1 = float(nspec-1)
-    spec_vec = np.arange(nspec)
+    spec_vec = np.arange(nspec,dtype=float)
+    xnspecmin1 = spec_vec[-1]
     traces_extrap = traces.copy()
 
     # TODO should we be doing a more careful extrapolation here rather than just linearly using the nearest pixel
@@ -122,14 +132,18 @@ def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.1):
         igood_min = good_ind[0:nfit]
         igood_max = good_ind[-nfit:]
         if np.any(ibad_min):
-            coeff_min = utils.func_fit(spec_vec[igood_min], traces[igood_min, islit], 'legendre', 3,
-                                           minx=0.0, maxx=xnspecmin1)
-            traces_extrap[ibad_min, islit] = utils.func_val(coeff_min, spec_vec[ibad_min], 'legendre', minx=0.0,
-                                                             maxx=xnspecmin1)
+            if 'poly' in method:
+                coeff_min = utils.func_fit(spec_vec[igood_min], traces[igood_min, islit], 'legendre', npoly, minx=0.0, maxx=xnspecmin1)
+                traces_extrap[ibad_min, islit] = utils.func_val(coeff_min, spec_vec[ibad_min], 'legendre', minx=0.0, maxx=xnspecmin1)
+            elif 'edge' in method:
+                traces_extrap[ibad_min, islit] = traces[good_ind[0], islit]
         if np.any(ibad_max):
-            coeff_max = utils.func_fit(spec_vec[igood_max], traces[igood_max, islit], 'legendre', 3,
-                                       minx=0.0, maxx=xnspecmin1)
-            traces_extrap[ibad_max, islit] = utils.func_val(coeff_max, spec_vec[ibad_max], 'legendre', minx=0.0, maxx=xnspecmin1)
+            if 'poly' in method:
+                coeff_max = utils.func_fit(spec_vec[igood_max], traces[igood_max, islit], 'legendre', npoly, minx=0.0,maxx=xnspecmin1)
+                traces_extrap[ibad_max, islit] = utils.func_val(coeff_max, spec_vec[ibad_max], 'legendre', minx=0.0,maxx=xnspecmin1)
+            elif 'edge' in method:
+                traces_extrap[ibad_max, islit] = traces[good_ind[-1], islit]
+
         #ibad = np.invert(igood)
         #traces_extrap[ibad, islit] = interpolate.interp1d(spec_vec[igood], traces[igood, islit], kind='linear',
         #bounds_error=False, fill_value='extrapolate')(spec_vec[ibad])

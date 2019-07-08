@@ -1693,7 +1693,7 @@ class ScienceImagePar(ParSet):
     def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
                  find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
-                 find_fwhm=None, find_maxdev=None, std_prof_nsigma=None,
+                 find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, std_prof_nsigma=None,
                  model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
@@ -1779,6 +1779,15 @@ class ScienceImagePar(ParSet):
         dtypes['find_fwhm'] = [int, float]
         descr['find_fwhm'] = 'Indicates roughly the fwhm of objects in pixels for object finding'
 
+
+        #defaults['find_extrap_method'] = 'poly'
+        #dtypes['find_extrap_method'] = str
+        #descr['find_extrap_method'] = 'Method used for extrapolating traces for echelle data when traces do not cover the entire detector'
+
+        defaults['find_extrap_npoly'] = 3
+        dtypes['find_extrap_npoly'] = int
+        descr['find_extrap_npoly'] = 'Polynomial order used for trace extrapolation'
+
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]
         descr['sn_gauss'] = 'S/N threshold for performing the more sophisticated optimal extraction which performs a ' \
@@ -1813,8 +1822,8 @@ class ScienceImagePar(ParSet):
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
-                   'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev', 'std_prof_nsigma',
-                   'sky_sigrej']
+                   'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev', 'find_extrap_npoly',
+                   'std_prof_nsigma', 'sky_sigrej']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
