@@ -2077,7 +2077,7 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
         use_weights =  coeff_weights[use_order] if coeff_weights is not None else None
         # TODO Note that we are doing a weighted fit using the coeff_weights, but the rejection is still done
         # usnig the ad-hoc invvar created in the line above. I cannot think of a better way.
-        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, invvar = invvar, weights=use_weights, 
+        msk_new, poly_out = utils.robust_polyfit_djs(xfit, yfit, ncoeff, invvar = invvar, weights=use_weights,
                                                      function='polynomial', maxiter=25,
                                                      lower=lower, upper=upper,
                                                      maxrej=maxrej,

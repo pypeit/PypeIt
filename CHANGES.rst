@@ -7,7 +7,7 @@
 - Brings Gemini/GMOS into the suite (R400)
 - Also an important change for autoid.full_template()
 - Fixed trace extrapolation, to fix bugs in object finding. Tweaks to object finding algorithm.
-- Major improvements to echelle object finding. 
+- Major improvements to echelle object finding.
 - Improved outlier rejection and coefficient fitting in pca_trace
 - Major improvements to coadd routines in coadd1d
 - Introduced telluric module and telluric correction routines
