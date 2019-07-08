@@ -144,103 +144,6 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     return sci_list_out, var_list_out, outmask, nused
 
 
-
-def get_brightest_obj(specobjs_list, nslits, pypeline):
-    """
-    Utility routine to find the brightest object in each exposure given a specobjs_list. This currently only works
-    for echelle.
-
-    Parameters:
-        specobjs_list: list
-           List of SpecObjs objects.
-    Optional Parameters:
-        echelle: bool, default=True
-
-    Returns:
-        (objid, slitid, snr_bar), tuple
-
-        objid: ndarray, int, shape (len(specobjs_list),)
-            Array of object ids representing the brightest object in each exposure
-        slitid (int):
-            Slit that highest S/N ratio object is on (only for pypeline=MultiSlit)
-        snr_bar: ndarray, float, shape (len(list),)
-            Average S/N over all the orders for this object
-
-    """
-    nexp = len(specobjs_list)
-    nspec = specobjs_list[0][0].shape[0]
-    if 'Echelle' in pypeline:
-        objid = np.zeros(nexp, dtype=int)
-        snr_bar = np.zeros(nexp)
-        #norders = specobjs_list[0].ech_orderindx.max() + 1
-        for iexp, sobjs in enumerate(specobjs_list):
-            uni_objid = np.unique(sobjs.ech_objid)
-            nobjs = len(uni_objid)
-            order_snr = np.zeros((nslits, nobjs))
-            for iord in range(nslits):
-                for iobj in range(nobjs):
-                    ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
-                    flux = sobjs[ind][0].optimal['COUNTS']
-                    ivar = sobjs[ind][0].optimal['COUNTS_IVAR']
-                    wave = sobjs[ind][0].optimal['WAVE']
-                    mask = sobjs[ind][0].optimal['MASK']
-                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, const_weights=True)
-                    order_snr[iord, iobj] = rms_sn
-
-            # Compute the average SNR and find the brightest object
-            snr_bar_vec = np.mean(order_snr, axis=0)
-            objid[iexp] = uni_objid[snr_bar_vec.argmax()]
-            snr_bar[iexp] = snr_bar_vec[snr_bar_vec.argmax()]
-            slitid = None
-    else:
-        slit_snr_max = np.full((nslits, nexp), -np.inf)
-        objid_max = np.zeros((nslits, nexp),dtype=int)
-        # Loop over each exposure, slit, find the brighest object on that slit for every exposure
-        for iexp, sobjs in enumerate(specobjs_list):
-            for islit in range(nslits):
-                ithis = sobjs.slitid == islit
-                nobj_slit = np.sum(ithis)
-                if np.any(ithis):
-                    objid_this = sobjs[ithis].objid
-                    flux = np.zeros((nspec, nobj_slit))
-                    ivar = np.zeros((nspec, nobj_slit))
-                    wave = np.zeros((nspec, nobj_slit))
-                    mask = np.zeros((nspec, nobj_slit), dtype=bool)
-                    for iobj, spec in enumerate(sobjs[ithis]):
-                        flux[:, iobj] = spec.optimal['COUNTS']
-                        ivar[:,iobj]  = spec.optimal['COUNTS_IVAR']
-                        wave[:,iobj]  = spec.optimal['WAVE']
-                        mask[:,iobj]  = spec.optimal['MASK']
-                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
-                    imax = np.argmax(rms_sn)
-                    slit_snr_max[islit, iexp] = rms_sn[imax]
-                    objid_max[islit, iexp] = objid_this[imax]
-        # Find the highest snr object among all the slits
-        slit_snr = np.mean(slit_snr_max, axis=1)
-        slitid = slit_snr.argmax()
-        snr_bar_mean = slit_snr[slitid]
-        snr_bar = slit_snr_max[slitid, :]
-        objid = objid_max[slitid, :]
-        if (snr_bar_mean == -np.inf):
-            msgs.error('You do not appear to have a unique reference object that was traced as the highest S/N '
-                       'ratio on the same slit of every exposure')
-
-    # Print out a report on the SNR
-    msg_string =          msgs.newline() + '-------------------------------------'
-    msg_string +=         msgs.newline() + '  Summary for highest S/N object'
-    if 'MultiSlit' in pypeline:
-        msg_string +=     msgs.newline() + '      found on slitid = {:d}            '.format(slitid)
-
-    msg_string +=         msgs.newline() + '-------------------------------------'
-    msg_string +=         msgs.newline() + '           exp#       S/N'
-    for iexp, snr in enumerate(snr_bar):
-        msg_string +=     msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, snr)
-
-    msg_string +=         msgs.newline() + '-------------------------------------'
-    msgs.info(msg_string)
-
-    return objid, slitid, snr_bar
-
 def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
 
     if offsets is not None and objid is not None:
@@ -809,10 +712,13 @@ class CoAdd2d(object):
         self.show_peaks = show_peaks
         self.debug_offsets = debug_offsets
         self.debug = debug
+        self.stack_dict = None
+        self.psuedo_dict = None
 
         self.objid_bri = None
         self.slitid_bri  = None
         self.snr_bar_bri = None
+
 
         # Load the stack_dict
         self.stack_dict = self.load_coadd2d_stacks(self.spec2d_files)
@@ -873,6 +779,7 @@ class CoAdd2d(object):
         spec_min1 = np.zeros(self.nslits)
         spec_max1 = np.zeros(self.nslits)
 
+        nspec_grid = self.wave_grid_mid.size
         for islit, coadd_dict in enumerate(coadd_list):
             spat_righ = spat_left + nspat_vec[islit]
             ispec = slice(0,nspec_vec[islit])
@@ -891,10 +798,11 @@ class CoAdd2d(object):
             wave_mid[ispec, islit] = coadd_dict['wave_mid']
             wave_mask[ispec, islit] = True
             # Fill in the rest of the wave_mid with the corresponding points in the wave_grid
-            wave_this = wave_mid[wave_mask[:,islit], islit]
-            ind_upper = np.argmin(np.abs(self.wave_grid_mid - np.max(wave_this.max()))) + 1
-            if nspec_vec[islit] != nspec_psuedo:
-                wave_mid[nspec_vec[islit]:, islit] = self.wave_grid_mid[ind_upper:ind_upper + (nspec_psuedo-nspec_vec[islit])]
+            #wave_this = wave_mid[wave_mask[:,islit], islit]
+            #ind_upper = np.argmin(np.abs(self.wave_grid_mid - wave_this.max())) + 1
+            #if nspec_vec[islit] != nspec_psuedo:
+            #    wave_mid[nspec_vec[islit]:, islit] = self.wave_grid_mid[ind_upper:ind_upper + (nspec_psuedo-nspec_vec[islit])]
+
 
             dspat_mid[ispat, islit] = coadd_dict['dspat_mid']
             slit_left[:,islit] = np.full(nspec_psuedo, spat_left)
@@ -956,12 +864,11 @@ class CoAdd2d(object):
         sciImage.build_mask(slitmask=slitmask_psuedo)
 
         redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], self.par, psuedo_dict['tilts'],
-                                      ir_redux=self.ir_redux, objtype = 'science', binning=self.binning)
+                                      ir_redux=self.ir_redux, objtype = 'science', det=self.det, binning=self.binning)
 
         if show:
             redux.show('image', image=psuedo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
         # Object finding
-        embed()
         sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, ir_redux=self.ir_redux, show_peaks=show_peaks, show=show)
         # Local sky-subtraction
         global_sky_psuedo = np.zeros_like(psuedo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
@@ -979,11 +886,18 @@ class CoAdd2d(object):
             spec.boxcar['WAVE_GRID_MIN'], spec.optimal['WAVE_GRID_MIN'] = [psuedo_dict['wave_min'][:,spec.slitid]]*2
             spec.boxcar['WAVE_GRID_MAX'], spec.optimal['WAVE_GRID_MAX']= [psuedo_dict['wave_max'][:,spec.slitid]]*2
 
+        # Add the rest to the psuedo_dict
+        psuedo_dict['skymodel'] = skymodel_psuedo
+        psuedo_dict['objmodel'] = objmodel_psuedo
+        psuedo_dict['ivarmodel'] = ivarmodel_psuedo
+        psuedo_dict['outmask'] = outmask_psuedo
+        psuedo_dict['sobjs'] = sobjs
+        self.psuedo_dict=psuedo_dict
 
         return psuedo_dict['imgminsky'], psuedo_dict['sciivar'], skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs
 
 
-    def save_masters(self, psuedo_dict, master_dir):
+    def save_masters(self, master_dir):
 
         # Write out the psuedo master files to disk
         master_key_dict = self.stack_dict['master_key_dict']
@@ -991,10 +905,10 @@ class CoAdd2d(object):
         # TODO: These saving operations are a temporary kludge
         waveImage = WaveImage(None, None, None, None, None, None, master_key=master_key_dict['arc'],
                               master_dir=master_dir)
-        waveImage.save(image=psuedo_dict['waveimg'])
+        waveImage.save(image=self.psuedo_dict['waveimg'])
 
         traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
-        traceSlits.save(tslits_dict=psuedo_dict['tslits_dict'])
+        traceSlits.save(tslits_dict=self.psuedo_dict['tslits_dict'])
 
 
     def snr_report(self, snr_bar, slitid=None):
@@ -1310,7 +1224,8 @@ class MultiSlit(CoAdd2d):
                                            npoly_cont=self.par['scienceimage']['find_npoly_cont'],
                                            maxdev=self.par['scienceimage']['find_maxdev'],
                                            ncoeff=3, sig_thresh=10.0, nperslit=1,
-                                           debug_all=self.debug_offsets, specobj_dict=specobj_dict)
+                                           show_trace=self.debug_offsets, show_peaks=self.debug_offsets,
+                                           specobj_dict=specobj_dict)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.trace_spat
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
@@ -1482,7 +1397,7 @@ class Echelle(CoAdd2d):
                     ivar = sobjs[ind][0].optimal['COUNTS_IVAR']
                     wave = sobjs[ind][0].optimal['WAVE']
                     mask = sobjs[ind][0].optimal['MASK']
-                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, const_weights=True)
+                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
                     order_snr[iord, iobj] = rms_sn
 
             # Compute the average SNR and find the brightest object
@@ -1778,3 +1693,101 @@ def instantiate_me(spec2d_files, spectrograph, **kwargs):
 # traceSlits.save(tslits_dict=tslits_dict_psuedo)
 
 # return imgminsky_psuedo, sciivar_psuedo, skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs
+#
+#
+#
+# def get_brightest_obj(specobjs_list, nslits, pypeline):
+#     """
+#     Utility routine to find the brightest object in each exposure given a specobjs_list. This currently only works
+#     for echelle.
+#
+#     Parameters:
+#         specobjs_list: list
+#            List of SpecObjs objects.
+#     Optional Parameters:
+#         echelle: bool, default=True
+#
+#     Returns:
+#         (objid, slitid, snr_bar), tuple
+#
+#         objid: ndarray, int, shape (len(specobjs_list),)
+#             Array of object ids representing the brightest object in each exposure
+#         slitid (int):
+#             Slit that highest S/N ratio object is on (only for pypeline=MultiSlit)
+#         snr_bar: ndarray, float, shape (len(list),)
+#             Average S/N over all the orders for this object
+#
+#     """
+#     nexp = len(specobjs_list)
+#     nspec = specobjs_list[0][0].shape[0]
+#     if 'Echelle' in pypeline:
+#         objid = np.zeros(nexp, dtype=int)
+#         snr_bar = np.zeros(nexp)
+#         #norders = specobjs_list[0].ech_orderindx.max() + 1
+#         for iexp, sobjs in enumerate(specobjs_list):
+#             uni_objid = np.unique(sobjs.ech_objid)
+#             nobjs = len(uni_objid)
+#             order_snr = np.zeros((nslits, nobjs))
+#             for iord in range(nslits):
+#                 for iobj in range(nobjs):
+#                     ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
+#                     flux = sobjs[ind][0].optimal['COUNTS']
+#                     ivar = sobjs[ind][0].optimal['COUNTS_IVAR']
+#                     wave = sobjs[ind][0].optimal['WAVE']
+#                     mask = sobjs[ind][0].optimal['MASK']
+#                     rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, const_weights=True)
+#                     order_snr[iord, iobj] = rms_sn
+#
+#             # Compute the average SNR and find the brightest object
+#             snr_bar_vec = np.mean(order_snr, axis=0)
+#             objid[iexp] = uni_objid[snr_bar_vec.argmax()]
+#             snr_bar[iexp] = snr_bar_vec[snr_bar_vec.argmax()]
+#             slitid = None
+#     else:
+#         slit_snr_max = np.full((nslits, nexp), -np.inf)
+#         objid_max = np.zeros((nslits, nexp),dtype=int)
+#         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
+#         for iexp, sobjs in enumerate(specobjs_list):
+#             for islit in range(nslits):
+#                 ithis = sobjs.slitid == islit
+#                 nobj_slit = np.sum(ithis)
+#                 if np.any(ithis):
+#                     objid_this = sobjs[ithis].objid
+#                     flux = np.zeros((nspec, nobj_slit))
+#                     ivar = np.zeros((nspec, nobj_slit))
+#                     wave = np.zeros((nspec, nobj_slit))
+#                     mask = np.zeros((nspec, nobj_slit), dtype=bool)
+#                     for iobj, spec in enumerate(sobjs[ithis]):
+#                         flux[:, iobj] = spec.optimal['COUNTS']
+#                         ivar[:,iobj]  = spec.optimal['COUNTS_IVAR']
+#                         wave[:,iobj]  = spec.optimal['WAVE']
+#                         mask[:,iobj]  = spec.optimal['MASK']
+#                     rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
+#                     imax = np.argmax(rms_sn)
+#                     slit_snr_max[islit, iexp] = rms_sn[imax]
+#                     objid_max[islit, iexp] = objid_this[imax]
+#         # Find the highest snr object among all the slits
+#         slit_snr = np.mean(slit_snr_max, axis=1)
+#         slitid = slit_snr.argmax()
+#         snr_bar_mean = slit_snr[slitid]
+#         snr_bar = slit_snr_max[slitid, :]
+#         objid = objid_max[slitid, :]
+#         if (snr_bar_mean == -np.inf):
+#             msgs.error('You do not appear to have a unique reference object that was traced as the highest S/N '
+#                        'ratio on the same slit of every exposure')
+#
+#     # Print out a report on the SNR
+#     msg_string =          msgs.newline() + '-------------------------------------'
+#     msg_string +=         msgs.newline() + '  Summary for highest S/N object'
+#     if 'MultiSlit' in pypeline:
+#         msg_string +=     msgs.newline() + '      found on slitid = {:d}            '.format(slitid)
+#
+#     msg_string +=         msgs.newline() + '-------------------------------------'
+#     msg_string +=         msgs.newline() + '           exp#       S/N'
+#     for iexp, snr in enumerate(snr_bar):
+#         msg_string +=     msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, snr)
+#
+#     msg_string +=         msgs.newline() + '-------------------------------------'
+#     msgs.info(msg_string)
+#
+#     return objid, slitid, snr_bar
