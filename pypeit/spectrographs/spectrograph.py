@@ -507,6 +507,21 @@ class Spectrograph(object):
         self._check_detector()
         return (self.load_raw_frame(filename, det=det)[0]).shape
 
+    def header_cards_for_spec(self):
+        """
+        Define the header cards to be written to spec1d (and maybe spec2d) files.
+        These refer to the keys in the fitstbl
+
+        Returns:
+            list: Keys for header cards of spec1d
+
+        """
+        core_meta = PypeItMetaData.define_core_meta()
+        header_cards = list(core_meta.keys())
+        # Add a few more
+        header_cards += ['filename']  # For fluxing
+        return header_cards
+
     def orient_image(self, rawimage, det):
         """
         Orient the image into the PypeIt frame
@@ -831,89 +846,10 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
-#    def parse_binning(self, inp, det=1, key='BINNING'):
-#        """
-#        Get the pixel binning for an image.
-#
-#        Args:
-#            inp (:obj:`str`, `astropy.io.fits.Header`):
-#                String providing the file name to read, or the relevant
-#                header object.
-#            det (:obj:`int`, optional):
-#                1-indexed detector number.
-#            key (:obj:`str`, optional):
-#                Header key with the binning.  This is included as an
-#                argument in the base-class implementation so that it can
-#                be called by the derived classes for most cases, when
-#                the binning is in a single keyword.
-#
-#        Returns:
-#            str: String representation of the binning.  The ordering is
-#            as provided in the header, regardless of which axis is
-#            designated as the dispersion axis.  It is expected that this
-#            be used with :func:`pypeit.core.parse.sec2slice` to setup
-#            the data and overscane sections of the image data.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if `inp` is not one of the accepted types.
-#        """
-#        # Get the header
-#        # TODO: Read primary header by default instead?
-#        if isinstance(inp, str):
-#            hdu = fits.open(inp)
-#            hdr = hdu[self.detector[det-1]['dataext']].header
-#        elif isinstance(inp, fits.Header):
-#            hdr = inp
-#        else:
-#            msgs.error('Input must be a filename or fits.Header object')
-#
-#        # Parse the keyword
-#        binning = parse.parse_binning(hdr[key])
-#
-#        # Return comma-separated string
-#        return ','.join([ str(b) for b in binning])
-
     @property
     def ndet(self):
         """Return the number of detectors."""
         return 0 if self.detector is None else len(self.detector)
-
-    '''
-    def archive_sky_spectrum(self):
-        """
-        Load an archived sky spectrum based on :attr:`sky_file`.
-        
-        Returns:
-            str, :class:`linetools.xspectrum1d.XSpectrum1D`: The name of
-            the file and the instance of :class:`XSpectrum1D` with the
-            spectrum data.
-
-        Raises:
-            FileNotFoundError:
-                Raised if the file does not exist as written or in the
-                pypeit/data/sky_spec/ directory in the source
-                distribution.
-        """
-        # No file was defined
-        if self.sky_file is None:
-            self.sky_file = Spectrograph.default_sky_spectrum()
-            warnings.warn('Using default sky spectrum: {0}'.format(self.sky_file))
-
-        if os.path.isfile(self.sky_file):
-            # Found directly
-            return self.sky_file, xspectrum1d.XSpectrum1D.from_file(self.sky_file)
-
-        root = resource_filename('pypeit', 'data/sky_spec/')
-        _sky_file = os.path.join(root, self.sky_file)
-        if os.path.isfile(_sky_file):
-            # Found within the source distribution
-            return self.sky_file, xspectrum1d.XSpectrum1D.from_file(_sky_file)
-
-        # File could not be read
-        raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
-                                    self.sky_file, _sky_file))
-    '''
 
     @property
     def pypeline(self):

@@ -373,10 +373,14 @@ class MultiSlit(FluxSpec):
                                                self.spectrograph.telescope['longitude'],
                                                self.spectrograph.telescope['latitude'],
                                                BALM_MASK_WID=self.par['balm_mask_wid'],
+                                               star_type=self.star_type,
+                                               star_mag=self.star_mag,
                                                telluric=self.telluric,
                                                ra=self.std_ra,
                                                dec=self.std_dec,
                                                std_file = self.std_file,
+                                               poly_norder=self.poly_norder,
+                                               polycorrect=self.polycorrect,
                                                debug=self.debug)
         self.sens_dict['0'] = sens_dict_long
         self.sens_dict['nslits'] = 1
@@ -443,8 +447,6 @@ class Echelle(FluxSpec):
                       'AIRMASS, EXPTIME.')
             return None
 
-        ext_final = fits.getheader(self.par['std_file'], -1)
-        #norder = ext_final['ECHORDER'] + 1
         norder = len(self.std)
 
         self.sens_dict = {}
@@ -458,13 +460,12 @@ class Echelle(FluxSpec):
             try:
                 wavemask = std.optimal['WAVE_GRID'] > 0.0 #*units.AA
             except KeyError:
-                wavemask = std.boxcar['WAVE'] > 1000.0 * units.AA
-                this_wave = std.boxcar['WAVE'][wavemask]
+                wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
+                this_wave = std.optimal['WAVE'][wavemask]
             else:
                 this_wave = std.optimal['WAVE_GRID'][wavemask]
 
-            #counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
-            counts, ivar = std.boxcar['COUNTS'][wavemask], std.boxcar['COUNTS_IVAR'][wavemask]
+            counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
             sens_dict_iord = flux.generate_sensfunc(this_wave, counts, ivar,
                                                     float(self.std_header['AIRMASS']),
                                                     self.std_header['EXPTIME'],
@@ -478,7 +479,8 @@ class Echelle(FluxSpec):
                                                     poly_norder=self.poly_norder,
                                                     polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
-            self.sens_dict[str(iord)] = sens_dict_iord  # THIS SHOULD BE THE PHYSICAL ORDER!
+            self.sens_dict[str(iord)] = sens_dict_iord
+        ## add some keys to be saved into primary header in masterframe
         for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
                     'std_name', 'cal_file']:
             try:

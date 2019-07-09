@@ -187,7 +187,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 120.
+        par['calibrations']['slits']['sigdetect'] = 100.
         par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slitedges']['edge_thresh'] = 50.
@@ -248,7 +248,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # This is a hack for now until we can specify for each image type what to do. Bias currently
         # controls everything
         par['calibrations']['biasframe']['useframe'] = 'none'
-
         return par
 
     def check_headers(self, headers):
@@ -392,8 +391,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     def slit_minmax(self, nslits, binspectral=1):
 
         # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
-        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
+        all_spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
+        all_spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
+
+        spec_min = all_spec_min[:nslits] # data with K blocking filter need to be trimed
+        spec_max = all_spec_max[:nslits]
 
         return spec_min, spec_max
 
@@ -498,6 +500,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to parameters for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        # X-SHOOTER arcs are also have different binning with bias frames
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 

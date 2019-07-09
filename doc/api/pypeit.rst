@@ -34,7 +34,10 @@ Submodules
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.reduce
+<<<<<<< HEAD
    pypeit.sampling
+=======
+>>>>>>> develop
    pypeit.setup_package
    pypeit.specobjs
    pypeit.telescopes

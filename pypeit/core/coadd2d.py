@@ -22,10 +22,10 @@ from pypeit import edgetrace
 from pypeit.images import scienceimage
 from pypeit import reduce
 
-from pypeit.core import load, coadd, pixels
+from pypeit.core import load, coadd1d, pixels
 from pypeit.core import parse
 from pypeit.spectrographs import util
-import IPython
+from IPython import embed
 
 
 def get_brightest_obj(specobjs_list, echelle=True):
@@ -61,10 +61,10 @@ def get_brightest_obj(specobjs_list, echelle=True):
                 for iobj in range(nobjs):
                     ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
                     flux = sobjs[ind][0].optimal['COUNTS']
-                    sig = sobjs[ind][0].optimal['COUNTS_SIG']
+                    ivar = sobjs[ind][0].optimal['COUNTS_IVAR']
                     wave = sobjs[ind][0].optimal['WAVE']
                     mask = sobjs[ind][0].optimal['MASK']
-                    rms_sn, weights = coadd.sn_weights(flux, sig, mask, wave, const_weights=True)
+                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, const_weights=True)
                     order_snr[iord, iobj] = rms_sn
 
             # Compute the average SNR and find the brightest object
@@ -113,7 +113,7 @@ def optimal_weights(specobjs_list, slitid, objid):
     # Grab the traces, flux, wavelength and noise for this slit and objid.
     trace_stack = np.zeros((nexp, nspec), dtype=float)
     flux_stack = np.zeros((nexp, nspec), dtype=float)
-    sig_stack = np.zeros((nexp, nspec), dtype=float)
+    ivar_stack = np.zeros((nexp, nspec), dtype=float)
     wave_stack = np.zeros((nexp, nspec), dtype=float)
     mask_stack = np.zeros((nexp, nspec), dtype=bool)
 
@@ -121,14 +121,14 @@ def optimal_weights(specobjs_list, slitid, objid):
         ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
         trace_stack[iexp, :] = sobjs[ithis].trace_spat
         flux_stack[iexp,:] = sobjs[ithis][0].optimal['COUNTS']
-        sig_stack[iexp,:] = sobjs[ithis][0].optimal['COUNTS_SIG']
+        ivar_stack[iexp,:] = sobjs[ithis][0].optimal['COUNTS_IVAR']
         wave_stack[iexp,:] = sobjs[ithis][0].optimal['WAVE']
         mask_stack[iexp,:] = sobjs[ithis][0].optimal['MASK']
 
     # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-    rms_sn, weights = coadd.sn_weights(flux_stack, sig_stack, mask_stack, wave_stack)
+    rms_sn, weights = coadd1d.sn_weights(wave_stack.T, flux_stack.T, ivar_stack.T, mask_stack.T)
 
-    return rms_sn, weights, trace_stack, wave_stack
+    return rms_sn, weights.T, trace_stack, wave_stack
 
 def det_error_msg(exten, sdet):
     # Print out error message if extension is not found
@@ -307,7 +307,8 @@ def broadcast_weights(weights, shape):
                 (nimgs, nspec)        -- wavelength dependent weights per image
                 (nimgs, nspec, nspat) -- weights already have the shape of the image stack and are simply returned
         shape: tuple of integers
-            Shape of the image stacks for weighted coadding (nimgs, nspec, nspat)
+            Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
+            (nimgs, nspec, nspat) for 2d spectrum images
 
     Returns:
 
@@ -316,10 +317,20 @@ def broadcast_weights(weights, shape):
     # weights to the spatial direction
     if weights.ndim == 1:
         # One float per image
-        weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
+        if len(shape) == 2:
+            weights_stack = np.einsum('i,ij->ij', weights, np.ones(shape))
+        elif len(shape) == 3:
+            weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
+        else:
+            msgs.error('Image shape is not supported')
     elif weights.ndim == 2:
         # Wavelength dependent weights per image
-        weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
+        if len(shape) == 2:
+            if weights.shape != shape:
+                msgs.error('The shape of weights does not match the shape of the image stack')
+            weights_stack = weights
+        elif len(shape) == 3:
+            weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
     elif weights.ndim == 3:
         # Full image stack of weights
         if weights.shape != shape:
@@ -545,14 +556,14 @@ def img_list_error_check(sci_list, var_list):
     shape_sci_list = []
     for img in sci_list:
         shape_sci_list.append(img.shape)
-        if img.ndim != 3:
-            msgs.error('Dimensionality of an image in sci_list is not 3')
+        if img.ndim < 2:
+            msgs.error('Dimensionality of an image in sci_list is < 2')
 
     shape_var_list = []
     for img in var_list:
         shape_var_list.append(img.shape)
-        if img.ndim != 3:
-            msgs.error('Dimensionality of an image in var_list is not 3')
+        if img.ndim < 2:
+            msgs.error('Dimensionality of an image in var_list is < 2')
 
     for isci in shape_sci_list:
         if isci != shape_sci_list[0]:
@@ -831,20 +842,18 @@ def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False,
     sciImage.build_mask(slitmask=slitmask_psuedo)
 
 
-    redux = reduce.instantiate_me(sciImage, spectrograph, tslits_dict_psuedo, ir_redux=ir_redux, par=par,
+    redux = reduce.instantiate_me(sciImage, spectrograph, tslits_dict_psuedo, par, tilts_psuedo, ir_redux=ir_redux,
                                   objtype = 'science', binning=binning)
 
     if show:
         redux.show('image', image=imgminsky_psuedo*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
     # Object finding
-    sobjs_obj, nobj, skymask_init = redux.find_objects(ir_redux=ir_redux, std=std,
+    sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, ir_redux=ir_redux, std=std,
                                                        show_peaks=show_peaks, show=show)
     # Local sky-subtraction
     global_sky_psuedo = np.zeros_like(imgminsky_psuedo) # No global sky for co-adds since we go straight to local
-    rn2img_psuedo = global_sky_psuedo # No rn2img for co-adds since we go do not model noise
     skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs = \
-        redux.local_skysub_extract(tilts_psuedo, waveimg_psuedo, global_sky_psuedo,
-                                   rn2img_psuedo, sobjs_obj, spat_pix=spat_psuedo, std=std,
+        redux.local_skysub_extract(waveimg_psuedo, global_sky_psuedo, sobjs_obj, spat_pix=spat_psuedo, std=std,
                                    model_noise=False, show_profile=show, show=show)
 
     if ir_redux:
@@ -932,9 +941,11 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     """
 
     shape = img_list_error_check(sci_list, var_list)
+
     nimgs = shape[0]
-    nspec = shape[1]
-    nspat = shape[2]
+    img_shape = shape[1:]
+    #nspec = shape[1]
+    #nspat = shape[2]
 
     if nimgs == 1:
         # If only one image is passed in, simply return the input lists of images, but reshaped
@@ -942,11 +953,11 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         msgs.warn('Cannot combine a single image. Returning input images')
         sci_list_out = []
         for sci_stack in sci_list:
-            sci_list_out.append(sci_stack.reshape((nspec, nspat)))
+            sci_list_out.append(sci_stack.reshape(img_shape))
         var_list_out = []
         for var_stack in var_list:
-            var_list_out.append(var_stack.reshape((nspec, nspat)))
-        outmask = inmask_stack.reshape((nspec, nspat))
+            var_list_out.append(var_stack.reshape(img_shape))
+        outmask = inmask_stack.reshape(img_shape)
         nused = outmask.astype(int)
         return sci_list_out, var_list_out, outmask, nused
 
@@ -970,7 +981,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
         data = np.ma.MaskedArray(sigma_clip_stack, np.invert(inmask_stack))
         sigclip = astropy.stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median')
-        data_clipped = sigclip(data, axis=0, masked=True)
+        data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
         mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
     else:
         if sigma_clip and nimgs < 3:

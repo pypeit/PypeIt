@@ -237,37 +237,6 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-'''
-def gain_frame(datasec_img, gain_list, trim=True):
-    """ Generate a gain image
-
-    Parameters
-    ----------
-    datasec_img : ndarray
-    namp : int
-    gain_list : list
-    # TODO need to beef up the docs here
-
-    Returns
-    -------
-    gain_img : ndarray
-
-    """
-    # TODO: Remove this or actually do it
-    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
-
-    # Loop on amplifiers
-    gain_img = np.zeros_like(datasec_img, dtype=float)
-    for ii, gain in enumerate(gain_list):
-        amp = ii+1
-        amppix = datasec_img == amp
-        gain_img[amppix] = gain
-    if trim:
-        gain_img = trim_frame(gain_img, datasec_img < 1)
-    # Return
-    return gain_img
-'''
-
 def gain_frame(amp_img, gain, trim=True):
     """
     Generate an image with the gain for each pixel.

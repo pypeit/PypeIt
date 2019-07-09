@@ -24,7 +24,6 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
 #def test_arcid_plot():
 #    json_file = data_path('LRISb_600_WaveCalib_01.json')
 #    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
@@ -32,6 +31,7 @@ def data_path(filename):
 #    arcid_plot.main(pargs)
 
 
+#'''
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -121,7 +121,7 @@ def test_view_fits():
     """
     spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list'])
-
+#'''
 
 def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')

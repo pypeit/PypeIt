@@ -18,6 +18,7 @@ from pypeit import utils
 from pypeit.core import pydl
 from matplotlib import pyplot as plt
 import copy
+import IPython
 
 import scipy
 
@@ -233,8 +234,13 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     log_ivar_fit = log_ivar[fit_spec][isrt_spec]
     inmask_log_fit = inmask_log[fit_spec][isrt_spec]
     nfit_spec = np.sum(fit_spec)
+    nthismask = np.sum(thismask_in)
+    spec_frac = nfit_spec/nthismask
     logrej = 0.5 # rejectino threshold for spectral fit in log(image)
     msgs.info('Spectral fit of flatfield for {:}'.format(nfit_spec) + ' pixels')
+    if spec_frac < 0.5:
+        msgs.warn('Spectral flatfield fit is to only {:4.2f}'.format(100*spec_frac) + '% of the pixels on this slit.' +
+                  msgs.newline() + '          Your flat is probably saturated')
 
     # ToDo Figure out how to deal with the fits going crazy at the edges of the chip in spec direction
     spec_set_fine, outmask_spec, specfit, _, exit_status = \
@@ -276,6 +282,12 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     spec_sm_max = np.fmin(spec_sm.max(),nonlinear_counts)
     fit_spat = thismask & inmask & (flat < nonlinear_counts) & (spec_model > 1.0) & (spec_model > 0.1*spec_sm_max) & \
                (norm_spec > 0.0) & (norm_spec < 1.7)
+    nfit_spat = np.sum(fit_spat)
+    spat_frac = nfit_spat/nthismask
+    if spat_frac < 0.5:
+        msgs.warn('Spatial flatfield fit is to only {:4.2f}'.format(100*spec_frac) + '% of the pixels on this slit.' +
+                  msgs.newline() + '              Your flat is probably saturated')
+
     isrt_spat = np.argsort(ximg[fit_spat])
     ximg_fit = ximg[fit_spat][isrt_spat]
     norm_spec_fit = norm_spec[fit_spat][isrt_spat]
