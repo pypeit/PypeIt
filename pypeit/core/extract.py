@@ -2237,7 +2237,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
       Skymask indicating which pixels can be used for global sky subtraction
     """
 
-    debug_all=True
+    #debug_all=True
     if debug_all:
         #show_peaks = True
         #show_fits = True

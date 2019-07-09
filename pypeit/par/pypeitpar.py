@@ -1693,7 +1693,9 @@ class ScienceImagePar(ParSet):
     def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
                  find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
-                 find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, std_prof_nsigma=None,
+                 find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, ech_find_max_snr=None,
+                 ech_find_min_snr=None, ech_find_nabove_min_snr=None,
+                 std_prof_nsigma=None,
                  model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
@@ -1779,6 +1781,20 @@ class ScienceImagePar(ParSet):
         dtypes['find_fwhm'] = [int, float]
         descr['find_fwhm'] = 'Indicates roughly the fwhm of objects in pixels for object finding'
 
+        defaults['ech_find_max_snr'] = 2.0
+        dtypes['ech_find_max_snr'] = [int, float]
+        descr['ech_find_max_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value' \
+                                    ' or satisfy the min_snr criteria described by the min_snr parameters'
+
+        defaults['ech_find_min_snr'] = 1.0
+        dtypes['ech_find_min_snr'] = [int, float]
+        descr['ech_find_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
+                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+
+        defaults['ech_find_nabove_min_snr'] = 2
+        dtypes['ech_find_nabove_min_snr'] = int
+        descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
+                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
 
         #defaults['find_extrap_method'] = 'poly'
         #dtypes['find_extrap_method'] = str
@@ -1823,7 +1839,7 @@ class ScienceImagePar(ParSet):
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
                    'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev', 'find_extrap_npoly',
-                   'std_prof_nsigma', 'sky_sigrej']
+                   'ech_find_max_snr', 'ech_find_min_snr', 'ech_find_nabove_min_snr', 'std_prof_nsigma', 'sky_sigrej']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
