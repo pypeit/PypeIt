@@ -2322,7 +2322,7 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
         order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug)
         wave_merge, flux_merge, ivar_merge, mask_merge, nused_merge = compute_stack(
             wave_grid, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders, order_weights)
-        if debug or show:
+        if show_order_stacks:
             qafile_merge = 'spec1d_merge_{:}'.format(qafile)
             coadd_qa(wave_merge, flux_merge, ivar_merge, nused_merge, mask=mask_merge, tell = None,
                      title='Straight combined spectrum of the stacked individual orders', qafile=qafile_merge)
