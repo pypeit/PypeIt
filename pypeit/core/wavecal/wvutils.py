@@ -40,6 +40,11 @@ def get_sampling(waves, pix_per_R=3.0):
         waves_stack = waves.reshape((nspec, norders))
     elif waves.ndim == 2:
         waves_stack = waves
+    elif waves.ndim == 3:
+        nspec, norder, nexp = waves.shape
+        waves_stack = np.reshape(waves, (nspec, norder * nexp), order='F')
+    else:
+        msgs.error('The shape of your wavelength array does not make sense.')
 
     wave_mask = waves_stack > 1.0
     waves_ma = np.ma.array(waves_stack, mask=np.invert(wave_mask))
