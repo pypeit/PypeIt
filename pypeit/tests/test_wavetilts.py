@@ -30,15 +30,15 @@ def master_dir():
 def test_step_by_step(master_dir):
     # Masters
     spectrograph = load_spectrograph('shane_kast_blue')
-    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
+    msarc, edges = load_kast_blue_masters(aimg=True, edges=True)
     # Instantiate
     master_key = 'A_1_01'
     parset = spectrograph.default_pypeit_par()
     par = parset['calibrations']['tilts']
     wavepar = parset['calibrations']['wavelengths']
-    waveTilts = wavetilts.WaveTilts(msarc, tslits_dict, spectrograph, par, wavepar,
-                                    det=1, master_key=master_key,
-                                    master_dir=master_dir,reuse_masters=True)
+    waveTilts = wavetilts.WaveTilts(msarc, edges.convert_to_tslits_dict(), spectrograph, par,
+                                    wavepar, det=1, master_key=master_key, master_dir=master_dir,
+                                    reuse_masters=True)
     # Extract arcs
     arccen, maskslits = waveTilts.extract_arcs(waveTilts.slitcen, waveTilts.slitmask, msarc, waveTilts.inmask)
     assert arccen.shape == (2048,1)
@@ -62,16 +62,16 @@ def test_step_by_step(master_dir):
 def test_run(master_dir):
     # Masters
     spectrograph = load_spectrograph('shane_kast_blue')
-    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
+    msarc, edges = load_kast_blue_masters(aimg=True, edges=True)
     # Instantiate
     master_key = 'A_1_01'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     wavepar = pypeitpar.WavelengthSolutionPar()
-    waveTilts = wavetilts.WaveTilts(msarc, tslits_dict, spectrograph, par, wavepar,
-                                    det=1, master_key=master_key,
-                                    master_dir=master_dir, reuse_masters=True)
+    waveTilts = wavetilts.WaveTilts(msarc, edges.convert_to_tslits_dict(), spectrograph, par,
+                                    wavepar, det=1, master_key=master_key, master_dir=master_dir,
+                                    reuse_masters=True)
     # Run
     tilts_dict, mask = waveTilts.run(doqa=False)
     assert isinstance(tilts_dict['tilts'], np.ndarray)

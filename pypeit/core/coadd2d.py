@@ -18,6 +18,7 @@ from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
 from pypeit.traceslits import TraceSlits
+from pypeit import edgetrace
 from pypeit.images import scienceimage
 from pypeit import reduce
 
@@ -240,7 +241,8 @@ def load_coadd2d_stacks(spec2d_files, det):
     # Right now we assume there is a single tslits_dict for all images and read in the first one
     # TODO this needs to become a tslits_dict for each file to accomodate slits defined by flats taken on different
     # nights
-    tslits_dict, _ = TraceSlits.load_from_file(tracefiles[0])
+#    tslits_dict, _ = TraceSlits.load_from_file(tracefiles[0])
+    tslits_dict = edgetrace.EdgeTraceSet.from_file(tracefiles[0]).convert_to_tslits_dict()
     spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
     slitmask = pixels.tslits2mask(tslits_dict)
     slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
@@ -873,8 +875,11 @@ def extract_coadd2d(stack_dict, master_dir, det, samp_fact = 1.0,ir_redux=False,
                           master_dir=master_dir)
     waveImage.save(image=waveimg_psuedo)
 
-    traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
-    traceSlits.save(tslits_dict=tslits_dict_psuedo)
+#    traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
+#    traceSlits.save(tslits_dict=tslits_dict_psuedo)
+    edges = edgetrace.EdgeTraceSet.from_tslits_dict(tslits_dict_pseudo, master_key_dict['trace'],
+                                                    master_dir)
+    edges.save()
 
     return imgminsky_psuedo, sciivar_psuedo, skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs
 

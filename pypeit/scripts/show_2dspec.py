@@ -14,6 +14,7 @@ from pypeit.images.maskimage import ImageBitMask
 from pypeit.core import pixels
 from pypeit.masterframe import MasterFrame
 from pypeit.traceslits import TraceSlits
+from pypeit import edgetrace
 import os
 import numpy as np
 import IPython
@@ -125,7 +126,8 @@ def main(args):
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
-    tslits_dict = TraceSlits.load_from_file(trc_file)[0]
+#    tslits_dict = TraceSlits.load_from_file(trc_file)[0]
+    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
     slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'],

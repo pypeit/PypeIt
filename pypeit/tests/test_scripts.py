@@ -6,12 +6,16 @@ import sys
 import glob
 import shutil
 
+from configobj import ConfigObj
+
 import pytest
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
+from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit import msgs
+from pypeit.pypeitsetup import PypeItSetup
 from pypeit.scripts import setup, run_pypeit, show_1dspec, coadd_1dspec, chk_edges, view_fits
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import ginga
@@ -26,6 +30,7 @@ def data_path(filename):
 #    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
 #    # Run
 #    arcid_plot.main(pargs)
+
 
 @dev_suite_required
 def test_run_pypeit():
@@ -58,6 +63,21 @@ def test_run_pypeit():
     configdir = os.path.join(outdir, 'shane_kast_blue_A')
     pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
     assert os.path.isfile(pyp_file), 'PypeIt file not written.'
+
+    # This data does not have enough traces to do the PCA, so the
+    # prediction for the trace has to use the 'nearest' mode, instead of
+    # the 'pca' mode.  So we need to modify the parameters used and
+    # re-write the pypeit file
+    ps = PypeItSetup.from_pypeit_file(pyp_file)
+    ps.run()
+    # Get rid of the existing calibrations keywords because they just
+    # set the number
+    cfg = ConfigObj(ps.user_cfg)
+    del cfg['calibrations']
+    cfg['calibrations'] = {}
+    cfg['calibrations']['slitedges'] = {}
+    cfg['calibrations']['slitedges']['sync_predict'] = 'nearest'
+    ps.fitstbl.write_pypeit(os.path.split(pyp_file)[0], cfg_lines=cfg.write())
 
     # Perform the original reductions
     args = run_pypeit.parser([pyp_file, '-o'])
@@ -122,7 +142,6 @@ def test_coadd():
     assert 'scale_method' in list(gparam.keys())
 
 
-
 def test_coadd2():
     """ Test using a list of object names
     """
@@ -139,4 +158,5 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
                 = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+
 

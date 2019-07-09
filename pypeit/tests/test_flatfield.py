@@ -43,16 +43,16 @@ from pypeit.spectrographs.util import load_spectrograph
 def test_run():
     # Masters
     spectrograph = load_spectrograph('shane_kast_blue')
-    tslits_dict, mstrace, tilts_dict, \
-                = load_kast_blue_masters(tslits=True, tilts=True)
+    edges, tilts_dict = load_kast_blue_masters(edges=True, tilts=True)
     # Instantiate
     frametype = 'pixelflat'
     par = pypeitpar.FrameGroupPar(frametype)
     flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
-                                    tslits_dict=tslits_dict.copy())
+                                    tslits_dict=edges.convert_to_tslits_dict())
 
-    # Use mstrace
-    flatField.rawflatimg = mstrace.copy()
+    # Use the trace image
+    flatField.rawflatimg = edges.img.copy()
+
     mspixelflatnrm, msillumflat = flatField.run()
     assert np.isclose(np.median(mspixelflatnrm), 1.0)
 

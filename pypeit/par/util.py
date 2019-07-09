@@ -565,6 +565,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
     else:
         _cfg_lines = list(cfg_lines)
 
+    # TODO: Can we get rid of these lines?
     if setup_mode:
         _cfg_lines += ['[calibrations]']
         _cfg_lines += ['    [[biasframe]]']
@@ -620,5 +621,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
             f.write('\n')
         f.write("data end\n")
         f.write("\n")
+
+    msgs.info('PypeIt file written to: {0}'.format(pypeit_file))
 
 

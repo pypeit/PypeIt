@@ -12,6 +12,7 @@ from astropy import time
 
 from pypeit import arcimage
 from pypeit import traceslits
+from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import flatfield
 from pypeit import wavetilts
@@ -114,17 +115,17 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.  We should remove the get_spectrograph option.
-def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False, pixflat=False):
+def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
     """
     Load up the set of shane_kast_blue master frames
 
-    Order is Arc, tslits_dict, tilts_dict, wv_calib, pixflat
+    Order is Arc, edges, tilts_dict, wv_calib, pixflat
 
     Args:
         get_spectrograph:
         aimg:
-        tslits (bool, optional):
-            Load the tslits_dict
+        edges (bool, optional):
+            Load the slit edges
         tilts:
         datasec:
         wvcalib:
@@ -155,11 +156,12 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False,
         msarc = AImg.load()
         ret.append(msarc)
 
-    if tslits:
+    if edges:
         trace_file = os.path.join(master_dir, MasterFrame.construct_file_name('Trace', master_key))
-        tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(trace_file)
-        ret.append(tslits_dict)
-        ret.append(mstrace)
+#        tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(trace_file)
+#        ret.append(tslits_dict)
+#        ret.append(mstrace)
+        ret.append(edgetrace.EdgeTraceSet.from_file(trace_file))
 
     if tilts:
         tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))

@@ -1150,13 +1150,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Raised if validation of the data fails (actually
                 raised by :func:`_reinit`).
         """
-        filename = self.file_path
         # Check the file exists
-        if not os.path.isfile(filename):
-            msgs.error('File does not exit: {0}'.format(filename))
-        with fits.open(filename) as hdu:
+        if not self.exists():
+            msgs.error('File does not exit: {0}'.format(self.file_path))
+        with fits.open(self.file_path) as hdu:
             # Re-initialize and validate
             self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
+
+    def exists(self):
+        """
+        Check if the output file already exists.
+        """
+        return os.path.isfile(self.file_path)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=True):
@@ -1428,8 +1433,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             return
 
         # Plot the trace fits
-        show_fit = np.any(np.invert(self.bitmask.flagged(self.spat_msk,
-                                                         flag=self.bitmask.bad_flags)), axis=0)
+        show_fit = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                      exclude=self.bitamsk.insert_flags))
         for i in range(self.ntrace):
             if not trace_indx[i]:
                 continue
@@ -1526,8 +1531,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             ax_y0 = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
 
             # Spatial pixel plot limits for this trace
-            indx = np.invert(self.bitmask.flagged(self.spat_msk[:,i],
-                                                  flag=self.bitmask.bad_flags))
+            indx = np.invert(self.bitmask.flagged(self.spat_msk[:,i], flag=self.bitmask.bad_flags))
             ylim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
             if min_spat is not None and np.diff(ylim) < min_spat:
                 ylim = np.sum(ylim)/2 + np.array([-1,1])*min_spat/2
@@ -1744,8 +1748,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msk = np.zeros_like(self.spat_msk, dtype=self.bitmask.minimum_dtype())
 
         # Ignore inserted traces
-        inserted = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.insert_flags),
-                                               axis=0)
+        inserted = self.fully_masked_traces(flag=self.bitmask.insert_flags)
         if np.any(inserted):
             cen[:,inserted] = self.spat_cen[:,inserted]
             err[:,inserted] = self.spat_err[:,inserted]
@@ -2029,8 +2032,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Construct the bad pixel mask depending whether we matching
         # models or measurements
-        bpm = np.tile(np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags),
-                             axis=0), (self.nspec,1)) if use_fit else self.spat_msk.astype(bool)
+        bpm = np.tile(self.fully_masked_traces(flag=self.bitmask.bad_flags),(self.nspec,1)) \
+                        if use_fit else self.spat_msk.astype(bool)
 
         # The center values used to test for matches; can either be the
         # modeled or measured data.
@@ -2109,7 +2112,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             return False
-        side = np.clip(self.traceid, -1, 1)
+        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                 exclude=self.bitmask.insert_flags))
+        side = np.clip(self.traceid[gpm], -1, 1)
         return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
 
     def check_synced(self, rebuild_pca=False):
@@ -2285,8 +2290,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         if self.par['sync_clip']:
             # Remove traces that have been fully flagged as bad
-            rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags),
-                             axis=0)
+            rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags)
             self.remove_traces(rmtrace, rebuild_pca=rebuild_pca, sync_rm='both')
             if self.is_empty:
                 msgs.warn('Assuming a single long-slit and continuing.')
@@ -2392,11 +2396,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
             return
 
         # Traces to remove
-        rmtrace = np.all(self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags)
-                    & np.invert(self.bitmask.flagged(self.spat_msk,
-                                                     flag=self.bitmask.insert_flags)), axis=0)
+        rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                           exclude=self.bitmask.insert_flags)
         if force_flag is not None:
-            rmtrace |= np.all(self.bitmask.flagged(self.spat_msk, flag=force_flag), axis=0)
+            rmtrace |= self.fully_masked_traces(flag=force_flag)
 
         if np.any(rmtrace):
             # The removed traces should not have been included in the
@@ -3624,22 +3627,36 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                      np.full(self.nspec, self.nspat-1-self.par['det_buffer'],
                                              dtype='float')]).T)
 
-    def fully_masked_traces(self, flag=None):
+    def fully_masked_traces(self, flag=None, exclude=None):
         """
-        Return a boolean array selecting traces that are fully masked
-        by the provided flag(s).
+        Find fully masked edge traces.
+
+        Traces are identified as masked by one or more of the flags
+        in `flag` and explicitly not flagged by any flag in `exclude`
+        over the fully spectral range of the detector.
         
         Args:
             flag (:obj:`str`, :obj:`list`, optional):
                 The bit mask flags to select. If None, any flags are
                 used. See :func:`pypeit.bitmask.Bitmask.flagged`.
+            exclude (:obj:`str`, :obj:`list`, optional):
+                A set of flags to explicitly exclude from
+                consideration as a masked trace. I.e., if any
+                spectral pixel in the trace is flagged with one of
+                these flags, it will not be considered a fully masked
+                trace. This is typically used to exclude inserted
+                traces from being considered as a bad trace.
 
         Returns:
             `numpy.ndarray`_: Boolean array selecting traces that are
             flagged at all spectral pixels.
         """
-        return None if self.is_empty \
-                    else np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
+        if self.is_empty:
+            return None
+        bpm = np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
+        if exclude is not None:
+            bpm &= np.invert(np.any(self.bitmask.flagged(self.spat_msk, flag=exclude), axis=0))
+        return bpm
     
     def mask_refine(self, design_file=None, allow_resync=False, debug=False):
         """
@@ -4012,4 +4029,83 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
 
+    def convert_to_tslits_dict(self):
+        """
+        Stop-gap function to construct the old tslits_dict object.
+        """
+        if not self.is_synced:
+            msgs.error('Edges must be synced to construct tslits_dict.')
+
+        tslits_dict = {}
+
+        # Find the traces that are *not* fully masked
+        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
+        
+        tslits_dict['slit_left_orig'] = self.spat_fit[:,gpm & self.is_left]
+        tslits_dict['slit_righ_orig'] = self.spat_fit[:,gpm & self.is_right]
+
+        tslits_dict['slit_left'] = self.spat_fit[:,gpm & self.is_left]
+        tslits_dict['slit_righ'] = self.spat_fit[:,gpm & self.is_right]
+
+        nslits = tslits_dict['slit_left'].shape[1]
+
+        tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
+        tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
+        tslits_dict['nspec'] = self.nspec
+        tslits_dict['nspat'] = self.nspat
+        tslits_dict['nslits'] = nslits
+        tslits_dict['pad'] = self.par['pad']
+        tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
+        tslits_dict['spectrograph'] = self.spectrograph.spectrograph
+        tslits_dict['spec_min'], tslits_dict['spec_max'] = \
+            self.spectrograph.slit_minmax(nslits, binspectral=tslits_dict['binspectral'])
+
+        return tslits_dict
+
+    @classmethod
+    def from_tslits_dict(cls, tslits_dict, master_key, master_dir):
+        """
+        Stop-gap function to instantiate insofar as it can from a
+        tslits_dict.
+        """
+
+        # Caveats:
+        #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
+        par = EdgeTracePar()
+        this = cls(load_spectrograph(tslits_dict['spectrograph'], par, master_key=master_key,
+                   master_dir=master_dir))
+        #   - img and sobel_sig should not be None
+        this.img = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
+        this.sobel_sig = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
+        this.bpm = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=bool)
+        this.nspec, this.nspat = this.img.shape
+        #   - May be able to parse the detector from the name of the
+        #   file, but just set it to 1 for now.
+        this.det = 1
+        this.binning = '{0},{1}'.format(tslits_dict['binspectral'], tslits_dict['binspatial'])
+
+        #   - Build the trace data
+        nleft = tslits_dict['slit_left'].shape[1]
+        nright = tslits_dict['slit_righ'].shape[1]
+        this.traceid = np.append(-np.arange(nleft)-1, np.arange(nright)+1)
+        this.spat_cen = np.hstack(tslits_dict['slit_left'], tslits_dict['slit_righ'])
+        this.spat_fit = this.spat_cen.copy()
+        this.spat_fit_type = 'legendre'
+        this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
+        this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
+        this.spat_img = np.round(this.spat_cen).astype(int)
+        return this
+
+    def update_using_tslits_dict(self, tslits_dict):
+        """
+        Update the slit edges using a tslits_dict. This is a stop-gap
+        to allow for adjusting the slit traces based on the
+        flat-field.
+        """
+        # Find the traces that are *not* fully masked
+        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
+        self.spat_fit[:, gpm & self.is_left] = tslits_dict['slit_left']
+        self.spat_fit[:, gpm & self.is_right] = tslits_dict['slit_righ']
+        self.spat_fit_type = 'tweaked'
+        # TODO: Resort?
 
