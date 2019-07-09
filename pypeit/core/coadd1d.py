@@ -1758,7 +1758,8 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
 
     # Used only for plotting below
     if debug:
-        flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
+        # TODO Add a line here to optionally show the distribution of all pixels about the stack as we do for X-shooter.
+        #flux_stack_nat, ivar_stack_nat, mask_stack_nat = interp_spec(waves, wave_stack, flux_stack, ivar_stack, mask_stack)
         for iexp in range(nexp):
             # plot the residual distribution for each exposure
             title_renorm = title + ': Error distriution about stack for exposure {:d}/{:d}'.format(iexp,nexp)
