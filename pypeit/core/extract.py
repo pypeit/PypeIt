@@ -1384,7 +1384,7 @@ def create_skymask_fwhm(sobjs, thismask):
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            skymask_nthresh=1.0, specobj_dict=None,
+            skymask_nthresh=1.0, specobj_dict=None, debug=False,
             show_peaks=False, show_fits=False, show_trace=False, qa_title=''):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -1620,7 +1620,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, spec_m
 
 
     # ToDo Also plot the edge trimming boundaries on the QA here.
-    if show_peaks:
+    if show_peaks or debug:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
 
