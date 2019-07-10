@@ -136,7 +136,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     if check:
         return False
 
-    msgs.error("No standard star was found within a tolerance of {:g}".format(toler) + msgs.newline()
+    msgs.warn("No standard star was found within a tolerance of {:g}".format(toler) + msgs.newline()
                + "Closest standard was {:s} at separation {:g}".format(closest['name'], closest['sep'].to('arcmin')))
 
     return None
@@ -527,6 +527,37 @@ def apply_sens_tell(fnames, sensfile, extinct_correct=True, tell_correct=False, 
         save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
 
 ### Routines for standard sensfunc started from here
+def find_standard(specobj_list):
+    """
+    Take the median boxcar and then the max object as the standard
+
+    Parameters
+    ----------
+    specobj_list : list
+
+    Returns
+    -------
+    mxix : int
+      Index of the standard star
+
+    """
+    # Repackage as necessary (some backwards compatability)
+    # Do it
+    medfx = []
+    for indx, spobj in enumerate(specobj_list):
+        if spobj is None:
+            medfx.append(0.)
+        else:
+            medfx.append(np.median(spobj.boxcar['COUNTS']))
+    try:
+        mxix = np.argmax(np.array(medfx))
+    except:
+        debugger.set_trace()
+    msgs.info("Putative standard star {} has a median boxcar count of {}".format(specobj_list[mxix],
+                                                                                 np.max(medfx)))
+    # Return
+    return mxix
+
 def apply_sensfunc(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
                    longitude=None, latitude=None):
     """ Apply the sensitivity function to the data

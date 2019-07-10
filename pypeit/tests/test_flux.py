@@ -67,8 +67,8 @@ def test_gen_sensfunc():
 
 def test_find_standard():
     # G191b2b
-    std_ra = '05:06:36.6'
-    std_dec = '52:52:01.0'
+    std_ra = '05:06:30.6'
+    std_dec = '52:49:51.0'
     # Grab
     std_dict = flux_calib.find_standard_file(std_ra, std_dec)
     # Test
