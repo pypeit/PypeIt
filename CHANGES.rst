@@ -4,35 +4,41 @@
 
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
-
+- Major refactor of slit edge tracing (WIP)
 
 0.11.0 (22 Jun 2019)
 --------------------
 
-- Add magellan_mage, including a new ThAr linelist and an archived solution
+- Add magellan_mage, including a new ThAr linelist and an archived
+  solution
 - Polish several key echelle methods
 - Modify create_linelist to default to vacuum
 - Update Xshooter, NIRES, and GNIRS
-- Refactor ProcessImages into ProcessRawImage, PypeItImage, CalibrationImage, ScienceImage, and ImageMask
+- Refactor ProcessImages into ProcessRawImage, PypeItImage,
+  CalibrationImage, ScienceImage, and ImageMask
 - Refactor ScienceImage into SciImgStack
 - Fix arc tilts bug
 - Started an X-Shooter doc and introduced a [process][bias] parameter
 - Modified processing steps for bias + overscan subtraction
 - Started notes on how to generate a new spectrograph in PypeIt
-- Refactoring of reduce to take a ScienceImage object for the images and the mask
-- Updates to many spectrograph files to put datasec, oscansec in the raw frame
+- Refactoring of reduce to take a ScienceImage object for the images and
+  the mask
+- Updates to many spectrograph files to put datasec, oscansec in the raw
+  frame
 - Add find_trim_edge and std_prof_nsigma parameters
 - A bit of tuning for MagE
 - Fixes for Echelle in fluxspec
 - Writes a chosen set of header cards to the spec1D and coadd files
 - Updates for FORS2
 - Introduced new coadd1d module and some new coadd functinality.
-- modified interface to robust_polyfit_djs, robust_optimize, and djs_reject.
+- modified interface to robust_polyfit_djs, robust_optimize, and
+  djs_reject.
 - Added utility routine cap_ivar for capping the noise level.
-- Fixed a bug in optimal extraction which was causing hot pixels when a large fraction of the pixels on
-the object profile were masked.
-- Major bug fixes and improvements to echelle object finding. Orders which did not cover the entire detector
-were not being treated properly.
+- Fixed a bug in optimal extraction which was causing hot pixels when a
+  large fraction of the pixels on the object profile were masked.
+- Major bug fixes and improvements to echelle object finding. Orders
+  which did not cover the entire detector were not being treated
+  properly.
 
 0.10.1 (22 May 2019)
 --------------------

@@ -256,8 +256,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
 
-    
-
     TODO: MORE
 
     img, bpm, and det should be considered mutually exclusive compare to load
