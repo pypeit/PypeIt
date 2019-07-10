@@ -404,11 +404,11 @@ class MultiSlit(FluxSpec):
         self.load_objs(sci_file, std=False)
         # Run
         for sci_obj in self.sci_specobjs:
-            flux_calib.apply_sensfunc(sci_obj, self.sens_dict['0'], self.sci_header['AIRMASS'],
-                                      self.sci_header['EXPTIME'], telluric_correct=self.par['telluric_correct'],
-                                      extinct_correct=self.par['extinct_correct'],
-                                      longitude=self.spectrograph.telescope['longitude'],
-                                      latitude=self.spectrograph.telescope['latitude'])
+            flux_calib.apply_standard_sens(sci_obj, self.sens_dict['0'], self.sci_header['AIRMASS'],
+                                           self.sci_header['EXPTIME'], telluric_correct=self.par['telluric_correct'],
+                                           extinct_correct=self.par['extinct_correct'],
+                                           longitude=self.spectrograph.telescope['longitude'],
+                                           latitude=self.spectrograph.telescope['latitude'])
         self.steps.append(inspect.stack()[0][3])
 
 
@@ -514,10 +514,10 @@ class Echelle(FluxSpec):
             sens_dict_iord = self.sens_dict[str(iord)]
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
-                    flux_calib.apply_sensfunc(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
-                                              self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
-                                              longitude=self.spectrograph.telescope['longitude'],
-                                              latitude=self.spectrograph.telescope['latitude'])
+                    flux_calib.apply_standard_sens(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
+                                                   self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
+                                                   longitude=self.spectrograph.telescope['longitude'],
+                                                   latitude=self.spectrograph.telescope['latitude'])
 
         self.steps.append(inspect.stack()[0][3])
 
