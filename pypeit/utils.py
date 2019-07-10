@@ -119,6 +119,10 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
     smooth the image.  Cannot accommodate masking.
 
+    .. note::
+        For images following the PypeIt convention, this smooths the
+        data spectrally for each spatial position.
+
     Args:
         img (`numpy.ndarray`_):
             Image to convolve.

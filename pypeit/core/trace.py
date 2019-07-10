@@ -510,6 +510,9 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
     slower than :func:`masked_centroid` because of this introduced
     dependency.
 
+    .. note::
+        This is an adaptation of trace_crude from idlspec2d.
+
     Args:
         flux (`numpy.ndarray`_):
             Image used to weight the column coordinates when
@@ -836,7 +839,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             `trace_cen`.
         weighting (:obj:`str`, optional):
             The weighting to apply to the position within each
-            integration window (see
+            integration window (see options in
             :func:`pypeit.core.moment.moment1d`).
         fwhm (:obj:`float`, optional):
             The expected width of the feature to trace, which is used

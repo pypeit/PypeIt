@@ -94,13 +94,36 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
         - If `row` is a single integer and `col` is 2D, or if `row` is
           2D and `col` is 1D, the method raises an error.
 
+    .. note::
+
+        - This is an entirely general function, as reflected by the
+          nomenclature used in the call. As used within PypeIt, the
+          PypeIt image orientation convention means that moments are
+          always taken along the spatial direction; i.e., `col` is
+          the spatial coordinate and `row` is the spectral
+          coordinate.
+
+        - This function is a generalization of and builds on the
+          heritage of functions in idlspec2d, specifically
+          trace_fweight, trace_gweight, extrace_asymbox2,
+          extract_boxcar.
+
     .. warning::
 
-        The function has significant setup/input checking overhead.
-        If repetitive calls to the function are expected, one may
-        make efficiency gains by providing pre-built arguments
-        directly (particularly `ivar`, `bpm`, and `fwgt` for large
-        images) so that they are not reinstantiated for every call.
+        The function has significant setup/input checking. Most of
+        this introduces limited overhead with the exception of the
+        handling of `ivar`, `bpm`, and `fwgt`. If any of these are
+        provided as `None` on input, an array is constructed (unity
+        for `ivar` and `fwgt` and all False for `bpm`) that serves as
+        a place holder. If repetitive calls to the function are
+        expected and any of these arrays are missing, significant
+        efficiency gains can be made by providing pre-built values
+        for these arrays so that time isn't lost in allocating the
+        placeholder arrays in every call.
+
+    .. todo::
+
+        Optimize the code for efficiency, regardless of the input.
 
     Args:
         flux (`numpy.ndarray`_):
@@ -258,12 +281,12 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
                [0.99858297, 0.99993125, 0.99858297],
                [0.97670951, 0.99858297, 0.99993125]])
 
-        Calculate first moments in each row with one column center per row
+        Calculate first moments in all rows for the three column positions
         
-        >>> moment1d(img, [45,50,55], 40., order=0)[0]
-        array([[0.99993125, 0.99858297, 0.97670951],
-               [0.99858297, 0.99993125, 0.99858297],
-               [0.97670951, 0.99858297, 0.99993125]])
+        >>> moment1d(img, [45,50,55], 40., order=1)[0]
+        array([[45.        , 45.02314924, 45.2814655 ],
+               [49.97685076, 50.        , 50.02314924],
+               [54.7185345 , 54.97685076, 55.        ]])
 
         Or pick the same column for all rows
         

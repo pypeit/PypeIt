@@ -1,5 +1,8 @@
 """
 Implement principle-component-analysis tools.
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
 """
 import numpy as np
 
@@ -22,6 +25,15 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     variance percentage (see `pca_explained_var`), this is used to
     determine the number of PCA components to use in the final
     analysis.
+
+    .. note::
+
+        This is a fully generalized convenience function for a
+        specific use of `sklearn.decomposition.PCA`_. When used
+        within PypeIt, the vectors to decompose (see, e.g.,
+        :class:`pypeit.edgetrace.EdgeTracePCA`) typically have the
+        length of the spectral axis. This means that, within PypeIt,
+        arrays are typically transposed when passed to this function.
 
     Args:
         vectors (`numpy.ndarray`_):
@@ -253,7 +265,9 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
     Args:
         x (:obj:`float`, `numpy.ndarray`_):
             One or more trace coordinates at which to sample the PCA
-            coefficients and produce the PCA model.
+            coefficients and produce the PCA model. As used within
+            PypeIt, this is typically the spatial pixel coordinate or
+            echelle order number.
         pca_coeff_fits (:obj:`list`, `numpy.ndarray`_): 
             A `list` of `numpy.ndarray`_ objects (or a single
             `numpy.ndarray`_), one per PCA component where the length
