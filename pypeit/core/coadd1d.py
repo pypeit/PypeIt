@@ -2252,6 +2252,10 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     scales_interord = np.zeros_like(fluxes)
     # First perform inter-order scaling once
     for iord in range(norder):
+        # TODO Add checking here such that orders with low S/N ratio are instead scaled using scale factors from
+        # higher S/N ratio. The point is it makes no sense to take 0.0/0.0. In the low S/N regime, i.e. DLAs,
+        # GP troughs, we should be rescaling using scale factors from orders with signal. This also applies
+        # to the echelle combine below.
         fluxes_scl_interord[:, iord], ivars_scl_interord[:,iord], scales_interord[:,iord], scale_method_used = \
             scale_spec_stack(wave_grid, waves[:, iord, :], fluxes[:, iord, :], ivars[:, iord, :], masks[:, iord, :],
                              rms_sn[iord, :], weights[:, iord, :], ref_percentile=ref_percentile,

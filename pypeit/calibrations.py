@@ -337,9 +337,9 @@ class Calibrations(object):
                 = self.fitstbl.master_key(tilt_rows[0] if len(tilt_rows) > 0 else self.frame,
                                           det=self.det)
 
-        if self._cached('tilt', self.master_key_dict['tilt']):
+        if self._cached('tiltimg', self.master_key_dict['tilt']):
             # Previously calculated
-            self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tilt']
+            self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tiltimg']
             return self.mstilt
 
         #TODO should there be a TiltImage class?
@@ -363,7 +363,7 @@ class Calibrations(object):
                 self.tiltImage.save()
 
         # Save & return
-        self._update_cache('tilt', 'tilt', self.mstilt)
+        self._update_cache('tilt', 'tiltimg', self.mstilt)
         # TODO in the future add in a tilt_inmask
         #self._update_cache('tilt', 'tilt_inmask', self.mstilt_inmask)
         return self.mstilt

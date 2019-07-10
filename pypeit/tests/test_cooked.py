@@ -8,6 +8,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.tests.tstutils import cooked_required
+from IPython import embed
 
 
 @cooked_required
