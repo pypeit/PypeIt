@@ -14,7 +14,7 @@ import pytest
 
 from astropy import units
 
-from pypeit.core import flux
+from pypeit.core import flux_calib
 from pypeit.core import load
 from pypeit import telescopes
 from pypeit.spectrographs.util import load_spectrograph
@@ -53,12 +53,12 @@ def test_gen_sensfunc():
     DEC = '52:52:01.0'
 
     # Get the sensitivity function
-    sens_dict = flux.generate_sensfunc(specobjs[0][0].boxcar['WAVE'],
-                                      specobjs[0][0].boxcar['COUNTS'],
-                                      specobjs[0][0].boxcar['COUNTS_IVAR'],
-                                      fitstbl['airmass'][4], fitstbl['exptime'][4],
-                                      kastb.telescope['longitude'], kastb.telescope['latitude'],
-                                      ra=RA, dec=DEC)
+    sens_dict = flux_calib.generate_sensfunc(specobjs[0][0].boxcar['WAVE'],
+                                             specobjs[0][0].boxcar['COUNTS'],
+                                             specobjs[0][0].boxcar['COUNTS_IVAR'],
+                                             fitstbl['airmass'][4], fitstbl['exptime'][4],
+                                             kastb.telescope['longitude'], kastb.telescope['latitude'],
+                                             ra=RA, dec=DEC)
 
     # Test
     assert isinstance(sens_dict, dict)
@@ -70,7 +70,7 @@ def test_find_standard():
     std_ra = '05:06:36.6'
     std_dec = '52:52:01.0'
     # Grab
-    std_dict = flux.find_standard_file(std_ra, std_dec)
+    std_dict = flux_calib.find_standard_file(std_ra, std_dec)
     # Test
     assert std_dict['name'] == 'G191B2B'
 #    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_mod_005.fits'
@@ -80,28 +80,28 @@ def test_find_standard():
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = flux.find_standard_file(std_ra,std_dec)
+    std_dict = flux_calib.find_standard_file(std_ra, std_dec)
     assert std_dict is None
 
 
 def test_load_extinction():
     # Load
-    extinct = flux.load_extinction_data(121.6428, 37.3413889)
+    extinct = flux_calib.load_extinction_data(121.6428, 37.3413889)
     np.testing.assert_allclose(extinct['wave'][0], 3200.)
     assert extinct['wave'].unit == units.AA
     np.testing.assert_allclose(extinct['mag_ext'][0], 1.084)
     # Fail
-    extinct = flux.load_extinction_data(0., 37.3413889)
+    extinct = flux_calib.load_extinction_data(0., 37.3413889)
     assert extinct is None
 
 
 def test_extinction_correction():
     # Load
-    extinct = flux.load_extinction_data(121.6428, 37.3413889)
+    extinct = flux_calib.load_extinction_data(121.6428, 37.3413889)
     # Correction
     wave = np.arange(3000.,10000.)*units.AA
     AM=1.5
-    flux_corr = flux.extinction_correction(wave, AM, extinct)
+    flux_corr = flux_calib.extinction_correction(wave, AM, extinct)
     # Test
     np.testing.assert_allclose(flux_corr[0], 4.47095192)
 

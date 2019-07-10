@@ -17,7 +17,7 @@ from linetools.spectra.utils import collate
 
 from pypeit import msgs
 from pypeit.core import load
-from pypeit.core import flux
+from pypeit.core import flux_calib
 from pypeit import utils
 from pypeit.core.wavecal import wvutils
 from pypeit import debugger
@@ -1565,7 +1565,7 @@ def coadd_spectra(spectrograph, gdfiles, spectra, wave_grid_method='concatenate'
 
     # Scale the flux??
     if flux_scale is not None:
-        spec1d, _ = flux.scale_in_filter(spec1d, flux_scale)
+        spec1d, _ = flux_calib.scale_in_filter(spec1d, flux_scale)
 
     # Write to disk?
     if outfile is not None:
@@ -1748,7 +1748,7 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
     Return a new scaled XSpectrum1D spectra
     '''
 
-    from pypeit.core.flux import scale_in_filter
+    from pypeit.core.flux_calib import scale_in_filter
 
     norder = spectra.nspec
 
