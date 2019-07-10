@@ -478,11 +478,11 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
                                     np.ma.divide(np.square(wt*(c-mu[1][:,None])),
                                                  _ivar[_row[:,None],ih]), axis=1)),
                                     np.absolute(mu[0]))
-        # Impose the boundary
-        if lower[1] is not None:
-            mum[1] |= mu[1] < _col - lower[1]
-        if upper[1] is not None:
-            mum[1] |= mu[1] > _col + upper[1]
+            # Impose the boundary
+            if lower[1] is not None:
+                mum[1] |= mu[1] < _col - lower[1]
+            if upper[1] is not None:
+                mum[1] |= mu[1] > _col + upper[1]
 
     # Calculate the second moment if necessary
     if 2 in _order:
