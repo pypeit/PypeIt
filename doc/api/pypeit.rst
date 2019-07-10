@@ -9,7 +9,6 @@ Subpackages
     pypeit.core
     pypeit.images
     pypeit.par
-    pypeit.scripts
     pypeit.spectrographs
 
 Submodules
