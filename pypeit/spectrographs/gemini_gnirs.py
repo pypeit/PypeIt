@@ -232,51 +232,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         spec_min = np.asarray([512,280, 0, 0, 0, 0])
         return np.vstack((spec_min, spec_max))
 
-    def slitmask(self, tslits_dict, pad=None, binning=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        nslits = tslits_dict['lcen'].shape[1]
-        if nslits != self.norders:
-            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas GNIRS has norders={:d}'.format(nslits,self.norders))
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        order_max = [1022,1022,1022,1022,1022,1022]
-        order_min = [512,280, 0, 0, 0, 0]
-        # TODO add binning adjustments to these
-        for islit in range(nslits):
-            orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
-            slitmask[orderbad] = -1
-        return slitmask
-
-
-
     @property
     def dloglam(self):
         dloglam = 0.000127888 # this is the average of the median dispersions
