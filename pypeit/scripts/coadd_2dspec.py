@@ -104,7 +104,7 @@ def parser(options=None):
 def main(args):
     """ Executes 2d coadding
     """
-
+    msgs.warn('PATH =' + os.getcwd())
     # Load the file
     if args.file is not None:
         spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.file)
