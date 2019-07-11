@@ -1781,12 +1781,12 @@ class ScienceImagePar(ParSet):
         dtypes['find_fwhm'] = [int, float]
         descr['find_fwhm'] = 'Indicates roughly the fwhm of objects in pixels for object finding'
 
-        defaults['ech_find_max_snr'] = 2.0
+        defaults['ech_find_max_snr'] = 1.0
         dtypes['ech_find_max_snr'] = [int, float]
         descr['ech_find_max_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value' \
                                     ' or satisfy the min_snr criteria described by the min_snr parameters'
 
-        defaults['ech_find_min_snr'] = 1.0
+        defaults['ech_find_min_snr'] = 0.3
         dtypes['ech_find_min_snr'] = [int, float]
         descr['ech_find_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
                                     ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
