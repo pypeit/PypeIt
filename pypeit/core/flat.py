@@ -24,6 +24,9 @@ import scipy
 
 def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh,
                      tweak_slits_maxfrac):
+    """
+    DOC THIS!
+    """
 
     # How many pixels wide is the slit at each Y?
     slitwidth = np.median(slit_righ_in - slit_left_in)
@@ -36,7 +39,6 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
     xrigh = ximg_fit[irigh]
     norm_max_righ = normimg[irigh].max()
     xmax_righ = xrigh[normimg[irigh].argmax()]
-
     tweak_left = False
     tweak_righ = False
     slit_left_out = np.copy(slit_left_in)

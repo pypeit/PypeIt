@@ -565,27 +565,8 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
     else:
         _cfg_lines = list(cfg_lines)
 
-    # TODO: Can we get rid of these lines?
-    if setup_mode:
-        _cfg_lines += ['[calibrations]']
-        _cfg_lines += ['    [[biasframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[pixelflatframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[arcframe]]']
-        _cfg_lines += ['        number = 1']
-        _cfg_lines += ['    [[pinholeframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[traceframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[standardframe]]']
-        _cfg_lines += ['        number = 0']
-    # TODO: Got rid of this, but need to check this doesn't break
-    # anything
-#    else:
-#        _cfg_lines += ['[calibrations]']
-#        _cfg_lines += ['    [[arcframe]]']
-#        _cfg_lines += ['        number = 1']
+    # TODO: Bring back checks for the appropriate number of calibration
+    # frames?
 
     # TODO: Clean up and check validity of _cfg_lines by reading it into
     # a ConfigObj?

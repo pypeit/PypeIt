@@ -112,7 +112,7 @@ class EdgeTraceBitMask(BitMask):
                    ('LARGESHIFT', 'Recentering resulted in a large shift'),
               ('OUTSIDEAPERTURE', 'Recentering yielded a centroid outside the moment aperture'),
                    ('EDGEBUFFER', 'Recentering yielded a centroid too close to the detector edge'),
-                ('DISCONTINUOUS', 'Pixel included in a trace but part of a diseontinuous segment'),
+                ('DISCONTINUOUS', 'Pixel included in a trace but part of a discontinuous segment'),
                     ('DUPLICATE', 'Trace is a duplicate based on trace matching tolerance'),
                    ('SHORTRANGE', 'Trace does not meet the minimum spectral range criterion'),
 #                ('SHORTDETRANGE', 'Trace length does not meet trace detection threshold.'),
@@ -725,7 +725,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             if show_stages:
                 self.show(thin=10, include_img=True, idlabel=True)
 
-            # Use the results of the PCA decomposition to recify and
+            # Use the results of the PCA decomposition to rectify and
             # detect peaks/troughs in the spectrally collapsed
             # Sobel-filtered image, then use those peaks to further
             # refine the edge traces
@@ -734,21 +734,25 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 self.show(thin=10, include_img=True, idlabel=True)
 
         elif self.par['sync_predict'] == 'pca':
-            # TODO: Maybe we should instead force a fault here instead
-            # of letting the code change a parameter?
-            msgs.warn('Sync predict cannot use PCA; using nearest instead.')
-            self.par['sync_predict'] = 'nearest'
+            # TODO: This causes the code to fault. Maybe there's a way
+            # to catch this earlier on?
+            msgs.error('Sync predict cannot use PCA because too few edges were found.  Edit '
+                       'your pypeit file to include:' + msgs.newline() +
+                       '    [calibrations]' + msgs.newline() +
+                       '        [[slitedges]]' + msgs.newline() +
+                       '            sync_predict = nearest')
+#            self.par['sync_predict'] = 'nearest'
 
             # NOTE: If the PCA decomposition is possible, the
             # subsequent call to trace.peak_trace (called by
             # peak_refine) removes all the existing traces and replaces
             # them with traces at the peak locations. Those traces are
-            # then fit, regardless of the length of the value centroid
+            # then fit, regardless of the length of the centroid
             # measurements. So coming out of peak_refine there are no
             # traces that are fully masked, which is not true if that
-            # block of code isn't run. That means for sync to work
-            # correctly, we have to remove fully masked traces. This is
-            # done inside sync().
+            # block of code isn't run. That means for the left-right
+            # synchronization to work correctly, we have to remove
+            # fully masked traces. This is done inside sync().
 
         # Left-right synchronize the traces
         self.sync()
@@ -1432,7 +1436,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Plot the trace fits
         show_fit = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                      exclude=self.bitamsk.insert_flags))
+                                                      exclude=self.bitmask.insert_flags))
         for i in range(self.ntrace):
             if not trace_indx[i]:
                 continue
@@ -1974,22 +1978,19 @@ class EdgeTraceSet(masterframe.MasterFrame):
         good = indx & np.invert(bad)
         return good, bad
 
-    def merge_traces(self, merge_frac=0.5, use_fit=True, refit=True, debug=False):
+    def merge_traces(self, merge_frac=0.5, refit=True, debug=False):
         """
         Merge traces based on their spatial separation.
 
         Traces are merged if:
             - they are from the same slit side (left or right)
-            - their valid measurements (the full spectral range if
-              using the fitted polynomial, but only the unmasked
-              values if using the measured centroids) are separated
-              by less than `match_tol` (from :attr:`par`) for more
-              than `merge_frac` of the spectral range of the
-              detector.
+            - the fitted trace locations are separated by less than
+              `match_tol` (from :attr:`par`) for more than
+              `merge_frac` of the spectral range of the detector.
 
-        .. todo::
-            Not sure one would want to ever do anything but use the
-            fitted models to find traces to merge ...
+        Since the merging is based on the *fitted* trace location,
+        the traces must have been fit beforehand; see
+        :func:fit_refine`.
 
         When there are traces found that should be merged, the
         unmasked centroid measurements from the shorter trace(s) are
@@ -2009,9 +2010,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 The fraction of the spectral length of the detector
                 that should be less than `match_tol` in :attr:`par`
                 used to find traces to merge.
-            use_fit (:obj:`bool`, optional):
-                Use the fitted model traces to find traces to merge
-                instead of the measured centroid data.
             refit (:obj:`bool`, optional):
                 If fitted models exist and traces are merged, run
                 :func:`fit_refine` with its default arguments after
@@ -2021,8 +2019,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             msgs.warn('No traces to merge.')
-        if use_fit and self.spat_fit is None:
-            msgs.error('Cannot use model because None have been fit yet!')
+        if self.spat_fit is None:
+            msgs.error('Trace merging requires model fits to the trace location; run fit_refine.')
         _refit = refit
         if refit and self.spat_fit is None:
             msgs.warn('No previous fits existed, so fitting will not be redone.')
@@ -2030,12 +2028,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Construct the bad pixel mask depending whether we matching
         # models or measurements
-        bpm = np.tile(self.fully_masked_traces(flag=self.bitmask.bad_flags),(self.nspec,1)) \
-                        if use_fit else self.spat_msk.astype(bool)
+        bpm = np.tile(self.fully_masked_traces(flag=self.bitmask.bad_flags),(self.nspec,1))
 
         # The center values used to test for matches; can either be the
         # modeled or measured data.
-        cen_match = np.ma.MaskedArray(self.spat_fit if use_fit else self.spat_cen, mask=bpm)
+        cen_match = np.ma.MaskedArray(self.spat_fit, mask=bpm)
         # The center values used to construct the merged trace; always
         # the measured values
         cen_merge = np.ma.MaskedArray(self.spat_cen, mask=self.spat_msk.astype(bool))
@@ -2375,8 +2372,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         For removal, the traces must be fully masked and
         *none* of its pixels can be masked by one of the insertion
-        flags. To force removal of traces with certain flags,
-        regardless of their insertion status, use `force_flag`.
+        flags; see :func:`fully_masked_traces`. 
+
+        To force removal of traces with certain flags, regardless of
+        their insertion status, use `force_flag`. See
+        :class:`EdgeTraceBitMask` for list of flags.
 
         Args:
             sync_rm (:obj:`str`, optional):
@@ -3004,10 +3004,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msgs.info('Number of Gaussian-weighted iterations: {0:.1f}'.format(niter_gaussian))
         msgs.info('Maximum deviation for fitted data: {0:.1f}'.format(maxdev))
         msgs.info('Maximum number of rejection iterations: {0}'.format(maxiter))
-
-        # TODO: Much of this is identical to fit_refine; abstract to a
-        # single function that selects the type of refinement to make?
-        # Also check traces after fitting or PCA?
 
         # Generate bogus ivar and mask once here so that they don't
         # have to be generated multiple times.
@@ -4036,9 +4032,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         tslits_dict = {}
 
-        # Find the traces that are *not* fully masked
+        # Find the traces that are *not* fully masked. This will catch
+        # slits that are masked as too short but not clipped because of
+        # par['sync_clip'] = False.
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
-        
+
         tslits_dict['slit_left_orig'] = self.spat_fit[:,gpm & self.is_left]
         tslits_dict['slit_righ_orig'] = self.spat_fit[:,gpm & self.is_right]
 

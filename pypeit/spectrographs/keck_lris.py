@@ -37,7 +37,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 15.
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['sync_center'] = 'gap'
-        par['calibrations']['slitedges']['minimum_slit_length'] = 1.
+        # TODO: I had to increase this from 1. to 2. to deal with
+        # Keck_LRIS_red/multi_1200_9000_d680_1x2/ . May need a
+        # different solution given that this is binned data and most of
+        # the data in the dev suite is unbinned.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 2
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters

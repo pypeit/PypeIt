@@ -114,10 +114,10 @@ def nearest_unmasked(arr, use_indices=False):
 
 def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     """
-    Boxcar smooth an image along rows.
+    Boxcar smooth an image along their first axis (rows).
 
     Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
-    smooth the image.  Cannot accommodate masking.
+    smooth the image. Cannot accommodate masking.
 
     .. note::
         For images following the PypeIt convention, this smooths the
