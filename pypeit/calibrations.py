@@ -332,6 +332,8 @@ class Calibrations(object):
 
         # Prep
         tilt_rows = self.fitstbl.find_frames('tilt', calib_ID=self.calib_ID, index=True)
+        if len(tilt_rows) == 0:
+            msgs.error('Must identify tilt frames to construct tilt image.')
         self.tilt_files = self.fitstbl.frame_paths(tilt_rows)
         self.master_key_dict['tilt'] \
                 = self.fitstbl.master_key(tilt_rows[0] if len(tilt_rows) > 0 else self.frame,
@@ -342,7 +344,6 @@ class Calibrations(object):
             self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tiltimg']
             return self.mstilt
 
-        #TODO should there be a TiltImage class?
         # Instantiate with everything needed to generate the image (in case we do)
         self.tiltImage = tiltimage.TiltImage(self.spectrograph, files=self.tilt_files,
                                           det=self.det, msbias=self.msbias,
