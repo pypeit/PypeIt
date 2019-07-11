@@ -2,62 +2,74 @@
 Implements edge tracing.
 
 The primary purpose of this module is to provide the classes/methods
-used to trace slit edges. To start tracing, you first need a trace
-image. For example, given a `pypeit_file`, you can generate the trace
-image as follows::
+used to trace slit edges.
 
-    # Get the path to the pypeit file
-    redux_path = os.path.split(pypeit_file)[0]
+If you have a :ref:`pypeit_file` and a path for the reductions
+(`redux_path`), an example of how to trace the slits in a single
+detector is as follows::
 
-    # Instantiate the reduction
-    rdx = PypeIt(pypeit_file, redux_path=redux_path, show=True)
+    # Imports
+    from pypeit.pypeit import PypeIt
+    from pypeit import traceimage, edgetrace
 
-    # Select a dectector (if necessary)
-    rdx.par['rdx']['detnum'] = 3
+    # Instantiate the PypeIt class to perform the necessary setup
+    rdx = PypeIt(pypeit_file, redux_path=redux_path)
+
+    # Find the trace frames files for a specific calibration group
+    group = 0
+    tbl_rows = rdx.fitstbl.find_frames('trace', calib_ID=group, index=True)
+    files = rdx.fitstbl.frame_paths(tbl_rows)
+
+    # Select a detector to trace
+    det = 1
+
+    # Setup the output paths for the trace file; these can be anything but
+    # the defaults are below
+    master_dir = rdx.par['calibrations']['caldir']
+    master_key = rdx.fitstbl.master_key(tbl_rows[0], det=det)
+
+    # Construct the TraceImage
+    traceImage = traceimage.TraceImage(rdx.spectrograph, files=files, det=det,
+                                       par=rdx.par['calibrations']['traceframe'])
+    traceImage.build_image()
+
+    # Then run the edge tracing.  This performs the automatic tracing.
+    edges = edgetrace.EdgeTraceSet(rdx.spectrograph, rdx.par['calibrations']['slitedges'],
+                                   master_key=master_key, master_dir=master_dir, img=traceImage,
+                                   det=det, auto=True)
+    # You can look at the results using the show method:
+    edges.show(thin=10, include_img=True, idlabel=True)
+    # Or in ginga viewer
+    edges.show(thin=10, in_ginga=True)
+    # And you can save the results to a file
+    edges.save()
+
+If you want to instead start without a pypeit file, you could do the
+following for, e.g., a single unbinned Keck DEIMOS flat-field
+exposure in a fits file called `trace_file`::
+
+    import os
+    from pypeit import traceimage, edgetrace
+    from pypeit.spectrographs.util import load_spectrograph
+
+    spec = load_spectrograph('keck_deimos')
+    binning = '1,1'
+    redux_path = os.path.split(os.path.abspath(trace_file))[0]
+    par = spec.default_pypeit_par()
+    # Make any desired changes to the parameters here
     det = 3
+    master_dir = redux_path
+    master_key = 'test_trace_{0}'.format(det)
 
-    # Find the first science frame
-    frame_indx = numpy.arange(len(rdx.fitstbl))
-    in_grp = rdx.fitstbl.find_calib_group(0)
-    is_science = rdx.fitstbl.find_frames('science')
-    grp_science = frame_indx[is_science & in_grp]
-    combid = numpy.unique(rdx.fitstbl['comb_id'][grp_science])[0]
-    calib_ID = int(rdx.fitstbl['calib'][grp_science][0])
+    traceImage = traceimage.TraceImage(spec, files=[trace_file], det=det,
+                                       par=par['calibrations']['traceframe'])
+    traceImage.build_image()
 
-    # Get all the frames and background frames for this combination
-    # group
-    frames = numpy.where(rdx.fitstbl['comb_id'] == combid)[0]
-    bg_frames = numpy.where(rdx.fitstbl['bkg_id'] == combid)[0]
+    edges = edgetrace.EdgeTraceSet(spec, par['calibrations']['slitedges'], master_key=master_key,
+                                   master_dir=master_dir, img=traceImage, det=det, auto=True)
+    edges.save()
 
-    # Run the calibrations
-    rdx.caliBrate.set_config(frames[0], 3, rdx.par['calibrations'])
-
-    # Run the steps needed for creating the trace image
-    rdx.caliBrate.get_bpm()
-    rdx.caliBrate.get_bias()
-
-    # Get the trace files
-    trace_rows = rdx.fitstbl.find_frames('trace', calib_ID=calib_ID, index=True)
-    trace_image_files = rdx.fitstbl.frame_paths(trace_rows)
-    trace_master_key = rdx.fitstbl.master_key(trace_rows[0], det=det)
-    binning = rdx.fitstbl['binning'][trace_rows[0]]
-
-    # Build the trace image
-    traceImage = traceimage.TraceImage(rdx.spectrograph, files=trace_image_files, det=det,
-                                       par=rdx.caliBrate.par['traceframe'])
-    traceImage.process(bias_subtract=rdx.caliBrate.msbias, trim=rdx.caliBrate.par['trim'],
-                       apply_gain=True)
-
-With the trace image, you then instantiate the edge tracing object as follows::
-
-    # Instantiate edge tracing
-    return edges.EdgeTraceSet(rdx.spectrograph, rdx.caliBrate.par['slitedges'],
-                              master_key=trace_master_key, master_dir=rdx.caliBrate.master_dir,
-                              qa_path=rdx.caliBrate.qa_path, img=traceImage,
-                              bpm=rdx.caliBrate.msbpm, det=det)
-
-.. todo::
-    - Should simplify example for how to generate a trace image
+For a command-line script that executes the automatic tracing, use `pypeit_trace_edges`.
 
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """

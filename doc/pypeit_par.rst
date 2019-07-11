@@ -358,7 +358,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``standard``, ``science``, ``pinhole``, ``arc``, ``tilt``, ``bias``, ``dark``, ``pixelflat``, ``trace``  ``science``                   Frame type.  Options are: standard, science, pinhole, arc, tilt, bias, dark, pixelflat, trace                                                                                                                                                                  
+``frametype``  str                                             ``trace``, ``tilt``, ``pinhole``, ``dark``, ``bias``, ``arc``, ``science``, ``standard``, ``pixelflat``  ``science``                   Frame type.  Options are: trace, tilt, pinhole, dark, bias, arc, science, standard, pixelflat                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -519,8 +519,9 @@ Alterations to the default parameters are::
       [[slitedges]]
           edge_thresh = 50.0
           fit_order = 3
-          minimum_slit_length = 0.5
+          minimum_slit_length = 5.0
           minimum_slit_gap = 0.25
+          sync_clip = False
   [scienceframe]
       exprng = 30, None
       [[process]]
@@ -575,7 +576,7 @@ Alterations to the default parameters are::
           fit_order = 3
           fit_min_spec_length = 0.2
           sync_center = gap
-          minimum_slit_length = 1.0
+          minimum_slit_length = 2
   [scienceframe]
       exprng = 29, None
   [flexure]
@@ -621,7 +622,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
-          minimum_slit_length = 1.0
+          minimum_slit_length = 2
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -679,7 +680,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
-          minimum_slit_length = 1.0
+          minimum_slit_length = 2
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -1268,12 +1269,18 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          method = full_template
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
+          nsnippet = 1
       [[slits]]
           trace_npoly = 3
       [[slitedges]]
           fit_order = 3
+      [[tilts]]
+          tracethresh = 10.0
+  [flexure]
+      method = boxcar
 
 GEMINI-N GMOS-N
 ---------------
@@ -1300,12 +1307,18 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          method = full_template
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
+          nsnippet = 1
       [[slits]]
           trace_npoly = 3
       [[slitedges]]
           fit_order = 3
+      [[tilts]]
+          tracethresh = 10.0
+  [flexure]
+      method = boxcar
 
 GEMINI-N GMOS-N
 ---------------
@@ -1332,12 +1345,18 @@ Alterations to the default parameters are::
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          method = full_template
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
+          nsnippet = 1
       [[slits]]
           trace_npoly = 3
       [[slitedges]]
           fit_order = 3
+      [[tilts]]
+          tracethresh = 10.0
+  [flexure]
+      method = boxcar
 
 MAGELLAN FIRE
 -------------
