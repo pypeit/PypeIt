@@ -1401,7 +1401,13 @@ def create_skymask_fwhm(sobjs, thismask):
             objmask_now = thismask & (spat_img > (slit_img - med_fwhm)) & (spat_img < (slit_img + med_fwhm))
             skymask = skymask & np.invert(objmask_now)
 
-        return skymask
+        # Check that we have not performed too much masking
+        if (np.sum(skymask)/np.sum(thismask) < 0.10):
+            msgs.warn('More than 90% of  usable area on this slit would be masked and not used by global sky subtraction. '
+                      'Something is probably wrong with object finding for this slit. Not masking object for global sky subtraction.')
+            return np.copy(thismask)
+        else:
+            return skymask
 
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
@@ -1550,10 +1556,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 ##   New CODE
     # 1st iteration
     smash_mask = np.isfinite(flux_mean)
-    flux_mean[np.invert(smash_mask)] = 0.0
     flux_mean_med0 = np.median(flux_mean[smash_mask])
+    flux_mean[np.invert(smash_mask)] = flux_mean_med0
     fluxsub0 = flux_mean - flux_mean_med0
     fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, fwhm/2.3548, mode='nearest')
+
     cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
     cont, cont_mask0 = arc.iter_continuum(
         fluxconv0, inmask=smash_mask, fwhm=fwhm,cont_frac_fwhm=2.0, sigthresh=2.0, sigrej=2.0, cont_samp=cont_samp,
@@ -1607,7 +1614,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 #    fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
 ## OLD CODE
 
-    if np.any(cont_mask) == False:
+    if not np.any(cont_mask):
         cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
     (mean, med, skythresh) = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
@@ -1784,7 +1791,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')
         skymask = create_skymask_fwhm(sobjs,thismask)
-        return (specobjs.SpecObjs(), skymask[thismask])
+        return specobjs.SpecObjs(), skymask[thismask]
 
 
     msgs.info('Fitting the object traces')
