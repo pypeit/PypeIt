@@ -18,7 +18,7 @@ from pypeit import utils
 from pypeit.core import pydl
 from matplotlib import pyplot as plt
 import copy
-import IPython
+from IPython import embed
 
 import scipy
 
@@ -192,7 +192,13 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     slit_righ_in = tslits_dict_in['slit_righ'][:,slit]
     thismask_in = pixels.tslits2mask(tslits_dict_in) == slit
 
-    # Compute some things using the original slit boundaries and thismask_in
+    # Check for saturation of the flat. If there are not enough pixels do not attempt a fit
+    good_frac = np.sum(thismask_in & (flat < nonlinear_counts))/np.sum(thismask_in)
+    if good_frac < 0.5:
+        msgs.warn(msgs.newline() + 'Only {:4.2f}'.format(100*good_frac) + '% of the pixels on this slit are not saturated.' +
+                  msgs.newline() + 'Consider raising nonlinear_counts={:5.3f}'.format(nonlinear_counts) +
+                  msgs.newline() + 'Not attempting to flat field slit# {:d}'.format(slit))
+        return np.ones_like(flat), np.ones_like(flat), np.zeros_like(flat), tilts_dict['tilts'], thismask_in, slit_left_in, slit_righ_in
 
     # Approximate number of pixels sampling each spatial pixel for this (original) slit.
     npercol = np.fmax(np.floor(np.sum(thismask_in)/nspec),1.0)
@@ -217,7 +223,6 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     piximg = tilts * (nspec-1)
     pixvec = np.arange(nspec)
 
-
     if inmask is None:
         inmask = np.copy(thismask)
 
@@ -228,19 +233,19 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
 
     # Flat field pixels for fitting spectral direction. Restrict to original slit pixels
     fit_spec = thismask_in & inmask & np.invert(edgmask_in) & (flat < nonlinear_counts)
+    nfit_spec = np.sum(fit_spec)
+    spec_frac = nfit_spec/np.sum(thismask_in)
+    msgs.info('Spectral fit of flatfield for {:}'.format(nfit_spec) + ' pixels')
+    if spec_frac < 0.5:
+        msgs.warn('Spectral flatfield fit is to only {:4.2f}'.format(100*spec_frac) + '% of the pixels on this slit.' +
+                  msgs.newline() + '          Something appears to be wrong here')
+
     isrt_spec = np.argsort(piximg[fit_spec])
     pix_fit = piximg[fit_spec][isrt_spec]
     log_flat_fit = log_flat[fit_spec][isrt_spec]
     log_ivar_fit = log_ivar[fit_spec][isrt_spec]
     inmask_log_fit = inmask_log[fit_spec][isrt_spec]
-    nfit_spec = np.sum(fit_spec)
-    nthismask = np.sum(thismask_in)
-    spec_frac = nfit_spec/nthismask
     logrej = 0.5 # rejectino threshold for spectral fit in log(image)
-    msgs.info('Spectral fit of flatfield for {:}'.format(nfit_spec) + ' pixels')
-    if spec_frac < 0.5:
-        msgs.warn('Spectral flatfield fit is to only {:4.2f}'.format(100*spec_frac) + '% of the pixels on this slit.' +
-                  msgs.newline() + '          Your flat is probably saturated')
 
     # ToDo Figure out how to deal with the fits going crazy at the edges of the chip in spec direction
     spec_set_fine, outmask_spec, specfit, _, exit_status = \
@@ -283,10 +288,12 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     fit_spat = thismask & inmask & (flat < nonlinear_counts) & (spec_model > 1.0) & (spec_model > 0.1*spec_sm_max) & \
                (norm_spec > 0.0) & (norm_spec < 1.7)
     nfit_spat = np.sum(fit_spat)
-    spat_frac = nfit_spat/nthismask
+    spat_frac = nfit_spat/np.sum(thismask)
+    msgs.info('Spatial fit to flatfield for {:}'.format(nfit_spec) + ' pixels')
     if spat_frac < 0.5:
-        msgs.warn('Spatial flatfield fit is to only {:4.2f}'.format(100*spec_frac) + '% of the pixels on this slit.' +
-                  msgs.newline() + '              Your flat is probably saturated')
+        msgs.warn('Spatial flatfield fit is to only {:4.2f}'.format(100*spat_frac) + '% of the pixels on this slit.' +
+                  msgs.newline() + '              Something apperas to be wrong here')
+
 
     isrt_spat = np.argsort(ximg[fit_spat])
     ximg_fit = ximg[fit_spat][isrt_spat]
@@ -299,12 +306,11 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
 
     med_width = (np.ceil(nfit_spat*ximg_resln)).astype(int)
     normimg_raw = utils.fast_running_median(norm_spec_fit,med_width)
-    #normimg_raw = scipy.ndimage.filters.median_filter(norm_spec_fit[imed], size=med_width, mode='reflect')
     sig_res = np.fmax(med_width/20.0,0.5)
     normimg = scipy.ndimage.filters.gaussian_filter1d(normimg_raw,sig_res, mode='nearest')
 
     # mask regions where illumination function takes on extreme values
-    if np.any(~np.isfinite(normimg)):
+    if np.any(np.invert(np.isfinite(normimg))):
         msgs.error('Inifinities in slit illumination function computation normimg')
 
     # Determine the breakpoint spacing from the sampling of the ximg

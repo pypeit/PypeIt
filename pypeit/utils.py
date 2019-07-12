@@ -217,8 +217,10 @@ def fast_running_median(seq, window_size):
 
     if (window_size > (len(seq)-1)):
         msgs.warn('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
+    if (window_size < 0):
+        msgs.warn('window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
 
-    window_size = int(np.fmin(int(window_size), len(seq)-1))
+    window_size = int(np.fmax(np.fmin(int(window_size), len(seq)-1),1))
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
