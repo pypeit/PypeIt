@@ -232,7 +232,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     log_ivar = inmask_log.astype(float)/0.5**2 # set errors to just be 0.5 in the log
 
     # Flat field pixels for fitting spectral direction. Restrict to original slit pixels
-    fit_spec = thismask_in & inmask & np.invert(edgmask_in) & (flat < nonlinear_counts)
+    fit_spec = thismask_in & inmask & np.invert(edgmask_in) #& (flat < nonlinear_counts)
     nfit_spec = np.sum(fit_spec)
     spec_frac = nfit_spec/np.sum(thismask_in)
     msgs.info('Spectral fit of flatfield for {:}'.format(nfit_spec) + ' pixels')
@@ -284,9 +284,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     # Determine maximum counts in median filtered flat spectrum. Only fit pixels > 0.1 of this maximum
     specvec = np.exp(np.interp(pixvec, pix_fit, specfit))
     spec_sm = utils.fast_running_median(specvec, np.fmax(np.ceil(0.10*nspec).astype(int),10))
-    spec_sm_max = np.fmin(spec_sm.max(),nonlinear_counts)
-    fit_spat = thismask & inmask & (flat < nonlinear_counts) & (spec_model > 1.0) & (spec_model > 0.1*spec_sm_max) & \
-               (norm_spec > 0.0) & (norm_spec < 1.7)
+    spec_sm_max = spec_sm.max()
+    #spec_sm_max = np.fmin(spec_sm.max(),nonlinear_counts)
+    fit_spat = thismask & inmask &  (spec_model > 1.0) & (spec_model > 0.1*spec_sm_max) & \
+               (norm_spec > 0.0) & (norm_spec < 1.7)  #& (flat < nonlinear_counts)
     nfit_spat = np.sum(fit_spat)
     spat_frac = nfit_spat/np.sum(thismask)
     msgs.info('Spatial fit to flatfield for {:}'.format(nfit_spec) + ' pixels')
