@@ -1905,7 +1905,8 @@ class CalibrationsPar(ParSet):
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
-        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5)
+        # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
+        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5, process=ProcessImagesPar(satpix='nothing'))
         dtypes['pixelflatframe'] = [ ParSet, dict ]
         descr['pixelflatframe'] = 'The frames and combination rules for the field flattening'
 

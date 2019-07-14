@@ -25,22 +25,28 @@ import scipy
 def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh,
                      tweak_slits_maxfrac):
 
-    # How many pixels wide is the slit at each Y?
-    slitwidth = np.median(slit_righ_in - slit_left_in)
-    # Determine the maximum at the left and right end of the slit
-    ileft = (ximg_fit > 0.1) & (ximg_fit < 0.4)
-    xleft = ximg_fit[ileft]
-    norm_max_left = normimg[ileft].max()
-    xmax_left = xleft[normimg[ileft].argmax()]
-    irigh = (ximg_fit > 0.6) & (ximg_fit < 0.9)
-    xrigh = ximg_fit[irigh]
-    norm_max_righ = normimg[irigh].max()
-    xmax_righ = xrigh[normimg[irigh].argmax()]
 
     tweak_left = False
     tweak_righ = False
     slit_left_out = np.copy(slit_left_in)
     slit_righ_out = np.copy(slit_righ_in)
+    # How many pixels wide is the slit at each Y?
+    slitwidth = np.median(slit_righ_in - slit_left_in)
+    # Determine the maximum at the left and right end of the slit
+    ileft = (ximg_fit > 0.1) & (ximg_fit < 0.4)
+    irigh = (ximg_fit > 0.6) & (ximg_fit < 0.9)
+#    if (not np.any(ileft)) or (not np.any(irigh)):
+#        msgs.error('Cannot tweak slits because much of the slit is masked. You probably have a bad slit')
+#        tweak_dict = {'xleft': 0.0, 'xrigh': 0.0,
+#                      'norm_max_left': 0.0, 'norm_max_righ': 0.0,
+#                      'tweak_left': tweak_left, 'tweak_righ': tweak_righ}
+#        return slit_left_out, slit_righ_out, tweak_dict
+
+    #xleft = ximg_fit[ileft]
+    #xrigh = ximg_fit[irigh]
+    norm_max_left = normimg[ileft].max()
+    norm_max_righ = normimg[irigh].max()
+
     msgs.info('Tweaking slit boundaries using slit illumination function')
     step = 0.001
     # march out from middle to find left edge
@@ -332,9 +338,8 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
 
     if tweak_slits:
-        slit_left_out, slit_righ_out, tweak_dict \
-                = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
-                                   tweak_slits_thresh, tweak_slits_maxfrac)
+        slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges(
+            slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
         tslits_dict_out['slit_left'][:,slit] = slit_left_out
