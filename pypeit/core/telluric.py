@@ -5,28 +5,18 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import os
-from sklearn import mixture
-from astropy.io import fits
-from pypeit.core import pydl
-import astropy.units as u
-from astropy.io import fits
-from astropy import stats
+import pickle
 from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
 from pypeit.core import save
-from pypeit.core import coadd2d
 from pypeit.core import coadd1d
-from pypeit.spectrographs import util
 from pypeit import utils
 from pypeit import msgs
-import pickle
-PYPEIT_FLUX_SCALE = 1e-17
 from astropy.io import fits
-import copy
+from sklearn import mixture
+
 from IPython import embed
-import qso_pca
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
 
@@ -67,6 +57,49 @@ from pypeit.spectrographs.util import load_spectrograph
 #    pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
 #
 #    return dloglam, resln_guess, pix_per_sigma
+
+
+# TODO These codes should probably be in a separate qso_pca module. Also pickle functionality needs to be removed.
+def init_pca(filename,wave_grid,redshift, npca):
+    # Read in the pickle file from coarse_pca.create_coarse_pca
+    # The relevant pieces are the wavelengths (wave_pca_c), the PCA components (pca_comp_c),
+    # and the Gaussian mixture model prior (mix_fit)
+
+    loglam = np.log10(wave_grid)
+    dloglam = np.median(loglam[1:] - loglam[:-1])
+    wave_pca_c, cont_all_c, pca_comp_c, coeffs_c, mean_pca, covar_pca, diff_pca, mix_fit, chi2, dof = pickle.load(open(filename,'rb'))
+    num_comp = pca_comp_c.shape[0] # number of PCA components
+    # Interpolate PCA components onto wave_grid
+    pca_interp = scipy.interpolate.interp1d(wave_pca_c*(1.0 + redshift),pca_comp_c, bounds_error=False, fill_value=0.0, axis=1)
+    pca_comp_new = pca_interp(wave_grid)
+    # Generate a mixture model for the coefficients prior, what should ngauss be?
+    prior = mixture.GaussianMixture(n_components = npca-1).fit(coeffs_c[:, 1:npca])
+    # Construct the PCA dict
+    pca_dict = {'npca': npca, 'components': pca_comp_new, 'prior': prior, 'coeffs': coeffs_c,
+                'z_fid': redshift, 'dloglam': dloglam}
+    return pca_dict
+
+def pca_eval(theta,pca_dict):
+    # theta_pca[0] is redshift
+    # theta_pca[1] is norm
+    # theta_pca[2:npca+1] are the PCA dimensionality
+
+    C = pca_dict['components']
+    z_fid = pca_dict['z_fid']
+    dloglam = pca_dict['dloglam']
+    npca = pca_dict['npca']  # Size of the PCA currently being used, original PCA in the dict could be larger
+    z_qso = theta[0]
+    norm = theta[1]
+    A = theta[2:]
+    dshift = int(np.round(np.log10((1.0 + z_qso)/(1.0 + z_fid))/dloglam))
+    C_now = np.roll(C[:npca,:], dshift, axis=1)
+    return norm*np.exp(np.dot(np.append(1.0,A),C_now))
+
+def pca_lnprior(theta,pca_dict):
+    gaussian_mixture_model = pca_dict['prior']
+    A = theta[2:]
+    return gaussian_mixture_model.score_samples(A.reshape(1,-1))
+
 
 def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
 
@@ -370,7 +403,7 @@ def eval_sensfunc_model(theta, obj_dict):
 ##############
 def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
-    pca_dict = qso_pca.init_pca(obj_params['pca_file'], wave, obj_params['z_qso'], obj_params['npca'])
+    pca_dict = init_pca(obj_params['pca_file'], wave, obj_params['z_qso'], obj_params['npca'])
     pca_mean = np.exp(pca_dict['components'][0, :])
     tell_mask = tellmodel > obj_params['tell_norm_thresh']
     # Create a reference model and bogus noise
@@ -397,7 +430,7 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 # QSO evaluation function. Model for QSO is a PCA spectrum
 def eval_qso_model(theta, obj_dict):
 
-    pca_model = qso_pca.pca_eval(theta, obj_dict['pca_dict'])
+    pca_model = pca_eval(theta, obj_dict['pca_dict'])
     # TODO Is the prior evaluation slowing things down??
     # TODO Disablingthe prior for now as I think it slows things down for no big gain
     #ln_pca_pri = qso_pca.pca_lnprior(theta_PCA, arg_dict['pca_dict'])

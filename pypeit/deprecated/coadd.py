@@ -2284,3 +2284,26 @@ def ech_coadd(files,objids=None,extract='OPT',flux=True,giantcoadd=False,ordersc
                                    phot_scale_dicts=phot_scale_dicts, qafile=qafile, outfile=outfile, debug=debug)
     else:
         msgs.error('No spectrum is found.')
+
+
+
+def get_median_width(wave, mask, sn_smooth_npix):
+
+    """
+    Utility routine to get median filtering width in pixels
+
+    Args:
+        wave (ndarray):
+        mask:
+        sn_smooth_npix:
+
+    Returns:
+
+    """
+    c_kms = constants.c.to('km/s').value
+    wave_now = wave[mask]
+    dwave = np.abs((wave_now - np.roll(wave_now, 1))[1:])
+    dv = (dwave/wave_now[1:])*c_kms
+    dv_pix = np.median(dv)
+    med_width = int(np.round(sn_smooth_npix / dv_pix))
+    return med_width

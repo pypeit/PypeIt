@@ -205,7 +205,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     @property
     def spec_min_max(self):
-        spec_max = np.asarray([np.inf, np.inf, np.inf, np.inf, np.inf])
+        spec_max = np.asarray([np.inf]*self.norders)
         spec_min = np.asarray([1024, -np.inf, -np.inf, -np.inf, -np.inf])
         return np.vstack((spec_min, spec_max))
 

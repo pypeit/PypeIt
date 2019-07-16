@@ -33,7 +33,7 @@ plt.rcParams["ytick.labelsize"] = 15
 plt.rcParams["axes.labelsize"] = 17
 
 
-
+# TODO the other methods iref should be deprecated or removed
 def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None, wave_grid_max=None,
                   dwave=None, dv=None, dloglam=None, samp_fact=1.0):
     """
@@ -45,27 +45,37 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
         wave_method (str): optional
             Desired method for creating new wavelength grid.
             'iref' -- Use the first wavelength array (default)
-            'velocity' -- Constant velocity
-            'pixel' -- Constant pixel grid
+            'velocity' -- Grid is uniform in velocity
+            'log10'  -- Grid is uniform in log10(wave). This is the same as velocity.
+            'linear' -- Constant pixel grid
             'concatenate' -- Meld the input wavelength arrays
         iref (int): optional
-            Reference spectrum
+            Index in waves array for reference spectrum
         wave_grid_min (float): optional
             min wavelength value for the final grid
         wave_grid_max (float): optional
             max wavelength value for the final grid
-        A_pix (float):
+        dwave (float):
             Pixel size in same units as input wavelength array (e.g. Angstroms)
             If not input, the median pixel size is calculated and used
-        v_pix (float):
+        dv (float):
             Pixel size in km/s for velocity method
             If not input, the median km/s per pixel is calculated and used
+        dloglam (float):
+            Pixel size in log10(wave) for the log10 method.
         samp_fact (float):
             sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
             samp_fact < 1.0 undersamples (coarser)
 
-    Returns
-        wave_grid (ndarray): New wavelength grid, not masked
+    Returns:
+        wave_grid, wave_grid_mid, dsamp
+
+             wave_grid (ndarray):  New wavelength grid, not masked
+             wave_grid_mid (ndarray): New wavelength grid evaluated at the centers of the wavelength bins, that is this
+                                      grid is simply offset from wave_grid by dsamp/2.0, in either linear space or log10
+                                      depending on whether linear or (log10 or velocity) was requested.  For iref or concatenate
+                                      the linear wavelength sampling will be calculated.
+
     """
 
     c_kms = constants.c.to('km/s').value
@@ -624,26 +634,6 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
     else:
         msgs.error('Invalid size for wave_new')
 
-def get_median_width(wave, mask, sn_smooth_npix):
-
-    """
-    Utility routine to get median filtering width in pixels
-
-    Args:
-        wave:
-        mask:
-        sn_smooth_npix:
-
-    Returns:
-
-    """
-    c_kms = constants.c.to('km/s').value
-    wave_now = wave[mask]
-    dwave = np.abs((wave_now - np.roll(wave_now, 1))[1:])
-    dv = (dwave/wave_now[1:])*c_kms
-    dv_pix = np.median(dv)
-    med_width = int(np.round(sn_smooth_npix / dv_pix))
-    return med_width
 
 def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False, ivar_weights=False, verbose=False):
 

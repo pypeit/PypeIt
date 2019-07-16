@@ -970,3 +970,4 @@ class MultiSlitCalibrations(Calibrations):
 
     # Notes on order of steps if flexure compensation is implemented
     #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+
