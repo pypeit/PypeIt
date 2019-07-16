@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 
 import scipy
-from astropy.stats import sigma_clipped_stats, sigma_clip
+from astropy import stats
 
 from pypeit import debugger
 
@@ -14,7 +14,8 @@ from pypeit import msgs
 from pypeit import utils
 #from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wvutils
-from pypeit import debugger
+from IPython import embed
+
 
 from pypeit.core import pydl
 from pypeit.core import qa
@@ -501,7 +502,7 @@ def get_censpec(slit_cen, slitmask, arcimg, inmask = None, box_rad = 3.0, xfrac 
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
-        this_mean, this_med, this_sig = sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
+        this_mean, this_med, this_sig = stats.sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
                                                             , sigma=3.0, axis=1)
         imask = np.isnan(this_med)
         this_med[imask]=0.0
@@ -692,12 +693,12 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     plt.show()
 
 def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
-                   cont_mask_neg=False, npoly=None, debug=False):
+                   cont_mask_neg=False, qa_title='', npoly=None, debug_peak_find=False, debug=False):
     """
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
     Args:
-       spec:  ndarray, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
+       spec (ndarray, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
        inmask: ndarray, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
        niter_cont: int, default = 3
             Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
@@ -748,15 +749,16 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     for iter in range(niter_cont):
         spec_sub = spec - cont_now
         mask_sigclip = np.invert(cont_mask & inmask)
-        (mean, med, stddev) = sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej, sigma_upper=sigrej)
+        (mean, med, stddev) = stats.sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej,
+                                                        sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
         thresh = med + sigthresh*stddev
-        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75)
+        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75, show=debug_peak_find)
         # mask out the peaks we find for the next continuum iteration
         cont_mask_fine = np.ones_like(cont_now)
         cont_mask_fine[pixt_now] = 0.0
         if cont_mask_neg is True:
-            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75)
+            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75, show=debug_peak_find)
             cont_mask_fine[pixt_now_neg] = 0.0
         # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
         cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999) & inmask
@@ -780,16 +782,16 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             plt.plot(spec_vec, spec,'k', label='Spectrum')
             #plt.plot(spec_vec, spec*cont_mask,'k', label='Spectrum*cont_mask')
             plt.plot(spec_vec, cont_now,'g',label='continuum')
-            plt.plot(spec_vec, spec_sub,'b',label='spec-cont')
-            plt.plot(spec_vec[cont_mask], spec[cont_mask], color='green', markersize=3.0,
-                     mfc='green', linestyle='None', fillstyle='full',
+            plt.plot(spec_vec, spec - cont_now,'b',label='spec-cont')
+            plt.plot(spec_vec[cont_mask], spec[cont_mask], color='cyan', markersize=3.0,
+                     mfc='cyan', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'Used for cont')
             plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
                      mfc='red', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'masked for cont')
+            plt.title(qa_title)
             plt.legend()
             plt.show()
-
 
     return cont_now, cont_mask
 
@@ -903,7 +905,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = detns - cont_now
     if input_thresh is None:
-        (mean, med, stddev) = sigma_clipped_stats(arc[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
+        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
     else:
         med = 0.0

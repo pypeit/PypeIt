@@ -189,6 +189,7 @@ class ProcessImagesPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
+                 cr_reject=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
 
@@ -244,6 +245,10 @@ class ProcessImagesPar(ParSet):
         dtypes['satpix'] = str
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
+
+        defaults['cr_reject'] = False
+        dtypes['cr_reject'] = bool
+        descr['cr_reject'] = 'Perform cosmic ray rejection'
 
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
@@ -305,7 +310,7 @@ class ProcessImagesPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = [ 'bias', 'overscan', 'overscan_par', 'match',
-                    'combine', 'satpix', 'sigrej', 'n_lohi',
+                    'combine', 'satpix', 'cr_reject', 'sigrej', 'n_lohi',
                     'sig_lohi', 'replace', 'lamaxiter', 'grow',
                     'rmcompact', 'sigclip', 'sigfrac', 'objlim']
         kwargs = {}
@@ -1687,7 +1692,10 @@ class ScienceImagePar(ParSet):
 
     def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
                  global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
-                 find_trim_edge=None, std_prof_nsigma=None,
+                 find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
+                 find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, ech_find_max_snr=None,
+                 ech_find_min_snr=None, ech_find_nabove_min_snr=None,
+                 std_prof_nsigma=None,
                  model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
@@ -1735,6 +1743,7 @@ class ScienceImagePar(ParSet):
         dtypes['std_prof_nsigma'] = float
         descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
 
+        defaults['global_sky_std'] = True
         dtypes['global_sky_std'] = bool
         descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
                                   'off for example for near-IR reductions with narrow slits, since bright standards can' \
@@ -1753,6 +1762,47 @@ class ScienceImagePar(ParSet):
         defaults['find_trim_edge'] = [5,5]
         dtypes['find_trim_edge'] = list
         descr['find_trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
+
+        defaults['find_cont_fit'] = True
+        dtypes['find_cont_fit'] = bool
+        descr['find_cont_fit'] = 'Fit a continuum to the illumination pattern across the trace rectified image' \
+                                 ' (masking objects) when searching for peaks to initially identify objects'
+
+        defaults['find_npoly_cont'] = 1
+        dtypes['find_npoly_cont'] = int
+        descr['find_npoly_cont'] = 'Polynomial order for fitting continuum to the illumination pattern across the trace rectified image' \
+                                 ' (masking objects) when searching for peaks to initially identify objects'
+
+        defaults['find_maxdev'] = 2.0
+        dtypes['find_maxdev'] = [int, float]
+        descr['find_maxdev'] = 'Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.'
+
+        defaults['find_fwhm'] = 5.0
+        dtypes['find_fwhm'] = [int, float]
+        descr['find_fwhm'] = 'Indicates roughly the fwhm of objects in pixels for object finding'
+
+        defaults['ech_find_max_snr'] = 1.0
+        dtypes['ech_find_max_snr'] = [int, float]
+        descr['ech_find_max_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value' \
+                                    ' or satisfy the min_snr criteria described by the min_snr parameters'
+
+        defaults['ech_find_min_snr'] = 0.3
+        dtypes['ech_find_min_snr'] = [int, float]
+        descr['ech_find_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
+                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+
+        defaults['ech_find_nabove_min_snr'] = 2
+        dtypes['ech_find_nabove_min_snr'] = int
+        descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
+                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+
+        #defaults['find_extrap_method'] = 'poly'
+        #dtypes['find_extrap_method'] = str
+        #descr['find_extrap_method'] = 'Method used for extrapolating traces for echelle data when traces do not cover the entire detector'
+
+        defaults['find_extrap_npoly'] = 3
+        dtypes['find_extrap_npoly'] = int
+        descr['find_extrap_npoly'] = 'Polynomial order used for trace extrapolation'
 
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]
@@ -1788,8 +1838,8 @@ class ScienceImagePar(ParSet):
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
-                   'find_trim_edge', 'std_prof_nsigma',
-                   'sky_sigrej']
+                   'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev', 'find_extrap_npoly',
+                   'ech_find_max_snr', 'ech_find_min_snr', 'ech_find_nabove_min_snr', 'std_prof_nsigma', 'sky_sigrej']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1855,7 +1905,8 @@ class CalibrationsPar(ParSet):
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
-        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5)
+        # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
+        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5, process=ProcessImagesPar(satpix='nothing'))
         dtypes['pixelflatframe'] = [ ParSet, dict ]
         descr['pixelflatframe'] = 'The frames and combination rules for the field flattening'
 

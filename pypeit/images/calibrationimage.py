@@ -13,12 +13,14 @@ from pypeit.par import pypeitpar
 
 from pypeit.images import pypeitimage
 from pypeit.images import processrawimage
+from pypeit.images import maskimage
+
 
 
 from IPython import embed
 
 
-class CalibrationImage(pypeitimage.PypeItImage):
+class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
     """
     Class to generate a combined calibration image from a list of input images or
     simply to hold a previously generated calibration image.
@@ -60,6 +62,9 @@ class CalibrationImage(pypeitimage.PypeItImage):
 
         # Internal images
         self.image = None
+        #self.ivar = None
+        # TODO add here a noise model and put the images in ADU!
+        self.crmask = None
 
         # Process steps
         self.process_steps = []
@@ -162,6 +167,8 @@ class CalibrationImage(pypeitimage.PypeItImage):
                                          replace=self.proc_par['replace'])
         # Return
         return self.image.copy()
+
+
 
     def __repr__(self):
         return ('<{:s}: nfiles={}, steps={}>'.format(

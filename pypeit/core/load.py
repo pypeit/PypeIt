@@ -75,7 +75,7 @@ def load_ordloc(fname):
     return ltrace, rtrace
 
 
-def load_specobjs(fname,order=None):
+def load_specobjs(fname,order=None, verbose=False):
     """ Load a spec1d file into a list of SpecObjExp objects
     Parameters
     ----------
@@ -108,9 +108,11 @@ def load_specobjs(fname,order=None):
         objp = idx.split('-')
         if objp[-2][:5] == 'ORDER':
             iord = int(objp[-2][5:])
-            msgs.info('Loading Echelle data.')
+            if verbose:
+                msgs.info('Loading Echelle data.')
         else:
-            msgs.info('Loading longslit data.')
+            if verbose:
+                msgs.info('Loading longslit data.')
             iord = int(-1)
         if (order is not None) and (iord !=order):
             continue

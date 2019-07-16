@@ -6,7 +6,16 @@
 - Improved DEIMOS frame typing
 - Brings Gemini/GMOS into the suite (R400)
 - Also an important change for autoid.full_template()
-
+- Fixed trace extrapolation, to fix bugs in object finding. Tweaks to object finding algorithm.
+- Major improvements to echelle object finding.
+- Improved outlier rejection and coefficient fitting in pca_trace
+- Major improvements to coadd routines in coadd1d
+- Introduced telluric module and telluric correction routines
+- Implemented tilt image type which is now a required frame type
+- Streamlined and abstracted echelle properties and echelle routine in spectrograph classes.
+- Revamped 2-d coadding routines and introduced 2-d coadding of MultiSlit data
+- Improved ginga plotting routines.
+- Fixed bug associated with astropy.stats.sigma_clipped_stats when astropy.stats.mad_std is used.
 
 0.11.0 (22 Jun 2019)
 --------------------

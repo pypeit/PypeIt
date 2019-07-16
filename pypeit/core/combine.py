@@ -5,6 +5,7 @@ import numpy as np
 from IPython import embed
 from pypeit import msgs
 
+# TODO JFH This code is a giant piece of crapp that should be rewritten from scratch
 def comb_frames(frames_arr, saturation=None,
                      maskvalue=1048577, method='weightmean', satpix='reject', cosmics=None,
                      n_lohi=[0,0], sig_lohi=[3.,3.], replace='maxnonsat'):

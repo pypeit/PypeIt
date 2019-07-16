@@ -50,7 +50,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             oscansec        = '[1:1024, 2049:2176]',
                             )]
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
-        self.norders = 15   # 20-6
+        #self.norders = 15
+        # 20-6
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -245,61 +246,26 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         return slitmask
 
-    def slit_minmax(self, nfound, binspectral=1):
-        """
-        These are the order boundaries determined by eye JXP.
+    @property
+    def norders(self):
+        return 15   # 20-6
 
-        Args:
-            nfound (int):
-              Number of orders found on the detector
-              Assumed to capture all of the reddest but maybe not all of the blue
-            binspectral (nt, optional):
-
-        Returns:
-
-        """
-        # Here is the info for all the orders for a good flat
-        all_spec_min = np.full(self.norders, -np.inf)
-        all_spec_max = np.full(self.norders, np.inf)
-
-        # If the number of slits is less than expected, then take the reddest
-        spec_min = all_spec_min[-nfound:]
-        spec_max = all_spec_max[-nfound:]
-
-        return spec_min, spec_max
-
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
-
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
-
-        Returns:
-            int: order number
-
-        """
-        msgs.warn("This will need to be updated with the remaining 3 orders")
-        #
-        order_spat_pos = np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos =  np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
                0.77448156, 0.82253604, 0.86875753, 0.91512689, 0.96524312])
-        orders = np.arange(17, 5, -1, dtype=int)
+        return ord_spat_pos
 
-        # Find closest
-        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
-
-
-        # Check
-        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.warn("Bad echelle format for Magellan-MAGE or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return orders[iorder]
-        else:
-            return orders[iorder]
+    @property
+    def orders(self):
+        return  np.arange(17, 5, -1, dtype=int)
 
 
+    @property
+    def spec_min_max(self):
+        spec_max = np.full(self.norders, np.inf)
+        spec_min = np.full(self.norders, -np.inf)
+        return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
         """

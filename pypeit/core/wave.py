@@ -20,8 +20,7 @@ from pypeit import msgs
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit import utils
-
-from pypeit import debugger
+from IPython import embed
 
 
 def load_sky_spectrum(sky_file):
@@ -52,7 +51,10 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     flex_dict: dict
       Contains flexure info
     """
-    flex_dict = {}
+
+    # TODO None of these routines should have dependencies on XSpectrum1d!
+
+
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
     arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arc.detect_lines(arx_skyspec.flux.value)
@@ -185,9 +187,17 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
     subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
 
-    #Fit a 2-degree polynomial to peak of correlation function
-    fit = utils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
-    max_fit = -0.5*fit[1]/fit[2]
+    #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
+    if np.any(np.isfinite(corr[subpix_grid.astype(np.int)])):
+        fit = utils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
+        success = True
+        max_fit = -0.5 * fit[1] / fit[2]
+    else:
+        fit = utils.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
+        success = False
+        max_fit = 0.0
+        msgs.warn('Flexure compensation failed for one of your objects')
+
 
     #Calculate and apply shift in wavelength
     shift = float(max_fit)-lag0
@@ -198,7 +208,7 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
                      corr=corr[subpix_grid.astype(np.int)],
                      sky_spec=obj_skyspec,
                      arx_spec=arx_skyspec,
-                     corr_cen=corr.size/2, smooth=smooth_sig_pix)
+                     corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
     # Return
     return flex_dict
 
@@ -663,7 +673,8 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
             #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
             model = utils.func_val(fit, xval, 'polynomial')
             mxmod = np.max(model)
-            ylim = [np.min(model/mxmod), 1.3]
+            ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
+            ylim = [ylim_min, 1.3]
             ax.plot(xval-this_flex_dict['corr_cen'][iobj], model/mxmod, 'k-')
             # Measurements
             ax.scatter(this_flex_dict['subpix'][iobj]-this_flex_dict['corr_cen'][iobj],

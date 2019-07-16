@@ -932,11 +932,11 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             mwvsnippet = mwv[i0:i1]
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
-                                                                     line_lists, 1, debug_xcorr=False,
-                                                                     nonlinear_counts=par['nonlinear_counts'],
-                                                                     debug_reid=False,  # verbose=True,
-                                                                     match_toler=par['match_toler'],
-                                                                     cc_thresh=0.1, fwhm=par['fwhm'])
+                                                              line_lists, 1, debug_xcorr=False,
+                                                              nonlinear_counts=par['nonlinear_counts'],
+                                                              debug_reid=False,  # verbose=True,
+                                                              match_toler=par['match_toler'],
+                                                              cc_thresh=0.1, fwhm=par['fwhm'])
             # Deal with IDs
             sv_det.append(i0 + detections)
             try:
@@ -1179,7 +1179,7 @@ class ArchiveReid:
             # we only pass in the relevant arxiv spectrum to make this much faster
             if self.ech_fix_format:
                 # Grab the order (could have been input)
-                order = self.spectrograph.slit2order(slit_spat_pos[slit])
+                order, indx = self.spectrograph.slit2order(slit_spat_pos[slit])
                 # Find it
                 ind_sp = arxiv_orders.index(order)
             else:

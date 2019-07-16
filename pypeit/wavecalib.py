@@ -252,7 +252,7 @@ class WaveCalib(masterframe.MasterFrame):
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
                 continue
-            iorder = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
+            iorder, iindx = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
             mask_now = wv_calib[islit]['mask']
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
