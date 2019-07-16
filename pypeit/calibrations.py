@@ -968,6 +968,7 @@ class MultiSlitCalibrations(Calibrations):
         # Order matters!
         return ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
+    # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
     # Notes on order of steps if flexure compensation is implemented
     #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
