@@ -644,7 +644,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
 
 # TODO Break up into separate methods?
 
-class CoAdd2d(object):
+class Coadd2d(object):
 
     """
     Main routine to run the extraction for 2d coadds.
@@ -1145,7 +1145,7 @@ class CoAdd2d(object):
 # 2) specified weights, or if weights is None and auto_weights=True,
 #    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
 
-class MultiSlit(CoAdd2d):
+class MultiSlitCoadd2d(Coadd2d):
     """
     Child of Coadd2d for Multislit and Longslit reductions
 
@@ -1157,7 +1157,7 @@ class MultiSlit(CoAdd2d):
     """
     def __init__(self, spec2d_files, spectrograph, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
                  ir_redux=False, par=None, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(MultiSlit, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super(MultiSlitCoadd2d, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                         sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
                                         debug=debug, **kwargs_wave)
@@ -1321,7 +1321,7 @@ class MultiSlit(CoAdd2d):
         return self.offset_slit_cen(slitid, offsets)
 
 
-class Echelle(CoAdd2d):
+class EchelleCoadd2d(Coadd2d):
     """
     Child of Coadd2d for Multislit and Longslit reductions
 
@@ -1334,7 +1334,7 @@ class Echelle(CoAdd2d):
     """
     def __init__(self, spec2d_files, spectrograph, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
                  ir_redux=False, par=None, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(Echelle, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super(EchelleCoadd2d, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                       sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                       show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                                       **kwargs_wave)
@@ -1460,10 +1460,10 @@ def instantiate_me(spec2d_files, spectrograph, **kwargs):
         :class:`PypeIt`: One of the classes with :class:`PypeIt` as its
         base.
     """
-    indx = [ c.__name__ == spectrograph.pypeline for c in CoAdd2d.__subclasses__() ]
+    indx = [ c.__name__ == (spectrograph.pypeline + 'Coadd2d') for c in Coadd2d.__subclasses__() ]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    return CoAdd2d.__subclasses__()[np.where(indx)[0][0]](spec2d_files, spectrograph, **kwargs)
+    return Coadd2d.__subclasses__()[np.where(indx)[0][0]](spec2d_files, spectrograph, **kwargs)
 
 
 # Determine brightest object either if offsets were not input, or if automatic weight determiniation is desired
