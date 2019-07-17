@@ -408,6 +408,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
+    Used since February 2017
     """
     def __init__(self):
 
@@ -468,6 +469,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
 class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument with E2V detector
+    Used until February 2017
     """
     def __init__(self):
 
