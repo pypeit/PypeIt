@@ -107,6 +107,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         par['calibrations']['tilts']['tracethresh'] = 10.  # Deals with faint CuAr lines
 
+        #   IF YOU CHANGE THIS, YOU WILL NEED TO DEAL WITH THE OVERSCAN GOING ALONG ROWS
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'median'
+
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
 
@@ -594,14 +599,14 @@ def read_gmos(raw_file, det=1):
     # allocate output array...
     array = np.zeros( (nx, ny) )
 
-    if numamp == 2:
+    if numamp == 2:   # E2V
         if det == 1: # BLUEST DETECTOR
             order = range(6,4,-1)
-        elif det == 2: # BLUEST DETECTOR
+        elif det == 2: # NEXT
             order = range(3,5)
-        elif det == 3: # BLUEST DETECTOR
+        elif det == 3: # REDDEST DETECTOR
             order = range(1,3)
-    elif numamp == 4:
+    elif numamp == 4:  # Hamamatsu
         if det == 1: # BLUEST DETECTOR
             order = range(12,8,-1)
         elif det == 2: # BLUEST DETECTOR
@@ -633,12 +638,11 @@ def read_gmos(raw_file, det=1):
         #; insert postdata...
         xs = nx - numamp*nxb + kk*nxb
         xe = xs + nxb
-        #debugger.set_trace()
+
         #section = '[:,{:d}:{:d}]'.format(xs, xe)
         osection = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)  # TRANSPOSED FOR WHAT COMES
         osec.append(osection)
         array[xs:xe, :] = overscan
-
 
     # make sure BZERO is a valid integer for IRAF
     obzero = head1['BZERO']
@@ -646,6 +650,7 @@ def read_gmos(raw_file, det=1):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
+
     return array, hdu, (dsec, osec)
 
 

@@ -14,6 +14,7 @@ from pypeit import msgs
 from pypeit import utils
 #from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wvutils
+from pypeit.core.wavecal import fitting
 from IPython import embed
 
 
@@ -1027,26 +1028,25 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt, centerr
 
 
-def simple_calib_driver(msarc, llist, censpec, ok_mask, nfitpix=5, get_poly=False,
-                        IDpixels=None, IDwaves=None, nonlinear_counts=None):
+def simple_calib_driver(llist, censpec, ok_mask, n_final=5, get_poly=False,
+                        IDpixels=None, IDwaves=None, nonlinear_counts=1e10):
     wv_calib = {}
     for slit in ok_mask:
-        iwv_calib = simple_calib(msarc, llist, censpec[:, slit], nfitpix=nfitpix,
+        iwv_calib = simple_calib(llist, censpec[:, slit], n_final=n_final,
                                  get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
                                  nonlinear_counts=nonlinear_counts)
         wv_calib[str(slit)] = iwv_calib.copy()
     return wv_calib
 
 
-def simple_calib(msarc, llist, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False, sigdetect=5.,
-                 nonlinear_counts=None):
+def simple_calib(llist, censpec, n_final=5, get_poly=False,
+                 IDpixels=None, IDwaves=None, debug=False, sigdetect=10.,
+                 nonlinear_counts=1e10):
     """Simple calibration algorithm for longslit wavelengths
 
     Parameters
     ----------
-    msarc : ndarray
-    aparm : dict
+    llist (Table):
     censpec : ndarray
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
@@ -1069,207 +1069,55 @@ def simple_calib(msarc, llist, censpec, nfitpix=5, get_poly=False,
 
     # Cut down to the good ones
     tcent = tcent[icut]
-    #tampl = tampl[w]
-    msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
 
     # IDs were input by hand
-    if IDpixels is not None:
-        # Check that there are at least 5 values
-        pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
-        if np.sum(pixels > 0.) < 5:
-            msgs.error("Need to give at least 5 pixel values!")
-        #
-        msgs.info("Using input lines to seed the wavelength solution")
-        # Calculate median offset
-        mdiff = [np.min(np.abs(tcent-pix)) for pix in pixels]
-                 #settings.argflag['arc']['calibrate']['IDpixels']]
-        med_poff = np.median(np.array(mdiff))
-        msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
+    # Check that there are at least 5 values
+    pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
+    if np.sum(pixels > 0.) < 5:
+        msgs.error("Need to give at least 5 pixel values!")
+    #
+    msgs.info("Using input lines to seed the wavelength solution")
+    # Calculate median offset
+    mdiff = [np.min(np.abs(tcent-pix)) for pix in pixels]
+             #settings.argflag['arc']['calibrate']['IDpixels']]
+    med_poff = np.median(np.array(mdiff))
+    msgs.info("Will apply a median offset of {:g} pixels".format(med_poff))
 
-        # Match input lines to observed spectrum
-        nid = pixels.size # len(settings.argflag['arc']['calibrate']['IDpixels'])
-        idx_str = np.ones(nid).astype(int)
-        ids = np.zeros(nid)
-        idsion = np.array(['     ']*nid)
-        gd_str = np.arange(nid).astype(int)
-        for jj,pix in enumerate(pixels): #settings.argflag['arc']['calibrate']['IDpixels']):
-            diff = np.abs(tcent-pix-med_poff)
-            if np.min(diff) > 2.:
-                debugger.set_trace()
-                msgs.error("No match with input pixel {:g}!".format(pix))
-            else:
-                imn = np.argmin(diff)
-            # Set
-            idx_str[jj] = imn
-            # Take wavelength from linelist instead of input value
-            wdiff = np.abs(llist['wave']-IDwaves[jj]) # settings.argflag['arc']['calibrate']['IDwaves'][jj])
-            imnw = np.argmin(wdiff)
-            if wdiff[imnw] > 0.015:  # Arbitrary tolerance
-                msgs.error("Input IDwaves={:g} is not in the linelist.  Fix".format(
-                    IDwaves[jj]))
-                        #settings.argflag['arc']['calibrate']['IDwaves'][jj]))
-            else:
-                ids[jj] = llist['wave'][imnw]
-                idsion[jj] = llist['Ion'][imnw]
-                msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
-    else:
-        # DEPRECATED!!
-        debugger.set_trace()
-        '''
-        # Generate dpix pairs
-        msgs.info("Using pair algorithm for wavelength solution")
-        nlist = len(llist)
-        dpix_list = np.zeros((nlist,nlist))
-        for kk,row in enumerate(llist):
-            #dpix_list[kk,:] = (np.array(row['wave'] - llist['wave']))/disp
-            dpix_list[kk,:] = msarc.shape[0]*(aparm['b1']*(np.array(row['wave'] - llist['wave'])) + aparm['b2']*np.array(row['wave']**2 - llist['wave']**2) )
-
-        # Lambda pairs for the strongest N lines
-        srt = np.argsort(tampl)
-        idx_str = srt[-aparm['Nstrong']:]
-        idx_str.sort()
-        dpix_obs = np.zeros((aparm['Nstrong'], aparm['Nstrong']))
-        for kk,idx in enumerate(idx_str):
-            dpix_obs[kk,:] = np.array(tcent[idx] - tcent[idx_str])
-
-        # Match up (ugly loops)
-        ids = np.zeros(aparm['Nstrong'])
-        idsion = np.array(['     ']*aparm['Nstrong'])
-        for kk in range(aparm['Nstrong']):
-            med_off = np.zeros(nlist)
-            for ss in range(nlist):
-                dpix = dpix_list[ss]
-                min_off = []
-                for jj in range(aparm['Nstrong']):
-                    min_off.append(np.min(np.abs(dpix_obs[kk,jj]-dpix)))
-                med_off[ss] = np.median(min_off)
-            # Set by minimum
-            idm = np.argmin(med_off)
-            ids[kk] = llist['wave'][idm]
-            idsion[kk] = llist['Ion'][idm]
-
-        # Calculate disp of the strong lines
-        disp_str = np.zeros(aparm['Nstrong'])
-        for kk in range(aparm['Nstrong']):
-            disp_val = (ids[kk]-ids)/(tcent[idx_str[kk]]-tcent[idx_str])
-            isf = np.isfinite(disp_val)
-            disp_str[kk] = np.median(disp_val[isf])
-        # Consider calculating the RMS with clipping
-        gd_str = np.where( np.abs(disp_str-aparm['disp'])/aparm['disp'] < aparm['disp_toler'])[0]
-        msgs.info('Found {:d} lines within the dispersion threshold'.format(len(gd_str)))
-        if len(gd_str) < 5:
-            if debug:
-                msgs.warn('You should probably try your best to ID lines now.')
-                debugger.set_trace()
-                debugger.plot1d(yprep)
-            else:
-                msgs.error('Insufficient lines to auto-fit.')
-        '''
+    # Match input lines to observed spectrum
+    nid = pixels.size
+    idx_str = np.ones(nid).astype(int)
+    ids = np.zeros(nid)
+    idsion = np.array(['     ']*nid)
+    gd_str = np.arange(nid).astype(int)
+    for jj,pix in enumerate(pixels):
+        diff = np.abs(tcent-pix-med_poff)
+        if np.min(diff) > 2.:
+            debugger.set_trace()
+            msgs.error("No match with input pixel {:g}!".format(pix))
+        else:
+            imn = np.argmin(diff)
+        # Set
+        idx_str[jj] = imn
+        # Take wavelength from linelist instead of input value
+        wdiff = np.abs(llist['wave']-IDwaves[jj]) # settings.argflag['arc']['calibrate']['IDwaves'][jj])
+        imnw = np.argmin(wdiff)
+        if wdiff[imnw] > 0.015:  # Arbitrary tolerance
+            msgs.error("Input IDwaves={:g} is not in the linelist.  Fix".format(
+                IDwaves[jj]))
+                    #settings.argflag['arc']['calibrate']['IDwaves'][jj]))
+        else:
+            ids[jj] = llist['wave'][imnw]
+            #idsion[jj] = llist['Ion'][imnw]
+            msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
 
     # Debug
-    msgs.work('Cross correlate here?')
-
-    debugger.set_trace() # STOPPED HERE
-    #  SHOULD MAKE A CALL to fitting.iterative_fitting()
-
-    # Setup for fitting
-    ifit = idx_str[gd_str]
-    sv_ifit = list(ifit) # Keep the originals
-    all_ids = -999.*np.ones(len(tcent))
-    all_idsion = np.array(['12345']*len(tcent))
-    all_ids[ifit] = ids[gd_str]
-    all_idsion[ifit] = idsion[gd_str]
-    # Fit
-    n_order = par['n_first']
-    flg_quit = False
-    fmin, fmax = -1., 1.
-    msgs.info('Iterative wavelength fitting..')
-    #debug=True
-    while (n_order <= par['n_final']) and (flg_quit is False):
-        #msgs.info('n_order={:d}'.format(n_order))
-        # Fit with rejection
-        xfit, yfit = tcent[ifit], all_ids[ifit]
-        mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=par['func'], sigma=par['sigrej_first'], minv=fmin, maxv=fmax)
-        rms_ang = utils.calc_fit_rms(xfit, yfit, fit, par['func'], minv=fmin, maxv=fmax)
-        # Reject but keep originals (until final fit)
-        ifit = list(ifit[mask == 0]) + sv_ifit
-        # Find new points (should we allow removal of the originals?)
-        twave = utils.func_val(fit, tcent, par['func'], minv=fmin, maxv=fmax)
-        for ss,iwave in enumerate(twave):
-            mn = np.min(np.abs(iwave-llist['wave']))
-            if mn/aparm['disp'] < par['match_toler']:
-                imn = np.argmin(np.abs(iwave-llist['wave']))
-                if debug:
-                    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
-                # Update and append
-                all_ids[ss] = llist['wave'][imn]
-                all_idsion[ss] = llist['Ion'][imn]
-                ifit.append(ss)
-        # Keep unique ones
-        ifit = np.unique(np.array(ifit,dtype=int))
-        if debug:
-            debugger.set_trace()
-        # Increment order
-        if n_order < par['n_final']:
-            n_order += 1
-        else:
-            # This does 2 iterations at the final order
-            flg_quit = True
-
-    # Final fit (originals can now be rejected)
-    fmin, fmax = 0., 1.
-    xfit, yfit = tcent[ifit]/(msarc.shape[0]-1), all_ids[ifit]
-    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=par['func'], sigma=par['sigrej_final'], minv=fmin, maxv=fmax)
-    irej = np.where(mask==1)[0]
-    if len(irej) > 0:
-        xrej = xfit[irej]
-        yrej = yfit[irej]
-        for imask in irej:
-            msgs.info('Rejecting arc line {:g}'.format(yfit[imask]))
-    else:
-        xrej = []
-        yrej = []
-    xfit = xfit[mask==0]
-    yfit = yfit[mask==0]
-    ions = all_idsion[ifit][mask==0]
-    #
-    '''
-    if debug:
-        wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
-            'legendre', minv=fmin, maxv=fmax)
-        debugger.set_trace()
-
-        #debugger.xplot(xfit, np.ones(len(xfit)), scatter=True,
-        #    xtwo=np.arange(msarc.shape[0]),ytwo=yprep)
-        #debugger.xplot(xfit,yfit, scatter=True, xtwo=np.arange(msarc.shape[0]),
-        #    ytwo=wave)
-        #debugger.set_trace()
-        #wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
-        #    'legendre', min=fmin, max=fmax)
-    '''
-
-    # 2nd order Poly fit for archival
-    #get_poly=True
-    if get_poly:
-        poly_fit = utils.func_fit(yfit,xfit, 'polynomial',2, minv=fmin, maxv=fmax)
-        print(' Most likely you with to record these values:')
-        print(poly_fit)
-        debugger.set_trace()
-    # Pack up fit
-    final_fit = dict(fitc=fit, function=aparm['func'], xfit=xfit, yfit=yfit,
-        ions=ions, fmin=fmin, fmax=fmax, xnorm=float(msarc.shape[0]),
-        xrej=xrej, yrej=yrej, mask=mask, spec=yprep, nrej=aparm['nsig_rej_final'],
-        shift=0., tcent=tcent)
-    # QA
-    #arc_fit_qa(slf, final_fit, slit)
-    # RMS
-    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
-    wave = utils.func_val(fit, np.arange(msarc.shape[0])/float(msarc.shape[0]),
-                            aparm['func'], minv=fmin, maxv=fmax)
-    rms_pix = rms_ang/np.median(np.abs(wave-np.roll(wave,1)))
-    msgs.info("Fit RMS = {} pix".format(rms_pix))
+    disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
+    final_fit = fitting.iterative_fitting(censpec, tcent, idx_str, ids,
+                                          llist, disp, verbose=False, n_final=n_final)
     # Return
     return final_fit
+
+
 
 # JFH I think this is all deprecated code as it is in wavecalib.py now
 def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):

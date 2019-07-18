@@ -158,8 +158,8 @@ class WaveCalib(masterframe.MasterFrame):
             lines = self.par['lamps']
             line_lists = waveio.load_line_lists(lines)
 
-            self.wv_calib = arc.simple_calib_driver(self.msarc, line_lists, arccen, ok_mask,
-                                                    nfitpix=self.par['nfitpix'],
+            final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask,
+                                                    n_final=self.par['n_final'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
