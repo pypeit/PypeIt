@@ -2188,13 +2188,13 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     elif len(outfile.split('.'))==1:
         outfile = outfile+'.fits'
 
-    outfile_order = 'spec1d_order_{:}'.format(outfile)
-    outfile_stack = 'spec1d_stack_{:}'.format(outfile)
+    outfile_order = outfile.replace('.fits', '_order.fits')
+    #outfile_stack = 'spec1d_stack_{:}'.format(outfile)
 
     if qafile is None:
-        qafile = outfile.split('.')[0]+'.pdf'
-    qafile_stack = 'spec1d_stack_{:}'.format(qafile)
-    qafile_chi = 'spec1d_chi_{:}'.format(qafile)
+        qafile = outfile.replace('.fits', '.pdf')
+    qafile_stack = qafile.replace('.pdf', '_stack.pdf')
+    qafile_chi = qafile.replace('.pdf', '_chi.pdf')
 
     # data shape
     nspec, norder, nexp = waves.shape
@@ -2370,10 +2370,10 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     # Save stacked individual order spectra
     save.save_coadd1d_to_fits(outfile_order, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
                               header=header, ex_value = ex_value, overwrite=True)
-    save.save_coadd1d_to_fits(outfile_stack, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
+    save.save_coadd1d_to_fits(outfile, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
                               header=header, ex_value=ex_value, overwrite=True)
     if merge_stack:
-        outfile_merge = 'spec1d_merge_{:}'.format(outfile)
+        outfile_merge = outfile.replace('.fits', '_merge.fits')
         save.save_coadd1d_to_fits(outfile_merge, wave_merge, flux_merge, ivar_merge, mask_merge, header=header,
                                   ex_value=ex_value, overwrite=True)
 
