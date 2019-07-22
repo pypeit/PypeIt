@@ -687,12 +687,12 @@ class Calibrations(object):
 #            # TODO: this should be done inside TraceSlits so that the
 #            # call to run() or whatever has the same format as what the
 #            # user sees in TraceSlitsPar
-#            add_user_slits = None if self.par['slits']['add_slits'] is None \
-#                                else trace_slits.parse_user_slits(self.par['slits']['add_slits'],
-#                                                                  self.det)
-#            rm_user_slits = None if self.par['slits']['rm_slits'] is None \
-#                                else trace_slits.parse_user_slits(self.par['slits']['rm_slits'],
-#                                                                  self.det, rm=True)
+            add_user_slits = None if self.par['slitedges']['add_slits'] is None \
+                                else trace_slits.parse_user_slits(self.par['slitedges']['add_slits'],
+                                                                  self.det)
+            rm_user_slits = None if self.par['slitedges']['rm_slits'] is None \
+                                else trace_slits.parse_user_slits(self.par['slitedges']['rm_slits'],
+                                                                  self.det, rm=True)
 #            # Now we go forth
 #            try:
 #                self.tslits_dict = self.traceSlits.run(self.traceImage.image,
@@ -718,7 +718,8 @@ class Calibrations(object):
             # Now we go forth
             try:
                 self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                      save=self.save_masters)
+                                      save=self.save_masters, add_user_slits=add_user_slits,
+                                      rm_user_slits=rm_user_slits)
             except:
                 self.edges.save()
                 msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
