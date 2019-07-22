@@ -676,8 +676,6 @@ class Calibrations(object):
                                                     bias=self.msbias)
             self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
-            # TODO: Need to bring back adding/removing slits
-
 #            # Compute the plate scale in arcsec which is needed to trim short slits
 #            binspectral, binspatial = parse.parse_binning(self.binning)
 #            plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
@@ -687,12 +685,12 @@ class Calibrations(object):
 #            # TODO: this should be done inside TraceSlits so that the
 #            # call to run() or whatever has the same format as what the
 #            # user sees in TraceSlitsPar
-            add_user_slits = None if self.par['slitedges']['add_slits'] is None \
-                                else trace_slits.parse_user_slits(self.par['slitedges']['add_slits'],
-                                                                  self.det)
-            rm_user_slits = None if self.par['slitedges']['rm_slits'] is None \
-                                else trace_slits.parse_user_slits(self.par['slitedges']['rm_slits'],
-                                                                  self.det, rm=True)
+#            add_user_slits = None if self.par['slitedges']['add_slits'] is None \
+#                                else trace_slits.parse_user_slits(self.par['slitedges']['add_slits'],
+#                                                                  self.det)
+#            rm_user_slits = None if self.par['slitedges']['rm_slits'] is None \
+#                                else trace_slits.parse_user_slits(self.par['slitedges']['rm_slits'],
+#                                                                  self.det, rm=True)
 #            # Now we go forth
 #            try:
 #                self.tslits_dict = self.traceSlits.run(self.traceImage.image,
@@ -718,8 +716,7 @@ class Calibrations(object):
             # Now we go forth
             try:
                 self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                      save=self.save_masters, add_user_slits=add_user_slits,
-                                      rm_user_slits=rm_user_slits)
+                                      save=self.save_masters)
             except:
                 self.edges.save()
                 msgs.error('Crashed out of finding the slits. Have saved the work done to disk '

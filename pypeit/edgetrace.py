@@ -561,8 +561,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                       max_ocol=self.nspat-1, extract_width=extract_width,
                                       mask_threshold=mask_threshold)
 
-    def auto_trace(self, img, bpm=None, det=1, binning=None, save=False, debug=False,
-                   show_stages=False, add_user_slits=None, rm_user_slits=None):
+    def auto_trace(self, img, bpm=None, det=1, binning=None, save=False, debug=False, show_stages=False):
         r"""
         Execute a fixed series of methods to automatically identify
         and trace slit edges.
@@ -667,13 +666,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
-        # Add slits!
-        if add_user_slits is not None:
-            self.add_user_slits(add_user_slits)
+        # Add user traces
+        if self.par['add_slits'] is not None:
+            self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
 
-        # Remove slits!
-        if rm_user_slits is not None:
-            self.rm_user_traces(rm_user_slits)
+        # Remove user traces
+        if self.par['rm_slits'] is not None:
+            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
@@ -2216,13 +2215,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Parse the user input traces to remove
 
         Args:
-            rm_user_traces:
+            rm_user_traces (list):
+              y_spec, x_spat pairs
 
         Returns:
 
         """
-        # TODO -- Insist slits are synced
-        #
+        if not self.is_synced:
+            msgs.error("This method should not be run until after the slits are synced")
+        # Setup
         lefts = self.spat_fit[:, self.is_left]
         rights = self.spat_fit[:, self.is_right]
         indx = np.zeros(self.ntrace, dtype=bool)
@@ -2242,7 +2243,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 #
                 idx = np.where(bad_slit)[0][0]
                 indx[2*idx:2*idx+2] = True
-                msgs.info("Removing user-supplied slit at {},{}".format(xcen,y_spec))
+                msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
         # Remove
         self.remove_traces(indx, sync_rm='both')
 
@@ -3447,7 +3448,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.check_synced(rebuild_pca=rebuild_pca)
         self.log += [inspect.stack()[0][3]]
 
-    def add_user_slits(self, user_slits):
+    def add_user_traces(self, user_traces):
         """
         Add user-defined slit(s)
 
@@ -3456,9 +3457,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         """
         sides = []
-        new_traces = np.zeros((self.nspec, len(user_slits)*2))
+        new_traces = np.zeros((self.nspec, len(user_traces)*2))
         # Add user input slits
-        for kk, new_slit in enumerate(user_slits):
+        for kk, new_slit in enumerate(user_traces):
             # Parse
             y_spec, x_spat0, x_spat1 = new_slit
             msgs.info("Adding new slits at x0, x1 (left, right)".format(x_spat0, x_spat1))
