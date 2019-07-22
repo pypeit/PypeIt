@@ -120,8 +120,9 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     return pca_coeffs, pca.components_, pca.mean_, mean
 
 
-def fit_pca_coefficients(coeff, order, function='legendre', lower=3.0, upper=3.0, minx=None,
-                         maxx=None, maxrej=1, maxiter=25, coo=None, debug=False):
+def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legendre', lower=3.0,
+                         upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25, coo=None,
+                         debug=False):
     r"""
     Fit a parameterized function to a set of PCA coefficients,
     primarily for the purpose of predicting coefficients at
@@ -150,6 +151,16 @@ def fit_pca_coefficients(coeff, order, function='legendre', lower=3.0, upper=3.0
             components, or an array with an order specific to each
             component. If the latter, the shape must be
             :math:`(N_{\rm comp},)`.
+        ivar (`numpy.ndarray`_, optional):
+            Inverse variance in the PCA coefficients to use during
+            the fit; see the `invvar` parameter of
+            :func:`pypeit.utils.robust_polyfit_djs`. Must be the same
+            shape as `coeff`. If None, fit is not error weighted.
+        weights (`numpy.ndarray`_, optional):
+            Weights to apply to the PCA coefficients during the fit;
+            see the `weights` parameter of
+            :func:`pypeit.utils.robust_polyfit_djs`. Must be the same
+            shape as `coeff`. If None, weights are uniform.
         function (:obj:`str`, optional):
             Type of function used to fit the data.
         lower (:obj:`float`, optional):
@@ -230,9 +241,10 @@ def fit_pca_coefficients(coeff, order, function='legendre', lower=3.0, upper=3.0
     # interpolated to other coordinates.
     for i in range(npca):
         coeff_used[:,i], fit_coeff[i] \
-                = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], function=function,
-                                           maxiter=maxiter, lower=lower, upper=upper,
-                                           maxrej=maxrej, sticky=False, minx=minx, maxx=maxx)
+                = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], invvar=ivar,
+                                           weights=weights, function=function, maxiter=maxiter,
+                                           lower=lower, upper=upper, maxrej=maxrej, sticky=False,
+                                           use_mad=False, minx=minx, maxx=maxx)
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)

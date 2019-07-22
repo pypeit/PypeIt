@@ -785,9 +785,9 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
     # Return the new centers, errors, and flags
     return xfit, xerr, indx if bitmask is None else xmsk
 
-
+# NOTE: keck_run_july changes: maxdev changed from 5.0 to 2.0
 def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weighting='uniform',
-              fwhm=3.0, maxshift=None, maxerror=None, function='legendre', maxdev=5.0, maxiter=25,
+              fwhm=3.0, maxshift=None, maxerror=None, function='legendre', maxdev=2.0, maxiter=25,
               niter=9, bitmask=None, debug=False, idx=None, xmin=None, xmax=None):
     """
     Iteratively fit the trace of a feature in the provided image.
@@ -936,8 +936,14 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     trace_coo = np.tile(np.arange(nspec), (ntrace,1)).astype(float)
     # Values to fit
     trace_fit = np.copy(_trace_cen)
+
+    # NOTE: keck_run_july changes: Down-weight masked parts of the
+    # trace.
     # Uniform weighting during the fit
     trace_fit_ivar = np.ones_like(trace_fit)
+    # Down-weight the masked trace locations
+    # TODO: This feels arbitrary
+    trace_fit_ivar[_trace_bpm] = 0.1
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data.
@@ -952,13 +958,31 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
                                         weighting=weighting, maxshift=maxshift, maxerror=maxerror,
                                         bitmask=bitmask)
 
+        ################################################################
+        # NOTE: keck_run_july changes: Now always replace the masked
+        # data with the input trace data; downweight the masked points;
+        # and include the masked points in the fit.
+
+        # Always set the masked values to the initial input trace data.
+        # The input trace data initially comes from either the standard
+        # or the slit boundaries, and if we continually replace it for
+        # all iterations we will naturally always extraplate the trace
+        # to match the shape of a high S/N ratio fit (i.e. either the
+        # standard or the flat which was used to determine the slit
+        # edges.
+        cen[_trace_bpm] = _trace_cen[_trace_bpm]
+
         # Do not do any kind of masking based on the trace recentering
         # errors. Trace fitting is much more robust when masked pixels
-        # are simply replaced by the input trace values.
-        
-        # Do not do weighted fits, i.e. uniform weights but set the
-        # error to 1.0 pixel
-        traceset = pydl.TraceSet(trace_coo, cen.T, inmask=np.invert(_trace_bpm.T),
+        # are simply replaced by the input trace values. Therefore,
+        # masked pixels are not excluded from the fit, but we do give
+        # them lower weight via that inverse variance. See the
+        # instantation of trace_fit_ivar above.
+        ################################################################
+
+        # Fit the data
+        traceset = pydl.TraceSet(trace_coo, cen.T,
+                                 # Removed by keck_run_july:  inmask=np.invert(_trace_bpm.T),
                                  function=function, ncoeff=order, maxdev=maxdev, maxiter=maxiter,
                                  invvar=trace_fit_ivar.T, xmin=xmin, xmax=xmax)
 
@@ -994,25 +1018,64 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         if idx is None:
             idx = np.arange(1,ntrace+1).astype(str)
 
-        # Bad pixels have errors set to 999 and are returned to lie on
-        # the input trace. Use this only for plotting below.
-        for i in range(ntrace):
-            plt.scatter(trace_coo[i,:], cen[:,i], marker='o', color='k', s=30,
-                        label=title_text + ' Centroid')
-            plt.plot(trace_coo[i,:], _trace_cen[:,i], color='g', zorder=25, linewidth=2.0,
-                     linestyle='--', label='initial guess')
-            plt.plot(trace_coo[i,:], trace_fit[:,i], c='red', zorder=30, linewidth=2.0,
-                     label ='fit to trace')
-            if np.any(msk[:,i]):
-                indx = msk[:,i].astype(bool)
-                plt.scatter(trace_coo[i,indx], trace_fit[indx,i], c='blue',
-                            marker='+', s=50, zorder=20, label='masked points, set to init guess')
-            if np.any(_trace_bpm[:,i]):
-                plt.scatter(trace_coo[i,_trace_bpm[:,i]], trace_fit[_trace_bpm[:,i],i],
-                            c='orange', marker='s', s=30, zorder=20,
-                            label='input masked points, not fit')
+        # Construct boolean flags
+        inpgpm = np.invert(_trace_bpm)
+        cengpm = np.invert(msk.astype(bool))
+        fitgpm = traceset.outmask.T
+        bpm_fit = _trace_bpm & fitgpm
+        bpm_rej = _trace_bpm & np.invert(fitgpm)
+        gpm_bdcen_fit = inpgpm & np.invert(cengpm) & fitgpm
+        gpm_bdcen_rej = inpgpm & np.invert(cengpm) & np.invert(fitgpm)
+        gpm_gdcen_fit = inpgpm & cengpm & fitgpm
+        gpm_gdcen_rej = inpgpm & cengpm & np.invert(fitgpm)
 
-            plt.title(title_text + ' Centroid to object {0}.'.format(idx[i]))
+        for i in range(ntrace):
+            # Plot data masked on input and included in fit using input
+            # locations and lower weight
+            if np.any(bpm_fit[:,i]):
+                plt.scatter(trace_coo[i,bpm_fit[:,i]], cen[bpm_fit[:,i],i], marker='o',
+                            color='0.3', s=30, label='Input masked, fit')
+
+            # Plot data masked on input and included in fit using input
+            # locations and lower weight, but rejected by the fit
+            if np.any(bpm_rej[:,i]):
+                plt.scatter(trace_coo[i,bpm_rej[:,i]], cen[bpm_rej[:,i],i], marker='x',
+                            color='C6', s=30, label='Input masked, fit, rejected')
+
+            # Plot data with bad recentroid measurements, included in
+            # fit using input locations and lower weight
+            if np.any(gpm_bdcen_fit[:,i]):
+                plt.scatter(trace_coo[i,gpm_bdcen_fit[:,i]], cen[gpm_bdcen_fit[:,i],i], marker='o',
+                            color='0.7', s=30, label='Centroid masked, fit')
+
+            # Plot data with bad recentroid measurements, included in
+            # fit using input locations and lower weight, but rejected
+            # by the fit
+            if np.any(gpm_bdcen_rej[:,i]):
+                plt.scatter(trace_coo[i,gpm_bdcen_rej[:,i]], cen[gpm_bdcen_rej[:,i],i], marker='x',
+                            color='C1', s=30, label='Centroid masked, fit, rejected')
+
+            # Plot data with good recentroid measurements and included
+            # in fit
+            if np.any(gpm_gdcen_fit[:,i]):
+                plt.scatter(trace_coo[i,gpm_gdcen_fit[:,i]], cen[gpm_gdcen_fit[:,i],i], marker='o',
+                            color='k', s=30, label='Remeasured and fit')
+
+            # Plot data with good recentroid measurements and included
+            # in fit but rejected
+            if np.any(gpm_gdcen_rej[:,i]):
+                plt.scatter(trace_coo[i,gpm_gdcen_rej[:,i]], cen[gpm_gdcen_rej[:,i],i], marker='x',
+                            color='C3', s=30, label='Remeasured, fit, and rejected')
+
+            # Plot all input trace locations as a line
+            plt.plot(trace_coo[i,:], _trace_cen[:,i], color='C2', linewidth=1.5,
+                     linestyle='--', label='Input Trace Data')
+
+            # Plot all input trace locations as a line
+            plt.plot(trace_coo[i,:], trace_fit[:,i], color='r', linewidth=2.0,
+                     linestyle='--', label='Fit')
+
+            plt.title(title_text + ' Centroid fit for trace {0}.'.format(idx[i]))
             plt.ylim((0.995*np.amin(trace_fit[:,i]), 1.005*np.amax(trace_fit[:,i])))
             plt.xlabel('Spectral Pixel')
             plt.ylabel('Spatial Pixel')

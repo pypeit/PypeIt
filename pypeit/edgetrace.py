@@ -101,6 +101,7 @@ from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
 from pypeit.traceimage import TraceImage
+from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
 
@@ -156,111 +157,6 @@ class EdgeTraceBitMask(BitMask):
         reasons.
         """
         return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT'] 
-
-
-class EdgeTracePCA:
-    r"""
-    Class to build and interact with PCA model of edge traces.
-
-    This is primarily a container class for the results of
-    :func:`pypeit.core.pca.pca_decomposition`,
-    :func:`pypeit.core.pca.fit_pca_coefficients`, and
-    :func:`pypeit.core.pca.pca_predict`.
-
-    Args:
-        trace_cen (`numpy.ndarray`_):
-            A floating-point array with the spatial location of each
-            each trace edge. Shape is :math:`(N_{\rm spec}, N_{\rm
-            trace})`.
-        npca (:obj:`bool`, optional):
-            The number of PCA components to keep. See
-            :func:`pypeit.core.pca.pca_decomposition`.
-        pca_explained_var (:obj:`float`, optional):
-            The percentage (i.e., not the fraction) of the variance
-            in the data accounted for by the PCA used to truncate the
-            number of PCA coefficients to keep (see `npca`). Ignored
-            if `npca` is provided directly. See
-            :func:`pypeit.core.pca.pca_decomposition`.
-        reference_row (:obj:`int`, optional):
-            The row (spectral position) in `trace_cen` to use as the
-            reference coordinate system for the PCA. If None, set to
-            the :math:`N_{\rm spec}/2`.
-    """
-    # TODO: Add a show method that plots the pca coefficients and the
-    # current fit, if there is one
-    def __init__(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None):
-
-        # Set the reference row to use for the coordinates of the trace
-        self.reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
-        self.trace_coo = trace_cen[self.reference_row,:]
-        # Save the input
-        self.input_npca = npca
-        self.input_pcav = pca_explained_var
-
-        # Perform the PCA decomposition of the traces
-        self.pca_coeffs, self.pca_components, self.pca_mean, self.trace_mean \
-                = pca.pca_decomposition(trace_cen.T, npca=npca,
-                                        pca_explained_var=pca_explained_var, mean=self.trace_coo)
-        self.npca = self.pca_coeffs.shape[1]
-        self.nspec = self.pca_components.shape[1]
-
-        # Instantiate the remaining attributes
-        self.pca_mask = np.zeros(self.pca_coeffs.shape, dtype=bool)
-        self.function = None
-        self.fit_coeff = None
-        self.minx = None
-        self.maxx = None
-        self.lower = None
-        self.upper = None
-        self.maxrej = None
-        self.maxiter = None
-
-    def build_interpolator(self, order, function='polynomial', lower=3.0, upper=3.0, minx=None,
-                           maxx=None, maxrej=1, maxiter=25, debug=False):
-        """
-        Wrapper for :func:`fit_pca_coefficients` that uses class
-        attributes and saves the input parameters.
-        """
-        # Save the input
-        self.function = function
-        self.lower = lower
-        self.upper = upper
-        self.maxrej = maxrej
-        self.maxiter = maxiter
-        self.pca_mask, self.fit_coeff, self.minx, self.maxx \
-                = pca.fit_pca_coefficients(self.pca_coeffs, order, function=self.function,
-                                           lower=lower, upper=upper, minx=minx, maxx=maxx,
-                                           maxrej=maxrej, maxiter=maxiter, coo=self.trace_coo,
-                                           debug=debug)
-
-    def predict(self, x):
-        r"""
-        Predict one or more traces given the functional forms for the
-        PCA coefficients.
-
-        .. warning::
-            The PCA coefficients must have first been modeled by a
-            function before using this method. An error will be
-            raised if :attr:`fit_coeff` is not defined.
-
-        Args:
-            x (:obj:`float`, `numpy.ndarray`_):
-                One or more spatial coordinates (at the PCA reference
-                row) at which to sample the PCA coefficients and
-                produce the PCA model for the trace spatial position
-                as a function of spectral pixel.
-
-        Returns:
-            `numpy.ndarray`_: The array with the predicted spatial
-            locations of the trace. If the provided coordinate is a
-            single value, the returned shape is :math:`(N_{\rm
-            pix},)`; otherwise it is :math:`(N_{\rm pix}, N_{\rm
-            x})`.
-        """
-        if self.fit_coeff is None:
-            msgs.error('PCA coefficients have not been modeled; run model_coeffs first.')
-        return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
-                               function=self.function).T
 
 
 class EdgeTraceSet(masterframe.MasterFrame):
@@ -413,13 +309,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         spat_fit_type (:obj:`str`):
             An informational string identifier for the type of model
             used to fit the trace data.
-        pca (:obj:`list`, :class:`EdgeTracePCA`):
+        pca (:obj:`list`, :class:`pypeit.tracepca.TracePCA`):
             Result of a PCA decomposition of the edge traces, used to
             predict new traces. This can either be a single
-            :class:`EdgeTracePCA` object or a list of two
-            :class:`EdgeTracePCA` objects if the PCA decomposition is
-            peformed for the left (`pca[0]`) and right (`pca[1]`)
-            traces separately.
+            :class:`pypeit.tracepca.TracePCA` object or a list of two
+            :class:`pypeit.tracepca.TracePCA` objects if the PCA
+            decomposition is peformed for the left (`pca[0]`) and
+            right (`pca[1]`) traces separately.
         pca_type (:obj:`str`)
             An informational string indicating which data were used
             in the PCA decomposition, 'center' for `spat_cen` or
@@ -473,7 +369,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit = None            # The result of modeling the slit edge positions
         self.spat_fit_type = None       # The type of fitting performed
         
-        self.pca = None                 # One or two EdgeTracePCA objects with PCA decomposition
+        self.pca = None                 # One or two TracePCA objects with PCA decomposition
         self.pca_type = None            # Measurements used to construct the PCA (center or fit)
 
         self.design = None              # Table that collates slit-mask design data matched to
@@ -2751,14 +2647,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Primarily a wrapper that instantiates :attr:`pca`. If left
         and right traces are analyzed separately, :attr:`pca` will be
-        a list of two :class:`EdgeTracePCA` objects; otherwise
-        :attr:`pca` is a single :class:`EdgeTracePCA` object. After
-        executing this, traces can be predicted by calling
-        `self.pca.predict(spat)` (see :func:`EdgeTracePCA.predict`)
-        if both sides are analyzed simultaneously; otherwise, left
-        and tright traces can be predicted using
-        `self.pca[0].predict(spat)`. and `self.pca[1].predict(spat)`,
-        respectively. See :func:`predict_traces`.
+        a list of two :class:`pypeit.tracepca.TracePCA` objects;
+        otherwise :attr:`pca` is a single
+        :class:`pypeit.tracepca.TracePCA` object. After executing
+        this, traces can be predicted by calling
+        `self.pca.predict(spat)` (see
+        :func:`pypeit.tracepca.TracePCA.predict`) if both sides are
+        analyzed simultaneously; otherwise, left and tright traces
+        can be predicted using `self.pca[0].predict(spat)`. and
+        `self.pca[1].predict(spat)`, respectively. See
+        :func:`predict_traces`.
 
         If no parametrized function has been fit to the trace data or
         if specifically requested (see `use_center`), the PCA is
@@ -2767,7 +2665,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         (:attr:`spat_fit`).
 
         The reference row used for the decomposition (see
-        :class:`EdgeTracePCA`) is set by
+        :class:`pypeit.tracepca.TracePCA`) is set by
         :func:`pypeit.core.trace.most_common_trace_row` using the
         existing mask. If treating left and right traces separately,
         the reference row is the same for both PCA decompositions.
@@ -2868,8 +2766,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             else self.spat_fit[:,indx]
 
             # Instantiate the PCA
-            self.pca[i] = EdgeTracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
-                                       reference_row=reference_row)
+            self.pca[i] = TracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
+                                   reference_row=reference_row)
 
             # Set the order of the function fit to the PCA
             # coefficiencts: Order is set to cascade down to lower
@@ -2877,9 +2775,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # percentage of the variance.
             _order = np.clip(order - np.arange(self.pca[i].npca), 1, None).astype(int)
             msgs.info('Order of function fit to each component: {0}'.format(_order))
+
+            # Apply a 10% relative error to each coefficient. This
+            # performs better than use_mad, since larger coefficients
+            # will always be considered inliers, if the coefficients
+            # vary rapidly with order as they sometimes do.
+            ivar = utils.inverse(numpy.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
+
             # Run the fit
-            self.pca[i].build_interpolator(_order, function=function, lower=lower, upper=upper,
-                                           minx=0., maxx=self.nspat-1., maxrej=maxrej,
+            self.pca[i].build_interpolator(_order, ivar=ivar, function=function, lower=lower,
+                                           upper=upper, minx=0., maxx=self.nspat-1., maxrej=maxrej,
                                            maxiter=maxiter, debug=debug)
 
             # TODO: Use the rejected pca coefficiencts to reject traces?

@@ -38,6 +38,7 @@ Submodules
    pypeit.specobjs
    pypeit.telescopes
    pypeit.traceimage
+   pypeit.tracepca
    pypeit.traceslits
    pypeit.utils
    pypeit.wavecalib
