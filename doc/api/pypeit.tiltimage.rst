@@ -1,7 +1,7 @@
-pypeit.core.flux module
+pypeit.tiltimage module
 =======================
 
-.. automodule:: pypeit.core.flux
+.. automodule:: pypeit.tiltimage
     :members:
     :undoc-members:
     :show-inheritance:

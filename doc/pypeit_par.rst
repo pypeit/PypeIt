@@ -358,7 +358,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``tilt``, ``pixelflat``, ``dark``, ``science``, ``arc``, ``pinhole``, ``standard``, ``bias``, ``trace``  ``science``                   Frame type.  Options are: tilt, pixelflat, dark, science, arc, pinhole, standard, bias, trace                                                                                                                                                                  
+``frametype``  str                                             ``science``, ``trace``, ``arc``, ``standard``, ``tilt``, ``pixelflat``, ``dark``, ``pinhole``, ``bias``  ``science``                   Frame type.  Options are: science, trace, arc, standard, tilt, pixelflat, dark, pinhole, bias                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -381,6 +381,7 @@ Key               Type        Options                                           
 ``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                                        
 ``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                                          
 ``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                             
+``cr_reject``     bool        ..                                                                     False             Perform cosmic ray rejection                                                                                                                                                                                                                                   
 ``sigrej``        int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                                                 
 ``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                               
 ``sig_lohi``      list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                                         
@@ -405,23 +406,31 @@ ScienceImagePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ScienceImagePar`
 
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                             
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                               
-``boxcar_radius``    int, float  ..       1.5      Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                                                                  
-``trace_npoly``      int         ..       5        Order of legendre polynomial fits to object traces.                                                                                                                                                                                                                                                                                     
-``global_sky_std``   bool        ..       ..       Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
-``sig_thresh``       int, float  ..       10.0     Significance threshold for object finding.                                                                                                                                                                                                                                                                                              
-``maxnumber``        int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit.                                                                                                                                                                                                                                                        
-``sn_gauss``         int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                                                                        
-``find_trim_edge``   list        ..       5, 5     Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                                                                                
-``std_prof_nsigma``  float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                                                                      
-``model_full_slit``  bool        ..       False    If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits                                           
-``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                          
-``manual``           list        ..       ..       List of manual extraction parameter sets                                                                                                                                                                                                                                                                                                
-``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                           
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+===========================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+Key                          Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                             
+===========================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+``bspline_spacing``          int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                               
+``boxcar_radius``            int, float  ..       1.5      Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                                                                  
+``trace_npoly``              int         ..       5        Order of legendre polynomial fits to object traces.                                                                                                                                                                                                                                                                                     
+``global_sky_std``           bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
+``sig_thresh``               int, float  ..       10.0     Significance threshold for object finding.                                                                                                                                                                                                                                                                                              
+``maxnumber``                int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit.                                                                                                                                                                                                                                                        
+``sn_gauss``                 int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                                                                        
+``find_trim_edge``           list        ..       5, 5     Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                                                                                
+``find_cont_fit``            bool        ..       True     Fit a continuum to the illumination pattern across the trace rectified image (masking objects) when searching for peaks to initially identify objects                                                                                                                                                                                   
+``find_npoly_cont``          int         ..       1        Polynomial order for fitting continuum to the illumination pattern across the trace rectified image (masking objects) when searching for peaks to initially identify objects                                                                                                                                                            
+``find_fwhm``                int, float  ..       5.0      Indicates roughly the fwhm of objects in pixels for object finding                                                                                                                                                                                                                                                                      
+``find_maxdev``              int, float  ..       2.0      Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.                                                                                                                                                                                                                                    
+``find_extrap_npoly``        int         ..       3        Polynomial order used for trace extrapolation                                                                                                                                                                                                                                                                                           
+``ech_find_max_snr``         int, float  ..       1.0      Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value or satisfy the min_snr criteria described by the min_snr parameters                                                                                                                                             
+``ech_find_min_snr``         int, float  ..       0.3      Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders                                                                                                                     
+``ech_find_nabove_min_snr``  int         ..       2        Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders                                                                                                                     
+``std_prof_nsigma``          float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                                                                      
+``model_full_slit``          bool        ..       False    If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits                                           
+``no_poly``                  bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                          
+``manual``                   list        ..       ..       List of manual extraction parameter sets                                                                                                                                                                                                                                                                                                
+``sky_sigrej``               float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                           
+===========================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -500,6 +509,7 @@ Alterations to the default parameters are::
           exprng = None, 30
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
@@ -510,7 +520,7 @@ Alterations to the default parameters are::
           number = 1
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
-          nonlinear_counts = 56360.1
+          nonlinear_counts = 62258.25
           match_toler = 2.5
           n_first = 3
       [[slits]]
@@ -553,6 +563,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -605,6 +617,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -663,6 +677,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -720,6 +736,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 5
       [[standardframe]]
@@ -773,6 +791,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -817,6 +837,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -866,6 +888,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -906,6 +930,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 3
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -942,6 +968,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -976,6 +1004,7 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
@@ -1003,12 +1032,16 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = median
               sigrej = -1
+              bias = skip
       [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
           [[[process]]]
@@ -1055,8 +1088,11 @@ Alterations to the default parameters are::
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
           [[[process]]]
@@ -1095,6 +1131,10 @@ Alterations to the default parameters are::
       useframe = overscan
   [scienceimage]
       bspline_spacing = 0.5
+      global_sky_std = False
+      find_trim_edge = 3, 3
+      find_cont_fit = False
+      find_npoly_cont = 0
       model_full_slit = True
 
 VLT XShooter_NIR
@@ -1117,6 +1157,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
       [[standardframe]]
@@ -1163,6 +1205,8 @@ Alterations to the default parameters are::
       bspline_spacing = 0.8
       trace_npoly = 8
       global_sky_std = False
+      find_cont_fit = False
+      find_npoly_cont = 0
       model_full_slit = True
 
 GEMINI-N GNIRS
@@ -1194,6 +1238,7 @@ Alterations to the default parameters are::
           exprng = None, 30
           [[[process]]]
               overscan = none
+              satpix = nothing
       [[pinholeframe]]
           [[[process]]]
               overscan = none
@@ -1241,6 +1286,9 @@ Alterations to the default parameters are::
       bspline_spacing = 0.8
       global_sky_std = False
       sig_thresh = 5.0
+      find_trim_edge = 2, 2
+      find_cont_fit = False
+      find_npoly_cont = 0
       model_full_slit = True
       no_poly = True
 
@@ -1263,6 +1311,7 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[traceframe]]
           number = 3
@@ -1301,6 +1350,7 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[traceframe]]
           number = 3
@@ -1339,6 +1389,7 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[traceframe]]
           number = 3
@@ -1380,6 +1431,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 5
       [[standardframe]]
@@ -1428,6 +1481,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
       [[standardframe]]
@@ -1479,6 +1534,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
       [[standardframe]]
@@ -1527,6 +1584,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1577,6 +1636,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1625,6 +1686,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1674,6 +1737,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1726,6 +1791,7 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               overscan = median
+              satpix = nothing
       [[pinholeframe]]
           [[[process]]]
               overscan = median

@@ -50,7 +50,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                             datasec         = '[1:2048,1:2048]',
                             oscansec        = '[:,:4]'
                             )]
-        self.norders = 22
+#        self.norders = 22
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -232,6 +232,10 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
         slitmask[order7bad] = -1
         return slitmask
+
+    @property
+    def norders(self):
+        return 22
 
     @staticmethod
     def slit2order(islit):

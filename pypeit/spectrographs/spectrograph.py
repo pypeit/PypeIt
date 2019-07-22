@@ -902,34 +902,6 @@ class Spectrograph(object):
         return spec_min, spec_max
 
 
-    def slitmask(self, tslits_dict, pad = None):
-        """
-         Generic routine to construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'],tslits_dict['rcen'],tslits_dict['nspat'], pad=pad)
-        return slitmask
-
     def order_platescale(self, order_vec, binning=None):
         """
         This routine is only for echelle spectrographs. It returns the plate scale order by order
@@ -957,25 +929,25 @@ class Spectrograph(object):
         """
         order_vec = np.zeros(slit_spat_pos.size, dtype=int)
         for kk, ipos in enumerate(slit_spat_pos):
-            order_vec[kk] = self.slit2order(ipos)
+            order_vec[kk], indx= self.slit2order(ipos)
         # Return
         return order_vec
 
-
-    def slit2order(self, slit_pos):
-        """
-        This routine is only for echelle spectrographs.
-        It returns the order of the input slit
-
-        Args:
-            slit_pos (float):
-
-        Returns:
-            int: Echelle order number
-
-        """
+    @property
+    def norders(self):
         pass
 
+    @property
+    def order_spat_pos(self):
+        pass
+
+    @property
+    def orders(self):
+        pass
+
+    @property
+    def spec_min_max(self):
+        return None
 
     @property
     def dloglam(self):
@@ -984,6 +956,66 @@ class Spectrograph(object):
     @property
     def loglam_minmax(self):
         pass
+
+    def slit2order(self, slit_spat_pos):
+        """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
+
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+
+        Returns:
+            order, indx
+
+            order (int): order number
+            indx  (int): order index
+
+        """
+        indx = np.arange(self.norders)
+        # Find closest
+        try:
+            iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
+        except TypeError:
+            iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
+
+        # Check
+        if np.any(np.abs(self.order_spat_pos[iorder] - slit_spat_pos) > 0.05):
+            msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return self.orders[iorder], indx[iorder]
+        else:
+            return self.orders[iorder], indx[iorder]
+
+
+    def slit_minmax(self, slit_spat_pos, binspectral=1):
+        """
+
+        Args:
+            slit_spat_pos (float or ndarray):
+                normalized slit_spatial position as computed by trace_slits.slit_spat_pos
+            binspectral (int): default=1
+               spectral binning
+
+        Returns:
+
+        """
+
+        if self.spec_min_max is None:
+            try:
+                nslit = len(slit_spat_pos)
+            except TypeError:
+                nslit = 1
+            return np.vstack((np.asarray([-np.inf]*nslit), np.asarray([np.inf]*nslit)))
+
+        else:
+            try:
+                iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
+            except TypeError:
+                iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
+            return self.spec_min_max[:, iorder]/binspectral
+
 
     def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
         """

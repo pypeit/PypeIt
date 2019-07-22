@@ -5,7 +5,6 @@ import time
 import os
 import numpy as np
 from collections import OrderedDict
-import IPython
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
@@ -19,7 +18,7 @@ from pypeit.core import load
 from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 from linetools import utils as ltu
-
+from IPython import embed
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -106,7 +105,6 @@ class PypeIt(object):
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
         # --------------------------------------------------------------
-
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
@@ -579,6 +577,9 @@ class PypeIt(object):
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
 
+        if self.show:
+            self.redux.show('image', image=self.sciImg.image, chname='processed', slits=True,clear=True)
+
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
@@ -593,7 +594,6 @@ class PypeIt(object):
         self.initial_sky = \
             self.redux.global_skysub(skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
-
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \

@@ -37,6 +37,7 @@ Submodules
    pypeit.setup_package
    pypeit.specobjs
    pypeit.telescopes
+   pypeit.tiltimage
    pypeit.traceimage
    pypeit.tracepca
    pypeit.traceslits

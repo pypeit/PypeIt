@@ -309,3 +309,4 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
     vectors = np.dot(c, pca_components) + pca_mean[None,:] + mean[:,None]
     return vectors if isinstance(x, np.ndarray) else vectors[0,:]
 
+

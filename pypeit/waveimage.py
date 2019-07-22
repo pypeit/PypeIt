@@ -112,7 +112,7 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
-                order = self.spectrograph.slit2order(self.slit_spat_pos[slit])
+                order, indx = self.spectrograph.slit2order(self.slit_spat_pos[slit])
                 # evaluate solution
                 self.image[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],
                                                        self.tilts[thismask],
