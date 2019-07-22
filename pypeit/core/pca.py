@@ -211,6 +211,14 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     if _coeff.ndim != 2:
         raise ValueError('Array with coefficiencts cannot be more than 2D')
     nvec, npca = _coeff.shape
+    #   - Check the inverse variance
+    _ivar = np.ones(_coeff.shape, dtype=float) if ivar is None else np.atleast_2d(ivar)
+    if _ivar.shape != _coeff.shape:
+        raise ValueError('Inverse variance array does not match input coefficients.')
+    #   - Check the weights
+    _weights = np.ones(_coeff.shape, dtype=float) if weights is None else np.atleast_2d(weights)
+    if _weights.shape != _coeff.shape:
+        raise ValueError('Weights array does not match input coefficients.')
     #   - Set the abscissa of the data if not provided and check its
     #   shape
     if coo is None:
@@ -239,12 +247,14 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
 
     # Fit the coefficients of each PCA component so that they can be
     # interpolated to other coordinates.
+
     for i in range(npca):
         coeff_used[:,i], fit_coeff[i] \
-                = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], invvar=ivar,
-                                           weights=weights, function=function, maxiter=maxiter,
-                                           lower=lower, upper=upper, maxrej=maxrej, sticky=False,
-                                           use_mad=False, minx=minx, maxx=maxx)
+                = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], invvar=_ivar[:,i],
+                                           weights=_weights[:,i], function=function,
+                                           maxiter=maxiter, lower=lower, upper=upper,
+                                           maxrej=maxrej, sticky=False, use_mad=False, minx=minx,
+                                           maxx=maxx)
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)
