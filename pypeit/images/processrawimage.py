@@ -38,10 +38,11 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             Dict describing the steps performed on the image
         _bpm (np.ndarray):
             Holds the bad pixel mask once loaded
-        rawdatasec_img (np.ndarray):
-            Holds the rawdatasec_img once loaded
+        datasec_img (np.ndarray):
+            Holds the datasec_img which specifies the amp for each pixel in the
+            current self.image image
         oscansec_img (np.ndarray):
-            Holds the oscansec_img once loaded
+            Holds the oscansec_img once loaded.  This is only in the raw frame
         hdu (fits.HDUList):
             HDUList of the file
     """
@@ -60,7 +61,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         self._bpm = None
         self.hdu = None
 
-        # Load -- This also initializes rawdatasec_img and oscansec_img
+        # Load -- This also initializes datasec_img and oscansec_img
         self.load_rawframe()
 
         # All possible processing steps
@@ -81,7 +82,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Returns:
             list
         """
-        return np.unique(self.rawdatasec_img[self.rawdatasec_img > 0]).tolist()
+        return np.unique(self.datasec_img[self.datasec_img > 0]).tolist()
 
     @property
     def bpm(self):
@@ -166,7 +167,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
 
         gain = np.atleast_1d(self.spectrograph.detector[self.det - 1]['gain']).tolist()
         # Apply
-        self.image *= procimg.gain_frame(self.rawdatasec_img, gain, trim=self.steps['trim'])
+        self.image *= procimg.gain_frame(self.datasec_img, gain) #, trim=self.steps['trim'])
         self.steps[step] = True
         # Return
         return self.image.copy()
@@ -253,7 +254,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Load
         #self.image, self.hdu, \
         #    = self.spectrograph.load_raw_frame(self.filename, det=self.det)
-        self.hdu, self.image, self.exptime, self.rawdatasec_img, self.oscansec_img = self.spectrograph.load_raw(
+        self.hdu, self.image, self.exptime, self.datasec_img, self.oscansec_img = self.spectrograph.load_raw(
             self.filename, self.det)
 
         self.head0 = self.hdu[0].header
@@ -279,6 +280,8 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             return self.image.copy()
         # Orient me
         self.image = self.spectrograph.orient_image(self.image, self.det)
+        self.datasec_img = self.spectrograph.orient_image(self.datasec_img, self.det)
+        #
         self.steps[step] = True
 
     def subtract_bias(self, bias_image, force=False):
@@ -314,7 +317,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         if self.steps[step] and (not force):
             msgs.warn("Image was already trimmed")
 
-        temp = procimg.subtract_overscan(self.image, self.rawdatasec_img, self.oscansec_img,
+        temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
                                          method=self.par['overscan'],
                                          params=self.par['overscan_par'])
         # Fill
@@ -341,9 +344,12 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             msgs.warn("Image was already trimmed.  Returning current image")
             return self.image
         # Do it
-        trim_image = procimg.trim_frame(self.image, self.rawdatasec_img < 1)
+        trim_image = procimg.trim_frame(self.image, self.datasec_img < 1)
+        trim_datasec = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         # Overwrite
         self.image = trim_image
+        self.datasec_img = trim_datasec
+        #
         self.steps[step] = True
 
     def __repr__(self):

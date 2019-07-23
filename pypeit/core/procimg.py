@@ -237,7 +237,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-def gain_frame(amp_img, gain, trim=True):
+def gain_frame(amp_img, gain, trim=False):
     """
     Generate an image with the gain for each pixel.
 
@@ -249,7 +249,7 @@ def gain_frame(amp_img, gain, trim=True):
             List of amplifier gain values.  Must be that the gain for
             amplifier 1 is provided by `gain[0]`, etc.
         trim (:obj:`bool`, optional):
-            Trim the overscan section from the image.
+            Trim; not recommended
 
     Returns:
         `numpy.ndarray`: Image with the gain for each pixel.
