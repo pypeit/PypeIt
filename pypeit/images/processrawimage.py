@@ -61,7 +61,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         self.hdu = None
 
         # Load -- This also initializes rawdatasec_img and oscansec_img
-        self.rawdatasec_img, self.oscansec_img = self.load_rawframe()
+        self.load_rawframe()
 
         # All possible processing steps
         #  Note these have to match the method names below

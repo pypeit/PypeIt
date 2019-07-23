@@ -396,31 +396,26 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det):
         """ Generate a BPM
 
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str,
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
+        Args:
+            filename (str):
+            det (int):
 
-        Returns
-        -------
-        badpix : ndarray
+        Returns:
+            np.ndarray:
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det)
 
         # Only defined for det=1
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on LRISb")
-            self.bpm_img[:,:3] = 1
+            bpm_img[:,:3] = 1
 
-        return self.bpm_img
+        return bpm_img
 
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
@@ -621,24 +616,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Add grating tilt
         return cfg_keys+['dispangle']
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det):
         """ Generate a BPM
 
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str, REQUIRED for binning
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
+        Args:
+            filename (str):
+            det (int):
 
-        Returns
-        -------
-        badpix : ndarray
+        Returns:
+            np.ndarray
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det)
         
         # Only defined for det=2
         if det == 2:
@@ -652,9 +642,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             # Apply the mask
             xbin = int(binning.split(',')[0])
             badc = 16//xbin
-            self.bpm_img[:, 0:badc] = 1
+            bpm_img[:, 0:badc] = 1
 
-        return self.bpm_img
+        return bpm_img
 
 
 class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):

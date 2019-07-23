@@ -73,8 +73,6 @@ class Spectrograph(object):
             An image identifying the amplifier that reads each detector pixel.
         oscansec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector pixel
-        bpm_img (:obj:`numpy.ndarray`):
-            The bad-pixel mask for the currently read detector.
     """
     __metaclass__ = ABCMeta
 
@@ -86,7 +84,6 @@ class Spectrograph(object):
 #        self.raw_naxis = None
         self.rawdatasec_img = None
         self.oscansec_img = None
-        self.bpm_img = None
 
         # Default time unit
         self.timeunit = 'mjd'
@@ -552,7 +549,7 @@ class Spectrograph(object):
             image = np.flip(image, axis=1)
         return image
 
-    def empty_bpm(self, shape=None, filename=None, det=1):
+    def empty_bpm(self, filename, det):
         """
         Generate a generic (empty) bad-pixel mask.
 
@@ -575,14 +572,20 @@ class Spectrograph(object):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        if shape is None and filename is None:
-            msgs.error('Must provide either shape or filename.')
-        _shape = self.get_raw_image_shape(filename, det=det) if shape is None else shape
-        # TODO: Why are we saving this to self?
-        self.bpm_img = np.zeros(_shape, dtype=np.int8)
-        return self.bpm_img
+        #_shape = self.get_raw_image_shape(filename, det=det) if shape is None else shape
+        # Load the raw frame
+        hdu, raw_img, exptime, rawdatasec_img, oscansec_img = self.load_raw(filename, det)
+        # Trim + reorient
+        trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
+        orient = self.orient_image(trim, det)
 
-    def bpm(self, shape=None, filename=None, det=1):
+        # Generate
+        bpm_img = np.zeros(orient.shape, dtype=np.int8)
+
+        # Return
+        return bpm_img
+
+    def bpm(self, filename, det):
         """
         Generate a default bad-pixel mask.
 
@@ -594,11 +597,9 @@ class Spectrograph(object):
         provided.
 
         Args:
-            shape (:obj:`tuple`, optional):
-                The shape for the returned mask.
-            filename (:obj:`str`, optional):
+            filename (:obj:`str`):
                 An example file to use to get the image shape.
-            det (:obj:`int`, optional):
+            det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
 
@@ -607,7 +608,7 @@ class Spectrograph(object):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        return self.empty_bpm(shape=shape, filename=filename, det=det)
+        return self.empty_bpm(filename, det)
 
     def configuration_keys(self):
         """
@@ -821,7 +822,7 @@ class Spectrograph(object):
                     return ['None']*self.numhead
         else:
             hdu = inp
-            return [hdu[k].header for k in range(self.numhead)]
+        return [hdu[k].header for k in range(self.numhead)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))

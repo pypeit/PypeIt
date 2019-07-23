@@ -255,20 +255,22 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
         # TODO: Should we allow the user to override these?
 
+        headarr = self.get_headarr(scifile)
+
         # Templates
-        if self.get_meta_value(scifile, 'dispname') == '600ZD':
+        if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
-        elif self.get_meta_value(scifile, 'dispname') == '830G':
+        elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '1200G':
+        elif self.get_meta_value(headarr, 'dispname') == '1200G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200G.fits'
 
         # FWHM
-        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
 
         # Return
@@ -466,23 +468,19 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
-    def get_raw_image_shape(self, filename=None, det=None, **null_kwargs):
+    def get_raw_image_shape(self, hdulist, det=None, **null_kwargs):
         """
         Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
 
         Must always provide a file.
         """
-        # Cannot be determined without file
-        if filename is None:
-            raise ValueError('Must provide a file to determine the shape of an LRIS image.')
-
-        # Use a file
+        # Do it
         self._check_detector()
-        shape, datasec, oscansec, _ = deimos_image_sections(filename, det)
+        shape, datasec, oscansec, _ = deimos_image_sections(hdulist, det)
         self.naxis = shape
         return self.naxis
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
@@ -501,49 +499,49 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det)
         if det == 1:
-            self.bpm_img[:,1052:1054] = 1
+            bpm_img[:,1052:1054] = 1
         elif det == 2:
-            self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,376:381] = 1
-            self.bpm_img[:,489] = 1
-            self.bpm_img[:,1333:1335] = 1
-            self.bpm_img[:,2047] = 1
+            bpm_img[:,0:4] = 1
+            bpm_img[:,376:381] = 1
+            bpm_img[:,489] = 1
+            bpm_img[:,1333:1335] = 1
+            bpm_img[:,2047] = 1
         elif det == 3:
-            self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,221] = 1
-            self.bpm_img[:,260] = 1
-            self.bpm_img[:,366] = 1
-            self.bpm_img[:,816:819] = 1
-            self.bpm_img[:,851] = 1
-            self.bpm_img[:,940] = 1
-            self.bpm_img[:,1167] = 1
-            self.bpm_img[:,1280] = 1
-            self.bpm_img[:,1301:1303] = 1
-            self.bpm_img[:,1744:1747] = 1
-            self.bpm_img[:,-4:] = 1
+            bpm_img[:,0:4] = 1
+            bpm_img[:,221] = 1
+            bpm_img[:,260] = 1
+            bpm_img[:,366] = 1
+            bpm_img[:,816:819] = 1
+            bpm_img[:,851] = 1
+            bpm_img[:,940] = 1
+            bpm_img[:,1167] = 1
+            bpm_img[:,1280] = 1
+            bpm_img[:,1301:1303] = 1
+            bpm_img[:,1744:1747] = 1
+            bpm_img[:,-4:] = 1
         elif det == 4:
-            self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,47] = 1
-            self.bpm_img[:,744] = 1
-            self.bpm_img[:,790:792] = 1
-            self.bpm_img[:,997:999] = 1
+            bpm_img[:,0:4] = 1
+            bpm_img[:,47] = 1
+            bpm_img[:,744] = 1
+            bpm_img[:,790:792] = 1
+            bpm_img[:,997:999] = 1
         elif det == 5:
-            self.bpm_img[:,25:27] = 1
-            self.bpm_img[:,128:130] = 1
-            self.bpm_img[:,1535:1539] = 1
+            bpm_img[:,25:27] = 1
+            bpm_img[:,128:130] = 1
+            bpm_img[:,1535:1539] = 1
         elif det == 7:
-            self.bpm_img[:,426:428] = 1
-            self.bpm_img[:,676] = 1
-            self.bpm_img[:,1176:1178] = 1
+            bpm_img[:,426:428] = 1
+            bpm_img[:,676] = 1
+            bpm_img[:,1176:1178] = 1
         elif det == 8:
-            self.bpm_img[:,440] = 1
-            self.bpm_img[:,509:513] = 1
-            self.bpm_img[:,806] = 1
-            self.bpm_img[:,931:934] = 1
+            bpm_img[:,440] = 1
+            bpm_img[:,509:513] = 1
+            bpm_img[:,806] = 1
+            bpm_img[:,931:934] = 1
 
-        return self.bpm_img
+        return bpm_img
 
     def get_slitmask(self, filename):
         hdu = fits.open(filename)
@@ -931,13 +929,14 @@ def deimos_image_sections(inp, det):
         shape = image.shape
     else:
         image = None
-        head = hdu[chips[0]].header
-        shape = (head['NAXIS2'], head['NAXIS1'])
+        head = hdu[chips[0]+1].header
+        shape = (head['NAXIS2'], head['NAXIS1']-precol)  # We don't load up the precol
 
     # Pack up a few items for use elsewhere
     ext_items = hdu, chips, postpix, image
     # Return
     return shape, dsec, osec, ext_items
+
 
 def read_deimos(raw_file, det=None):
     """
