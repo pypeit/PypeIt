@@ -128,6 +128,7 @@ def main(args):
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
 #    tslits_dict = TraceSlits.load_from_file(trc_file)[0]
+    # TODO -- Remove this once the move to Edges is complete
     if args.new:
         trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
 
