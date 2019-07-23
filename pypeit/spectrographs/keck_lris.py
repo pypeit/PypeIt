@@ -207,7 +207,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         is defined directly.
 
         Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+            inp (:obj:`str`, hdulist):
                 String providing the file name to read, or the relevant
                 header object.  Default is None, meaning that the
                 detector attribute must provide the image section
@@ -230,11 +230,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         # Read the file
         if inp is None:
-            msgs.error('Must provide Keck LRIS file to get image section.')
-        elif not os.path.isfile(inp):
-            msgs.error('File {0} does not exist!'.format(inp))
+            msgs.error('Must provide Keck LRIS file or hdulist to get image section.')
         # Read em
-        shape, datasec, oscansec, _ = lris_image_sections(raw_file=inp, det=det)
+        shape, datasec, oscansec, _ = lris_image_sections(inp, det=det)
         #_, _, secs = read_lris(inp, det)
         if section == 'datasec':
             return datasec, False, False
@@ -841,7 +839,7 @@ def lris_parse_extensions(hdu, det):
     return hdu, n_ext, preline, postline, nx, ny, xbin, ybin, precol, postpix, xcol, order[det_idx]
 
 
-def lris_image_sections(raw_file, det):
+def lris_image_sections(inp, det):
     """
 
     Args:
@@ -852,11 +850,14 @@ def lris_image_sections(raw_file, det):
         tuple, list, list:  shape, datasecs, oscansecs
 
     """
+    if isinstance(inp, str):
+        hdu = fits.open(inp)
+    else:
+        hdu = inp
 
-    hdu = fits.open(raw_file)
     ext_items = lris_parse_extensions(hdu, det)
     # Unpack for usage
-    hdu, n_ext, preline, postline, nx,  ny, xbin, ybin, precol, postpix, xcol, order = ext_items
+    _, n_ext, preline, postline, nx,  ny, xbin, ybin, precol, postpix, xcol, order = ext_items
 
     shape = (ny, nx)
 

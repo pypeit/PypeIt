@@ -38,8 +38,10 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             Dict describing the steps performed on the image
         _bpm (np.ndarray):
             Holds the bad pixel mask once loaded
-        _rawdatasec_img (np.ndarray):
+        rawdatasec_img (np.ndarray):
             Holds the rawdatasec_img once loaded
+        oscansec_img (np.ndarray):
+            Holds the oscansec_img once loaded
         hdu (fits.HDUList):
             HDUList of the file
     """
@@ -56,11 +58,10 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Attributes
         self._reset_internals()
         self._bpm = None
-        self._rawdatasec_img = None
         self.hdu = None
 
-        # Load
-        self.load_rawframe()
+        # Load -- This also initializes rawdatasec_img and oscansec_img
+        self.rawdatasec_img, self.oscansec_img = self.load_rawframe()
 
         # All possible processing steps
         #  Note these have to match the method names below
@@ -98,6 +99,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                                     det=self.det)
         return self._bpm
 
+    '''
     # TODO all of these steps below should be consoliated into one method which reads the files. It is silly and extremely
     #  slow to re-read the images every time for each one of these stpes
     @property
@@ -125,6 +127,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         """
         oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
         return oimg
+    '''
 
     def _reset_steps(self):
         """
@@ -248,19 +251,15 @@ class ProcessRawImage(pypeitimage.PypeItImage):
 
         """
         # Load
-        self.image, self.hdu, \
-            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        #self.image, self.hdu, \
+        #    = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        self.hdu, self.image, self.exptime, self.rawdatasec_img, self.oscansec_img = self.spectrograph.load_raw(
+            self.filename, self.det)
+
         self.head0 = self.hdu[0].header
         # Shape
         self.orig_shape = self.image.shape
-        # Exposure time
-        self.exptime = self.spectrograph.get_meta_value(self.filename, 'exptime')
-        # Binning
-        self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
-        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
-            self.binning_raw = (',').join(self.binning.split(',')[::-1])
-        else:
-            self.binning_raw = self.binning
+
 
     def orient(self, force=False):
         """
