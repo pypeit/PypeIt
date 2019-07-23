@@ -234,7 +234,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         elif not os.path.isfile(inp):
             msgs.error('File {0} does not exist!'.format(inp))
         # Read em
-        shape, datasec, oscansec = lris_image_sections(raw_file=inp, det=det)
+        shape, datasec, oscansec, _ = lris_image_sections(raw_file=inp, det=det)
         #_, _, secs = read_lris(inp, det)
         if section == 'datasec':
             return datasec, False, False
@@ -255,8 +255,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Use a file
         self._check_detector()
-        shape, datasec, oscansec = lris_image_sections(filename, det)
-        #self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        shape, datasec, oscansec, _ = lris_image_sections(filename, det)
         self.naxis = shape
         return self.naxis
 
@@ -766,19 +765,15 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         return [section], False, False, False
 
 
-def lris_image_sections(raw_file, det):
-    hdu = fits.open(raw_file)
+def lris_parse_extensions(hdu, det):
+
     head0 = hdu[0].header
 
     # Get post, pre-pix values
     precol = head0['PRECOL']
     postpix = head0['POSTPIX']
-    preline = head0['PRELINE']
-    postline = head0['POSTLINE']
-
-    # Setup for datasec, oscansec
-    dsec = []
-    osec = []
+    preline = head0['PRELINE']    # In binned pixels
+    postline = head0['POSTLINE']  # In binned pixels
 
     # get the x and y binning factors...
     binning = head0['BINNING']
@@ -830,24 +825,50 @@ def lris_image_sections(raw_file, det):
         nx = nx // 2
         n_ext = n_ext // 2
         det_idx = np.arange(n_ext, dtype=np.int) + (det-1)*n_ext
-        ndet = 1
+    elif det is None:
+        det_idx = np.arange(n_ext).astype(int)
     else:
         raise ValueError('Bad value for det')
 
     # change size for pre/postscan...
     nx += n_ext*(precol+postpix)
     ny += preline + postline
+
+    # Amp ordering
+    order = np.argsort(np.array(xcol))
+
+    # Massive return
+    return hdu, n_ext, preline, postline, nx, ny, xbin, ybin, precol, postpix, xcol, order[det_idx]
+
+
+def lris_image_sections(raw_file, det):
+    """
+
+    Args:
+        raw_file (str):
+        det (int):
+
+    Returns:
+        tuple, list, list:  shape, datasecs, oscansecs
+
+    """
+
+    hdu = fits.open(raw_file)
+    ext_items = lris_parse_extensions(hdu, det)
+    # Unpack for usage
+    hdu, n_ext, preline, postline, nx,  ny, xbin, ybin, precol, postpix, xcol, order = ext_items
+
     shape = (ny, nx)
 
     # Loop to generate datasec, oscansec
+    dsec, osec = [], []
     order = np.argsort(np.array(xcol))
-    for kk, i in enumerate(order[det_idx]):
+    for kk, i in enumerate(order):
         ext = i+1
         header = hdu[ext].header
-        # Kludgy but ok, and matches read_amp
+        # Kludgy but ok, and matches lris_read_amp
         nxdata = 1024 // xbin
         #
-        nx_full = header['NAXIS1']
         ny_full = header['NAXIS2']
         # Datasec
         xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
@@ -859,9 +880,8 @@ def lris_image_sections(raw_file, det):
         xe = xs + postpix
         section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (ny_full-postline)*ybin, xs*xbin, xe*xbin)
         osec.append(section)
-
     # Return
-    return shape, dsec, osec
+    return shape, dsec, osec, ext_items
 
 
 def read_lris(raw_file, det=None, TRIM=False):
@@ -897,161 +917,41 @@ def read_lris(raw_file, det=None, TRIM=False):
 
     # Read
     msgs.info("Reading LRIS file: {:s}".format(fil[0]))
-    hdu = fits.open(fil[0])
-    head0 = hdu[0].header
-
-    # Get post, pre-pix values
-    precol = head0['PRECOL']
-    postpix = head0['POSTPIX']
-    preline = head0['PRELINE']
-    postline = head0['POSTLINE']
-
-    # Setup for datasec, oscansec
-    dsec = []
-    osec = []
-
-    # get the x and y binning factors...
-    binning = head0['BINNING']
-    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-
-    # First read over the header info to determine the size of the output array...
-    n_ext = len(hdu)-1  # Number of extensions (usually 4)
-    xcol = []
-    xmax = 0
-    ymax = 0
-    xmin = 10000
-    ymin = 10000
-    for i in np.arange(1, n_ext+1):
-        theader = hdu[i].header
-        detsec = theader['DETSEC']
-        if detsec != '0':
-            # parse the DETSEC keyword to determine the size of the array.
-            x1, x2, y1, y2 = np.array(parse.load_sections(detsec, fmt_iraf=False)).flatten()
-
-            # find the range of detector space occupied by the data
-            # [xmin:xmax,ymin:ymax]
-            xt = max(x2, x1)
-            xmax = max(xt, xmax)
-            yt =  max(y2, y1)
-            ymax = max(yt, ymax)
-
-            # find the min size of the array
-            xt = min(x1, x2)
-            xmin = min(xmin, xt)
-            yt = min(y1, y2)
-            ymin = min(ymin, yt)
-            # Save
-            xcol.append(xt)
-
-    # determine the output array size...
-    nx = xmax - xmin + 1
-    ny = ymax - ymin + 1
-
-    # change size for binning...
-    nx = nx // xbin
-    ny = ny // ybin
-
-    # Update PRECOL and POSTPIX
-    precol = precol // xbin
-    postpix = postpix // xbin
-
-    # Deal with detectors
-    if det in [1,2]:
-        nx = nx // 2
-        n_ext = n_ext // 2
-        det_idx = np.arange(n_ext, dtype=np.int) + (det-1)*n_ext
-        ndet = 1
-    elif det is None:
-        ndet = 2
-        det_idx = np.arange(n_ext).astype(int)
-    else:
-        raise ValueError('Bad value for det')
-
-    # change size for pre/postscan...
-    if not TRIM:
-        nx += n_ext*(precol+postpix)
-        ny += preline + postline
+    shape, dsec, osec, ext_items = lris_image_sections(fil[0], det)
+    # Unpack
+    hdu, n_ext, preline, postline, nx,  ny, xbin, ybin, precol, postpix, xcol, order = ext_items
 
     # allocate output array...
-    array = np.zeros( (nx, ny) )
-    order = np.argsort(np.array(xcol))
+    array = np.zeros((nx, ny))
 
     # insert extensions into master image...
-    for kk, i in enumerate(order[det_idx]):
+    for kk, i in enumerate(order):
 
         # grab complete extension...
         data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
-                            #, linebias=linebias, nobias=nobias, $
-                            #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
-        # insert components into output array...
-        if not TRIM:
-            # insert predata...
-            buf = predata.shape
-            nxpre = buf[0]
-            xs = kk*precol
-            xe = xs + nxpre
-            #if keyword_set(VERBOSITY) then begin
-            #    section = '['+stringify(xs)+':'+stringify(xe)+',*]'
-            #    message, 'inserting extension '+stringify(i)+ $
-            #             ' predata  in '+section, /info
-            #endif 
-            array[xs:xe, :] = predata
 
-            # insert data...
-            buf = data.shape
-            nxdata = buf[0]
-            nydata = buf[1]
-            xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
-            xe = xs + nxdata
-            #section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
-            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)  # Eliminate lines
-            dsec.append(section)
-            #print('data',xs,xe)
-            array[xs:xe, :] = data   # Include postlines
+        # insert predata...
+        buf = predata.shape
+        nxpre = buf[0]
+        xs = kk*precol
+        xe = xs + nxpre
+        array[xs:xe, :] = predata
 
-            #; insert postdata...
-            buf = postdata.shape
-            nxpost = buf[0]
-            xs = nx - n_ext*postpix + kk*postpix
-            xe = xs + nxpost 
-            #section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
-            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)
-            osec.append(section)
-            
-            #if keyword_set(VERBOSITY) then begin
-            #    section = '['+stringify(xs)+':'+stringify(xe)+',*]'
-            #    message, 'inserting extension '+stringify(i)+ $
-            #             ' postdata in '+section, /info
-            #endif 
-            array[xs:xe, :] = postdata
-        else:
-            buf = data.shape
-            nxdata = buf[0]
-            nydata = buf[1]
+        # insert data...
+        buf = data.shape
+        nxdata = buf[0]
+        xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
+        xe = xs + nxdata
+        array[xs:xe, :] = data   # Include postlines
 
-            xs = (x1-xmin)//xbin
-            xe = xs + nxdata 
-            ys = (y1-ymin)//ybin
-            ye = ys + nydata - postline
-
-            yin1 = preline
-            yin2 = nydata - postline 
-
-            #if keyword_set(VERBOSITY) then begin
-            #    section = '['+stringify(xs)+':'+stringify(xe)+ $
-            #              ','+stringify(ys)+':'+stringify(ye)+']'
-            #    message, 'inserting extension '+stringify(i)+ $
-            #             ' data     in '+section, /info
-            #endif 
-            array[xs:xe, ys:ye] = data[:, yin1:yin2]
-
-    # make sure BZERO is a valid integer for IRAF
-    obzero = head0['BZERO']
-    head0['O_BZERO'] = obzero
-    head0['BZERO'] = 32768-obzero
+        #; insert postdata...
+        buf = postdata.shape
+        nxpost = buf[0]
+        xs = nx - n_ext*postpix + kk*postpix
+        xe = xs + nxpost
+        array[xs:xe, :] = postdata
 
     # Return, transposing array back to goofy Python indexing
-    #from IPython import embed; embed(header='958 of keck_lris')
     return array.T, hdu, (dsec, osec)
 
 def lris_read_amp(inp, ext):
