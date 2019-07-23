@@ -101,7 +101,7 @@ from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
 from pypeit.traceimage import TraceImage
-#from pypeit.tracepca import TracePCA
+from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
 
