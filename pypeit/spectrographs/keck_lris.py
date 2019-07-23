@@ -14,7 +14,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
-from pypeit import debugger
+from IPython import embed
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
@@ -233,15 +233,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             msgs.error('Must provide Keck LRIS file to get image section.')
         elif not os.path.isfile(inp):
             msgs.error('File {0} does not exist!'.format(inp))
-        _, _, secs = read_lris(inp, det)
+        # Read em
+        shape, datasec, oscansec = lris_image_sections(raw_file=inp, det=det)
+        #_, _, secs = read_lris(inp, det)
         if section == 'datasec':
-            return secs[0], False, False
+            return datasec, False, False
         elif section == 'oscansec':
-            return secs[1], False, False
+            return oscansec, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
 
-    def get_image_shape(self, filename=None, det=None, **null_kwargs):
+    def get_raw_image_shape(self, filename=None, det=None, **null_kwargs):
         """
         Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
 
@@ -253,7 +255,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Use a file
         self._check_detector()
-        self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        shape, datasec, oscansec = lris_image_sections(filename, det)
+        #self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        self.naxis = shape
         return self.naxis
 
 
@@ -760,6 +764,105 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
             section = '[:,{:d}:{:d}]'.format(nx*2-postpix, nx*2)
         #
         return [section], False, False, False
+
+
+def lris_image_sections(raw_file, det):
+    hdu = fits.open(raw_file)
+    head0 = hdu[0].header
+
+    # Get post, pre-pix values
+    precol = head0['PRECOL']
+    postpix = head0['POSTPIX']
+    preline = head0['PRELINE']
+    postline = head0['POSTLINE']
+
+    # Setup for datasec, oscansec
+    dsec = []
+    osec = []
+
+    # get the x and y binning factors...
+    binning = head0['BINNING']
+    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+
+    # First read over the header info to determine the size of the output array...
+    n_ext = len(hdu)-1  # Number of extensions (usually 4)
+    xcol = []
+    xmax = 0
+    ymax = 0
+    xmin = 10000
+    ymin = 10000
+    for i in np.arange(1, n_ext+1):
+        theader = hdu[i].header
+        detsec = theader['DETSEC']
+        if detsec != '0':
+            # parse the DETSEC keyword to determine the size of the array.
+            x1, x2, y1, y2 = np.array(parse.load_sections(detsec, fmt_iraf=False)).flatten()
+
+            # find the range of detector space occupied by the data
+            # [xmin:xmax,ymin:ymax]
+            xt = max(x2, x1)
+            xmax = max(xt, xmax)
+            yt =  max(y2, y1)
+            ymax = max(yt, ymax)
+
+            # find the min size of the array
+            xt = min(x1, x2)
+            xmin = min(xmin, xt)
+            yt = min(y1, y2)
+            ymin = min(ymin, yt)
+            # Save
+            xcol.append(xt)
+
+    # determine the output array size...
+    nx = xmax - xmin + 1
+    ny = ymax - ymin + 1
+
+    # change size for binning...
+    nx = nx // xbin
+    ny = ny // ybin
+
+    # Update PRECOL and POSTPIX
+    precol = precol // xbin
+    postpix = postpix // xbin
+
+    # Deal with detectors
+    if det in [1,2]:
+        nx = nx // 2
+        n_ext = n_ext // 2
+        det_idx = np.arange(n_ext, dtype=np.int) + (det-1)*n_ext
+        ndet = 1
+    else:
+        raise ValueError('Bad value for det')
+
+    # change size for pre/postscan...
+    nx += n_ext*(precol+postpix)
+    ny += preline + postline
+    shape = (ny, nx)
+
+    # Loop to generate datasec, oscansec
+    order = np.argsort(np.array(xcol))
+    for kk, i in enumerate(order[det_idx]):
+        ext = i+1
+        header = hdu[ext].header
+        # Kludgy but ok, and matches read_amp
+        nxdata = 1024 // xbin
+        #
+        nx_full = header['NAXIS1']
+        ny_full = header['NAXIS2']
+        # Datasec
+        xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
+        xe = xs + nxdata
+        section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (ny_full-postline)*ybin, xs*xbin, xe*xbin)  # Eliminate lines
+        dsec.append(section)
+        # Oscansec
+        xs = nx - n_ext*postpix + kk*postpix
+        xe = xs + postpix
+        section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (ny_full-postline)*ybin, xs*xbin, xe*xbin)
+        osec.append(section)
+
+    # Return
+    return shape, dsec, osec
+
 
 def read_lris(raw_file, det=None, TRIM=False):
     """

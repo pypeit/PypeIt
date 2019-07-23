@@ -328,7 +328,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     Subtract overscan
 
     Args:
-        frame (:obj:`numpy.ndarray`):
+        rawframe (:obj:`numpy.ndarray`):
             Frame from which to subtract overscan
         numamplifiers (int):
             Number of amplifiers for this detector.

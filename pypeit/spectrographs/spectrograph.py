@@ -46,7 +46,7 @@ from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.metadata import PypeItMetaData
 
-from pypeit import debugger
+from IPython import embed
 
 class Spectrograph(object):
     """
@@ -458,7 +458,7 @@ class Spectrograph(object):
     # TODO: There *has* to be a better way to do this.  We're reading a
     # file just to get the size of the image, likely when the image has
     # already been read (likely multiple times).
-    def get_raw_image_shape(self, filename, det=None, force=False):
+    def get_raw_image_shape(self, filename, det=None):
         """
         Get the *untrimmed* shape of the image data for a given detector using a
         file.  :attr:`detector` must be defined.
@@ -478,8 +478,6 @@ class Spectrograph(object):
                 None, the primary extension is used.  Otherwise the
                 internal detector parameters are used to determine the
                 extension to read.
-            force (:obj:`bool`, optional):
-                Force the image shape to be redetermined.
             null_kwargs (dict):
                 Used to catch any extraneous keyword arguments.
         
@@ -494,7 +492,10 @@ class Spectrograph(object):
         """
         # Use a file
         self._check_detector()
-        return (self.load_raw_frame(filename, det=det)[0]).shape
+        hdu = fits.open(filename)
+        header = hdu[self.detector[det-1]['dataext']].header
+        shape = (header['NAXIS2'], header['NAXIS1'])  # Usual Python vs. the world
+        return shape
 
     def header_cards_for_spec(self):
         """
