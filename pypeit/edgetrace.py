@@ -561,7 +561,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                       max_ocol=self.nspat-1, extract_width=extract_width,
                                       mask_threshold=mask_threshold)
 
-    def auto_trace(self, img, bpm=None, det=1, binning=None, save=False, debug=False, show_stages=False):
+    def auto_trace(self, img, bpm=None, det=1, binning=None, save=False, debug=False,
+                   show_stages=False):
         r"""
         Execute a fixed series of methods to automatically identify
         and trace slit edges.
