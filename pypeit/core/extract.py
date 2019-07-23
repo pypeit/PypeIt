@@ -24,7 +24,7 @@ from scipy import interpolate
 
 from sklearn.decomposition import PCA
 from pypeit import specobjs
-from pypeit import tracepca
+#from pypeit import tracepca
 from pypeit.core.pydl import spheregroup
 
 from IPython import embed

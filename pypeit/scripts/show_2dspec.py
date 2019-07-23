@@ -46,6 +46,7 @@ def parser(options=None):
                         action = "store_true")
     parser.add_argument('--embed', default=False, help="Upong completetion embed in ipython shell",
                         action = "store_true")
+    parser.add_argument("--new", default=False, action="store_true", help="Uses new tracing")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -127,6 +128,10 @@ def main(args):
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
 #    tslits_dict = TraceSlits.load_from_file(trc_file)[0]
+    # TODO -- Remove this once the move to Edges is complete
+    if args.new:
+        trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
+
     tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])

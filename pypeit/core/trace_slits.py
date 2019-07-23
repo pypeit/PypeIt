@@ -2027,6 +2027,7 @@ def find_peak_limits(hist, pks):
     return edges
 
 
+# TODO -- REMOVE AS THIS IS NOW IN trace.py
 def parse_user_slits(add_slits, this_det, rm=False):
     """
     Parse the parset syntax for adding slits

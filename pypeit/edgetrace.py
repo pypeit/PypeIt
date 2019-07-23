@@ -667,6 +667,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
+        # Add user traces
+        if self.par['add_slits'] is not None:
+            self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
+
+        # Remove user traces
+        if self.par['rm_slits'] is not None:
+            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
+
         # TODO: Add a parameter and an if statement that will allow for
         # this.
         # `peak_refine` ends with the traces being described by a
@@ -2179,6 +2187,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 msgs.info('Rejecting {0} slits that are too short.'.format(np.sum(indx)))
                 self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'SHORTSLIT')
 
+
         if length_rtol is not None:
             # Find slits that are not within the provided fraction of
             # the median length
@@ -2201,6 +2210,43 @@ class EdgeTraceSet(masterframe.MasterFrame):
         elif new_masks:
             # Reset the PCA if new masks are applied
             self._reset_pca(rebuild_pca and self.pca is not None and self.can_pca())
+
+    def rm_user_traces(self, rm_traces):
+        """
+        Parse the user input traces to remove
+
+        Args:
+            rm_user_traces (list):
+              y_spec, x_spat pairs
+
+        Returns:
+
+        """
+        if not self.is_synced:
+            msgs.error("This method should not be run until after the slits are synced")
+        # Setup
+        lefts = self.spat_fit[:, self.is_left]
+        rights = self.spat_fit[:, self.is_right]
+        indx = np.zeros(self.ntrace, dtype=bool)
+        # Loop me
+        for rm_trace in rm_traces:
+            # Deconstruct
+            y_spec, xcen = rm_trace
+            #
+            lefty = lefts[y_spec,:]
+            righty = rights[y_spec,:]
+            # Match?
+            bad_slit = (lefty < xcen) & (righty > xcen)
+            if np.any(bad_slit):
+                # Double check
+                if np.sum(bad_slit) != 1:
+                    msgs.error("Something went horribly wrong in edge tracing")
+                #
+                idx = np.where(bad_slit)[0][0]
+                indx[2*idx:2*idx+2] = True
+                msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
+        # Remove
+        self.remove_traces(indx, sync_rm='both')
 
     def remove_traces(self, indx, resort=True, rebuild_pca=False, sync_rm='ignore'):
         r"""
@@ -3402,6 +3448,33 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # method
         self.check_synced(rebuild_pca=rebuild_pca)
         self.log += [inspect.stack()[0][3]]
+
+    def add_user_traces(self, user_traces):
+        """
+        Add user-defined slit(s)
+
+        Args:
+            user_slits (list):
+
+        """
+        sides = []
+        new_traces = np.zeros((self.nspec, len(user_traces)*2))
+        # Add user input slits
+        for kk, new_slit in enumerate(user_traces):
+            # Parse
+            y_spec, x_spat0, x_spat1 = new_slit
+            msgs.info("Adding new slits at x0, x1 (left, right)".format(x_spat0, x_spat1))
+            #
+            # TODO -- Use existing traces (ideally the PCA) not just vertical lines!
+            sides.append(-1)
+            sides.append(1)
+            # Trace cen
+            new_traces[:,kk*2] = x_spat0
+            new_traces[:,kk*2+1] = x_spat1
+        # Insert
+        self.insert_traces(np.array(sides), new_traces, mode='user')
+        # Sync
+        self.check_synced(rebuild_pca=False)
 
     def insert_traces(self, side, trace_cen, loc=None, mode='user', resort=True):
         r"""

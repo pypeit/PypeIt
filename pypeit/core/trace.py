@@ -1460,3 +1460,41 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
     return fit, cen, err, msk, npeak
 
+
+def parse_user_slits(add_slits, this_det, rm=False):
+    """
+    Parse the parset syntax for adding slits
+
+    Args:
+        add_slits (str, list):
+          Taken from the parset
+        this_det (int):
+          current detector
+        rm (bool, optional):
+          Remove instead of add?
+
+    Returns:
+        list or None:
+          if list,  [[x0,x1,yrow]] for add with one or more entries
+          if list,  [[xcen,yrow]] for rm with one or more entries
+
+    """
+    # Might not be a list yet (only a str)
+    if not isinstance(add_slits, list):
+        add_slits = [add_slits]
+    #
+    user_slits = []
+    for islit in add_slits:
+        if not rm:
+            det, x0, x1, yrow = [int(ii) for ii in islit.split(':')]
+            if det == this_det:
+                user_slits.append([x0,x1,yrow])
+        else:
+            det, xcen, yrow = [int(ii) for ii in islit.split(':')]
+            if det == this_det:
+                user_slits.append([xcen,yrow])
+    # Finish
+    if len(user_slits) == 0:
+        return None
+    else:
+        return user_slits
