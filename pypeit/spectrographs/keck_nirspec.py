@@ -244,7 +244,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
     # TODO: This function is unstable to shape...
-    def bpm(self, shape=None, **null_kwargs):
+    def bpm(self, filename, det):
         """ Generate a BPM
         Parameters
         ----------
@@ -253,15 +253,13 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         -------
         badpix : ndarray
         """
-        if shape is None:
-            raise ValueError('Must provide shape for Keck NIRSPEC bpm.')
+        bpm_img = self.empty_bpm(filename, det)
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRSPEC")
-        self.bpm_img = np.zeros(shape, dtype=np.int8)
-        self.bpm_img[:, :20] = 1.
-        self.bpm_img[:, 1000:] = 1.
+        bpm_img[:, :20] = 1.
+        bpm_img[:, 1000:] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
 class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     """

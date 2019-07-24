@@ -394,7 +394,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
 
-    def bpm(self, filename, det):
+    def bpm(self, filename, det, shape=None):
         """ Generate a BPM
 
         Args:
@@ -406,7 +406,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
 
         # Only defined for det=1
         if det == 1:
@@ -614,7 +614,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Add grating tilt
         return cfg_keys+['dispangle']
 
-    def bpm(self, filename, det):
+    def bpm(self, filename, det, shape=None):
         """ Generate a BPM
 
         Args:
@@ -626,7 +626,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         
         # Only defined for det=2
         if det == 2:

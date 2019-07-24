@@ -470,7 +470,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.naxis = shape
         return self.naxis
 
-    def bpm(self, filename, det):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
@@ -489,7 +489,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        bpm_img = self.empty_bpm(filename, det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
             bpm_img[:,1052:1054] = 1
         elif det == 2:

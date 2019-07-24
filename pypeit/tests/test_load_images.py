@@ -23,8 +23,10 @@ def ProcessImages(specstr, par, files, det=1):
     return calibImage
 
 def grab_img(proc, filename):
-    rdimg = proc.spectrograph.get_rawdatasec_img(filename, proc.det)
-    data_img, slice = procimg.rect_slice_with_mask(proc.image, rdimg)
+    img, hdu = proc.spectrograph.load_raw_frame(filename, proc.det)
+    exptime, rawdatasec_img, oscansec_img, binning_raw = proc.spectrograph.load_raw_extras(hdu, proc.det)
+    #rdimg = proc.spectrograph.get_rawdatasec_img(filename, proc.det)
+    data_img, slice = procimg.rect_slice_with_mask(img, rawdatasec_img)
     return data_img
 
 

@@ -460,7 +460,7 @@ class Spectrograph(object):
             image = np.flip(image, axis=1)
         return image
 
-    def empty_bpm(self, filename, det):
+    def empty_bpm(self, filename, det, shape=None):
         """
         Generate a generic (empty) bad-pixel mask.
 
@@ -470,30 +470,41 @@ class Spectrograph(object):
         provided.
 
         Args:
-            filename (:obj:`str`):
+            filename (:obj:`str` or None):
                 An example file to use to get the image shape.
+                If None, shape must be provided
             det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
             to 1 and an unmasked value set to 0.  All values are set to 0.
         """
         # Load the raw frame
-        hdu = fits.open(filename)
-        exptime, rawdatasec_img, oscansec_img, _ = self.load_raw_extras(hdu, det)
-        # Trim + reorient
-        trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
-        orient = self.orient_image(trim, det)
+        if filename is not None:
+            hdu = fits.open(filename)
+            exptime, rawdatasec_img, oscansec_img, _ = self.load_raw_extras(hdu, det)
+            # Trim + reorient
+            trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
+            orient = self.orient_image(trim, det)
+            #
+            shape = orient.shape
+        else:
+            if shape is None:
+                msgs.error("Must specify shape if filename is None")
 
         # Generate
-        bpm_img = np.zeros(orient.shape, dtype=np.int8)
+        bpm_img = np.zeros(shape, dtype=np.int8)
 
         # Return
         return bpm_img
 
-    def bpm(self, filename, det):
+    def bpm(self, filename, det, shape=None):
         """
         Generate a default bad-pixel mask.
 
@@ -505,18 +516,22 @@ class Spectrograph(object):
         provided.
 
         Args:
-            filename (:obj:`str`):
+            filename (:obj:`str` or None):
                 An example file to use to get the image shape.
             det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        return self.empty_bpm(filename, det)
+        return self.empty_bpm(filename, det, shape=shape)
 
     def configuration_keys(self):
         """
