@@ -247,9 +247,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Also loads up the binning, exposure time, and header of the Primary image
         And the HDUList in self.hdu
 
-        Args:
-            filename (str):  Filename
-
         """
         # Load
         #self.image, self.hdu, \

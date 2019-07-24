@@ -36,14 +36,12 @@ from pkg_resources import resource_filename
 import numpy as np
 from astropy.io import fits
 
-from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.par import pypeitpar
-from pypeit.core import pixels
 from pypeit.metadata import PypeItMetaData
 
 from IPython import embed
@@ -164,69 +162,6 @@ class Spectrograph(object):
         for d in self.detector:
             if not isinstance(d, pypeitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
-    '''
-    def load_raw_extras(self, hdu, det):
-        """
-        Method to load up other bits and pieces related to the raw image
-        Bundling them avoids multiple calls on the image
-
-        Args:
-            raw_file (str):
-            det (int):
-
-        Returns:
-            tuple:
-                exptime (float)
-                rawdatasec_img  (np.ndarray)
-                oscansec_img (np.ndarray)
-                binning_raw (str)
-        """
-        # Binning
-        headarr = self.get_headarr(hdu)
-        binning = self.get_meta_value(headarr, 'binning')
-        if self.detector[det-1]['specaxis'] == 1:
-            binning_raw = (',').join(binning.split(',')[::-1])
-        else:
-            binning_raw = binning
-
-        # Exposure time
-        exptime = self.get_meta_value(headarr, 'exptime')
-
-        # Rawdatasec, oscansec images
-        rawdatasec_img = self.get_pixel_img(hdu, det, 'datasec', binning_raw)
-        oscansec_img = self.get_pixel_img(hdu, det, 'oscansec', binning_raw)
-
-        # Return it all
-        return exptime, rawdatasec_img, oscansec_img, binning_raw
-
-    def load_raw_frame(self, raw_file, det=1):
-        r"""
-        Load the image and header for an exposure taken with this
-        spectrograph.
-
-        Args:
-            raw_file (:obj:`str`):
-                File with the image data.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-
-        Returns:
-            Returns an `numpy.ndarray`_ with the image data and
-            `astropy.io.fits.HDUList`_ object with the image and header
-            data, respectively.  The image data is always returned with
-            floating-point type.
-        """
-        # Check the detector is defined
-        self._check_detector()
-
-        hdu = fits.open(raw_file)
-        raw_img = hdu[self.detector[det-1]['dataext']].data
-        # Turn to float
-        img = raw_img.astype(float)
-
-        # Return
-        return img, hdu
-    '''
 
     def raw_is_transposed(self, det=1):
         """
@@ -245,68 +180,6 @@ class Spectrograph(object):
         return self.detector[det-1]['specaxis'] == 1
 
     '''
-    def get_image_section(self, hdulist, det, section):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        This default function of the base class tries to get the image
-        section in two ways, first by assuming the image section
-        defined by the detector is a header keyword, and then by just
-        assuming the detector provides the image section directly.
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
-        
-        Args:
-            hdulist (`astropy.io.fits.Header`_):
-                Header list of the image
-            det (:obj:`int`):
-                1-indexed detector number.
-            section (:obj:`str`):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
-
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Check the section is one of the detector keywords
-        if section not in self.detector[det-1].keys():
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-        # Check the detector is defined
-        self._check_detector()
-
-        # Get the data section
-        hdr = hdulist[self.detector[det-1]['dataext']].header
-        # Try using the image sections as header keywords
-        try:
-            image_sections = [ hdr[key] for key in self.detector[det-1][section] ]
-        except KeyError:
-            # Expect a KeyError to be thrown if the section defined by
-            # the detector attribute is actually the image section
-            # string itself
-            image_sections = self.detector[det-1][section]
-            if not isinstance(image_sections, list):
-                image_sections = [image_sections]
-
-        # Always assume normal FITS header formatting
-        one_indexed = True
-        include_last = True
-        #transpose = self.detector[det-1]['specaxis'] == 0
-
-        return image_sections, one_indexed, include_last
-    '''
-
-    '''
     # THIS WILL PROBABLY NEED TO COME BACK
     def get_datasec_img(self, filename, det):
         """
@@ -323,105 +196,6 @@ class Spectrograph(object):
         dimg = self.orient_image(rdimg, det)
         # Return
         return dimg
-    '''
-
-    '''
-    def get_pixel_img(self, hdulist, det, section, binning_raw):
-        """
-        Create an image identifying the amplifier used to read each pixel.
-        This is in the *raw* data format
-
-        .. todo::
-            - I find 1-indexing to be highly annoying...
-            - Check for overlapping amplifiers?
-            - Consider renaming this datasec_ampid or something like
-              that.  I.e., the image's main purpose is to tell you where
-              the amplifiers are for the data section
-
-        Note on data format
-        --------------------
-         binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
-         binning_raw = the binning in the format of the raw data.
-         In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
-         files are stored the other way with spat as the first dimension (as read into python), then the transpose
-         flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
-         (Note also that BTW the python convention of storing images is transposed relative to the fits convention
-         and the datasec typically written to headers. However this flip is dealt with explicitly in the
-         parse.spec2slice code and is NOT the transpose we are describing and flipping here).
-         TODO Add a blurb on the PypeIt data model.
-
-        Args:
-            filename (str):
-                Name of the file from which to read the image size.
-            section (str):  'datasec' or 'oscansec'
-            det (int):
-                Detector number (1-indexed)
-
-        Returns:
-            `numpy.ndarray`: Integer array identifying the amplifier
-            used to read each pixel.
-        """
-        # Check the detector is defined
-        self._check_detector()
-        # Get the image shape
-        #raw_naxis = self.get_raw_image_shape(filename, det=det)
-        #binning_raw = self.get_meta_value(filename, 'binning')
-
-        raw_naxis = self.get_raw_image_shape(hdulist, det=det)
-
-        data_sections, one_indexed, include_end \
-                    = self.get_image_section(hdulist, det, section=section)
-
-        # Initialize the image (0 means no amplifier)
-        pix_img = np.zeros(raw_naxis, dtype=int)
-        for i in range(self.detector[det-1]['numamplifiers']):
-            # Convert the data section from a string to a slice
-            datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                      include_end=include_end, require_dim=2,
-                                      binning=binning_raw)
-            # Assign the amplifier
-            pix_img[datasec] = i+1
-
-        return pix_img
-
-    def get_raw_image_shape(self, hdulist, det=None):
-        """
-        Get the *untrimmed* shape of the image data for a given detector using a
-        file.  :attr:`detector` must be defined.
-
-        Fails if filename is None and the instance does not have a
-        predefined :attr:`naxis`.  If the filename is None, always
-        returns the predefined :attr:`naxis`.  If the filename is
-        provided, the header of the associated detector is used.  If the
-        the detector is set to None, the primary header of the file is
-        used.
-        
-        Args:
-            hdulist (:obj:`str`, optional):
-                Name of the fits file with the header to use.
-            det (:obj:`int`, optional):
-                1-indexed number of the detector.  Default is None.  If
-                None, the primary extension is used.  Otherwise the
-                internal detector parameters are used to determine the
-                extension to read.
-            null_kwargs (dict):
-                Used to catch any extraneous keyword arguments.
-        
-        Returns:
-            tuple: Tuple of two integers with the length of each image
-            axes.
-
-        Raises:
-            ValueError:
-                Raised if the image shape cannot be determined from the
-                input and available attributes.
-        """
-        # Use a file
-        self._check_detector()
-        #hdu = fits.open(filename)
-        header = hdulist[self.detector[det-1]['dataext']].header
-        shape = (header['NAXIS2'], header['NAXIS1'])  # Usual Python vs. the world
-        return shape
     '''
 
     def header_cards_for_spec(self):
@@ -613,10 +387,10 @@ class Spectrograph(object):
         Returns:
             tuple:
                 raw_img (np.ndarray) -- Raw image for this detector
-                hdu
-                exptime
-                rawdatasec_img
-                oscansec_img
+                hdu (astropy.io.fits.HDUList)
+                exptime (float)
+                rawdatasec_img (np.ndarray)
+                oscansec_img (np.ndarray)
 
         """
         # Raw image
