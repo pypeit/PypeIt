@@ -107,19 +107,28 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def nonlinear_counts(self, det=1):
+    def nonlinear_counts(self, det, datasec_img=None):
         """
         Return the counts at which the detector response becomes
         non-linear.
 
         Args:
-            det (:obj:`int`, optional):
+            det (:obj:`int`):
                 1-indexed detector number.
         
         Returns:
-            float: Counts at which detector response becomes nonlinear.
+            float or np.ndarray:
+                Counts at which detector response becomes nonlinear.
+                If datasec_img is provided, an image with the same shape
+                is returned with the gain accounted for
         """
-        return self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+        nonlinear_counts = self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+        # Generate an image, applying the gain?
+        if datasec_img is not None:
+            gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+            nonlinear_counts = nonlinear_counts * procimg.gain_frame(datasec_img, gain)
+        # Return
+        return nonlinear_counts
 
     def config_specific_par(self, scifile, inp_par=None):
         """
