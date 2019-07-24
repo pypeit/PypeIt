@@ -314,7 +314,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         # Fill in the boxcar tags
         specobj.boxcar['WAVE'] = junk
         specobj.boxcar['COUNTS'] = junk
-        specobj.optimal['COUNTS_SIG'] = junk
+        specobj.boxcar['COUNTS_SIG'] = junk
         specobj.boxcar['COUNTS_IVAR'] = junk
         specobj.boxcar['COUNTS_NIVAR'] = junk
         specobj.boxcar['MASK'] = junk

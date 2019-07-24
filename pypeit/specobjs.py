@@ -21,6 +21,10 @@ naming_model = {}
 for key in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[key.lower()] = key
 
+extraction_data_model = {
+    'BOX_WAVE': dict(otype=np.ndarray, dtype=float, desc='Boxcar Wavelengths (Angstroms)'),
+                      }
+
 
 class SpecObj(object):
     """Class to handle object spectra from a single exposure
