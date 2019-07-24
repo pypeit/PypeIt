@@ -164,7 +164,7 @@ class Spectrograph(object):
         for d in self.detector:
             if not isinstance(d, pypeitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
-
+    '''
     def load_raw_extras(self, hdu, det):
         """
         Method to load up other bits and pieces related to the raw image
@@ -226,6 +226,7 @@ class Spectrograph(object):
 
         # Return
         return img, hdu
+    '''
 
     def raw_is_transposed(self, det=1):
         """
@@ -243,6 +244,7 @@ class Spectrograph(object):
         """
         return self.detector[det-1]['specaxis'] == 1
 
+    '''
     def get_image_section(self, hdulist, det, section):
         """
         Return a string representation of a slice defining a section of
@@ -302,6 +304,7 @@ class Spectrograph(object):
         #transpose = self.detector[det-1]['specaxis'] == 0
 
         return image_sections, one_indexed, include_last
+    '''
 
     '''
     # THIS WILL PROBABLY NEED TO COME BACK
@@ -322,6 +325,7 @@ class Spectrograph(object):
         return dimg
     '''
 
+    '''
     def get_pixel_img(self, hdulist, det, section, binning_raw):
         """
         Create an image identifying the amplifier used to read each pixel.
@@ -418,6 +422,7 @@ class Spectrograph(object):
         header = hdulist[self.detector[det-1]['dataext']].header
         shape = (header['NAXIS2'], header['NAXIS1'])  # Usual Python vs. the world
         return shape
+    '''
 
     def header_cards_for_spec(self):
         """
@@ -487,14 +492,13 @@ class Spectrograph(object):
         """
         # Load the raw frame
         if filename is not None:
-            hdu = fits.open(filename)
-            exptime, rawdatasec_img, oscansec_img, _ = self.load_raw_extras(hdu, det)
+            _, _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
             # Trim + reorient
             trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
             orient = self.orient_image(trim, det)
             #
             shape = orient.shape
-        else:
+        else: # This is risky if you don't really know what you are doing!
             if shape is None:
                 msgs.error("Must specify shape if filename is None")
 
@@ -596,6 +600,75 @@ class Spectrograph(object):
 
         """
         self.meta = {}
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Load up the raw image and generate a few other bits and pieces
+        that are key for image processing
+
+        Args:
+            raw_file (str):
+            det (int):
+
+        Returns:
+            tuple:
+                raw_img (np.ndarray) -- Raw image for this detector
+                hdu
+                exptime
+                rawdatasec_img
+                oscansec_img
+
+        """
+        # Raw image
+        hdu = fits.open(raw_file)
+        raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
+
+        # Extras
+        headarr = self.get_headarr(hdu)
+
+        # Exposure time (used by ProcessRawImage)
+        exptime = self.get_meta_value(headarr, 'exptime')
+
+        # Rawdatasec, oscansec images
+        binning = self.get_meta_value(headarr, 'binning')
+        if self.detector[det - 1]['specaxis'] == 1:
+            binning_raw = (',').join(binning.split(',')[::-1])
+        else:
+            binning_raw = binning
+
+        for section in ['datasec', 'oscansec']:
+
+            # Get the data section
+            # Try using the image sections as header keywords
+            # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
+            #  Code like the following maybe useful
+            #hdr = hdu[self.detector[det - 1]['dataext']].header
+            #image_sections = [hdr[key] for key in self.detector[det - 1][section]]
+            # Grab from DetectorPar in the Spectrograph class
+            image_sections = self.detector[det-1][section]
+            if not isinstance(image_sections, list):
+                image_sections = [image_sections]
+            # Always assume normal FITS header formatting
+            one_indexed = True
+            include_last = True
+
+            # Initialize the image (0 means no amplifier)
+            pix_img = np.zeros(raw_img.shape, dtype=int)
+            for i in range(self.detector[det-1]['numamplifiers']):
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(image_sections[i], one_indexed=one_indexed,
+                                          include_end=include_last, require_dim=2,
+                                          binning=binning_raw)
+                # Assign the amplifier
+                pix_img[datasec] = i+1
+            # Finish
+            if section == 'datasec':
+                rawdatasec_img = pix_img.copy()
+            else:
+                oscansec_img = pix_img.copy()
+
+        # Return
+        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
