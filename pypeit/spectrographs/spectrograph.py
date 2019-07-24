@@ -260,31 +260,6 @@ class Spectrograph(object):
         """
         return self.detector[det-1]['specaxis'] == 1
 
-    '''
-    def load_raw_img_hdu(self, raw_file, dataext=0, **null_kwargs):
-        """
-        Generic raw image reader
-
-        Args:
-            raw_file (:obj:`str`):
-                File to read.
-            dataext (:obj:`str`, :obj:`int`, optional):
-                Fits extension with the image data.
-            headext (:obj:`str`, :obj:`int`, optional):
-                Fits extension with the header data to return.
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            Returns an `numpy.ndarray`_ with the image data and
-            the `astropy.io.fits.HDUList`_ object with the image and HDU,
-            respectively.
-        """
-        # Open and go
-        hdu = fits.open(raw_file)
-        return hdu[dataext].data, hdu
-    '''
-
     def get_image_section(self, hdulist, det, section):
         """
         Return a string representation of a slice defining a section of
@@ -300,14 +275,11 @@ class Spectrograph(object):
         is defined directly.
         
         Args:
-            hdulist (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
+            hdulist (`astropy.io.fits.Header`_):
+                Header list of the image
+            det (:obj:`int`):
                 1-indexed detector number.
-            section (:obj:`str`, optional):
+            section (:obj:`str`):
                 The section to return.  Should be either 'datasec' or
                 'oscansec', according to the
                 :class:`pypeitpar.DetectorPar` keywords.
@@ -330,21 +302,6 @@ class Spectrograph(object):
 
         # Get the data section
         hdr = hdulist[self.detector[det-1]['dataext']].header
-        '''
-        try:
-            # Parse inp
-            if inp is None:
-                # Force the call to the except block
-                raise KeyError
-            elif isinstance(inp, str):
-                hdu = fits.open(inp)
-                hdr = hdu[self.detector[det-1]['dataext']].header
-            elif isinstance(inp, fits.Header):
-                hdr = inp
-            else:
-                msgs.error('Input must be a filename or a fits.Header object.')
-
-        '''
         # Try using the image sections as header keywords
         try:
             image_sections = [ hdr[key] for key in self.detector[det-1][section] ]
@@ -364,45 +321,7 @@ class Spectrograph(object):
         return image_sections, one_indexed, include_last
 
     '''
-    def get_rawdatasec_img(self, filename, det, force=True):
-        """
-        Return the *raw* datasec image, i.e. in the load-from-disk orientation, etc.
-
-        Args:
-            filename:
-            det:
-            force:
-
-        Returns:
-
-        """
-        if self.rawdatasec_img is None or force:
-            return self.get_pixel_img(filename, 'datasec', det)
-        return self.rawdatasec_img
-
-    def get_oscansec_img(self, filename, det, force=True):
-        """
-        Generate the oscansec image
-
-        Args:
-            filename (str):
-                Filename
-            det (int):
-                Detector index
-            force (bool, optional):
-                Force the code to remake the image.
-                Might need to do this in cases where binning varies
-                between calibrations and science images.
-
-        Returns:
-
-        """
-        if self.oscansec_img is None or force:
-            return self.get_pixel_img(filename, 'oscansec', det)
-        return self.oscansec_img
-    '''
-
-    '''
+    # THIS WILL PROBABLY NEED TO COME BACK
     def get_datasec_img(self, filename, det):
         """
         Generate and return the datasec image in the PypeIt reference

@@ -422,17 +422,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Return a string representation of a slice defining a section of
         the detector image.
 
-        Overwrites base class function to use :func:`read_deimos` to get
-        the image sections.
-
-        .. todo ::
-            - It is really ineffiecient.  Can we parse
-              :func:`read_deimos` into something that can give you the
-              image section directly?
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
+        Overwrites base class function
 
         Args:
             inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
@@ -872,6 +862,19 @@ class DEIMOSDetectorMap(DetectorMap):
 
 
 def deimos_image_sections(inp, det):
+    """
+    Parse the image for the raw image shape and data sections
+
+    Args:
+        inp (str or `astropy.io.fits.HDUList`_ object):
+        det (int):
+
+    Returns:
+        tuple:
+            shape, dsec, osec, ext_items
+            ext_items is a large tuple of bits and pieces for other methods
+                ext_items = hdu, chips, postpix, image
+    """
     # Check for file; allow for extra .gz, etc. suffix
     if isinstance(inp, str):
         fil = glob.glob(inp + '*')
@@ -1028,15 +1031,13 @@ def indexing(itt, postpix, det=None):
 def deimos_read_1chip(hdu,chipno):
     """ Read one of the DEIMOS detectors
 
-    Parameters
-    ----------
-    hdu : HDUList
-    chipno : int
+    Args:
+        hdu (astropy.io.fits.HDUList):
+        chipno (int):
 
-    Returns
-    -------
-    data : ndarray
-    oscan : ndarray
+    Returns:
+        np.ndarray, np.ndarray:
+            data, oscan
     """
 
     # Extract datasec from header

@@ -16,6 +16,10 @@
 - Revamped 2-d coadding routines and introduced 2-d coadding of MultiSlit data
 - Improved ginga plotting routines.
 - Fixed bug associated with astropy.stats.sigma_clipped_stats when astropy.stats.mad_std is used.
+- Break apart LRIS and DEIMOS image reading from section parsing
+- Refactor BPM generation
+- Merge raw_image loading with datasec_img and oscansec_img generation
+- Sync datasec_img to image in ProcessRawImage
 
 0.11.0 (22 Jun 2019)
 --------------------

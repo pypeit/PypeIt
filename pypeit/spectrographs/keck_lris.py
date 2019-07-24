@@ -189,7 +189,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, hdu
 
-    def get_image_section(self, inp=None, det=1, section='datasec'):
+    def get_image_section(self, inp, det, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -207,12 +207,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         is defined directly.
 
         Args:
-            inp (:obj:`str`, hdulist):
+            inp (:obj:`str`, `astropy.io.fits.HDUList`_):
                 String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
+                header object.
+            det (:obj:`int`):
                 1-indexed detector number.
             section (:obj:`str`, optional):
                 The section to return.  Should be either 'datasec' or
@@ -754,6 +752,18 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
 
 
 def lris_parse_extensions(hdu, det):
+    """
+    Parse the headers and extensions for a set of info
+    required for image sections and data reading
+
+    Args:
+        hdu (`astropy.io.fits.HDUList`_ object):
+        det (int):
+
+    Returns:
+        tuple:
+            hdu, n_ext, preline, postline, nx, ny, xbin, ybin, precol, postpix, xcol, order[det_idx]
+    """
 
     head0 = hdu[0].header
 
@@ -831,9 +841,10 @@ def lris_parse_extensions(hdu, det):
 
 def lris_image_sections(inp, det):
     """
+    Determine raw_image shape and data sections in the raw frame
 
     Args:
-        raw_file (str):
+        inp (str or `astropy.io.fits.HDUList`_ object):
         det (int):
 
     Returns:
@@ -875,30 +886,26 @@ def lris_image_sections(inp, det):
     return shape, dsec, osec, ext_items
 
 
-def read_lris(raw_file, det=None, TRIM=False):
+def read_lris(raw_file, det=None):
     """
     Read a raw LRIS data frame (one or more detectors)
     Packed in a multi-extension HDU
     Based on readmhdufits.pro
 
-    Parameters
-    ----------
-    raw_file : str
-      Filename
-    det : int, optional
-      Detector number; Default = both
-    TRIM : bool, optional
-      Trim the image?
-      This doesn't work....
+    Args:
+        raw_file (str):
+          Filename
+        det (int, optional):
+          Detector number; Default = both
 
-    Returns
-    -------
-    array : ndarray
-      Combined image 
-    hdu : HDUList
-    sections : list
-      List of datasec, oscansec, ampsec sections
-      datasec, oscansec needs to be for an *unbinned* image as per standard convention
+    Returns:
+
+        np.ndarray, astropy.io.fits.HDUList, tuple:
+          Combined image
+          hdu
+          sections : list
+              List of datasec, oscansec, ampsec sections
+              datasec, oscansec needs to be for an *unbinned* image as per standard convention
     """
 
     # Check for file; allow for extra .gz, etc. suffix
@@ -945,32 +952,25 @@ def read_lris(raw_file, det=None, TRIM=False):
     # Return, transposing array back to goofy Python indexing
     return array.T, hdu, (dsec, osec)
 
+
 def lris_read_amp(inp, ext):
     """
     Read one amplifier of an LRIS multi-extension FITS image
 
-    Parameters
-    ----------
-    inp: tuple 
-      (str,int) filename, extension
-      (hdu,int) FITS hdu, extension
+    Args:
+        inp (str, astropy.io.fits.HDUList):
+            filename or HDUList
+        ext (int):
+            Extension index
 
-    Returns
-    -------
-    data
-    predata
-    postdata
-    x1
-    y1
+    Returns:
+        tuple:
+            data
+            predata
+            postdata
+            x1
+            y1
 
-    ;------------------------------------------------------------------------
-    function lris_read_amp, filename, ext, $
-      linebias=linebias, nobias=nobias, $
-      predata=predata, postdata=postdata, header=header, $
-      x1=x1, x2=x2, y1=y1, y2=y2, GAINDATA=gaindata
-    ;------------------------------------------------------------------------
-    ; Read one amp from LRIS mHDU image
-    ;------------------------------------------------------------------------
     """
     # Parse input
     if isinstance(inp, str):
@@ -1026,7 +1026,7 @@ def lris_read_amp(inp, ext):
         xt = x2
         x2 = x1
         x1 = xt
-        data = np.flipud(data) #reverse(temporary(data),1)
+        data = np.flipud(data)
 
     # flip in Y as needed...
     if y1 > y2:
@@ -1037,42 +1037,7 @@ def lris_read_amp(inp, ext):
         predata = np.fliplr(predata)
         postdata = np.fliplr(postdata)
 
-    '''
-    #; correct gain if requested...
-    if keyword_set(GAINDATA) then begin
-        gain = gainvalue( gaindata, header)
-        data = FLOAT(temporary(data)) * gain
-        predata = FLOAT(temporary(predata)) * gain
-        postdata = FLOAT(temporary(postdata)) * gain
-    endif
-    '''
-
-    '''
-    ;; optional bias subtraction...
-    if ~ keyword_set(NOBIAS) then begin
-        if keyword_set( LINEBIAS) then begin
-            ;; compute a bias for each line...
-            bias = median( postdata, dim=1)
-
-            ;; subtract for data...
-            buf = size(data)
-            nx = buf[1]
-            ny = buf[2]
-            data2 = fltarr(nx,ny)
-            for i=0,nx-1 do begin
-                data2[i,*] = float(data[i,*]) - bias
-            endfor 
-            data = data2
-        endif else begin
-            ;; compute a scalar bias....
-            bias = median( postdata)
-            data -= bias
-        endelse
-    endif
-    '''
-
     return data, predata, postdata, x1, y1
-
 
 
 def convert_lowredux_pixelflat(infil, outfil):
