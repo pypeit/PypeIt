@@ -46,7 +46,7 @@ from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.metadata import PypeItMetaData
 
-from pypeit import debugger
+from IPython import embed
 
 class Spectrograph(object):
     """
@@ -73,8 +73,6 @@ class Spectrograph(object):
             An image identifying the amplifier that reads each detector pixel.
         oscansec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector pixel
-        bpm_img (:obj:`numpy.ndarray`):
-            The bad-pixel mask for the currently read detector.
     """
     __metaclass__ = ABCMeta
 
@@ -86,7 +84,6 @@ class Spectrograph(object):
 #        self.raw_naxis = None
         self.rawdatasec_img = None
         self.oscansec_img = None
-        self.bpm_img = None
 
         # Default time unit
         self.timeunit = 'mjd'
@@ -110,19 +107,28 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def nonlinear_counts(self, det=1):
+    def nonlinear_counts(self, det, datasec_img=None):
         """
         Return the counts at which the detector response becomes
         non-linear.
 
         Args:
-            det (:obj:`int`, optional):
+            det (:obj:`int`):
                 1-indexed detector number.
         
         Returns:
-            float: Counts at which detector response becomes nonlinear.
+            float or np.ndarray:
+                Counts at which detector response becomes nonlinear.
+                If datasec_img is provided, an image with the same shape
+                is returned with the gain accounted for
         """
-        return self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+        nonlinear_counts = self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+        # Generate an image, applying the gain?
+        if datasec_img is not None:
+            gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+            nonlinear_counts = nonlinear_counts * procimg.gain_frame(datasec_img, gain)
+        # Return
+        return nonlinear_counts
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -159,37 +165,44 @@ class Spectrograph(object):
             if not isinstance(d, pypeitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
 
+    def load_raw_extras(self, hdu, det):
+        """
+        Method to load up other bits and pieces related to the raw image
+        Bundling them avoids multiple calls on the image
+
+        Args:
+            raw_file (str):
+            det (int):
+
+        Returns:
+            tuple:
+                exptime (float)
+                rawdatasec_img  (np.ndarray)
+                oscansec_img (np.ndarray)
+                binning_raw (str)
+        """
+        # Binning
+        headarr = self.get_headarr(hdu)
+        binning = self.get_meta_value(headarr, 'binning')
+        if self.detector[det-1]['specaxis'] == 1:
+            binning_raw = (',').join(binning.split(',')[::-1])
+        else:
+            binning_raw = binning
+
+        # Exposure time
+        exptime = self.get_meta_value(headarr, 'exptime')
+
+        # Rawdatasec, oscansec images
+        rawdatasec_img = self.get_pixel_img(hdu, det, 'datasec', binning_raw)
+        oscansec_img = self.get_pixel_img(hdu, det, 'oscansec', binning_raw)
+
+        # Return it all
+        return exptime, rawdatasec_img, oscansec_img, binning_raw
+
     def load_raw_frame(self, raw_file, det=1):
         r"""
         Load the image and header for an exposure taken with this
         spectrograph.
-
-        The returned image follows the PypeIt convention, which is
-        always oriented with spectra along rows and with wavelengths and
-        echelle orders increasing with increasing pixel number.  The
-        shape of the returned array is :math:`(N_{\rm spec}, N_{\rm
-        spat})`.
-
-        The transpose and flip operations needed to convert the raw
-        image data read using `astropy.io.fits`_ into the PypeIt-format
-        `numpy.ndarray`_ is as follows::
-
-            - The orientation of the image in the file is expected to
-              follow the FITS convention.
-            - Because of different storage architecture, fits images
-              ready by `astropy.io.fits`_ have an automatically
-              transposed orientation.
-            - The image is then transposed again, if necessary according
-              to :attr:`detector[det-1]['specaxis']`, to ensure that
-              wavelengths are along rows.
-            - The image is then flipped along rows, if necessary
-              according to :attr:`detector[det-1]['specflip']`, to
-              ensure that wavelengths increase with increasing pixel
-              number.
-            - Finally, the image is flipped along columns, if necessary
-              according to :attr:`detector[det-1]['spatflip']`, to
-              ensure that echelle orders increase with increasing pixel
-              number.
 
         Args:
             raw_file (:obj:`str`):
@@ -208,11 +221,6 @@ class Spectrograph(object):
 
         hdu = fits.open(raw_file)
         raw_img = hdu[self.detector[det-1]['dataext']].data
-        '''
-        # Load the raw image
-        raw_img, hdu = self.load_raw_img_hdu(raw_file, dataext=self.detector[det-1]['dataext'],
-                                                det=det)
-        '''
         # Turn to float
         img = raw_img.astype(float)
 
@@ -235,32 +243,7 @@ class Spectrograph(object):
         """
         return self.detector[det-1]['specaxis'] == 1
 
-    '''
-    def load_raw_img_hdu(self, raw_file, dataext=0, **null_kwargs):
-        """
-        Generic raw image reader
-
-        Args:
-            raw_file (:obj:`str`):
-                File to read.
-            dataext (:obj:`str`, :obj:`int`, optional):
-                Fits extension with the image data.
-            headext (:obj:`str`, :obj:`int`, optional):
-                Fits extension with the header data to return.
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            Returns an `numpy.ndarray`_ with the image data and
-            the `astropy.io.fits.HDUList`_ object with the image and HDU,
-            respectively.
-        """
-        # Open and go
-        hdu = fits.open(raw_file)
-        return hdu[dataext].data, hdu
-    '''
-
-    def get_image_section(self, inp=None, det=1, section='datasec'):
+    def get_image_section(self, hdulist, det, section):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -275,14 +258,11 @@ class Spectrograph(object):
         is defined directly.
         
         Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
+            hdulist (`astropy.io.fits.Header`_):
+                Header list of the image
+            det (:obj:`int`):
                 1-indexed detector number.
-            section (:obj:`str`, optional):
+            section (:obj:`str`):
                 The section to return.  Should be either 'datasec' or
                 'oscansec', according to the
                 :class:`pypeitpar.DetectorPar` keywords.
@@ -304,20 +284,9 @@ class Spectrograph(object):
         self._check_detector()
 
         # Get the data section
+        hdr = hdulist[self.detector[det-1]['dataext']].header
+        # Try using the image sections as header keywords
         try:
-            # Parse inp
-            if inp is None:
-                # Force the call to the except block
-                raise KeyError
-            elif isinstance(inp, str):
-                hdu = fits.open(inp)
-                hdr = hdu[self.detector[det-1]['dataext']].header
-            elif isinstance(inp, fits.Header):
-                hdr = inp
-            else:
-                msgs.error('Input must be a filename or a fits.Header object.')
-
-            # Try using the image sections as header keywords
             image_sections = [ hdr[key] for key in self.detector[det-1][section] ]
         except KeyError:
             # Expect a KeyError to be thrown if the section defined by
@@ -332,55 +301,10 @@ class Spectrograph(object):
         include_last = True
         #transpose = self.detector[det-1]['specaxis'] == 0
 
-        return image_sections, one_indexed, include_last#, transpose
+        return image_sections, one_indexed, include_last
 
-        # Re-order so that the section is always returned as
-        # (spec,spat).  NOTE: This is different from load_raw_frame
-        # because of the added flip performed by just reading the image
-        # data.
-        #if self.detector[det-1]['specaxis'] == 0:
-        #    image_sections = ['[{0}]'.format(','.join(s.strip('[]').split(',')[::-1]))
-        #                        for s in image_sections]
-        #
-        #return image_sections, one_indexed, include_last
-
-    def get_rawdatasec_img(self, filename, det, force=True):
-        """
-        Return the *raw* datasec image, i.e. in the load-from-disk orientation, etc.
-
-        Args:
-            filename:
-            det:
-            force:
-
-        Returns:
-
-        """
-        if self.rawdatasec_img is None or force:
-            return self.get_pixel_img(filename, 'datasec', det)
-        return self.rawdatasec_img
-
-    def get_oscansec_img(self, filename, det, force=True):
-        """
-        Generate the oscansec image
-
-        Args:
-            filename (str):
-                Filename
-            det (int):
-                Detector index
-            force (bool, optional):
-                Force the code to remake the image.
-                Might need to do this in cases where binning varies
-                between calibrations and science images.
-
-        Returns:
-
-        """
-        if self.oscansec_img is None or force:
-            return self.get_pixel_img(filename, 'oscansec', det)
-        return self.oscansec_img
-
+    '''
+    # THIS WILL PROBABLY NEED TO COME BACK
     def get_datasec_img(self, filename, det):
         """
         Generate and return the datasec image in the PypeIt reference
@@ -396,8 +320,9 @@ class Spectrograph(object):
         dimg = self.orient_image(rdimg, det)
         # Return
         return dimg
+    '''
 
-    def get_pixel_img(self, filename, section, det):
+    def get_pixel_img(self, hdulist, det, section, binning_raw):
         """
         Create an image identifying the amplifier used to read each pixel.
         This is in the *raw* data format
@@ -435,12 +360,13 @@ class Spectrograph(object):
         # Check the detector is defined
         self._check_detector()
         # Get the image shape
-        raw_naxis = self.get_raw_image_shape(filename, det=det)
+        #raw_naxis = self.get_raw_image_shape(filename, det=det)
+        #binning_raw = self.get_meta_value(filename, 'binning')
 
-        binning_raw = self.get_meta_value(filename, 'binning')
+        raw_naxis = self.get_raw_image_shape(hdulist, det=det)
 
         data_sections, one_indexed, include_end \
-                    = self.get_image_section(filename, det, section=section)
+                    = self.get_image_section(hdulist, det, section=section)
 
         # Initialize the image (0 means no amplifier)
         pix_img = np.zeros(raw_naxis, dtype=int)
@@ -448,17 +374,13 @@ class Spectrograph(object):
             # Convert the data section from a string to a slice
             datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
                                       include_end=include_end, require_dim=2,
-                                      binning=binning_raw) #transpose=transpose,
+                                      binning=binning_raw)
             # Assign the amplifier
-            #self.datasec_img[datasec] = i+1
             pix_img[datasec] = i+1
 
         return pix_img
 
-    # TODO: There *has* to be a better way to do this.  We're reading a
-    # file just to get the size of the image, likely when the image has
-    # already been read (likely multiple times).
-    def get_raw_image_shape(self, filename, det=None, force=False):
+    def get_raw_image_shape(self, hdulist, det=None):
         """
         Get the *untrimmed* shape of the image data for a given detector using a
         file.  :attr:`detector` must be defined.
@@ -471,15 +393,13 @@ class Spectrograph(object):
         used.
         
         Args:
-            filename (:obj:`str`, optional):
+            hdulist (:obj:`str`, optional):
                 Name of the fits file with the header to use.
             det (:obj:`int`, optional):
                 1-indexed number of the detector.  Default is None.  If
                 None, the primary extension is used.  Otherwise the
                 internal detector parameters are used to determine the
                 extension to read.
-            force (:obj:`bool`, optional):
-                Force the image shape to be redetermined.
             null_kwargs (dict):
                 Used to catch any extraneous keyword arguments.
         
@@ -494,7 +414,10 @@ class Spectrograph(object):
         """
         # Use a file
         self._check_detector()
-        return (self.load_raw_frame(filename, det=det)[0]).shape
+        #hdu = fits.open(filename)
+        header = hdulist[self.detector[det-1]['dataext']].header
+        shape = (header['NAXIS2'], header['NAXIS1'])  # Usual Python vs. the world
+        return shape
 
     def header_cards_for_spec(self):
         """
@@ -537,7 +460,7 @@ class Spectrograph(object):
             image = np.flip(image, axis=1)
         return image
 
-    def empty_bpm(self, shape=None, filename=None, det=1):
+    def empty_bpm(self, filename, det, shape=None):
         """
         Generate a generic (empty) bad-pixel mask.
 
@@ -547,27 +470,41 @@ class Spectrograph(object):
         provided.
 
         Args:
-            shape (:obj:`tuple`, optional):
-                The shape for the returned mask.
-            filename (:obj:`str`, optional):
+            filename (:obj:`str` or None):
                 An example file to use to get the image shape.
-            det (:obj:`int`, optional):
+                If None, shape must be provided
+            det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
+            to 1 and an unmasked value set to 0.  All values are set to 0.
         """
-        if shape is None and filename is None:
-            msgs.error('Must provide either shape or filename.')
-        _shape = self.get_raw_image_shape(filename, det=det) if shape is None else shape
-        # TODO: Why are we saving this to self?
-        self.bpm_img = np.zeros(_shape, dtype=np.int8)
-        return self.bpm_img
+        # Load the raw frame
+        if filename is not None:
+            hdu = fits.open(filename)
+            exptime, rawdatasec_img, oscansec_img, _ = self.load_raw_extras(hdu, det)
+            # Trim + reorient
+            trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
+            orient = self.orient_image(trim, det)
+            #
+            shape = orient.shape
+        else:
+            if shape is None:
+                msgs.error("Must specify shape if filename is None")
 
-    def bpm(self, shape=None, filename=None, det=1):
+        # Generate
+        bpm_img = np.zeros(shape, dtype=np.int8)
+
+        # Return
+        return bpm_img
+
+    def bpm(self, filename, det, shape=None):
         """
         Generate a default bad-pixel mask.
 
@@ -579,20 +516,22 @@ class Spectrograph(object):
         provided.
 
         Args:
-            shape (:obj:`tuple`, optional):
-                The shape for the returned mask.
-            filename (:obj:`str`, optional):
+            filename (:obj:`str` or None):
                 An example file to use to get the image shape.
-            det (:obj:`int`, optional):
+            det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        return self.empty_bpm(shape=shape, filename=filename, det=det)
+        return self.empty_bpm(filename, det, shape=shape)
 
     def configuration_keys(self):
         """
@@ -658,16 +597,13 @@ class Spectrograph(object):
         """
         self.meta = {}
 
-    # TODO: Change this so that it uses one argument for ifile or
-    # headarray? ala, get_image_section, etc?
-    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False,
-                       usr_row=None):
+    def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
         Return meta data from a given file (or its array of headers)
 
         Args:
-            ifile: str or None
-              Input filename
+            inp (str or list):
+              Input filename or headarr list
             meta_key: str or list of str
             headarr: list, optional
               List of headers
@@ -682,14 +618,16 @@ class Spectrograph(object):
             value: value or list of values
 
         """
-        if headarr is None:
-            headarr = self.get_headarr(ifile)
+        if isinstance(inp, str):
+            headarr = self.get_headarr(inp)
+        else:
+            headarr = inp
 
         # Loop?
         if isinstance(meta_key, list):
             values = []
             for mdict in meta_key:
-                values.append(self.get_meta_value(mdict, headarr=headarr, required=required))
+                values.append(self.get_meta_value(headarr, mdict, required=required))
             #
             return values
 
@@ -733,8 +671,8 @@ class Spectrograph(object):
                     if kerror:
                         msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
                 else:
-                    msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
-                        self.meta[meta_key]['card'], ifile))
+                    msgs.warn("Required card {:s} missing from your header.  Proceeding with risk..".format(
+                        self.meta[meta_key]['card']))
             return None
 
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
@@ -777,13 +715,13 @@ class Spectrograph(object):
             if key not in self.meta_data_model.keys():
                 msgs.error("Meta data {:s} not in meta_data_model".format(key))
 
-    def get_headarr(self, filename, strict=True):
+    def get_headarr(self, inp, strict=True):
         """
         Read the header data from all the extensions in the file.
 
         Args:
-            filename (:obj:`str`):
-                Name of the file to read.
+            inp (:obj:`str` or hdulist):
+                Name of the file to read or the hdulist
             strict (:obj:`bool`, optional):
                 Function will fault if :func:`fits.getheader` fails to
                 read any of the headers.  Set to False to report a
@@ -795,19 +733,19 @@ class Spectrograph(object):
         """
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
-        try:
-            hdu = fits.open(filename)
-        except:
-            if strict:
-                msgs.error('Problem opening {0}.'.format(filename))
-            else:
-                msgs.warn('Problem opening {0}.'.format(filename) + msgs.newline()
-                          + 'Proceeding, but should consider removing this file!')
-                return ['None']*self.numhead
-        return [ hdu[k].header for k in range(self.numhead) ]
-
-#    def get_match_criteria(self):
-#        msgs.error("You need match criteria for your spectrograph.")
+        if isinstance(inp, str):
+            try:
+                hdu = fits.open(inp)
+            except:
+                if strict:
+                    msgs.error('Problem opening {0}.'.format(inp))
+                else:
+                    msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
+                              + 'Proceeding, but should consider removing this file!')
+                    return ['None']*self.numhead
+        else:
+            hdu = inp
+        return [hdu[k].header for k in range(self.numhead)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))

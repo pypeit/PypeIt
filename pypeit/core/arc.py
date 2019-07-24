@@ -433,60 +433,40 @@ def resize_spec(spec_from, nspec_to):
     return spec_to
 
 
+def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
+                nonlinear_counts=1e10):
+    """
+    Extract a boxcar spectrum down the center of the slit
 
-def get_censpec(slit_cen, slitmask, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5, nonlinear_counts=1e10):
+    Args:
+        slit_cen (np.ndarray):
+            Trace down the center of the slit
+        slitmask (np.ndarray):
+        arcimg (np.ndarray):
+            Image to extract the arc from. This should be an arcimage or perhaps a frame with night sky lines.
+        gpm (np.ndarray, optional):
+            Input mask image with same shape as arcimg. Convention True = good and False = bad. The default is None.
+        box_rad (float, optional):
+            Size of boxcar window in pixels (as a floating point number) in the spatial direction used to extract the arc.
+        nonlinear_counts (float, optional):
+            Values exceeding this input value are masked as bad
 
-    """Extract a spectrum down
-
-
-    Parameters
-    ----------
-    slit_left:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
-        or (nspec)
-
-    slit_righ:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
-        or (nspec)
-
-
-    slitpix:  float  ndarray
-        Mask image specifying the pixels which lie on the slit/order to search for objects on. This is created by
-        traceslits in the tslits_dict, and has the convention that each slit/order has an integer index starting with one.
-        Locations with zeros are not on slits/orders.
-
-    arcimg:  float ndarray
-        Image to extract the arc from. This should be an arcimage or perhaps a frame with night sky lines.
-
-    Optional Parameters
-    ----------
-    inmask: boolean ndararay
-         Input mask image with same shape as arcimg. Convention True = good and False = bad. The default is None.
-
-    box_rad: float, [default = 3.0]
-        Size of boxcar window in pixels (as a floating point number) in the spatial direction used to extract the arc.
-
-    xfrac: float [default = 0.5]
-        Fraction location along the slit to extract the arc. The default is at the midpoint of the slit which is 0.5,
-        but this can be adjusted to an off center location.
-
-    Returns
-    -------
-    :func:`tuple`
-         A tuple containing the (arc_spec, maskslit)
+    Returns:
+        tuple:
+            A tuple containing the (arc_spec, maskslit)
 
             arc_spec: float ndarray with shape (nspec, nslits)
                 Array containing the extracted arc spectrum for each slit.
 
             maskslit: int ndarray with shape (nslits)
                output mask indicating whether a slit is good or bad. 0 = good, 1 = bad.
-     """
 
-    if inmask is None:
-        inmask = slitmask > -1
+    """
+    if gpm is None:
+        gpm = slitmask > -1
 
     # Mask saturated parts of the arc image for the extraction
-    inmask = inmask & (arcimg < nonlinear_counts)
+    gpm = gpm & (arcimg < nonlinear_counts)
 
     nslits = slit_cen.shape[1]
     (nspec, nspat) = arcimg.shape
@@ -499,12 +479,12 @@ def get_censpec(slit_cen, slitmask, arcimg, inmask = None, box_rad = 3.0, xfrac 
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
         # Create a mask for the pixels that will contribue to the arc
         slit_img = np.outer(slit_cen[:,islit], np.ones(nspat))  # central trace replicated spatially
-        arcmask = (slitmask > -1) & inmask & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
+        arcmask = (slitmask > -1) & gpm & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
-        this_mean, this_med, this_sig = stats.sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
-                                                            , sigma=3.0, axis=1)
+        this_mean, this_med, this_sig = stats.sigma_clipped_stats(
+            arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ]), sigma=3.0, axis=1)
         imask = np.isnan(this_med)
         this_med[imask]=0.0
         arc_spec[:,islit] = this_med
