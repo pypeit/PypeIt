@@ -165,11 +165,22 @@ class Spectrograph(object):
             if not isinstance(d, pypeitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
 
-    def load_raw(self, raw_file, det):
+    def load_raw_extras(self, hdu, det):
+        """
+        Method to load up other bits and pieces related to the raw image
+        Bundling them avoids multiple calls on the image
 
-        # First the raw image
-        raw_img, hdu = self.load_raw_frame(raw_file, det)
+        Args:
+            raw_file (str):
+            det (int):
 
+        Returns:
+            tuple:
+                exptime (float)
+                rawdatasec_img  (np.ndarray)
+                oscansec_img (np.ndarray)
+                binning_raw (str)
+        """
         # Binning
         headarr = self.get_headarr(hdu)
         binning = self.get_meta_value(headarr, 'binning')
@@ -186,40 +197,12 @@ class Spectrograph(object):
         oscansec_img = self.get_pixel_img(hdu, det, 'oscansec', binning_raw)
 
         # Return it all
-        return hdu, raw_img, exptime, rawdatasec_img, oscansec_img
-
+        return exptime, rawdatasec_img, oscansec_img, binning_raw
 
     def load_raw_frame(self, raw_file, det=1):
         r"""
         Load the image and header for an exposure taken with this
         spectrograph.
-
-        The returned image follows the PypeIt convention, which is
-        always oriented with spectra along rows and with wavelengths and
-        echelle orders increasing with increasing pixel number.  The
-        shape of the returned array is :math:`(N_{\rm spec}, N_{\rm
-        spat})`.
-
-        The transpose and flip operations needed to convert the raw
-        image data read using `astropy.io.fits`_ into the PypeIt-format
-        `numpy.ndarray`_ is as follows::
-
-            - The orientation of the image in the file is expected to
-              follow the FITS convention.
-            - Because of different storage architecture, fits images
-              ready by `astropy.io.fits`_ have an automatically
-              transposed orientation.
-            - The image is then transposed again, if necessary according
-              to :attr:`detector[det-1]['specaxis']`, to ensure that
-              wavelengths are along rows.
-            - The image is then flipped along rows, if necessary
-              according to :attr:`detector[det-1]['specflip']`, to
-              ensure that wavelengths increase with increasing pixel
-              number.
-            - Finally, the image is flipped along columns, if necessary
-              according to :attr:`detector[det-1]['spatflip']`, to
-              ensure that echelle orders increase with increasing pixel
-              number.
 
         Args:
             raw_file (:obj:`str`):
@@ -487,22 +470,19 @@ class Spectrograph(object):
         provided.
 
         Args:
-            shape (:obj:`tuple`, optional):
-                The shape for the returned mask.
-            filename (:obj:`str`, optional):
+            filename (:obj:`str`):
                 An example file to use to get the image shape.
-            det (:obj:`int`, optional):
+            det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
+            to 1 and an unmasked value set to 0.  All values are set to 0.
         """
-        #_shape = self.get_raw_image_shape(filename, det=det) if shape is None else shape
         # Load the raw frame
-        hdu, raw_img, exptime, rawdatasec_img, oscansec_img = self.load_raw(filename, det)
+        hdu = fits.open(filename)
+        exptime, rawdatasec_img, oscansec_img, _ = self.load_raw_extras(hdu, det)
         # Trim + reorient
         trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
         orient = self.orient_image(trim, det)

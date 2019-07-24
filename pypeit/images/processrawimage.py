@@ -252,15 +252,14 @@ class ProcessRawImage(pypeitimage.PypeItImage):
 
         """
         # Load
-        #self.image, self.hdu, \
-        #    = self.spectrograph.load_raw_frame(self.filename, det=self.det)
-        self.hdu, self.image, self.exptime, self.datasec_img, self.oscansec_img = self.spectrograph.load_raw(
-            self.filename, self.det)
+        self.image, self.hdu, \
+            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        self.exptime, self.datasec_img, self.oscansec_img, self.binning_raw \
+            = self.spectrograph.load_raw_extras(self.hdu, self.det)
 
         self.head0 = self.hdu[0].header
         # Shape
         self.orig_shape = self.image.shape
-
 
     def orient(self, force=False):
         """
