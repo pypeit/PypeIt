@@ -153,6 +153,16 @@ def test_load_mage():
     except:
         pytest.fail('Magellan MAGE test data section failed: {0}'.format(files))
 
+@dev_suite_required
+def test_load_gmos():
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GMOS/GS_HAM_R400_700',
+                         'S20181005S0086.fits.gz')
+    proc = ProcessImages('gemini_gmos_south_ham', par, files)
+    proc.build_image()
+    try:
+        data_img = grab_img(proc, files)
+    except:
+        pytest.fail('Gemini GMOS test data section failed: {0}'.format(files))
 
 '''
 @dev_suite_required
