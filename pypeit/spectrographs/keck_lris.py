@@ -168,6 +168,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
 
+    '''
     def load_raw_frame(self, raw_file, det=None):
         """
         Wrapper to the raw image reader for LRIS
@@ -254,6 +255,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         shape, datasec, oscansec, _ = lris_image_sections(filename, det)
         self.naxis = shape
         return self.naxis
+    '''
 
     def get_rawimage(self, raw_file, det):
         """
@@ -375,8 +377,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             nxdata = buf[0]
             xs = n_ext * precol + amp * nxdata  # (x1-xmin)/xbin
             xe = xs + nxdata
-            array[xs:xe, :] = data  # Include postlines
-            rawdatasec_img[xs:xe, :] = amp+1  # Include postlines
+            print('xe, xs', xs, xe)
+            array[xs:xe, :] = data
+            rawdatasec_img[xs:xe, preline:ny-postline] = amp+1
 
             # ; insert postdata...
             buf = postdata.shape
@@ -384,7 +387,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             xs = nx - n_ext * postpix + amp * postpix
             xe = xs + nxpost
             array[xs:xe, :] = postdata
-            oscansec_img[xs:xe, :] = amp+1  # Include postlines
+            oscansec_img[xs:xe, preline:ny-postline] = amp+1
 
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
