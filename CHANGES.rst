@@ -20,6 +20,11 @@
 - Merge raw_image loading with datasec_img and oscansec_img generation
 - Sync datasec_img to image in ProcessRawImage
 - Started (barely) on a path to having calibration images in counts and not ADU
+- Refactors GMOS for get_rawimage method
+- Enables GMOS overscan subtraction
+- Adds R400 wavelength solution for old E2V chip
+- Revises simple_calib() method for quick and dirty wavelength calibration
+- Adds a related show_wvcalib script
 
 0.11.0 (22 Jun 2019)
 --------------------
