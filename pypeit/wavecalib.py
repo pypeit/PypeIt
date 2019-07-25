@@ -88,6 +88,10 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib = {} # main output
         self.arccen = None # central arc spectrum
 
+        # Get the non-linear count level
+        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+            else self.spectrograph.nonlinear_counts(self.det)
+
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
         # WaveTilts and WaveCalib?
@@ -115,9 +119,6 @@ class WaveCalib(masterframe.MasterFrame):
             if self.par['method'] != 'full_template':
                 self.inmask &= self.msarc < self.nonlinear_counts
             self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
-            # Get the non-linear count level
-            self.nonlinear_counts = 1e10 if self.spectrograph is None \
-                else self.spectrograph.nonlinear_counts(self.det)
 
         else:
             self.slitmask_science = None

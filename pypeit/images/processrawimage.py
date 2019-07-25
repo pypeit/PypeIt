@@ -247,15 +247,15 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Also loads up the binning, exposure time, and header of the Primary image
         And the HDUList in self.hdu
 
-        Args:
-            filename (str):  Filename
-
         """
         # Load
-        self.image, self.hdu, \
-            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
-        self.exptime, self.datasec_img, self.oscansec_img, self.binning_raw \
-            = self.spectrograph.load_raw_extras(self.hdu, self.det)
+        #self.image, self.hdu, \
+        #    = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        #self.exptime, self.datasec_img, self.oscansec_img, self.binning_raw \
+        #    = self.spectrograph.load_raw_extras(self.hdu, self.det)
+        # Load itup
+        self.image, self.hdu, self.exptime, self.datasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
+            self.filename, self.det)
 
         self.head0 = self.hdu[0].header
         # Shape

@@ -5,6 +5,7 @@ import glob
 import re
 import os
 import numpy as np
+import warnings
 
 from scipy import interpolate
 
@@ -396,7 +397,86 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                  'standard': None,
                  'trace': 'IntFlat' }
         return name[ftype]
-  
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read a raw DEIMOS data frame (one or more detectors)
+        Packed in a multi-extension HDU
+        Based on pypeit.arlris.read_lris...
+           Based on readmhdufits.pro
+        Parameters
+        ----------
+        raw_file : str
+          Filename
+        Returns
+        -------
+        array : ndarray
+          Combined image
+        hdu: HDUList
+        sections : tuple
+          List of datasec, oscansec sections
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
+        # Read
+        try:
+            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
+        except AttributeError:
+            print("Reading DEIMOS file: {:s}".format(fil[0]))
+
+        hdu = fits.open(fil[0])
+        head0 = hdu[0].header
+
+        # Get post, pre-pix values
+        postpix = head0['POSTPIX']
+        detlsize = head0['DETLSIZE']
+        x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
+
+        # Create final image
+        if det is None:
+            image = np.zeros((x_npix, y_npix + 4 * postpix))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+
+        # get the x and y binning factors...
+        binning = head0['BINNING']
+        if binning != '1,1':
+            msgs.error("This binning for DEIMOS might not work.  But it might..")
+
+        # DEIMOS detectors
+        nchip = 8
+
+        if det is None:
+            chips = range(nchip)
+        else:
+            chips = [det - 1]  # Indexing starts at 0 here
+        # Loop
+        for tt in chips:
+            data, oscan = deimos_read_1chip(hdu, tt + 1)
+
+            # One detector??
+            if det is not None:
+                image = np.zeros((data.shape[0], data.shape[1] + oscan.shape[1]))
+                rawdatasec_img = np.zeros_like(image, dtype=int)
+                oscansec_img = np.zeros_like(image, dtype=int)
+
+            # Indexing
+            x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
+
+            # Fill
+            image[y1:y2, x1:x2] = data
+            rawdatasec_img[y1:y2, x1:x2] = 1 # Amp
+            image[o_y1:o_y2, o_x1:o_x2] = oscan
+            oscansec_img[o_y1:o_y2, o_x1:o_x2] = 1 # Amp
+
+        # Return
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        return image, hdu, exptime, rawdatasec_img, oscansec_img
+        #return image, hdu, (dsec, osec)
+
+    '''
     def load_raw_frame(self, raw_file, det=None):
         """
         Wrapper to the raw image reader for DEIMOS
@@ -416,7 +496,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         raw_img, hdu, _ = read_deimos(raw_file, det=det)
 
         return raw_img, hdu
+    '''
 
+    '''
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
@@ -469,6 +551,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         shape, datasec, oscansec, _ = deimos_image_sections(hdulist, det)
         self.naxis = shape
         return self.naxis
+    '''
 
     def bpm(self, filename, det, shape=None):
         """
@@ -860,7 +943,7 @@ class DEIMOSDetectorMap(DetectorMap):
 
         # ccd_geom.pro has offsets by sys.CN_XERR, but these are all 0.
 
-
+'''
 def deimos_image_sections(inp, det):
     """
     Parse the image for the raw image shape and data sections
@@ -987,6 +1070,7 @@ def read_deimos(raw_file, det=None):
 
     # Return
     return image, hdu, (dsec,osec)
+'''
 
 
 def indexing(itt, postpix, det=None):
