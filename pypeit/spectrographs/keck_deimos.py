@@ -942,7 +942,7 @@ class DEIMOSDetectorMap(DetectorMap):
 
         # ccd_geom.pro has offsets by sys.CN_XERR, but these are all 0.
 
-
+'''
 def deimos_image_sections(inp, det):
     """
     Parse the image for the raw image shape and data sections
@@ -1069,6 +1069,7 @@ def read_deimos(raw_file, det=None):
 
     # Return
     return image, hdu, (dsec,osec)
+'''
 
 
 def indexing(itt, postpix, det=None):
