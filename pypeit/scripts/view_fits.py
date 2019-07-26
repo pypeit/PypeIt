@@ -51,12 +51,14 @@ def main(args):
 
     # RAW_LRIS??
     if args.raw_lris:
-        # 
-        img, _, _ = keck_lris.read_lris(args.file)
+        #
+        gen_lris = keck_lris.KeckLRISRSpectrograph()  # Using LRISr, but this will work for LRISb too
+        img, _, _, _, _ = gen_lris.get_rawimage(args.file,  None)
     # RAW_DEIMOS??
     elif args.raw_deimos:
         #
-        img, _, _ = keck_deimos.read_deimos(args.file)
+        gen_deimos = keck_deimos.KeckDEIMOSSpectrograph()
+        img, _, _, _, _ = gen_deimos.get_rawimage(args.file, None)
     # RAW_GEMINI??
     elif args.raw_gmos:
         # TODO this routine should show the whole mosaic if no detector number is passed in!
