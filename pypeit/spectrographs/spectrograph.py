@@ -113,7 +113,11 @@ class Spectrograph(object):
         Args:
             det (:obj:`int`):
                 1-indexed detector number.
-        
+            datasec_img (np.ndarray, optional):
+                If provided, nonlinear_counts is returned as an image
+                WARNING:  THIS IS NOT YET IMPLEMENTED DOWNSTREAM,
+                  i.e. don't use this option
+
         Returns:
             float or np.ndarray:
                 Counts at which detector response becomes nonlinear.
