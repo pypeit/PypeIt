@@ -445,17 +445,10 @@ class Calibrations(object):
 
         # Build the data-section image
         sci_image_file = self.fitstbl.frame_paths(self.frame)
-        rdsec_img = self.spectrograph.get_rawdatasec_img(sci_image_file, det=self.det)
-
-        # Instantiate the shape here, based on the shape of the science
-        # image. This is the shape of most calibrations, although we are
-        # allowing for arcs of different shape because of X-shooter etc.
-        trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
-        orient = self.spectrograph.orient_image(trim, self.det)
-        self.shape = orient.shape
 
         # Build it
-        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_file, det=self.det)
+        self.msbpm = self.spectrograph.bpm(sci_image_file, self.det)
+        self.shape = self.msbpm.shape
 
         # Record it
         self._update_cache('bpm', 'bpm', self.msbpm)
