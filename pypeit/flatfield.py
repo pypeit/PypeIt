@@ -192,12 +192,12 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         #self._prep_tck()
 
         # Setup
-        self.mspixelflat = np.ones_like(self.rawflatimg)
-        self.msillumflat = np.ones_like(self.rawflatimg)
-        self.flat_model = np.zeros_like(self.rawflatimg)
+        self.mspixelflat = np.ones_like(self.rawflatimg.image)
+        self.msillumflat = np.ones_like(self.rawflatimg.image)
+        self.flat_model = np.zeros_like(self.rawflatimg.image)
         self.slitmask = pixels.tslits2mask(self.tslits_dict)
 
-        final_tilts = np.zeros_like(self.rawflatimg)
+        final_tilts = np.zeros_like(self.rawflatimg.image)
 
         # If we are tweaking slits allocate the new aray to hold tweaked slit boundaries
         if self.flatpar['tweak_slits']:
@@ -215,7 +215,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             if self.msbpm is not None:
                 inmask = np.invert(self.msbpm)
             else:
-                inmask = np.ones_like(self.rawflatimg,dtype=bool)
+                inmask = np.ones_like(self.rawflatimg.image,dtype=bool)
 
             # Fit flats for a single slit
             this_tilts_dict = {'tilts':self.tilts_dict['tilts'],
@@ -300,7 +300,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(FlatField, self).save([self.rawflatimg, self.mspixelflat, self.msillumflat],
+        super(FlatField, self).save([self.rawflatimg.image, self.mspixelflat, self.msillumflat],
                                     ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], outfile=outfile,
                                     overwrite=overwrite, raw_files=self.file_list, steps=self.steps)
 
