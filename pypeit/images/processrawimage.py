@@ -100,36 +100,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                                     det=self.det)
         return self._bpm
 
-    '''
-    # TODO all of these steps below should be consoliated into one method which reads the files. It is silly and extremely
-    #  slow to re-read the images every time for each one of these stpes
-    @property
-    def rawdatasec_img(self):
-        """
-        Generate and return the datasec image in the Raw reference frame
-
-        Returns:
-            np.ndarray
-
-        """
-        if self._rawdatasec_img is None:
-            self._rawdatasec_img = self.spectrograph.get_rawdatasec_img(self.filename, self.det)
-        return self._rawdatasec_img
-
-
-    @property
-    def oscansec_img(self):
-        """
-        Generate and return the oscansec image
-
-        Returns:
-            np.ndarray
-
-        """
-        oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
-        return oimg
-    '''
-
     def _reset_steps(self):
         """
         Reset all the processing steps to False
@@ -343,11 +313,8 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             msgs.warn("Image was already trimmed.  Returning current image")
             return self.image
         # Do it
-        trim_image = procimg.trim_frame(self.image, self.datasec_img < 1)
-        trim_datasec = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
-        # Overwrite
-        self.image = trim_image
-        self.datasec_img = trim_datasec
+        self.image = procimg.trim_frame(self.image, self.datasec_img < 1)
+        self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         #
         self.steps[step] = True
 

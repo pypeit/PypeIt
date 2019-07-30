@@ -168,95 +168,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    '''
-    def load_raw_frame(self, raw_file, det=None):
-        """
-        Wrapper to the raw image reader for LRIS
-
-        Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            Returns an `numpy.ndarray`_ with the image data and
-            `astropy.io.fits.HDUList`_ object with the image and header
-            data, respectively.  The image data is always returned with
-
-        """
-        raw_img, hdu, _ = read_lris(raw_file, det=det)
-
-        return raw_img, hdu
-
-    def get_image_section(self, inp, det, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        Overwrites base class function to use :func:`read_lris` to get
-        the image sections.
-
-        .. todo ::
-            - It is really ineffiecient.  Can we parse
-              :func:`read_lris` into something that can give you the
-              image section directly?
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
-
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.HDUList`_):
-                String providing the file name to read, or the relevant
-                header object.
-            det (:obj:`int`):
-                1-indexed detector number.
-            section (:obj:`str`, optional):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
-
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Read the file
-        if inp is None:
-            msgs.error('Must provide Keck LRIS file or hdulist to get image section.')
-        # Read em
-        shape, datasec, oscansec, _ = lris_image_sections(inp, det=det)
-        #_, _, secs = read_lris(inp, det)
-        if section == 'datasec':
-            return datasec, False, False
-        elif section == 'oscansec':
-            return oscansec, False, False
-        else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-    def get_raw_image_shape(self, filename=None, det=None, **null_kwargs):
-        """
-        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
-
-        Must always provide a file.
-        """
-        # Cannot be determined without file
-        if filename is None:
-            raise ValueError('Must provide a file to determine the shape of an LRIS image.')
-
-        # Use a file
-        self._check_detector()
-        shape, datasec, oscansec, _ = lris_image_sections(filename, det)
-        self.naxis = shape
-        return self.naxis
-    '''
-
     def get_rawimage(self, raw_file, det):
         """
         Read a raw LRIS data frame (one or more detectors)
@@ -377,7 +288,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             nxdata = buf[0]
             xs = n_ext * precol + amp * nxdata  # (x1-xmin)/xbin
             xe = xs + nxdata
-            print('xe, xs', xs, xe)
             array[xs:xe, :] = data
             rawdatasec_img[xs:xe, preline:ny-postline] = amp+1
 
