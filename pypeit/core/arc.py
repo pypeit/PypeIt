@@ -482,6 +482,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
+        # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix. 
         this_mean, this_med, this_sig = stats.sigma_clipped_stats(
             arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ]), sigma=3.0, axis=1)
         imask = np.isnan(this_med)
