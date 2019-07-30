@@ -1,4 +1,4 @@
-""" Object to hold + process a single image"""
+""" Uber object for calibration images, e.g. arc, flat """
 
 import inspect
 
@@ -11,18 +11,16 @@ from pypeit import msgs
 from pypeit.core import combine
 from pypeit.par import pypeitpar
 
-from pypeit.images import pypeitimage
 from pypeit.images import processrawimage
-from pypeit.images import maskimage
-
-
+from pypeit.images import rawimage
+from pypeit.images import pypeitimage
 
 from IPython import embed
 
 
-class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
+class CalibrationImage(object):
     """
-    Class to generate a combined calibration image from a list of input images or
+    Class to generate (and hold) a combined calibration image from a list of input images or
     simply to hold a previously generated calibration image.
 
     Args:
@@ -30,7 +28,7 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             Spectrograph used to take the data.
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
-        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar` or None):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
@@ -49,29 +47,28 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
 
     def __init__(self, spectrograph, det, proc_par, files=None):
 
-        # Init me
-        pypeitimage.PypeItImage.__init__(self, spectrograph, det)
+        # Required items
+        self.spectrograph = spectrograph
+        self.det = det
 
         # Assign the internal list of files
         self._set_files(files)
 
         # Required parameters
-        if not isinstance(proc_par, pypeitpar.ProcessImagesPar):
-            msgs.error('Provided ParSet for must be type ProcessImagesPar.')
+        if proc_par is not None:
+            if not isinstance(proc_par, pypeitpar.ProcessImagesPar):
+                msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.proc_par = proc_par  # This musts be named this way as it is frequently a child
-
-        # Internal images
-        self.image = None
-        #self.ivar = None
-        # TODO add here a noise model and put the images in ADU!
-        self.crmask = None
 
         # Process steps
         self.process_steps = []
 
+        # Standard output
+        self.pypeitImage = None
+
     @property
     def shape(self):
-        return () if self.image is None else self.image.shape
+        return () if self.pypeitImage is None else self.pypeitImage.image.shape
 
     @property
     def nfiles(self):
@@ -134,7 +131,7 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                 Bad pixel mask
 
         Returns:
-            np.ndarray: Copy of self.image
+            PypeItImage:
 
         """
         if self.nfiles == 0:
@@ -144,20 +141,29 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         image_arr = None
         for kk,file in enumerate(self.file_list):
             # Process raw file
-            processrawImage = processrawimage.ProcessRawImage(file, self.spectrograph,
-                                                           self.det, self.proc_par)
-            image = processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
+            #processrawImage = processrawimage.ProcessRawImage(file, self.spectrograph,
+            #                                               self.det, self.proc_par)
+            #image = processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
+            #
+            # Load raw image
+            rawImage = rawimage.RawImage(file, self.spectrograph, self.det)
+            # Process
+            processrawImage = processrawimage.ProcessRawImage(rawImage, self.proc_par, bpm=bpm)
+            processedImage = processrawImage.process(self.process_steps, bias=bias)
+
+            # If only 1 file, return back the image
+            if self.nfiles == 1:
+                self.pypeitImage = processedImage
+                return self.pypeitImage
+
             # Instantiate the image stack
             if image_arr is None:
-                image_arr = np.zeros((image.shape[0], image.shape[1], self.nfiles))
+                image_arr = np.zeros((processedImage.image.shape[0], processedImage.image.shape[1], self.nfiles))
             # Hold
-            image_arr[:,:,kk] = image
+            image_arr[:,:,kk] = processedImage.image
 
         # Combine
-        if self.nfiles == 1:
-            self.image = image_arr[:,:,0]
-        else:
-            self.image = combine.comb_frames(image_arr,
+        image = combine.comb_frames(image_arr,
                                          saturation=self.spectrograph.detector[self.det-1]['saturation'],
                                          method=self.proc_par['combine'],
                                          satpix=self.proc_par['satpix'],
@@ -166,7 +172,8 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                          sig_lohi=self.proc_par['sig_lohi'],
                                          replace=self.proc_par['replace'])
         # Return
-        return self.image.copy()
+        self.pypeitImage = pypeitimage.PypeItImage(image, binning=processedImage.binning)
+        return self.pypeitImage
 
 
 

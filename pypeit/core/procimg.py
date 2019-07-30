@@ -697,7 +697,7 @@ def init_process_steps(bias, proc_par):
     Could include dark subtraction someday
 
     Args:
-        bias (None or other):
+        bias (None or np.ndarray):
         proc_par (ProcessImagesPar):
 
     Returns:

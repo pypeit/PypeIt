@@ -15,12 +15,11 @@ from pypeit import utils
 
 from pypeit.images import pypeitimage
 from pypeit.images import processrawimage
-from pypeit.images import maskimage
 
 from IPython import embed
 
 
-class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
+class ScienceImage(pypeitimage.PypeItImage):
     """
     Class to hold and process a science image
 
@@ -52,11 +51,12 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
     """
     frametype = 'science'
 
-    def __init__(self, spectrograph, det, par, bpm):
+    def __init__(self, spectrograph, det, par, image, ivar, bpm, state=None, rn2img=None):
 
         # Init me
-        maskimage.ImageMask.__init__(self, bpm)
-        pypeitimage.PypeItImage.__init__(self, spectrograph, det)
+        #pypeitimage.PypeItImage.__init__(self, spectrograph, det)
+        pypeitimage.PypeItImage.__init__(self, image, spectrograph, det, state=state,
+                 ivar=ivar, rn2img=rn2img, bpm=bpm)
 
         # Required parameters
         if not isinstance(par, pypeitpar.ProcessImagesPar):
@@ -323,6 +323,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                                     slitmask=slitmask)
         return self.mask.copy()
 
+    # TODO -- Remove these methods as they are now in ProcessRawImage
     def build_ivar(self):
         """
         Generate the Inverse Variance frame

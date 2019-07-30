@@ -105,7 +105,7 @@ class WaveCalib(masterframe.MasterFrame):
             inmask = self.bpm == 0 if self.bpm is not None \
                                     else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
-            self.shape_arc = self.msarc.shape
+            self.shape_arc = self.msarc.image.shape
             self.nslits = self.tslits_dict['slit_left'].shape[1]
             self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
                                                   self.tslits_dict['slit_left'])
@@ -117,7 +117,7 @@ class WaveCalib(masterframe.MasterFrame):
             self.inmask = arc.resize_mask2arc(self.shape_arc, inmask)
             # TODO: Remove the following two lines if deemed ok
             if self.par['method'] != 'full_template':
-                self.inmask &= self.msarc < self.nonlinear_counts
+                self.inmask &= self.msarc.image < self.nonlinear_counts
             self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
 
         else:
@@ -250,7 +250,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Obtain a list of good slits
         ok_mask = np.where(~self.maskslits)[0]
-        nspec = self.msarc.shape[0]
+        nspec = self.msarc.image.shape[0]
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
                 continue
@@ -307,7 +307,7 @@ class WaveCalib(masterframe.MasterFrame):
         # should not mask saturated lines at this stage
 
         arccen, arc_maskslit = arc.get_censpec(
-            slitcen, slitmask, self.msarc,
+            slitcen, slitmask, self.msarc.image,
             gpm=inmask, nonlinear_counts=nonlinear)
         # Step
         self.steps.append(inspect.stack()[0][3])

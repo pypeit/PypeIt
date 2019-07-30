@@ -15,6 +15,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
+from pypeit.images import pypeitimage
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -244,9 +245,10 @@ class MasterFrame(object):
         # Only one extension
         if n_ext == 1:
             data = hdu[_ext[0]].data.astype(np.float)
+            data = pypeitimage.PypeItImage(data)
             return (data, hdu[0].header) if return_header else data
         # Multiple extensions
-        data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext ])
+        data = tuple([None if hdu[k].data is None else pypeitimage.PypeItImage(hdu[k].data.astype(np.float)) for k in _ext ])
         return data + (hdu[0].header,) if return_header else data
 
 

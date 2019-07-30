@@ -27,7 +27,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
         files (:obj:`list`, optional):
-            The list of files to process.  Can be an empty list.
+            The list of files to process.  Can be an empty list or None
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
@@ -82,7 +82,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(ArcImage, self).save(self.image, 'ARC', outfile=outfile, overwrite=overwrite,
+        super(ArcImage, self).save(self.pypeitImage.image, 'ARC', outfile=outfile, overwrite=overwrite,
                                    raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class

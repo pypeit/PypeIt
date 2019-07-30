@@ -673,7 +673,7 @@ class Calibrations(object):
                                                                   self.det, rm=True)
             # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(self.traceImage.image,
+                self.tslits_dict = self.traceSlits.run(self.traceImage.pypeitImage.image,
                                                        self.binning,
                                                        add_user_slits=add_user_slits,
                                                        rm_user_slits=rm_user_slits,
@@ -681,7 +681,7 @@ class Calibrations(object):
                                                        show=self.show,
                                                        write_qa=write_qa)
             except:
-                self.traceSlits.save(traceImage=self.traceImage)
+                #self.traceSlits.save(traceImage=self.traceImage.pypeitImage.image)
                 msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
                            'but it needs fixing.')
 
@@ -691,7 +691,7 @@ class Calibrations(object):
 
             # Save to disk
             if self.save_masters:
-                self.traceSlits.save(traceImage=self.traceImage)
+                self.traceSlits.save(traceImage=self.traceImage.pypeitImage.image)
         # Save, initialize maskslits, and return
         # TODO: We're not caching self.mstrace.  And actually there is
         # no mstrace in Calibrations anymore; only in TraceSlits?

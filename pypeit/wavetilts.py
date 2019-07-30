@@ -103,13 +103,13 @@ class WaveTilts(masterframe.MasterFrame):
             inmask = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
-            self.shape_arc = self.msarc.shape
+            self.shape_arc = self.msarc.image.shape
             self.nslits = self.tslits_dict['slit_left'].shape[1]
             self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_left'])
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_righ'])
             self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.inmask = (arc.resize_mask2arc(self.shape_arc, inmask)) & (self.msarc < self.nonlinear_counts)
+            self.inmask = (arc.resize_mask2arc(self.shape_arc, inmask)) & (self.msarc.image < self.nonlinear_counts)
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -134,7 +134,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.fit_dict = None
         self.trace_dict = None
 
-    def extract_arcs(self, slitcen, slitmask, msarc, inmask):
+    def extract_arcs(self, slitcen, slitmask, inmask):
         """
         Extract the arcs down each slit/order
 
@@ -143,14 +143,13 @@ class WaveTilts(masterframe.MasterFrame):
         Args:
             slitcen (ndarray): Image for tracing
             slitmask (ndarray):
-            msarc (ndarray):
             inmask (ndarray):
 
         Returns:
             ndarray, ndarray:  Extracted arcs
 
         """
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, gpm=inmask,
+        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, self.msarc.image, gpm=inmask,
                                                nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -308,8 +307,7 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits = np.zeros(self.nslits, dtype=bool)
 
         # Extract the arc spectra for all slits
-        self.arccen, self.arc_maskslit = self.extract_arcs(self.slitcen, self.slitmask,
-                                                           self.msarc, self.inmask)
+        self.arccen, self.arc_maskslit = self.extract_arcs(self.slitcen, self.slitmask, self.inmask)
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
@@ -341,7 +339,7 @@ class WaveTilts(masterframe.MasterFrame):
             thismask = self.slitmask == slit
             # Trace
             msgs.info('Trace the tilts')
-            self.trace_dict = self.trace_tilts(self.msarc, self.lines_spec, self.lines_spat,
+            self.trace_dict = self.trace_tilts(self.msarc.image, self.lines_spec, self.lines_spat,
                                                thismask, self.slitcen[:,slit])
             #if show:
             #    ginga.show_tilts(viewer, ch, self.trace_dict)

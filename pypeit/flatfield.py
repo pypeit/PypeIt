@@ -226,7 +226,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
             pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, \
                     slit_righ_out \
-                            = flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict,
+                            = flat.fit_flat(self.rawflatimg.image, this_tilts_dict, self.tslits_dict,
                                            slit, inmask=inmask, nonlinear_counts=nonlinear_counts,
                                            spec_samp_fine=self.flatpar['spec_samp_fine'],
                                            spec_samp_coarse=self.flatpar['spec_samp_coarse'],

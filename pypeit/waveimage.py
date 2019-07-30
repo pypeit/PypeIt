@@ -12,11 +12,11 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.masterframe import MasterFrame
 from pypeit.core import pixels
-from pypeit.images import pypeitimage
 from pypeit.core import trace_slits
 import IPython
 
-class WaveImage(pypeitimage.PypeItImage, MasterFrame):
+
+class WaveImage(MasterFrame):
     """
     Class to generate the Wavelength Image
 
@@ -50,15 +50,13 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
     def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, det, maskslits,
                  master_key=None, master_dir=None, reuse_masters=False):
 
-        # Image
-        pypeitimage.PypeItImage.__init__(self, spectrograph, det)
 
         # MasterFrame
         MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
-
         # Required parameters
         self.spectrograph = spectrograph
+        self.det = det
 
         self.tslits_dict = tslits_dict
         self.tilts = tilts
@@ -70,17 +68,12 @@ class WaveImage(pypeitimage.PypeItImage, MasterFrame):
             self.slitmask = None
             self.slit_spat_pos = None
 
-        # TODO: only echelle is ever used.  Do we need to keep the whole
-        # thing?
-        self.par = wv_calib['par'] if wv_calib is not None else None
-
         self.maskslits = maskslits
 
         # For echelle order, primarily
-
-        # List to hold ouptut from inspect about what module create the image?
-        self.steps = []
-
+        # TODO: only echelle is ever used.  Do we need to keep the whole
+        # thing?
+        self.par = wv_calib['par'] if wv_calib is not None else None
 
         # Main output
         self.image = None

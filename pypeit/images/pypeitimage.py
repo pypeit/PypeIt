@@ -4,12 +4,15 @@ from pypeit import msgs
 from pypeit import ginga
 
 import numpy as np
+from pypeit.images import maskimage
 
 from IPython import embed
 
-class PypeItImage(object):
+
+class PypeItImage(maskimage.ImageMask):
     """
     Class to hold a single image from a single detector in PypeIt
+    Oriented in its spec,spat format
 
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -23,27 +26,24 @@ class PypeItImage(object):
             Used for the amplifiers
         head0 (astropy.io.fits.Header):
         orig_shape (tuple):
-        binning_raw (tuple):  Binning in the raw image orientaion (NAXIS1, NAXIS2)
+        binning_raw (tuple):  Binning in the raw image orientation (NAXIS1, NAXIS2)
         binning (tuple): Binning the PypeIt orientation (spec, spat)
         exptime (float): Exposure time of the image
 
     """
 
-    def __init__(self, spectrograph, det):
+    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None, binning=None):
+
+        maskimage.ImageMask.__init__(self, bpm)
 
         # Required parameters
-        self.spectrograph = spectrograph
-        self.det = det
+        self.image = image
 
-        # Attributes
-        self.image = None
-        self.datasec_img = None
-        self.head0 = None           # Image header
-        self.orig_shape = None       # Shape of the image when loaded
-        self.binning_raw = None     # Binning in the raw image orientation;  e.g. bin_1, bin_2 (for NAXIS1, NAXIS2)
-        self.binning = None          # Binning in PypeIt orientation (spec, spat)
-        self.exptime = None          # Required to generate variance image
-
+        # Optional Attributes
+        self.ivar = ivar
+        self.rn2img = rn2img
+        self.state = state
+        self.binning = binning
 
     def show(self):
         """
@@ -54,11 +54,4 @@ class PypeItImage(object):
             return
         ginga.show_image(self.image, chname='image')
 
-    def __repr__(self):
-        txt = '<{:s}:'.format(self.__class__.__name__)
-        if self.filename is not None:
-            txt += ' file={}'.format(self.filename)
-        txt += '>'
-
-        return txt
 

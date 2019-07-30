@@ -70,6 +70,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if self.par['process']['overscan'].lower() != 'none':
             self.process_steps.append('subtract_overscan')
         self.process_steps += ['trim']
+        self.process_steps += ['orient']
 
 
     def build_image(self, overwrite=False, trim=True):
@@ -94,8 +95,8 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             msgs.info("No bias frames provided.  No bias image will be generated or used")
             return None
         # Build
-        super(BiasFrame, self).build_image()
-        return self.image.copy()
+        self.pypeItImage = super(BiasFrame, self).build_image()
+        return self.pypeItImage
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -108,18 +109,18 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        if self.image is None:
+        if self.pypeitImage is None:
             msgs.warn('No MasterBias to save!')
             return
-        if not isinstance(self.image, np.ndarray):
+        if not isinstance(self.pypeitImage.image, np.ndarray):
             msgs.warn('MasterBias is not an image.')
             return
-        super(BiasFrame, self).save(self.image, 'BIAS', outfile=outfile, overwrite=overwrite,
+        super(BiasFrame, self).save(self.pypeitImage.image, 'BIAS', outfile=outfile, overwrite=overwrite,
                                     raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load(self, ifile=None):
         """
         Load the bias frame.
         
@@ -136,22 +137,20 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
                 :attr:`file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header
 
         Returns:
             Returns either the `numpy.ndarray`_ with the bias image
             or None if no bias is to be subtracted.
         """
         # Check input
-        if self.par['useframe'].lower() in ['none'] and return_header:
+        if self.par['useframe'].lower() in ['none']:# and return_header:
             msgs.warn('No image data to read.  Header returned as None.')
 
         # How are we treating biases?
         # 1) No bias subtraction
         if self.par['useframe'].lower() == 'none':
             msgs.info("Will not perform bias/dark subtraction")
-            return (None,None) if return_header else None
+            return None
 
         # 2) Use overscan
         if self.par['useframe'] == 'overscan':
@@ -159,5 +158,5 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         # 3) User wants bias subtractions, use a Master biasframe?
         if self.par['useframe'] in ['bias', 'dark']:
-            return super(BiasFrame, self).load('BIAS', ifile=ifile, return_header=return_header)
+            return super(BiasFrame, self).load('BIAS', ifile=ifile) #, return_header=return_header)
 

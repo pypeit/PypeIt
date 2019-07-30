@@ -82,7 +82,7 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(TiltImage, self).save(self.image, 'TILT', outfile=outfile, overwrite=overwrite,
+        super(TiltImage, self).save(self.pypeitImage.image, 'TILT', outfile=outfile, overwrite=overwrite,
                                    raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class
