@@ -23,7 +23,7 @@ from IPython import embed
 
 class ScienceImage(pypeitimage.PypeItImage):
     """
-    Class to hold and process a science image
+    Class to generate and hold a science image
 
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -46,8 +46,6 @@ class ScienceImage(pypeitimage.PypeItImage):
             Inverse variance image
         rn2img (np.narray):
             Read noise**2 image
-        datasec_img (np.ndarray):
-            Mapping of pixels to amplifier
         filename (str):
             Required to build from a Raw image
     """
@@ -66,64 +64,13 @@ class ScienceImage(pypeitimage.PypeItImage):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.par = par  # This musts be named this way as it is frequently a child
 
-        # Optional
+        # Optional inputs
         self.crmask = crmask
         self.mask = mask
 
         # Other internals
         self.filename = None
         self.files = files
-
-    '''
-    @classmethod
-    def from_images(cls, spectrograph, det, par, bpm,
-                    image, ivar, rn2img, crmask=None, mask=None,
-                    files=None):
-        """
-        Instantiate from a set of images
-
-        Args:
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                Spectrograph used to take the data.
-            det (:obj:`int`, optional):
-                The 1-indexed detector number to process.
-            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-                Parameters that dictate the processing of the images.  See
-                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-                defaults.
-            bpm (np.ndarray):
-                Bad pixel mask.  Held in ImageMask
-            image (np.ndarray):
-            ivar (np.ndarray):
-                Inverse variance image
-            rn2img (np.ndarray):
-                Read noise**2 image
-            crmask (np.ndarray, optional):
-                CR mask
-            mask (np.ndarray, optional):
-                Full mask
-            files (list, optional):
-                Image list
-
-        Returns:
-            ScienceImage:
-
-        """
-        # Init
-        slf = cls(spectrograph, det, par, bpm, image, ivar)
-        # Other images
-        slf.image = image
-        slf.ivar = ivar
-        slf.rn2img = rn2img
-        # Masks
-        slf.crmask = crmask
-        slf.mask = mask
-        # Files
-        if files is not None:
-            slf.files = files
-        # Return
-        return slf
-    '''
 
     @classmethod
     def from_single_file(cls, spectrograph, det, par, bpm,
@@ -248,8 +195,8 @@ class ScienceImage(pypeitimage.PypeItImage):
             sciivar_stack[kk, :, :] = sciImage.ivar
             # Mask cosmic rays
             crmask_stack[kk, :, :] = sciImage.crmask
-            # Build read noise squared image
-            rn2img_stack[kk, :, :] = sciImage.build_rn2img()
+            # Read noise squared image
+            rn2img_stack[kk, :, :] = sciImage.rn2img
             # Final mask for this image
             mask_stack[kk, :, :] = sciImage.mask
 
