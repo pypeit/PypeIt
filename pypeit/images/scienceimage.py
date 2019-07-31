@@ -15,6 +15,8 @@ from pypeit import utils
 
 from pypeit.images import pypeitimage
 from pypeit.images import processrawimage
+from pypeit.images import rawimage
+from pypeit.images import maskimage
 
 from IPython import embed
 
@@ -51,26 +53,28 @@ class ScienceImage(pypeitimage.PypeItImage):
     """
     frametype = 'science'
 
-    def __init__(self, spectrograph, det, par, image, ivar, bpm, state=None, rn2img=None):
+    def __init__(self, spectrograph, det, par, image, ivar, bpm, state=None, rn2img=None,
+                 crmask=None, mask=None, files=[]):
 
         # Init me
-        #pypeitimage.PypeItImage.__init__(self, spectrograph, det)
-        pypeitimage.PypeItImage.__init__(self, image, spectrograph, det, state=state,
-                 ivar=ivar, rn2img=rn2img, bpm=bpm)
+        pypeitimage.PypeItImage.__init__(self, image, state=state, ivar=ivar, rn2img=rn2img, bpm=bpm)
 
         # Required parameters
+        self.spectrograph = spectrograph
+        self.det = det
         if not isinstance(par, pypeitpar.ProcessImagesPar):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.par = par  # This musts be named this way as it is frequently a child
 
-        # Internal images
-        self.ivar = None
-        self.rn2img = None
+        # Optional
+        self.crmask = crmask
+        self.mask = mask
 
         # Other internals
         self.filename = None
-        self.files = []
+        self.files = files
 
+    '''
     @classmethod
     def from_images(cls, spectrograph, det, par, bpm,
                     image, ivar, rn2img, crmask=None, mask=None,
@@ -106,7 +110,7 @@ class ScienceImage(pypeitimage.PypeItImage):
 
         """
         # Init
-        slf = cls(spectrograph, det, par, bpm)
+        slf = cls(spectrograph, det, par, bpm, image, ivar)
         # Other images
         slf.image = image
         slf.ivar = ivar
@@ -119,6 +123,7 @@ class ScienceImage(pypeitimage.PypeItImage):
             slf.files = files
         # Return
         return slf
+    '''
 
     @classmethod
     def from_single_file(cls, spectrograph, det, par, bpm,
@@ -152,27 +157,26 @@ class ScienceImage(pypeitimage.PypeItImage):
             ScienceImage:
 
         """
-        slf = cls(spectrograph, det, par, bpm)
-        slf.files = [filename]
-        # Build up
-        prawImage = processrawimage.ProcessRawImage(filename, slf.spectrograph,
-                                                    slf.det, slf.par)
-        # Save a bit
-        slf.filename = filename
-        slf.exptime = prawImage.exptime
+        # Load raw image
+        rawImage = rawimage.RawImage(filename, spectrograph, det)
+
         # Process steps
-        process_steps = procimg.init_process_steps(bias, slf.par)
+        process_steps = procimg.init_process_steps(bias, par)
         process_steps += ['trim', 'apply_gain', 'orient']
         if (pixel_flat is not None) or (illum_flat is not None):
             process_steps += ['flatten']
-        # Do it
-        slf.image = prawImage.process(process_steps, pixel_flat=pixel_flat,
-                                       bias=bias, illum_flat=illum_flat,
-                                       bpm=slf.bpm, debug=True)
-        slf.datasec_img = prawImage.datasec_img
-        # Build the rest
-        slf.build_ivar()
-        slf.build_rn2img()
+        process_steps += ['extras']
+
+        # Process
+        processrawImage = processrawimage.ProcessRawImage(rawImage, par, bpm=bpm)
+        processedImage = processrawImage.process(process_steps, bias=bias, pixel_flat=pixel_flat,
+                                                 illum_flat=illum_flat)
+
+        # Instantiate
+        slf = cls(spectrograph, det, par, processedImage.image, processedImage.ivar, bpm,
+                  state=processrawImage.steps, rn2img=processedImage.rn2img, files=[filename])
+
+        # Masking
         slf.build_crmask()
         slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
                        mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
@@ -249,9 +253,6 @@ class ScienceImage(pypeitimage.PypeItImage):
             # Final mask for this image
             mask_stack[kk, :, :] = sciImage.mask
 
-        # Save the datasec_img (any one would do)
-        datasec_img = sciImage.datasec_img
-
         # Coadd them
         weights = np.ones(nimages)/float(nimages)
         img_list = [sciimg_stack]
@@ -262,12 +263,11 @@ class ScienceImage(pypeitimage.PypeItImage):
             sigma_clip=sigma_clip, sigma_clip_stack=sciimg_stack, sigrej=sigrej, maxiters=maxiters)
 
         # Build the last one
-        slf = ScienceImage.from_images(spectrograph, det, par, bpm, img_list_out[0],
-                                       utils.inverse(var_list_out[0]),
-                                       var_list_out[1], np.invert(outmask), files=file_list)
+        slf = ScienceImage.__init__(spectrograph, det, par, img_list_out[0],
+                                       utils.inverse(var_list_out[0]), bpm,
+                                       rn2img=var_list_out[1], crmask=np.invert(outmask), files=file_list)
         slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
                        mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
-        slf.datasec_img = datasec_img
         # Return
         return slf
 
@@ -322,62 +322,6 @@ class ScienceImage(pypeitimage.PypeItImage):
                                                     mincounts=mincounts,
                                                     slitmask=slitmask)
         return self.mask.copy()
-
-    # TODO -- Remove these methods as they are now in ProcessRawImage
-    def build_ivar(self):
-        """
-        Generate the Inverse Variance frame
-
-        Uses procimg.variance_frame
-
-        Returns:
-            np.ndarray: Copy of self.ivar
-
-        """
-        msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
-        # Convenience
-        detector = self.spectrograph.detector[self.det-1]
-        # For RN variations by Amp
-        #embed(header='333 of sciencimage')
-        #datasec_img = self.spectrograph.get_datasec_img(filename=self.filename,
-        #                                             det=self.det)
-        # Generate
-        rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
-                                                  detector['gain'], detector['ronoise'],
-                                                  numamplifiers=detector['numamplifiers'],
-                                                  darkcurr=detector['darkcurr'],
-                                                  exptime=self.exptime)
-        # Ivar
-        self.ivar = utils.inverse(rawvarframe)
-        # Return
-        return self.ivar.copy()
-
-    # TODO sort out dark current here. Need to pass exposure time for that.
-    def build_rn2img(self):
-        """
-        Generate the model read noise squared image
-
-        Currently only used by ScienceImage.
-
-        Wrapper to procimg.rn_frame
-
-        Returns:
-            np.ndarray: Copy of the read noise squared image
-
-        """
-        msgs.info("Generating read noise image from detector properties and amplifier layout)")
-        # Convenience
-        detector = self.spectrograph.detector[self.det-1]
-        #datasec_img = self.spectrograph.get_datasec_img(filename=self.filename,
-        #                                                det=self.det)
-        # Build it
-        self.rn2img = procimg.rn_frame(self.datasec_img,
-                                       detector['gain'],
-                                       detector['ronoise'],
-                                       numamplifiers=detector['numamplifiers'])
-        # Return
-        return self.rn2img.copy()
-
 
     def update_mask_cr(self, subtract_img=None):
         """
@@ -437,10 +381,9 @@ class ScienceImage(pypeitimage.PypeItImage):
         new_files = self.files + other.files
 
         # Instantiate
-        new_sciImg = ScienceImage.from_images(self.spectrograph, self.det, self.par, self.bpm,
-                                              newimg, new_ivar, new_rn2, files=new_files)
+        new_sciImg = ScienceImage.__init__(self.spectrograph, self.det, self.par, newimg, new_ivar,
+                                           self.bpm, rn2img=new_rn2, files=new_files)
         #TODO: KW properly handle adding the bits
-        #embed(header='279 in sciImg')
         crmask_diff = new_sciImg.build_crmask()
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)

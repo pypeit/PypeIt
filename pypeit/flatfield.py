@@ -17,6 +17,7 @@ from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit.core import trace_slits
 from pypeit.images import calibrationimage
+from pypeit.images import pypeitimage
 from IPython import embed
 
 
@@ -262,7 +263,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             self.msillumflat = None
 
         # Return
-        return self.mspixelflat, self.msillumflat
+        return pypeitimage.PypeItImage(self.mspixelflat), pypeitimage.PypeItImage(self.msillumflat)
 
     def show(self, slits=True, wcs_match=True):
         """

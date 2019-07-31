@@ -854,12 +854,13 @@ class Coadd2d(object):
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
 
         # Generate a ScienceImage
-        sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
-                                                         self.par['scienceframe']['process'],
-                                                         np.zeros_like(psuedo_dict['inmask']),  # Dummy bpm
-                                                         psuedo_dict['imgminsky'], psuedo_dict['sciivar'],
-                                                         np.zeros_like(psuedo_dict['inmask']),  # Dummy rn2img
-                                                         crmask=np.invert(psuedo_dict['inmask']))
+        sciImage = scienceimage.ScienceImage.__init__(self.spectrograph, self.det,
+                                                      self.par['scienceframe']['process'],
+                                                      psuedo_dict['imgminsky'],
+                                                      psuedo_dict['sciivar'],
+                                                      np.zeros_like(psuedo_dict['inmask']),  # Dummy bpm
+                                                      rn2img=np.zeros_like(psuedo_dict['inmask']),  # Dummy rn2img
+                                                      crmask=np.invert(psuedo_dict['inmask']))
         slitmask_psuedo = pixels.tslits2mask(psuedo_dict['tslits_dict'])
         sciImage.build_mask(slitmask=slitmask_psuedo)
 

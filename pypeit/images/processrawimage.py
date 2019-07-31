@@ -196,7 +196,7 @@ class ProcessRawImage(object):
                 Bad pixel mask image
 
         Returns:
-            ProcessedImage:
+            pypeitimage.PypeItImage:
 
         """
         # Get started
