@@ -82,7 +82,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(ArcImage, self).save(self.pypeitImage.image, 'ARC', outfile=outfile, overwrite=overwrite,
+        super(ArcImage, self).save(self.pypeitImage, 'ARC', outfile=outfile, overwrite=overwrite,
                                    raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class

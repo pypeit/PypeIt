@@ -4,7 +4,11 @@ from pypeit import msgs
 from pypeit import ginga
 
 import numpy as np
+
+from astropy.io import fits
+
 from pypeit.images import maskimage
+from pypeit.io import initialize_header
 
 from IPython import embed
 
@@ -13,6 +17,9 @@ class PypeItImage(maskimage.ImageMask):
     """
     Class to hold a single image from a single detector in PypeIt
     Oriented in its spec,spat format
+
+    The intent is to keep this object as light-weight as possible.
+    Therefore methods to generate, save, load, etc. are all outside the Class
 
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -45,6 +52,9 @@ class PypeItImage(maskimage.ImageMask):
         self.state = state
         self.binning = binning
 
+        # Data model
+        self.allowed_attributes = ('image', 'ivar', 'rn2img') + self.mask_attributes
+
     def show(self):
         """
         Simple show method
@@ -55,3 +65,70 @@ class PypeItImage(maskimage.ImageMask):
         ginga.show_image(self.image, chname='image')
 
 
+def save(slf, outfile, hdr=None, checksum=True):
+    """
+    Write the image(s) to a multi-extension FITS file
+
+    Extensions will be:
+       PRIMARY
+       IMAGE
+       IVAR (optional)
+       RN2IMG (optional)
+       MASK (optional)
+
+    Args:
+        outfile:
+
+    Returns:
+
+    """
+    hdr = initialize_header(hdr)
+
+    # Parse whatever is available
+    data = [slf.image]
+    ext = ['IMAGE']
+
+    # Load up the rest
+    for item in ['ivar', 'rn2img', 'mask']:
+        if getattr(slf, item) is not None:
+            data.append(getattr(slf, item))
+            ext.append(item.upper())
+
+    # TODO -- Default to float32 for float images
+    # Write the fits file
+    fits.HDUList([fits.PrimaryHDU(header=hdr)]
+             + [ fits.ImageHDU(data=d, name=n) for d,n in zip(data, ext)]
+             ).writeto(outfile, overwrite=True, checksum=checksum)
+
+
+def load(file):
+    """
+    Load a PypeItImage from disk (FITS file)
+
+    Args:
+        file (str):
+
+    Returns:
+        PypeItImage, fits.Header: Loaded up PypeItImage and the primary Header
+
+    """
+    # Open
+    hdul = fits.open(file)
+    # Header
+    head0 = hdul[0].header
+
+    # Instantiate
+    pypeitImage = PypeItImage(hdul[1].data)
+    if hdul[1].name != 'IMAGE':
+        msgs.warn("Badly formated PypeItImage.  I hope this is an old calibration frame for compatibility")
+
+    for kk in range(2,len(hdul)):
+        # Check
+        if hdul[kk].name.lower() not in pypeitImage.allowed_attributes:
+            msgs.warn('Badly formatted PypeItImage')
+            msgs.error('Extenstion {} is not an allowed attribute of {}'.format(hdul[kk].name, pypeitImage.allowed_attributes))
+        # Continue
+        setattr(pypeitImage, hdul[kk].name.lower(), hdul[kk].data)
+
+    # Return
+    return pypeitImage, head0

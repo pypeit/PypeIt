@@ -4,9 +4,7 @@ Implements the master frame base class.
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
 import os
-import sys
 import warnings
-import time
 
 from abc import ABCMeta
 
@@ -16,13 +14,9 @@ from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.images import pypeitimage
+from pypeit.io import initialize_header
 
-# These imports are largely just to make the versions available for
-# writing to the header. See `initialize_header`
-import scipy
 import astropy
-import sklearn
-import pypeit
 
 class MasterFrame(object):
     """
@@ -106,9 +100,12 @@ class MasterFrame(object):
         only containing the header data.  More complicated master frame
         data models should overload this function.
 
+        The exception is a 'simple' PypeItImage which also writes to a FITS file
+
         Args:
-            data (:obj:`list`, `numpy.ndarray`_):
+            data (:obj:`list`, `numpy.ndarray`_, `pypeitimage.PypeItImage`_):
                 One or more data arrays to save.
+                Or a PypeItImage
             extnames (:obj:`list`, :obj:`str`):
                 The names for the data extensions.
             outfile (:obj:`str`, optional):
@@ -136,12 +133,6 @@ class MasterFrame(object):
         # Log
         msgs.info('Saving master frame to {0}'.format(_outfile))
 
-        # Format the output
-        ext = extnames if isinstance(extnames, list) else [extnames]
-        if len(ext) > 1 and not isinstance(data, list):
-            msgs.error('Input data type should be list, one numpy.ndarray per extension.')
-        _data = data if isinstance(data, list) else [data]
-
         # Build the header
         hdr = self.initialize_header()
         #   - List the completed steps
@@ -153,11 +144,21 @@ class MasterFrame(object):
             ndig = int(np.log10(nfiles))+1
             for i in range(nfiles):
                 hdr['F{0}'.format(i+1).zfill(ndig)] = (raw_files[i], 'PypeIt: Processed raw file')
-        
-        # Write the fits file
-        fits.HDUList([fits.PrimaryHDU(header=hdr)]
-                        + [ fits.ImageHDU(data=d, name=n) for d,n in zip(_data, ext)]
-                     ).writeto(_outfile, overwrite=True, checksum=checksum)
+
+        # Time to write
+        if isinstance(data, pypeitimage.PypeItImage):  # PypeItImage?
+            pypeitimage.save(data, _outfile, hdr=hdr)
+        else:  # Set of ndarray's
+            # Format the output
+            ext = extnames if isinstance(extnames, list) else [extnames]
+            if len(ext) > 1 and not isinstance(data, list):
+                msgs.error('Input data type should be list, one numpy.ndarray per extension.')
+            _data = data if isinstance(data, list) else [data]
+
+            # Write the fits file
+            fits.HDUList([fits.PrimaryHDU(header=hdr)]
+                            + [ fits.ImageHDU(data=d, name=n) for d,n in zip(_data, ext)]
+                         ).writeto(_outfile, overwrite=True, checksum=checksum)
 
         msgs.info('Master frame written to {0}'.format(_outfile))
 
@@ -212,9 +213,12 @@ class MasterFrame(object):
     # TODO: include checksum keyword, used to validate data when
     # loading?
     @staticmethod
-    def load_from_file(filename, ext, return_header=False):
+    def load_from_file(filename, ext, return_header=False, is_pypeitImage=False):
         """
         Generic static method to read a master file.
+        There are currently two options:
+           Series of FITS files
+           PypeItImage
 
         Args:
             filename (:obj:`str`):
@@ -225,6 +229,8 @@ class MasterFrame(object):
                 number or its name.
             return_header (:obj:`bool`, optional):
                 Return the header.
+            is_pypeitImage (:obj:`bool`, optional):
+                Object is a full PypeItImage
 
         Returns:
             tuple: Returns the image data from each provided extension.
@@ -235,22 +241,24 @@ class MasterFrame(object):
         if not os.path.isfile(filename):
             msgs.error('File does not exist: {0}'.format(filename))
         
-        # Format the input and set the tuple for an empty return
-        _ext = ext if isinstance(ext, list) else [ext]
-        n_ext = len(_ext)
-
-        # Open the file
-        hdu = fits.open(filename)
-
-        # Only one extension
-        if n_ext == 1:
-            data = hdu[_ext[0]].data.astype(np.float)
-            data = pypeitimage.PypeItImage(data)
-            return (data, hdu[0].header) if return_header else data
-        # Multiple extensions
-        data = tuple([None if hdu[k].data is None else pypeitimage.PypeItImage(hdu[k].data.astype(np.float)) for k in _ext ])
-        return data + (hdu[0].header,) if return_header else data
-
+        # Load up
+        if is_pypeitImage:  # PypeItImage (strict FITS)
+            data, head0 = pypeitimage.load(filename)
+        else:  # generic FITS
+            # Format the input and set the tuple for an empty return
+            _ext = ext if isinstance(ext, list) else [ext]
+            n_ext = len(_ext)
+            # Open the file
+            hdu = fits.open(filename)
+            head0 = hdu[0].header
+            # Only one extension
+            if n_ext == 1:
+                data = hdu[_ext[0]].data.astype(np.float)
+                return (data, hdu[0].header) if return_header else data
+            # Multiple extensions
+            data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext ])
+        # Return
+        return data + (head0,) if return_header else data
 
     def initialize_header(self, hdr=None):
         """
@@ -270,17 +278,8 @@ class MasterFrame(object):
             `astropy.io.fits.Header`: The initialized (or edited)
             fits header.
         """
-        # Add versioning; this hits the highlights but should it add
-        # the versions of all packages included in the requirements.txt
-        # file?
-        if hdr is None:
-            hdr = fits.Header()
-        hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
-        hdr['VERSNPY'] = (np.__version__, 'Numpy version')
-        hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
-        hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
-        hdr['VERSSKL'] = (sklearn.__version__, 'Scikit-learn version')
-        hdr['VERSPYP'] = (pypeit.__version__, 'PypeIt version')
+        # Standard init
+        hdr = initialize_header(hdr)
 
         # Save the master frame type and key, in case the file name is
         # changed.
@@ -288,10 +287,5 @@ class MasterFrame(object):
         hdr['MSTRDIR'] = (self.master_dir, 'PypeIt: Master directory')
         hdr['MSTRKEY'] = (self.master_key, 'PypeIt: Calibration key')
         hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
-
-        # Save the date of the reduction
-        hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
-
-        # TODO: Anything else?
 
         return hdr

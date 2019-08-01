@@ -64,6 +64,9 @@ class ImageMask(object):
         # Internals
         self.mask = None
 
+        # Data model
+        self.mask_attributes = ('bpm', 'crmask', 'mask')
+
     def build_crmask(self, spectrograph, det, par, image, rawvarframe, subtract_img=None):
         """
         Generate the CR mask frame
