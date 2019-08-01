@@ -7,13 +7,7 @@ import numpy as np
 
 
 from pypeit import msgs
-
-from pypeit.core import combine
 from pypeit.par import pypeitpar
-
-from pypeit.images import processrawimage
-from pypeit.images import rawimage
-from pypeit.images import pypeitimage
 from pypeit.images import buildimage
 
 from IPython import embed
@@ -44,8 +38,6 @@ class CalibrationImage(object):
         process_steps (list): List of processing steps to be used
 
     """
-
-
     def __init__(self, spectrograph, det, proc_par, files=None):
 
         # Required items
@@ -59,17 +51,13 @@ class CalibrationImage(object):
         if proc_par is not None:
             if not isinstance(proc_par, pypeitpar.ProcessImagesPar):
                 msgs.error('Provided ParSet for must be type ProcessImagesPar.')
-        self.proc_par = proc_par  # This musts be named this way as it is frequently a child
+        self.proc_par = proc_par  # This must be named this way as it is frequently a child
 
         # Process steps
         self.process_steps = []
 
         # Standard output
         self.pypeitImage = None
-
-    @property
-    def shape(self):
-        return () if self.pypeitImage is None else self.pypeitImage.image.shape
 
     @property
     def nfiles(self):

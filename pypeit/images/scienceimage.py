@@ -9,14 +9,11 @@ import numpy as np
 from pypeit import msgs
 
 from pypeit.core import procimg
-from pypeit.core import coadd2d
 from pypeit.par import pypeitpar
 from pypeit import utils
 
 from pypeit.images import pypeitimage
-from pypeit.images import processrawimage
 from pypeit.images import buildimage
-from pypeit.images import maskimage
 
 from IPython import embed
 
@@ -51,8 +48,7 @@ class ScienceImage(pypeitimage.PypeItImage):
     """
     frametype = 'science'
 
-    def __init__(self, spectrograph, det, par,
-                 image, ivar, bpm, rn2img=None,
+    def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
                  crmask=None, mask=None, files=[]):
 
         # Init me
