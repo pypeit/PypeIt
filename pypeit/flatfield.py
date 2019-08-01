@@ -17,7 +17,6 @@ from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit.core import trace_slits
 from pypeit.images import calibrationimage
-from pypeit.images import pypeitimage
 from IPython import embed
 
 
@@ -137,8 +136,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 Force the flat to be reconstructed if it already exists
 
         Returns:
-            `numpy.ndarray`_:  The image with the unnormalized
-            pixel-flat data.
+            pypeitimage.PypeItImage:  The image with the unnormalized pixel-flat data.
         """
         if self.rawflatimg is None or force:
             # Process steps
@@ -263,7 +261,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             self.msillumflat = None
 
         # Return
-        return pypeitimage.PypeItImage(self.mspixelflat), pypeitimage.PypeItImage(self.msillumflat)
+        return self.mspixelflat, self.msillumflat
 
     def show(self, slits=True, wcs_match=True):
         """

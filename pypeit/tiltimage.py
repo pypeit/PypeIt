@@ -82,7 +82,7 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(TiltImage, self).save(self.pypeitImage.image, 'TILT', outfile=outfile, overwrite=overwrite,
+        super(TiltImage, self).save(self.pypeitImage, 'TILT', outfile=outfile, overwrite=overwrite,
                                    raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class
@@ -102,5 +102,5 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Returns a `numpy.ndarray`_ with the tilt master frame image.
             Also returns the primary header, if requested.
         """
-        return super(TiltImage, self).load('TILT', ifile=ifile, return_header=return_header)
+        return super(TiltImage, self).load('TILT', ifile=ifile, return_header=return_header, is_pypeitImage=True)
 

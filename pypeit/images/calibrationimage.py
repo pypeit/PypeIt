@@ -14,6 +14,7 @@ from pypeit.par import pypeitpar
 from pypeit.images import processrawimage
 from pypeit.images import rawimage
 from pypeit.images import pypeitimage
+from pypeit.images import buildimage
 
 from IPython import embed
 
@@ -134,6 +135,9 @@ class CalibrationImage(object):
             PypeItImage:
 
         """
+        buildImage = buildimage.BuildImage(self.spectrograph, self.det, self.proc_par, self.file_list)
+        self.pypeitImage = buildImage.run(self.process_steps, bias, bpm=bpm)
+        '''
         if self.nfiles == 0:
             msgs.warn("Need to provide a non-zero list of files")
             return
@@ -171,8 +175,9 @@ class CalibrationImage(object):
                                          n_lohi=self.proc_par['n_lohi'],
                                          sig_lohi=self.proc_par['sig_lohi'],
                                          replace=self.proc_par['replace'])
-        # Return
         self.pypeitImage = pypeitimage.PypeItImage(image, binning=processedImage.binning)
+        '''
+        # Return
         return self.pypeitImage
 
 

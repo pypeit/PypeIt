@@ -39,7 +39,7 @@ class PypeItImage(maskimage.ImageMask):
 
     """
 
-    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None, binning=None, mask=None):
+    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None, binning=None, crmask=None, mask=None):
 
         maskimage.ImageMask.__init__(self, bpm)
 
@@ -53,6 +53,7 @@ class PypeItImage(maskimage.ImageMask):
         self.binning = binning
 
         # Mask attributes
+        self.crmask = crmask
         self.mask = mask
 
         # Data model
@@ -66,6 +67,19 @@ class PypeItImage(maskimage.ImageMask):
             msgs.warn("No image to show!")
             return
         ginga.show_image(self.image, chname='image')
+
+    def __repr__(self):
+        repr = '<{:s}: '.format(self.__class__.__name__)
+        # Image
+        rdict = {}
+        for attr in ['image', 'ivar', 'rn2img', 'crmask', 'mask']:
+            if getattr(self, attr) is not None:
+                rdict[attr] = True
+            else:
+                rdict[attr] = False
+        repr += ' images={}'.format(rdict)
+        repr = repr + '>'
+        return repr
 
 
 def save(slf, outfile, hdr=None, checksum=True):

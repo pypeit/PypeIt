@@ -165,7 +165,7 @@ class MasterFrame(object):
     # TODO: Add a base-level staticmethod one-liner?
     # TODO: include checksum keyword, used to validate data when
     # loading?
-    def load(self, ext, ifile=None, return_header=False):
+    def load(self, ext, ifile=None, return_header=False, is_pypeitImage=False):
         """
         Generic master file reader.
 
@@ -181,6 +181,8 @@ class MasterFrame(object):
                 :attr:`file_path`.
             return_header (:obj:`bool`, optional):
                 Return the header
+            is_pypeitImage (:obj:`bool`, optional):
+                Object is a full PypeItImage
 
         Returns:
             tuple: Returns the image data from each provided extension.
@@ -208,7 +210,7 @@ class MasterFrame(object):
 
         # Read and return
         msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        return MasterFrame.load_from_file(_ifile, _ext, return_header=return_header)
+        return MasterFrame.load_from_file(_ifile, _ext, return_header=return_header, is_pypeitImage=is_pypeitImage)
 
     # TODO: include checksum keyword, used to validate data when
     # loading?

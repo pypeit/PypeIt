@@ -77,6 +77,7 @@ class WaveImage(MasterFrame):
 
         # Main output
         self.image = None
+        self.steps = []
 
     def build_wave(self):
         """
@@ -164,11 +165,7 @@ class WaveImage(MasterFrame):
             tuple: Returns an `numpy.ndarray`_ with the wavelength
             image.  Also returns the primary header, if requested.
         """
-        # TODO -- Do this right
-        # This is a PypeItImage
-        tmp = super(WaveImage, self).load('WAVE', ifile=ifile, return_header=return_header)
-        # Return
-        return tmp.image
+        return super(WaveImage, self).load('WAVE', ifile=ifile, return_header=return_header)
 
     @staticmethod
     def load_from_file(filename, return_header=False):

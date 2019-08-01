@@ -548,7 +548,7 @@ class PypeIt(object):
         self.sciImg = scienceimage.ScienceImage.from_file_list(
             self.spectrograph, det, self.par['scienceframe']['process'],
             self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
-            self.caliBrate.mspixelflat.image, illum_flat=self.caliBrate.msillumflat.image)
+            self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
 
         # Background subtract?
         if len(bg_frames) > 0:
@@ -556,7 +556,7 @@ class PypeIt(object):
             self.sciImg = self.sciImg - scienceimage.ScienceImage.from_file_list(
                 self.spectrograph, det, self.par['scienceframe']['process'],
                 self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
-                self.caliBrate.mspixelflat.image, illum_flat=self.caliBrate.msillumflat.image)
+                self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
 
         # Update mask for slitmask
         slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)

@@ -102,5 +102,5 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Returns a `numpy.ndarray`_ with the arc master frame image.
             Also returns the primary header, if requested.
         """
-        return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header)
+        return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header, is_pypeitImage=True)
 

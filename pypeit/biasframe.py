@@ -72,7 +72,6 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.process_steps += ['trim']
         self.process_steps += ['orient']
 
-
     def build_image(self, overwrite=False, trim=True):
         """
         Grab the bias files (as needed) and then process the input bias
@@ -96,6 +95,8 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return None
         # Build
         self.pypeItImage = super(BiasFrame, self).build_image()
+        self.pypeitImage.ivar = None  # Zero this out as it non-sensical
+        # Return
         return self.pypeItImage
 
     def save(self, outfile=None, overwrite=True):
@@ -158,5 +159,5 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         # 3) User wants bias subtractions, use a Master biasframe?
         if self.par['useframe'] in ['bias', 'dark']:
-            return super(BiasFrame, self).load('BIAS', ifile=ifile) #, return_header=return_header)
+            return super(BiasFrame, self).load('BIAS', ifile=ifile, is_pypeitImage=True) #, return_header=return_header)
 
