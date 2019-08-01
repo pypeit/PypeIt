@@ -854,7 +854,7 @@ class Coadd2d(object):
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
 
         # Generate a ScienceImage
-        sciImage = scienceimage.ScienceImage.__init__(self.spectrograph, self.det,
+        sciImage = scienceimage.ScienceImage(self.spectrograph, self.det,
                                                       self.par['scienceframe']['process'],
                                                       psuedo_dict['imgminsky'],
                                                       psuedo_dict['sciivar'],
