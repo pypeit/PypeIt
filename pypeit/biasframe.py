@@ -115,7 +115,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if not isinstance(self.pypeitImage.image, np.ndarray):
             msgs.warn('MasterBias is not an image.')
             return
-        super(BiasFrame, self).save(self.pypeitImage.image, 'BIAS', outfile=outfile, overwrite=overwrite,
+        super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
                                     raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class

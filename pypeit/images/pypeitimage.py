@@ -39,7 +39,7 @@ class PypeItImage(maskimage.ImageMask):
 
     """
 
-    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None, binning=None):
+    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None, binning=None, mask=None):
 
         maskimage.ImageMask.__init__(self, bpm)
 
@@ -51,6 +51,9 @@ class PypeItImage(maskimage.ImageMask):
         self.rn2img = rn2img
         self.state = state
         self.binning = binning
+
+        # Mask attributes
+        self.mask = mask
 
         # Data model
         self.allowed_attributes = ('image', 'ivar', 'rn2img') + self.mask_attributes
@@ -73,7 +76,6 @@ def save(slf, outfile, hdr=None, checksum=True):
        PRIMARY
        IMAGE
        IVAR (optional)
-       RN2IMG (optional)
        MASK (optional)
 
     Args:
@@ -89,7 +91,7 @@ def save(slf, outfile, hdr=None, checksum=True):
     ext = ['IMAGE']
 
     # Load up the rest
-    for item in ['ivar', 'rn2img', 'mask']:
+    for item in ['ivar', 'mask']:
         if getattr(slf, item) is not None:
             data.append(getattr(slf, item))
             ext.append(item.upper())

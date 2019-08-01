@@ -127,7 +127,7 @@ class ImageMask(object):
         Args:
             image (np.ndarray):
                 Image
-            ivar (np.ndarray):
+            ivar (np.ndarray or None):
                 Inverse variance of the input image
             saturation (float, optional):
                 Saturation limit in ADU
@@ -146,8 +146,9 @@ class ImageMask(object):
         mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
 
         # Cosmic rays
-        indx = self.crmask.astype(bool)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
+        if self.crmask is not None:
+            indx = self.crmask.astype(bool)
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
 
         # Saturated pixels
         indx = image >= saturation
@@ -161,13 +162,14 @@ class ImageMask(object):
         indx = np.invert(np.isfinite(image))
         mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
 
-        # Bad inverse variance values
-        indx = np.invert(ivar > 0.0)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
+        if ivar is not None:
+            # Bad inverse variance values
+            indx = np.invert(ivar > 0.0)
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
 
-        # Undefined inverse variances
-        indx = np.invert(np.isfinite(ivar))
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
+            # Undefined inverse variances
+            indx = np.invert(np.isfinite(ivar))
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
 
         if slitmask is not None:
             indx = slitmask == -1

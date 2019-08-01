@@ -145,7 +145,8 @@ class ProcessRawImage(object):
                                              detector['gain'], detector['ronoise'],
                                              numamplifiers=detector['numamplifiers'],
                                              darkcurr=detector['darkcurr'],
-                                             exptime=self.exptime)
+                                             exptime=self.exptime,
+                                             rnoise=self.rn2img)
         # Ivar
         self.ivar = utils.inverse(rawvarframe)
         # Return
@@ -221,12 +222,20 @@ class ProcessRawImage(object):
 
         # Extras
         if 'extras' in process_steps:
-            self.build_ivar()
             self.build_rn2img()
+            self.build_ivar()
 
-        # Return a PypeItImage
+        # Generate a PypeItImage
         pypeitImage = pypeitimage.PypeItImage(self.image, state=self.steps, binning=self.binning,
                                                        ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
+        # Mask(s)
+        if 'crmask' in process_steps:
+            pypeitImage.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image,
+                                     utils.inverse(pypeitImage.ivar))
+        pypeitImage.build_mask(pypeitImage.image, pypeitImage.ivar,
+                               saturation=self.spectrograph.detector[self.det-1]['saturation'],
+                               mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
+        # Return
         return pypeitImage
 
     def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
