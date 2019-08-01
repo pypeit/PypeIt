@@ -160,7 +160,7 @@ class ScienceImage(pypeitimage.PypeItImage):
         new_files = self.files + other.files
 
         # Instantiate
-        new_sciImg = ScienceImage.__init__(self.spectrograph, self.det, self.par,
+        new_sciImg = ScienceImage(self.spectrograph, self.det, self.par,
             newimg, new_ivar, self.bpm, rn2img=new_rn2, files=new_files)
         #TODO: KW properly handle adding the bits
         crmask_diff = new_sciImg.build_crmask()
