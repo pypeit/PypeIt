@@ -88,13 +88,13 @@ class WaveCalib(masterframe.MasterFrame):
         self.wv_calib = {} # main output
         self.arccen = None # central arc spectrum
 
+        # Get the non-linear count level
+        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+            else self.spectrograph.nonlinear_counts(self.det)
+
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
         # WaveTilts and WaveCalib?
-
-        # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-                                    else self.spectrograph.nonlinear_counts(det=self.det)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that
@@ -111,7 +111,7 @@ class WaveCalib(masterframe.MasterFrame):
                                                   self.tslits_dict['slit_left'])
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
                                                   self.tslits_dict['slit_righ'])
-            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science,
                                                   self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.inmask = arc.resize_mask2arc(self.shape_arc, inmask)
@@ -119,6 +119,7 @@ class WaveCalib(masterframe.MasterFrame):
             if self.par['method'] != 'full_template':
                 self.inmask &= self.msarc < self.nonlinear_counts
             self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -129,7 +130,8 @@ class WaveCalib(masterframe.MasterFrame):
             self.slitcen = None
             self.slitmask = None
             self.inmask = None
-        # --------------------------------------------------------------
+            self.nonlinear_counts = None
+                # --------------------------------------------------------------
 
     def build_wv_calib(self, arccen, method, skip_QA=False):
         """
@@ -280,7 +282,7 @@ class WaveCalib(masterframe.MasterFrame):
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
-    def extract_arcs(self, slitcen, slitmask, msarc, inmask):
+    def extract_arcs(self, slitcen, slitmask, inmask):
         """
         Extract the arcs down each slit/order
 
@@ -303,8 +305,10 @@ class WaveCalib(masterframe.MasterFrame):
         # Do it
         # TODO: Consider *not* passing in nonlinear_counts;  Probably
         # should not mask saturated lines at this stage
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask=inmask,
-                                               nonlinear_counts=nonlinear)
+
+        arccen, arc_maskslit = arc.get_censpec(
+            slitcen, slitmask, self.msarc,
+            gpm=inmask, nonlinear_counts=nonlinear)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
@@ -426,8 +430,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        self.arccen, self.maskslits = self.extract_arcs(self.slitcen, self.slitmask, self.msarc,
-                                                        self.inmask)
+        self.arccen, self.maskslits = self.extract_arcs(self.slitcen, self.slitmask, self.inmask)
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)

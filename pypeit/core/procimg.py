@@ -237,7 +237,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-def gain_frame(amp_img, gain, trim=True):
+def gain_frame(amp_img, gain):
     """
     Generate an image with the gain for each pixel.
 
@@ -248,8 +248,6 @@ def gain_frame(amp_img, gain, trim=True):
         gain (:obj:`list`):
             List of amplifier gain values.  Must be that the gain for
             amplifier 1 is provided by `gain[0]`, etc.
-        trim (:obj:`bool`, optional):
-            Trim the overscan section from the image.
 
     Returns:
         `numpy.ndarray`: Image with the gain for each pixel.
@@ -263,7 +261,7 @@ def gain_frame(amp_img, gain, trim=True):
         gain_img[amp_img == i+1] = _gain
 
     # Return the image, trimming if requested
-    return trim_frame(gain_img, amp_img < 1) if trim else gain_img
+    return gain_img
 
 
 
@@ -328,7 +326,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     Subtract overscan
 
     Args:
-        frame (:obj:`numpy.ndarray`):
+        rawframe (:obj:`numpy.ndarray`):
             Frame from which to subtract overscan
         numamplifiers (int):
             Number of amplifiers for this detector.

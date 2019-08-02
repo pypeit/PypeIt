@@ -45,6 +45,8 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             Inverse variance image
         rn2img (np.narray):
             Read noise**2 image
+        datasec_img (np.ndarray):
+            Mapping of pixels to amplifier
         filename (str):
             Required to build from a Raw image
     """
@@ -167,6 +169,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         slf.image = prawImage.process(process_steps, pixel_flat=pixel_flat,
                                        bias=bias, illum_flat=illum_flat,
                                        bpm=slf.bpm, debug=True)
+        slf.datasec_img = prawImage.datasec_img
         # Build the rest
         slf.build_ivar()
         slf.build_rn2img()
@@ -246,6 +249,9 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             # Final mask for this image
             mask_stack[kk, :, :] = sciImage.mask
 
+        # Save the datasec_img (any one would do)
+        datasec_img = sciImage.datasec_img
+
         # Coadd them
         weights = np.ones(nimages)/float(nimages)
         img_list = [sciimg_stack]
@@ -261,6 +267,7 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                                        var_list_out[1], np.invert(outmask), files=file_list)
         slf.build_mask(saturation=slf.spectrograph.detector[slf.det-1]['saturation'],
                        mincounts=slf.spectrograph.detector[slf.det-1]['mincounts'])
+        slf.datasec_img = datasec_img
         # Return
         return slf
 
@@ -330,10 +337,11 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         # Convenience
         detector = self.spectrograph.detector[self.det-1]
         # For RN variations by Amp
-        datasec_img = self.spectrograph.get_datasec_img(filename=self.filename,
-                                                     det=self.det)
+        #embed(header='333 of sciencimage')
+        #datasec_img = self.spectrograph.get_datasec_img(filename=self.filename,
+        #                                             det=self.det)
         # Generate
-        rawvarframe = procimg.variance_frame(datasec_img, self.image,
+        rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
                                                   detector['gain'], detector['ronoise'],
                                                   numamplifiers=detector['numamplifiers'],
                                                   darkcurr=detector['darkcurr'],
@@ -359,10 +367,10 @@ class ScienceImage(pypeitimage.PypeItImage, maskimage.ImageMask):
         msgs.info("Generating read noise image from detector properties and amplifier layout)")
         # Convenience
         detector = self.spectrograph.detector[self.det-1]
-        datasec_img = self.spectrograph.get_datasec_img(filename=self.filename,
-                                                        det=self.det)
+        #datasec_img = self.spectrograph.get_datasec_img(filename=self.filename,
+        #                                                det=self.det)
         # Build it
-        self.rn2img = procimg.rn_frame(datasec_img,
+        self.rn2img = procimg.rn_frame(self.datasec_img,
                                        detector['gain'],
                                        detector['ronoise'],
                                        numamplifiers=detector['numamplifiers'])

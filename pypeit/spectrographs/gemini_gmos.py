@@ -327,7 +327,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         ]
         self.numhead = 13
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """ Generate a BPM
 
         Parameters
@@ -342,7 +342,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
@@ -356,7 +356,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             # Apply the mask
             xbin = int(binning.split(' ')[0])
             badc = 616//xbin
-            self.bpm_img[badc,:] = 1
+            bpm_img[badc,:] = 1
         elif det == 2:
             msgs.info("Using hard-coded BPM for det=2 on GMOSs")
 
@@ -371,10 +371,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 embed()
             # Up high
             badr = (898*2)//xbin # Transposed
-            self.bpm_img[badr:badr+(8*2)//xbin,:] = 1
+            bpm_img[badr:badr+(8*2)//xbin,:] = 1
             # Down low
             badr = (161*2)//xbin # Transposed
-            self.bpm_img[badr,:] = 1
+            bpm_img[badr,:] = 1
         elif det == 3:
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
 
@@ -388,9 +388,9 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             if xbin != 2:
                 embed()
             badr = (281*2)//xbin # Transposed
-            self.bpm_img[badr:badr+(2*2)//xbin,:] = 1
+            bpm_img[badr:badr+(2*2)//xbin,:] = 1
 
-        return self.bpm_img
+        return bpm_img
 
 
 

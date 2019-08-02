@@ -207,7 +207,7 @@ def instant_traceslits(mstrace_file, det=None):
     # Instantiate
     spectrograph = load_spectrograph(tslits_dict['spectrograph'])
     par = spectrograph.default_pypeit_par()
-    msbpm = spectrograph.bpm(shape=mstrace.shape, det=det)
+    msbpm = spectrograph.bpm(None, det, shape=mstrace.shape)
     #binning = tslits_dict['binspectral'], tslits_dict['binspatial']
     traceSlits = traceslits.TraceSlits(spectrograph, par['calibrations']['slits'],
                                        msbpm=msbpm)

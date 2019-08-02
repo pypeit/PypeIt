@@ -14,7 +14,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
-from pypeit import debugger
+from IPython import embed
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
@@ -176,93 +176,141 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                                             if k in dome_lamp_stat]), axis=0)
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    def load_raw_frame(self, raw_file, det=None):
+    def get_rawimage(self, raw_file, det):
         """
-        Wrapper to the raw image reader for LRIS
-
-        Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            Returns an `numpy.ndarray`_ with the image data and
-            `astropy.io.fits.HDUList`_ object with the image and header
-            data, respectively.  The image data is always returned with
-
+        Read a raw LRIS data frame (one or more detectors)
+        Packed in a multi-extension HDU
+        Based on readmhdufits.pro
+        Parameters
+        ----------
+        raw_file : str
+          Filename
+        det (int or None):
+          Detector number; Default = both
+        Returns
+        -------
+        array : ndarray
+          Combined image
+        hdu : HDUList
+        sections : list
+          List of datasec, oscansec, ampsec sections
+          datasec, oscansec needs to be for an *unbinned* image as per standard convention
         """
-        raw_img, hdu, _ = read_lris(raw_file, det=det)
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
 
-        return raw_img, hdu
+        # Read
+        msgs.info("Reading LRIS file: {:s}".format(fil[0]))
+        hdu = fits.open(fil[0])
+        head0 = hdu[0].header
 
-    def get_image_section(self, inp=None, det=1, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
+        # Get post, pre-pix values
+        precol = head0['PRECOL']
+        postpix = head0['POSTPIX']
+        preline = head0['PRELINE']
+        postline = head0['POSTLINE']
 
-        Overwrites base class function to use :func:`read_lris` to get
-        the image sections.
+        # get the x and y binning factors...
+        binning = head0['BINNING']
+        xbin, ybin = [int(ibin) for ibin in binning.split(',')]
 
-        .. todo ::
-            - It is really ineffiecient.  Can we parse
-              :func:`read_lris` into something that can give you the
-              image section directly?
+        # First read over the header info to determine the size of the output array...
+        n_ext = len(hdu) - 1  # Number of extensions (usually 4)
+        xcol = []
+        xmax = 0
+        ymax = 0
+        xmin = 10000
+        ymin = 10000
+        for i in np.arange(1, n_ext + 1):
+            theader = hdu[i].header
+            detsec = theader['DETSEC']
+            if detsec != '0':
+                # parse the DETSEC keyword to determine the size of the array.
+                x1, x2, y1, y2 = np.array(parse.load_sections(detsec, fmt_iraf=False)).flatten()
 
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
+                # find the range of detector space occupied by the data
+                # [xmin:xmax,ymin:ymax]
+                xt = max(x2, x1)
+                xmax = max(xt, xmax)
+                yt = max(y2, y1)
+                ymax = max(yt, ymax)
 
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-            section (:obj:`str`, optional):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
+                # find the min size of the array
+                xt = min(x1, x2)
+                xmin = min(xmin, xt)
+                yt = min(y1, y2)
+                ymin = min(ymin, yt)
+                # Save
+                xcol.append(xt)
 
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Read the file
-        if inp is None:
-            msgs.error('Must provide Keck LRIS file to get image section.')
-        elif not os.path.isfile(inp):
-            msgs.error('File {0} does not exist!'.format(inp))
-        _, _, secs = read_lris(inp, det)
-        if section == 'datasec':
-            return secs[0], False, False
-        elif section == 'oscansec':
-            return secs[1], False, False
+        # determine the output array size...
+        nx = xmax - xmin + 1
+        ny = ymax - ymin + 1
+
+        # change size for binning...
+        nx = nx // xbin
+        ny = ny // ybin
+
+        # Update PRECOL and POSTPIX
+        precol = precol // xbin
+        postpix = postpix // xbin
+
+        # Deal with detectors
+        if det in [1, 2]:
+            nx = nx // 2
+            n_ext = n_ext // 2
+            det_idx = np.arange(n_ext, dtype=np.int) + (det - 1) * n_ext
+        elif det is None:
+            det_idx = np.arange(n_ext).astype(int)
         else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
+            raise ValueError('Bad value for det')
 
-    def get_image_shape(self, filename=None, det=None, **null_kwargs):
-        """
-        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
+        # change size for pre/postscan...
+        nx += n_ext * (precol + postpix)
+        ny += preline + postline
 
-        Must always provide a file.
-        """
-        # Cannot be determined without file
-        if filename is None:
-            raise ValueError('Must provide a file to determine the shape of an LRIS image.')
+        # allocate output arrays...
+        array = np.zeros((nx, ny))
+        order = np.argsort(np.array(xcol))
+        rawdatasec_img = np.zeros_like(array, dtype=int)
+        oscansec_img = np.zeros_like(array, dtype=int)
 
-        # Use a file
-        self._check_detector()
-        self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
-        return self.naxis
+        # insert extensions into master image...
+        for amp, i in enumerate(order[det_idx]):
+
+            # grab complete extension...
+            data, predata, postdata, x1, y1 = lris_read_amp(hdu, i + 1)
+
+            # insert predata...
+            buf = predata.shape
+            nxpre = buf[0]
+            xs = amp * precol
+            xe = xs + nxpre
+            # predata (ignored)
+            array[xs:xe, :] = predata
+
+            # insert data...
+            buf = data.shape
+            nxdata = buf[0]
+            xs = n_ext * precol + amp * nxdata  # (x1-xmin)/xbin
+            xe = xs + nxdata
+            array[xs:xe, :] = data
+            rawdatasec_img[xs:xe, preline:ny-postline] = amp+1
+
+            # ; insert postdata...
+            buf = postdata.shape
+            nxpost = buf[0]
+            xs = nx - n_ext * postpix + amp * postpix
+            xe = xs + nxpost
+            array[xs:xe, :] = postdata
+            oscansec_img[xs:xe, preline:ny-postline] = amp+1
+
+        # Need the exposure time
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        # Return
+        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -409,31 +457,26 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """ Generate a BPM
 
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str,
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
+        Args:
+            filename (str):
+            det (int):
 
-        Returns
-        -------
-        badpix : ndarray
+        Returns:
+            np.ndarray:
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
 
         # Only defined for det=1
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on LRISb")
-            self.bpm_img[:,:3] = 1
+            bpm_img[:,:3] = 1
 
-        return self.bpm_img
+        return bpm_img
 
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
@@ -635,24 +678,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Add grating tilt
         return cfg_keys+['dispangle']
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """ Generate a BPM
 
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str, REQUIRED for binning
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
+        Args:
+            filename (str):
+            det (int):
 
-        Returns
-        -------
-        badpix : ndarray
+        Returns:
+            np.ndarray
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         
         # Only defined for det=2
         if det == 2:
@@ -666,9 +704,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             # Apply the mask
             xbin = int(binning.split(',')[0])
             badc = 16//xbin
-            self.bpm_img[:, 0:badc] = 1
+            bpm_img[:, 0:badc] = 1
 
-        return self.bpm_img
+        return bpm_img
 
 
 class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
@@ -722,276 +760,25 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
         self.numhead = 3
         # Uses default timeunit
 
-    def load_raw_frame(self, raw_file, det=None):
-        """
-        Wrapper to the raw image reader for LRIS
-
-        Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            hdu: `astropy.io.fits.HDUList`_ object
-
-        """
-        # Open
-        hdu = fits.open(raw_file)
-        # Grab data (this includes flips as needed)
-        data, predata, postdata, x1, y1 = lris_read_amp(hdu, det)
-        # Pack
-        raw_img = np.zeros((data.shape[0]+predata.shape[0]+postdata.shape[0], data.shape[1]))
-        raw_img[:predata.shape[0],:] = predata
-        raw_img[predata.shape[0]:predata.shape[0]+data.shape[0],:] = data
-        raw_img[-postdata.shape[0]:,:] = postdata
-
-        # Return
-        return raw_img.T, hdu
-
-    def get_image_section(self, inp=None, det=1, section='datasec'):
-        # Inp better be a string here!  Could check
-        hdu = fits.open(inp)
-        head0 = hdu[0].header
-        binning = head0['BINNING']
-        xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-
-        # Get post, pre-pix values
-        precol = head0['PRECOL']
-        postpix = head0['POSTPIX']
-        preline = head0['PRELINE']
-        postline = head0['POSTLINE']
-
-        if section == 'datasec':
-            datsec = hdu[det].header['DATASEC']  # THIS IS BINNED
-            x1, x2, y1, y2 = np.array(parse.load_sections(datsec, fmt_iraf=False)).flatten()
-            dy = (y2-y1)+1
-            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, preline*ybin+(dy)*ybin, x1*xbin, x2*xbin)  # Eliminate lines
-        elif section == 'oscansec':
-            nx = hdu[det].data.shape[1]
-            section = '[:,{:d}:{:d}]'.format(nx*2-postpix, nx*2)
-        #
-        return [section], False, False, False
-
-def read_lris(raw_file, det=None, TRIM=False):
-    """
-    Read a raw LRIS data frame (one or more detectors)
-    Packed in a multi-extension HDU
-    Based on readmhdufits.pro
-
-    Parameters
-    ----------
-    raw_file : str
-      Filename
-    det : int, optional
-      Detector number; Default = both
-    TRIM : bool, optional
-      Trim the image?
-      This doesn't work....
-
-    Returns
-    -------
-    array : ndarray
-      Combined image 
-    hdu : HDUList
-    sections : list
-      List of datasec, oscansec, ampsec sections
-      datasec, oscansec needs to be for an *unbinned* image as per standard convention
-    """
-
-    # Check for file; allow for extra .gz, etc. suffix
-    fil = glob.glob(raw_file+'*') 
-    if len(fil) != 1:
-        msgs.error("Found {:d} files matching {:s}".format(len(fil)))
-
-    # Read
-    msgs.info("Reading LRIS file: {:s}".format(fil[0]))
-    hdu = fits.open(fil[0])
-    head0 = hdu[0].header
-
-    # Get post, pre-pix values
-    precol = head0['PRECOL']
-    postpix = head0['POSTPIX']
-    preline = head0['PRELINE']
-    postline = head0['POSTLINE']
-
-    # Setup for datasec, oscansec
-    dsec = []
-    osec = []
-
-    # get the x and y binning factors...
-    binning = head0['BINNING']
-    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-
-    # First read over the header info to determine the size of the output array...
-    n_ext = len(hdu)-1  # Number of extensions (usually 4)
-    xcol = []
-    xmax = 0
-    ymax = 0
-    xmin = 10000
-    ymin = 10000
-    for i in np.arange(1, n_ext+1):
-        theader = hdu[i].header
-        detsec = theader['DETSEC']
-        if detsec != '0':
-            # parse the DETSEC keyword to determine the size of the array.
-            x1, x2, y1, y2 = np.array(parse.load_sections(detsec, fmt_iraf=False)).flatten()
-
-            # find the range of detector space occupied by the data
-            # [xmin:xmax,ymin:ymax]
-            xt = max(x2, x1)
-            xmax = max(xt, xmax)
-            yt =  max(y2, y1)
-            ymax = max(yt, ymax)
-
-            # find the min size of the array
-            xt = min(x1, x2)
-            xmin = min(xmin, xt)
-            yt = min(y1, y2)
-            ymin = min(ymin, yt)
-            # Save
-            xcol.append(xt)
-
-    # determine the output array size...
-    nx = xmax - xmin + 1
-    ny = ymax - ymin + 1
-
-    # change size for binning...
-    nx = nx // xbin
-    ny = ny // ybin
-
-    # Update PRECOL and POSTPIX
-    precol = precol // xbin
-    postpix = postpix // xbin
-
-    # Deal with detectors
-    if det in [1,2]:
-        nx = nx // 2
-        n_ext = n_ext // 2
-        det_idx = np.arange(n_ext, dtype=np.int) + (det-1)*n_ext
-        ndet = 1
-    elif det is None:
-        ndet = 2
-        det_idx = np.arange(n_ext).astype(int)
-    else:
-        raise ValueError('Bad value for det')
-
-    # change size for pre/postscan...
-    if not TRIM:
-        nx += n_ext*(precol+postpix)
-        ny += preline + postline
-
-    # allocate output array...
-    array = np.zeros( (nx, ny) )
-    order = np.argsort(np.array(xcol))
-
-    # insert extensions into master image...
-    for kk, i in enumerate(order[det_idx]):
-
-        # grab complete extension...
-        data, predata, postdata, x1, y1 = lris_read_amp(hdu, i+1)
-                            #, linebias=linebias, nobias=nobias, $
-                            #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
-        # insert components into output array...
-        if not TRIM:
-            # insert predata...
-            buf = predata.shape
-            nxpre = buf[0]
-            xs = kk*precol
-            xe = xs + nxpre
-            #if keyword_set(VERBOSITY) then begin
-            #    section = '['+stringify(xs)+':'+stringify(xe)+',*]'
-            #    message, 'inserting extension '+stringify(i)+ $
-            #             ' predata  in '+section, /info
-            #endif 
-            array[xs:xe, :] = predata
-
-            # insert data...
-            buf = data.shape
-            nxdata = buf[0]
-            nydata = buf[1]
-            xs = n_ext*precol + kk*nxdata #(x1-xmin)/xbin
-            xe = xs + nxdata
-            #section = '[{:d}:{:d},{:d}:{:d}]'.format(preline,nydata-postline, xs, xe)  # Eliminate lines
-            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)  # Eliminate lines
-            dsec.append(section)
-            #print('data',xs,xe)
-            array[xs:xe, :] = data   # Include postlines
-
-            #; insert postdata...
-            buf = postdata.shape
-            nxpost = buf[0]
-            xs = nx - n_ext*postpix + kk*postpix
-            xe = xs + nxpost 
-            #section = '[:,{:d}:{:d}]'.format(xs*xbin, xe*xbin)
-            section = '[{:d}:{:d},{:d}:{:d}]'.format(preline*ybin, (nydata-postline)*ybin, xs*xbin, xe*xbin)
-            osec.append(section)
-            
-            #if keyword_set(VERBOSITY) then begin
-            #    section = '['+stringify(xs)+':'+stringify(xe)+',*]'
-            #    message, 'inserting extension '+stringify(i)+ $
-            #             ' postdata in '+section, /info
-            #endif 
-            array[xs:xe, :] = postdata
-        else:
-            buf = data.shape
-            nxdata = buf[0]
-            nydata = buf[1]
-
-            xs = (x1-xmin)//xbin
-            xe = xs + nxdata 
-            ys = (y1-ymin)//ybin
-            ye = ys + nydata - postline
-
-            yin1 = preline
-            yin2 = nydata - postline 
-
-            #if keyword_set(VERBOSITY) then begin
-            #    section = '['+stringify(xs)+':'+stringify(xe)+ $
-            #              ','+stringify(ys)+':'+stringify(ye)+']'
-            #    message, 'inserting extension '+stringify(i)+ $
-            #             ' data     in '+section, /info
-            #endif 
-            array[xs:xe, ys:ye] = data[:, yin1:yin2]
-
-    # make sure BZERO is a valid integer for IRAF
-    obzero = head0['BZERO']
-    head0['O_BZERO'] = obzero
-    head0['BZERO'] = 32768-obzero
-
-    # Return, transposing array back to goofy Python indexing
-    #from IPython import embed; embed(header='958 of keck_lris')
-    return array.T, hdu, (dsec, osec)
 
 def lris_read_amp(inp, ext):
     """
     Read one amplifier of an LRIS multi-extension FITS image
 
-    Parameters
-    ----------
-    inp: tuple 
-      (str,int) filename, extension
-      (hdu,int) FITS hdu, extension
+    Args:
+        inp (str, astropy.io.fits.HDUList):
+            filename or HDUList
+        ext (int):
+            Extension index
 
-    Returns
-    -------
-    data
-    predata
-    postdata
-    x1
-    y1
+    Returns:
+        tuple:
+            data
+            predata
+            postdata
+            x1
+            y1
 
-    ;------------------------------------------------------------------------
-    function lris_read_amp, filename, ext, $
-      linebias=linebias, nobias=nobias, $
-      predata=predata, postdata=postdata, header=header, $
-      x1=x1, x2=x2, y1=y1, y2=y2, GAINDATA=gaindata
-    ;------------------------------------------------------------------------
-    ; Read one amp from LRIS mHDU image
-    ;------------------------------------------------------------------------
     """
     # Parse input
     if isinstance(inp, str):
@@ -1047,7 +834,7 @@ def lris_read_amp(inp, ext):
         xt = x2
         x2 = x1
         x1 = xt
-        data = np.flipud(data) #reverse(temporary(data),1)
+        data = np.flipud(data)
 
     # flip in Y as needed...
     if y1 > y2:
@@ -1058,42 +845,7 @@ def lris_read_amp(inp, ext):
         predata = np.fliplr(predata)
         postdata = np.fliplr(postdata)
 
-    '''
-    #; correct gain if requested...
-    if keyword_set(GAINDATA) then begin
-        gain = gainvalue( gaindata, header)
-        data = FLOAT(temporary(data)) * gain
-        predata = FLOAT(temporary(predata)) * gain
-        postdata = FLOAT(temporary(postdata)) * gain
-    endif
-    '''
-
-    '''
-    ;; optional bias subtraction...
-    if ~ keyword_set(NOBIAS) then begin
-        if keyword_set( LINEBIAS) then begin
-            ;; compute a bias for each line...
-            bias = median( postdata, dim=1)
-
-            ;; subtract for data...
-            buf = size(data)
-            nx = buf[1]
-            ny = buf[2]
-            data2 = fltarr(nx,ny)
-            for i=0,nx-1 do begin
-                data2[i,*] = float(data[i,*]) - bias
-            endfor 
-            data = data2
-        endif else begin
-            ;; compute a scalar bias....
-            bias = median( postdata)
-            data -= bias
-        endelse
-    endif
-    '''
-
     return data, predata, postdata, x1, y1
-
 
 
 def convert_lowredux_pixelflat(infil, outfil):

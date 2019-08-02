@@ -19,6 +19,8 @@ class PypeItImage(object):
 
     Attributes:
         image (np.ndarray):
+        datasec_img (np.ndarray):
+            Used for the amplifiers
         head0 (astropy.io.fits.Header):
         orig_shape (tuple):
         binning_raw (tuple):  Binning in the raw image orientaion (NAXIS1, NAXIS2)
@@ -35,6 +37,7 @@ class PypeItImage(object):
 
         # Attributes
         self.image = None
+        self.datasec_img = None
         self.head0 = None           # Image header
         self.orig_shape = None       # Shape of the image when loaded
         self.binning_raw = None     # Binning in the raw image orientation;  e.g. bin_1, bin_2 (for NAXIS1, NAXIS2)

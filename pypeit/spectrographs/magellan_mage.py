@@ -186,7 +186,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             return (fitstbl['idname'] == 'Object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -206,16 +206,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         """
         msgs.info("Custom bad pixel mask for MAGE")
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         # Get the binning
         hdu = fits.open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()
         # Do it
-        self.bpm_img[:, :10//binspatial] = 1.
-        self.bpm_img[:, 1020//binspatial:] = 1.
+        bpm_img[:, :10//binspatial] = 1.
+        bpm_img[:, 1020//binspatial:] = 1.
         # Return
-        return self.bpm_img
+        return bpm_img
 
     @staticmethod
     def slitmask(tslits_dict, pad=None, binning=None):

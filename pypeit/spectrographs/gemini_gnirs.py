@@ -258,7 +258,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return np.power(10.0,loglam_grid)
 
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -278,12 +278,12 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         """
         msgs.info("Custom bad pixel mask for GNIRS")
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
-            self.bpm_img[:, :20] = 1.
-            self.bpm_img[:, 1000:] = 1.
+            bpm_img[:, :20] = 1.
+            bpm_img[:, 1000:] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
 
 

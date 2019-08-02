@@ -57,11 +57,11 @@ def test_instantiate_from_one(shane_kast_blue_sci_files):
     """
     Run on a single science frame
     """
+    det = 1
     # Load calibrations
     pixelflat = load_kast_blue_masters(pixflat=True)
-    bpm = kast_blue.empty_bpm(shape=pixelflat.shape)
+    bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Do it
-    det = 1
     sciImg = scienceimage.ScienceImage.from_single_file(kast_blue, det,
                                                         kast_par['scienceframe']['process'], bpm,
                                                         shane_kast_blue_sci_files[0], None,
@@ -75,11 +75,11 @@ def test_from_list(shane_kast_blue_sci_files):
     """
     Run on two frames
     """
+    det = 1
     # Load calibrations
     pixelflat = load_kast_blue_masters(pixflat=True)
-    bpm = kast_blue.empty_bpm(shape=pixelflat.shape)
+    bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Do it
-    det = 1
     sciImg = scienceimage.ScienceImage.from_file_list(kast_blue, det,
                                                       kast_par['scienceframe']['process'], bpm,
                                                       shane_kast_blue_sci_files, None, pixelflat)

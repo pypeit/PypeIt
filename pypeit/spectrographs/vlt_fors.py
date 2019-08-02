@@ -276,27 +276,4 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         #return ['dispname', 'dispangle', 'decker', 'detector']
         return ['dispname', 'dispangle', 'decker', 'detector']
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
-        """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
-
-
 
