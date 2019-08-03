@@ -28,6 +28,7 @@
 - Changes to ech_combspec to better treat filenames
 - Fixed bug when bias was set to 'force' which was not bias subtracting
 - Implemented changes to vlt_xshooter_nir to now require darks taken between flats
+- Made flat fielding code a bit more robust against hot pixels at edge of orders
 
 0.11.0 (22 Jun 2019)
 --------------------
