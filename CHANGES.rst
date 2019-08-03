@@ -25,6 +25,9 @@
 - Adds R400 wavelength solution for old E2V chip
 - Revises simple_calib() method for quick and dirty wavelength calibration
 - Adds a related show_wvcalib script
+- Changes to ech_combspec to better treat filenames
+- Fixed bug when bias was set to 'force' which was not bias subtracting
+- Implemented changes to vlt_xshooter_nir to now require darks taken between flats
 
 0.11.0 (22 Jun 2019)
 --------------------
