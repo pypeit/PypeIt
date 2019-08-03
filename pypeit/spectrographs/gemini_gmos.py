@@ -107,6 +107,11 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         par['calibrations']['tilts']['tracethresh'] = 10.  # Deals with faint CuAr lines
 
+        #   IF YOU CHANGE THIS, YOU WILL NEED TO DEAL WITH THE OVERSCAN GOING ALONG ROWS
+        #for key in par['calibrations'].keys():
+        #    if 'frame' in key:
+        #        par['calibrations'][key]['process']['overscan'] = 'median'
+
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
 
@@ -128,32 +133,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to hard-wired values used for
-        specific instrument configurations.
-
-        .. todo::
-            Document the changes made!
-
-        Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
-            adjusted for configuration specific parameter values.
-        """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
-        if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400.fits'
-        #
-        return par
 
     def configuration_keys(self):
         """
@@ -172,9 +151,109 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Add grating tilt
         return cfg_keys+['dispangle']
 
+    def get_rawimage(self, raw_file, det):
+        """
+        Load up the raw image and generate a few other bits and pieces
+        that are key for image processing
+
+        Args:
+            raw_file (str):
+            det (int):
+
+        Returns:
+            tuple:
+                raw_img (np.ndarray) -- Raw image for this detector
+                hdu (astropy.io.fits.HDUList)
+                exptime (float)
+                rawdatasec_img (np.ndarray)
+                oscansec_img (np.ndarray)
+
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+
+        # Read
+        msgs.info("Reading GMOS file: {:s}".format(fil[0]))
+        hdu = fits.open(fil[0])
+        head0 = hdu[0].header
+        head1 = hdu[1].header
+
+        # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
+        numamp = (len(hdu) - 1) // 3
+
+        # get the x and y binning factors...
+        binning = head1['CCDSUM']
+        xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
+
+        # First read over the header info to determine the size of the output array...
+        datasec = head1['DATASEC']
+        x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
+        biassec = head1['BIASSEC']
+        b1, b2, b3, b4 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
+        nxb = b2 - b1 + 1
+
+        # determine the output array size...
+        nx = (x2 - x1 + 1) * numamp + nxb * numamp
+        ny = y2 - y1 + 1
+
+        # allocate output array...
+        array = np.zeros((nx, ny))
+        rawdatasec_img = np.zeros_like(array, dtype=int)
+        oscansec_img = np.zeros_like(array, dtype=int)
+
+        if numamp == 2:  # E2V
+            if det == 1:  # BLUEST DETECTOR
+                order = range(6, 4, -1)
+            elif det == 2:  # NEXT
+                order = range(3, 5)
+            elif det == 3:  # REDDEST DETECTOR
+                order = range(1, 3)
+        elif numamp == 4:  # Hamamatsu
+            if det == 1:  # BLUEST DETECTOR
+                order = range(12, 8, -1)
+            elif det == 2:  # BLUEST DETECTOR
+                order = range(8, 4, -1)
+            elif det == 3:  # BLUEST DETECTOR
+                order = range(4, 0, -1)
+        else:
+            embed()
+
+        # insert extensions into master image...
+        for kk, jj in enumerate(order):
+            # grab complete extension...
+            data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
+            # insert components into output array...
+            inx = data.shape[0]
+            xs = inx * kk
+            xe = xs + inx
+
+            # insert data...
+            # Data section
+            #section = '[{:d}:{:d},:]'.format(xs * xbin, xe * xbin)  # Eliminate lines
+            #dsec.append(section)
+            array[xs:xe, :] = np.flipud(data)
+            rawdatasec_img[xs:xe, :] = kk+1
+
+            # ; insert postdata...
+            xs = nx - numamp * nxb + kk * nxb
+            xe = xs + nxb
+
+            #osection = '[{:d}:{:d},:]'.format(xs * xbin, xe * xbin)  # TRANSPOSED FOR WHAT COMES
+            #osec.append(osection)
+            array[xs:xe, :] = overscan
+            oscansec_img[xs:xe, :] = kk+1
+
+        # Need the exposure time
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        # Return, transposing array back to orient the overscan properly
+        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+
+    '''
     def load_raw_frame(self, raw_file, det=None, **null_kwargs):
         """
-        Wrapper to the raw image reader for LRIS
+        Wrapper to the raw image reader for GMOS
 
         Args:
             raw_file:  str, filename
@@ -193,7 +272,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return raw_img, hdu
 
-    def get_image_shape(self, filename=None, det=None, **null_kwargs):
+    def get_raw_image_shape(self, filename=None, det=None, **null_kwargs):
         """
         Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
 
@@ -201,14 +280,15 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         # Cannot be determined without file
         if filename is None:
-            raise ValueError('Must provide a file to determine the shape of an LRIS image.')
+            raise ValueError('Must provide a file to determine the shape of a GMOS image.')
 
         # Use a file
         self._check_detector()
-        self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
+        shape, datasec, oscansec, _ = gmos_image_sections(filename, det)
+        self.naxis = shape
         return self.naxis
 
-    def get_image_section(self, inp=None, det=1, section='datasec'):
+    def get_image_section(self, inp, det, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
@@ -250,18 +330,18 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         # Read the file
         if inp is None:
-            msgs.error('Must provide Gemini GMOS file to get image section.')
-        elif not os.path.isfile(inp):
-            msgs.error('File {0} does not exist!'.format(inp))
-        temp, head0, secs = read_gmos(inp, det=det)
+            msgs.error('Must provide Gemini GMOS file or hdulist to get image section.')
+        # Load it up
+        shape, datasec, oscansec, _ = gmos_image_sections(inp, det)
         if section == 'datasec':
-            return secs[0], False, False
+            return datasec, False, False
         elif section == 'oscansec':
             # Need to flip these
             # TODO: What does the above mean?
-            return secs[1], False, False
+            return oscansec, False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
+    '''
 
 
 
@@ -280,7 +360,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         self.detector = [  #  Hamamatsu (since 2014)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -295,7 +375,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 0,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -310,7 +390,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 0,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -391,6 +471,32 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         return bpm_img
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+        if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
+        #
+        return par
 
 
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
@@ -408,6 +514,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
+    Used since February 2017
     """
     def __init__(self):
 
@@ -418,7 +525,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  Hamamatsu (since 2011)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -433,7 +540,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 0,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -448,7 +555,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 0,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -464,10 +571,37 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         ]
         self.numhead = 13
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+        if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
+        #
+        return par
 
 class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument with E2V detector
+    Used until February 2017
     """
     def __init__(self):
 
@@ -479,7 +613,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  E2V
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 0,  # I think this is ignored
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -494,7 +628,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 0,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -509,7 +643,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 0,
+                        specaxis        = 1,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -532,38 +666,39 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         super(GeminiGMOSNE2VSpectrograph, self).init_meta()
         self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
 
-# TODO: Put this inside the class or abstract it.
-def read_gmos(raw_file, det=1):
-    """
-    Read the GMOS data file
+        .. todo::
+            Document the changes made!
 
-    Parameters
-    ----------
-    raw_file : str
-      Filename
-    detector_par : ParSet
-      Needed for numamplifiers if not other things
-    det : int, optional
-      Detector number; Default = 1
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
 
-    Returns
-    -------
-    array : ndarray
-      Combined image 
-    hdu : FITS HDUList
-    sections : list
-      List of datasec, oscansec, ampsec sections
-    """
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+        if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
+        #
+        return par
 
-    # Check for file; allow for extra .gz, etc. suffix
-    fil = glob.glob(raw_file+'*') 
-    if len(fil) != 1:
-        msgs.error("Found {:d} files matching {:s}".format(len(fil)))
-
-    # Read
-    msgs.info("Reading GMOS file: {:s}".format(fil[0]))
-    hdu = fits.open(fil[0])
+'''
+def gmos_image_sections(inp, det):
+    if isinstance(inp, str):
+        hdu = fits.open(inp)
+    else:
+        hdu = inp
     head0 = hdu[0].header
     head1 = hdu[1].header
 
@@ -589,17 +724,14 @@ def read_gmos(raw_file, det=1):
     nx = (x2-x1+1)*numamp + nxb*numamp
     ny = y2-y1+1
 
-    # allocate output array...
-    array = np.zeros( (nx, ny) )
-
-    if numamp == 2:
+    if numamp == 2:   # E2V
         if det == 1: # BLUEST DETECTOR
             order = range(6,4,-1)
-        elif det == 2: # BLUEST DETECTOR
+        elif det == 2: # NEXT
             order = range(3,5)
-        elif det == 3: # BLUEST DETECTOR
+        elif det == 3: # REDDEST DETECTOR
             order = range(1,3)
-    elif numamp == 4:
+    elif numamp == 4:  # Hamamatsu
         if det == 1: # BLUEST DETECTOR
             order = range(12,8,-1)
         elif det == 2: # BLUEST DETECTOR
@@ -609,42 +741,31 @@ def read_gmos(raw_file, det=1):
     else:
         embed()
 
-    # insert extensions into master image...
+    # Do it
+    shape = (nx, ny)
     for kk, jj in enumerate(order):
-
-        # grab complete extension...
-        data, overscan, datasec, biassec, x1, x2 = gemini_read_amp(hdu, jj)
-                            #, linebias=linebias, nobias=nobias, $
-                            #x1=x1, x2=x2, y1=y1, y2=y2, gaindata=gaindata)
-        # insert components into output array...
-        inx = data.shape[0]
+        header = hdu[jj].header
+        # datasec
+        datasec = header['DATASEC']
+        xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
+        inx = xdata2-xdata1+1
         xs = inx*kk
         xe = xs + inx
-
-        # insert data...
-        # Data section
-        #section = '[:,{:d}:{:d}]'.format(xs, xe)  # Eliminate lines
-        section = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)  # Eliminate lines
+        section = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)
         dsec.append(section)
-        array[xs:xe, :] = np.flipud(data)
-
-        #; insert postdata...
+        # oscansec
         xs = nx - numamp*nxb + kk*nxb
         xe = xs + nxb
-        #debugger.set_trace()
-        #section = '[:,{:d}:{:d}]'.format(xs, xe)
-        osection = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)  # TRANSPOSED FOR WHAT COMES
+        osection = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)
         osec.append(osection)
-        array[xs:xe, :] = overscan
 
+    # Pack up extras
+    ext_items = hdu, order, xbin, numamp, nxb, nx
 
-    # make sure BZERO is a valid integer for IRAF
-    obzero = head1['BZERO']
-    #head0['O_BZERO'] = obzero
-    head0['BZERO'] = 32768-obzero
+    # Return
+    return shape, dsec, osec, ext_items
+'''
 
-    # Return, transposing array back to goofy Python indexing
-    return array, hdu, (dsec, osec)
 
 
 def gemini_read_amp(inp, ext):
@@ -679,12 +800,6 @@ def gemini_read_amp(inp, ext):
         hdu = fits.open(inp)
     else:
         hdu = inp
-
-    head1 = hdu[1].header
-
-    # Deal with binning
-    binning = head1['CCDSUM']
-    xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
 
     # get entire extension...
     temp = hdu[ext].data.transpose()
