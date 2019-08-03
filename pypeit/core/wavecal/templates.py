@@ -501,9 +501,9 @@ def main(flg):
         print("Wrote: {}".format(outfile))
 
     # ##############################
-    if flg & (2**19):  # GMOS R400
+    if flg & (2**19):  # GMOS R400 Hamamatsu
         binspec = 2
-        outroot='gemini_gmos_r400.fits'
+        outroot='gemini_gmos_r400_ham.fits'
         # 1 : 4728 - 6044
         # 2 : 6100 - 7750
         ifiles = [0, 1, 2]
@@ -512,6 +512,23 @@ def main(flg):
         wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_01_aa.json')
         wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_02_aa.json')
         wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
+        #
+        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
+                       outroot, lowredux=False, ifiles=ifiles, chk=True,
+                       normalize=True)
+
+
+    # ##############################
+    if flg & (2**20):  # GMOS R400 E2V
+        binspec = 2
+        outroot='gemini_gmos_r400_e2v.fits'
+        #
+        ifiles = [0, 1, 2]
+        slits = [0, 0, 0]
+        lcut = [6000., 7450]
+        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_01.json')
+        wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_02.json')
+        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_03.json')
         #
         build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
@@ -560,7 +577,8 @@ if __name__ == '__main__':
     #flg += 2**18  # Convert JSON to FITS
 
     # Gemini/GMOS
-    flg += 2**19  # Convert JSON to FITS
+    #flg += 2**19  # Hamamatsu Convert JSON to FITS
+    flg += 2**20  # E2V Convert JSON to FITS
 
     main(flg)
 

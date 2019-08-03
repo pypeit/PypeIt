@@ -291,8 +291,7 @@ class PypeItMetaData:
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
-                                                         required=strict, usr_row=usr_row,
+                value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 data[meta_key].append(value)
             msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))

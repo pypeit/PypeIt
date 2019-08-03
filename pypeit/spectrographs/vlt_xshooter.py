@@ -282,7 +282,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
 
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-ShooterNIR.
 
@@ -302,7 +302,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
 
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
             bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
             try :
@@ -327,9 +327,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 bpm_loc = np.array([y_bpm,x_bpm]).T
                 np.savetxt(bpm_dir+'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
             finally :
-                self.bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
+                bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
 
     @property
@@ -568,7 +568,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(5000.0), np.log10(11000)
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -587,6 +587,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+        shape = bpm_img.shape
+        #
         # ToDo Ema: This is just a workaround to deal with
         # different binning. I guess binspatial and binspectral
         # should be passed in.
@@ -599,10 +602,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         else:
             binspatial_bpm=1
 
-        self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            self.bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
-        return self.bpm_img
+            bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
+        return bpm_img
 
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
@@ -727,7 +729,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         return orders[islit]
 
 
-
     def order_platescale(self, binning = None):
         """
         Returns the plate scale in arcseconds for each order
@@ -756,7 +757,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Right now I just took the average
         return np.full(self.norders, 0.161)*binspatial
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter UVB.
 
@@ -775,13 +776,13 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning
-            self.bpm_img[:2369,1326:1328] = 1.
+            bpm_img[:2369,1326:1328] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
 
 

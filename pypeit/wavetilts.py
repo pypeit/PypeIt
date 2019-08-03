@@ -150,7 +150,7 @@ class WaveTilts(masterframe.MasterFrame):
             ndarray, ndarray:  Extracted arcs
 
         """
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask=inmask,
+        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, gpm=inmask,
                                                nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])

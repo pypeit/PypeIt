@@ -42,7 +42,7 @@ def test_instantiate(deimos_flat_files, kast_blue_bias_files):
     deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par)
     # Test
     assert isinstance(deimos_flat.image, np.ndarray)
-    assert deimos_flat.rawdatasec_img.shape == (4096, 2128)
+    assert deimos_flat.datasec_img.shape == (4096, 2128)
 
     # Kast blue
     one_file = kast_blue_bias_files[0]
