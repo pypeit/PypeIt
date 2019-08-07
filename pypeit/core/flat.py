@@ -12,6 +12,7 @@ from pypeit.core import qa
 from pypeit.core import pca
 from pypeit.core import pixels
 from pypeit.core import tracewave
+from scipy.interpolate import interp1d
 
 from pypeit import debugger
 from pypeit import utils
@@ -259,6 +260,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
         nord = 4, upper=logrej, lower=logrej,
         kwargs_bspline = {'bkspace':spec_samp_fine},kwargs_reject={'groupbadpix':True, 'maxrej': 5})
 
+
     # Debugging/checking spectral fit
     if debug:
         goodbk = spec_set_fine.mask
@@ -288,10 +290,11 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
 
     # Flat field pixels for fitting spatial direction
     # Determine maximum counts in median filtered flat spectrum. Only fit pixels > 0.1 of this maximum
-    specvec = np.exp(np.interp(pixvec, pix_fit, specfit))
-    spec_sm = utils.fast_running_median(specvec, np.fmax(np.ceil(0.10*nspec).astype(int),10))
+    specfit_interp = interp1d(pix_fit, specfit, kind='linear', bounds_error=False, fill_value=-np.inf)
+    log_specfit = specfit_interp(pixvec)
+    specvec = np.exp(log_specfit)
+    spec_sm = utils.fast_running_median(specvec,np.fmax(np.ceil(0.10*nspec).astype(int),10))
     spec_sm_max = spec_sm.max()
-    #spec_sm_max = np.fmin(spec_sm.max(),nonlinear_counts)
     fit_spat = thismask & inmask &  (spec_model > 1.0) & (spec_model > 0.1*spec_sm_max) & \
                (norm_spec > 0.0) & (norm_spec < 1.7)  #& (flat < nonlinear_counts)
     nfit_spat = np.sum(fit_spat)

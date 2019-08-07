@@ -15,6 +15,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
+from IPython import embed
 
 from pkg_resources import resource_filename
 
@@ -234,11 +235,19 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceimage']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
         par['scienceimage']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
 
-        # Do not bias subtract
-        par['scienceframe']['useframe'] ='none'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'none'
+        # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
+        # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
+        # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
+        # images.
+        par['calibrations']['biasframe']['useframe'] = 'bias'
+        par['calibrations']['traceframe']['process']['bias'] = 'force'
+        par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        par['scienceframe']['process']['bias'] = 'skip'
+
+
         return par
 
     def check_headers(self, headers):
