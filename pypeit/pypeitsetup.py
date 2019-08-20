@@ -17,6 +17,16 @@ from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import debugger
 
+from spit import classifier
+from spit import preprocess as spit_p
+from spit import labels as spit_l
+
+from tensorflow import keras
+from PIL import Image
+
+os.environ['SPIT_MODEL_PATH'] = 'C:/Users/kjk11/Desktop/'
+
+
 class PypeItSetup(object):
     """
     Prepare for a pypeit run.
@@ -55,7 +65,7 @@ class PypeItSetup(object):
             be the spectrograph that provided the data to be reduced.
             One can get the list of spectrographs currently served by
             running::
-                
+
                 from pypeit.spectrographs.util import valid_spectrographs
                 print(valid_spectrographs())
 
@@ -75,7 +85,7 @@ class PypeItSetup(object):
             `PypitSetup` object directly from a pypeit file (i.e. by
             reading the file), use the :func:`from_pypeit_file` method;
             i.e.::
-                
+
                 setup = PypitSetup.from_pypeit_file('myfile.pypeit')
 
     Attributes:
@@ -104,6 +114,7 @@ class PypeItSetup(object):
 
     .. _configobj: http://configobj.readthedocs.io/en/latest/
     """
+
     def __init__(self, file_list, path=None, frametype=None, usrdata=None, setups=None,
                  cfg_lines=None, spectrograph_name=None, pypeit_file=None):
 
@@ -122,12 +133,13 @@ class PypeItSetup(object):
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
-                    else PypeItPar.from_cfg_lines(merge_with=cfg_lines)['rdx']['spectrograph']
+            else PypeItPar.from_cfg_lines(merge_with=cfg_lines)['rdx']['spectrograph']
 
         # Cannot proceed without spectrograph name
         if _spectrograph_name is None:
-            msgs.error('Must provide spectrograph name directly or using configuration lines.')
-       
+            msgs.error(
+                'Must provide spectrograph name directly or using configuration lines.')
+
         # Instantiate the spectrograph
         self.spectrograph = load_spectrograph(_spectrograph_name)
 
@@ -137,7 +149,8 @@ class PypeItSetup(object):
 
         # Instantiate the pypeit parameters.  The user input
         # configuration (cfg_lines) can be None.
-        self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        self.par = PypeItPar.from_cfg_lines(
+            cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
         # Prepare internals for execution
         self.fitstbl = None
@@ -154,11 +167,12 @@ class PypeItSetup(object):
                 Name of the pypeit file to read.  Pypit files have a
                 specific set of valid formats. A description can be
                 found `here`_ (include doc link).
-        
+
         Returns:
             :class:`PypeitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(filename)
+        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(
+            filename)
         return cls(data_files, frametype=frametype, usrdata=usrdata, setups=setups,
                    cfg_lines=cfg_lines, pypeit_file=filename)
 
@@ -167,7 +181,7 @@ class PypeItSetup(object):
         """
         Instantiate the :class:`PypeItSetup` object by providing a file
         root.
-        
+
         This is based on first writing a vanilla PypeIt file for the
         provided spectrograph and extension to a file in the provided
         path.
@@ -192,21 +206,25 @@ class PypeItSetup(object):
                 Path to use for the output.  If None, the default is
                 './setup_files'.  If the path doesn't yet exist, it is
                 created.
-        
+
         Returns:
             :class:`PypitSetup`: The instance of the class.
         """
         # Set the output directory
-        outdir = os.path.join(os.getcwd(), 'setup_files') if output_path is None else output_path
+        outdir = os.path.join(
+            os.getcwd(), 'setup_files') if output_path is None else output_path
         if not os.path.isdir(outdir):
             os.makedirs(outdir)
         # Set the output file name
         date = str(datetime.date.today().strftime('%Y-%b-%d'))
-        pypeit_file = os.path.join(outdir, '{0}_{1}.pypeit'.format(spectrograph, date))
-        msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
-        
+        pypeit_file = os.path.join(
+            outdir, '{0}_{1}.pypeit'.format(spectrograph, date))
+        msgs.info(
+            'A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
+
         # Generate the pypeit file
-        cls.vanilla_pypeit_file(pypeit_file, root, spectrograph, extension=extension)
+        cls.vanilla_pypeit_file(
+            pypeit_file, root, spectrograph, extension=extension)
 
         # Now setup PypeIt using that file
         return cls.from_pypeit_file(pypeit_file)
@@ -230,12 +248,13 @@ class PypeItSetup(object):
         """
         # Generate
         dfname = os.path.join(root, '*{0}*'.format(extension)) \
-                    if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
+            if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
         # configuration lines
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
 #        cfg_lines += ['    sortroot = {0}'.format(root)]
-        make_pypeit_file(pypeit_file, spectrograph, [dfname], cfg_lines=cfg_lines, setup_mode=True)
+        make_pypeit_file(pypeit_file, spectrograph, [
+                         dfname], cfg_lines=cfg_lines, setup_mode=True)
 
     @property
     def nfiles(self):
@@ -266,7 +285,7 @@ class PypeItSetup(object):
             :attr:`fitstbl` which is a :obj:`PypeItMetaData` object
         """
         # Build and sort the table
-        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, files=self.file_list,
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, file_list=self.file_list,  # CHANGE THIS BACK TO files WHEN YOU ARE DONE WITH CODING EVERYTHING ELSE
                                       usrdata=self.usrdata, strict=strict)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
@@ -316,7 +335,8 @@ class PypeItSetup(object):
             obj:`PypeItMetaData`: The so-called fitstbl
 
         """
-        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, data=Table.read(fits_file))
+        self.fitstbl = PypeItMetaData(
+            self.spectrograph, self.par, data=Table.read(fits_file))
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl.table
 
@@ -345,7 +365,7 @@ class PypeItSetup(object):
         """
         if ofile is None:
             ofile = self.spectrograph.spectrograph + '.lst' if self.pypeit_file is None \
-                        else self.pypeit_file.replace('.pypeit', '.lst')
+                else self.pypeit_file.replace('.pypeit', '.lst')
             if sort_dir is not None:
                 ofile = os.path.join(sort_dir, os.path.split(ofile)[1])
 
@@ -359,7 +379,7 @@ class PypeItSetup(object):
         """
         Once instantiated, this is the main method used to construct the
         object.
-        
+
         The code flow is as follows::
             - Build the fitstbl from an input file_list (optional)
             - Type the files (bias, arc, etc.)
@@ -411,15 +431,36 @@ class PypeItSetup(object):
 
         # Build fitstbl
         if self.fitstbl is None:
-            self.build_fitstbl(strict=not setup_only)#, bkg_pairs=bkg_pairs)
+            self.build_fitstbl(strict=not setup_only)  # , bkg_pairs=bkg_pairs)
+
+        print(self.fitstbl.table)
 
         # File typing
-        self.get_frame_types(flag_unknown=setup_only or calibration_check,
-                             use_header_id=use_header_id)
+        a = self.get_frame_types(flag_unknown=setup_only or calibration_check,
+                                 use_header_id=use_header_id)
 
+        print("printing frame types?")
+        print(self.fitstbl.table)
+        # frame types aren't being printed, you have to figure out where you want prediction to be stored, and if you want filepath to spit to be parameter for prediction method
+
+        # spit classification
+        spit_frame_types, spit_framebits = self.spit_classify()
+
+        # compare spit to rules-based
+        for index, framebit in enumerate(self.fitstbl['framebit']):
+                # check if they're different
+            if spit_framebits[index] != framebit:
+                # if so, notify user of difference, and set to spit's values
+                # add at which files they differ so the user can check
+                msgs.warn("SPIT and rules-based framebits differ at %s" %
+                          (self.fitstbl['filename'][0]))
+                self.fitstbl['framebit'][index] = spit_framebits[index]
+                self.fitstbl['frametype'][index] = spit_frame_types[index]
+
+        print(self.fitstbl.table)
         # Determine the configurations and assign each frame to the
         # specified configuration
-        ignore_frames=['bias', 'dark']
+        ignore_frames = ['bias', 'dark']
         cfgs = self.fitstbl.unique_configurations(ignore_frames=ignore_frames)
         self.fitstbl.set_configurations(cfgs, ignore_frames=ignore_frames)
 
@@ -427,7 +468,7 @@ class PypeItSetup(object):
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
         # Set default comb_id
-        self.fitstbl.set_combination_groups()
+        # self.fitstbl.set_combination_groups() UNCOMMENT THIS WHEN DONE?
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)
@@ -436,20 +477,23 @@ class PypeItSetup(object):
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
             sorted_file = self.spectrograph.spectrograph + '.sorted' \
-                                if pypeit_file is None or len(pypeit_file) == 0 \
-                                else pypeit_file.replace('.pypeit', '.sorted')
+                if pypeit_file is None or len(pypeit_file) == 0 \
+                else pypeit_file.replace('.pypeit', '.sorted')
             if sort_dir is not None:
-                sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
-            self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
+                sorted_file = os.path.join(
+                    sort_dir, os.path.split(sorted_file)[1])
+            self.fitstbl.write_sorted(
+                sorted_file, write_bkg_pairs=write_bkg_pairs)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
 
         else:
             # Write the calib file
             calib_file = self.spectrograph.spectrograph + '.calib' \
-                                if pypeit_file is None or len(pypeit_file) == 0 \
-                                else pypeit_file.replace('.pypeit', '.calib')
+                if pypeit_file is None or len(pypeit_file) == 0 \
+                else pypeit_file.replace('.pypeit', '.calib')
             if sort_dir is not None:
-                calib_file = os.path.join(sort_dir, os.path.split(calib_file)[1])
+                calib_file = os.path.join(
+                    sort_dir, os.path.split(calib_file)[1])
             self.fitstbl.write_calib(calib_file)
 
         # Finish (depends on PypeIt run mode)
@@ -460,16 +504,201 @@ class PypeItSetup(object):
             msgs.info("Calibration check complete and successful!")
 #            msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
-            #TODO: Why should this not return the same as when setup_only is True
+            # TODO: Why should this not return the same as when setup_only is True
 
         if setup_only:
             for idx in np.where(self.fitstbl['failures'])[0]:
                 msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
-                            self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
+                    self.fitstbl['target'][idx], self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .sorted file")
             return None, None, None
 
         return self.par, self.spectrograph, self.fitstbl
 
+    def spit_classify(self, spit_path=os.getenv('SPIT_MODEL_PATH')):
+        """
+        Get frame types of all SPIT predictions.
 
+        Parameters:
+            spit_path:
+                Path to the best spit model. Environmental variable by default.
+                ***User must have model downloaded, and must manually set path.***
+        Returns:
+            spit_frame_types:
+                1-d list containing string frame type for each file
+            spit_framebits:
+                1-d list containing frame bit integers for each file
+        """
+
+        # load best model, SPIT_MODEL_PATH must be set by user elsewhere until best_model.h5 is in spit or pypeit repo
+        best_model = keras.models.load_model(spit_path+'best_model.h5')
+
+        # initialize predictions list
+        predictions = []
+
+        # loop through all files in fitstbl['filename']
+        for directory, file in zip(self.fitstbl['directory'], self.fitstbl['filename']):
+            # get image data from fits file
+            raw_frame, hdu = self.spectrograph.load_raw_frame(
+                os.path.join(directory, file))
+            print(type(raw_frame))
+            print(raw_frame)
+
+            # perform pre-processing on the image
+            preproc_dict = spit_p.original_preproc_dict()
+            img_np = spit_p.process_image(raw_frame, preproc_dict)
+            print(img_np.shape)
+            print(max(img_np[0]))
+            img_np = np.uint8(img_np)
+            # classify with spit
+            pred_list, pred = self.predict_one_image(img_np, best_model)
+
+            print(pred_list)
+            # add to list of predictions
+            predictions.append(pred)
+
+        # get frame types and framebits from spit predictions
+        spit_frame_types, spit_framebits = self.predictions_to_framebits(
+            predictions)
+
+        # return predictions
+        return spit_frame_types, spit_framebits
+
+    def predict_one_image(self, image, model):
+        """
+        Predict one image's label with a given neural network.
+
+        Parameters:
+            image:
+                2-d numpy array containing image data
+            model: 
+                keras model, likely densenet
+        Returns:
+            prediction[0]: 
+                1-d array containing probability of each label being the true label
+            maxIndex[0][0]: 
+                integer containing the index at which the highest probability (predicted label) is contained
+        """
+        # get shape of the image
+        ishape = list(image.shape)
+
+        # reshape to what is necessary for classifier
+        image = image.reshape([1]+ishape+[1])
+
+        # get predictions for labels
+        prediction = model.predict(image)
+
+        # get max value of prediction
+        maxIndex = np.where(prediction[0] == np.amax(prediction[0]))
+
+        # return correct values within respective return values
+        return prediction[0], maxIndex[0][0]
+
+    def predictions_to_framebits(self, predictions):
+        """
+        Get framebits and frame types of all SPIT predictions.
+
+        Parameters:
+            predictions: 
+                1-d list containing integers representing index of label
+        Returns:
+            spit_frame_types:
+                1-d list containing string frame type for each file
+                type_bits:
+                        1-d list containing frame bit integers for each file
+        """
+        # convert integers to string labels using label_dict and frame_types, store in numpy array with each index having strings of frametypes
+        spit_labels = self.get_spit_labels()
+        spit_frame_types = self.get_spit_frame_types(spit_labels, predictions)
+        print(spit_frame_types)
+
+        # use some of the code from metadata.py lines 1267-1295
+        type_bits = np.zeros(
+            len(self.fitstbl), dtype=self.fitstbl.type_bitmask.minimum_dtype())
+        print(type_bits)
+
+        # create dictionary to be used for setting framebit
+        user = {}
+        for index, file in enumerate(self.fitstbl['filename']):
+            user[file] = spit_frame_types[index]
+
+        # Use the user-defined frame types from the input dictionary, could eventually integrate this and other methods in metadata.py
+        if len(user.keys()) != len(self.fitstbl):
+            raise ValueError(
+                'The user-provided dictionary does not match table length.')
+        msgs.info('Converting SPIT frame types.')
+        for ifile, ftypes in user.items():
+            indx = self.fitstbl['filename'] == ifile
+            # turn on relevant framebits
+            type_bits[indx] = self.fitstbl.type_bitmask.turn_on(
+                type_bits[indx], flag=ftypes.split(','))
+
+        print(type_bits)
+        return spit_frame_types, type_bits
+
+    def get_spit_labels(self):
+        """
+        Get SPIT labels in framematch format.
+
+        Parameters:
+                None
+        Returns:
+            classes:
+                1-d list containing cleaned up SPIT labels for frame typing.
+        """
+
+        # initialize label dict and classes array, could optimize this
+        label_dict = spit_l.kast_label_dict()
+        classes = []
+
+        for label in label_dict:
+            if '_label' in label:
+                label = label.replace('_label', '')
+            classes.append(label)
+        return classes
+
+    def get_spit_frame_types(self, spit_labels, predictions):
+        """
+        Get frame types of all SPIT predictions.
+
+        Parameters:
+            spit_labels:
+                Cleaned up labels from SPIT's label dict (strings)
+            predictions: 
+                1-d list containing integers representing index of label
+        Returns:
+            spit_frame_types:
+                1-d list containing string frame type for each file
+        """
+        # initialize empty list
+        spit_frame_types = []
+
+        # get all frame types for each label
+        for p in predictions:
+            spit_frame_type = spit_labels[p]  # a string
+
+            # map spit labels to proper frames for specific cases
+            if 'flat' in spit_frame_type:
+            	print(spit_frame_type)
+            	spit_frame_type = spit_frame_type.replace('flat','pixelflat,traceflat')
+            	print(spit_frame_type)
+            elif 'arc' in spit_frame_type:
+            	spit_frame_type += ',tilt'
+            spit_frame_types.append(spit_frame_type)
+        return spit_frame_types
+
+# img_file_path = 'C:/Users/kjk11/Desktop/600_4310_d55/b'
+# img_file_end = '.fits.gz'
+# file_list = [img_file_path+'1'+img_file_end,img_file_path+'11'+img_file_end,img_file_path+'12'+img_file_end,img_file_path+'13'+img_file_end,img_file_path+'21'+img_file_end,img_file_path+'22'+img_file_end,img_file_path+'23'+img_file_end,img_file_path+'27'+img_file_end]
+# spectrograph_name = 'shane_kast_blue'
+# ps = PypeItSetup(file_list, spectrograph_name=spectrograph_name)
+# ps.build_fitstbl()
+# ps.run()
+
+# to do:
+# uncomment all the shit that was throwing errors
+# remove all print statements
+# send back to your mac
+# commit to your forked repo
+# and yay! you're done!
