@@ -252,7 +252,7 @@ class PypeItSetup(object):
         # configuration lines
         cfg_lines = ['[rdx]']
         cfg_lines += ['    spectrograph = {0}'.format(spectrograph)]
-#        cfg_lines += ['    sortroot = {0}'.format(root)]
+#        cfg_lines += ['    sortroot = {0}'.format(root)] # check if this needs to be uncommented
         make_pypeit_file(pypeit_file, spectrograph, [
                          dfname], cfg_lines=cfg_lines, setup_mode=True)
 
@@ -433,14 +433,10 @@ class PypeItSetup(object):
         if self.fitstbl is None:
             self.build_fitstbl(strict=not setup_only)  # , bkg_pairs=bkg_pairs)
 
-        print(self.fitstbl.table)
-
         # File typing
         a = self.get_frame_types(flag_unknown=setup_only or calibration_check,
                                  use_header_id=use_header_id)
 
-        print("printing frame types?")
-        print(self.fitstbl.table)
         # frame types aren't being printed, you have to figure out where you want prediction to be stored, and if you want filepath to spit to be parameter for prediction method
 
         # spit classification
@@ -457,7 +453,6 @@ class PypeItSetup(object):
                 self.fitstbl['framebit'][index] = spit_framebits[index]
                 self.fitstbl['frametype'][index] = spit_frame_types[index]
 
-        print(self.fitstbl.table)
         # Determine the configurations and assign each frame to the
         # specified configuration
         ignore_frames = ['bias', 'dark']
@@ -468,7 +463,7 @@ class PypeItSetup(object):
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
         # Set default comb_id
-        # self.fitstbl.set_combination_groups() UNCOMMENT THIS WHEN DONE?
+        self.fitstbl.set_combination_groups()
 
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)
@@ -542,19 +537,15 @@ class PypeItSetup(object):
             # get image data from fits file
             raw_frame, hdu = self.spectrograph.load_raw_frame(
                 os.path.join(directory, file))
-            print(type(raw_frame))
-            print(raw_frame)
 
             # perform pre-processing on the image
             preproc_dict = spit_p.original_preproc_dict()
             img_np = spit_p.process_image(raw_frame, preproc_dict)
-            print(img_np.shape)
-            print(max(img_np[0]))
+            
             img_np = np.uint8(img_np)
             # classify with spit
             pred_list, pred = self.predict_one_image(img_np, best_model)
 
-            print(pred_list)
             # add to list of predictions
             predictions.append(pred)
 
@@ -611,12 +602,10 @@ class PypeItSetup(object):
         # convert integers to string labels using label_dict and frame_types, store in numpy array with each index having strings of frametypes
         spit_labels = self.get_spit_labels()
         spit_frame_types = self.get_spit_frame_types(spit_labels, predictions)
-        print(spit_frame_types)
 
         # use some of the code from metadata.py lines 1267-1295
         type_bits = np.zeros(
             len(self.fitstbl), dtype=self.fitstbl.type_bitmask.minimum_dtype())
-        print(type_bits)
 
         # create dictionary to be used for setting framebit
         user = {}
@@ -634,7 +623,6 @@ class PypeItSetup(object):
             type_bits[indx] = self.fitstbl.type_bitmask.turn_on(
                 type_bits[indx], flag=ftypes.split(','))
 
-        print(type_bits)
         return spit_frame_types, type_bits
 
     def get_spit_labels(self):
@@ -680,25 +668,8 @@ class PypeItSetup(object):
 
             # map spit labels to proper frames for specific cases
             if 'flat' in spit_frame_type:
-            	print(spit_frame_type)
             	spit_frame_type = spit_frame_type.replace('flat','pixelflat,traceflat')
-            	print(spit_frame_type)
             elif 'arc' in spit_frame_type:
             	spit_frame_type += ',tilt'
             spit_frame_types.append(spit_frame_type)
         return spit_frame_types
-
-# img_file_path = 'C:/Users/kjk11/Desktop/600_4310_d55/b'
-# img_file_end = '.fits.gz'
-# file_list = [img_file_path+'1'+img_file_end,img_file_path+'11'+img_file_end,img_file_path+'12'+img_file_end,img_file_path+'13'+img_file_end,img_file_path+'21'+img_file_end,img_file_path+'22'+img_file_end,img_file_path+'23'+img_file_end,img_file_path+'27'+img_file_end]
-# spectrograph_name = 'shane_kast_blue'
-# ps = PypeItSetup(file_list, spectrograph_name=spectrograph_name)
-# ps.build_fitstbl()
-# ps.run()
-
-# to do:
-# uncomment all the shit that was throwing errors
-# remove all print statements
-# send back to your mac
-# commit to your forked repo
-# and yay! you're done!
