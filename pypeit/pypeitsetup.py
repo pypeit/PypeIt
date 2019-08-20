@@ -668,7 +668,7 @@ class PypeItSetup(object):
 
             # map spit labels to proper frames for specific cases
             if 'flat' in spit_frame_type:
-            	spit_frame_type = spit_frame_type.replace('flat','pixelflat,traceflat')
+            	spit_frame_type = spit_frame_type.replace('flat','pixelflat,trace')
             elif 'arc' in spit_frame_type:
             	spit_frame_type += ',tilt'
             spit_frame_types.append(spit_frame_type)
