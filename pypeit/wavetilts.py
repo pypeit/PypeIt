@@ -68,6 +68,7 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     master_type = 'Tilts'
 
+    # TODO This needs to be modified to take an inmask
     def __init__(self, msarc, tslits_dict, spectrograph, par, wavepar, det=1, master_key=None,
                  master_dir=None, reuse_masters=False, qa_path=None, msbpm=None):
 
@@ -149,7 +150,7 @@ class WaveTilts(masterframe.MasterFrame):
             ndarray, ndarray:  Extracted arcs
 
         """
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask=inmask,
+        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, gpm=inmask,
                                                nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])

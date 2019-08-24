@@ -13,6 +13,10 @@ from pypeit.par import pypeitpar
 from IPython import embed
 
 
+# TODO JFH This routine needs to be reworked to always return images in counts, and to always return a noise model.
+# It is completely wrong to ever do anything with images in ADU.
+
+## TODO Cosmic Ray masking needs to be added as a method here by making this a child of MaskImage
 class ProcessRawImage(pypeitimage.PypeItImage):
     """
     Class to process a raw image
@@ -34,8 +38,11 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             Dict describing the steps performed on the image
         _bpm (np.ndarray):
             Holds the bad pixel mask once loaded
-        _rawdatasec_img (np.ndarray):
-            Holds the rawdatasec_img once loaded
+        datasec_img (np.ndarray):
+            Holds the datasec_img which specifies the amp for each pixel in the
+            current self.image image
+        oscansec_img (np.ndarray):
+            Holds the oscansec_img once loaded.  This is only in the raw frame
         hdu (fits.HDUList):
             HDUList of the file
     """
@@ -52,10 +59,9 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Attributes
         self._reset_internals()
         self._bpm = None
-        self._rawdatasec_img = None
         self.hdu = None
 
-        # Load
+        # Load -- This also initializes datasec_img and oscansec_img
         self.load_rawframe()
 
         # All possible processing steps
@@ -76,7 +82,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Returns:
             list
         """
-        return np.unique(self.rawdatasec_img[self.rawdatasec_img > 0]).tolist()
+        return np.unique(self.datasec_img[self.datasec_img > 0]).tolist()
 
     @property
     def bpm(self):
@@ -93,32 +99,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                                     filename=self.filename,
                                     det=self.det)
         return self._bpm
-
-    @property
-    def rawdatasec_img(self):
-        """
-        Generate and return the datasec image in the Raw reference frame
-
-        Returns:
-            np.ndarray
-
-        """
-        if self._rawdatasec_img is None:
-            self._rawdatasec_img = self.spectrograph.get_rawdatasec_img(self.filename, self.det)
-        return self._rawdatasec_img
-
-
-    @property
-    def oscansec_img(self):
-        """
-        Generate and return the oscansec image
-
-        Returns:
-            np.ndarray
-
-        """
-        oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
-        return oimg
 
     def _reset_steps(self):
         """
@@ -157,7 +137,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
 
         gain = np.atleast_1d(self.spectrograph.detector[self.det - 1]['gain']).tolist()
         # Apply
-        self.image *= procimg.gain_frame(self.rawdatasec_img, gain, trim=self.steps['trim'])
+        self.image *= procimg.gain_frame(self.datasec_img, gain) #, trim=self.steps['trim'])
         self.steps[step] = True
         # Return
         return self.image.copy()
@@ -237,24 +217,19 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Also loads up the binning, exposure time, and header of the Primary image
         And the HDUList in self.hdu
 
-        Args:
-            filename (str):  Filename
-
         """
         # Load
-        self.image, self.hdu, \
-            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        #self.image, self.hdu, \
+        #    = self.spectrograph.load_raw_frame(self.filename, det=self.det)
+        #self.exptime, self.datasec_img, self.oscansec_img, self.binning_raw \
+        #    = self.spectrograph.load_raw_extras(self.hdu, self.det)
+        # Load itup
+        self.image, self.hdu, self.exptime, self.datasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
+            self.filename, self.det)
+
         self.head0 = self.hdu[0].header
         # Shape
         self.orig_shape = self.image.shape
-        # Exposure time
-        self.exptime = self.spectrograph.get_meta_value(self.filename, 'exptime')
-        # Binning
-        self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
-        if self.spectrograph.detector[self.det-1]['specaxis'] == 1:
-            self.binning_raw = (',').join(self.binning.split(',')[::-1])
-        else:
-            self.binning_raw = self.binning
 
     def orient(self, force=False):
         """
@@ -274,6 +249,8 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             return self.image.copy()
         # Orient me
         self.image = self.spectrograph.orient_image(self.image, self.det)
+        self.datasec_img = self.spectrograph.orient_image(self.datasec_img, self.det)
+        #
         self.steps[step] = True
 
     def subtract_bias(self, bias_image, force=False):
@@ -309,7 +286,7 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         if self.steps[step] and (not force):
             msgs.warn("Image was already trimmed")
 
-        temp = procimg.subtract_overscan(self.image, self.rawdatasec_img, self.oscansec_img,
+        temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
                                          method=self.par['overscan'],
                                          params=self.par['overscan_par'])
         # Fill
@@ -336,9 +313,9 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             msgs.warn("Image was already trimmed.  Returning current image")
             return self.image
         # Do it
-        trim_image = procimg.trim_frame(self.image, self.rawdatasec_img < 1)
-        # Overwrite
-        self.image = trim_image
+        self.image = procimg.trim_frame(self.image, self.datasec_img < 1)
+        self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
+        #
         self.steps[step] = True
 
     def __repr__(self):

@@ -16,6 +16,7 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit import arcimage
+from pypeit import tiltimage
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
@@ -312,6 +313,62 @@ class Calibrations(object):
         self._update_cache('arc', 'arc', self.msarc)
         return self.msarc
 
+
+    def get_tiltimg(self):
+        """
+        Load or generate the Tilt image
+
+        Requirements:
+          master_key, det, par
+
+        Args:
+
+        Returns:
+            ndarray: :attr:`mstilt` image
+
+        """
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        tilt_rows = self.fitstbl.find_frames('tilt', calib_ID=self.calib_ID, index=True)
+        if len(tilt_rows) == 0:
+            msgs.error('Must identify tilt frames to construct tilt image.')
+        self.tilt_files = self.fitstbl.frame_paths(tilt_rows)
+        self.master_key_dict['tilt'] \
+                = self.fitstbl.master_key(tilt_rows[0] if len(tilt_rows) > 0 else self.frame,
+                                          det=self.det)
+
+        if self._cached('tiltimg', self.master_key_dict['tilt']):
+            # Previously calculated
+            self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tiltimg']
+            return self.mstilt
+
+        # Instantiate with everything needed to generate the image (in case we do)
+        self.tiltImage = tiltimage.TiltImage(self.spectrograph, files=self.tilt_files,
+                                          det=self.det, msbias=self.msbias,
+                                          par=self.par['tiltframe'],
+                                          master_key=self.master_key_dict['tilt'],
+                                          master_dir=self.master_dir,
+                                          reuse_masters=self.reuse_masters)
+
+        # Load the MasterFrame (if it exists and is desired)?
+        self.mstilt = self.tiltImage.load()
+        if self.mstilt is None:  # Otherwise build it
+            msgs.info("Preparing a master {0:s} frame".format(self.tiltImage.frametype))
+            self.mstilt = self.tiltImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            # JFH Add a cr_masking option here. The image processing routines are not ready for it yet.
+
+            # Save to Masters
+            if self.save_masters:
+                self.tiltImage.save()
+
+        # Save & return
+        self._update_cache('tilt', 'tiltimg', self.mstilt)
+        # TODO in the future add in a tilt_inmask
+        #self._update_cache('tilt', 'tilt_inmask', self.mstilt_inmask)
+        return self.mstilt
+
     def get_bias(self):
         """
         Load or generate the bias frame/command
@@ -388,17 +445,10 @@ class Calibrations(object):
 
         # Build the data-section image
         sci_image_file = self.fitstbl.frame_paths(self.frame)
-        rdsec_img = self.spectrograph.get_rawdatasec_img(sci_image_file, det=self.det)
-
-        # Instantiate the shape here, based on the shape of the science
-        # image. This is the shape of most calibrations, although we are
-        # allowing for arcs of different shape because of X-shooter etc.
-        trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
-        orient = self.spectrograph.orient_image(trim, self.det)
-        self.shape = orient.shape
 
         # Build it
-        self.msbpm = self.spectrograph.bpm(shape=self.shape, filename=sci_image_file, det=self.det)
+        self.msbpm = self.spectrograph.bpm(sci_image_file, self.det)
+        self.shape = self.msbpm.shape
 
         # Record it
         self._update_cache('bpm', 'bpm', self.msbpm)
@@ -604,6 +654,7 @@ class Calibrations(object):
                                                     files=self.trace_image_files, det=self.det,
                                                     par=self.par['traceframe'],
                                                     bias=self.msbias)
+
             self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             # Compute the plate scale in arcsec which is needed to trim short slits
@@ -642,7 +693,6 @@ class Calibrations(object):
             # Save to disk
             if self.save_masters:
                 self.traceSlits.save(traceImage=self.traceImage)
-
         # Save, initialize maskslits, and return
         # TODO: We're not caching self.mstrace.  And actually there is
         # no mstrace in Calibrations anymore; only in TraceSlits?
@@ -782,7 +832,7 @@ class Calibrations(object):
         Load or generate the tilts image
 
         Requirements:
-           msarc, tslits_dict, wv_calib
+           mstilt, tslits_dict, wv_calib
            det, par, spectrograph
 
         Returns:
@@ -791,7 +841,8 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib']):
+        #TODO add mstilt_inmask to this list when it gets implemented.
+        if not self._chk_objs(['mstilt', 'msbpm', 'tslits_dict', 'wv_calib']):
             msgs.error('dont have all the objects')
             self.tilts_dict = None
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
@@ -800,21 +851,21 @@ class Calibrations(object):
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
-        if 'arc' not in self.master_key_dict.keys():
-            msgs.error('Arc master key not set.  First run get_arc.')
+        if 'tilt' not in self.master_key_dict.keys():
+            msgs.error('Tilt master key not set.  First run get_tiltimage.')
 
         # Return existing data
-        if self._cached('tilts_dict', self.master_key_dict['arc']) \
-                and self._cached('wtmask', self.master_key_dict['arc']):
-            self.tilts_dict = self.calib_dict[self.master_key_dict['arc']]['tilts_dict']
-            self.wt_maskslits = self.calib_dict[self.master_key_dict['arc']]['wtmask']
+        if self._cached('tilts_dict', self.master_key_dict['tilt']) \
+                and self._cached('wtmask', self.master_key_dict['tilt']):
+            self.tilts_dict = self.calib_dict[self.master_key_dict['tilt']]['tilts_dict']
+            self.wt_maskslits = self.calib_dict[self.master_key_dict['tilt']]['wtmask']
             self.tslits_dict['maskslits'] += self.wt_maskslits
             return self.tilts_dict
 
         # Instantiate
-        self.waveTilts = wavetilts.WaveTilts(self.msarc, self.tslits_dict, self.spectrograph,
+        self.waveTilts = wavetilts.WaveTilts(self.mstilt, self.tslits_dict, self.spectrograph,
                                              self.par['tilts'], self.par['wavelengths'],
-                                             det=self.det, master_key=self.master_key_dict['arc'],
+                                             det=self.det, master_key=self.master_key_dict['tilt'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
                                              qa_path=self.qa_path, msbpm=self.msbpm)
@@ -831,7 +882,7 @@ class Calibrations(object):
             self.wt_maskslits = np.zeros_like(self.tslits_dict['maskslits'], dtype=bool)
 
         # Save & return
-        self._update_cache('arc', ('tilts_dict','wtmask'), (self.tilts_dict,self.wt_maskslits))
+        self._update_cache('tilt', ('tilts_dict','wtmask'), (self.tilts_dict,self.wt_maskslits))
         self.tslits_dict['maskslits'] += self.wt_maskslits
         return self.tilts_dict
 
@@ -915,6 +966,9 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bpm', 'bias', 'arc', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
+    # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
+    # Notes on order of steps if flexure compensation is implemented
+    #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 

@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Show a arc wavelength spectrum
+"""
+
+from pypeit.scripts import show_wvcalib
+
+if __name__ == '__main__':
+    args = show_wvcalib.parser()
+    show_wvcalib.main(args)

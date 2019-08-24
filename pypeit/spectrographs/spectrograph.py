@@ -36,17 +36,15 @@ from pkg_resources import resource_filename
 import numpy as np
 from astropy.io import fits
 
-from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.par import pypeitpar
-from pypeit.core import pixels
 from pypeit.metadata import PypeItMetaData
 
-from pypeit import debugger
+from IPython import embed
 
 class Spectrograph(object):
     """
@@ -73,8 +71,6 @@ class Spectrograph(object):
             An image identifying the amplifier that reads each detector pixel.
         oscansec_img (:obj:`numpy.ndarray`):
             An image identifying the amplifier that reads each detector pixel
-        bpm_img (:obj:`numpy.ndarray`):
-            The bad-pixel mask for the currently read detector.
     """
     __metaclass__ = ABCMeta
 
@@ -86,7 +82,6 @@ class Spectrograph(object):
 #        self.raw_naxis = None
         self.rawdatasec_img = None
         self.oscansec_img = None
-        self.bpm_img = None
 
         # Default time unit
         self.timeunit = 'mjd'
@@ -110,19 +105,32 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def nonlinear_counts(self, det=1):
+    def nonlinear_counts(self, det, datasec_img=None):
         """
         Return the counts at which the detector response becomes
         non-linear.
 
         Args:
-            det (:obj:`int`, optional):
+            det (:obj:`int`):
                 1-indexed detector number.
-        
+            datasec_img (np.ndarray, optional):
+                If provided, nonlinear_counts is returned as an image
+                WARNING:  THIS IS NOT YET IMPLEMENTED DOWNSTREAM,
+                  i.e. don't use this option
+
         Returns:
-            float: Counts at which detector response becomes nonlinear.
+            float or np.ndarray:
+                Counts at which detector response becomes nonlinear.
+                If datasec_img is provided, an image with the same shape
+                is returned with the gain accounted for
         """
-        return self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+        nonlinear_counts = self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+        # Generate an image, applying the gain?
+        if datasec_img is not None:
+            gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+            nonlinear_counts = nonlinear_counts * procimg.gain_frame(datasec_img, gain)
+        # Return
+        return nonlinear_counts
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -159,66 +167,6 @@ class Spectrograph(object):
             if not isinstance(d, pypeitpar.DetectorPar):
                 raise TypeError('Detector parameters must be specified using DetectorPar.')
 
-    def load_raw_frame(self, raw_file, det=1):
-        r"""
-        Load the image and header for an exposure taken with this
-        spectrograph.
-
-        The returned image follows the PypeIt convention, which is
-        always oriented with spectra along rows and with wavelengths and
-        echelle orders increasing with increasing pixel number.  The
-        shape of the returned array is :math:`(N_{\rm spec}, N_{\rm
-        spat})`.
-
-        The transpose and flip operations needed to convert the raw
-        image data read using `astropy.io.fits`_ into the PypeIt-format
-        `numpy.ndarray`_ is as follows::
-
-            - The orientation of the image in the file is expected to
-              follow the FITS convention.
-            - Because of different storage architecture, fits images
-              ready by `astropy.io.fits`_ have an automatically
-              transposed orientation.
-            - The image is then transposed again, if necessary according
-              to :attr:`detector[det-1]['specaxis']`, to ensure that
-              wavelengths are along rows.
-            - The image is then flipped along rows, if necessary
-              according to :attr:`detector[det-1]['specflip']`, to
-              ensure that wavelengths increase with increasing pixel
-              number.
-            - Finally, the image is flipped along columns, if necessary
-              according to :attr:`detector[det-1]['spatflip']`, to
-              ensure that echelle orders increase with increasing pixel
-              number.
-
-        Args:
-            raw_file (:obj:`str`):
-                File with the image data.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-
-        Returns:
-            Returns an `numpy.ndarray`_ with the image data and
-            `astropy.io.fits.HDUList`_ object with the image and header
-            data, respectively.  The image data is always returned with
-            floating-point type.
-        """
-        # Check the detector is defined
-        self._check_detector()
-
-        hdu = fits.open(raw_file)
-        raw_img = hdu[self.detector[det-1]['dataext']].data
-        '''
-        # Load the raw image
-        raw_img, hdu = self.load_raw_img_hdu(raw_file, dataext=self.detector[det-1]['dataext'],
-                                                det=det)
-        '''
-        # Turn to float
-        img = raw_img.astype(float)
-
-        # Return
-        return img, hdu
-
     def raw_is_transposed(self, det=1):
         """
         Indicates that raw files read by `astropy.io.fits`_ yields an
@@ -236,151 +184,7 @@ class Spectrograph(object):
         return self.detector[det-1]['specaxis'] == 1
 
     '''
-    def load_raw_img_hdu(self, raw_file, dataext=0, **null_kwargs):
-        """
-        Generic raw image reader
-
-        Args:
-            raw_file (:obj:`str`):
-                File to read.
-            dataext (:obj:`str`, :obj:`int`, optional):
-                Fits extension with the image data.
-            headext (:obj:`str`, :obj:`int`, optional):
-                Fits extension with the header data to return.
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            Returns an `numpy.ndarray`_ with the image data and
-            the `astropy.io.fits.HDUList`_ object with the image and HDU,
-            respectively.
-        """
-        # Open and go
-        hdu = fits.open(raw_file)
-        return hdu[dataext].data, hdu
-    '''
-
-    def get_image_section(self, inp=None, det=1, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        This default function of the base class tries to get the image
-        section in two ways, first by assuming the image section
-        defined by the detector is a header keyword, and then by just
-        assuming the detector provides the image section directly.
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
-        
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-            section (:obj:`str`, optional):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
-
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Check the section is one of the detector keywords
-        if section not in self.detector[det-1].keys():
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-        # Check the detector is defined
-        self._check_detector()
-
-        # Get the data section
-        try:
-            # Parse inp
-            if inp is None:
-                # Force the call to the except block
-                raise KeyError
-            elif isinstance(inp, str):
-                hdu = fits.open(inp)
-                hdr = hdu[self.detector[det-1]['dataext']].header
-            elif isinstance(inp, fits.Header):
-                hdr = inp
-            else:
-                msgs.error('Input must be a filename or a fits.Header object.')
-
-            # Try using the image sections as header keywords
-            image_sections = [ hdr[key] for key in self.detector[det-1][section] ]
-        except KeyError:
-            # Expect a KeyError to be thrown if the section defined by
-            # the detector attribute is actually the image section
-            # string itself
-            image_sections = self.detector[det-1][section]
-            if not isinstance(image_sections, list):
-                image_sections = [image_sections]
-
-        # Always assume normal FITS header formatting
-        one_indexed = True
-        include_last = True
-        #transpose = self.detector[det-1]['specaxis'] == 0
-
-        return image_sections, one_indexed, include_last#, transpose
-
-        # Re-order so that the section is always returned as
-        # (spec,spat).  NOTE: This is different from load_raw_frame
-        # because of the added flip performed by just reading the image
-        # data.
-        #if self.detector[det-1]['specaxis'] == 0:
-        #    image_sections = ['[{0}]'.format(','.join(s.strip('[]').split(',')[::-1]))
-        #                        for s in image_sections]
-        #
-        #return image_sections, one_indexed, include_last
-
-    def get_rawdatasec_img(self, filename, det, force=True):
-        """
-        Return the *raw* datasec image, i.e. in the load-from-disk orientation, etc.
-
-        Args:
-            filename:
-            det:
-            force:
-
-        Returns:
-
-        """
-        if self.rawdatasec_img is None or force:
-            return self.get_pixel_img(filename, 'datasec', det)
-        return self.rawdatasec_img
-
-    def get_oscansec_img(self, filename, det, force=True):
-        """
-        Generate the oscansec image
-
-        Args:
-            filename (str):
-                Filename
-            det (int):
-                Detector index
-            force (bool, optional):
-                Force the code to remake the image.
-                Might need to do this in cases where binning varies
-                between calibrations and science images.
-
-        Returns:
-
-        """
-        if self.oscansec_img is None or force:
-            return self.get_pixel_img(filename, 'oscansec', det)
-        return self.oscansec_img
-
+    # THIS WILL PROBABLY NEED TO COME BACK
     def get_datasec_img(self, filename, det):
         """
         Generate and return the datasec image in the PypeIt reference
@@ -396,105 +200,22 @@ class Spectrograph(object):
         dimg = self.orient_image(rdimg, det)
         # Return
         return dimg
+    '''
 
-    def get_pixel_img(self, filename, section, det):
+    def header_cards_for_spec(self):
         """
-        Create an image identifying the amplifier used to read each pixel.
-        This is in the *raw* data format
-
-        .. todo::
-            - I find 1-indexing to be highly annoying...
-            - Check for overlapping amplifiers?
-            - Consider renaming this datasec_ampid or something like
-              that.  I.e., the image's main purpose is to tell you where
-              the amplifiers are for the data section
-
-        Note on data format
-        --------------------
-         binning_pypeit = the binning  in the PypeIt convention of (spec, spat)
-         binning_raw = the binning in the format of the raw data.
-         In other words: PypeIt requires spec to be the first dimension of the image as read into python. If the
-         files are stored the other way with spat as the first dimension (as read into python), then the transpose
-         flag manages this, which is basically the value of the self.detector[det-1]['specaxis'] above.
-         (Note also that BTW the python convention of storing images is transposed relative to the fits convention
-         and the datasec typically written to headers. However this flip is dealt with explicitly in the
-         parse.spec2slice code and is NOT the transpose we are describing and flipping here).
-         TODO Add a blurb on the PypeIt data model.
-
-        Args:
-            filename (str):
-                Name of the file from which to read the image size.
-            section (str):  'datasec' or 'oscansec'
-            det (int):
-                Detector number (1-indexed)
+        Define the header cards to be written to spec1d (and maybe spec2d) files.
+        These refer to the keys in the fitstbl
 
         Returns:
-            `numpy.ndarray`: Integer array identifying the amplifier
-            used to read each pixel.
+            list: Keys for header cards of spec1d
+
         """
-        # Check the detector is defined
-        self._check_detector()
-        # Get the image shape
-        raw_naxis = self.get_raw_image_shape(filename, det=det)
-
-        binning_raw = self.get_meta_value(filename, 'binning')
-
-        data_sections, one_indexed, include_end \
-                    = self.get_image_section(filename, det, section=section)
-
-        # Initialize the image (0 means no amplifier)
-        pix_img = np.zeros(raw_naxis, dtype=int)
-        for i in range(self.detector[det-1]['numamplifiers']):
-            # Convert the data section from a string to a slice
-            datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-                                      include_end=include_end, require_dim=2,
-                                      binning=binning_raw) #transpose=transpose,
-            # Assign the amplifier
-            #self.datasec_img[datasec] = i+1
-            pix_img[datasec] = i+1
-
-        return pix_img
-
-    # TODO: There *has* to be a better way to do this.  We're reading a
-    # file just to get the size of the image, likely when the image has
-    # already been read (likely multiple times).
-    def get_raw_image_shape(self, filename, det=None, force=False):
-        """
-        Get the *untrimmed* shape of the image data for a given detector using a
-        file.  :attr:`detector` must be defined.
-
-        Fails if filename is None and the instance does not have a
-        predefined :attr:`naxis`.  If the filename is None, always
-        returns the predefined :attr:`naxis`.  If the filename is
-        provided, the header of the associated detector is used.  If the
-        the detector is set to None, the primary header of the file is
-        used.
-        
-        Args:
-            filename (:obj:`str`, optional):
-                Name of the fits file with the header to use.
-            det (:obj:`int`, optional):
-                1-indexed number of the detector.  Default is None.  If
-                None, the primary extension is used.  Otherwise the
-                internal detector parameters are used to determine the
-                extension to read.
-            force (:obj:`bool`, optional):
-                Force the image shape to be redetermined.
-            null_kwargs (dict):
-                Used to catch any extraneous keyword arguments.
-        
-        Returns:
-            tuple: Tuple of two integers with the length of each image
-            axes.
-
-        Raises:
-            ValueError:
-                Raised if the image shape cannot be determined from the
-                input and available attributes.
-        """
-        # Use a file
-        self._check_detector()
-        return (self.load_raw_frame(filename, det=det)[0]).shape
+        core_meta = PypeItMetaData.define_core_meta()
+        header_cards = list(core_meta.keys())
+        # Add a few more
+        header_cards += ['filename']  # For fluxing
+        return header_cards
 
     def orient_image(self, rawimage, det):
         """
@@ -522,7 +243,7 @@ class Spectrograph(object):
             image = np.flip(image, axis=1)
         return image
 
-    def empty_bpm(self, shape=None, filename=None, det=1):
+    def empty_bpm(self, filename, det, shape=None):
         """
         Generate a generic (empty) bad-pixel mask.
 
@@ -532,27 +253,40 @@ class Spectrograph(object):
         provided.
 
         Args:
-            shape (:obj:`tuple`, optional):
-                The shape for the returned mask.
-            filename (:obj:`str`, optional):
+            filename (:obj:`str` or None):
                 An example file to use to get the image shape.
-            det (:obj:`int`, optional):
+                If None, shape must be provided
+            det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
+            to 1 and an unmasked value set to 0.  All values are set to 0.
         """
-        if shape is None and filename is None:
-            msgs.error('Must provide either shape or filename.')
-        _shape = self.get_raw_image_shape(filename, det=det) if shape is None else shape
-        # TODO: Why are we saving this to self?
-        self.bpm_img = np.zeros(_shape, dtype=np.int8)
-        return self.bpm_img
+        # Load the raw frame
+        if filename is not None:
+            _, _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
+            # Trim + reorient
+            trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
+            orient = self.orient_image(trim, det)
+            #
+            shape = orient.shape
+        else: # This is risky if you don't really know what you are doing!
+            if shape is None:
+                msgs.error("Must specify shape if filename is None")
 
-    def bpm(self, shape=None, filename=None, det=1):
+        # Generate
+        bpm_img = np.zeros(shape, dtype=np.int8)
+
+        # Return
+        return bpm_img
+
+    def bpm(self, filename, det, shape=None):
         """
         Generate a default bad-pixel mask.
 
@@ -564,20 +298,22 @@ class Spectrograph(object):
         provided.
 
         Args:
-            shape (:obj:`tuple`, optional):
-                The shape for the returned mask.
-            filename (:obj:`str`, optional):
+            filename (:obj:`str` or None):
                 An example file to use to get the image shape.
-            det (:obj:`int`, optional):
+            det (:obj:`int`):
                 1-indexed detector number to use when getting the image
                 shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        return self.empty_bpm(shape=shape, filename=filename, det=det)
+        return self.empty_bpm(filename, det, shape=shape)
 
     def configuration_keys(self):
         """
@@ -643,16 +379,82 @@ class Spectrograph(object):
         """
         self.meta = {}
 
-    # TODO: Change this so that it uses one argument for ifile or
-    # headarray? ala, get_image_section, etc?
-    def get_meta_value(self, ifile, meta_key, headarr=None, required=False, ignore_bad_header=False,
-                       usr_row=None):
+    def get_rawimage(self, raw_file, det):
+        """
+        Load up the raw image and generate a few other bits and pieces
+        that are key for image processing
+
+        Args:
+            raw_file (str):
+            det (int):
+
+        Returns:
+            tuple:
+                raw_img (np.ndarray) -- Raw image for this detector
+                hdu (astropy.io.fits.HDUList)
+                exptime (float)
+                rawdatasec_img (np.ndarray)
+                oscansec_img (np.ndarray)
+
+        """
+        # Raw image
+        hdu = fits.open(raw_file)
+        raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
+
+        # Extras
+        headarr = self.get_headarr(hdu)
+
+        # Exposure time (used by ProcessRawImage)
+        exptime = self.get_meta_value(headarr, 'exptime')
+
+        # Rawdatasec, oscansec images
+        binning = self.get_meta_value(headarr, 'binning')
+        if self.detector[det - 1]['specaxis'] == 1:
+            binning_raw = (',').join(binning.split(',')[::-1])
+        else:
+            binning_raw = binning
+
+        for section in ['datasec', 'oscansec']:
+
+            # Get the data section
+            # Try using the image sections as header keywords
+            # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
+            #  Code like the following maybe useful
+            #hdr = hdu[self.detector[det - 1]['dataext']].header
+            #image_sections = [hdr[key] for key in self.detector[det - 1][section]]
+            # Grab from DetectorPar in the Spectrograph class
+            image_sections = self.detector[det-1][section]
+            if not isinstance(image_sections, list):
+                image_sections = [image_sections]
+            # Always assume normal FITS header formatting
+            one_indexed = True
+            include_last = True
+
+            # Initialize the image (0 means no amplifier)
+            pix_img = np.zeros(raw_img.shape, dtype=int)
+            for i in range(self.detector[det-1]['numamplifiers']):
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(image_sections[i], one_indexed=one_indexed,
+                                          include_end=include_last, require_dim=2,
+                                          binning=binning_raw)
+                # Assign the amplifier
+                pix_img[datasec] = i+1
+            # Finish
+            if section == 'datasec':
+                rawdatasec_img = pix_img.copy()
+            else:
+                oscansec_img = pix_img.copy()
+
+        # Return
+        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
         Return meta data from a given file (or its array of headers)
 
         Args:
-            ifile: str or None
-              Input filename
+            inp (str or list):
+              Input filename or headarr list
             meta_key: str or list of str
             headarr: list, optional
               List of headers
@@ -667,14 +469,16 @@ class Spectrograph(object):
             value: value or list of values
 
         """
-        if headarr is None:
-            headarr = self.get_headarr(ifile)
+        if isinstance(inp, str):
+            headarr = self.get_headarr(inp)
+        else:
+            headarr = inp
 
         # Loop?
         if isinstance(meta_key, list):
             values = []
             for mdict in meta_key:
-                values.append(self.get_meta_value(mdict, headarr=headarr, required=required))
+                values.append(self.get_meta_value(headarr, mdict, required=required))
             #
             return values
 
@@ -718,8 +522,8 @@ class Spectrograph(object):
                     if kerror:
                         msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
                 else:
-                    msgs.warn("Required card {:s} missing from your header of {:s}.  Proceeding with risk..".format(
-                        self.meta[meta_key]['card'], ifile))
+                    msgs.warn("Required card {:s} missing from your header.  Proceeding with risk..".format(
+                        self.meta[meta_key]['card']))
             return None
 
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
@@ -762,13 +566,13 @@ class Spectrograph(object):
             if key not in self.meta_data_model.keys():
                 msgs.error("Meta data {:s} not in meta_data_model".format(key))
 
-    def get_headarr(self, filename, strict=True):
+    def get_headarr(self, inp, strict=True):
         """
         Read the header data from all the extensions in the file.
 
         Args:
-            filename (:obj:`str`):
-                Name of the file to read.
+            inp (:obj:`str` or hdulist):
+                Name of the file to read or the hdulist
             strict (:obj:`bool`, optional):
                 Function will fault if :func:`fits.getheader` fails to
                 read any of the headers.  Set to False to report a
@@ -780,19 +584,19 @@ class Spectrograph(object):
         """
         # Faster to open the whole file and then assign the headers,
         # particularly for gzipped files (e.g., DEIMOS)
-        try:
-            hdu = fits.open(filename)
-        except:
-            if strict:
-                msgs.error('Problem opening {0}.'.format(filename))
-            else:
-                msgs.warn('Problem opening {0}.'.format(filename) + msgs.newline()
-                          + 'Proceeding, but should consider removing this file!')
-                return ['None']*self.numhead
-        return [ hdu[k].header for k in range(self.numhead) ]
-
-#    def get_match_criteria(self):
-#        msgs.error("You need match criteria for your spectrograph.")
+        if isinstance(inp, str):
+            try:
+                hdu = fits.open(inp)
+            except:
+                if strict:
+                    msgs.error('Problem opening {0}.'.format(inp))
+                else:
+                    msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
+                              + 'Proceeding, but should consider removing this file!')
+                    return ['None']*self.numhead
+        else:
+            hdu = inp
+        return [hdu[k].header for k in range(self.numhead)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
@@ -814,89 +618,10 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
-#    def parse_binning(self, inp, det=1, key='BINNING'):
-#        """
-#        Get the pixel binning for an image.
-#
-#        Args:
-#            inp (:obj:`str`, `astropy.io.fits.Header`):
-#                String providing the file name to read, or the relevant
-#                header object.
-#            det (:obj:`int`, optional):
-#                1-indexed detector number.
-#            key (:obj:`str`, optional):
-#                Header key with the binning.  This is included as an
-#                argument in the base-class implementation so that it can
-#                be called by the derived classes for most cases, when
-#                the binning is in a single keyword.
-#
-#        Returns:
-#            str: String representation of the binning.  The ordering is
-#            as provided in the header, regardless of which axis is
-#            designated as the dispersion axis.  It is expected that this
-#            be used with :func:`pypeit.core.parse.sec2slice` to setup
-#            the data and overscane sections of the image data.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if `inp` is not one of the accepted types.
-#        """
-#        # Get the header
-#        # TODO: Read primary header by default instead?
-#        if isinstance(inp, str):
-#            hdu = fits.open(inp)
-#            hdr = hdu[self.detector[det-1]['dataext']].header
-#        elif isinstance(inp, fits.Header):
-#            hdr = inp
-#        else:
-#            msgs.error('Input must be a filename or fits.Header object')
-#
-#        # Parse the keyword
-#        binning = parse.parse_binning(hdr[key])
-#
-#        # Return comma-separated string
-#        return ','.join([ str(b) for b in binning])
-
     @property
     def ndet(self):
         """Return the number of detectors."""
         return 0 if self.detector is None else len(self.detector)
-
-    '''
-    def archive_sky_spectrum(self):
-        """
-        Load an archived sky spectrum based on :attr:`sky_file`.
-        
-        Returns:
-            str, :class:`linetools.xspectrum1d.XSpectrum1D`: The name of
-            the file and the instance of :class:`XSpectrum1D` with the
-            spectrum data.
-
-        Raises:
-            FileNotFoundError:
-                Raised if the file does not exist as written or in the
-                pypeit/data/sky_spec/ directory in the source
-                distribution.
-        """
-        # No file was defined
-        if self.sky_file is None:
-            self.sky_file = Spectrograph.default_sky_spectrum()
-            warnings.warn('Using default sky spectrum: {0}'.format(self.sky_file))
-
-        if os.path.isfile(self.sky_file):
-            # Found directly
-            return self.sky_file, xspectrum1d.XSpectrum1D.from_file(self.sky_file)
-
-        root = resource_filename('pypeit', 'data/sky_spec/')
-        _sky_file = os.path.join(root, self.sky_file)
-        if os.path.isfile(_sky_file):
-            # Found within the source distribution
-            return self.sky_file, xspectrum1d.XSpectrum1D.from_file(_sky_file)
-
-        # File could not be read
-        raise FileNotFoundError('Could not find archive sky spectrum: {0} or {1}'.format(
-                                    self.sky_file, _sky_file))
-    '''
 
     @property
     def pypeline(self):
@@ -949,34 +674,6 @@ class Spectrograph(object):
         return spec_min, spec_max
 
 
-    def slitmask(self, tslits_dict, pad = None):
-        """
-         Generic routine to construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'],tslits_dict['rcen'],tslits_dict['nspat'], pad=pad)
-        return slitmask
-
     def order_platescale(self, order_vec, binning=None):
         """
         This routine is only for echelle spectrographs. It returns the plate scale order by order
@@ -1004,25 +701,25 @@ class Spectrograph(object):
         """
         order_vec = np.zeros(slit_spat_pos.size, dtype=int)
         for kk, ipos in enumerate(slit_spat_pos):
-            order_vec[kk] = self.slit2order(ipos)
+            order_vec[kk], indx= self.slit2order(ipos)
         # Return
         return order_vec
 
-
-    def slit2order(self, slit_pos):
-        """
-        This routine is only for echelle spectrographs.
-        It returns the order of the input slit
-
-        Args:
-            slit_pos (float):
-
-        Returns:
-            int: Echelle order number
-
-        """
+    @property
+    def norders(self):
         pass
 
+    @property
+    def order_spat_pos(self):
+        pass
+
+    @property
+    def orders(self):
+        pass
+
+    @property
+    def spec_min_max(self):
+        return None
 
     @property
     def dloglam(self):
@@ -1031,6 +728,66 @@ class Spectrograph(object):
     @property
     def loglam_minmax(self):
         pass
+
+    def slit2order(self, slit_spat_pos):
+        """
+        This routine is only for fixed-format echelle spectrographs.
+        It returns the order of the input slit based on its slit_pos
+
+        Args:
+            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+
+        Returns:
+            order, indx
+
+            order (int): order number
+            indx  (int): order index
+
+        """
+        indx = np.arange(self.norders)
+        # Find closest
+        try:
+            iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
+        except TypeError:
+            iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
+
+        # Check
+        if np.any(np.abs(self.order_spat_pos[iorder] - slit_spat_pos) > 0.05):
+            msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
+                      "Returning order vector with the same number of orders you requested")
+            iorder = np.arange(slit_spat_pos.size)
+            return self.orders[iorder], indx[iorder]
+        else:
+            return self.orders[iorder], indx[iorder]
+
+
+    def slit_minmax(self, slit_spat_pos, binspectral=1):
+        """
+
+        Args:
+            slit_spat_pos (float or ndarray):
+                normalized slit_spatial position as computed by trace_slits.slit_spat_pos
+            binspectral (int): default=1
+               spectral binning
+
+        Returns:
+
+        """
+
+        if self.spec_min_max is None:
+            try:
+                nslit = len(slit_spat_pos)
+            except TypeError:
+                nslit = 1
+            return np.vstack((np.asarray([-np.inf]*nslit), np.asarray([np.inf]*nslit)))
+
+        else:
+            try:
+                iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
+            except TypeError:
+                iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
+            return self.spec_min_max[:, iorder]/binspectral
+
 
     def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
         """

@@ -686,7 +686,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
         this_det_arxiv = det_arxiv[str(iarxiv)]
         # Match the peaks between the two spectra. This code attempts to compute the stretch if cc > cc_thresh
         success, shift_vec[iarxiv], stretch_vec[iarxiv], ccorr_vec[iarxiv], _, _ = \
-            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv], cc_thresh=cc_thresh, fwhm = fwhm, seed = random_state,
+            wvutils.xcorr_shift_stretch(spec_cont_sub, spec_arxiv[:, iarxiv],
+                                        cc_thresh=cc_thresh, fwhm=fwhm, seed=random_state,
                                         debug=debug_xcorr)
         # If cc < cc_thresh or if this optimization failed, don't reidentify from this arxiv spectrum
         if success != 1:
@@ -880,7 +881,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             wvcalib[str(slit)] = None
             continue
         msgs.info("Processing slit {}".format(slit))
-        #
+        # Grab the observed arc spectrum
         ispec = spec[:,slit]
 
         # Find the shift
@@ -890,18 +891,22 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         nspec = len(ispec)
         npad = ncomb - nspec
         pspec[npad // 2:npad // 2 + len(ispec)] = ispec
+        # Remove the continuum
+        _, _, _, _, pspec_cont_sub = wvutils.arc_lines_from_spec(pspec)
+        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec_cont_sub, debug=debug, percent_ceil=x_percentile)
+        #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
             xvals = np.arange(ncomb)
             plt.clf()
             ax = plt.gca()
             #
-            ax.plot(xvals, temp_spec)
-            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')
+            ax.plot(xvals, temp_spec)  # Template
+            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')  # Input
             plt.show()
-            debugger.set_trace()
+            embed(header='909 autoid')
         i0 = npad // 2 + int(shift_cc)
 
         # Generate the template snippet
@@ -927,11 +932,11 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             mwvsnippet = mwv[i0:i1]
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
-                                                                     line_lists, 1, debug_xcorr=False,
-                                                                     nonlinear_counts=par['nonlinear_counts'],
-                                                                     debug_reid=False,  # verbose=True,
-                                                                     match_toler=par['match_toler'],
-                                                                     cc_thresh=0.1, fwhm=par['fwhm'])
+                                                              line_lists, 1, debug_xcorr=False,
+                                                              nonlinear_counts=par['nonlinear_counts'],
+                                                              debug_reid=False,  # verbose=True,
+                                                              match_toler=par['match_toler'],
+                                                              cc_thresh=0.1, fwhm=par['fwhm'])
             # Deal with IDs
             sv_det.append(i0 + detections)
             try:
@@ -1174,7 +1179,7 @@ class ArchiveReid:
             # we only pass in the relevant arxiv spectrum to make this much faster
             if self.ech_fix_format:
                 # Grab the order (could have been input)
-                order = self.spectrograph.slit2order(slit_spat_pos[slit])
+                order, indx = self.spectrograph.slit2order(slit_spat_pos[slit])
                 # Find it
                 ind_sp = arxiv_orders.index(order)
             else:

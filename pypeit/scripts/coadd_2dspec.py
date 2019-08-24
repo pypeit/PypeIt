@@ -17,6 +17,7 @@ from pypeit import par, msgs
 from pypeit.core import coadd2d
 from pypeit.core import save
 from pypeit.spectrographs.util import load_spectrograph
+from IPython import embed
 
 # TODO: We need an 'io' module where we can put functions like this...
 def read_coadd2d_file(ifile):
@@ -57,9 +58,9 @@ def read_coadd2d_file(ifile):
         prs = line.split(' ')
         # TODO: This needs to allow for the science directory to be
         # defined by the user.
-        spec2d_files.append(os.path.join('Science/', os.path.basename(prs[0])))
+        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
+        spec2d_files.append(prs[0])
     is_config[s-1:e+1] = False
-
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
     cfg = ConfigObj(cfg_lines)
@@ -73,13 +74,13 @@ def read_coadd2d_file(ifile):
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
-    parser.add_argument('--det', default=1, type=int, help="Only coadd this detector number")
+    parser.add_argument('--det', default=None, type=int, help="Only coadd this detector number")
     parser.add_argument("--obj", type=str, default=None,
                         help="Object name in lieu of extension, e.g if the spec2d files are named "
                              "'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits. then obj=J1234+5678")
-    parser.add_argument("--std", default=False, action="store_true",
-                        help="This is a standard star reduction.")
     parser.add_argument("--show", default=False, action="store_true",
+                        help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
+    parser.add_argument("--debug_offsets", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
@@ -88,13 +89,22 @@ def parser(options=None):
                                                                      "or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
+    # TODO implement an option to only do certian slits
+    #parser.add_argument("--only_slits", type=list, default=None, help="Only coadd the following slits")
+
+    #parser.add_argument("--wave_method", type=str, default=None, help="Wavelength method for wavelength grid. If not set, code will use"
+    #                                                                  "linear for Multislit and log10 for Echelle")
+    #parser.add_argument("--std", default=False, action="store_true",
+    #                    help="This is a standard star reduction.")
+
+
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
     """ Executes 2d coadding
     """
-
+    msgs.warn('PATH =' + os.getcwd())
     # Load the file
     if args.file is not None:
         spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.file)
@@ -103,7 +113,7 @@ def main(args):
         # the PypeIt run that extracted the objects?  Why are we not
         # just passing the pypeit file?
         spectrograph_def_par = spectrograph.default_pypeit_par()
-        par = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=config_lines)
     elif args.obj is not None:
         # TODO: This needs to define the science path
@@ -111,14 +121,14 @@ def main(args):
         head0 = fits.getheader(spec2d_files[0])
         spectrograph_name = head0['SPECTROG']
         spectrograph = load_spectrograph(spectrograph_name)
-        par = spectrograph.default_pypeit_par()
+        parset = spectrograph.default_pypeit_par()
     else:
         msgs.error('You must either input a coadd2d file with --file or an object name with --obj')
 
     # If detector was passed as an argument override whatever was in the coadd2d_file
     if args.det is not None:
         msgs.info("Restricting reductions to detector={}".format(args.det))
-        par['rdx']['detnum'] = int(args.det)
+        parset['rdx']['detnum'] = int(args.det)
 
     # Get headers and base names
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
@@ -133,7 +143,7 @@ def main(args):
     # Write the par to disk
     par_outfile = basename+'_coadd2d.par'
     print("Writing the parameters to {}".format(par_outfile))
-    par.to_config(par_outfile)
+    parset.to_config(par_outfile)
 
     # Now run the coadds
 
@@ -165,25 +175,31 @@ def main(args):
     sci_dict['meta']['ir_redux'] = ir_redux
 
     # Find the detectors to reduce
-    detectors = PypeIt.select_detectors(detnum=par['rdx']['detnum'], ndet=spectrograph.ndet)
+    detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
     if len(detectors) != spectrograph.ndet:
         msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
-        set(np.arange(spectrograph.ndet)) - set(detectors)])))
+        set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
 
     # Loop on detectors
     for det in detectors:
         msgs.info("Working on detector {0}".format(det))
         sci_dict[det] = {}
 
-        # Read in the images stacks and other clibration/meta data for this detector
-        stack_dict = coadd2d.load_coadd2d_stacks(spec2d_files, det)
+        # Instantiate Coadd2d
+        coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det, offsets=None, par=parset,
+                                         ir_redux=ir_redux, debug_offsets=args.debug_offsets, debug=args.debug,
+                                         samp_fact=args.samp_fact)
 
-        sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
-                sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
-                sci_dict[det]['specobjs'] \
-                        = coadd2d.extract_coadd2d(stack_dict, master_dir, det, ir_redux=ir_redux,
-                                                  par=par, show=args.show, show_peaks=args.peaks,
-                                                  std=args.std, samp_fact=args.samp_fact)
+        # Coadd the slits
+        coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
+        # Create the psuedo images
+        psuedo_dict = coadd.create_psuedo_image(coadd_dict_list)
+        # Reduce
+        sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
+        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
+            psuedo_dict, show = args.show, show_peaks = args.peaks)
+        # Save psuedo image master files
+        coadd.save_masters(master_dir)
 
     # Make the new Science dir
     # TODO: This needs to be defined by the user
@@ -193,6 +209,8 @@ def main(args):
         os.makedirs(scipath)
 
     # Save the results
-    save.save_all(sci_dict, stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
-                  head2d, scipath, basename)
+    save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
+                  head2d, scipath, basename, binning=coadd.binning)
+
+
 

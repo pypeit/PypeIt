@@ -17,8 +17,8 @@ from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit.core import trace_slits
 from pypeit.images import calibrationimage
+from IPython import embed
 
-from pypeit import debugger
 
 class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
@@ -142,9 +142,12 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if self.rawflatimg is None or force:
             # Process steps
             self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
+            ## JFH We never need untrimmed images. Why is this even an option?
             if trim:
                 self.process_steps += ['trim']
-            self.process_steps += ['apply_gain']
+            # JFH I'm commenting out apply gain, since the flat field routines expect images in ADU for the nonlinear_counts,
+            # but we need to transition everything to counts.
+            #self.process_steps += ['apply_gain']
             self.process_steps += ['orient']
             self.steps.append(inspect.stack()[0][3])
             # Do it

@@ -12,17 +12,13 @@ from astropy import units
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.core import flux
+from pypeit.core import flux_calib
 from pypeit.core import load
 from pypeit.core import save
-from pypeit import utils
-from pypeit import masterframe
 from pypeit import specobjs
-
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.par.pypeitpar import TelescopePar
-
 from pypeit import debugger
+
+from IPython import embed
 
 class FluxSpec(object):
     """Class to guide fluxing
@@ -74,7 +70,7 @@ class FluxSpec(object):
         self.par = par
 
         # Get the extinction data
-        self.extinction_data = flux.load_extinction_data(
+        self.extinction_data = flux_calib.load_extinction_data(
                 self.spectrograph.telescope['longitude'], self.spectrograph.telescope['latitude'])
 
         # Parameters
@@ -160,7 +156,7 @@ class FluxSpec(object):
                 stds = [sobj for sobj in self.std_specobjs if sobj.det == det]
                 if len(stds) == 0:
                     debugger.set_trace()
-                idx = flux.find_standard(stds)
+                idx = flux_calib.find_standard(stds)
                 sv_stds.append(stds[idx])
                 msgs.info("Using standard {} for det={}".format(stds[idx], det))
 
@@ -180,7 +176,7 @@ class FluxSpec(object):
             self.std = std_splice
         elif self.spectrograph.pypeline == 'Echelle':
             # Find brightest object in each order
-            std_brightest = self.std_specobjs[flux.find_standard(self.std_specobjs)]
+            std_brightest = self.std_specobjs[flux_calib.find_standard(self.std_specobjs)]
             std_objid = std_brightest['idx'].split('-')[0]
             self.std_idx = np.zeros(len(self.std_specobjs), dtype=bool)
             for ii in range(len(self.std_specobjs)):
@@ -195,7 +191,7 @@ class FluxSpec(object):
         else:
             # Find brightest object in the exposures
             # Searches over all slits (over all detectors), and all objects
-            self.std_idx = flux.find_standard(self.std_specobjs)
+            self.std_idx = flux_calib.find_standard(self.std_specobjs)
             # Set internal
             self.std = self.std_specobjs[self.std_idx]
             # Step
@@ -283,7 +279,14 @@ class FluxSpec(object):
         #mag_func = utils.func_val(self.sens_dict['c'], wave, self.sens_dict['func'])
         #sens = 10.0**(0.4*mag_func)
         # Plot
-        debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
+        if self.spectrograph.pypeline == 'Echelle':
+            for iord in range(len(self.std)):
+                sord = str(iord)
+                debugger.plot1d(self.sens_dict[sord]['wave'],
+                                self.sens_dict[sord]['sensfunc'],
+                                xlbl='Wavelength', ylbl='Sensitivity Function')
+        else:
+            debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):
         """
@@ -361,23 +364,24 @@ class MultiSlit(FluxSpec):
             return None
 
         self.sens_dict = {}
-        try:
-            this_wave = self.std.optimal['WAVE_GRID']
-        except KeyError:
-            this_wave = self.std.optimal['WAVE']
-        sens_dict_long = flux.generate_sensfunc(this_wave,
-                                               self.std.optimal['COUNTS'],
-                                               self.std.optimal['COUNTS_IVAR'],
-                                               self.std_header['AIRMASS'],
-                                               self.std_header['EXPTIME'],
-                                               self.spectrograph.telescope['longitude'],
-                                               self.spectrograph.telescope['latitude'],
-                                               BALM_MASK_WID=self.par['balm_mask_wid'],
-                                               telluric=self.telluric,
-                                               ra=self.std_ra,
-                                               dec=self.std_dec,
-                                               std_file = self.std_file,
-                                               debug=self.debug)
+        this_wave = self.std.optimal['WAVE']
+        sens_dict_long = flux_calib.generate_sensfunc(this_wave,
+                                                      self.std.optimal['COUNTS'],
+                                                      self.std.optimal['COUNTS_IVAR'],
+                                                      self.std_header['AIRMASS'],
+                                                      self.std_header['EXPTIME'],
+                                                      self.spectrograph.telescope['longitude'],
+                                                      self.spectrograph.telescope['latitude'],
+                                                      BALM_MASK_WID=self.par['balm_mask_wid'],
+                                                      star_type=self.star_type,
+                                                      star_mag=self.star_mag,
+                                                      telluric=self.telluric,
+                                                      ra=self.std_ra,
+                                                      dec=self.std_dec,
+                                                      std_file = self.std_file,
+                                                      poly_norder=self.poly_norder,
+                                                      polycorrect=self.polycorrect,
+                                                      debug=self.debug)
         self.sens_dict['0'] = sens_dict_long
         self.sens_dict['nslits'] = 1
 
@@ -400,11 +404,11 @@ class MultiSlit(FluxSpec):
         self.load_objs(sci_file, std=False)
         # Run
         for sci_obj in self.sci_specobjs:
-            flux.apply_sensfunc(sci_obj, self.sens_dict['0'], self.sci_header['AIRMASS'],
-                                self.sci_header['EXPTIME'], telluric_correct=self.par['telluric_correct'],
-                                extinct_correct=self.par['extinct_correct'],
-                                longitude=self.spectrograph.telescope['longitude'],
-                                latitude=self.spectrograph.telescope['latitude'])
+            flux_calib.apply_standard_sens(sci_obj, self.sens_dict['0'], self.sci_header['AIRMASS'],
+                                           self.sci_header['EXPTIME'], telluric_correct=self.par['telluric_correct'],
+                                           extinct_correct=self.par['extinct_correct'],
+                                           longitude=self.spectrograph.telescope['longitude'],
+                                           latitude=self.spectrograph.telescope['latitude'])
         self.steps.append(inspect.stack()[0][3])
 
 
@@ -417,7 +421,7 @@ class Echelle(FluxSpec):
         super(Echelle, self).__init__(spectrograph, par, **kwargs)
 
         # Echelle key
-        # TODO add these to the parameters to the parset or try to get rid of these parameters in flux.py
+        # TODO add these to the parameters to the parset or try to get rid of these parameters in flux_calib.py
         self.resolution = 3000. #par['resolution']
         self.nresln = 10.0 #par['nresln']
 
@@ -443,14 +447,16 @@ class Echelle(FluxSpec):
                       'AIRMASS, EXPTIME.')
             return None
 
-        ext_final = fits.getheader(self.par['std_file'], -1)
-        norder = ext_final['ECHORDER'] + 1
+        norder = len(self.std)
 
         self.sens_dict = {}
         for iord in range(norder):
-            std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
-            std_idx = flux.find_standard(std_specobjs)
-            std = std_specobjs[std_idx]
+            #std_specobjs, std_header = load.load_specobjs(self.par['std_file'], order=iord)
+            #embed(header='447 of fluxspec')
+            #std_idx = flux.find_standard(std_specobjs)
+            std = self.std[iord] #std_specobjs[std_idx]
+
+            # THIS IS A CRAZY KLUDGE....
             try:
                 wavemask = std.optimal['WAVE_GRID'] > 0.0 #*units.AA
             except KeyError:
@@ -460,18 +466,18 @@ class Echelle(FluxSpec):
                 this_wave = std.optimal['WAVE_GRID'][wavemask]
 
             counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
-            sens_dict_iord = flux.generate_sensfunc(this_wave, counts, ivar,
-                                                    float(self.std_header['AIRMASS']),
-                                                    self.std_header['EXPTIME'],
-                                                    self.spectrograph.telescope['longitude'],
-                                                    self.spectrograph.telescope['latitude'],
-                                                    star_type=self.star_type,
-                                                    star_mag=self.star_mag,
-                                                    telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
-                                                    resolution=self.resolution,
-                                                    BALM_MASK_WID=self.BALM_MASK_WID, std_file=self.std_file,
-                                                    poly_norder=self.poly_norder,
-                                                    polycorrect=self.polycorrect, debug=self.debug)
+            sens_dict_iord = flux_calib.generate_sensfunc(this_wave, counts, ivar,
+                                                          float(self.std_header['AIRMASS']),
+                                                          self.std_header['EXPTIME'],
+                                                          self.spectrograph.telescope['longitude'],
+                                                          self.spectrograph.telescope['latitude'],
+                                                          star_type=self.star_type,
+                                                          star_mag=self.star_mag,
+                                                          telluric=self.telluric, ra=self.std_ra, dec=self.std_dec,
+                                                          resolution=self.resolution,
+                                                          BALM_MASK_WID=self.BALM_MASK_WID, std_file=self.std_file,
+                                                          poly_norder=self.poly_norder,
+                                                          polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
             self.sens_dict[str(iord)] = sens_dict_iord
         ## add some keys to be saved into primary header in masterframe
@@ -508,10 +514,10 @@ class Echelle(FluxSpec):
             sens_dict_iord = self.sens_dict[str(iord)]
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
-                    flux.apply_sensfunc(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
-                                        self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
-                                        longitude=self.spectrograph.telescope['longitude'],
-                                        latitude=self.spectrograph.telescope['latitude'])
+                    flux_calib.apply_standard_sens(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
+                                                   self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
+                                                   longitude=self.spectrograph.telescope['longitude'],
+                                                   latitude=self.spectrograph.telescope['latitude'])
 
         self.steps.append(inspect.stack()[0][3])
 

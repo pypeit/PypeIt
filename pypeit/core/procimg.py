@@ -237,38 +237,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-'''
-def gain_frame(datasec_img, gain_list, trim=True):
-    """ Generate a gain image
-
-    Parameters
-    ----------
-    datasec_img : ndarray
-    namp : int
-    gain_list : list
-    # TODO need to beef up the docs here
-
-    Returns
-    -------
-    gain_img : ndarray
-
-    """
-    # TODO: Remove this or actually do it
-    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
-
-    # Loop on amplifiers
-    gain_img = np.zeros_like(datasec_img, dtype=float)
-    for ii, gain in enumerate(gain_list):
-        amp = ii+1
-        amppix = datasec_img == amp
-        gain_img[amppix] = gain
-    if trim:
-        gain_img = trim_frame(gain_img, datasec_img < 1)
-    # Return
-    return gain_img
-'''
-
-def gain_frame(amp_img, gain, trim=True):
+def gain_frame(amp_img, gain):
     """
     Generate an image with the gain for each pixel.
 
@@ -279,14 +248,11 @@ def gain_frame(amp_img, gain, trim=True):
         gain (:obj:`list`):
             List of amplifier gain values.  Must be that the gain for
             amplifier 1 is provided by `gain[0]`, etc.
-        trim (:obj:`bool`, optional):
-            Trim the overscan section from the image.
 
     Returns:
         `numpy.ndarray`: Image with the gain for each pixel.
     """
-    # TODO: Remove this or actually do it.
-    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
+    #msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Build the gain image
     gain_img = np.zeros_like(amp_img, dtype=float)
@@ -294,7 +260,7 @@ def gain_frame(amp_img, gain, trim=True):
         gain_img[amp_img == i+1] = _gain
 
     # Return the image, trimming if requested
-    return trim_frame(gain_img, amp_img < 1) if trim else gain_img
+    return gain_img
 
 
 
@@ -359,7 +325,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     Subtract overscan
 
     Args:
-        frame (:obj:`numpy.ndarray`):
+        rawframe (:obj:`numpy.ndarray`):
             Frame from which to subtract overscan
         numamplifiers (int):
             Number of amplifiers for this detector.
@@ -731,6 +697,8 @@ def init_process_steps(bias, proc_par):
     Could include dark subtraction someday
 
     Args:
+        #TODO JFH Other means nothing. These docs need to be more clear. Apparently this needs to be either None
+        # or a string indicating the bias mode so why not just state that?
         bias (None or other):
         proc_par (ProcessImagesPar):
 
@@ -746,6 +714,7 @@ def init_process_steps(bias, proc_par):
     elif proc_par['bias'].lower() == 'force':
         if bias is None:
             msgs.error("Must provide bias frames!")
+        process_steps.append('subtract_bias')
     elif proc_par['bias'].lower() == 'skip':
         pass
     # Overscan

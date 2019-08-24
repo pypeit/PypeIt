@@ -16,14 +16,13 @@ from astropy import table, coordinates, time
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import framematch
-from pypeit.core import flux
+from pypeit.core import flux_calib
 from pypeit.core import parse
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
-
-from pypeit import debugger
+from IPython import embed
 
 # Initially tried to subclass this from astropy.table.Table, but that
 # proved too difficult.
@@ -150,6 +149,9 @@ class PypeItMetaData:
         Define the core set of meta data that must be defined
         to run PypeIt
 
+        Warning:  The keys should all be <= 8 length as they are
+        all written to the Header
+
         Each meta entry is a dict with keys
            dtype: str, float, int
            comment: str
@@ -180,6 +182,10 @@ class PypeItMetaData:
         core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
         core_meta['airmass'] = dict(dtype=float, comment='Airmass')
         core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+
+        # Test me
+        for key in core_meta.keys():
+            assert len(key) <= 8
 
         # Return
         return core_meta
@@ -285,13 +291,12 @@ class PypeItMetaData:
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
-                                                         required=strict, usr_row=usr_row,
+                value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 data[meta_key].append(value)
             msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
-        # JFH Changed the below to now crash if some files have None in their MJD. This is the desired behavior
+        # JFH Changed the below to not crash if some files have None in their MJD. This is the desired behavior
         # since if there are empty or corrupt files we still want this to run.
 
         # Validate, print out a warning if there is problem
@@ -1304,7 +1309,7 @@ class PypeItMetaData:
     
                 # If an object exists within 20 arcmins of a listed standard,
                 # then it is probably a standard star
-                foundstd = flux.find_standard_file(ra, dec, check=True)
+                foundstd = flux_calib.find_standard_file(ra, dec, check=True)
                 b = self.type_bitmask.turn_off(b, flag='science' if foundstd else 'standard')
     
         # Find the files without any types

@@ -1,7 +1,7 @@
-pypeit.processimages module
+pypeit.core.telluric module
 ===========================
 
-.. automodule:: pypeit.processimages
+.. automodule:: pypeit.core.telluric
     :members:
     :undoc-members:
     :show-inheritance:

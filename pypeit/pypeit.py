@@ -5,8 +5,6 @@ import time
 import os
 import numpy as np
 from collections import OrderedDict
-from configobj import ConfigObj
-
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
@@ -20,6 +18,9 @@ from pypeit.core import load
 from pypeit.core import pixels
 from pypeit.core import extract
 from pypeit.spectrographs.util import load_spectrograph
+from linetools import utils as ltu
+
+from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
@@ -108,7 +109,6 @@ class PypeIt(object):
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
         # --------------------------------------------------------------
-
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
@@ -581,6 +581,9 @@ class PypeIt(object):
                                            ir_redux = self.ir_redux,
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
+
+        if self.show:
+            self.redux.show('image', image=self.sciImg.image, chname='processed', slits=True,clear=True)
 
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)

@@ -43,7 +43,7 @@ def test_save2d_fits():
     fitstbl['filename'] = 'b1.fits.gz'
     # Settings
     #settings.argflag['run']['directory']['science'] = data_path('')
-    spectrograph = 'shane_kast_blue'
+    spectrograph = util.load_spectrograph('shane_kast_blue')
     # Fill with dummy images
     dum = np.ones((100,100))
     sci_dict = {}
@@ -61,7 +61,7 @@ def test_save2d_fits():
     path = fitstbl['directory'][scidx]
     ifile = fitstbl['filename'][scidx]
     rawfile = os.path.join(path, ifile)
-    master_dir = data_path('MF')+'_'+spectrograph
+    master_dir = data_path('MF')+'_'+'shane_kast_blue'
     outfile = data_path('') + 'spec2d_{:s}.fits'.format(basename)
     # Create a dummy master_key_dict
     master_key_dict = dict(frame='', bpm='bpmkey',bias='',arc='',trace='',flat='')
