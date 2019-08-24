@@ -193,8 +193,7 @@ class ProcessImagesPar(ParSet):
     def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
                  cr_reject=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
-                 cr_reject=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1699,7 +1698,7 @@ class ScienceImagePar(ParSet):
                  find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
                  find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, ech_find_max_snr=None,
                  ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 std_prof_nsigma=None, boxcar_only=False,
+                 std_prof_nsigma=None, boxcar_only=False, skip_second_find=None,
                  model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
@@ -1850,8 +1849,10 @@ class ScienceImagePar(ParSet):
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
-                   'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev', 'find_extrap_npoly',
-                   'ech_find_max_snr', 'ech_find_min_snr', 'ech_find_nabove_min_snr', 'std_prof_nsigma', 'sky_sigrej',
+                   'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev',
+                   'find_extrap_npoly',
+                   'ech_find_max_snr', 'ech_find_min_snr', 'ech_find_nabove_min_snr',
+                   'std_prof_nsigma', 'sky_sigrej',
                    'boxcar_only']
         kwargs = {}
         for pk in parkeys:
