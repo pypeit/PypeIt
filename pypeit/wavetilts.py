@@ -62,7 +62,10 @@ class WaveTilts(masterframe.MasterFrame):
           Tuple of tilts ndarray's
         final_tilts : ndarray
           Final tilts image
-
+        gpm (np.ndarray):
+            Good pixel mask
+            Eventually, we might attach this to self.msarc although that would then
+            require that we write it to disk with self.msarc.image
     """
     
     # Frametype is a class attribute
@@ -100,7 +103,7 @@ class WaveTilts(masterframe.MasterFrame):
         # the slits
         if self.tslits_dict is not None and self.msarc is not None:
             self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
-            inmask = (self.msbpm == 0) if self.msbpm is not None \
+            gpm = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
@@ -109,7 +112,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_righ'])
             self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.inmask = (arc.resize_mask2arc(self.shape_arc, inmask)) & (self.msarc.image < self.nonlinear_counts)
+            self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.msarc.image < self.nonlinear_counts)
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -119,7 +122,7 @@ class WaveTilts(masterframe.MasterFrame):
             self.slit_righ = None
             self.slitcen = None
             self.slitmask = None
-            self.inmask = None
+            self.gpm = None
         # --------------------------------------------------------------
 
         # Key Internals
@@ -134,23 +137,20 @@ class WaveTilts(masterframe.MasterFrame):
         self.fit_dict = None
         self.trace_dict = None
 
-    def extract_arcs(self, slitcen, slitmask, inmask):
+    def extract_arcs(self):
         """
         Extract the arcs down each slit/order
 
         Wrapper to arc.get_censpec()
 
         Args:
-            slitcen (ndarray): Image for tracing
-            slitmask (ndarray):
-            inmask (ndarray):
 
         Returns:
-            ndarray, ndarray:  Extracted arcs
+            np.ndarray, np.ndarray:  Extracted arcs
 
         """
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, self.msarc.image, gpm=inmask,
-                                               nonlinear_counts=self.nonlinear_counts)
+        arccen, arc_maskslit = arc.get_censpec(self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm)
+            #, nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
@@ -268,7 +268,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         trace_dict = tracewave.trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen,
-                                           inmask=self.inmask, fwhm=self.wavepar['fwhm'],
+                                           inmask=self.gpm, fwhm=self.wavepar['fwhm'],
                                            spat_order=self.par['spat_order'],
                                            maxdev_tracefit=self.par['maxdev_tracefit'],
                                            sigrej_trace=self.par['sigrej_trace'])
@@ -307,7 +307,7 @@ class WaveTilts(masterframe.MasterFrame):
             maskslits = np.zeros(self.nslits, dtype=bool)
 
         # Extract the arc spectra for all slits
-        self.arccen, self.arc_maskslit = self.extract_arcs(self.slitcen, self.slitmask, self.inmask)
+        self.arccen, self.arc_maskslit = self.extract_arcs()#self.slitcen, self.slitmask, self.inmask)
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)

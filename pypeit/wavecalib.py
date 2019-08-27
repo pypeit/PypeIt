@@ -57,6 +57,10 @@ class WaveCalib(masterframe.MasterFrame):
           Slits to ignore because they were not extracted
           WARNING: Outside of this Class, it is best to regenerate
           the mask using  make_maskslits()
+        gpm (np.ndarray):
+            Good pixel mask
+            Eventually, we might attach this to self.msarc although that would then
+            require that we write it to disk with self.msarc.image
     """
 
     # Frametype is a class attribute
@@ -104,7 +108,7 @@ class WaveCalib(masterframe.MasterFrame):
         # the slits
         if self.tslits_dict is not None and self.msarc is not None:
             self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
-            inmask = self.bpm == 0 if self.bpm is not None \
+            gpm = self.bpm == 0 if self.bpm is not None \
                                     else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
@@ -116,10 +120,11 @@ class WaveCalib(masterframe.MasterFrame):
             self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science,
                                                   self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.inmask = arc.resize_mask2arc(self.shape_arc, inmask)
-            # TODO: Remove the following two lines if deemed ok
+            self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
+            # We want even the saturated lines in full_template for the cross-correlation
+            #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
-                self.inmask &= self.msarc.image < self.nonlinear_counts
+                self.gpm &= self.msarc.image < self.nonlinear_counts
             self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
 
         else:
@@ -131,7 +136,7 @@ class WaveCalib(masterframe.MasterFrame):
             self.slit_righ = None
             self.slitcen = None
             self.slitmask = None
-            self.inmask = None
+            self.gpm = None
             self.nonlinear_counts = None
 
     def build_wv_calib(self, arccen, method, skip_QA=False):
@@ -283,17 +288,13 @@ class WaveCalib(masterframe.MasterFrame):
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
-    def extract_arcs(self, slitcen, slitmask, inmask):
+    def extract_arcs(self):
         """
         Extract the arcs down each slit/order
 
         Wrapper to arc.get_censpec()
 
         Args:
-            slitcen
-            slitmask (np.ndarray):
-            inmask (np.ndarray):
-                Mask of good pixels
 
         Returns:
             (self.arccen, self.arc_maskslit_
@@ -303,18 +304,10 @@ class WaveCalib(masterframe.MasterFrame):
               boolean array containing a mask indicating which slits are good
 
         """
-        # Full template kludge
-        if self.par['method'] == 'full_template':
-            nonlinear = 1e10
-        else:
-            nonlinear = self.nonlinear_counts
         # Do it
-        # TODO: Consider *not* passing in nonlinear_counts;  Probably
-        # should not mask saturated lines at this stage
-
         arccen, arc_maskslit = arc.get_censpec(
-            slitcen, slitmask, self.msarc.image,
-            gpm=inmask, nonlinear_counts=nonlinear)
+            self.slitcen, self.slitmask, self.msarc.image,
+            gpm=self.gpm)  #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
         # Step
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
@@ -436,7 +429,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        self.arccen, self.maskslits = self.extract_arcs(self.slitcen, self.slitmask, self.inmask)
+        self.arccen, self.maskslits = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)

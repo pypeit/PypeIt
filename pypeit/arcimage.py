@@ -73,7 +73,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
         self.process_steps += ['trim']
         self.process_steps += ['orient']
-        # NOT applying gain to deal 'properly' with saturation
+        self.process_steps += ['apply_gain']
 
     def save(self, outfile=None, overwrite=True):
         """

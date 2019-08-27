@@ -197,22 +197,30 @@ class ProcessRawImage(object):
             pypeitimage.PypeItImage:
 
         """
+        # For error checking
+        steps_copy = process_steps.copy()
         # Get started
         # Standard order
         #   -- May need to allow for other order some day..
         if 'subtract_overscan' in process_steps:
             self.subtract_overscan()
+            steps_copy.remove('subtract_overscan')
         if 'trim' in process_steps:
             self.trim()
+            steps_copy.remove('trim')
         if 'orient' in process_steps:
             self.orient()
+            steps_copy.remove('orient')
         if 'subtract_bias' in process_steps: # Bias frame, if it exists, is trimmed and oriented
             self.subtract_bias(bias)
+            steps_copy.remove('subtract_bias')
         if 'apply_gain' in process_steps:
             self.apply_gain()
+            steps_copy.remove('apply_gain')
         # Flat field
         if 'flatten' in process_steps:
             self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+            steps_copy.remove('flatten')
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
@@ -221,6 +229,7 @@ class ProcessRawImage(object):
         if 'extras' in process_steps:
             self.build_rn2img()
             self.build_ivar()
+            steps_copy.remove('extras')
 
         # Generate a PypeItImage
         pypeitImage = pypeitimage.PypeItImage(self.image, state=self.steps, binning=self.binning,
@@ -229,9 +238,12 @@ class ProcessRawImage(object):
         if 'crmask' in process_steps:
             pypeitImage.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image,
                                      utils.inverse(pypeitImage.ivar))
+            steps_copy.remove('crmask')
         pypeitImage.build_mask(pypeitImage.image, pypeitImage.ivar,
                                saturation=self.spectrograph.detector[self.det-1]['saturation'],
                                mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
+        # Error checking
+        assert len(steps_copy) == 0
         # Return
         return pypeitImage
 
