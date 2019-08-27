@@ -2247,7 +2247,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
 
     #debug_all=True
     if debug_all:
-        #show_peaks = True
+        show_peaks = True
         #show_fits = True
         #show_single_fits = True
         show_trace = True
@@ -2405,14 +2405,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
     # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
     # where no object was found
+    ## TODO
     for iobj in range(nobj):
         # Grab all the members of this obj_id from the object list
         indx_obj_id = sobjs_align.ech_objid == uni_obj_id[iobj]
         nthisobj_id = np.sum(indx_obj_id)
         # Perform the fit if this objects shows up on more than three orders
-        if (nthisobj_id>3) and (nthisobj_id<norders):
+        if (nthisobj_id > 3) and (nthisobj_id<norders):
             thisorderindx = sobjs_align[indx_obj_id].ech_orderindx
-            goodorder = np.zeros(norders,dtype=bool)
+            goodorder = np.zeros(norders, dtype=bool)
             goodorder[thisorderindx] = True
             badorder = np.invert(goodorder)
             xcen_good = (sobjs_align[indx_obj_id].trace_spat).T
@@ -2429,6 +2430,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, order_vec[badorder], 'polynomial',
                                                      minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
+            # TODO This QA needs some work
             if show_pca:
                 frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
                 plt.plot(order_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
@@ -2579,7 +2581,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
         # well, we will avoid doing all of the iter_tracefits above to make the code faster.
         for iord, spec in enumerate(sobjs_final[indx_obj_id]):
-            # JFH added the condition on ech_frac_was_fit with S/N cut on 7-7-19
+            # JFH added the condition on ech_frac_was_fit with S/N cut on 7-7-19.
+            # TODO is this robust against half the order being masked?
             if spec.ech_frac_was_fit & (spec.ech_snr > 1.0):
                     spec.trace_spat = xfit_gweight[:,iord]
                     spec.spat_pixpos = spec.trace_spat[specmid]

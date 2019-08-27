@@ -698,6 +698,8 @@ def init_process_steps(bias, proc_par):
     Could include dark subtraction someday
 
     Args:
+        #TODO JFH Other means nothing. These docs need to be more clear. Apparently this needs to be either None
+        # or a string indicating the bias mode so why not just state that?
         bias (None or other):
         proc_par (ProcessImagesPar):
 
@@ -713,6 +715,7 @@ def init_process_steps(bias, proc_par):
     elif proc_par['bias'].lower() == 'force':
         if bias is None:
             msgs.error("Must provide bias frames!")
+        process_steps.append('subtract_bias')
     elif proc_par['bias'].lower() == 'skip':
         pass
     # Overscan
