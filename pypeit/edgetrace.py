@@ -765,6 +765,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             _img = img
             self.binning = binning
 
+        from IPython import embed
+        embed()
+
         # TODO: keep the TraceImage object instead of deconstructing
         # it?  For direct input, use a base PypeItImage object
 

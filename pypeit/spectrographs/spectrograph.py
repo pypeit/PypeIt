@@ -460,7 +460,7 @@ class Spectrograph(object):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img, binning
 
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
