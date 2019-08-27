@@ -43,7 +43,7 @@ class ProcessRawImage(object):
         self.par = par  # ProcessImagesPar
         self._bpm = bpm
 
-        # Grab a few things from rawImage (for convenience and for processing)
+        # Grab items from rawImage (for convenience and for processing)
         #   Could just keep rawImage in the object, if preferred
         self.spectrograph = rawImage.spectrograph
         self.det = rawImage.det

@@ -2,7 +2,6 @@
 """
 import os
 import datetime
-import copy
 from pkg_resources import resource_filename
 from collections import OrderedDict
 
@@ -17,7 +16,6 @@ import pypeit  # For path
 from pypeit import msgs
 from pypeit.core.wavecal import defs
 
-from pypeit import debugger
 from IPython import embed
 
 # TODO: These should not be declared here
@@ -26,6 +24,7 @@ nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
 reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
 
+# TODO -- Move this to the WaveCalib object
 def load_wavelength_calibration(filename):
     """
     Load the wavelength calibration data from a file.

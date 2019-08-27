@@ -85,7 +85,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 Full par set
 
         Returns:
-            flatfield.FlatField:
+            :class:`pypeit.flatfield.FlatField`:
                 With the flat images loaded up
 
         """

@@ -155,7 +155,8 @@ class MasterFrame(object):
         hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
 
         # Other info, pulled from the Child
-        hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+        if hasattr(self, 'spectrograph'):
+            hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
 
         #   - List the completed steps
         if steps is not None:

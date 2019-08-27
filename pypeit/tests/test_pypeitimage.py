@@ -40,7 +40,7 @@ def test_save():
     pypeitImage = pypeitimage.PypeItImage(data, ivar=ivar, mask=mask)
     #
     outfile = data_path('tst.fits')
-    pypeitimage.save(pypeitImage, outfile)
+    pypeitimage.save_images(pypeitImage, outfile)
     # Test
     hdul = fits.open(outfile)
     assert len(hdul) == 4
@@ -50,9 +50,10 @@ def test_save():
 def test_load():
     # This depends on the save method above
     tst_file = data_path('tst.fits')
-    pypeitImage, hdr = pypeitimage.load(tst_file)
+    pypeitImage = pypeitimage.load_images(tst_file)
     # Test
     assert pypeitImage.image is not None
     assert pypeitImage.ivar is not None
     assert pypeitImage.mask is not None
     assert pypeitImage.rn2img is None
+    assert pypeitImage.head0 is not None

@@ -92,9 +92,9 @@ class WaveCalib(masterframe.MasterFrame):
         self.master_key = master_key
 
         # Attributes
-        self.steps = []    # steps executed
-        self.wv_calib = {} # main output
-        self.arccen = None # central arc spectrum
+        self.steps = []     # steps executed
+        self.wv_calib = {}  # main output
+        self.arccen = None  # central arc spectrum
 
         # Get the non-linear count level
         self.nonlinear_counts = 1e10 if self.spectrograph is None \

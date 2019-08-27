@@ -74,12 +74,14 @@ class WaveTilts(masterframe.MasterFrame):
     @classmethod
     def from_master_file(cls, master_file):
         """
+        Instantiate from a master_file
 
         Args:
             master_file (str):
 
         Returns:
-            waveimage.WaveImage:
+            wavetilts.WaveTilts:
+                With tilts_dict loaded up
 
         """
         # Spectrograph
@@ -425,13 +427,6 @@ class WaveTilts(masterframe.MasterFrame):
                 self.tilts_dict['spat_order'], self.tilts_dict['spec_order']]
         extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
         save.write_fits(hdr, data, _outfile, extnames=extnames)
-        #fits.HDUList([fits.PrimaryHDU(header=hdr),
-        #              fits.ImageHDU(data=self.tilts_dict['tilts'], name='TILTS'),
-        #              fits.ImageHDU(data=self.tilts_dict['coeffs'], name='COEFFS'),
-        #              fits.ImageHDU(data=self.tilts_dict['slitcen'], name='SLITCEN'),
-        #              fits.ImageHDU(data=self.tilts_dict['spat_order'], name='SPAT_ORDER'),
-        #              fits.ImageHDU(data=self.tilts_dict['spec_order'], name='SPEC_ORDER')
-        #             ]).writeto(_outfile, overwrite=True)
 
     def load(self, ifile=None):
         """
@@ -471,33 +466,6 @@ class WaveTilts(masterframe.MasterFrame):
             self.tilts_dict[ext.lower()] = data[ii]
         # Return
         return self.tilts_dict
-
-    @staticmethod
-    def load_from_file(filename, return_header=False):
-        """
-        Load the tilts data, without the benefit of the rest of the
-        class.
-
-        Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`master_file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header, which will include the TraceImage
-                metadata if available.
-
-        Returns:
-            Returns the tilts dictionary.  If return_header is
-            true, the primary header is also returned.  If nothing is
-            loaded, either because :attr:`reuse_masters` is `False` or
-            the file does not exist, everything is returned as None (one
-            per expected return object).
-        """
-        embed(header='471')
-
-        # Check it exists
-        if not os.path.isfile(filename):
-            msgs.error('File does not exist: {0}'.format(filename))
 
     def _parse_param(self, par, key, slit):
         """

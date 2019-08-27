@@ -256,7 +256,7 @@ def test_reuse(multi_caliBrate_reuse):
     _msarc = multi_caliBrate_reuse.get_tiltimg()
     assert multi_caliBrate_reuse._cached('tiltimg',
                     multi_caliBrate_reuse.master_key_dict['arc']), 'Should find cached data.'
-    assert os.path.isfile(multi_caliBrate_reuse.arcImage.file_path), \
+    assert os.path.isfile(multi_caliBrate_reuse.arcImage.master_file_path), \
             'Should find master file.'
     assert multi_caliBrate_reuse.arcImage.load() is not None, \
             'Load should not return None'

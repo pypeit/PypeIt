@@ -567,6 +567,7 @@ def waveids(fname):
 
 def load_multiext_fits(filename, ext):
     """
+    Load data and primary header from a multi-extension FITS file
 
     Args:
         filename (:obj:`str`):
