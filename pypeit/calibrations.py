@@ -10,11 +10,9 @@ import numpy as np
 from abc import ABCMeta
 
 from astropy.io import fits
-from astropy.table import Table
 from IPython import embed
 
 from pypeit import msgs
-from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import tiltimage
 from pypeit import biasframe
@@ -28,12 +26,12 @@ from pypeit import waveimage
 
 from pypeit.metadata import PypeItMetaData
 
-from pypeit.core import procimg
 from pypeit.core import parse
 from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
+
 
 class Calibrations(object):
     """

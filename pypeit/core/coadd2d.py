@@ -855,12 +855,13 @@ class Coadd2d(object):
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
 
         # Generate a ScienceImage
-        sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
-                                                         self.par['scienceframe']['process'],
-                                                         np.zeros_like(psuedo_dict['inmask']),  # Dummy bpm
-                                                         psuedo_dict['imgminsky'], psuedo_dict['sciivar'],
-                                                         np.zeros_like(psuedo_dict['inmask']),  # Dummy rn2img
-                                                         crmask=np.invert(psuedo_dict['inmask']))
+        sciImage = scienceimage.ScienceImage(self.spectrograph, self.det,
+                                                      self.par['scienceframe']['process'],
+                                                      psuedo_dict['imgminsky'],
+                                                      psuedo_dict['sciivar'],
+                                                      np.zeros_like(psuedo_dict['inmask']),  # Dummy bpm
+                                                      rn2img=np.zeros_like(psuedo_dict['inmask']),  # Dummy rn2img
+                                                      crmask=np.invert(psuedo_dict['inmask']))
         slitmask_psuedo = pixels.tslits2mask(psuedo_dict['tslits_dict'])
         sciImage.build_mask(slitmask=slitmask_psuedo)
 
@@ -1053,8 +1054,10 @@ class Coadd2d(object):
         # TODO Sort this out with the correct detector extensions etc.
         # Read in the image stacks
         for ifile in range(nfiles):
-            waveimg = WaveImage.load_from_file(waveimgfiles[ifile])
-            tilts = WaveTilts.load_from_file(tiltfiles[ifile])
+            #waveimg = WaveImage.load_from_file(waveimgfiles[ifile])  # JXP
+            waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
+            #tilts = WaveTilts.load_from_file(tiltfiles[ifile])
+            tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
             hdu = fits.open(spec2d_files[ifile])
             # One detector, sky sub for now
             names = [hdu[i].name for i in range(len(hdu))]

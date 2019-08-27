@@ -46,6 +46,6 @@ def test_combine(deimos_flat_files):
     # Bias subtract (and trim)
     deimos_flats.build_image()
     # Test
-    assert deimos_flats.image.shape == (4096,2048)
+    assert deimos_flats.pypeitImage.image.shape == (4096,2048)
 
 

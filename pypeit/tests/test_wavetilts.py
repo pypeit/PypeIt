@@ -25,6 +25,11 @@ def data_path(filename):
 def master_dir():
     return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
 
+@cooked_required
+def test_instantiate_from_master(master_dir):
+    master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue', 'MasterTilts_A_1_01.fits')
+    waveTilts = wavetilts.WaveTilts.from_master_file(master_file)
+    assert isinstance(waveTilts.tilts_dict, dict)
 
 @cooked_required
 def test_step_by_step(master_dir):
@@ -40,7 +45,7 @@ def test_step_by_step(master_dir):
                                     wavepar, det=1, master_key=master_key, master_dir=master_dir,
                                     reuse_masters=True)
     # Extract arcs
-    arccen, maskslits = waveTilts.extract_arcs(waveTilts.slitcen, waveTilts.slitmask, msarc, waveTilts.inmask)
+    arccen, maskslits = waveTilts.extract_arcs()#waveTilts.slitcen, waveTilts.slitmask, waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0
@@ -48,7 +53,8 @@ def test_step_by_step(master_dir):
     thismask = waveTilts.slitmask == slit
     waveTilts.lines_spec, waveTilts.lines_spat = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
 
-    trcdict = waveTilts.trace_tilts(waveTilts.msarc, waveTilts.lines_spec, waveTilts.lines_spat, thismask, slit)
+    trcdict = waveTilts.trace_tilts(waveTilts.msarc.image, waveTilts.lines_spec,
+                                    waveTilts.lines_spat, thismask, slit)
     assert isinstance(trcdict, dict)
     # 2D Fit
     spat_order = waveTilts._parse_param(waveTilts.par, 'spat_order', slit)

@@ -12,6 +12,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
+from pypeit.images import pypeitimage
 from pypeit.core import procimg
 
 from IPython import embed
@@ -68,8 +69,7 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
         self.process_steps += ['trim']
         self.process_steps += ['orient']
-        # TODO apply the gain!!
-        # NOT applying gain to deal 'properly' with saturation
+        self.process_steps += ['apply_gain']
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -82,12 +82,20 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(TiltImage, self).save(self.image, 'TILT', outfile=outfile, overwrite=overwrite,
-                                   raw_files=self.file_list, steps=self.process_steps)
+        #super(TiltImage, self).save(self.pypeitImage, 'TILT', outfile=outfile, overwrite=overwrite,
+        #                           raw_files=self.file_list, steps=self.process_steps)
+        _outfile = self.master_file_path if outfile is None else outfile
+        # Check if it exists
+        if os.path.exists(_outfile) and not overwrite:
+            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+                      + 'Set overwrite=True to overwrite it.')
+            return
+        #
+        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
+        pypeitimage.save_images(self.pypeitImage, _outfile, hdr=hdr, iext='TILT')
+        msgs.info('Master frame written to {0}'.format(_outfile))
 
-    # TODO: it would be better to have this instantiate the full class
-    # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load(self, ifile=None):
         """
         Load the tilt frame data from a saved master frame.
 
@@ -102,5 +110,11 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Returns a `numpy.ndarray`_ with the tilt master frame image.
             Also returns the primary header, if requested.
         """
-        return super(TiltImage, self).load('TILT', ifile=ifile, return_header=return_header)
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return
+        else:  # Load
+            self.pypeitImage = pypeitimage.load_images(master_file)
+            return self.pypeitImage
 

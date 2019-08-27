@@ -9,6 +9,8 @@ import glob
 import numpy as np
 
 from pypeit.images import processrawimage
+from pypeit.images import rawimage
+from pypeit.images import pypeitimage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -39,15 +41,20 @@ def test_instantiate(deimos_flat_files, kast_blue_bias_files):
     one_file = deimos_flat_files[0]
     spectograph = load_spectrograph('keck_deimos')
     # DEIMOS
-    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par)
+    det = 3
+    rawImage = rawimage.RawImage(one_file, spectograph, det)
+    deimos_flat = processrawimage.ProcessRawImage(rawImage, par)
     # Test
     assert isinstance(deimos_flat.image, np.ndarray)
     assert deimos_flat.datasec_img.shape == (4096, 2128)
 
     # Kast blue
+    det2 = 1
     one_file = kast_blue_bias_files[0]
     spectograph2 = load_spectrograph('shane_kast_blue')
-    kastb_bias = processrawimage.ProcessRawImage(one_file, spectograph2, 1, par)
+    rawImage2 = rawimage.RawImage(one_file, spectograph2, det2)
+    kastb_bias = processrawimage.ProcessRawImage(rawImage2, par)
+    assert isinstance(kastb_bias.image, np.ndarray)
 
 
 @dev_suite_required
@@ -55,7 +62,9 @@ def test_overscan_subtract(deimos_flat_files):
     one_file = deimos_flat_files[0]
     spectograph = load_spectrograph('keck_deimos')
     # DEIMOS
-    deimos_flat = processrawimage.ProcessRawImage(one_file, spectograph, 3, par)
+    det = 3
+    rawImage = rawimage.RawImage(one_file, spectograph, det)
+    deimos_flat = processrawimage.ProcessRawImage(rawImage, par)
     # Bias subtract
     pre_sub = deimos_flat.image.copy()
     _ = deimos_flat.subtract_overscan()

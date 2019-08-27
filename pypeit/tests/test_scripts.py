@@ -17,6 +17,7 @@ from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit import msgs
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.scripts import setup, run_pypeit, show_1dspec, coadd_1dspec, chk_edges, view_fits
+from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import ginga
 
@@ -30,8 +31,7 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
-
-#'''
+'''
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -64,21 +64,6 @@ def test_run_pypeit():
     pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
     assert os.path.isfile(pyp_file), 'PypeIt file not written.'
 
-    # This data does not have enough traces to do the PCA, so the
-    # prediction for the trace has to use the 'nearest' mode, instead of
-    # the 'pca' mode.  So we need to modify the parameters used and
-    # re-write the pypeit file
-    ps = PypeItSetup.from_pypeit_file(pyp_file)
-    ps.run()
-    # Get rid of the existing calibrations keywords because they just
-    # set the number
-    cfg = ConfigObj(ps.user_cfg)
-    del cfg['calibrations']
-    cfg['calibrations'] = {}
-    cfg['calibrations']['slitedges'] = {}
-    cfg['calibrations']['slitedges']['sync_predict'] = 'nearest'
-    ps.fitstbl.write_pypeit(os.path.split(pyp_file)[0], cfg_lines=cfg.write())
-
     # Perform the original reductions
     args = run_pypeit.parser([pyp_file, '-o'])
     run_pypeit.main(args)
@@ -94,12 +79,13 @@ def test_run_pypeit():
     # Clean-up
     shutil.rmtree(outdir)
     shutil.rmtree(testrawdir)
+'''
 
 
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                                'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs, unit_test=True)
@@ -121,7 +107,16 @@ def test_view_fits():
     """
     spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list'])
-#'''
+
+@cooked_required
+def test_chk_flat():
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
+                                'MasterFlat_A_1_01.fits')
+    # Ginga needs to be open in RC mode
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    #
+    pargs = chk_flats.parser([mstrace_root])
+    chk_flats.main(pargs)
 
 def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')

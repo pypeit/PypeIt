@@ -113,10 +113,12 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def nonlinear_counts(self, det, datasec_img=None):
+    def nonlinear_counts(self, det, datasec_img=None, apply_gain=True):
         """
         Return the counts at which the detector response becomes
         non-linear.
+
+        Default is to apply the gain, i.e. return this is counts not ADU
 
         Args:
             det (:obj:`int`):
@@ -125,18 +127,28 @@ class Spectrograph(object):
                 If provided, nonlinear_counts is returned as an image
                 WARNING:  THIS IS NOT YET IMPLEMENTED DOWNSTREAM,
                   i.e. don't use this option
+            apply_gain (bool, optional):
+                Apply gain in the calculation, i.e. convert to counts
+                If only a float is returned, (i.e. no datasec_img is provided)
+                then the mean of the gains for all amplifiers is adopted
 
         Returns:
             float or np.ndarray:
                 Counts at which detector response becomes nonlinear.
                 If datasec_img is provided, an image with the same shape
-                is returned with the gain accounted for
+                is returned
         """
+        # Deal with gain
+        gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+        if not apply_gain:  # Set to 1 if gain is not to be applied
+            gain = [1. for item in gain]
+        # Calculation without gain
         nonlinear_counts = self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
-        # Generate an image, applying the gain?
-        if datasec_img is not None:
-            gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+        # Finish
+        if datasec_img is not None:  # 2D image
             nonlinear_counts = nonlinear_counts * procimg.gain_frame(datasec_img, gain)
+        else:  # float
+            nonlinear_counts = nonlinear_counts * np.mean(gain)
         # Return
         return nonlinear_counts
 

@@ -8,11 +8,11 @@ import pytest
 import glob
 import numpy as np
 
-
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.images import pypeitimage
 
 # TODO: Bring this test back in some way?
 #def test_step_by_step():
@@ -51,8 +51,7 @@ def test_run():
                                     tslits_dict=edges.convert_to_tslits_dict())
 
     # Use the trace image
-    flatField.rawflatimg = edges.img.copy()
-
+    flatField.rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
     mspixelflatnrm, msillumflat = flatField.run()
     assert np.isclose(np.median(mspixelflatnrm), 1.0)
 
