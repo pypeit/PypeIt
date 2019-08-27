@@ -49,8 +49,8 @@ def test_process(kast_blue_bias_files):
     bias_frame = biasframe.BiasFrame(shane_kast_blue, files=kast_blue_bias_files)
     # Run
     bias_img = bias_frame.build_image()
-    assert isinstance(bias_img, np.ndarray)
-    assert isinstance(bias_frame.image, np.ndarray)
+    assert isinstance(bias_img.image, np.ndarray)
+    assert isinstance(bias_frame.pypeitImage.image, np.ndarray)
     #assert bias_frame.steps[-1] == 'combine'
 
 
@@ -69,8 +69,8 @@ def test_io(kast_blue_bias_files):
     bias_frame.save()
     assert os.path.isfile(bias_frame.file_path), 'Error writing MasterBias'
     # Load master frame
-    img = bias_frame.load()
-    assert np.array_equal(img, bias_frame.image)
+    pypeitImage = bias_frame.load()
+    assert np.array_equal(pypeitImage.image, bias_frame.pypeitImage.image)
     # Clean up
     os.remove(bias_frame.file_path)
 
@@ -95,9 +95,9 @@ def test_run_and_master(kast_blue_bias_files):
     bias_frame2 = biasframe.BiasFrame(shane_kast_blue, master_key='A_1_01',
                                       master_dir=data_root(), reuse_masters=True)
     bias2 = bias_frame2.load()
-    assert isinstance(bias2, np.ndarray)
-    assert len(bias_frame2.process_steps) == 2
-    assert np.array_equal(bias2, bias_frame.image)
+    assert isinstance(bias2.image, np.ndarray)
+    assert len(bias_frame2.process_steps) == 3
+    assert np.array_equal(bias2.image, bias_frame.pypeitImage.image)
 
     # Clean up
     os.remove(bias_frame.file_path)

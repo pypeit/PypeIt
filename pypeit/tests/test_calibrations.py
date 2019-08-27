@@ -75,6 +75,10 @@ def multi_caliBrate_reuse(multi_caliBrate):
     multi_caliBrate.save_masters = True
     return multi_caliBrate
 
+###################################################
+# TESTS BEGIN HERE
+
+
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
@@ -93,12 +97,12 @@ def test_bias(multi_caliBrate):
 
 def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
-    assert arc.shape == (2048,350)
+    assert arc.image.shape == (2048,350)
 
 
 def test_tiltimg(multi_caliBrate):
     tilt = multi_caliBrate.get_tiltimg()
-    assert tilt.shape == (2048,350)
+    assert tilt.image.shape == (2048,350)
 
 def test_bpm(multi_caliBrate):
     # Prep

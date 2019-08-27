@@ -59,6 +59,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     Attributes:
         TODO: Fill this in...
+        rawflatimg (PypeItImage):
         mspixelflat (ndarray): Stacked image
         mspixelflatnrm (ndarray): Normalized flat
         ntckx (int): Number of knots in the spatial dimension
@@ -95,7 +96,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.tilts_dict = tilts_dict
 
         # Parameters unique to this Object
-        self.rawflatimg = None      # Un-normalized pixel flat
+        self.rawflatimg = None      # Un-normalized pixel flat as a PypeItImage
         self.mspixelflat = None     # Normalized pixel flat
         self.msillumflat = None     # Slit illumination flat
         self.flat_model = None      # Model flat
