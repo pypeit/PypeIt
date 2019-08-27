@@ -27,7 +27,8 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
         files (:obj:`list`, optional):
-            The list of files to process.  Can be an empty list or None
+            The list of files to process.
+            Can be an empty list or None
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
@@ -35,9 +36,12 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (str, optional): Path to master frames
-        reuse_masters (bool, optional): Load from disk if possible
-        msbias (ndarray or str, optional): Guides bias subtraction
+        master_dir (str, optional):
+            Path to master frames
+        reuse_masters (bool, optional):
+            Load from disk if possible
+        msbias (ndarray or str, optional):
+            Guides bias subtraction
 
     Attributes:
         msbias (ndarray):

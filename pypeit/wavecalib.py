@@ -24,7 +24,8 @@ class WaveCalib(masterframe.MasterFrame):
     Class to guide wavelength calibration
 
     Args:
-        msarc (np.ndarray or None): Arc image, created by the ArcImage class
+        msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
+            Arc image, created by the ArcImage class
         tslits_dict (dict or None):  TraceSlits dict
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the
@@ -50,7 +51,8 @@ class WaveCalib(masterframe.MasterFrame):
           Keys
             0, 1, 2, 3 -- Solution for individual slit
             steps
-        arccen (ndarray): (nwave, nslit) Extracted arc(s) down the center of the slit(s)
+        arccen (ndarray):
+            (nwave, nslit) Extracted arc(s) down the center of the slit(s)
         maskslits : ndarray (nslit); bool
           Slits to ignore because they were not extracted
           WARNING: Outside of this Class, it is best to regenerate
@@ -131,7 +133,6 @@ class WaveCalib(masterframe.MasterFrame):
             self.slitmask = None
             self.inmask = None
             self.nonlinear_counts = None
-                # --------------------------------------------------------------
 
     def build_wv_calib(self, arccen, method, skip_QA=False):
         """
@@ -288,9 +289,14 @@ class WaveCalib(masterframe.MasterFrame):
 
         Wrapper to arc.get_censpec()
 
-        Returns
-        -------
-        (self.arccen, self.arc_maskslit_
+        Args:
+            slitcen
+            slitmask (np.ndarray):
+            inmask (np.ndarray):
+                Mask of good pixels
+
+        Returns:
+            (self.arccen, self.arc_maskslit_
            self.arccen: ndarray, (nspec, nslit)
               arc spectrum for all slits
             self.arc_maskslit: ndarray, bool (nsit)
