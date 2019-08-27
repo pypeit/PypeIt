@@ -10,8 +10,6 @@ import inspect
 
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit import ginga
@@ -21,6 +19,7 @@ from pypeit.core import save
 from pypeit.core import load
 
 from IPython import embed
+
 
 class WaveTilts(masterframe.MasterFrame):
     """

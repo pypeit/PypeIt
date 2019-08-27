@@ -1,4 +1,4 @@
-""" Object to process a single raw image"""
+""" Object to process a single raw image """
 
 import inspect
 
@@ -19,18 +19,21 @@ class ProcessRawImage(object):
     Class to process a raw image
 
     Args:
-        RawImage (:class:`pypeit.images.rawimage.RawImage`):
+        rawImage (:class:`pypeit.images.rawimage.RawImage`):
         par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
+        bpm (np.ndarray, optional):
+            Bad pixel mask
 
     Attributes:
         steps (dict):
             Dict describing the steps performed on the image
         datasec_img (np.ndarray):
             Holds the datasec_img which specifies the amp for each pixel in the
-            current self.image image
+            current self.image image.  This is modified as the image is, i.e.
+            orientation and trimming.
     """
     def __init__(self, rawImage, par, bpm=None):
 
@@ -85,15 +88,6 @@ class ProcessRawImage(object):
                                     det=self.det)
         return self._bpm
 
-    def _reset_steps(self):
-        """
-        Reset all the processing steps to False
-
-        Should consider setting the Image to None too..
-        """
-        for key in self.steps.keys():
-            self.steps[key] = False
-
     def apply_gain(self, force=False):
         """
         Apply the Gain values to self.image
@@ -131,10 +125,6 @@ class ProcessRawImage(object):
         msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
         # Convenience
         detector = self.spectrograph.detector[self.det-1]
-        # For RN variations by Amp
-        #embed(header='333 of sciencimage')
-        #datasec_img = self.spectrograph.get_datasec_img(filename=self.filename,
-        #                                             det=self.det)
         # Generate
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
                                              detector['gain'], detector['ronoise'],
@@ -171,15 +161,22 @@ class ProcessRawImage(object):
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps, pixel_flat=None, illum_flat=None,
-                       bias=None, debug=False):
+    def process(self, process_steps, pixel_flat=None, illum_flat=None, bias=None):
         """
         Process the image
 
-        Note:  The processing steps are currently 'frozen' as is.
-          We may choose to allow optional ordering of the steps
+        Note:  The processing step order is currently 'frozen' as is.
+          We may choose to allow optional ordering
 
-        ..todo.. Define the various process steps here
+        Here are the allowed steps, in the order they will be applied:
+            subtract_overscan -- Analyze the overscan region and subtract from the image
+            trim -- Trim the image down to the data (i.e. remove the overscan)
+            orient -- Orient the image in the PypeIt orientation (spec, spat) with blue to red going down to up
+            subtract_bias -- Subtract a bias image
+            apply_gain -- Convert to counts, amp by amp
+            flatten -- Divide by the pixel flat and (if provided) the illumination flat
+            extras -- Generate the RN2 and IVAR images
+            crmask -- Generate a CR mask
 
         Args:
             process_steps (list):
@@ -194,7 +191,7 @@ class ProcessRawImage(object):
                 Bad pixel mask image
 
         Returns:
-            pypeitimage.PypeItImage:
+            :class:`pypeit.images.pypeitimage.PypeItImage`:
 
         """
         # For error checking
@@ -232,15 +229,17 @@ class ProcessRawImage(object):
             steps_copy.remove('extras')
 
         # Generate a PypeItImage
-        pypeitImage = pypeitimage.PypeItImage(self.image, state=self.steps, binning=self.binning,
+        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning,
                                                        ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
         # Mask(s)
         if 'crmask' in process_steps:
             pypeitImage.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image,
                                      utils.inverse(pypeitImage.ivar))
             steps_copy.remove('crmask')
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
+                                                              apply_gain='apply_gain' in process_steps)
         pypeitImage.build_mask(pypeitImage.image, pypeitImage.ivar,
-                               saturation=self.spectrograph.detector[self.det-1]['saturation'],
+                               saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
                                mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
         # Error checking
         assert len(steps_copy) == 0

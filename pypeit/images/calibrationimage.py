@@ -30,12 +30,13 @@ class CalibrationImage(object):
 
         files (list, optional):
             List of filenames to be combined
-        frametype (str, optional): Frame type
 
     Attributes:
-        image (np.ndarray):
-        file_list (list): List of files to process
-        process_steps (list): List of processing steps to be used
+        pypeitImage (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        file_list (list):
+            List of files to process
+        process_steps (list):
+            List of processing steps to be used
 
     """
     def __init__(self, spectrograph, det, proc_par, files=None):

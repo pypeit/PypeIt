@@ -54,6 +54,18 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     @classmethod
     def from_master_file(cls, master_file, par=None):
+        """
+        Instantiate from a master file
+
+        Args:
+            master_file (str):
+            par (:class:`pypeit.par.pypeitpar.FrameGroupPar`, optional):
+
+        Returns:
+            biasframe.BiasFrame:
+                The PypeItImage is loaded into self.pypeitImage
+
+        """
         # Spectrograph
         spectrograph, extras = masterframe.items_from_master_file(master_file)
         head0 = extras[0]

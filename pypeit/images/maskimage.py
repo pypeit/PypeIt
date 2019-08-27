@@ -130,7 +130,7 @@ class ImageMask(object):
             ivar (np.ndarray or None):
                 Inverse variance of the input image
             saturation (float, optional):
-                Saturation limit in ADU
+                Saturation limit in counts
             slitmask (np.ndarray, optional):
                 Slit mask image;  Pixels not in a slit are masked
             mincounts (float, optional):

@@ -1,4 +1,6 @@
-""" Object to hold + process a single image"""
+""" Simple object to hold + process a single image.
+To keep it simple, save and load method are provided
+separately in the module.  """
 
 from pypeit import msgs
 from pypeit import ginga
@@ -17,24 +19,28 @@ from IPython import embed
 class PypeItImage(maskimage.ImageMask):
     """
     Class to hold a single image from a single detector in PypeIt
+    and its related images (e.g. ivar, mask).
+
     Oriented in its spec,spat format
 
     The intent is to keep this object as light-weight as possible.
     Therefore methods to generate, save, load, etc. are all outside the Class
 
     Args:
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph used to take the data.
-        det (:obj:`int`, optional):
-            The 1-indexed detector number to process.
+        image (np.ndarray):
+        ivar (np.ndarray, optional):
+        rn2img (np.ndarray, optional):
+        bpm (np.ndarray):
+        binning (tuple, optional):
+        crmask (np.ndarray, optional):
+        mask (np.ndarray, optional):
 
     Attributes:
-        image (np.ndarray):
         head0 (astropy.io.fits.Header):
 
     """
 
-    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None,
+    def __init__(self, image, ivar=None, rn2img=None, bpm=None,
                  binning=None, crmask=None, mask=None):
 
         maskimage.ImageMask.__init__(self, bpm)
@@ -45,7 +51,6 @@ class PypeItImage(maskimage.ImageMask):
         # Optional Attributes
         self.ivar = ivar
         self.rn2img = rn2img
-        self.state = state
         self.binning = binning
         self.head0 = None
 
@@ -83,7 +88,7 @@ def save_images(pypeitImage, outfile, hdr=None, iext=None):
     """
     Write the image(s) to a multi-extension FITS file
 
-    Cannot be named save as that is a core module
+    Note: This method cannot be named save because that is an imported core module
 
     Extensions will be:
        PRIMARY
@@ -92,12 +97,14 @@ def save_images(pypeitImage, outfile, hdr=None, iext=None):
        MASK (optional)
 
     Args:
+        pypeitImage (:class:`pypeit.images.pypeitimage.PypeItImage`):
+            Image(s) to save
         outfile:
         iext (str, optional):
             Name for the first extension
             Defaults to IMAGE
-
-    Returns:
+        hdr (`astropy.io.fits.Header`, optional):
+            The header to write
 
     """
     if hdr is None:
@@ -129,7 +136,8 @@ def load_images(file):
         file (str):
 
     Returns:
-        PypeItImage: Loaded up PypeItImage with the primary Header attached
+        :class:`pypeit.images.pypeitimage.PypeItImage`:
+            Loaded up PypeItImage with the primary Header attached
 
     """
     # Open

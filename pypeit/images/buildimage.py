@@ -36,20 +36,7 @@ class BuildImage(object):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
-        bpm (np.ndarray):
-            Bad pixel mask.  Held in ImageMask
 
-        frametype (str, optional): Frame type
-        files (list, optional):
-            List of filenames that went into the loaded image
-
-    Attributes:
-        ivar (np.narray):
-            Inverse variance image
-        rn2img (np.narray):
-            Read noise**2 image
-        filename (str):
-            Required to build from a Raw image
     """
     def __init__(self, spectrograph, det, par, files):
 
@@ -65,11 +52,9 @@ class BuildImage(object):
         """
         Process a single image
 
-        This will also generate the ivar, crmask, rn2img and mask
-
         Args:
             filename (str):
-                Filename
+                File to process
             process_steps (list):
                 List of processing steps
             bias (np.ndarray or None):
@@ -78,9 +63,11 @@ class BuildImage(object):
                 Flat image
             illum_flat (np.ndarray, optional):
                 Illumination image
+            bpm (np.ndarray, optional):
+                Bad pixel mask
 
         Returns:
-            ScienceImage:
+            :class:`pypeit.images.pypeitimage.PypeItImage`:
 
         """
         # Load raw image
@@ -99,6 +86,8 @@ class BuildImage(object):
         """
         Generate a PypeItImage from a list of images
 
+        Mainly a wrapper to coadd2d.weighted_combine()
+
         This may also generate the ivar, crmask, rn2img and mask
 
         Args:
@@ -109,14 +98,17 @@ class BuildImage(object):
                 Flat image
             illum_flat (np.ndarray, optional):
                 Illumination image
+            sigma_clip (bool, optional):
+                Perform sigma clipping
             sigrej (int or float, optional): Rejection threshold for sigma clipping.
                  Code defaults to determining this automatically based on the number of images provided.
             maxiters (int, optional):
+                Number of iterations for the clipping
             bpm (np.ndarray, optional):
                 Bad pixel mask.  Held in ImageMask
 
         Returns:
-            PypeItImage:
+            :class:`pypeit.images.pypeitimage.PypeItImage`:
 
         """
         # Loop on the files
@@ -163,19 +155,18 @@ class BuildImage(object):
             sigma_clip=sigma_clip, sigma_clip_stack=img_stack, sigrej=sigrej, maxiters=maxiters)
 
         # Build the last one
-        #slf = ScienceImage.__init__(spectrograph, det, par, img_list_out[0],
-        #                               utils.inverse(var_list_out[0]), bpm,
-        #                               rn2img=var_list_out[1], crmask=np.invert(outmask), files=file_list)
-        pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
+        final_pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
                                               ivar=utils.inverse(var_list_out[0]),
                                               bpm=pypeitImage.bpm,
                                               rn2img=var_list_out[1],
                                               crmask=np.invert(outmask))
-        pypeitImage.build_mask(pypeitImage.image, pypeitImage.ivar,
-                               saturation=self.spectrograph.detector[self.det-1]['saturation'],
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
+                                                              apply_gain='apply_gain' in process_steps)
+        final_pypeitImage.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,
+                               saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
                                mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
         # Return
-        return pypeitImage
+        return final_pypeitImage
 
     @property
     def nfiles(self):

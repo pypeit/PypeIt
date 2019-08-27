@@ -1,4 +1,6 @@
-""" Object to hold + process a single image"""
+""" Object to hold + process a single image.
+This module also includes the build_from_list() method
+which is how the ScienceImage is most frequently generated. """
 
 import inspect
 
@@ -27,26 +29,22 @@ class ScienceImage(pypeitimage.PypeItImage):
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
-        det (:obj:`int`, optional):
+        det (:obj:`int`):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
+        image (np.ndarray):
+        ivar (np.ndarray):
         bpm (np.ndarray):
             Bad pixel mask.  Held in ImageMask
-
-        frametype (str, optional): Frame type
+        rn2img (np.ndarray, optional):
+        crmask (np.ndarray, optional):
+        mask (np.ndarray, optional):
         files (list, optional):
             List of filenames that went into the loaded image
 
-    Attributes:
-        ivar (np.narray):
-            Inverse variance image
-        rn2img (np.narray):
-            Read noise**2 image
-        filename (str):
-            Required to build from a Raw image
     """
     frametype = 'science'
 
@@ -200,7 +198,7 @@ def build_from_file_list(spectrograph, det, par, bpm,
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
-        det (:obj:`int`, optional):
+        det (:obj:`int`):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.  See
