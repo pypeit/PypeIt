@@ -54,6 +54,15 @@ class WaveImage(masterframe.MasterFrame):
 
     @classmethod
     def from_master_file(cls, master_file):
+        """
+
+        Args:
+            master_file (str):
+
+        Returns:
+            waveimage.WaveImage:
+
+        """
         # Spectrograph
         spectrograph, extras = masterframe.items_from_master_file(master_file)
         head0 = extras[0]

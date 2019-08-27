@@ -244,6 +244,7 @@ class ProcessRawImage(object):
                                mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
         # Error checking
         assert len(steps_copy) == 0
+
         # Return
         return pypeitImage
 

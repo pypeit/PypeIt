@@ -164,7 +164,8 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False,
 
     if tilts:
         tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))
-        tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
+        #tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
+        tilts_dict = wavetilts.WaveTilts.from_master_file(tilts_file).tilts_dict
         ret.append(tilts_dict)
 
     if wvcalib:

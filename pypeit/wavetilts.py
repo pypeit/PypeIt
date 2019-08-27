@@ -18,8 +18,9 @@ from pypeit import ginga
 from pypeit.core import arc
 from pypeit.core import tracewave, pixels
 from pypeit.core import save
-from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core import load
+
+from IPython import embed
 
 class WaveTilts(masterframe.MasterFrame):
     """
@@ -27,12 +28,12 @@ class WaveTilts(masterframe.MasterFrame):
 
     Args:
         msarc (ndarray): Arc image
-        tslits_dict (dict): dict from TraceSlits class (e.g. slitpix)
+        tslits_dict (dict or None): dict from TraceSlits class (e.g. slitpix)
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
-        par (:class:`pypeit.par.pypeitpar.WaveTiltsPar`):
+        par (:class:`pypeit.par.pypeitpar.WaveTiltsPar` or None):
             The parameters used to fuss with the tilts
-        wavepar (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
+        wavepar (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
             The parameters used for the wavelength solution
         det (int): Detector index
         master_key (:obj:`str`, optional):
@@ -50,8 +51,8 @@ class WaveTilts(masterframe.MasterFrame):
 
 
     Attributes:
-        frametype : str
-          Hard-coded to 'tilts'
+        tilts_dict (dict):
+            Holds the tilts data
         steps : list
         mask : ndarray, bool
           True = Ignore this slit
@@ -68,9 +69,33 @@ class WaveTilts(masterframe.MasterFrame):
             Eventually, we might attach this to self.msarc although that would then
             require that we write it to disk with self.msarc.image
     """
-    
     # Frametype is a class attribute
     master_type = 'Tilts'
+
+    @classmethod
+    def from_master_file(cls, master_file):
+        """
+
+        Args:
+            master_file (str):
+
+        Returns:
+            waveimage.WaveImage:
+
+        """
+        # Spectrograph
+        spectrograph, extras = masterframe.items_from_master_file(master_file)
+        head0 = extras[0]
+        # Master info
+        master_dir = head0['MSTRDIR']
+        master_key = head0['MSTRKEY']
+        # Instantiate
+        slf = cls(None, None, spectrograph, None, None, master_dir=master_dir, master_key=master_key,
+                  reuse_masters=True)
+        # Load
+        slf.tilts_dict = slf.load(ifile=master_file)
+        # Return
+        return slf
 
     # TODO This needs to be modified to take an inmask
     def __init__(self, msarc, tslits_dict, spectrograph, par, wavepar, det=1, master_key=None,
@@ -394,7 +419,7 @@ class WaveTilts(masterframe.MasterFrame):
         hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
         #   - Tilts metadata
         hdr['FUNC2D'] = self.tilts_dict['func2d']
-        hdr['NSLIT'] =  self.tilts_dict['nslit']
+        hdr['NSLIT'] = self.tilts_dict['nslit']
 
         # Write the fits file
         data = [self.tilts_dict['tilts'], self.tilts_dict['coeffs'], self.tilts_dict['slitcen'],
@@ -409,7 +434,7 @@ class WaveTilts(masterframe.MasterFrame):
         #              fits.ImageHDU(data=self.tilts_dict['spec_order'], name='SPEC_ORDER')
         #             ]).writeto(_outfile, overwrite=True)
 
-    def load(self, ifile=None, return_header=False):
+    def load(self, ifile=None):
         """
         Load the tilts data.
 
@@ -423,29 +448,30 @@ class WaveTilts(masterframe.MasterFrame):
                 Return the header.
 
         Returns:
-            Returns the tilts dictionary.  If return_header is
-            true, the primary header is also returned.  If nothing is
+            dict: Returns the tilts dictionary.  If nothing is
             loaded, either because :attr:`reuse_masters` is `False` or
             the file does not exist, everything is returned as None (one
             per expected return object).
         """
-        # Format the input and set the tuple for an empty return
-        _ifile = self.master_file_path if ifile is None else ifile
-        empty_return = (None, None) if return_header else None
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return
+        msgs.info('Loading Master frame: {0}'.format(master_file))
+        # Load
+        extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
+        *data, head0 = load.load_multiext_fits(master_file, extnames)
 
-        if not self.reuse_masters:
-            # User does not want to load masters
-            msgs.warn('PypeIt will not reuse masters!')
-            return empty_return
-
-        if not os.path.isfile(_ifile):
-            # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
-            return empty_return
-
-        # Read and return
-        msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        return self.load_from_file(_ifile, return_header=return_header)
+        # Fill the dict
+        self.tilts_dict = {}
+        keys = ['func2d', 'nslit']
+        for k in keys:
+            self.tilts_dict[k] = head0[k.upper()]
+        # Data
+        for ii,ext in enumerate(extnames):
+            self.tilts_dict[ext.lower()] = data[ii]
+        # Return
+        return self.tilts_dict
 
     @staticmethod
     def load_from_file(filename, return_header=False):
@@ -468,21 +494,11 @@ class WaveTilts(masterframe.MasterFrame):
             the file does not exist, everything is returned as None (one
             per expected return object).
         """
+        embed(header='471')
+
         # Check it exists
         if not os.path.isfile(filename):
             msgs.error('File does not exist: {0}'.format(filename))
-        # Open the file
-        hdu = fits.open(filename)
-        # Metadata
-        tilts_dict = {}
-        keys = ['func2d', 'nslit']
-        for k in keys:
-            tilts_dict[k] = hdu[0].header[k.upper()]
-        # Data extensions
-        keys = ['tilts', 'coeffs', 'slitcen', 'spat_order', 'spec_order']
-        for k in keys:
-            tilts_dict[k] = hdu[k.upper()].data
-        return (tilts_dict, hdu[0].header) if return_header else tilts_dict
 
     def _parse_param(self, par, key, slit):
         """

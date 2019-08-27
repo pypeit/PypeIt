@@ -25,6 +25,11 @@ def data_path(filename):
 def master_dir():
     return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
 
+@cooked_required
+def test_instantiate_from_master(master_dir):
+    master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue', 'MasterTilts_A_1_01.fits')
+    waveTilts = wavetilts.WaveTilts.from_master_file(master_file)
+    assert isinstance(waveTilts.tilts_dict, dict)
 
 @cooked_required
 def test_step_by_step(master_dir):
@@ -40,8 +45,7 @@ def test_step_by_step(master_dir):
                                     det=1, master_key=master_key,
                                     master_dir=master_dir,reuse_masters=True)
     # Extract arcs
-    arccen, maskslits = waveTilts.extract_arcs(waveTilts.slitcen, waveTilts.slitmask,
-                                               waveTilts.inmask)
+    arccen, maskslits = waveTilts.extract_arcs()#waveTilts.slitcen, waveTilts.slitmask, waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0

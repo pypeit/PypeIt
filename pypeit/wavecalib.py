@@ -360,41 +360,14 @@ class WaveCalib(masterframe.MasterFrame):
         Returns:
             dict or None: self.wv_calib
         """
-        if not self.reuse_masters:
-            # User does not want to load masters
-            msgs.warn('PypeIt will not reuse masters!')
-            return None
-
-        # Check the input path
-        _ifile = self.master_file_path if ifile is None else ifile
-
-        if not os.path.isfile(_ifile):
-            # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
-            return None
-
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return
         # Read, save it to self, return
-        # TODO: Need to save it to self?
-        msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        self.wv_calib = waveio.load_wavelength_calibration(_ifile)
+        msgs.info('Loading Master frame: {0}'.format(master_file))
+        self.wv_calib = waveio.load_wavelength_calibration(master_file)
         return self.wv_calib
-
-    @staticmethod
-    def load_from_file(filename):
-        """
-        Load a full (all slit) wavelength calibration.
-
-        This simply executes
-        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
-
-        Args:
-            filename (:obj:`str`):
-                Name of the master frame file.
-
-        Returns:
-            dict: The wavelength calibration data.
-        """
-        return waveio.load_wavelength_calibration(filename)
 
     def make_maskslits(self, nslit):
         """
