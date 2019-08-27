@@ -95,10 +95,7 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         pypeitimage.save_images(self.pypeitImage, _outfile, hdr=hdr, iext='TILT')
         msgs.info('Master frame written to {0}'.format(_outfile))
 
-
-    # TODO: it would be better to have this instantiate the full class
-    # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load(self, ifile=None):
         """
         Load the tilt frame data from a saved master frame.
 
@@ -113,5 +110,11 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Returns a `numpy.ndarray`_ with the tilt master frame image.
             Also returns the primary header, if requested.
         """
-        return super(TiltImage, self).load('TILT', ifile=ifile, return_header=return_header, is_pypeitImage=True)
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return
+        else:  # Load
+            self.pypeitImage = pypeitimage.load_images(master_file)
+            return self.pypeitImage
 

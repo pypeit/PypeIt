@@ -52,6 +52,21 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     frametype = 'bias'
     master_type = 'Bias'
 
+    @classmethod
+    def from_master_file(cls, master_file, par=None):
+        # Spectrograph
+        spectrograph, extras = masterframe.items_from_master_file(master_file)
+        head0 = extras[0]
+        # Master info
+        master_dir = head0['MSTRDIR']
+        master_key = head0['MSTRKEY']
+        # Instantiate
+        slf = cls(spectrograph, par=par, master_dir=master_dir, master_key=master_key,
+                  reuse_masters=True)
+        slf.pypeitImage = slf.load(ifile=master_file)
+        # Return
+        return slf
+
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False):
@@ -133,21 +148,10 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
         #                            raw_files=self.file_list, steps=self.process_steps)
 
-    # TODO: it would be better to have this instantiate the full class
-    # as a classmethod.
     def load(self, ifile=None):
         """
-        Load the bias frame.
+        Load the bias frame according to how par['useframe'] is set.
         
-        This overwrites :func:`pypeit.masterframe.MasterFrame.load` so
-        that the bias can be returned as a string as necessary.
-
-        The bias mode to use in this reduction is either
-          - None -- No bias subtraction
-          - combined -- Use a generated bias image
-
-        The result is *not* saved internally.
-
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
@@ -157,10 +161,6 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Returns either the `numpy.ndarray`_ with the bias image
             or None if no bias is to be subtracted.
         """
-        # Check input
-        if self.par['useframe'].lower() in ['none']:# and return_header:
-            msgs.warn('No image data to read.  Header returned as None.')
-
         # How are we treating biases?
         # 1) No bias subtraction
         if self.par['useframe'].lower() == 'none':
@@ -169,9 +169,16 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         # 2) Use overscan
         if self.par['useframe'] == 'overscan':
-            msgs.error("useframe=overscan was Deprecated. Remove from your pypeit file")
+            msgs.error("useframe=overscan was Deprecated. Remove it from your pypeit file")
 
-        # 3) User wants bias subtractions, use a Master biasframe?
+        # 3) User wants bias subtractions
         if self.par['useframe'] in ['bias', 'dark']:
-            return super(BiasFrame, self).load('BIAS', ifile=ifile, is_pypeitImage=True) #, return_header=return_header)
+            # Check on whether to reuse and whether the file exists
+            master_file = self.chk_load_master(ifile)
+            if master_file is None:
+                return
+            else:  # Load
+                self.pypeitImage = pypeitimage.load_images(master_file)
+                return self.pypeitImage
+            #return super(BiasFrame, self).load('BIAS', ifile=ifile, is_pypeitImage=True)
 

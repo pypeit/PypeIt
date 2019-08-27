@@ -1050,7 +1050,8 @@ class Coadd2d(object):
         # TODO Sort this out with the correct detector extensions etc.
         # Read in the image stacks
         for ifile in range(nfiles):
-            waveimg = WaveImage.load_from_file(waveimgfiles[ifile])
+            #waveimg = WaveImage.load_from_file(waveimgfiles[ifile])  # JXP
+            waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
             tilts = WaveTilts.load_from_file(tiltfiles[ifile])
             hdu = fits.open(spec2d_files[ifile])
             # One detector, sky sub for now

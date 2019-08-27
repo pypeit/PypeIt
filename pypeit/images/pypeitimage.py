@@ -30,14 +30,7 @@ class PypeItImage(maskimage.ImageMask):
 
     Attributes:
         image (np.ndarray):
-        datasec_img (np.ndarray):
-            Used for the amplifiers
         head0 (astropy.io.fits.Header):
-        orig_shape (tuple):
-        binning (tuple):
-          Binning in the PypeIt orientation (spec, spat)
-        exptime (float):
-          Exposure time of the image
 
     """
 
@@ -54,6 +47,7 @@ class PypeItImage(maskimage.ImageMask):
         self.rn2img = rn2img
         self.state = state
         self.binning = binning
+        self.head0 = None
 
         # Mask attributes
         self.crmask = crmask
@@ -127,7 +121,7 @@ def save_images(pypeitImage, outfile, hdr=None, iext=None):
     save.write_fits(hdr, data, outfile, extnames=ext)
 
 
-def load(file):
+def load_images(file):
     """
     Load a PypeItImage from disk (FITS file)
 
@@ -135,7 +129,7 @@ def load(file):
         file (str):
 
     Returns:
-        PypeItImage, fits.Header: Loaded up PypeItImage and the primary Header
+        PypeItImage: Loaded up PypeItImage with the primary Header attached
 
     """
     # Open
@@ -145,6 +139,7 @@ def load(file):
 
     # Instantiate
     pypeitImage = PypeItImage(hdul[1].data)
+    pypeitImage.head0 = head0
     if hdul[1].name != 'IMAGE':
         msgs.warn("Badly formated PypeItImage.  I hope this is an old calibration frame for compatibility")
 
@@ -157,4 +152,4 @@ def load(file):
         setattr(pypeitImage, hdul[kk].name.lower(), hdul[kk].data)
 
     # Return
-    return pypeitImage, head0
+    return pypeitImage

@@ -7,13 +7,13 @@ import inspect
 import numpy as np
 import os
 
-from astropy.io import fits
 
 from pypeit import msgs
 
 from pypeit import masterframe
 from pypeit.core import flat
 from pypeit.core import save
+from pypeit.core import load
 from pypeit import ginga
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
@@ -21,7 +21,6 @@ from pypeit.core import procimg
 from pypeit.core import trace_slits
 from pypeit.images import calibrationimage
 from pypeit.images import pypeitimage
-from pypeit.spectrographs import util
 
 from IPython import embed
 
@@ -90,11 +89,9 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 With the flat images loaded up
 
         """
-        # Spectrograph from header
-        hdu = fits.open(master_file)
-        head0 = hdu[0].header
-        spec_name = head0['PYP_SPEC']
-        spectrograph = util.load_spectrograph(spec_name)
+        # Spectrograph
+        spectrograph, extras = masterframe.items_from_master_file(master_file)
+        head0 = extras[0]
         # Par
         if par is None:
             par = spectrograph.default_pypeit_par()
@@ -355,9 +352,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         save.write_fits(hdr, data, _outfile, extnames=extnames)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
-    # TODO: it would be better to have this instantiate the full class
-    # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+
+    def load(self, ifile=None):
         """
         Load the flat-field data from a save master frame.
 
@@ -365,15 +361,19 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
                 :attr:`file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header
 
         Returns:
             tuple: Returns three `numpy.ndarray`_ objects with the raw
             flat-field image, the normalized pixel flat, and the
-            illumination flat.  Also returns the primary header, if
-            requested.
+            illumination flat.
         """
-        return super(FlatField, self).load(['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], ifile=ifile,
-                                           return_header=return_header)
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return (None, None, None)
+        # Load
+        ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT']
+        self.rawflatimg, self.mspixelflat, self.msillumflat, head0 = load.load_multiext_fits(master_file, ext)
+        # Return
+        return self.rawflatimg, self.mspixelflat, self.msillumflat
 

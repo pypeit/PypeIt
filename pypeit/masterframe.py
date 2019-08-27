@@ -15,6 +15,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit.images import pypeitimage
 from pypeit.io import initialize_header
+from pypeit.spectrographs import util
 
 import astropy
 
@@ -166,6 +167,37 @@ class MasterFrame(object):
     # TODO: Add a base-level staticmethod one-liner?
     # TODO: include checksum keyword, used to validate data when
     # loading?
+    def chk_load_master(self, ifile):
+        """
+        Generic master file reader.
+
+        This generic reader assumes the file is in fits format.
+
+        Args:
+            ifile (:obj:`str` or None):
+                Name of the master frame file.  Defaults to
+                :attr:`master_file_path`.
+
+        Returns:
+            None or str:
+        """
+        # Format the input and set the tuple for an empty return
+        _ifile = self.master_file_path if ifile is None else ifile
+        if not self.reuse_masters:
+            # User does not want to load masters
+            msgs.warn('PypeIt will not reuse masters!')
+            return
+        if not os.path.isfile(_ifile):
+            # Master file doesn't exist
+            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
+            return
+        # Else return the file
+        return _ifile
+
+    '''
+    # TODO: Add a base-level staticmethod one-liner?
+    # TODO: include checksum keyword, used to validate data when
+    # loading?
     def load(self, ext, ifile=None, return_header=False, is_pypeitImage=False):
         """
         Generic master file reader.
@@ -295,6 +327,7 @@ class MasterFrame(object):
         hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
 
         return hdr
+    '''
 
     def build_master_header(self, hdr=None, steps=None, raw_files=None):
         """
@@ -344,3 +377,31 @@ class MasterFrame(object):
                 hdr['F{0}'.format(i + 1).zfill(ndig)] = (raw_files[i], 'PypeIt: Processed raw file')
 
         return hdr
+
+
+def items_from_master_file(master_file):
+    """
+    Grab items from the Master file
+
+    Either the header or some other part of the object
+
+    Args:
+        master_file (str):
+
+    Returns:
+        pypeit.spectrograph.Spectrograph, list:
+
+    """
+    ext = master_file.split('.')[-1]
+
+    if ext == 'fits':
+        # Spectrograph from header
+        hdu = fits.open(master_file)
+        head0 = hdu[0].header
+        spec_name = head0['PYP_SPEC']
+        spectrograph = util.load_spectrograph(spec_name)
+        extras = [head0]
+    else:
+        msgs.error("Not read for this type of master file")
+    # Return
+    return spectrograph, extras

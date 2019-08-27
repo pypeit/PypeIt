@@ -98,9 +98,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         pypeitimage.save_images(self.pypeitImage, _outfile, hdr=hdr, iext='ARC')
         msgs.info('Master frame written to {0}'.format(_outfile))
 
-    # TODO: it would be better to have this instantiate the full class
-    # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load(self, ifile=None):
         """
         Load the arc frame data from a saved master frame.
 
@@ -115,5 +113,11 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Returns a `numpy.ndarray`_ with the arc master frame image.
             Also returns the primary header, if requested.
         """
-        return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header, is_pypeitImage=True)
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return
+        else:  # Load
+            self.pypeitImage = pypeitimage.load_images(master_file)
+            return self.pypeitImage
 
