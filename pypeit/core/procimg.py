@@ -712,6 +712,7 @@ def init_process_steps(bias, proc_par):
     elif proc_par['bias'].lower() == 'force':
         if bias is None:
             msgs.error("Must provide bias frames!")
+        process_steps.append('subtract_bias')
     elif proc_par['bias'].lower() == 'skip':
         pass
     # Overscan
