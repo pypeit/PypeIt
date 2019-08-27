@@ -40,7 +40,8 @@ def test_step_by_step(master_dir):
                                     det=1, master_key=master_key,
                                     master_dir=master_dir,reuse_masters=True)
     # Extract arcs
-    arccen, maskslits = waveTilts.extract_arcs(waveTilts.slitcen, waveTilts.slitmask, msarc, waveTilts.inmask)
+    arccen, maskslits = waveTilts.extract_arcs(waveTilts.slitcen, waveTilts.slitmask,
+                                               waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0
@@ -48,7 +49,8 @@ def test_step_by_step(master_dir):
     thismask = waveTilts.slitmask == slit
     waveTilts.lines_spec, waveTilts.lines_spat = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
 
-    trcdict = waveTilts.trace_tilts(waveTilts.msarc, waveTilts.lines_spec, waveTilts.lines_spat, thismask, slit)
+    trcdict = waveTilts.trace_tilts(waveTilts.msarc.image, waveTilts.lines_spec,
+                                    waveTilts.lines_spat, thismask, slit)
     assert isinstance(trcdict, dict)
     # 2D Fit
     spat_order = waveTilts._parse_param(waveTilts.par, 'spat_order', slit)
