@@ -17,6 +17,7 @@ from pypeit import masterframe
 from pypeit import ginga
 from pypeit.core import arc
 from pypeit.core import tracewave, pixels
+from pypeit.core import save
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -373,11 +374,11 @@ class WaveTilts(masterframe.MasterFrame):
         Args:
             outfile (:obj:`str`, optional):
                 Name for the output file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _outfile = self.file_path if outfile is None else outfile
+        _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -388,23 +389,25 @@ class WaveTilts(masterframe.MasterFrame):
         msgs.info('Saving master frame to {0}'.format(_outfile))
 
         # Build the header
-        hdr = fits.Header()
+        hdr = self.build_master_header(steps=self.steps)
         #   - Set the master frame type
         hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
-        #   - List the completed steps
-        hdr['STEPS'] = (','.join(self.steps), 'Completed reduction steps')
         #   - Tilts metadata
         hdr['FUNC2D'] = self.tilts_dict['func2d']
         hdr['NSLIT'] =  self.tilts_dict['nslit']
 
         # Write the fits file
-        fits.HDUList([fits.PrimaryHDU(header=hdr),
-                      fits.ImageHDU(data=self.tilts_dict['tilts'], name='TILTS'),
-                      fits.ImageHDU(data=self.tilts_dict['coeffs'], name='COEFFS'),
-                      fits.ImageHDU(data=self.tilts_dict['slitcen'], name='SLITCEN'),
-                      fits.ImageHDU(data=self.tilts_dict['spat_order'], name='SPAT_ORDER'),
-                      fits.ImageHDU(data=self.tilts_dict['spec_order'], name='SPEC_ORDER')
-                     ]).writeto(_outfile, overwrite=True)
+        data = [self.tilts_dict['tilts'], self.tilts_dict['coeffs'], self.tilts_dict['slitcen'],
+                self.tilts_dict['spat_order'], self.tilts_dict['spec_order']]
+        extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
+        save.write_fits(hdr, data, _outfile, extnames=extnames)
+        #fits.HDUList([fits.PrimaryHDU(header=hdr),
+        #              fits.ImageHDU(data=self.tilts_dict['tilts'], name='TILTS'),
+        #              fits.ImageHDU(data=self.tilts_dict['coeffs'], name='COEFFS'),
+        #              fits.ImageHDU(data=self.tilts_dict['slitcen'], name='SLITCEN'),
+        #              fits.ImageHDU(data=self.tilts_dict['spat_order'], name='SPAT_ORDER'),
+        #              fits.ImageHDU(data=self.tilts_dict['spec_order'], name='SPEC_ORDER')
+        #             ]).writeto(_outfile, overwrite=True)
 
     def load(self, ifile=None, return_header=False):
         """
@@ -415,7 +418,7 @@ class WaveTilts(masterframe.MasterFrame):
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             return_header (:obj:`bool`, optional):
                 Return the header.
 
@@ -427,7 +430,7 @@ class WaveTilts(masterframe.MasterFrame):
             per expected return object).
         """
         # Format the input and set the tuple for an empty return
-        _ifile = self.file_path if ifile is None else ifile
+        _ifile = self.master_file_path if ifile is None else ifile
         empty_return = (None, None) if return_header else None
 
         if not self.reuse_masters:
@@ -437,7 +440,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
+            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
             return empty_return
 
         # Read and return
@@ -453,7 +456,7 @@ class WaveTilts(masterframe.MasterFrame):
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             return_header (:obj:`bool`, optional):
                 Return the header, which will include the TraceImage
                 metadata if available.

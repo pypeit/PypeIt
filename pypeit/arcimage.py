@@ -12,6 +12,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
+from pypeit.images import pypeitimage
 from pypeit.core import procimg
 
 from IPython import embed
@@ -86,8 +87,16 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(ArcImage, self).save(self.pypeitImage, 'ARC', outfile=outfile, overwrite=overwrite,
-                                   raw_files=self.file_list, steps=self.process_steps)
+        _outfile = self.master_file_path if outfile is None else outfile
+        # Check if it exists
+        if os.path.exists(_outfile) and not overwrite:
+            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+                      + 'Set overwrite=True to overwrite it.')
+            return
+        #
+        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
+        pypeitimage.save_images(self.pypeitImage, _outfile, hdr=hdr, iext='ARC')
+        msgs.info('Master frame written to {0}'.format(_outfile))
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.

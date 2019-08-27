@@ -556,3 +556,14 @@ def save_sens_dict(sens_dict, outfile, overwrite=True):
     msgs.info("Sucessfuly save sensitivity function to file {:s}".format(outfile))
 
 
+def write_fits(hdr, data, outfile, extnames=None, checksum=True):
+    # Format the output
+    ext = extnames if isinstance(extnames, list) else [extnames]
+    if len(ext) > 1 and not isinstance(data, list):
+        msgs.error('Input data type should be list, one numpy.ndarray per extension.')
+    _data = data if isinstance(data, list) else [data]
+
+    # Write the fits file
+    fits.HDUList([fits.PrimaryHDU(header=hdr)]
+                 + [fits.ImageHDU(data=d, name=n) for d, n in zip(_data, ext)]
+                 ).writeto(outfile, overwrite=True, checksum=checksum)

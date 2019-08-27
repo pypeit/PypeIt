@@ -7,6 +7,7 @@ import numpy as np
 
 from astropy.io import fits
 
+from pypeit.core import save
 from pypeit.images import maskimage
 from pypeit.io import initialize_header
 
@@ -84,9 +85,11 @@ class PypeItImage(maskimage.ImageMask):
         return repr
 
 
-def save(pypeitImage, outfile, hdr=None, checksum=True):
+def save_images(pypeitImage, outfile, hdr=None, iext=None):
     """
     Write the image(s) to a multi-extension FITS file
+
+    Cannot be named save as that is a core module
 
     Extensions will be:
        PRIMARY
@@ -96,15 +99,22 @@ def save(pypeitImage, outfile, hdr=None, checksum=True):
 
     Args:
         outfile:
+        iext (str, optional):
+            Name for the first extension
+            Defaults to IMAGE
 
     Returns:
 
     """
-    hdr = initialize_header(hdr)
+    if hdr is None:
+        hdr = initialize_header()
 
-    # Parse whatever is available
+    # Save whatever is available
     data = [pypeitImage.image]
-    ext = ['IMAGE']
+    if iext is None:
+        ext = ['IMAGE']
+    else:
+        ext = [iext]
 
     # Load up the rest
     for item in ['ivar', 'mask']:
@@ -112,11 +122,9 @@ def save(pypeitImage, outfile, hdr=None, checksum=True):
             data.append(getattr(pypeitImage, item))
             ext.append(item.upper())
 
-    # TODO -- Default to float32 for float images
+    # TODO -- Default to float32 for float images?
     # Write the fits file
-    fits.HDUList([fits.PrimaryHDU(header=hdr)]
-             + [ fits.ImageHDU(data=d, name=n) for d,n in zip(data, ext)]
-             ).writeto(outfile, overwrite=True, checksum=checksum)
+    save.write_fits(hdr, data, outfile, extnames=ext)
 
 
 def load(file):

@@ -7,12 +7,14 @@ Module for guiding construction of the Wavelength Image
 import inspect
 
 import numpy as np
+import os
 
 from pypeit import msgs
 from pypeit import utils
 from pypeit.masterframe import MasterFrame
 from pypeit.core import pixels
 from pypeit.core import trace_slits
+from pypeit.core import save
 import IPython
 
 
@@ -144,9 +146,18 @@ class WaveImage(MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
+        _outfile = self.master_file_path if outfile is None else outfile
+        # Check if it exists
+        if os.path.exists(_outfile) and not overwrite:
+            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+                      + 'Set overwrite=True to overwrite it.')
+            return
+        # Setup the items
+        hdr = self.build_master_header(steps=self.steps)
         _image = self.image if image is None else image
-        super(WaveImage, self).save(_image, 'WAVE', outfile=outfile, overwrite=overwrite,
-                                    steps=self.steps)
+        # Save to a multi-extension FITS
+        save.write_fits(hdr, [image], _outfile, extnames=['WAVE'])
+        msgs.info('Master frame written to {0}'.format(_outfile))
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.

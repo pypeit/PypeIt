@@ -5,12 +5,14 @@ Module for guiding Bias subtraction including generating a Bias image as desired
 
 """
 import numpy as np
+import os
 from IPython import embed
 
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
+from pypeit.images import pypeitimage
 
 
 class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
@@ -110,14 +112,26 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
+        # Some checks
         if self.pypeitImage is None:
             msgs.warn('No MasterBias to save!')
             return
         if not isinstance(self.pypeitImage.image, np.ndarray):
             msgs.warn('MasterBias is not an image.')
             return
-        super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
-                                    raw_files=self.file_list, steps=self.process_steps)
+        # Proceed
+        _outfile = self.master_file_path if outfile is None else outfile
+        # Check if it exists
+        if os.path.exists(_outfile) and not overwrite:
+            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+                      + 'Set overwrite=True to overwrite it.')
+            return
+        # Save
+        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
+        pypeitimage.save_images(self.pypeitImage, _outfile, hdr=hdr, iext='BIAS')
+        msgs.info('Master frame written to {0}'.format(_outfile))
+        #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
+        #                            raw_files=self.file_list, steps=self.process_steps)
 
     # TODO: it would be better to have this instantiate the full class
     # as a classmethod.

@@ -4,7 +4,7 @@ Implements the master frame base class.
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
 import os
-import warnings
+from IPython import embed
 
 from abc import ABCMeta
 
@@ -82,14 +82,14 @@ class MasterFrame(object):
         """
         return MasterFrame.construct_file_name(self.master_type, self.master_key,
                                                self.file_format)
-
     @property
-    def file_path(self):
+    def master_file_path(self):
         """
         Full path to MasterFrame file.
         """
         return os.path.join(self.master_dir, self.file_name)
 
+    '''
     def save(self, data, extnames, outfile=None, overwrite=True, raw_files=None, steps=None,
              checksum=True):
         """
@@ -110,7 +110,7 @@ class MasterFrame(object):
                 The names for the data extensions.
             outfile (:obj:`str`, optional):
                 Name for the output file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
             raw_files (:obj:`list`, optional):
@@ -123,7 +123,7 @@ class MasterFrame(object):
                 Passed to `astropy.io.fits.HDUList.writeto` to add
                 the DATASUM and CHECKSUM keywords fits header(s).
         """
-        _outfile = self.file_path if outfile is None else outfile
+        _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -161,6 +161,7 @@ class MasterFrame(object):
                          ).writeto(_outfile, overwrite=True, checksum=checksum)
 
         msgs.info('Master frame written to {0}'.format(_outfile))
+    '''
 
     # TODO: Add a base-level staticmethod one-liner?
     # TODO: include checksum keyword, used to validate data when
@@ -178,7 +179,7 @@ class MasterFrame(object):
                 number or its name.
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             return_header (:obj:`bool`, optional):
                 Return the header
             is_pypeitImage (:obj:`bool`, optional):
@@ -193,7 +194,7 @@ class MasterFrame(object):
             and one if the header is requested).
         """
         # Format the input and set the tuple for an empty return
-        _ifile = self.file_path if ifile is None else ifile
+        _ifile = self.master_file_path if ifile is None else ifile
         _ext = ext if isinstance(ext, list) else [ext]
         n_ext = len(_ext)
         empty_return = ((None,)*(n_ext+1) if return_header else (None,)*n_ext) \
@@ -205,7 +206,7 @@ class MasterFrame(object):
         
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
+            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
             return empty_return
 
         # Read and return
@@ -289,5 +290,57 @@ class MasterFrame(object):
         hdr['MSTRDIR'] = (self.master_dir, 'PypeIt: Master directory')
         hdr['MSTRKEY'] = (self.master_key, 'PypeIt: Calibration key')
         hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
+
+        # Other info, pulled from the Child
+        hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+
+        return hdr
+
+    def build_master_header(self, hdr=None, steps=None, raw_files=None):
+        """
+        Initialize the master frame header.
+
+        The function writes information generic to all PypeIt master
+        frame headers with basic information.
+
+        Args:
+            hdr (`astropy.io.fits.Header`, optional):
+                Header object to update with basic summary
+                information. The object is modified in-place and also
+                returned. If None, an empty header is instantiated,
+                edited, and returned.
+            steps (:obj:`list`, optional):
+                The list of steps executed by the derived class to
+                construct the master frame.
+            raw_files (:obj:`list`, optional):
+                List of processed raw files used to construct the master
+                frame.
+
+        Returns:
+            `astropy.io.fits.Header`: The initialized (or edited)
+            fits header.
+        """
+        # Standard init
+        hdr = initialize_header(hdr)
+
+        # Save the master frame type and key, in case the file name is
+        # changed.
+        hdr['MSTRTYP'] = (self.master_type, 'PypeIt: Master frame type')
+        hdr['MSTRDIR'] = (self.master_dir, 'PypeIt: Master directory')
+        hdr['MSTRKEY'] = (self.master_key, 'PypeIt: Calibration key')
+        hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
+
+        # Other info, pulled from the Child
+        hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+
+        #   - List the completed steps
+        if steps is not None:
+            hdr['STEPS'] = (','.join(steps), 'Completed reduction steps')
+        #   - Provide the file names
+        if raw_files is not None:
+            nfiles = len(raw_files)
+            ndig = int(np.log10(nfiles)) + 1
+            for i in range(nfiles):
+                hdr['F{0}'.format(i + 1).zfill(ndig)] = (raw_files[i], 'PypeIt: Processed raw file')
 
         return hdr

@@ -9,6 +9,8 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
+import linetools.utils
+
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
@@ -326,7 +328,7 @@ class WaveCalib(masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _outfile = self.file_path if outfile is None else outfile
+        _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -334,7 +336,13 @@ class WaveCalib(masterframe.MasterFrame):
             return
 
         # Report and save
-        waveio.save_wavelength_calibration(_outfile, self.wv_calib, overwrite=overwrite)
+
+        # jsonify has the annoying property that it modifies the objects
+        # when it jsonifies them so make a copy, which converts lists to
+        # arrays, so we make a copy
+        data_for_json = copy.deepcopy(self.wv_calib)
+        gddict = linetools.utils.jsonify(data_for_json)
+        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
@@ -347,7 +355,7 @@ class WaveCalib(masterframe.MasterFrame):
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
 
         Returns:
             dict or None: self.wv_calib
@@ -358,11 +366,11 @@ class WaveCalib(masterframe.MasterFrame):
             return None
 
         # Check the input path
-        _ifile = self.file_path if ifile is None else ifile
+        _ifile = self.master_file_path if ifile is None else ifile
 
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
+            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
             return None
 
         # Read, save it to self, return
