@@ -33,13 +33,15 @@ class PypeItImage(maskimage.ImageMask):
             Used for the amplifiers
         head0 (astropy.io.fits.Header):
         orig_shape (tuple):
-        binning_raw (tuple):  Binning in the raw image orientation (NAXIS1, NAXIS2)
-        binning (tuple): Binning the PypeIt orientation (spec, spat)
-        exptime (float): Exposure time of the image
+        binning (tuple):
+          Binning in the PypeIt orientation (spec, spat)
+        exptime (float):
+          Exposure time of the image
 
     """
 
-    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None, binning=None, crmask=None, mask=None):
+    def __init__(self, image, ivar=None, rn2img=None, bpm=None, state=None,
+                 binning=None, crmask=None, mask=None):
 
         maskimage.ImageMask.__init__(self, bpm)
 
@@ -82,7 +84,7 @@ class PypeItImage(maskimage.ImageMask):
         return repr
 
 
-def save(slf, outfile, hdr=None, checksum=True):
+def save(pypeitImage, outfile, hdr=None, checksum=True):
     """
     Write the image(s) to a multi-extension FITS file
 
@@ -101,13 +103,13 @@ def save(slf, outfile, hdr=None, checksum=True):
     hdr = initialize_header(hdr)
 
     # Parse whatever is available
-    data = [slf.image]
+    data = [pypeitImage.image]
     ext = ['IMAGE']
 
     # Load up the rest
     for item in ['ivar', 'mask']:
-        if getattr(slf, item) is not None:
-            data.append(getattr(slf, item))
+        if getattr(pypeitImage, item) is not None:
+            data.append(getattr(pypeitImage, item))
             ext.append(item.upper())
 
     # TODO -- Default to float32 for float images

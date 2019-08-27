@@ -63,23 +63,15 @@ class BuildImage(object):
 
     def process_one(self, filename, process_steps, bias, pixel_flat, illum_flat=None, bpm=None):
         """
-        Instantiate from a single file
+        Process a single image
 
         This will also generate the ivar, crmask, rn2img and mask
 
         Args:
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                Spectrograph used to take the data.
-            det (:obj:`int`, optional):
-                The 1-indexed detector number to process.
-            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-                Parameters that dictate the processing of the images.  See
-                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-                defaults.
-            bpm (np.ndarray):
-                Bad pixel mask.  Held in ImageMask
             filename (str):
                 Filename
+            process_steps (list):
+                List of processing steps
             bias (np.ndarray or None):
                 Bias image
             pixel_flat (np.ndarray):
@@ -105,14 +97,12 @@ class BuildImage(object):
     def run(self, process_steps, bias, pixel_flat=None, illum_flat=None,
                        sigma_clip=False, bpm=None, sigrej=None, maxiters=5):
         """
-        Instantiate from file list
+        Generate a PypeItImage from a list of images
 
         This may also generate the ivar, crmask, rn2img and mask
 
         Args:
             process_steps (list):
-            bpm (np.ndarray, optional):
-                Bad pixel mask.  Held in ImageMask
             bias (np.ndarray or None):
                 Bias image or instruction
             pixel_flat (np.ndarray, optional):
@@ -122,9 +112,11 @@ class BuildImage(object):
             sigrej (int or float, optional): Rejection threshold for sigma clipping.
                  Code defaults to determining this automatically based on the number of images provided.
             maxiters (int, optional):
+            bpm (np.ndarray, optional):
+                Bad pixel mask.  Held in ImageMask
 
         Returns:
-            ScienceImage:
+            PypeItImage:
 
         """
         # Loop on the files

@@ -125,49 +125,8 @@ class CalibrationImage(object):
         """
         buildImage = buildimage.BuildImage(self.spectrograph, self.det, self.proc_par, self.file_list)
         self.pypeitImage = buildImage.run(self.process_steps, bias, bpm=bpm)
-        '''
-        if self.nfiles == 0:
-            msgs.warn("Need to provide a non-zero list of files")
-            return
-        # Load up image array
-        image_arr = None
-        for kk,file in enumerate(self.file_list):
-            # Process raw file
-            #processrawImage = processrawimage.ProcessRawImage(file, self.spectrograph,
-            #                                               self.det, self.proc_par)
-            #image = processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
-            #
-            # Load raw image
-            rawImage = rawimage.RawImage(file, self.spectrograph, self.det)
-            # Process
-            processrawImage = processrawimage.ProcessRawImage(rawImage, self.proc_par, bpm=bpm)
-            processedImage = processrawImage.process(self.process_steps, bias=bias)
-
-            # If only 1 file, return back the image
-            if self.nfiles == 1:
-                self.pypeitImage = processedImage
-                return self.pypeitImage
-
-            # Instantiate the image stack
-            if image_arr is None:
-                image_arr = np.zeros((processedImage.image.shape[0], processedImage.image.shape[1], self.nfiles))
-            # Hold
-            image_arr[:,:,kk] = processedImage.image
-
-        # Combine
-        image = combine.comb_frames(image_arr,
-                                         saturation=self.spectrograph.detector[self.det-1]['saturation'],
-                                         method=self.proc_par['combine'],
-                                         satpix=self.proc_par['satpix'],
-                                         cosmics=self.proc_par['sigrej'],
-                                         n_lohi=self.proc_par['n_lohi'],
-                                         sig_lohi=self.proc_par['sig_lohi'],
-                                         replace=self.proc_par['replace'])
-        self.pypeitImage = pypeitimage.PypeItImage(image, binning=processedImage.binning)
-        '''
         # Return
         return self.pypeitImage
-
 
 
     def __repr__(self):

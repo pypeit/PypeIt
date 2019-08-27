@@ -7,7 +7,7 @@ from IPython import embed
 
 class RawImage(object):
     """
-    Class to process a raw image
+    Class to load and hold a raw image
 
     Args:
         filename (:obj:`str` or None):
@@ -18,10 +18,7 @@ class RawImage(object):
             The 1-indexed detector number to process.
 
     Attributes:
-        steps (dict):
-            Dict describing the steps performed on the image
-        _bpm (np.ndarray):
-            Holds the bad pixel mask once loaded
+        raw_image (np.ndarray):
         rawdatasec_img (np.ndarray):
             Holds the datasec_img which specifies the amp for each pixel in the
             raw image
@@ -29,6 +26,7 @@ class RawImage(object):
             Holds the oscansec_img once loaded.  This is in the raw frame
         hdu (fits.HDUList):
             HDUList of the file
+        exptime (float):
     """
     def __init__(self, filename, spectrograph, det):
 

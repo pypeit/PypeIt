@@ -1,4 +1,4 @@
-""" Object process a single raw image"""
+""" Object to process a single raw image"""
 
 import inspect
 
@@ -19,16 +19,11 @@ class ProcessRawImage(object):
     Class to process a raw image
 
     Args:
-        filename (:obj:`str` or None):
-            Filename
+        RawImage (:class:`pypeit.images.rawimage.RawImage`):
         par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph used to take the data.
-        det (:obj:`int`, optional):
-            The 1-indexed detector number to process.
 
     Attributes:
         steps (dict):
@@ -184,6 +179,8 @@ class ProcessRawImage(object):
         Note:  The processing steps are currently 'frozen' as is.
           We may choose to allow optional ordering of the steps
 
+        ..todo.. Define the various process steps here
+
         Args:
             process_steps (list):
                 List of processing steps
@@ -266,29 +263,6 @@ class ProcessRawImage(object):
         # Do it
         self.image = flat.flatfield(self.image, pixel_flat, bpm, illum_flat=illum_flat)
         self.steps[step] = True
-
-    '''
-    def load_rawframe(self):
-        """
-        Load a raw image from disk using the Spectrograph method load_raw_frame()
-
-        Also loads up the binning, exposure time, and header of the Primary image
-        And the HDUList in self.hdu
-
-        """
-        # Load
-        #self.image, self.hdu, \
-        #    = self.spectrograph.load_raw_frame(self.filename, det=self.det)
-        #self.exptime, self.datasec_img, self.oscansec_img, self.binning_raw \
-        #    = self.spectrograph.load_raw_extras(self.hdu, self.det)
-        # Load itup
-        self.image, self.hdu, self.exptime, self.datasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
-            self.filename, self.det)
-
-        self.head0 = self.hdu[0].header
-        # Shape
-        self.orig_shape = self.image.shape
-    '''
 
     def orient(self, force=False):
         """

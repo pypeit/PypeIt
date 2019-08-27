@@ -22,6 +22,8 @@ class ScienceImage(pypeitimage.PypeItImage):
     """
     Class to generate and hold a science image
 
+    Child of PypeItImage
+
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
