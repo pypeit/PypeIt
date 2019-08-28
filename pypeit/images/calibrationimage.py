@@ -8,6 +8,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.par import pypeitpar
+from pypeit.images import buildimage  # Otherwise get circular import
 
 from IPython import embed
 
@@ -124,7 +125,6 @@ class CalibrationImage(object):
             PypeItImage:
 
         """
-        from pypeit.images import buildimage  # Otherwise get circular import
         buildImage = buildimage.BuildImage(self.spectrograph, self.det, self.proc_par, self.file_list)
         self.pypeitImage = buildImage.run(self.process_steps, bias, bpm=bpm, ignore_saturation=ignore_saturation)
         # Return

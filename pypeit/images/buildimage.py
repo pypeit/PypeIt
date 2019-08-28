@@ -8,7 +8,7 @@ import numpy as np
 
 from pypeit import msgs
 
-from pypeit.core import coadd2d
+from pypeit.core import combine
 from pypeit.par import pypeitpar
 from pypeit import utils
 
@@ -157,7 +157,7 @@ class BuildImage(object):
         img_list = [img_stack]
         var_stack = utils.inverse(ivar_stack)
         var_list = [var_stack, rn2img_stack]
-        img_list_out, var_list_out, outmask, nused = coadd2d.weighted_combine(
+        img_list_out, var_list_out, outmask, nused = combine.weighted_combine(
             weights, img_list, var_list, (mask_stack == 0),
             sigma_clip=sigma_clip, sigma_clip_stack=img_stack, sigrej=sigrej, maxiters=maxiters)
 
