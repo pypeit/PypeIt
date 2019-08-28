@@ -908,11 +908,13 @@ class Coadd2d(object):
         master_key_dict = self.stack_dict['master_key_dict']
 
         # TODO: These saving operations are a temporary kludge
-        waveImage = WaveImage(None, None, None, None, None, None, master_key=master_key_dict['arc'],
+        waveImage = WaveImage(None, None, None, self.spectrograph,  # spectrograph is needed for header
+                              None, None, master_key=master_key_dict['arc'],
                               master_dir=master_dir)
         waveImage.save(image=self.psuedo_dict['waveimg'])
 
-        traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
+        traceSlits = TraceSlits(self.spectrograph, None,   # Spectrograph is needed for header
+                                master_key=master_key_dict['trace'], master_dir=master_dir)
         traceSlits.save(tslits_dict=self.psuedo_dict['tslits_dict'])
 
 
