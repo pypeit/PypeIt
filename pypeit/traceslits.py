@@ -834,7 +834,6 @@ class TraceSlits(masterframe.MasterFrame):
               'extrapord'
               'slitpix'
         """
-        debug=True
         # Point to input data
         self.mstrace = mstrace
         self.binning = binning

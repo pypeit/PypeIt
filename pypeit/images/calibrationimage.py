@@ -110,7 +110,7 @@ class CalibrationImage(object):
             if not os.path.isfile(f):
                 msgs.error('{0} does not exist!'.format(f))
 
-    def build_image(self, bias=None, bpm=None):
+    def build_image(self, bias=None, bpm=None, ignore_saturation=True):
         """
         Load, process and combine the images for a Calibration
 
@@ -119,13 +119,17 @@ class CalibrationImage(object):
                 Bias image
             bpm (np.ndarray, optional):
                 Bad pixel mask
+            ignore_saturation (bool, optional):
+                If True, turn off the saturation flag in the individual images before stacking
+                This avoids having such values set to 0 which for certain images (e.g. flat calibrations)
+                has unintended consequences.
 
         Returns:
             PypeItImage:
 
         """
         buildImage = buildimage.BuildImage(self.spectrograph, self.det, self.proc_par, self.file_list)
-        self.pypeitImage = buildImage.run(self.process_steps, bias, bpm=bpm)
+        self.pypeitImage = buildImage.run(self.process_steps, bias, bpm=bpm, ignore_saturation=ignore_saturation)
         # Return
         return self.pypeitImage
 
