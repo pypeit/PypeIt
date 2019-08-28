@@ -794,19 +794,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # NOTE: This was previously done at the beginning of
         # edgearr_from_binarr
         if np.any(self.bpm):
+            # For tracing, we really only care about bad spec lines, i.e.
+            #  columns in the PypeIt frame.  And this is how BPM is oriented.
+            #  I am now setting it to deal with both options
             # Do we need to replace bad *rows* instead of bad columns?
-            flip = self.spectrograph.raw_is_transposed(det=self.det)
-            axis = 1 if flip else 0
+
+            #flip = self.spectrograph.raw_is_transposed(det=self.det)
+            #axis = 1 if flip else 0
 
             # Replace bad columns that cover more than half the image
-            bad_cols = np.sum(self.bpm, axis=axis) > (self.bpm.shape[axis]//2)
-            if flip:
-                # Deal with the transposes
-                _img = procimg.replace_columns(_img.T, bad_cols, copy=True,
-                                               replace_with='linear').T
-            else:
-                _img = procimg.replace_columns(_img, bad_cols, copy=True,
-                                               replace_with='linear')
+            for flip, axis in zip([False,True], [0,1]):
+                bad_cols = np.sum(self.bpm, axis=axis) > (self.bpm.shape[axis]//2)
+                if flip:
+                    # Deal with the transposes
+                    _img = procimg.replace_columns(_img.T, bad_cols, copy=True,
+                                                   replace_with='linear').T
+                else:
+                    _img = procimg.replace_columns(_img, bad_cols, copy=True,
+                                                   replace_with='linear')
 
         # Filter the trace image and use the filtered image to detect
         # slit edges

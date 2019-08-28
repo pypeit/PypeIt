@@ -102,6 +102,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['max_shift_adj'] = 3.
         par['calibrations']['slitedges']['edge_thresh'] = 10.  # Tough to get the bluest orders
         par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3  # Allow for a short detected blue order
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         par['scienceimage']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
@@ -212,7 +213,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()
         # Do it
-        bpm_img[:, :10//binspatial] = 1.
+        bpm_img[:, :10//binspatial] = 1.  # Setting BPM on the edge of the detector often leads to false edges
         bpm_img[:, 1020//binspatial:] = 1.
         # Return
         return bpm_img

@@ -41,7 +41,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Keck_LRIS_red/multi_1200_9000_d680_1x2/ . May need a
         # different solution given that this is binned data and most of
         # the data in the dev suite is unbinned.
-        par['calibrations']['slitedges']['minimum_slit_length'] = 2
+        # JXP -- Increased to 6 arcsec.  I don't know how 2 (or 1!) could have worked.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters
@@ -620,35 +621,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return par
 
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LRISr exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'LRIS',
-                               '1.NAXIS': 2,
-                               '2.NAXIS': 2,
-                               '3.NAXIS': 2,
-                               '4.NAXIS': 2,
-                             '1.CCDGEOM': 'LBNL Thick High-Resistivity',
-                             '1.CCDNAME': '19-3',
-                             '3.CCDNAME': '19-2' }
-        super(KeckLRISRSpectrograph, self).check_headers(headers, expected_values=expected_values)
-    '''
-
-    '''
-    def header_keys(self):
-        hdr_keys = super(KeckLRISRSpectrograph, self).header_keys()
-        hdr_keys[0]['filter1'] = 'REDFILT'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -705,6 +677,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             xbin = int(binning.split(',')[0])
             badc = 16//xbin
             bpm_img[:, 0:badc] = 1
+
+            # Mask the end too (this is risky as an edge may appear)
+            #  But there is often weird behavior at the ends of these detectors
+            bpm_img[:, -10:] = 1
 
         return bpm_img
 

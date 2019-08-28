@@ -179,7 +179,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         msgs.info("Custom bad pixel mask for NIRES")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
-            #bpm_img[:, :20] = 1.  # Masking this region gives a fake slit edge at the BPM edge. Don't do it
+            bpm_img[:, :20] = 1.
             bpm_img[:, 1000:] = 1.
 
         return bpm_img
