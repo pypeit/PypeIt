@@ -22,7 +22,7 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-#@pytest.fixture
+@pytest.fixture
 def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
         fitstbl = dummy_fitstbl(directory=data_path(''))
@@ -40,7 +40,7 @@ def fitstbl():
     return fitstbl
 
 
-#@pytest.fixture
+@pytest.fixture
 def multi_caliBrate(fitstbl):
     spectrograph = load_spectrograph('shane_kast_blue')
     # Grab a science file for configuration specific parameters

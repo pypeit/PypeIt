@@ -66,7 +66,7 @@ def test_instantiate_from_one(shane_kast_blue_sci_files):
     #
     det = 1
     # Load calibrations
-    pixelflat = load_kast_blue_masters(pixflat=True)
+    pixelflat = load_kast_blue_masters(pixflat=True)[0]
     bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Process steps
     bias = None
@@ -93,7 +93,7 @@ def test_from_list(shane_kast_blue_sci_files):
     """
     det = 1
     # Load calibrations
-    pixelflat = load_kast_blue_masters(pixflat=True)
+    pixelflat = load_kast_blue_masters(pixflat=True)[0]
     bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Do it
     sciImg = scienceimage.build_from_file_list(kast_blue, det,

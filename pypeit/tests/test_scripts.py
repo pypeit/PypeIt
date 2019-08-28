@@ -13,10 +13,6 @@ import pytest
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypeit.par.util import parse_pypeit_file, make_pypeit_file
-from pypeit import msgs
-from pypeit.pypeitsetup import PypeItSetup
-from pypeit.scripts import setup, run_pypeit, show_1dspec, coadd_1dspec, chk_edges, view_fits
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import ginga
@@ -106,7 +102,7 @@ def test_view_fits():
     """ Only test the list option
     """
     spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    pargs = view_fits.parser([spec_file, '--list'])
+    pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
 
 @cooked_required
 def test_chk_flat():

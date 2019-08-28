@@ -123,7 +123,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             msgs.info("No bias frames provided.  No bias image will be generated or used")
             return None
         # Build
-        self.pypeItImage = super(BiasFrame, self).build_image()
+        self.pypeItImage = super(BiasFrame, self).build_image(ignore_saturation=True)
         self.pypeitImage.ivar = None  # Zero this out as it non-sensical
         # Return
         return self.pypeItImage

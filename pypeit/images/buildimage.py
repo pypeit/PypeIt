@@ -82,7 +82,7 @@ class BuildImage(object):
         return processedImage
 
     def run(self, process_steps, bias, pixel_flat=None, illum_flat=None,
-                       sigma_clip=False, bpm=None, sigrej=None, maxiters=5):
+            ignore_saturation=False, sigma_clip=False, bpm=None, sigrej=None, maxiters=5):
         """
         Generate a PypeItImage from a list of images
 
@@ -106,6 +106,10 @@ class BuildImage(object):
                 Number of iterations for the clipping
             bpm (np.ndarray, optional):
                 Bad pixel mask.  Held in ImageMask
+            ignore_saturation (bool, optional):
+                If True, turn off the saturation flag in the individual images before stacking
+                This avoids having such values set to 0 which for certain images (e.g. flat calibrations)
+                can have unintended consequences.
 
         Returns:
             :class:`pypeit.images.pypeitimage.PypeItImage`:
@@ -143,6 +147,9 @@ class BuildImage(object):
             if pypeitImage.rn2img is not None:
                 rn2img_stack[kk, :, :] = pypeitImage.rn2img
             # Final mask for this image
+            if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
+                indx = pypeitImage.bitmask.flagged(pypeitImage.mask, flag=['SATURATION'])
+                pypeitImage.mask[indx] = pypeitImage.bitmask.turn_off(pypeitImage.mask[indx], 'SATURATION')
             mask_stack[kk, :, :] = pypeitImage.mask
 
         # Coadd them

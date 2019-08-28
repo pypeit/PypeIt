@@ -56,12 +56,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_nires'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 1
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
@@ -185,7 +179,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         msgs.info("Custom bad pixel mask for NIRES")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
-            bpm_img[:, :20] = 1.
+            #bpm_img[:, :20] = 1.  # Masking this region gives a fake slit edge at the BPM edge. Don't do it
             bpm_img[:, 1000:] = 1.
 
         return bpm_img

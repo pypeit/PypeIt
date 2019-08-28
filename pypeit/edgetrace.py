@@ -1870,7 +1870,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                 & np.invert(_bpm[self.nspec//2,indx])
             if np.any(hit_min):
                 _msk[:,hit_min] = self.bitmask.turn_on(_msk[:,hit_min], 'HITMIN')
-                msgs.info('{0} trace(s) hit the minimum centroid value.'.format(np.sum(hitmin)))
+                msgs.info('{0} trace(s) hit the minimum centroid value.'.format(np.sum(hit_min)))
             
         # Find traces that are at the maximum column at the center row
         # TODO: Why only the center row?
@@ -1880,7 +1880,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                 & np.invert(_bpm[self.nspec//2,indx])
             if np.any(hit_max):
                 _msk[:,hit_max] = self.bitmask.turn_on(_msk[:,hit_max], 'HITMAX')
-                msgs.info('{0} trace(s) hit the maximum centroid value.'.format(np.sum(hitmax)))
+                msgs.info('{0} trace(s) hit the maximum centroid value.'.format(np.sum(hit_max)))
 
         # Find traces, or trace regions, that fall off the detector
         off_detector = np.zeros_like(indx, dtype=bool)

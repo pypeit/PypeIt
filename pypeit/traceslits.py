@@ -7,7 +7,7 @@ Module for guiding Slit/Order tracing
 import os
 import inspect
 import copy
-import IPython
+from IPython import embed
 
 import numpy as np
 
@@ -33,7 +33,7 @@ class TraceSlits(masterframe.MasterFrame):
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the instrument used to
             take the observations.  Used to set :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.TraceSlitsPar`):
+        par (:class:`pypeit.par.pypeitpar.TraceSlitsPar` or None):
             The parameters used to guide slit tracing
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
@@ -923,10 +923,12 @@ class TraceSlits(masterframe.MasterFrame):
 
         # fill dict for PypeIt
         self.tslits_dict = self._fill_tslits_dict()
+        embed(header='926 of trace')
 
         # Make the QA
         if write_qa:
             self._qa()
+
 
         # Return it
         return self.tslits_dict
