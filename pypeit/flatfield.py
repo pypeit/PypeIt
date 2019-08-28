@@ -188,7 +188,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             self.steps.append(inspect.stack()[0][3])
             # Do it
             self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias,
-                                                                 bpm=self.msbpm)
+                                                                 bpm=self.msbpm,
+                                                                 ignore_saturation=True)
         return self.rawflatimg
 
     # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
