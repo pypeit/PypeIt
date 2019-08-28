@@ -156,10 +156,11 @@ class BuildImage(object):
 
         # Build the last one
         final_pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
-                                              ivar=utils.inverse(var_list_out[0]),
-                                              bpm=pypeitImage.bpm,
-                                              rn2img=var_list_out[1],
-                                              crmask=np.invert(outmask))
+                                                    ivar=utils.inverse(var_list_out[0]),
+                                                    bpm=pypeitImage.bpm,
+                                                    rn2img=var_list_out[1],
+                                                    crmask=np.invert(outmask),
+                                                    binning=pypeitImage.binning)
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
                                                               apply_gain='apply_gain' in process_steps)
         final_pypeitImage.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,

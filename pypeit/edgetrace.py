@@ -105,6 +105,8 @@ from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
 
+from IPython import embed
+
 class EdgeTraceBitMask(BitMask):
     """
     Mask bits used during slit tracing.
@@ -264,9 +266,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             same shape as `img`.
         det (:obj:`int`):
             1-indexed detector number.
-        binning (:obj:`str`):
-            Comma-separated binning along the spectral and spatial
-            directions following the PypeIt convention (e.g., '2,1').
         sobel_sig (`numpy.ndarray`_)):
             Sobel-filtered image used to detect left and right edges
             of slits.
@@ -284,8 +283,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         nspat (:obj:`int`):
             Number of spatial pixels (columns) in the trace image
             (`axis=1`).
+        binning (:obj:`str`, optional):
+            On-detector binning of the data ordered spectral then
+            spatial with format, e.g., `2,1`. Ignored if `img` is
+            an instance of :class:`pypeit.traceimage.TraceImage`.
         traceid (`numpy.ndarray`_):
             The list of unique trace IDs.
+        binning (tuple):
         spat_img (`numpy.ndarray`_):
             An integer array with the spatial pixel nearest to each
             trace edge. This is identically::
@@ -336,7 +340,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
     master_type = 'Edges'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
-                 img=None, bpm=None, det=1, binning=None, auto=False, debug=False,
+                 img=None, bpm=None, det=1, auto=False, debug=False, binning=None,
                  show_stages=False, save=False, load=False):
 
         # TODO: It's possible for the master key and the detector
@@ -351,13 +355,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.img = None                 # The image used to find the slit edges
         self.bpm = None                 # Mask for the trace image
         self.det = None                 # Detector used for the trace image
-        self.binning = None             # Detector ordered spectral then spatial
         self.sobel_sig = None           # Sobel filtered image used to detect edges
         self.sobel_sig_left = None      # Sobel filtered image used to trace left edges
         self.sobel_sig_right = None     # Sobel filtered image used to trace right edges
         # TODO: Need a separate mask for the sobel image?
         self.nspec = None               # The shape of the trace image is (nspec,nspat)
         self.nspat = None
+        self.binning = None             # Detector ordered spectral then spatial
 
         self.traceid = None             # The ID numbers for each trace
         self.spat_img = None            # (Integer) Pixel nearest the slit edge for each trace
@@ -644,8 +648,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         elif self.par['sync_predict'] == 'pca':
             # TODO: This causes the code to fault. Maybe there's a way
             # to catch this earlier on?
-            msgs.error('Sync predict cannot use PCA because too few edges were found.  Edit '
-                       'your pypeit file to include:' + msgs.newline() +
+            msgs.error('Sync predict cannot use PCA because too few edges were found.  Either choose better flats or'
+                       'edit your pypeit file to include:' + msgs.newline() +
                        '    [calibrations]' + msgs.newline() +
                        '        [[slitedges]]' + msgs.newline() +
                        '            sync_predict = nearest')
@@ -758,15 +762,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Parse the input based on its type
         if isinstance(img, TraceImage):
             self.files = img.file_list
-            _img = img.image
-            self.binning = img.binning
+            _img = img.pypeitImage.image
+            self.binning = img.pypeitImage.binning
             # TODO: does TraceImage have a mask?
         else:
             _img = img
             self.binning = binning
-
-        from IPython import embed
-        embed()
 
         # TODO: keep the TraceImage object instead of deconstructing
         # it?  For direct input, use a base PypeItImage object
@@ -946,11 +947,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Build the primary header
         #   - Initialize with basic metadata
-        prihdr = self.initialize_header()
+        prihdr = self.build_master_header()
         #   - Add the qa path
         prihdr['QADIR'] = (self.qa_path, 'PypeIt: QA directory')
-        #   - Add metadata specific to this class
-        prihdr['SPECT'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph Name')
+        #   - Add metadata specific to this class -- This is added as PYP_SPEC in the build_master_header() call
+        #prihdr['SPECT'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph Name')
         #   - List the processed raw files, if available
         if self.files is not None:
             nfiles = len(self.files)
@@ -1105,7 +1106,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
-            this = cls(load_spectrograph(hdu[0].header['SPECT']),
+            this = cls(load_spectrograph(hdu[0].header['PYP_SPEC']),
                        EdgeTracePar.from_header(hdu[0].header),
                        master_key=hdu[0].header['MSTRKEY'], master_dir=hdu[0].header['MSTRDIR'],
                        qa_path=hdu[0].header['QADIR'])
@@ -1191,7 +1192,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.bitmask = hdr_bitmask
 
         # Test the spectrograph is the same
-        if self.spectrograph.spectrograph != hdu[0].header['SPECT']:
+        if self.spectrograph.spectrograph != hdu[0].header['PYP_SPEC']:
             msgs.error('Data used for this master frame was from a different spectrograph!')
 
         # Test the parameters used are the same
