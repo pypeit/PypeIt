@@ -791,6 +791,7 @@ class Spectrograph(object):
             return self.orders[iorder], indx[iorder]
 
 
+    # TODO : This code needs serious work.  e.g. eliminate the try/except
     def slit_minmax(self, slit_spat_pos, binspectral=1):
         """
 
@@ -803,7 +804,6 @@ class Spectrograph(object):
         Returns:
 
         """
-
         if self.spec_min_max is None:
             try:
                 nslit = len(slit_spat_pos)
