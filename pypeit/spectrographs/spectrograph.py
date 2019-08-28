@@ -684,14 +684,16 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
-    def slit_minmax(self, nslits, binspectral=1):
+    '''
+    def slit_minmax(self, nslits, binspectral=None):
         """
         Generic routine to determine the minimum and maximum spectral pixel for slitmasks. This functionality
         is most useful for echelle observations where the orders cutoff. This generic routine will be used for most
         slit spectrographs and simply sets the minimum and maximum spectral pixel for the slit to be -+ infinity.
 
         Args:
-            binspectral:
+            nslits (int):
+            binspectral (int, optional):
 
         Returns:
 
@@ -699,6 +701,7 @@ class Spectrograph(object):
         spec_min = np.full(nslits, -np.inf)
         spec_max = np.full(nslits, np.inf)
         return spec_min, spec_max
+    '''
 
 
     def order_platescale(self, order_vec, binning=None):

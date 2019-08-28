@@ -100,6 +100,7 @@ from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
+from pypeit.core import trace_slits
 from pypeit.traceimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
@@ -648,8 +649,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         elif self.par['sync_predict'] == 'pca':
             # TODO: This causes the code to fault. Maybe there's a way
             # to catch this earlier on?
-            msgs.error('Sync predict cannot use PCA because too few edges were found.  Either choose better flats or'
-                       'edit your pypeit file to include:' + msgs.newline() +
+            msgs.error('Sync predict cannot use PCA because too few edges were found.  Either choose '+msgs.newline()+
+                       'better flats or edit your pypeit file to include:' + msgs.newline() +
                        '    [calibrations]' + msgs.newline() +
                        '        [[slitedges]]' + msgs.newline() +
                        '            sync_predict = nearest')
@@ -4047,8 +4048,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict['pad'] = self.par['pad']
         tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
         tslits_dict['spectrograph'] = self.spectrograph.spectrograph
+        slit_spat_pos = trace_slits.slit_spat_pos(tslits_dict)
         tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(nslits, binspectral=tslits_dict['binspectral'])
+            self.spectrograph.slit_minmax(slit_spat_pos,
+                                          binspectral=tslits_dict['binspectral'])
+            #self.spectrograph.slit_minmax(slit_spat_pos, binspectral=tslits_dict['binspectral'])
 
         return tslits_dict
 
