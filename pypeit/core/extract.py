@@ -23,7 +23,8 @@ from pypeit.core import arc
 from scipy import interpolate
 
 from sklearn.decomposition import PCA
-from pypeit import specobjs
+from pypeit import newspecobj
+from pypeit import newspecobjs
 #from pypeit import tracepca
 from pypeit.core.pydl import spheregroup
 
@@ -396,16 +397,28 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     chi2 = chi2_num/chi2_denom
 
     # Fill in the optimally extraction tags
+    '''
     specobj.optimal['WAVE'] = wave_opt    # Optimally extracted wavelengths
     specobj.optimal['COUNTS'] = flux_opt    # Optimally extracted flux
     specobj.optimal['COUNTS_IVAR'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    specobj.optimal['COUNTS_SIG'] = np.sqrt(utils.calc_ivar(mivar_opt))
+    specobj.optimal['COUNTS_SIG'] = np.sqrt(utils.inverse(mivar_opt))
     specobj.optimal['COUNTS_NIVAR'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
     specobj.optimal['MASK'] = mask_opt    # Mask for optimally extracted flux
     specobj.optimal['COUNTS_SKY'] = sky_opt      # Optimally extracted sky
     specobj.optimal['COUNTS_RN'] = rn_opt        # Square root of optimally extracted read noise squared
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
+    '''
+    specobj.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
+    specobj.OPT_COUNTS = flux_opt    # Optimally extracted flux
+    specobj.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+    specobj.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
+    specobj.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+    specobj.OPT_MASK = mask_opt    # Mask for optimally extracted flux
+    specobj.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
+    specobj.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
+    specobj.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
+    specobj.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
     # Fill in the boxcar extraction tags
     flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
@@ -434,15 +447,15 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
-    specobj.boxcar['WAVE'] = wave_box
-    specobj.boxcar['COUNTS'] = flux_box*mask_box
-    specobj.boxcar['COUNTS_IVAR'] = ivar_box*mask_box
-    specobj.boxcar['COUNTS_SIG'] = np.sqrt(utils.calc_ivar(ivar_box*mask_box))
-    specobj.boxcar['COUNTS_NIVAR'] = nivar_box*mask_box
-    specobj.boxcar['MASK'] = mask_box
-    specobj.boxcar['COUNTS_SKY'] = sky_box
-    specobj.boxcar['COUNTS_RN'] = rn_box
-    specobj.boxcar['BOX_RADIUS'] = box_radius
+    specobj.BOX_WAVE = wave_box
+    specobj.BOX_COUNTS = flux_box*mask_box
+    specobj.BOX_COUNTS_IVAR = ivar_box*mask_box
+    specobj.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
+    specobj.BOX_COUNTS_NIVAR = nivar_box*mask_box
+    specobj.BOX_MASK = mask_box
+    specobj.BOX_COUNTS_SKY = sky_box
+    specobj.BOX_COUNTS_RN = rn_box
+    specobj.BOX_RADIUS = box_radius
 
     return None
 
@@ -1663,7 +1676,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     npeak = len(xcen)
     # Instantiate a null specobj
-    sobjs = specobjs.SpecObjs()
+    sobjs = newspecobjs.SpecObjs()
     # Choose which ones to keep and discard based on threshold params. Create SpecObj objects
 
     # Possible thresholds    [significance,  fraction of brightest, absolute]
@@ -1688,10 +1701,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
-            thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos, det = specobj_dict['det'],
-                                       setup = specobj_dict['setup'], slitid = specobj_dict['slitid'],
-                                       orderindx = specobj_dict['orderindx'], objtype=specobj_dict['objtype'],
-                                       pypeline=specobj_dict['pypeline'])
+            thisobj = newspecobj.SpecObj(slit_spat_pos, slit_spec_pos, det=specobj_dict['det'],
+                                       slitid=specobj_dict['slitid'],
+                                       orderindx=specobj_dict['orderindx'], objtype=specobj_dict['objtype'],
+                                       pypeline=specobj_dict['pypeline']) #setup=specobj_dict['setup'],
             thisobj.spat_fracpos = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
             thisobj.smash_nsig = ypeak[iobj]/sigma
@@ -1792,7 +1805,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')
         skymask = create_skymask_fwhm(sobjs,thismask)
-        return specobjs.SpecObjs(), skymask[thismask]
+        return newspecobjs.SpecObjs(), skymask[thismask]
 
 
     msgs.info('Fitting the object traces')
@@ -1843,7 +1856,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
+            thisobj = newspecobj.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
                                        det=specobj_dict['det'],
                                        setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
                                        orderindx = specobj_dict['orderindx'],
@@ -1911,8 +1924,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     sobjs = sobjs[spat_pixpos.argsort()]
     # Assign integer objids
     #ToDo Replace with sobjs[:].objid = np.arange(nobj) once the _setitem functionality is figured out
-    for ii in range(nobj):
-        sobjs[ii].objid = ii + 1
+    #for ii in range(nobj):
+    #    sobjs[ii].objid = ii + 1
+    sobjs[:].objid = np.arange(nobj)
 
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
@@ -2304,7 +2318,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # create the ouptut images skymask and objmask
     skymask_objfind = np.copy(allmask)
     # Loop over orders and find objects
-    sobjs = specobjs.SpecObjs()
+    sobjs = newspecobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
     for iord in range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
@@ -2452,7 +2466,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
-                thisobj = specobjs.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
+                thisobj = newspecobj.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
                                            setup = sobjs_align[0].setup, slitid = iord,
                                            objtype=sobjs_align[0].objtype, pypeline=sobjs_align[0].pypeline)
                 thisobj.ech_orderindx = iord
@@ -2513,7 +2527,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
     keep_obj = np.zeros(nobj,dtype=bool)
-    sobjs_trim = specobjs.SpecObjs()
+    sobjs_trim = newspecobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
     for iobj in range(nobj):
@@ -2533,7 +2547,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     nobj_trim = np.sum(keep_obj)
 
     if nobj_trim == 0:
-        sobjs_final = specobjs.SpecObjs()
+        sobjs_final = newspecobjs.SpecObjs()
         skymask = create_skymask_fwhm(sobjs_final, allmask)
         return sobjs_final, skymask[allmask]
 

@@ -5,7 +5,8 @@ import numpy as np
 from astropy import stats
 from abc import ABCMeta
 
-from pypeit import ginga, utils, msgs, specobjs
+from pypeit import ginga, utils, msgs
+from pypeit import newspecobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.core import procimg
 from pypeit.images import scienceimage
@@ -571,7 +572,7 @@ class MultiSlit(Reduce):
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
         # Instantiate the specobjs container
-        sobjs = specobjs.SpecObjs()
+        sobjs = newspecobjs.SpecObjs()
 
         # Loop on slits
         for slit in gdslits:
@@ -661,7 +662,7 @@ class MultiSlit(Reduce):
         # Could actually create a model anyway here, but probably
         # overkill since nothing is extracted
 
-        self.sobjs = sobjs.copy()
+        self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
         # Loop on slits
         for slit in gdslits:
             msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit))

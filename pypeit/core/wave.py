@@ -261,7 +261,6 @@ def flexure_slit():
     return flex_dict
 '''
 
-# TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
 def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 

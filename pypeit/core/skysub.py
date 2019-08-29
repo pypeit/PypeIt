@@ -710,10 +710,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, thismask,
                                             last_profile, box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
-                    if sobjs[iobj].optimal['MASK'].any():
-                        flux = sobjs[iobj].optimal['COUNTS']
-                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR']*sobjs[iobj].optimal['MASK']
-                        wave = sobjs[iobj].optimal['WAVE']
+                    #if sobjs[iobj].optimal['MASK'].any():
+                    if sobjs[iobj].OPT_MASK.any():
+                        flux = sobjs[iobj].OPT_COUNTS
+                        fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
+                        wave = sobjs[iobj].OPT_WAVE
 
                 obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slitid) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():

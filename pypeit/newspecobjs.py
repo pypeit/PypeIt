@@ -1,0 +1,354 @@
+""" Module for the SpecObjs and SpecObj classes
+"""
+import copy
+import re
+
+import numpy as np
+
+from scipy import interpolate
+
+from astropy import units
+from astropy.table import Table
+from astropy.units import Quantity
+from astropy.utils import isiterable
+
+from linetools.spectra import xspectrum1d
+
+from pypeit import msgs
+from pypeit.core import parse
+from pypeit import newspecobj
+
+class SpecObjs(object):
+    """
+    Object to hold a set of SpecObj objects
+
+    Args:
+        specobjs (ndarray or list, optional):  One or more SpecObj objects
+
+    Internals:
+        summary (astropy.table.Table):
+
+
+    __getitem__ is overloaded to allow one to pull an attribute or a
+                portion of the SpecObjs list
+        Args:
+            item (str or int (or slice)
+        Returns:
+            item (object, SpecObj or SpecObjs):  Depends on input item..
+
+    __setitem__ is over-loaded using our custom set() method
+        Args:
+            name (str):  Item to set
+            value (anything) : Value of the item
+        Returns:
+    __getattr__ is overloaded to generate an array of attribute 'k' from the specobjs
+        First attempts to grab data from the Summary table, then the list
+    """
+
+    def __init__(self, specobjs=None):
+
+        # Only one attribute is allowed for this Object -- specobjs
+        if specobjs is None:
+            self.specobjs = np.array([])
+        else:
+            if isinstance(specobjs, (list, np.ndarray)):
+                specobjs = np.array(specobjs)
+            self.specobjs = specobjs
+
+        # Turn off attributes from here
+        #   Anything else set will be on the individual specobj objects in the specobjs array
+        self.__initialised = True
+
+        # Internal summary Table
+        #self.build_summary()
+
+    def __setattr__(self, item, value):
+
+        if not '_SpecObjs__initialised' in self.__dict__:  # this test allows attributes to be set in the __init__ method
+            return dict.__setattr__(self, item, value)
+        elif item in self.__dict__:  # any normal attributes are handled normally
+            dict.__setattr__(self, item, value)
+        else:
+            # Special handling when the input is an array/list and the length matches that of the slice
+            if isinstance(value, (list, np.ndarray)):
+                if len(self.specobjs) == len(value):  # Assume these are to be paired up
+                    for kk, specobj in enumerate(self.specobjs):
+                        setattr(specobj, item, value[kk])
+                    return
+            #
+            for specobj in self.specobjs:
+                setattr(specobj, item, value)
+
+    @property
+    def nobj(self):
+        """
+        Return the number of SpecObj objects
+
+        Returns:
+            int
+
+        """
+        return len(self.specobjs)
+
+    def get_std(self):
+        """
+        Return the standard star from this Specobjs. For MultiSlit this
+        will be a single specobj in SpecObjs container, for Echelle it
+        will be the standard for all the orders.
+
+        Args:
+
+        Returns:
+            SpecObj or SpecObjs
+
+        """
+        # Is this MultiSlit or Echelle
+        pypeline = (self.pypeline)[0]
+        if 'MultiSlit' in pypeline:
+            nspec = self[0].optimal['COUNTS'].size
+            SNR = np.zeros(self.nobj)
+            # Have to do a loop to extract the counts for all objects
+            for iobj in range(self.nobj):
+                SNR[iobj] = np.median(self[iobj].optimal['COUNTS']*np.sqrt(self[iobj].optimal['COUNTS_IVAR']))
+            istd = SNR.argmax()
+            return SpecObjs(specobjs=[self[istd]])
+        elif 'Echelle' in pypeline:
+            uni_objid = np.unique(self.ech_objid)
+            uni_order = np.unique(self.ech_orderindx)
+            nobj = len(uni_objid)
+            norders = len(uni_order)
+            SNR = np.zeros((norders, nobj))
+            for iobj in range(nobj):
+                for iord in range(norders):
+                    ind = (self.ech_objid == uni_objid[iobj]) & (self.ech_orderindx == uni_order[iord])
+                    spec = self[ind]
+                    SNR[iord, iobj] = np.median(spec[0].optimal['COUNTS']*np.sqrt(spec[0].optimal['COUNTS_IVAR']))
+            SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
+            objid_std = uni_objid[SNR_all.argmax()]
+            indx = self.ech_objid == objid_std
+            return SpecObjs(specobjs=self[indx])
+        else:
+            msgs.error('Unknown pypeline')
+
+
+    def append_neg(self, sobjs_neg):
+        """
+        Append negative objects and change the sign of their objids for IR reductions
+
+        Args:
+            sobjs_neg (SpecObjs):
+
+        """
+
+        # Assign the sign and the objids
+        for spec in sobjs_neg:
+            spec.sign = -1.0
+            try:
+                spec.objid = -spec.objid
+            except TypeError:
+                pass
+            try:
+                spec.ech_objid = -spec.ech_objid
+            except TypeError:
+                pass
+
+        self.add_sobj(sobjs_neg)
+
+        # Sort objects according to their spatial location. Necessary for the extraction to properly work
+        if self.nobj > 0:
+            spat_pixpos = self.spat_pixpos
+            self.specobjs = self.specobjs[spat_pixpos.argsort()]
+
+    def purge_neg(self):
+        """
+        Purge negative objects from specobjs for IR reductions
+
+        """
+        # Assign the sign and the objids
+        if self.nobj > 0:
+            index = (self.objid < 0) | (self.ech_objid < 0)
+            self.remove_sobj(index)
+
+
+    def add_sobj(self, sobj):
+        """
+        Add one or more SpecObj
+        The summary table is rebuilt
+
+        Args:
+            sobj (SpecObj or list or ndarray):  On or more SpecObj objects
+
+        Returns:
+
+
+        """
+        if isinstance(sobj, newspecobj.SpecObj):
+            self.specobjs = np.append(self.specobjs, [sobj])
+        elif isinstance(sobj, (np.ndarray,list)):
+            self.specobjs = np.append(self.specobjs, sobj)
+        elif isinstance(sobj, SpecObjs):
+            self.specobjs = np.append(self.specobjs, sobj)
+
+        # Rebuild summary table
+        #self.build_summary()
+
+    '''
+    def build_summary(self):
+        """
+        Build the internal Summary Table
+
+        Returns:
+            Builds self.summary Table internally
+
+        """
+        # Dummy?
+        if len(self.specobjs) == 0:
+            self.summary = Table()
+            return
+        #
+        atts = self.specobjs[0].__dict__.keys()
+        uber_dict = {}
+        for key in atts:
+            uber_dict[key] = []
+            for sobj in self.specobjs:
+                uber_dict[key] += [getattr(sobj, key)]
+        # Build it
+        self.summary = Table(uber_dict)
+    '''
+
+    def remove_sobj(self, index):
+        """
+        Remove an object
+
+        Args:
+            index: int
+
+        Returns:
+
+        """
+        msk = np.ones(self.specobjs.size, dtype=bool)
+        msk[index] = False
+        # Do it
+        self.specobjs = self.specobjs[msk]
+        # Update
+        self.build_summary()
+
+
+    def copy(self):
+        """
+        Generate a copy of self
+
+        Returns:
+            SpecObjs
+
+        """
+        sobj_copy = SpecObjs()
+        for sobj in self.specobjs:
+            sobj_copy.add_sobj(sobj.copy())
+        #sobj_copy.build_summary()
+        return sobj_copy
+
+    def set_idx(self):
+        """
+        Set the idx in all the SpecObj
+        Update the summary Table
+
+        Returns:
+
+        """
+        for sobj in self.specobjs:
+            sobj.set_idx()
+        self.build_summary()
+
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return self.__getattr__(item)
+        elif isinstance(item, (int, np.integer)):
+            return self.specobjs[item] # TODO Is this using pointers or creating new data????
+        elif (isinstance(item, slice) or  # Stolen from astropy.table
+            isinstance(item, np.ndarray) or
+            isinstance(item, list) or
+            isinstance(item, tuple) and all(isinstance(x, np.ndarray) for x in item)):
+            # here for the many ways to give a slice; a tuple of ndarray
+            # is produced by np.where, as in t[np.where(t['a'] > 2)]
+            # For all, a new table is constructed with slice of all columns
+            return SpecObjs(specobjs=self.specobjs[item])
+
+
+    '''
+    # TODO this code fails for assignments of this nature sobjs[:].attribute = np.array(5)
+    def __setitem__(self, name, value):
+        self.set(slice(0,self.nobj), name, value)
+
+    def set(self, islice, attr, value):
+        """
+        Set the attribute for a slice of the specobjs
+
+        Args:
+            islice (int, ndarray of bool, slice):  Indicates SpecObj to affect
+            attr (str):
+            value (anything) : Value of the item
+
+        Returns:
+
+        """
+        sub_sobjs = self.specobjs[islice]
+        if isiterable(value):
+            if sub_sobjs.size == len(value):  # Assume you want each paired up
+                for kk,sobj in enumerate(sub_sobjs):
+                    setattr(sobj, attr, value[kk])
+                    return
+        # Assuming scalar assignment
+        if isinstance(sub_sobjs, NewSpecObj):
+            setattr(sub_sobjs, attr, value)
+        else:
+            for sobj in sub_sobjs:
+                setattr(sobj, attr, value)
+        return
+    '''
+
+    def __getattr__(self, k):
+        if len(self.specobjs) == 0:
+            raise ValueError("Empty specobjs")
+        try:
+            lst = [getattr(specobj, k) for specobj in self.specobjs]
+        except ValueError:
+            raise ValueError("Attribute does not exist")
+        # Recast as an array
+        return lst_to_array(lst)
+
+    # Printing
+    #def __repr__(self):
+    #    return self.summary.__repr__()
+
+    def __len__(self):
+        return len(self.specobjs)
+
+    def keys(self):
+        self.build_summary()
+        return self.summary.keys()
+
+
+
+def lst_to_array(lst, mask=None):
+    """
+    Simple method to convert a list to an array
+
+    Allows for a list of Quantity objects
+
+    Args:
+        lst : list
+          Should be number or Quantities
+        mask (ndarray of bool, optional):  Limit to a subset of the list.  True=good
+
+    Returns:
+        ndarray or Quantity array:  Converted list
+
+    """
+    if mask is None:
+        mask = np.array([True]*len(lst))
+    if isinstance(lst[0], Quantity):
+        return Quantity(lst)[mask]
+    else:
+        return np.array(lst)[mask]
