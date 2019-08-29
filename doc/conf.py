@@ -42,6 +42,9 @@ extensions = [
     'sphinx.ext.viewcode',
 ]
 
+# Nicer math rendering than sphinx default?
+# mathjax_path='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+
 # Napoleon settings 
 napoleon_numpy_docstring = True 
 napoleon_include_private_with_doc = False 
@@ -52,6 +55,7 @@ napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False 
 napoleon_use_param = True 
 napoleon_use_rtype = True
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -130,8 +134,11 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#html_theme = 'sphinx_rtd_theme'
-html_theme = 'sphinxdoc'
+# TODO: I think I prefer this theme; bizstyle would be my second choice
+html_theme = 'sphinx_rtd_theme'
+#html_theme = 'sphinxdoc'
+#html_theme = 'bizstyle'
+#html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

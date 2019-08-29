@@ -1,4 +1,4 @@
-""" Object to process a single raw image"""
+""" Object to process a single raw image """
 
 import inspect
 
@@ -7,62 +7,59 @@ import numpy as np
 from pypeit import msgs
 from pypeit.core import procimg
 from pypeit.core import flat
-from pypeit.images import pypeitimage
 from pypeit.par import pypeitpar
+from pypeit.images import pypeitimage
+from pypeit import utils
 
 from IPython import embed
 
 
-# TODO JFH This routine needs to be reworked to always return images in counts, and to always return a noise model.
-# It is completely wrong to ever do anything with images in ADU.
-
-## TODO Cosmic Ray masking needs to be added as a method here by making this a child of MaskImage
-class ProcessRawImage(pypeitimage.PypeItImage):
+class ProcessRawImage(object):
     """
     Class to process a raw image
 
     Args:
-        filename (:obj:`str` or None):
-            Filename
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph used to take the data.
-        det (:obj:`int`, optional):
-            The 1-indexed detector number to process.
+        rawImage (:class:`pypeit.images.rawimage.RawImage`):
         par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
+        bpm (np.ndarray, optional):
+            Bad pixel mask
 
     Attributes:
         steps (dict):
             Dict describing the steps performed on the image
-        _bpm (np.ndarray):
-            Holds the bad pixel mask once loaded
         datasec_img (np.ndarray):
             Holds the datasec_img which specifies the amp for each pixel in the
-            current self.image image
-        oscansec_img (np.ndarray):
-            Holds the oscansec_img once loaded.  This is only in the raw frame
-        hdu (fits.HDUList):
-            HDUList of the file
+            current self.image image.  This is modified as the image is, i.e.
+            orientation and trimming.
     """
-    def __init__(self, filename, spectrograph, det, par):
+    def __init__(self, rawImage, par, bpm=None):
 
-        # Init me
-        pypeitimage.PypeItImage.__init__(self, spectrograph, det)
         # Required parameters
         if not isinstance(par, pypeitpar.ProcessImagesPar):
             msgs.error("Bad par input")
         self.par = par  # ProcessImagesPar
-        self.filename = filename
+        self._bpm = bpm
+
+        # Grab items from rawImage (for convenience and for processing)
+        #   Could just keep rawImage in the object, if preferred
+        self.spectrograph = rawImage.spectrograph
+        self.det = rawImage.det
+        self.filename = rawImage.filename
+        self.datasec_img = rawImage.rawdatasec_img.copy()
+        self.oscansec_img = rawImage.oscansec_img
+        self.image = rawImage.raw_image.copy()
+        self.orig_shape = rawImage.raw_image.shape
+        self.exptime = rawImage.exptime
+
+        # Binning of the processed image
+        self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
 
         # Attributes
-        self._reset_internals()
-        self._bpm = None
-        self.hdu = None
-
-        # Load -- This also initializes datasec_img and oscansec_img
-        self.load_rawframe()
+        self.ivar = None
+        self.rn2img = None
 
         # All possible processing steps
         #  Note these have to match the method names below
@@ -70,19 +67,10 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                           subtract_overscan=False,
                           subtract_dark=False,
                           trim=False,
-                          apply_gain=False,
                           orient=False,
+                          apply_gain=False,
                           flatten=False,
                           )
-    @property
-    def amps(self):
-        """
-        Return a list of the amplifier indices, 1-indexed
-
-        Returns:
-            list
-        """
-        return np.unique(self.datasec_img[self.datasec_img > 0]).tolist()
 
     @property
     def bpm(self):
@@ -99,54 +87,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
                                     filename=self.filename,
                                     det=self.det)
         return self._bpm
-
-    '''
-    # TODO all of these steps below should be consoliated into one method which reads the files. It is silly and extremely
-    #  slow to re-read the images every time for each one of these stpes
-    @property
-    def rawdatasec_img(self):
-        """
-        Generate and return the datasec image in the Raw reference frame
-
-        Returns:
-            np.ndarray
-
-        """
-        if self._rawdatasec_img is None:
-            self._rawdatasec_img = self.spectrograph.get_rawdatasec_img(self.filename, self.det)
-        return self._rawdatasec_img
-
-
-    @property
-    def oscansec_img(self):
-        """
-        Generate and return the oscansec image
-
-        Returns:
-            np.ndarray
-
-        """
-        oimg = self.spectrograph.get_oscansec_img(self.filename, self.det)
-        return oimg
-    '''
-
-    def _reset_steps(self):
-        """
-        Reset all the processing steps to False
-
-        Should consider setting the Image to None too..
-        """
-        for key in self.steps.keys():
-            self.steps[key] = False
-
-    def _reset_internals(self):
-        """
-        Init or free up memory by resetting the Attributes to None
-        """
-        self.rawvarframe = None
-        self.crmask = None
-        self.mask = None
-        self.rn2img = None
 
     def apply_gain(self, force=False):
         """
@@ -172,13 +112,71 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Return
         return self.image.copy()
 
-    def process(self, process_steps, pixel_flat=None, illum_flat=None,
-                       bias=None, bpm=None, debug=False):
+    def build_ivar(self):
+        """
+        Generate the Inverse Variance frame
+
+        Uses procimg.variance_frame
+
+        Returns:
+            np.ndarray: Copy of self.ivar
+
+        """
+        msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
+        # Convenience
+        detector = self.spectrograph.detector[self.det-1]
+        # Generate
+        rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
+                                             detector['gain'], detector['ronoise'],
+                                             numamplifiers=detector['numamplifiers'],
+                                             darkcurr=detector['darkcurr'],
+                                             exptime=self.exptime,
+                                             rnoise=self.rn2img)
+        # Ivar
+        self.ivar = utils.inverse(rawvarframe)
+        # Return
+        return self.ivar.copy()
+
+    # TODO sort out dark current here. Need to use exposure time for that.
+    def build_rn2img(self):
+        """
+        Generate the model read noise squared image
+
+        Currently only used by ScienceImage.
+
+        Wrapper to procimg.rn_frame
+
+        Returns:
+            np.ndarray: Copy of the read noise squared image
+
+        """
+        msgs.info("Generating read noise image from detector properties and amplifier layout)")
+        # Convenience
+        detector = self.spectrograph.detector[self.det-1]
+        # Build it
+        self.rn2img = procimg.rn_frame(self.datasec_img,
+                                       detector['gain'],
+                                       detector['ronoise'],
+                                       numamplifiers=detector['numamplifiers'])
+        # Return
+        return self.rn2img.copy()
+
+    def process(self, process_steps, pixel_flat=None, illum_flat=None, bias=None):
         """
         Process the image
 
-        Note:  The processing steps are currently 'frozen' as is.
-          We may choose to allow optional ordering of the steps
+        Note:  The processing step order is currently 'frozen' as is.
+          We may choose to allow optional ordering
+
+        Here are the allowed steps, in the order they will be applied:
+            subtract_overscan -- Analyze the overscan region and subtract from the image
+            trim -- Trim the image down to the data (i.e. remove the overscan)
+            orient -- Orient the image in the PypeIt orientation (spec, spat) with blue to red going down to up
+            subtract_bias -- Subtract a bias image
+            apply_gain -- Convert to counts, amp by amp
+            flatten -- Divide by the pixel flat and (if provided) the illumination flat
+            extras -- Generate the RN2 and IVAR images
+            crmask -- Generate a CR mask
 
         Args:
             process_steps (list):
@@ -192,28 +190,66 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             bpm (np.ndarray, optional):
                 Bad pixel mask image
 
+        Returns:
+            :class:`pypeit.images.pypeitimage.PypeItImage`:
+
         """
+        # For error checking
+        steps_copy = process_steps.copy()
+        # Get started
         # Standard order
         #   -- May need to allow for other order some day..
         if 'subtract_overscan' in process_steps:
             self.subtract_overscan()
+            steps_copy.remove('subtract_overscan')
         if 'trim' in process_steps:
             self.trim()
-        if 'subtract_bias' in process_steps: # Bias frame, if it exists, is trimmed
-            self.subtract_bias(bias)
-        if 'apply_gain' in process_steps:
-            self.apply_gain()
+            steps_copy.remove('trim')
         if 'orient' in process_steps:
             self.orient()
+            steps_copy.remove('orient')
+        if 'subtract_bias' in process_steps: # Bias frame, if it exists, is trimmed and oriented
+            self.subtract_bias(bias)
+            steps_copy.remove('subtract_bias')
+        if 'apply_gain' in process_steps:
+            self.apply_gain()
+            steps_copy.remove('apply_gain')
         # Flat field
         if 'flatten' in process_steps:
-            self.flatten(pixel_flat, illum_flat=illum_flat, bpm=bpm)
-        # Return copy of the image
-        return self.image.copy()
+            self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+            steps_copy.remove('flatten')
+
+        # Fresh BPM
+        bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
+
+        # Extras
+        if 'extras' in process_steps:
+            self.build_rn2img()
+            self.build_ivar()
+            steps_copy.remove('extras')
+
+        # Generate a PypeItImage
+        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning,
+                                                       ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
+        # Mask(s)
+        if 'crmask' in process_steps:
+            pypeitImage.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image,
+                                     utils.inverse(pypeitImage.ivar))
+            steps_copy.remove('crmask')
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
+                                                              apply_gain='apply_gain' in process_steps)
+        pypeitImage.build_mask(pypeitImage.image, pypeitImage.ivar,
+                               saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
+                               mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
+        # Error checking
+        assert len(steps_copy) == 0
+
+        # Return
+        return pypeitImage
 
     def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
         """
-        Flat field the image
+        Flat field the proc image
 
         Wrapper to flat.flatfield
 
@@ -239,27 +275,6 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         # Do it
         self.image = flat.flatfield(self.image, pixel_flat, bpm, illum_flat=illum_flat)
         self.steps[step] = True
-
-    def load_rawframe(self):
-        """
-        Load a raw image from disk using the Spectrograph method load_raw_frame()
-
-        Also loads up the binning, exposure time, and header of the Primary image
-        And the HDUList in self.hdu
-
-        Args:
-            filename (str):  Filename
-
-        """
-        # Load
-        self.image, self.hdu, \
-            = self.spectrograph.load_raw_frame(self.filename, det=self.det)
-        self.exptime, self.datasec_img, self.oscansec_img, self.binning_raw \
-            = self.spectrograph.load_raw_extras(self.hdu, self.det)
-
-        self.head0 = self.hdu[0].header
-        # Shape
-        self.orig_shape = self.image.shape
 
     def orient(self, force=False):
         """
@@ -288,18 +303,18 @@ class ProcessRawImage(pypeitimage.PypeItImage):
         Perform bias subtraction
 
         Args:
-            bias_image (np.ndarray):
+            bias_image (PypeItImage):
                 Bias image
             force (bool, optional):
                 Force the processing even if the image was already processed
         """
         step = inspect.stack()[0][3]
-        # Check if already trimmed
+        # Check if already bias subtracted
         if self.steps[step] and (not force):
             msgs.warn("Image was already bias subtracted.  Returning the current image")
             return self.image.copy()
         # Do it
-        self.image -= bias_image
+        self.image -= bias_image.image
         self.steps[step] = True
 
     def subtract_overscan(self, force=False):
@@ -312,9 +327,9 @@ class ProcessRawImage(pypeitimage.PypeItImage):
 
         """
         step = inspect.stack()[0][3]
-        # Check if already trimmed
+        # Check if already overscan subtracted
         if self.steps[step] and (not force):
-            msgs.warn("Image was already trimmed")
+            msgs.warn("Image was already overscan subtracted!")
 
         temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
                                          method=self.par['overscan'],
@@ -343,11 +358,8 @@ class ProcessRawImage(pypeitimage.PypeItImage):
             msgs.warn("Image was already trimmed.  Returning current image")
             return self.image
         # Do it
-        trim_image = procimg.trim_frame(self.image, self.datasec_img < 1)
-        trim_datasec = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
-        # Overwrite
-        self.image = trim_image
-        self.datasec_img = trim_datasec
+        self.image = procimg.trim_frame(self.image, self.datasec_img < 1)
+        self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         #
         self.steps[step] = True
 

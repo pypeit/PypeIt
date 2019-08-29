@@ -104,18 +104,5 @@ For Developers
    new_spectrograph
    PypeIt API <api/pypeit>
 
-Contents
-++++++++
-.. toctree::
-   :maxdepth: 4
-
-   pypeit
-
-Indices and tables
-++++++++++++++++++
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
 .. _kast webpage: http://mthamilton.ucolick.org/techdocs/instruments/kast/
+

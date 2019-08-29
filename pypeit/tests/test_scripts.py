@@ -6,13 +6,14 @@ import sys
 import glob
 import shutil
 
+from configobj import ConfigObj
+
 import pytest
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypeit import msgs
-from pypeit.scripts import setup, run_pypeit, show_1dspec, coadd_1dspec, chk_edges, view_fits
+from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import ginga
 
@@ -20,6 +21,11 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+#def test_arcid_plot():
+#    json_file = data_path('LRISb_600_WaveCalib_01.json')
+#    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
+#    # Run
+#    arcid_plot.main(pargs)
 
 '''
 @dev_suite_required
@@ -69,12 +75,13 @@ def test_run_pypeit():
     # Clean-up
     shutil.rmtree(outdir)
     shutil.rmtree(testrawdir)
+'''
 
 
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                                'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs, unit_test=True)
@@ -95,9 +102,17 @@ def test_view_fits():
     """ Only test the list option
     """
     spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    pargs = view_fits.parser([spec_file, '--list'])
-'''
+    pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
 
+@cooked_required
+def test_chk_flat():
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
+                                'MasterFlat_A_1_01.fits')
+    # Ginga needs to be open in RC mode
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    #
+    pargs = chk_flats.parser([mstrace_root])
+    chk_flats.main(pargs)
 
 def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
@@ -118,7 +133,6 @@ def test_coadd():
     assert 'scale_method' in list(gparam.keys())
 
 
-
 def test_coadd2():
     """ Test using a list of object names
     """
@@ -135,4 +149,5 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
                 = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+
 

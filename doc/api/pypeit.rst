@@ -9,9 +9,7 @@ Subpackages
     pypeit.core
     pypeit.images
     pypeit.par
-    pypeit.scripts
     pypeit.spectrographs
-    pypeit.tests
 
 Submodules
 ----------
@@ -24,6 +22,7 @@ Submodules
    pypeit.calibrations
    pypeit.check_requirements
    pypeit.debugger
+   pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxspec
    pypeit.ginga
@@ -34,10 +33,13 @@ Submodules
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.reduce
+   pypeit.sampling
    pypeit.setup_package
    pypeit.specobjs
    pypeit.telescopes
+   pypeit.tiltimage
    pypeit.traceimage
+   pypeit.tracepca
    pypeit.traceslits
    pypeit.utils
    pypeit.wavecalib

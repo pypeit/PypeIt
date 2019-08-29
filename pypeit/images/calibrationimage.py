@@ -1,4 +1,4 @@
-""" Object to hold + process a single image"""
+""" Uber object for calibration images, e.g. arc, flat """
 
 import inspect
 
@@ -7,22 +7,15 @@ import numpy as np
 
 
 from pypeit import msgs
-
-from pypeit.core import combine
 from pypeit.par import pypeitpar
-
-from pypeit.images import pypeitimage
-from pypeit.images import processrawimage
-from pypeit.images import maskimage
-
-
+from pypeit.images import buildimage  # Otherwise get circular import
 
 from IPython import embed
 
 
-class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
+class CalibrationImage(object):
     """
-    Class to generate a combined calibration image from a list of input images or
+    Class to generate (and hold) a combined calibration image from a list of input images or
     simply to hold a previously generated calibration image.
 
     Args:
@@ -30,56 +23,47 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             Spectrograph used to take the data.
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
-        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar` or None):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
 
         files (list, optional):
             List of filenames to be combined
-        frametype (str, optional): Frame type
 
     Attributes:
-        image (np.ndarray):
-        file_list (list): List of files to process
-        process_steps (list): List of processing steps to be used
+        pypeitImage (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        file_list (list):
+            List of files to process
+        process_steps (list):
+            List of processing steps to be used
 
     """
-
-
     def __init__(self, spectrograph, det, proc_par, files=None):
 
-        # Init me
-        pypeitimage.PypeItImage.__init__(self, spectrograph, det)
+        # Required items
+        self.spectrograph = spectrograph
+        self.det = det
 
         # Assign the internal list of files
         self._set_files(files)
 
         # Required parameters
-        if not isinstance(proc_par, pypeitpar.ProcessImagesPar):
-            msgs.error('Provided ParSet for must be type ProcessImagesPar.')
-        self.proc_par = proc_par  # This musts be named this way as it is frequently a child
-
-        # Internal images
-        self.image = None
-        #self.ivar = None
-        # TODO add here a noise model and put the images in ADU!
-        self.crmask = None
+        if proc_par is not None:
+            if not isinstance(proc_par, pypeitpar.ProcessImagesPar):
+                msgs.error('Provided ParSet for must be type ProcessImagesPar.')
+        self.proc_par = proc_par  # This must be named this way as it is frequently a child
 
         # Process steps
         self.process_steps = []
 
-    @property
-    def shape(self):
-        return () if self.image is None else self.image.shape
+        # Standard output
+        self.pypeitImage = None
 
     @property
     def nfiles(self):
         """
-
-        Returns:
-            int: Number of files in the file_list
-
+        The number of calibration files
         """
         return len(self.file_list)
 
@@ -123,7 +107,7 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
             if not os.path.isfile(f):
                 msgs.error('{0} does not exist!'.format(f))
 
-    def build_image(self, bias=None, bpm=None):
+    def build_image(self, bias=None, bpm=None, ignore_saturation=True):
         """
         Load, process and combine the images for a Calibration
 
@@ -132,42 +116,19 @@ class CalibrationImage(pypeitimage.PypeItImage, maskimage.ImageMask):
                 Bias image
             bpm (np.ndarray, optional):
                 Bad pixel mask
+            ignore_saturation (bool, optional):
+                If True, turn off the saturation flag in the individual images before stacking
+                This avoids having such values set to 0 which for certain images (e.g. flat calibrations)
+                has unintended consequences.
 
         Returns:
-            np.ndarray: Copy of self.image
+            PypeItImage:
 
         """
-        if self.nfiles == 0:
-            msgs.warn("Need to provide a non-zero list of files")
-            return
-        # Load up image array
-        image_arr = None
-        for kk,file in enumerate(self.file_list):
-            # Process raw file
-            processrawImage = processrawimage.ProcessRawImage(file, self.spectrograph,
-                                                           self.det, self.proc_par)
-            image = processrawImage.process(self.process_steps, bias=bias, bpm=bpm)
-            # Instantiate the image stack
-            if image_arr is None:
-                image_arr = np.zeros((image.shape[0], image.shape[1], self.nfiles))
-            # Hold
-            image_arr[:,:,kk] = image
-
-        # Combine
-        if self.nfiles == 1:
-            self.image = image_arr[:,:,0]
-        else:
-            self.image = combine.comb_frames(image_arr,
-                                         saturation=self.spectrograph.detector[self.det-1]['saturation'],
-                                         method=self.proc_par['combine'],
-                                         satpix=self.proc_par['satpix'],
-                                         cosmics=self.proc_par['sigrej'],
-                                         n_lohi=self.proc_par['n_lohi'],
-                                         sig_lohi=self.proc_par['sig_lohi'],
-                                         replace=self.proc_par['replace'])
+        buildImage = buildimage.BuildImage(self.spectrograph, self.det, self.proc_par, self.file_list)
+        self.pypeitImage = buildImage.run(self.process_steps, bias, bpm=bpm, ignore_saturation=ignore_saturation)
         # Return
-        return self.image.copy()
-
+        return self.pypeitImage
 
 
     def __repr__(self):

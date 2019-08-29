@@ -15,6 +15,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
+from IPython import embed
 
 from pkg_resources import resource_filename
 
@@ -186,6 +187,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 100.
         par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  25.0
@@ -234,11 +242,19 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceimage']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
         par['scienceimage']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
 
-        # Do not bias subtract
-        par['scienceframe']['useframe'] ='none'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'none'
+        # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
+        # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
+        # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
+        # images.
+        par['calibrations']['biasframe']['useframe'] = 'bias'
+        par['calibrations']['traceframe']['process']['bias'] = 'force'
+        par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        par['scienceframe']['process']['bias'] = 'skip'
+
+
         return par
 
     def check_headers(self, headers):
@@ -437,7 +453,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slits']['sigdetect'] = 8.0
         par['calibrations']['slits']['trace_npoly'] = 8
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
+#        par['calibrations']['slits']['number'] = -1
         #par['calibrations']['slits']['fracignore'] = 0.01
 
         # These are the defaults
@@ -473,7 +495,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.5
-        par['calibrations']['slits']['trace_npoly'] = 8
+#        par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         par['scienceimage']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['scienceimage']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
@@ -647,7 +669,12 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # problems.
 #        par['calibrations']['slits']['polyorder'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = -1
+#        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['slitedges']['edge_thresh'] = 8.
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
 
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'

@@ -237,7 +237,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-def gain_frame(amp_img, gain, trim=False):
+def gain_frame(amp_img, gain):
     """
     Generate an image with the gain for each pixel.
 
@@ -248,14 +248,12 @@ def gain_frame(amp_img, gain, trim=False):
         gain (:obj:`list`):
             List of amplifier gain values.  Must be that the gain for
             amplifier 1 is provided by `gain[0]`, etc.
-        trim (:obj:`bool`, optional):
-            Trim; not recommended
 
     Returns:
         `numpy.ndarray`: Image with the gain for each pixel.
     """
     # TODO: Remove this or actually do it.
-    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
+    # msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Build the gain image
     gain_img = np.zeros_like(amp_img, dtype=float)
@@ -263,7 +261,7 @@ def gain_frame(amp_img, gain, trim=False):
         gain_img[amp_img == i+1] = _gain
 
     # Return the image, trimming if requested
-    return trim_frame(gain_img, amp_img < 1) if trim else gain_img
+    return gain_img
 
 
 
@@ -700,7 +698,7 @@ def init_process_steps(bias, proc_par):
     Could include dark subtraction someday
 
     Args:
-        bias (None or other):
+        bias (None or np.ndarray):
         proc_par (ProcessImagesPar):
 
     Returns:
@@ -715,6 +713,7 @@ def init_process_steps(bias, proc_par):
     elif proc_par['bias'].lower() == 'force':
         if bias is None:
             msgs.error("Must provide bias frames!")
+        process_steps.append('subtract_bias')
     elif proc_par['bias'].lower() == 'skip':
         pass
     # Overscan
@@ -725,7 +724,7 @@ def init_process_steps(bias, proc_par):
 
 
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
-                   exptime=None, skyframe=None, objframe=None, adderr=0.01):
+                   exptime=None, skyframe=None, objframe=None, adderr=0.01, rnoise=None):
     """
     Calculate the variance image including detector noise.
 
@@ -755,6 +754,9 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
         adderr: float, default = 0.01
             Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
             S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
+        rnoise (:obj:`numpy.ndarray`, optional):
+            Read noise image
+            If not provided, it will be generated
 
     objframe : ndarray, optional
       Model of object counts
@@ -765,7 +767,8 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
 
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
-    rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
+    if rnoise is None:
+        rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
 
     # No sky frame provided
     if skyframe is None:

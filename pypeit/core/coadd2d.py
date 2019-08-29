@@ -11,7 +11,6 @@ import scipy
 import copy
 
 from astropy.io import fits
-from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
@@ -19,130 +18,20 @@ from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
 from pypeit.traceslits import TraceSlits
+from pypeit import edgetrace
 from pypeit.images import scienceimage
 from pypeit import reduce
 from pypeit.core import extract
 
 from pypeit.core import load, coadd1d, pixels
 from pypeit.core import parse
+from pypeit.core import combine
 from pypeit.spectrographs import util
 from matplotlib import pyplot as plt
 from IPython import embed
 from pypeit import ginga
 from pypeit import specobjs
 
-
-# TODO make weights optional and do uniform weighting without.
-def weighted_combine(weights, sci_list, var_list, inmask_stack,
-                     sigma_clip=False, sigma_clip_stack = None, sigrej=None, maxiters=5):
-    """
-
-    Args:
-        weights: float ndarray of weights.
-            Options for the shape of weights are:
-                (nimgs,)              -- a single weight per image in the stack
-                (nimgs, nspec)        -- wavelength dependent weights per image in the stack
-                (nimgs, nspec, nspat) -- weights input with the shape of the image stack
-
-             Note that the weights are distinct from the mask which is dealt with via inmask_stack argument so there
-             should not be any weights that are set to zero (although in principle this would still work).
-
-        sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
-        var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with proper erorr propagation, i.e.
-            using the  weights**2, inmask_stack, and possibly sigma clipping
-        inmask_stack: ndarray, boolean, shape (nimgs, nspec, nspat)
-            Array of input masks for the images. True = Good, False=Bad
-        sigma_clip: bool, default = False
-            Combine with a mask by sigma clipping the image stack. Only valid if nimgs > 2
-        sigma_clip_stack: ndarray, float, shape (nimgs, nspec, nspat), default = None
-            The image stack to be used for the sigma clipping. For example if
-            if the list of images to be combined with the weights is [sciimg_stack, waveimg_stack, tilts_stack] you
-            would be sigma clipping with sciimg_stack, and would set sigma_clip_stack = sciimg_stack
-        sigrej: int or float, default = None
-            Rejection threshold for sigma clipping. Code defaults to determining this automatically based
-            on the numberr of images provided.
-        maxiters:
-            Maximum number of iterations for sigma clipping using astropy.stats.SigmaClip
-
-    Returns:
-        sci_list_out: list
-           The list of ndarray float combined images with shape (nspec, nspat)
-        var_list_out: list
-           The list of ndarray propagated variance images with shape (nspec, nspat)
-        outmask: bool ndarray, shape (nspec, nspat)
-           Mask for combined image. True=Good, False=Bad
-        nused: int ndarray, shape (nspec, nspat)
-           Image of integers indicating the number of images that contributed to each pixel
-    """
-
-    shape = img_list_error_check(sci_list, var_list)
-
-    nimgs = shape[0]
-    img_shape = shape[1:]
-    #nspec = shape[1]
-    #nspat = shape[2]
-
-    if nimgs == 1:
-        # If only one image is passed in, simply return the input lists of images, but reshaped
-        # to be (nspec, nspat)
-        msgs.warn('Cannot combine a single image. Returning input images')
-        sci_list_out = []
-        for sci_stack in sci_list:
-            sci_list_out.append(sci_stack.reshape(img_shape))
-        var_list_out = []
-        for var_stack in var_list:
-            var_list_out.append(var_stack.reshape(img_shape))
-        outmask = inmask_stack.reshape(img_shape)
-        nused = outmask.astype(int)
-        return sci_list_out, var_list_out, outmask, nused
-
-    if sigma_clip and nimgs >= 3:
-        if sigma_clip_stack is None:
-            msgs.error('You must specify sigma_clip_stack, i.e. which quantity to use for sigma clipping')
-        if sigrej is None:
-            if nimgs <= 2:
-                sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
-            elif nimgs == 3:
-                sigrej = 1.1
-            elif nimgs == 4:
-                sigrej = 1.3
-            elif nimgs == 5:
-                sigrej = 1.6
-            elif nimgs == 6:
-                sigrej = 1.9
-            else:
-                sigrej = 2.0
-        # sigma clip if we have enough images
-        # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
-        data = np.ma.MaskedArray(sigma_clip_stack, np.invert(inmask_stack))
-        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
-        data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
-        mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
-    else:
-        if sigma_clip and nimgs < 3:
-            msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
-                      'Proceeding without sigma clipping')
-        mask_stack = inmask_stack  # mask_stack = True are good values
-
-    nused = np.sum(mask_stack, axis=0)
-    weights_stack = broadcast_weights(weights, shape)
-    weights_mask_stack = weights_stack*mask_stack
-
-    weights_sum = np.sum(weights_mask_stack, axis=0)
-    sci_list_out = []
-    for sci_stack in sci_list:
-        sci_list_out.append(np.sum(sci_stack*weights_mask_stack, axis=0)/(weights_sum + (weights_sum == 0.0)))
-    var_list_out = []
-    for var_stack in var_list:
-        var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) / (weights_sum + (weights_sum == 0.0))**2)
-    # Was it masked everywhere?
-    outmask = np.any(mask_stack, axis=0)
-
-    return sci_list_out, var_list_out, outmask, nused
 
 
 def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
@@ -258,49 +147,7 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
 
     return ind_lower, ind_upper
 
-def broadcast_weights(weights, shape):
-    """
-    Utility routine to broadcast weights to be the size of image stacks specified by shape
-    Args:
-        weights: float ndarray of weights.
-            Options for the shape of weights are:
-                (nimgs,)              -- a single weight per image
-                (nimgs, nspec)        -- wavelength dependent weights per image
-                (nimgs, nspec, nspat) -- weights already have the shape of the image stack and are simply returned
-        shape: tuple of integers
-            Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
-            (nimgs, nspec, nspat) for 2d spectrum images
 
-    Returns:
-
-    """
-    # Create the weights stack images from the wavelength dependent weights, i.e. propagate these
-    # weights to the spatial direction
-    if weights.ndim == 1:
-        # One float per image
-        if len(shape) == 2:
-            weights_stack = np.einsum('i,ij->ij', weights, np.ones(shape))
-        elif len(shape) == 3:
-            weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
-        else:
-            msgs.error('Image shape is not supported')
-    elif weights.ndim == 2:
-        # Wavelength dependent weights per image
-        if len(shape) == 2:
-            if weights.shape != shape:
-                msgs.error('The shape of weights does not match the shape of the image stack')
-            weights_stack = weights
-        elif len(shape) == 3:
-            weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
-    elif weights.ndim == 3:
-        # Full image stack of weights
-        if weights.shape != shape:
-            msgs.error('The shape of weights does not match the shape of the image stack')
-        weights_stack = weights
-    else:
-        msgs.error('Unrecognized dimensionality for weights')
-
-    return weights_stack
 
 def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 
@@ -439,7 +286,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
 
-    weights_stack = broadcast_weights(weights, sciimg_stack.shape)
+    weights_stack = combine.broadcast_weights(weights, sciimg_stack.shape)
 
     # Determine the wavelength grid that we will use for the current slit/order
     wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
@@ -460,7 +307,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     # sci_list_rebin[1:] = stacks of images that we want to weighted combine
     # sci_list_rebin[2] = rebinned sciimg-sky_model images that we used for the sigma clipping
     sci_list_out, var_list_out, outmask, nused \
-            = weighted_combine(sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin,
+            = combine.weighted_combine(sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin,
                                norm_rebin_stack != 0, sigma_clip=True,
                                sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
                                maxiters=maxiters)
@@ -503,48 +350,6 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                 dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1])
 
 
-def img_list_error_check(sci_list, var_list):
-    """
-    Utility routine for dealing dealing with lists of image stacks for rebin2d and weigthed_combine routines below. This
-    routine checks that the images sizes are correct and routines the shape of the image stacks.
-    Args:
-        sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
-        var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with proper erorr propagation, i.e.
-            using the  weights**2, inmask_stack, and possibly sigma clipping
-
-    Returns:
-        shape: tuple
-            The shapes of the image stacks, (nimgs, nspec, nspat)
-
-    """
-    shape_sci_list = []
-    for img in sci_list:
-        shape_sci_list.append(img.shape)
-        if img.ndim < 2:
-            msgs.error('Dimensionality of an image in sci_list is < 2')
-
-    shape_var_list = []
-    for img in var_list:
-        shape_var_list.append(img.shape)
-        if img.ndim < 2:
-            msgs.error('Dimensionality of an image in var_list is < 2')
-
-    for isci in shape_sci_list:
-        if isci != shape_sci_list[0]:
-            msgs.error('An image in sci_list have different dimensions')
-        for ivar in shape_var_list:
-            if ivar != shape_var_list[0]:
-                msgs.error('An image in var_list have different dimensions')
-            if isci != ivar:
-                msgs.error('An image in sci_list had different dimensions than an image in var_list')
-
-    shape = shape_sci_list[0]
-
-    return shape
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
     """
@@ -593,7 +398,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
 
     """
 
-    shape = img_list_error_check(sci_list, var_list)
+    shape = combine.img_list_error_check(sci_list, var_list)
     nimgs = shape[0]
     # allocate the output mages
     nspec_rebin = spec_bins.size - 1
@@ -854,12 +659,13 @@ class Coadd2d(object):
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
 
         # Generate a ScienceImage
-        sciImage = scienceimage.ScienceImage.from_images(self.spectrograph, self.det,
-                                                         self.par['scienceframe']['process'],
-                                                         np.zeros_like(psuedo_dict['inmask']),  # Dummy bpm
-                                                         psuedo_dict['imgminsky'], psuedo_dict['sciivar'],
-                                                         np.zeros_like(psuedo_dict['inmask']),  # Dummy rn2img
-                                                         crmask=np.invert(psuedo_dict['inmask']))
+        sciImage = scienceimage.ScienceImage(self.spectrograph, self.det,
+                                                      self.par['scienceframe']['process'],
+                                                      psuedo_dict['imgminsky'],
+                                                      psuedo_dict['sciivar'],
+                                                      np.zeros_like(psuedo_dict['inmask']),  # Dummy bpm
+                                                      rn2img=np.zeros_like(psuedo_dict['inmask']),  # Dummy rn2img
+                                                      crmask=np.invert(psuedo_dict['inmask']))
         slitmask_psuedo = pixels.tslits2mask(psuedo_dict['tslits_dict'])
         sciImage.build_mask(slitmask=slitmask_psuedo)
 
@@ -907,13 +713,17 @@ class Coadd2d(object):
         master_key_dict = self.stack_dict['master_key_dict']
 
         # TODO: These saving operations are a temporary kludge
-        waveImage = WaveImage(None, None, None, None, None, None, master_key=master_key_dict['arc'],
+        waveImage = WaveImage(None, None, None, self.spectrograph,  # spectrograph is needed for header
+                              None, None, master_key=master_key_dict['arc'],
                               master_dir=master_dir)
         waveImage.save(image=self.psuedo_dict['waveimg'])
 
-        traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
-        traceSlits.save(tslits_dict=self.psuedo_dict['tslits_dict'])
+#        traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
+#        traceSlits.save(tslits_dict=self.psuedo_dict['tslits_dict'])
 
+        edges = edgetrace.EdgeTraceSet.from_tslits_dict(self.psuedo_dict['tslits_dict'],
+                                                        master_key_dict['trace'], master_dir)
+        edges.save()
 
     def snr_report(self, snr_bar, slitid=None):
 
@@ -1049,8 +859,10 @@ class Coadd2d(object):
         # TODO Sort this out with the correct detector extensions etc.
         # Read in the image stacks
         for ifile in range(nfiles):
-            waveimg = WaveImage.load_from_file(waveimgfiles[ifile])
-            tilts = WaveTilts.load_from_file(tiltfiles[ifile])
+            #waveimg = WaveImage.load_from_file(waveimgfiles[ifile])  # JXP
+            waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
+            #tilts = WaveTilts.load_from_file(tiltfiles[ifile])
+            tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
             hdu = fits.open(spec2d_files[ifile])
             # One detector, sky sub for now
             names = [hdu[i].name for i in range(len(hdu))]
@@ -1091,7 +903,8 @@ class Coadd2d(object):
                 slitmask_stack = np.zeros(shape_sci, dtype=float)
 
             # Slit Traces and slitmask
-            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
+#            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
+            tslits_dict = edgetrace.EdgeTraceSet.from_file(tracefiles[0]).convert_to_tslits_dict()
             tslits_dict_list.append(tslits_dict)
             slitmask = pixels.tslits2mask(tslits_dict)
             slitmask_stack[ifile, :, :] = slitmask

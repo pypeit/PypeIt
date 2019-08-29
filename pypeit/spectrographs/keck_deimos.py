@@ -5,6 +5,7 @@ import glob
 import re
 import os
 import numpy as np
+import warnings
 
 from scipy import interpolate
 
@@ -16,6 +17,8 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+
+from pypeit.utils import index_of_x_eq_y
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
@@ -195,7 +198,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for Keck DEIMOS reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
@@ -203,6 +206,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['trace_npoly'] = 3
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 3
+        # Slightly larger than 2 pixels to catch cold columns
+        par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
+        # Slightly larger than that to catch hot columns
+#        par['calibrations']['slitedges']['minimum_slit_length'] = 0.5
+        par['calibrations']['slitedges']['minimum_slit_length'] = 5.
+        par['calibrations']['slitedges']['sync_clip'] = False
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -396,7 +407,86 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                  'standard': None,
                  'trace': 'IntFlat' }
         return name[ftype]
-  
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read a raw DEIMOS data frame (one or more detectors)
+        Packed in a multi-extension HDU
+        Based on pypeit.arlris.read_lris...
+           Based on readmhdufits.pro
+        Parameters
+        ----------
+        raw_file : str
+          Filename
+        Returns
+        -------
+        array : ndarray
+          Combined image
+        hdu: HDUList
+        sections : tuple
+          List of datasec, oscansec sections
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
+        # Read
+        try:
+            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
+        except AttributeError:
+            print("Reading DEIMOS file: {:s}".format(fil[0]))
+
+        hdu = fits.open(fil[0])
+        head0 = hdu[0].header
+
+        # Get post, pre-pix values
+        postpix = head0['POSTPIX']
+        detlsize = head0['DETLSIZE']
+        x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
+
+        # Create final image
+        if det is None:
+            image = np.zeros((x_npix, y_npix + 4 * postpix))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+
+        # get the x and y binning factors...
+        binning = head0['BINNING']
+        if binning != '1,1':
+            msgs.error("This binning for DEIMOS might not work.  But it might..")
+
+        # DEIMOS detectors
+        nchip = 8
+
+        if det is None:
+            chips = range(nchip)
+        else:
+            chips = [det - 1]  # Indexing starts at 0 here
+        # Loop
+        for tt in chips:
+            data, oscan = deimos_read_1chip(hdu, tt + 1)
+
+            # One detector??
+            if det is not None:
+                image = np.zeros((data.shape[0], data.shape[1] + oscan.shape[1]))
+                rawdatasec_img = np.zeros_like(image, dtype=int)
+                oscansec_img = np.zeros_like(image, dtype=int)
+
+            # Indexing
+            x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
+
+            # Fill
+            image[y1:y2, x1:x2] = data
+            rawdatasec_img[y1:y2, x1:x2] = 1 # Amp
+            image[o_y1:o_y2, o_x1:o_x2] = oscan
+            oscansec_img[o_y1:o_y2, o_x1:o_x2] = 1 # Amp
+
+        # Return
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        return image, hdu, exptime, rawdatasec_img, oscansec_img
+        #return image, hdu, (dsec, osec)
+
+    '''
     def load_raw_frame(self, raw_file, det=None):
         """
         Wrapper to the raw image reader for DEIMOS
@@ -416,7 +506,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         raw_img, hdu, _ = read_deimos(raw_file, det=det)
 
         return raw_img, hdu
+    '''
 
+    '''
     def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
@@ -469,6 +561,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         shape, datasec, oscansec, _ = deimos_image_sections(hdulist, det)
         self.naxis = shape
         return self.naxis
+    '''
 
     def bpm(self, filename, det, shape=None):
         """
@@ -534,16 +627,52 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return bpm_img
 
     def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a DEIMOS file into a
+        :class:`pypeit.spectrographs.slitmask.SlitMask` object.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+        """
+        # Open the file
         hdu = fits.open(filename)
-        corners = np.array([hdu['BluSlits'].data['slitX1'],
-                            hdu['BluSlits'].data['slitY1'],
-                            hdu['BluSlits'].data['slitX2'],
-                            hdu['BluSlits'].data['slitY2'],
-                            hdu['BluSlits'].data['slitX3'],
-                            hdu['BluSlits'].data['slitY3'],
-                            hdu['BluSlits'].data['slitX4'],
-                            hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2)
-        self.slitmask = SlitMask(corners, slitid=hdu['BluSlits'].data['dSlitId'])
+
+        # Build the object data
+        #   - Find the index of the object IDs in the slit-object
+        #     mapping that match the object catalog
+        mapid = hdu['SlitObjMap'].data['ObjectID']
+        catid = hdu['ObjectCat'].data['ObjectID']
+        indx = index_of_x_eq_y(mapid, catid)
+        #   - Pull out the slit ID, object ID, and object coordinates
+        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(float),
+                            catid.astype(float), hdu['ObjectCat'].data['RA_OBJ'],
+                            hdu['ObjectCat'].data['DEC_OBJ']]).T
+        #   - Only keep the objects that are in the slit-object mapping
+        objects = objects[mapid[indx] == catid]
+
+        # Match the slit IDs in DesiSlits to those in BluSlits
+        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
+                               strict=True)
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
+                                           hdu['BluSlits'].data['slitY1'],
+                                           hdu['BluSlits'].data['slitX2'],
+                                           hdu['BluSlits'].data['slitY2'],
+                                           hdu['BluSlits'].data['slitX3'],
+                                           hdu['BluSlits'].data['slitY3'],
+                                           hdu['BluSlits'].data['slitX4'],
+                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
+                                 slitid=hdu['BluSlits'].data['dSlitId'],
+                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
+                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
+                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
+                                                 hdu['DesiSlits'].data['slitDec'][indx],
+                                                 hdu['DesiSlits'].data['slitLen'][indx],
+                                                 hdu['DesiSlits'].data['slitWid'][indx],
+                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
+                                 objects=objects)
         return self.slitmask
 
     def get_grating(self, filename):
@@ -860,7 +989,7 @@ class DEIMOSDetectorMap(DetectorMap):
 
         # ccd_geom.pro has offsets by sys.CN_XERR, but these are all 0.
 
-
+'''
 def deimos_image_sections(inp, det):
     """
     Parse the image for the raw image shape and data sections
@@ -987,6 +1116,7 @@ def read_deimos(raw_file, det=None):
 
     # Return
     return image, hdu, (dsec,osec)
+'''
 
 
 def indexing(itt, postpix, det=None):

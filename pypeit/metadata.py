@@ -1586,7 +1586,7 @@ class PypeItMetaData:
                       are all originally set to -1.  **This is
                       currently the only option.**
             configs (str, optional):
-                Configs to
+                Configs to (TODO: to what?)
 
         Raises:
             PypeItError:
@@ -1597,6 +1597,9 @@ class PypeItMetaData:
 
         # Unique configurations
         setups, indx = self.get_configuration_names(ignore=ignore, return_index=True, configs=configs)
+
+        # TODO: The output directory and file name are too obscure here
+        # given the input arguments.
 
         for setup,i in zip(setups, indx):
             # Create the output directory

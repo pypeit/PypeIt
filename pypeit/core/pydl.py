@@ -8,7 +8,6 @@ from pypeit import msgs
 from pypeit import debugger
 from pypeit import utils
 import copy
-from astropy.extern.six import string_types
 
 """This module corresponds to the image directory in idlutils.
 """
@@ -2505,7 +2504,7 @@ class groups(object):
         #
         if callable(separation):
             self.separation = separation
-        elif isinstance(separation, string_types):
+        elif isinstance(separation, str):
             if separation == 'euclid':
                 self.separation = self.euclid
             elif separation == 'sphereradec':

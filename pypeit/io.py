@@ -4,12 +4,20 @@
 Provides a set of I/O routines.
 """
 import os
+import sys
 import gzip
 import shutil
 import numpy
 
 from astropy.io import fits
 
+# These imports are largely just to make the versions available for
+# writing to the header. See `initialize_header`
+import scipy
+import astropy
+import sklearn
+import pypeit
+import time
 
 def init_record_array(shape, dtype):
     r"""
@@ -176,4 +184,39 @@ def parse_hdr_key_group(hdr, prefix='F'):
     # sorted list
     return [values[i] for i in range(max(values.keys())+1)]
 
+
+def initialize_header(hdr=None):
+    """
+    Initialize a FITS header.
+
+    Args:
+        hdr (`astropy.io.fits.Header`, optional):
+            Header object to update with basic summary
+            information. The object is modified in-place and also
+            returned. If None, an empty header is instantiated,
+            edited, and returned.
+
+    Returns:
+        `astropy.io.fits.Header`: The initialized (or edited)
+        fits header.
+    """
+    # Add versioning; this hits the highlights but should it add
+    # the versions of all packages included in the requirements.txt
+    # file?
+    if hdr is None:
+        hdr = fits.Header()
+    hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
+    hdr['VERSNPY'] = (numpy.__version__, 'Numpy version')
+    hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
+    hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
+    hdr['VERSSKL'] = (sklearn.__version__, 'Scikit-learn version')
+    hdr['VERSPYP'] = (pypeit.__version__, 'PypeIt version')
+
+    # Save the date of the reduction
+    hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
+
+    # TODO: Anything else?
+
+    # Return
+    return hdr
 

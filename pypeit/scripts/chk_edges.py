@@ -17,6 +17,7 @@ def parser(options=None):
     parser.add_argument('root', type=str, default = None, help='PYPIT Master Trace file root [e.g. MasterTrace_A_01_aa.fits]')
     parser.add_argument("--chname", default='MTrace', type=str, help="Channel name for image in Ginga")
     parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
+    parser.add_argument("--new", default=False, action="store_true", help="Uses new tracing")
     #parser.add_argument("--show", type=str, help="Use the show() method of TraceSlits to show something else")
 
     if options is None:
@@ -28,14 +29,19 @@ def parser(options=None):
 
 def main(pargs):
 
-    import pdb as debugger
     import time
 
     from pypeit import ginga
     from pypeit import traceslits
     from pypeit.core.trace_slits import get_slitid
+    from pypeit import edgetrace
 
     import subprocess
+
+    if pargs.new:
+        edges = edgetrace.EdgeTraceSet.from_file(pargs.root)
+        edges.show(thin=10, in_ginga=True)
+        return 0
 
     # Load up
     tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(pargs.root)
