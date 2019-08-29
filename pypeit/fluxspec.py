@@ -286,7 +286,7 @@ class FluxSpec(object):
                                 self.sens_dict[sord]['sensfunc'],
                                 xlbl='Wavelength', ylbl='Sensitivity Function')
         else:
-            debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
+            debugger.plot1d(self.sens_dict['0']['wave'], self.sens_dict['0']['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):
         """
