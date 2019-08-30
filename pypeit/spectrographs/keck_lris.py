@@ -62,6 +62,38 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [29, None]
         return par
 
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+
+        # Ignore PCA if longslit
+        #  This is a little risk as a user could put long into their maskname
+        #  But they would then need to over-ride in their PypeIt file
+        if 'long' in self.get_meta_value(scifile, 'decker'):
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        return par
+
+
     def init_meta(self):
         """
         Generate the meta data dict
@@ -410,8 +442,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument wide
+        par = super(KeckLRISBSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
@@ -587,8 +619,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument wide
+        par = super(KeckLRISRSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
 
         # Lacosmic CR settings
         #   Grab the defaults for LRISr
