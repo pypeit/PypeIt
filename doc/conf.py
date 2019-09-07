@@ -30,6 +30,7 @@
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx_automodapi.automodapi',
     'sphinx.ext.napoleon',
     'sphinx.ext.doctest',
     'sphinx.ext.graphviz',
@@ -41,6 +42,9 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
 ]
+
+#automodapi
+numpydoc_show_class_members = False
 
 # Napoleon settings 
 napoleon_numpy_docstring = True 

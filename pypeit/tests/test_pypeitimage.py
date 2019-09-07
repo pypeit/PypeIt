@@ -31,7 +31,7 @@ def test_image():
     assert pypeitImage.image.shape == (350, 2112)
 
 
-def test_save():
+def test_write():
     # Just for a dummy image
     data = np.ones((1000,1000))
     ivar = np.ones_like(data)
@@ -40,7 +40,7 @@ def test_save():
     pypeitImage = pypeitimage.PypeItImage(data, ivar=ivar, mask=mask)
     #
     outfile = data_path('tst.fits')
-    pypeitimage.save_images(pypeitImage, outfile)
+    pypeitImage.write(outfile)
     # Test
     hdul = fits.open(outfile)
     assert len(hdul) == 4
@@ -50,7 +50,7 @@ def test_save():
 def test_load():
     # This depends on the save method above
     tst_file = data_path('tst.fits')
-    pypeitImage = pypeitimage.load_images(tst_file)
+    pypeitImage = pypeitimage.PypeItImage.from_file(tst_file)
     # Test
     assert pypeitImage.image is not None
     assert pypeitImage.ivar is not None

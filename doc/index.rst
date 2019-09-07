@@ -102,6 +102,7 @@ For Developers
    scripts
    flow
    new_spectrograph
+   images
    PypeIt API <api/pypeit>
 
 Contents

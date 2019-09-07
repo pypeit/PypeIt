@@ -50,10 +50,13 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                             datasec         = '[1:2048,1:2048]',
                             oscansec        = '[:,:4]'
                             )]
-        self.norders = 22
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
+
+    @property
+    def norders(self):
+        return 22
 
     @property
     def pypeline(self):

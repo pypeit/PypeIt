@@ -314,7 +314,7 @@ def rect_slice_with_mask(image, mask, mask_val=1):
     pix = np.where(mask == mask_val)
     slices = [slice(np.min(pix[0]), np.max(pix[0])+1),
               slice(np.min(pix[1]), np.max(pix[1])+1)]
-    sub_img = image[slices]
+    sub_img = image[tuple(slices)]
     #
     return sub_img, slices
 
@@ -381,7 +381,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
             raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
 
         # Subtract along the appropriate axis
-        no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
+        no_overscan[tuple(data_slice)] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
 
     return no_overscan
 

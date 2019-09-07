@@ -371,7 +371,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Check on whether to reuse and whether the file exists
         master_file = self.chk_load_master(ifile)
         if master_file is None:
-            return (None, None, None)
+            return None, None, None
         # Load
         ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT']
         self.rawflatimg, self.mspixelflat, self.msillumflat, head0 = load.load_multiext_fits(master_file, ext)
