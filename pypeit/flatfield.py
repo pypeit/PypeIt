@@ -328,7 +328,13 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     def save(self, outfile=None, overwrite=True):
         """
-        Save the flat-field master data.
+        Save the flat-field master data to a FITS file
+
+        Extensions are:
+            RAWFLAT
+            PIXELFLAT
+            ILLUMFLAT
+            MODEL
 
         Args:
             outfile (:obj:`str`, optional):
@@ -346,13 +352,12 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         # Setup the items
         hdr = self.build_master_header(steps=self.steps, raw_files=self.file_list)
-        data = [self.rawflatimg.image, self.mspixelflat, self.msillumflat]
-        extnames = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT']
+        data = [self.rawflatimg.image, self.mspixelflat, self.msillumflat, self.flat_model]
+        extnames = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
 
         # Save to a multi-extension FITS
         save.write_fits(hdr, data, _outfile, extnames=extnames)
         msgs.info('Master frame written to {0}'.format(_outfile))
-
 
     def load(self, ifile=None):
         """
@@ -373,8 +378,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if master_file is None:
             return None, None, None
         # Load
-        ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT']
-        self.rawflatimg, self.mspixelflat, self.msillumflat, head0 = load.load_multiext_fits(master_file, ext)
+        ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
+        self.rawflatimg, self.mspixelflat, self.msillumflat, self.flat_model, head0 = load.load_multiext_fits(master_file, ext)
         # Return
         return self.rawflatimg, self.mspixelflat, self.msillumflat
 
