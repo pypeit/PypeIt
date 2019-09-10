@@ -264,9 +264,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
 
         headarr = self.get_headarr(scifile)
+
+        # Turn PCA off for long slits
+        if ('Long' in self.get_meta_value(headarr, 'decker')) or (
+                'LVMslit' in self.get_meta_value(headarr, 'decker')):
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
