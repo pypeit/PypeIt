@@ -260,12 +260,11 @@ class SpecObjs(object):
             sobj.set_idx()
         self.build_summary()
 
-
     def __getitem__(self, item):
         if isinstance(item, str):
             return self.__getattr__(item)
         elif isinstance(item, (int, np.integer)):
-            return self.specobjs[item] # TODO Is this using pointers or creating new data????
+            return self.specobjs[item]   # TODO Is this using pointers or creating new data????
         elif (isinstance(item, slice) or  # Stolen from astropy.table
             isinstance(item, np.ndarray) or
             isinstance(item, list) or
@@ -274,39 +273,6 @@ class SpecObjs(object):
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
             return SpecObjs(specobjs=self.specobjs[item])
-
-
-    '''
-    # TODO this code fails for assignments of this nature sobjs[:].attribute = np.array(5)
-    def __setitem__(self, name, value):
-        self.set(slice(0,self.nobj), name, value)
-
-    def set(self, islice, attr, value):
-        """
-        Set the attribute for a slice of the specobjs
-
-        Args:
-            islice (int, ndarray of bool, slice):  Indicates SpecObj to affect
-            attr (str):
-            value (anything) : Value of the item
-
-        Returns:
-
-        """
-        sub_sobjs = self.specobjs[islice]
-        if isiterable(value):
-            if sub_sobjs.size == len(value):  # Assume you want each paired up
-                for kk,sobj in enumerate(sub_sobjs):
-                    setattr(sobj, attr, value[kk])
-                    return
-        # Assuming scalar assignment
-        if isinstance(sub_sobjs, NewSpecObj):
-            setattr(sub_sobjs, attr, value)
-        else:
-            for sobj in sub_sobjs:
-                setattr(sobj, attr, value)
-        return
-    '''
 
     def __getattr__(self, k):
         if len(self.specobjs) == 0:
