@@ -389,7 +389,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         if oprof_bad.any():
             # For pixels with completely bad profile values, interpolate from trace.
             f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg*thismask)
-            wave_opt[oprof_bad] = f_wave(specobj.trace_spec[oprof_bad], specobj.trace_spat[oprof_bad],grid=False)
+            wave_opt[oprof_bad] = f_wave(specobj.trace_spec[oprof_bad], specobj.TRACE_SPAT[oprof_bad],grid=False)
 
     flux_model = np.outer(flux_opt,np.ones(nsub))*oprof_sub
     chi2_num = np.nansum((img_sub - flux_model)**2*ivar_sub*mask_sub,axis=1)
@@ -421,28 +421,28 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     specobj.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
     # Fill in the boxcar extraction tags
-    flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    flux_box  = extract_boxcar(imgminsky*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
     # Denom is computed in case the trace goes off the edge of the image
-    box_denom = extract_boxcar(waveimg*mask > 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    wave_box  = extract_boxcar(waveimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)/(box_denom + (box_denom == 0.0))
+    box_denom = extract_boxcar(waveimg*mask > 0.0, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
+    wave_box  = extract_boxcar(waveimg*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)/(box_denom + (box_denom == 0.0))
     varimg = 1.0/(ivar + (ivar == 0.0))
-    var_box  = extract_boxcar(varimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    nvar_box  = extract_boxcar(var_no*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    sky_box  = extract_boxcar(skyimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    rn2_box  = extract_boxcar(rn2_img*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    var_box  = extract_boxcar(varimg*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
+    nvar_box  = extract_boxcar(var_no*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
+    sky_box  = extract_boxcar(skyimg*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
+    rn2_box  = extract_boxcar(rn2_img*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
     rn_posind = (rn2_box > 0.0)
     rn_box = np.zeros(rn2_box.shape,dtype=float)
     rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
-    pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
     # If every pixel is masked then mask the boxcar extraction
-    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot) & \
+    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec) != pixtot) & \
                np.isfinite(wave_box) & (wave_box > 0.0)
 
     bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
         f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
-        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],grid=False)
+        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.TRACE_SPAT[bad_box],grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
@@ -1407,11 +1407,11 @@ def create_skymask_fwhm(sobjs, thismask):
         nspec, nspat = thismask.shape
         # spatial position everywhere along image
         spat_img = np.outer(np.ones(nspec, dtype=int),np.arange(nspat, dtype=int))
-        all_fwhm = sobjs.fwhm
+        all_fwhm = sobjs.FWHM
         med_fwhm = np.median(all_fwhm)
         for iobj in range(nobj):
             # Create a mask for the pixels that will contribue to the arc
-            slit_img = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))  # central trace replicated spatially
+            slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
             objmask_now = thismask & (spat_img > (slit_img - med_fwhm)) & (spat_img < (slit_img + med_fwhm))
             skymask = skymask & np.invert(objmask_now)
 
@@ -1744,12 +1744,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             x_trace = np.interp(specmid, spec_vec, std_trace)
             shift = np.interp(specmid, spec_vec,
                               slit_left + xsize * sobjs[iobj].spat_fracpos) - x_trace
-            sobjs[iobj].trace_spat = std_trace + shift
+            sobjs[iobj].TRACE_SPAT = std_trace + shift
         else:    # If no standard is provided shift left slit boundary over to be initial trace
             # ToDO make this the average left and right boundary instead. That would be more robust.
-            sobjs[iobj].trace_spat = slit_left  + xsize*sobjs[iobj].spat_fracpos
+            sobjs[iobj].TRACE_SPAT = slit_left  + xsize*sobjs[iobj].spat_fracpos
         sobjs[iobj].trace_spec = spec_vec
-        sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
+        sobjs[iobj].spat_pixpos = sobjs[iobj].TRACE_SPAT[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
         sobjs[iobj].set_idx()
 
@@ -1797,9 +1797,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             fwhm_measure = (xrigh - xleft)
 
         if fwhm_measure is not None:
-            sobjs[iobj].fwhm = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
+            sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
         else:
-            sobjs[iobj].fwhm = fwhm
+            sobjs[iobj].FWHM = fwhm
 
 
     if (len(sobjs) == 0) & (hand_extract_dict is None):
@@ -1811,24 +1811,24 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     msgs.info('Fitting the object traces')
 
     if len(sobjs) > 0:
-        # Note the transpose is here to pass in the trace_spat correctly.
-        xinit_fweight = np.copy(sobjs.trace_spat.T)
+        # Note the transpose is here to pass in the TRACE_SPAT correctly.
+        xinit_fweight = np.copy(sobjs.TRACE_SPAT.T)
         spec_mask = (spec_vec >= spec_min_max[0]) & (spec_vec <= spec_min_max[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
-                                             maxdev=maxdev, idx = sobjs.idx,
+                                             maxdev=maxdev, idx=sobjs.IDX,
                                              show_fits=show_fits)
         xinit_gweight = np.copy(xfit_fweight)
         xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff,inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
                                               maxdev=maxdev, gweight = True,
-                                              idx = sobjs.idx, show_fits=show_fits)
+                                              idx=sobjs.IDX, show_fits=show_fits)
         # Linearly extrapolate the traces where they are bad
         #xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max, npoly=extrap_npoly)
 
         # assign the final trace
         for iobj in range(nobj_reg):
-            sobjs[iobj].trace_spat = xfit_gweight[:, iobj]
-            sobjs[iobj].spat_pixpos = sobjs[iobj].trace_spat[specmid]
+            sobjs[iobj].TRACE_SPAT = xfit_gweight[:, iobj]
+            sobjs[iobj].spat_pixpos = sobjs[iobj].TRACE_SPAT[specmid]
             sobjs[iobj].set_idx()
 
 
@@ -1848,8 +1848,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         if nobj_reg > 0:  # Use brightest object on slit?
             smash_peakflux = sobjs.smash_peakflux
             ibri = smash_peakflux.argmax()
-            trace_model = sobjs[ibri].trace_spat
-            med_fwhm_reg = np.median(sobjs.fwhm)
+            trace_model = sobjs[ibri].TRACE_SPAT
+            med_fwhm_reg = np.median(sobjs.FWHM)
         elif std_trace is not None:   # If no objects found, use the standard?
             trace_model = std_trace
         else:  # If no objects or standard use the slit boundary
@@ -1872,16 +1872,16 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             # assign the trace
             spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
             shift = thisobj.hand_extract_spat - spat_0
-            thisobj.trace_spat = trace_model + shift
+            thisobj.TRACE_SPAT = trace_model + shift
             thisobj.trace_spec = spec_vec
-            thisobj.spat_pixpos = thisobj.trace_spat[specmid]
+            thisobj.spat_pixpos = thisobj.TRACE_SPAT[specmid]
             thisobj.set_idx()
             if hand_extract_fwhm[iobj] is not None: # If a hand_extract_fwhm was input use that for the fwhm
-                thisobj.fwhm = hand_extract_fwhm[iobj]
+                thisobj.FWHM = hand_extract_fwhm[iobj]
             elif nobj_reg > 0: # Otherwise is None was input, then use the median of objects on this slit if they are present
-                thisobj.fwhm = med_fwhm_reg
-            else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
-                thisobj.fwhm = fwhm
+                thisobj.FWHM = med_fwhm_reg
+            else:  # Otherwise just use the FWHM parameter input to the code (or the default value)
+                thisobj.FWHM = fwhm
             # Finish
             sobjs.add_sobj(thisobj)
 
@@ -1894,10 +1894,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if nobj_reg > 0 and hand_extract_dict is not None:
         spat_pixpos = sobjs.spat_pixpos
         hand_flag = sobjs.hand_extract_flag
-        spec_fwhm = sobjs.fwhm
+        spec_fwhm = sobjs.FWHM
         #spat_pixpos = np.array([spec.spat_pixpos for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
-        #spec_fwhm = np.array([spec.fwhm for spec in specobjs])
+        #spec_fwhm = np.array([spec.FWHM for spec in specobjs])
         reg_ind, = np.where(~hand_flag)
         hand_ind, = np.where(hand_flag)
         #med_fwhm = np.median(spec_fwhm[~hand_flag])
@@ -1933,13 +1933,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
         if skythresh > 0.0:
-            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].fwhm*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
+            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
-            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].fwhm
+            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM
         sep = np.abs(xtmp-sobjs[iobj].spat_fracpos)
         sep_inc = sobjs[iobj].maskwidth/nsamp
         close = sep <= sep_inc
-        qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].fwhm**2,-9.0))
+        qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2,-9.0))
 
     # Create an objmask. This is created here in case we decide to use it later, but it is not currently used
     skymask_objflux = np.copy(thismask)
@@ -1956,7 +1956,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                 color = 'orange'
             else:
                 color = 'blue'
-            ginga.show_trace(viewer, ch,sobjs[iobj].trace_spat, trc_name = sobjs[iobj].idx, color=color)
+            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].idx, color=color)
 
 
     return sobjs, skymask[thismask]
@@ -2430,7 +2430,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             goodorder = np.zeros(norders, dtype=bool)
             goodorder[thisorderindx] = True
             badorder = np.invert(goodorder)
-            xcen_good = (sobjs_align[indx_obj_id].trace_spat).T
+            xcen_good = (sobjs_align[indx_obj_id].TRACE_SPAT).T
             slit_frac_good = (xcen_good-slit_left[:,goodorder])/slit_width[:,goodorder]
             # Fractional slit position averaged across the spectral direction for each order
             frac_mean_good = np.mean(slit_frac_good, 0)
@@ -2476,16 +2476,16 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 if std_trace is not None:
                     x_trace = np.interp(slit_spec_pos, spec_vec, std_trace[:,iord])
                     shift = np.interp(slit_spec_pos, spec_vec,slit_left[:,iord] + slit_width[:,iord]*frac_mean_new[iord]) - x_trace
-                    thisobj.trace_spat = std_trace[:,iord] + shift
+                    thisobj.TRACE_SPAT = std_trace[:,iord] + shift
                 else:
-                    thisobj.trace_spat = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
+                    thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
-                thisobj.spat_pixpos = thisobj.trace_spat[specmid]
+                thisobj.spat_pixpos = thisobj.TRACE_SPAT[specmid]
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
                 imin = np.argmin(np.abs(sobjs_align[this_obj_id].ech_orderindx - iord))
-                thisobj.fwhm = sobjs_align[imin].fwhm
+                thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ech_fracpos = uni_frac[iobj]
                 thisobj.ech_objid = uni_obj_id[iobj]
@@ -2510,11 +2510,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
-            flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-            var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+            flux_tmp  = extract_boxcar(image*inmask_iord, spec.TRACE_SPAT,box_rad_pix, ycen = spec.trace_spec)
+            var_tmp  = extract_boxcar(varimg*inmask_iord, spec.TRACE_SPAT,box_rad_pix, ycen = spec.trace_spec)
             ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-            mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
+            pixtot  = extract_boxcar(ivar*0 + 1.0, spec.TRACE_SPAT,box_rad_pix, ycen = spec.trace_spec)
+            mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.TRACE_SPAT,box_rad_pix, ycen = spec.trace_spec) != pixtot)
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
             mask_box[:,iord,iobj] = mask_tmp
@@ -2569,7 +2569,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
-        pca_fits[:, :, iobj], _, _, _ = pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
+        pca_fits[:, :, iobj], _, _, _ = pca_trace((sobjs_final[indx_obj_id].TRACE_SPAT).T,
                                                  npca=npca, pca_explained_var=pca_explained_var,
                                                  coeff_npoly=coeff_npoly,
                                                  coeff_weights = np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
@@ -2577,7 +2577,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # Trial and error shows weighting by S/N instead of S/N^2 performs better
 
         # TODO: Check transpose
-#        pca_fits[:, :, iobj] = tracepca.pca_trace_object(sobjs_final[indx_obj_id].trace_spat.T,
+#        pca_fits[:, :, iobj] = tracepca.pca_trace_object(sobjs_final[indx_obj_id].TRACE_SPAT.T,
 #                                                         order=coeff_npoly, npca=npca,
 #                                                         pca_explained_var=pca_explained_var,
 #                                                         debug=debug)
@@ -2598,8 +2598,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             # JFH added the condition on ech_frac_was_fit with S/N cut on 7-7-19.
             # TODO is this robust against half the order being masked?
             if spec.ech_frac_was_fit & (spec.ech_snr > 1.0):
-                    spec.trace_spat = xfit_gweight[:,iord]
-                    spec.spat_pixpos = spec.trace_spat[specmid]
+                    spec.TRACE_SPAT = xfit_gweight[:,iord]
+                    spec.spat_pixpos = spec.TRACE_SPAT[specmid]
 
 
 
@@ -2622,7 +2622,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         for spec in sobjs_trim:
             color = 'red' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
-            ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.idx, color=color)
 
 
         for iobj in range(nobj_trim):
@@ -2630,7 +2630,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
                 ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
                 ## Showing the final traces from this routine
-                ginga.show_trace(viewer, ch, sobjs_final.trace_spat[iord].T, sobjs_final.idx, color='cyan')
+                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.idx, color='cyan')
 
 
         # Labels for the points

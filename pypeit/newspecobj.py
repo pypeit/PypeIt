@@ -1,7 +1,7 @@
 """ Module for the SpecObjs and SpecObj classes
 """
 import copy
-import re
+from IPython import embed
 
 import numpy as np
 
@@ -9,8 +9,6 @@ from scipy import interpolate
 
 from astropy import units
 from astropy.table import Table
-from astropy.units import Quantity
-from astropy.utils import isiterable
 
 from linetools.spectra import xspectrum1d
 
@@ -23,11 +21,12 @@ for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
 
 # Data model -- Put here to be able to reach it without instantiating the class
 #  These are outward facing items, i.e. items that the user will receive and use.
+#  These are upper case to distinguish them from internal attributes
 data_model = {
-    'idx': dict(otype=str, desc='Name of the object in PypeIt convention'),
-    'trace_spat': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
-    'fwhm': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
-    'fwhmfit': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),
+    'IDX': dict(otype=str, desc='Name of the object in PypeIt convention'),
+    'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
+    'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
+    'FWHMFIT': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),
     'OPT_WAVE': dict(otype=np.ndarray, atype=float, desc='Optimal Wavelengths (Angstroms)'),
     'OPT_COUNTS': dict(otype=np.ndarray, atype=float, desc='Optimal flux (counts)'),
     'OPT_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
@@ -60,6 +59,7 @@ data_model = {
     'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
     'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
+    'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
 }
 
 
@@ -98,7 +98,7 @@ class SpecObj(dict):
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
 
-    def __init__(self, slit_spat_pos, slit_spec_pos, det=1, idx=None,
+    def __init__(self, slit_spat_pos, slit_spec_pos, det=1, IDX=None,
                  indict=None, slitid=999, orderindx=999, objtype='unknown',
                  pypeline='unknown', spat_pixpos=None):
 
@@ -141,10 +141,10 @@ class SpecObj(dict):
         self.__initialised = True
 
         # Set index
-        if idx is None:
+        if IDX is None:
             self.set_idx()
         else:
-            self.idx = idx
+            self.IDX = IDX
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -196,10 +196,10 @@ class SpecObj(dict):
         Generate a unique index for this spectrum based on the
         slit/order, its position and for multi-slit the detector.
 
-        Sets self.idx internally
+        Sets self.IDX internally
 
         Returns:
-            str: :attr:`self.idx`
+            str: :attr:`self.IDX`
 
         """
         # Detector string
@@ -207,34 +207,34 @@ class SpecObj(dict):
 
         if 'Echelle' in self.pypeline:
             # ObjID
-            self.idx = naming_model['obj']
+            self.IDX = naming_model['obj']
             if self.ech_objid is None:
-                self.idx += '----'
+                self.IDX += '----'
             else:
-                self.idx += '{:04d}'.format(self.ech_objid)
-            self.idx += '-'+naming_model['order']
+                self.IDX += '{:04d}'.format(self.ech_objid)
+            self.IDX += '-'+naming_model['order']
             # Order
             if self.ech_orderindx is None:
-                self.idx += '----'
+                self.IDX += '----'
             else:
-                self.idx += '{:04d}'.format(self.ech_order)
+                self.IDX += '{:04d}'.format(self.ech_order)
         else:
             # Spat
-            self.idx = naming_model['spat']
+            self.IDX = naming_model['spat']
             if self.spat_pixpos is None:
-                self.idx += '----'
+                self.IDX += '----'
             else:
-                self.idx += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+                self.IDX += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
             # Slit
-            self.idx += '-'+naming_model['slit']
+            self.IDX += '-'+naming_model['slit']
             if self.slitid is None:
-                self.idx += '----'
+                self.IDX += '----'
             else:
-                self.idx += '{:04d}'.format(self.slitid)
+                self.IDX += '{:04d}'.format(self.slitid)
 
-        self.idx += '-{:s}{:s}'.format(naming_model['det'], sdet)
+        self.IDX += '-{:s}{:s}'.format(naming_model['det'], sdet)
         # Return
-        return self.idx
+        return self.IDX
 
     def copy(self):
         """
@@ -266,14 +266,12 @@ class SpecObj(dict):
         npix = len(sky_wave)
         x = np.linspace(0., 1., npix)
         # Apply
-        for attr in ['boxcar', 'optimal']:
-            if not hasattr(self, attr):
-                continue
-            if 'WAVE' in getattr(self, attr).keys():
+        for attr in ['BOX', 'OPT']:
+            if attr+'_WAVE' in self.keys():
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
-                          msgs.newline() + "{0:s}".format(str(self)))
+                          msgs.newline() + "{0:s}".format(str(self.IDX)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                getattr(self, attr)['WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
+                self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
         # Shift sky spec too
         cut_sky = fdict['sky_spec']
         x = np.linspace(0., 1., cut_sky.npix)
@@ -281,9 +279,43 @@ class SpecObj(dict):
         twave = f(x + fdict['shift'] / (cut_sky.npix - 1)) * units.AA
         new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
         # Save
-        self.flex_shift = fdict['shift']
+        self.FLEX_SHIFT = fdict['shift']
         # Return
         return new_sky
+
+    def to_table(self):
+        """
+        Generate a simple Table from the object
+
+        Required for I/O
+
+        Returns:
+            astropy.table.Table:
+
+        """
+        tbl = Table()
+        # Meta first
+        if 'FLEX_SHIFT' in self.keys():
+            tbl.meta['FLEX_SHIFT'] = self['FLEX_SHIFT']
+        else:
+            tbl.meta['FLEX_SHIFT'] = 0.
+        for key in ['BOX_RADIUS', 'FWHM', 'IDX']:
+            if key in self.keys():
+                tbl.meta[key] = self[key]
+
+        # Now the main arrays
+        # Required
+        for key in ['TRACE_SPAT']:
+            tbl[key] = self[key]
+        # Optional
+        for attr in ['BOX', 'OPT']:
+            for array in ['WAVE', 'COUNTS', 'COUNTS_IVAR', 'COUNTS_SIG', 'COUNTS_NIVAR',
+                          'MASK', 'COUNTS_SKY', 'COUNTS_RN', 'FRAC_USE', 'CHI2']:
+                key = attr+'_'+array
+                if key in self.keys():
+                    tbl[key] = self[key]
+        # Return
+        return tbl
 
     def to_xspec1d(self, extraction='optimal'):
         """
@@ -328,149 +360,3 @@ class SpecObj(dict):
             return
         xspec.plot(xspec=True)
 
-    #def __getitem__(self, key):
-    #    # Access the DB groups
-    #    return getattr(self, key)
-
-    #def __repr__(self):
-    #    # Create a single summary table for one object, so that the representation is always the same
-    #    sobjs = SpecObjs(specobjs=[self])
-    #    return sobjs.summary.__repr__()
-
-
-
-def objnm_to_dict(objnm):
-    """ Convert an object name or list of them into a dict
-
-    Parameters
-    ----------
-    objnm : str or list of str
-
-    Returns
-    -------
-    odict : dict
-      Object value or list of object values
-    """
-    if isinstance(objnm, list):
-        tdict = {}
-        for kk,iobj in enumerate(objnm):
-            idict = objnm_to_dict(iobj)
-            if kk == 0:
-                for key in idict.keys():
-                    tdict[key] = []
-            # Fill
-            for key in idict.keys():
-                tdict[key].append(idict[key])
-        # Generate the Table
-        return tdict
-    # Generate the dict
-    prs = objnm.split('-')
-    odict = {}
-    for iprs in prs:
-        # Find first character that is an integer
-        idig = re.search("\d", iprs).start()
-        odict[iprs[:idig]] = int(iprs[idig:])
-    # Return
-    return odict
-
-
-def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
-    """
-    Parameters
-    ----------
-    iobj : str
-      Object identifier in format O###-S####-D##
-    objects : list
-      List of object identifiers
-    stol : int
-      Tolerance in slit matching
-    otol : int
-      Tolerance in object matching
-
-    Returns
-    -------
-    matches : list
-      indices of matches in objects
-      None if none
-    indcies : list
-
-    """
-    # Parse input object
-    odict = objnm_to_dict(iobj)
-    # Generate a Table of the objects
-    tbl = Table(objnm_to_dict(objects))
-
-    # Logic on object, slit and detector [ignoring sciidx for now]
-    gdrow = (np.abs(tbl[naming_model['spat']]-odict[naming_model['spat']]) < otol) & (
-            np.abs(tbl[naming_model['slit']]-odict[naming_model['slit']]) < stol) & (
-            tbl[naming_model['det']] == odict[naming_model['det']])
-    if np.sum(gdrow) == 0:
-        return None
-    else:
-        return np.array(objects)[gdrow].tolist(), np.where(gdrow)[0].tolist()
-
-
-
-def dummy_specobj(shape, det=1, extraction=True):
-    """ Generate dummy specobj classes
-    Parameters
-    ----------
-    shape : tuple
-      naxis1, naxis0
-    Returns
-    sobj_list: list
-      Pair of SpecObj objects
-    -------
-
-    """
-    config = 'AA'
-    scidx = 5 # Could be wrong
-    xslit = (0.3,0.7) # Center of the detector
-    ypos = 0.5
-    xobjs = [0.4, 0.6]
-    sobj_list = []
-    for jj,xobj in enumerate(xobjs):
-        specobj = SpecObj(shape, 1240, xslit, spat_pixpos=900, det=det, config=config)
-        specobj.slitid = jj+1
-        #specobj = SpecObj(shape, config, scidx, det, xslit, ypos, xobj)
-        # Dummy extraction?
-        if extraction:
-            npix = 2001
-            specobj.boxcar['WAVE'] = np.linspace(4000., 6000., npix)*units.AA
-            specobj.boxcar['COUNTS'] = 50.*(specobj.boxcar['WAVE'].value/5000.)**-1.
-            specobj.boxcar['COUNTS_IVAR']  = 1./specobj.boxcar['COUNTS'].copy()
-        # Append
-        sobj_list.append(specobj)
-    # Return
-    return sobj_list
-
-
-
-
-def unravel_specobjs(specobjs):
-    """
-    Likely to be Deprecated
-
-    Method to unwrap nested specobjs objects into a single list
-
-    Args:
-        specobjs (list of lists or list of SpecObj):
-
-    Returns:
-        list: list of SpecObj
-
-    """
-    # Wrapped is all None and lists
-    ans = [isinstance(ispec, (list, type(None))) for ispec in specobjs]
-    if np.all(ans):
-        all_specobj = []
-        for det in range(len(specobjs)):           # detector loop
-            if specobjs[det] is None:
-                continue
-            for sl in range(len(specobjs[det])):   # slit loop
-                for spobj in specobjs[det][sl]:    # object loop
-                    all_specobj.append(spobj)
-    else:
-        all_specobj = specobjs
-    # Return
-    return all_specobj

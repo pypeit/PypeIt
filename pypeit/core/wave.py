@@ -312,8 +312,8 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
             msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.slitid))
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
-                sky_wave = specobj.boxcar['WAVE'] #.to('AA').value
-                sky_flux = specobj.boxcar['COUNTS_SKY']
+                sky_wave = specobj.BOX_WAVE #.to('AA').value
+                sky_flux = specobj.BOX_COUNTS_SKY
             else:
                 msgs.error("Not ready for this flexure method: {}".format(method))
 
@@ -358,7 +358,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
             slit, ss = items
             flex_dict = flex_list[slit]
             specobj = specobjs[ss]
-            sky_wave = specobj.boxcar['WAVE'] #.to('AA').value
+            sky_wave = specobj.BOX_WAVE #.to('AA').value
             # Copy me
             fdict = copy.deepcopy(sv_fdict)
             # Interpolate
@@ -412,8 +412,8 @@ def flexure_obj_oldbuggyversion(specobjs, maskslits, method, sky_spectrum, sky_f
 
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
-                sky_wave = specobj.boxcar['WAVE'] #.to('AA').value
-                sky_flux = specobj.boxcar['COUNTS_SKY']
+                sky_wave = specobj.BOX_WAVE #.to('AA').value
+                sky_flux = specobj.BOX_COUNTS_SKY
             else:
                 msgs.error("Not ready for this flexure method: {}".format(method))
 
@@ -684,7 +684,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobj.idx), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobj.IDX), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][iobj]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -728,7 +728,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.IDX), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
@@ -833,7 +833,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].idx), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].IDX), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -878,7 +878,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.IDX), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
