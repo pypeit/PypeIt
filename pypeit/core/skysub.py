@@ -685,7 +685,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # If this is the first iteration, print status message. Initiate profile fitting with a simple
                     # boxcar extraction.
                     msgs.info("----------------------------------- PROFILE FITTING --------------------------------------------------------")
-                    msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].OBJID) + " of {:}".format(nobj))
+                    msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].objid) + " of {:}".format(nobj))
                     msgs.info("At x = {:5.2f}".format(sobjs[iobj].spat_pixpos) + " on slit # {:}".format(sobjs[iobj].SLITID))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
                     flux = extract.extract_boxcar(img_minsky * outmask, sobjs[iobj].TRACE_SPAT, box_rad,
@@ -716,7 +716,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                         fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
                         wave = sobjs[iobj].OPT_WAVE
 
-                obj_string = 'obj # {:}'.format(sobjs[iobj].OBJID) + ' on slit # {:}'.format(sobjs[iobj].SLITID) + ', iter # {:}'.format(iiter) + ':'
+                obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].SLITID) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
                     sign = sobjs[iobj].sign
                     # TODO This is "sticky" masking. Do we want it to be?
@@ -826,7 +826,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         for ii in range(objwork):
             iobj = group[ii]
             msgs.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
-                      ' with objid = {:d}'.format(sobjs[iobj].OBJID) + ' on slit # {:d}'.format(sobjs[iobj].SLITID) +
+                      ' with objid = {:d}'.format(sobjs[iobj].objid) + ' on slit # {:d}'.format(sobjs[iobj].SLITID) +
                       ' at x = {:5.2f}'.format(sobjs[iobj].spat_pixpos))
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
@@ -851,7 +851,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 color = 'magenta'
             else:
                 color = 'orange'
-            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.idx, color=color)
+            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
 
         # These are the pixels that were masked by the extraction
         spec_mask, spat_mask = np.where((outmask == False) & (inmask == True))

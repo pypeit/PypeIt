@@ -23,7 +23,6 @@ for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
 #  These are outward facing items, i.e. items that the user will receive and use.
 #  These are upper case to distinguish them from internal attributes
 data_model = {
-    'IDX': dict(otype=str, desc='Name of the object in PypeIt convention'),
     'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
     'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
     'FWHMFIT': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),
@@ -59,16 +58,20 @@ data_model = {
     'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
     'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
+    #
     'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
+    'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
+    'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
     #
     'DET': dict(otype=(int,np.int64), desc='Detector number'),
+    'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
+    'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
+    #
     'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
-    'OBJID': dict(otype=(int,np.int64), desc='Object ID'),
+    #
     'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
     'ECH_ORDERINDX': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
     'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
-    'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
-    'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
 }
 
 
@@ -102,12 +105,18 @@ class SpecObj(dict):
     """
     @classmethod
     def from_table(cls, table):
-        slf = cls.init(None, IDX=table.meta['IDX'])
+        # Instantiate
+        slf = cls(table.meta['DET'], table.meta['SLITID'])
+        # Loop me
+        for key in table.keys():
+            slf[key] = table[key].data
+        for key in table.meta.keys():
+            slf[key] = table.meta[key]
+        # Return
+        return slf
 
-    def __init__(self, det=1,
-                 indict=None, objtype='unknown',
-                 orderindx=999,
-                 spat_pixpos=None):
+    def __init__(self, det, slitid=None,
+                 indict=None, objtype='unknown', orderindx=None):
 
         # For copying the object
         if indict is not None:
@@ -118,6 +127,9 @@ class SpecObj(dict):
             # set any attributes here - before initialisation
             # these remain as normal attributes
             # We may wish to eliminate *all* of these
+
+            self.objid = 999
+            self.name = None
 
             # Object finding
             self.spat_fracpos = None
@@ -140,6 +152,15 @@ class SpecObj(dict):
 
         # Initialize a few
         self.FLEX_SHIFT = 0.
+        self.OBJTYPE = objtype
+
+        #
+        if slitid is not None:
+            self.SLITID = slitid
+            self.PYPELINE = 'MultiSlit'
+
+        # Name
+        self.set_name()
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -188,7 +209,7 @@ class SpecObj(dict):
         return sobjs_key_dict
     '''
 
-    def set_idx(self):
+    def set_name(self):
         """
         Generate a unique index for this spectrum based on the
         slit/order, its position and for multi-slit the detector.
@@ -199,28 +220,37 @@ class SpecObj(dict):
             str: :attr:`self.IDX`
 
         """
-        # Detector string
-        sdet = parse.get_dnum(self.DET, prefix=False)
-
         if 'Echelle' in self.pypeline:
             # ObjID
-            self.IDX = naming_model['obj']
+            self.name = naming_model['obj']
             if self.ech_objid is None:
-                self.IDX += '----'
+                self.name += '----'
             else:
-                self.IDX += '{:04d}'.format(self.ech_objid)
-            self.IDX += '-'+naming_model['order']
+                self.name += '{:04d}'.format(self.ech_objid)
+            self.name += '-'+naming_model['order']
             # Order
             if self.ech_orderindx is None:
-                self.IDX += '----'
+                self.name += '----'
             else:
-                self.IDX += '{:04d}'.format(self.ech_order)
+                self.name += '{:04d}'.format(self.ech_order)
         else:
-            pass
+            # Spat
+            self.name = naming_model['spat']
+            if self.spat_pixpos is None:
+                self.name += '----'
+            else:
+                self.name += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            # Slit
+            self.name += '-'+naming_model['slit']
+            if self.SLITID is None:
+                self.name += '----'
+            else:
+                self.name += '{:04d}'.format(self.SLITID)
         # Detector
-        self.IDX += '-{:s}{:s}'.format(naming_model['det'], sdet)
+        sdet = parse.get_dnum(self.DET, prefix=False)
+        self.name += '-{:s}{:s}'.format(naming_model['det'], sdet)
         # Return
-        return self.IDX
+        return self.name
 
     def copy(self):
         """
@@ -361,33 +391,4 @@ class SpecObj(dict):
         xspec.plot(xspec=True)
 
 
-class SpecObjMulti(SpecObj):
-    def __init__(self, det, slitid, spat_pixpos=None, IDX=None, objtype='unknown'):
-        # Get it started
-        self.pypeline = 'MultiSlit'
 
-        super(SpecObjMulti, self).__init__(objtype=objtype)
-
-        self.spat_pixpos = spat_pixpos
-
-        self.DET = det
-        self.SLITID = slitid
-        self.OBJID = 999
-
-        # Set index
-        if IDX is None:
-            # Spat
-            self.IDX = naming_model['spat']
-            if self.spat_pixpos is None:
-                self.IDX += '----'
-            else:
-                self.IDX += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
-            # Slit
-            self.IDX += '-'+naming_model['slit']
-            if self.SLITID is None:
-                self.IDX += '----'
-            else:
-                self.IDX += '{:04d}'.format(self.SLITID)
-            # Detector
-            sdet = parse.get_dnum(self.DET, prefix=False)
-            self.IDX += '-{:s}{:s}'.format(naming_model['det'], sdet)

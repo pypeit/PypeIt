@@ -49,6 +49,7 @@ class SpecObjs(object):
 
     @classmethod
     def from_fitsfile(cls, fits_file):
+        #tbl3 = fits.connect.read_table_fits(hdul, hdu=1)
         slf = cls.init()
         # From table
 

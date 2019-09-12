@@ -1703,7 +1703,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             # ToDo Label with objid and objind here?
             if specobj_dict['pypeline'] == 'MultiSlit':
                 thisobj = newspecobj.SpecObjMulti(specobj_dict['det'],
-                                                  specobj_dict['slitid'],
+                                                  slitid=specobj_dict['slitid'],
                                                   spat_pixpos=spat_pixpos,
                                                   objtype=specobj_dict['objtype'])
             else:
@@ -1819,12 +1819,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         spec_mask = (spec_vec >= spec_min_max[0]) & (spec_vec <= spec_min_max[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
-                                             maxdev=maxdev, idx=sobjs.IDX,
+                                             maxdev=maxdev, idx=sobjs.name,
                                              show_fits=show_fits)
         xinit_gweight = np.copy(xfit_fweight)
         xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff,inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
                                               maxdev=maxdev, gweight = True,
-                                              idx=sobjs.IDX, show_fits=show_fits)
+                                              idx=sobjs.name, show_fits=show_fits)
         # Linearly extrapolate the traces where they are bad
         #xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max, npoly=extrap_npoly)
 
@@ -1910,7 +1910,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             close = np.abs(sobjs[reg_ind].spat_pixpos - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
                 # Print out a warning
-                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].idx) +
+                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].name) +
                           ' because it collides with a user specified hand_extract aperture')
                 #for ihand in range(len(close)):
                 #    if close[ihand] is True:
@@ -1926,7 +1926,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     spat_pixpos = sobjs.spat_pixpos
     sobjs = sobjs[spat_pixpos.argsort()]
     # Assign integer objids
-    sobjs[:].OBJID = np.arange(nobj)
+    sobjs[:].objid = np.arange(nobj)
 
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
@@ -1956,7 +1956,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                 color = 'orange'
             else:
                 color = 'blue'
-            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].idx, color=color)
+            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].name, color=color)
 
 
     return sobjs, skymask[thismask]
@@ -2413,7 +2413,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             for spec in sobjs_align[on_order]:
                 spec.ech_fracpos = uni_frac[iobj]
                 spec.ech_objid = uni_obj_id[iobj]
-                spec.OBJID = uni_obj_id[iobj]
+                spec.objid = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
@@ -2489,7 +2489,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ech_fracpos = uni_frac[iobj]
                 thisobj.ech_objid = uni_obj_id[iobj]
-                thisobj.OBJID = uni_obj_id[iobj]
+                #thisobj.objid = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
                 thisobj.set_idx()
                 sobjs_align.add_sobj(thisobj)
@@ -2537,7 +2537,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             sobjs_keep = sobjs_align[ikeep].copy()
             for spec in sobjs_keep:
                 spec.ech_objid = iobj_keep
-                spec.OBJID = iobj_keep
+                #spec.objid = iobj_keep
             sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
             iobj_keep += 1
         else:
@@ -2622,7 +2622,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         for spec in sobjs_trim:
             color = 'red' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
-            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.idx, color=color)
+            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
 
 
         for iobj in range(nobj_trim):
@@ -2630,7 +2630,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
                 ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
                 ## Showing the final traces from this routine
-                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.idx, color='cyan')
+                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.name, color='cyan')
 
 
         # Labels for the points
