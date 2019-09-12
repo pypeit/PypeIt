@@ -23,7 +23,7 @@ from pypeit.core import parse
 
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
-             refframe='heliocentric', update_det=None, binning='None'):
+             update_det=None, binning='None'):
     """
     Routine to save PypeIt 1d and 2d outputs
     Args:
@@ -70,12 +70,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     # Build the final list of specobjs and vel_corr
     all_specobjs = newspecobjs.SpecObjs()
 
-    vel_corr = 0.  # This will not be set for Standard stars, which is fine
     for key in sci_dict:
-        if key in ['meta']:
-            vel_corr = sci_dict['meta']['vel_corr']
-            continue
-        #
         try:
             all_specobjs.add_sobj(sci_dict[key]['specobjs'])
         except KeyError:  # No object extracted
@@ -85,10 +80,8 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
         # Create the helio_dict
-        helio_dict = dict(refframe=refframe, vel_correction=vel_corr)
         all_specobjs.write_to_fits(outfile1d, header=head1d,
                                    spectrograph=spectrograph,
-                                   helio_dict=helio_dict,
                                    update_det=update_det)
         #save_1d_spectra_fits(all_specobjs, head1d, spectrograph, outfile1d,helio_dict=helio_dict, update_det=update_det)
         #save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)

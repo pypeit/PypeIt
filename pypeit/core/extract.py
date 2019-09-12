@@ -1701,11 +1701,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
-            thisobj = newspecobj.SpecObj(slit_spat_pos, slit_spec_pos, det=specobj_dict['det'],
-                                       slitid=specobj_dict['slitid'],
-                                       #orderindx=specobj_dict['orderindx'],
-                                       objtype=specobj_dict['objtype'],
-                                       pypeline=specobj_dict['pypeline']) #setup=specobj_dict['setup'],
+            if specobj_dict['pypeline'] == 'MultiSlit':
+                thisobj = newspecobj.SpecObjMulti(specobj_dict['det'],
+                                                  specobj_dict['slitid'],
+                                                  spat_pixpos=spat_pixpos,
+                                                  objtype=specobj_dict['objtype'])
+            else:
+                embed('1711 of extract')
             thisobj.spat_fracpos = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
             thisobj.smash_nsig = ypeak[iobj]/sigma
@@ -1857,7 +1859,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            thisobj = newspecobj.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
+            thisobj = newspecobj.SpecObj(frameshape,
                                        det=specobj_dict['det'],
                                        setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
                                        orderindx = specobj_dict['orderindx'],
@@ -2464,7 +2466,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
-                thisobj = newspecobj.SpecObj(frameshape, slit_spat_pos[iord,:], slit_spec_pos, det = sobjs_align[0].det,
+                thisobj = newspecobj.SpecObj(frameshape, slit_spat_pos[iord,:], det = sobjs_align[0].det,
                                            setup = sobjs_align[0].setup, slitid = iord,
                                            objtype=sobjs_align[0].objtype, pypeline=sobjs_align[0].pypeline)
                 thisobj.ech_orderindx = iord

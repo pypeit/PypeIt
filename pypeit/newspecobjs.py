@@ -263,7 +263,7 @@ class SpecObjs(object):
         return len(self.specobjs)
 
     def write_to_fits(self, outfile, header=None, spectrograph=None, overwrite=True,
-                      update_det=None, helio_dict=None):
+                      update_det=None):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
@@ -275,8 +275,6 @@ class SpecObjs(object):
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update
               the indicated detectors.  Useful for re-running on a subset of detectors
-            helio_dict (dict, optional):
-                Holds the heliocentric correction
 
         """
         if os.path.isfile(outfile) and (not overwrite):
@@ -315,10 +313,6 @@ class SpecObjs(object):
                 prihdu.header['LON-OBS'] = telescope['longitude']
                 prihdu.header['LAT-OBS'] = telescope['latitude']
                 prihdu.header['ALT-OBS'] = telescope['elevation']
-            # Helio
-            if helio_dict is not None:
-                prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
-                prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
 
         ext = len(hdus)-1
         # Loop on the SpecObj objects

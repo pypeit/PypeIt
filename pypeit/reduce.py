@@ -375,7 +375,7 @@ class Reduce(object):
             msgs.info('A wavelength reference-frame correction will not be performed.')
             vel_corr = None
 
-        return vel_corr
+        return
 
 
 

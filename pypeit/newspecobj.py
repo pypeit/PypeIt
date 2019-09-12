@@ -67,6 +67,8 @@ data_model = {
     'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
     'ECH_ORDERINDX': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
     'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
+    'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
+    'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
 }
 
 
@@ -76,12 +78,6 @@ class SpecObj(dict):
     finding routine, and then all spectral extraction information for the object are assigned as attributes
 
     Args:
-        slit_spat_pos (tuple): tuple of floats (spat_left,spat_right)
-            The spatial pixel location of the left and right slit trace arrays evaluated at slit_spec_pos (see below). These
-            will be in the range (0,nspat)
-        slit_spec_pos (float):
-            The midpoint of the slit location in the spectral direction. This will typically be nspec/2, but must be in the
-            range (0,nspec)
         det (int): Detector number
         objtype (str, optional)
            Type of object ('unknown', 'standard', 'science')
@@ -106,12 +102,12 @@ class SpecObj(dict):
     """
     @classmethod
     def from_table(cls, table):
-        slf = cls.init(None,None, IDX=table.meta['IDX'])
+        slf = cls.init(None, IDX=table.meta['IDX'])
 
-    def __init__(self, slit_spat_pos, slit_spec_pos, det=1, IDX=None,
-                 indict=None, slitid=999, objtype='unknown',
+    def __init__(self, det=1,
+                 indict=None, objtype='unknown',
                  orderindx=999,
-                 pypeline='unknown', spat_pixpos=None):
+                 spat_pixpos=None):
 
         # For copying the object
         if indict is not None:
@@ -122,17 +118,13 @@ class SpecObj(dict):
             # set any attributes here - before initialisation
             # these remain as normal attributes
             # We may wish to eliminate *all* of these
-            self.pypeline = pypeline
-            self.slit_spat_pos = slit_spat_pos
-            self.slit_spec_pos = slit_spec_pos
-            self.spat_pixpos = spat_pixpos   # Position on the image in pixels at the midpoint of the slit in spectral direction
-
 
             # Object finding
             self.spat_fracpos = None
             self.smash_peakflux = None
             self.smash_nsig = None
             self.maskwidth = None
+            self.spat_pixpos = None
 
             # Object profile
             self.prof_nsigma = None
@@ -148,15 +140,6 @@ class SpecObj(dict):
 
         # Initialize a few
         self.FLEX_SHIFT = 0.
-        self.DET = det
-        self.SLITID = int(slitid)
-        self.OBJID = 999
-
-        # Set index
-        if IDX is None:
-            self.set_idx()
-        else:
-            self.IDX = IDX
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -233,18 +216,7 @@ class SpecObj(dict):
             else:
                 self.IDX += '{:04d}'.format(self.ech_order)
         else:
-            # Spat
-            self.IDX = naming_model['spat']
-            if self.spat_pixpos is None:
-                self.IDX += '----'
-            else:
-                self.IDX += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
-            # Slit
-            self.IDX += '-'+naming_model['slit']
-            if self.SLITID is None:
-                self.IDX += '----'
-            else:
-                self.IDX += '{:04d}'.format(self.SLITID)
+            pass
         # Detector
         self.IDX += '-{:s}{:s}'.format(naming_model['det'], sdet)
         # Return
@@ -258,8 +230,7 @@ class SpecObj(dict):
             SpecObj
 
         """
-        sobj_copy = SpecObj(self.slit_spat_pos, self.slit_spec_pos,
-                            indict=copy.deepcopy(self.__dict__))  # Instantiate
+        sobj_copy = SpecObj(indict=copy.deepcopy(self.__dict__))  # Instantiate
         for key, item in self.items():
             sobj_copy[key] = item
         return sobj_copy
@@ -315,6 +286,9 @@ class SpecObj(dict):
                           + '{0} extraction for object:'.format(attr)
                           + msgs.newline() + "{0}".format(str(self.IDX)))
                 self[attr+'_WAVE'] *= vel_corr
+                # Record
+                self['VEL_TYPE'] = refframe
+                self['VEL_CORR'] = vel_corr
 
     def to_table(self):
         """
@@ -386,3 +360,34 @@ class SpecObj(dict):
             return
         xspec.plot(xspec=True)
 
+
+class SpecObjMulti(SpecObj):
+    def __init__(self, det, slitid, spat_pixpos=None, IDX=None, objtype='unknown'):
+        # Get it started
+        self.pypeline = 'MultiSlit'
+
+        super(SpecObjMulti, self).__init__(objtype=objtype)
+
+        self.spat_pixpos = spat_pixpos
+
+        self.DET = det
+        self.SLITID = slitid
+        self.OBJID = 999
+
+        # Set index
+        if IDX is None:
+            # Spat
+            self.IDX = naming_model['spat']
+            if self.spat_pixpos is None:
+                self.IDX += '----'
+            else:
+                self.IDX += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+            # Slit
+            self.IDX += '-'+naming_model['slit']
+            if self.SLITID is None:
+                self.IDX += '----'
+            else:
+                self.IDX += '{:04d}'.format(self.SLITID)
+            # Detector
+            sdet = parse.get_dnum(self.DET, prefix=False)
+            self.IDX += '-{:s}{:s}'.format(naming_model['det'], sdet)

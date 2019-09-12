@@ -369,7 +369,6 @@ class PypeIt(object):
         # TODO: JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
-        sci_dict['meta']['vel_corr'] = 0.
         sci_dict['meta']['ir_redux'] = self.ir_redux
 
         # Print status message
@@ -409,12 +408,9 @@ class PypeIt(object):
             sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
                 sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
                 sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-                sci_dict[self.det]['specobjs'], vel_corr \
+                sci_dict[self.det]['specobjs'], \
                         = self.extract_one(frames, self.det, bg_frames=bg_frames,
                                            std_outfile=std_outfile)
-            if vel_corr is not None:
-                sci_dict['meta']['vel_corr'] = vel_corr
-
             # JFH TODO write out the background frame?
 
         # Return
@@ -533,7 +529,6 @@ class PypeIt(object):
                 - ndarray: Model of inverse variance
                 - ndarray: Mask
                 - :obj:`pypeit.specobjs.SpecObjs`: spectra
-                - astropy.units.Quantity: velocity correction
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
@@ -623,7 +618,7 @@ class PypeIt(object):
 
             # Grab coord
             radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
-            self.vel_corr = self.redux.helio_correct(self.sobjs, radec, self.obstime)
+            self.redux.helio_correct(self.sobjs, radec, self.obstime)
             #embed(header='620 of pypeit')
 
         else:
@@ -644,9 +639,8 @@ class PypeIt(object):
             if self.ir_redux:
                 self.sobjs_obj.purge_neg()
             self.sobjs = self.sobjs_obj
-            self.vel_corr = None
 
-        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
+        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename):
@@ -679,7 +673,7 @@ class PypeIt(object):
         # Determine the paths/filenames
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
                       self.spectrograph, head1d, head2d, self.science_path, basename,
-                      refframe=refframe, update_det=self.par['rdx']['detnum'],
+                      update_det=self.par['rdx']['detnum'],
                       binning=self.fitstbl['binning'][frame])
 
     def msgs_reset(self):
