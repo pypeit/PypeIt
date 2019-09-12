@@ -55,7 +55,7 @@ def show_trace(hdulist_1d, det_nm, viewer, ch):
     for hdu in hdulist_1d:
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
-            trace = tbl['TRACE']
+            trace = tbl['TRACE_SPAT']
             obj_id = hdu.name.split('-')[0]
             ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 

@@ -581,7 +581,7 @@ class MultiSlit(Reduce):
             thismask = (self.slitmask == slit)
             inmask = (self.sciImg.mask == 0) & thismask
             # Find objects
-            specobj_dict = {'setup': self.setup, 'slitid': slit, 'orderindx': 999,
+            specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
                             'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
@@ -666,7 +666,7 @@ class MultiSlit(Reduce):
         # Loop on slits
         for slit in gdslits:
             msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit))
-            thisobj = (self.sobjs.slitid == slit) # indices of objects for this slit
+            thisobj = (self.sobjs.SLITID == slit) # indices of objects for this slit
             if np.any(thisobj):
                 thismask = (self.slitmask == slit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
@@ -720,7 +720,7 @@ class Echelle(Reduce):
         plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
         inmask = self.sciImg.mask == 0
         # Find objects
-        specobj_dict = {'setup': self.setup, 'slitid': 999, 'orderindx': 999,
+        specobj_dict = {'setup': self.setup, 'slitid': 999, #'orderindx': 999,
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # TODO This is a bad idea -- we want to find everything for standards
         #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']

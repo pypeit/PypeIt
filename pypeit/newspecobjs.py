@@ -1,6 +1,6 @@
 """ Module for the SpecObjs and SpecObj classes
 """
-import copy
+import os
 import re
 
 import numpy as np
@@ -10,13 +10,15 @@ from scipy import interpolate
 from astropy import units
 from astropy.table import Table
 from astropy.units import Quantity
-from astropy.utils import isiterable
+from astropy.io import fits
 
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
-from pypeit.core import parse
+from pypeit.core import save
 from pypeit import newspecobj
+from pypeit.io import initialize_header
+
 
 class SpecObjs(object):
     """
@@ -45,6 +47,11 @@ class SpecObjs(object):
         First attempts to grab data from the Summary table, then the list
     """
 
+    @classmethod
+    def from_fitsfile(cls, fits_file):
+        slf = cls.init()
+        # From table
+
     def __init__(self, specobjs=None):
 
         # Only one attribute is allowed for this Object -- specobjs
@@ -58,9 +65,6 @@ class SpecObjs(object):
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
         self.__initialised = True
-
-        # Internal summary Table
-        #self.build_summary()
 
     def __setattr__(self, item, value):
 
@@ -169,7 +173,6 @@ class SpecObjs(object):
             index = (self.objid < 0) | (self.ech_objid < 0)
             self.remove_sobj(index)
 
-
     def add_sobj(self, sobj):
         """
         Add one or more SpecObj
@@ -189,33 +192,6 @@ class SpecObjs(object):
         elif isinstance(sobj, SpecObjs):
             self.specobjs = np.append(self.specobjs, sobj)
 
-        # Rebuild summary table
-        #self.build_summary()
-
-    '''
-    def build_summary(self):
-        """
-        Build the internal Summary Table
-
-        Returns:
-            Builds self.summary Table internally
-
-        """
-        # Dummy?
-        if len(self.specobjs) == 0:
-            self.summary = Table()
-            return
-        #
-        atts = self.specobjs[0].__dict__.keys()
-        uber_dict = {}
-        for key in atts:
-            uber_dict[key] = []
-            for sobj in self.specobjs:
-                uber_dict[key] += [getattr(sobj, key)]
-        # Build it
-        self.summary = Table(uber_dict)
-    '''
-
     def remove_sobj(self, index):
         """
         Remove an object
@@ -230,9 +206,6 @@ class SpecObjs(object):
         msk[index] = False
         # Do it
         self.specobjs = self.specobjs[msk]
-        # Update
-        self.build_summary()
-
 
     def copy(self):
         """
@@ -245,7 +218,6 @@ class SpecObjs(object):
         sobj_copy = SpecObjs()
         for sobj in self.specobjs:
             sobj_copy.add_sobj(sobj.copy())
-        #sobj_copy.build_summary()
         return sobj_copy
 
     def set_idx(self):
@@ -258,7 +230,6 @@ class SpecObjs(object):
         """
         for sobj in self.specobjs:
             sobj.set_idx()
-        self.build_summary()
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -291,10 +262,92 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def keys(self):
-        self.build_summary()
-        return self.summary.keys()
+    def write_to_fits(self, outfile, header=None, spectrograph=None, overwrite=True,
+                      update_det=None, helio_dict=None):
+        """
+        Write the set of SpecObj objects to one multi-extension FITS file
 
+        Args:
+            outfile (str):
+            header:
+            spectrograph:
+            overwrite (bool, optional):
+            update_det (int or list, optional):
+              If provided, do not clobber the existing file but only update
+              the indicated detectors.  Useful for re-running on a subset of detectors
+            helio_dict (dict, optional):
+                Holds the heliocentric correction
+
+        """
+        if os.path.isfile(outfile) and (not overwrite):
+            msgs.warn("Outfile exists.  Set overwrite=True to clobber it")
+            return
+
+        # If the file exists and update_det is provided, use the existing header
+        #   and load up all the other hdus so that we only over-write the ones
+        #   we are updating
+        if os.path.isfile(outfile) and (update_det is not None):
+            hdus, prihdu = save.init_hdus(update_det, outfile)
+        else:
+            # Build up the Header
+            prihdu = fits.PrimaryHDU()
+            hdus = [prihdu]
+            # Add to the header from input header
+            if header is not None:
+                try:
+                    prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
+                except KeyError:
+                    prihdu.header['MJD-OBS'] = header['MJD-OBS']
+                if spectrograph is not None:
+                    core_keys = spectrograph.header_cards_for_spec()
+                    for key in core_keys:
+                        # Allow for fitstbl vs. header
+                        try:
+                            prihdu.header[key.upper()] = header[key.upper()]
+                        except KeyError:
+                            prihdu.header[key.upper()] = header[key]
+            if spectrograph is not None:
+                # Specify which pipeline created this file
+                prihdu.header['PYPELINE'] = spectrograph.pypeline
+                prihdu.header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+                # Observatory
+                telescope = spectrograph.telescope
+                prihdu.header['LON-OBS'] = telescope['longitude']
+                prihdu.header['LAT-OBS'] = telescope['latitude']
+                prihdu.header['ALT-OBS'] = telescope['elevation']
+            # Helio
+            if helio_dict is not None:
+                prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
+                prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
+
+        ext = len(hdus)-1
+        # Loop on the SpecObj objects
+        for sobj in self.specobjs:
+            if sobj is None:
+                continue
+            ext += 1
+            # Add header keyword
+            keywd = 'EXT{:04d}'.format(ext)
+            prihdu.header[keywd] = sobj.IDX
+
+            # Table
+            stbl = sobj.to_table()
+            shdu = fits.table_to_hdu(stbl)
+            shdu.name = sobj.IDX
+            # Append
+            hdus += [shdu]
+
+        # A few more for the header
+        prihdu.header['NSPEC'] = len(hdus) - 1
+        #prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
+        # Code versions
+        _ = initialize_header(prihdu.header)
+
+        # Finish
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(outfile, overwrite=overwrite)
+        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
+        return
 
 
 def lst_to_array(lst, mask=None):

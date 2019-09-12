@@ -60,6 +60,13 @@ data_model = {
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
     'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
     'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
+    #
+    'DET': dict(otype=(int,np.int64), desc='Detector number'),
+    'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
+    'OBJID': dict(otype=(int,np.int64), desc='Object ID'),
+    'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+    'ECH_ORDERINDX': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
+    'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
 }
 
 
@@ -97,9 +104,13 @@ class SpecObj(dict):
         'FRAC_USE' : frac_use  # Fraction of pixels in the object profile subimage used for this extraction
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
+    @classmethod
+    def from_table(cls, table):
+        slf = cls.init(None,None, IDX=table.meta['IDX'])
 
     def __init__(self, slit_spat_pos, slit_spec_pos, det=1, IDX=None,
-                 indict=None, slitid=999, orderindx=999, objtype='unknown',
+                 indict=None, slitid=999, objtype='unknown',
+                 orderindx=999,
                  pypeline='unknown', spat_pixpos=None):
 
         # For copying the object
@@ -114,10 +125,8 @@ class SpecObj(dict):
             self.pypeline = pypeline
             self.slit_spat_pos = slit_spat_pos
             self.slit_spec_pos = slit_spec_pos
-            self.det = det
             self.spat_pixpos = spat_pixpos   # Position on the image in pixels at the midpoint of the slit in spectral direction
-            self.slitid = slitid
-            self.objid = 999
+
 
             # Object finding
             self.spat_fracpos = None
@@ -134,11 +143,14 @@ class SpecObj(dict):
             # Trace
             self.trace_spec = None  # Only for debuggin, internal plotting
 
-            # Echelle specific
-            self.ech_orderindx = orderindx
-
         # after initialisation, setting attributes is the same as setting an item
         self.__initialised = True
+
+        # Initialize a few
+        self.FLEX_SHIFT = 0.
+        self.DET = det
+        self.SLITID = int(slitid)
+        self.OBJID = 999
 
         # Set index
         if IDX is None:
@@ -171,6 +183,7 @@ class SpecObj(dict):
             # Special checking for arrays?
             self.__setitem__(item, value)
 
+    '''
     @staticmethod
     def sobjs_key():
         """
@@ -190,6 +203,7 @@ class SpecObj(dict):
                               pypeline='PYPELINE')
 
         return sobjs_key_dict
+    '''
 
     def set_idx(self):
         """
@@ -203,7 +217,7 @@ class SpecObj(dict):
 
         """
         # Detector string
-        sdet = parse.get_dnum(self.det, prefix=False)
+        sdet = parse.get_dnum(self.DET, prefix=False)
 
         if 'Echelle' in self.pypeline:
             # ObjID
@@ -227,11 +241,11 @@ class SpecObj(dict):
                 self.IDX += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
             # Slit
             self.IDX += '-'+naming_model['slit']
-            if self.slitid is None:
+            if self.SLITID is None:
                 self.IDX += '----'
             else:
-                self.IDX += '{:04d}'.format(self.slitid)
-
+                self.IDX += '{:04d}'.format(self.SLITID)
+        # Detector
         self.IDX += '-{:s}{:s}'.format(naming_model['det'], sdet)
         # Return
         return self.IDX
@@ -283,6 +297,25 @@ class SpecObj(dict):
         # Return
         return new_sky
 
+    def apply_helio(self, vel_corr, refframe):
+        """
+        Apply a heliocentric correction
+
+        Wavelength arrays are modified in place
+
+        Args:
+            vel_corr (float):
+            refframe (str):
+
+        """
+        # Apply
+        for attr in ['BOX', 'OPT']:
+            if attr+'_WAVE' in self.keys():
+                msgs.info('Applying {0} correction to '.format(refframe)
+                          + '{0} extraction for object:'.format(attr)
+                          + msgs.newline() + "{0}".format(str(self.IDX)))
+                self[attr+'_WAVE'] *= vel_corr
+
     def to_table(self):
         """
         Generate a simple Table from the object
@@ -293,27 +326,20 @@ class SpecObj(dict):
             astropy.table.Table:
 
         """
-        tbl = Table()
-        # Meta first
-        if 'FLEX_SHIFT' in self.keys():
-            tbl.meta['FLEX_SHIFT'] = self['FLEX_SHIFT']
-        else:
-            tbl.meta['FLEX_SHIFT'] = 0.
-        for key in ['BOX_RADIUS', 'FWHM', 'IDX']:
-            if key in self.keys():
-                tbl.meta[key] = self[key]
+        npix = len(self.TRACE_SPAT)
 
-        # Now the main arrays
-        # Required
-        for key in ['TRACE_SPAT']:
-            tbl[key] = self[key]
-        # Optional
-        for attr in ['BOX', 'OPT']:
-            for array in ['WAVE', 'COUNTS', 'COUNTS_IVAR', 'COUNTS_SIG', 'COUNTS_NIVAR',
-                          'MASK', 'COUNTS_SKY', 'COUNTS_RN', 'FRAC_USE', 'CHI2']:
-                key = attr+'_'+array
-                if key in self.keys():
+        # Init
+        tbl = Table()
+        # Loop me
+        for key in self.keys():
+            # If array, stuff it in the
+            if isinstance(self[key], np.ndarray):
+                if len(self[key]) == npix:
                     tbl[key] = self[key]
+                else:
+                    tbl.meta[key] = self[key]
+            else:
+                tbl.meta[key] = self[key]
         # Return
         return tbl
 

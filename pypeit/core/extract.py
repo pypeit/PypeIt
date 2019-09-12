@@ -1703,7 +1703,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             # ToDo Label with objid and objind here?
             thisobj = newspecobj.SpecObj(slit_spat_pos, slit_spec_pos, det=specobj_dict['det'],
                                        slitid=specobj_dict['slitid'],
-                                       orderindx=specobj_dict['orderindx'], objtype=specobj_dict['objtype'],
+                                       #orderindx=specobj_dict['orderindx'],
+                                       objtype=specobj_dict['objtype'],
                                        pypeline=specobj_dict['pypeline']) #setup=specobj_dict['setup'],
             thisobj.spat_fracpos = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
@@ -1923,10 +1924,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     spat_pixpos = sobjs.spat_pixpos
     sobjs = sobjs[spat_pixpos.argsort()]
     # Assign integer objids
-    #ToDo Replace with sobjs[:].objid = np.arange(nobj) once the _setitem functionality is figured out
-    #for ii in range(nobj):
-    #    sobjs[ii].objid = ii + 1
-    sobjs[:].objid = np.arange(nobj)
+    sobjs[:].OBJID = np.arange(nobj)
 
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
@@ -2413,7 +2411,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             for spec in sobjs_align[on_order]:
                 spec.ech_fracpos = uni_frac[iobj]
                 spec.ech_objid = uni_obj_id[iobj]
-                spec.objid = uni_obj_id[iobj]
+                spec.OBJID = uni_obj_id[iobj]
                 spec.ech_frac_was_fit = False
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
@@ -2489,7 +2487,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ech_fracpos = uni_frac[iobj]
                 thisobj.ech_objid = uni_obj_id[iobj]
-                thisobj.objid = uni_obj_id[iobj]
+                thisobj.OBJID = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
                 thisobj.set_idx()
                 sobjs_align.add_sobj(thisobj)
@@ -2537,7 +2535,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             sobjs_keep = sobjs_align[ikeep].copy()
             for spec in sobjs_keep:
                 spec.ech_objid = iobj_keep
-                spec.objid = iobj_keep
+                spec.OBJID = iobj_keep
             sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
             iobj_keep += 1
         else:

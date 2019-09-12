@@ -15,7 +15,9 @@ from IPython import embed
 
 import linetools.utils
 from pypeit import msgs
-from pypeit import specobjs
+#from pypeit import specobjs
+from pypeit import newspecobjs
+from pypeit import newspecobj
 from pypeit import utils
 from pypeit.core import parse
 
@@ -66,7 +68,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     # TODO: Need some checks here that the exposure has been reduced
 
     # Build the final list of specobjs and vel_corr
-    all_specobjs = specobjs.SpecObjs()
+    all_specobjs = newspecobjs.SpecObjs()
 
     vel_corr = 0.  # This will not be set for Standard stars, which is fine
     for key in sci_dict:
@@ -84,8 +86,12 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     else:
         # Create the helio_dict
         helio_dict = dict(refframe=refframe, vel_correction=vel_corr)
-        save_1d_spectra_fits(all_specobjs, head1d, spectrograph, outfile1d,helio_dict=helio_dict, update_det=update_det)
-        save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)
+        all_specobjs.write_to_fits(outfile1d, header=head1d,
+                                   spectrograph=spectrograph,
+                                   helio_dict=helio_dict,
+                                   update_det=update_det)
+        #save_1d_spectra_fits(all_specobjs, head1d, spectrograph, outfile1d,helio_dict=helio_dict, update_det=update_det)
+        #save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)
 
     # Write 2D images for the Science Frame
     save_2d_images(sci_dict, head2d, spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
@@ -384,8 +390,9 @@ def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir,
     Returns:
 
     """
-    hdus, prihdu = init_hdus(update_det, outfile)
-    if hdus is None:
+    if os.path.isfile(outfile) and (update_det is not None):
+        hdus, prihdu = init_hdus(update_det, outfile)
+    else:
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()
         # Update with original header, skipping a few keywords
@@ -498,34 +505,47 @@ def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir,
 
 
 def init_hdus(update_det, outfile):
-    hdus, prihdu = None, None
+    """
+    Load up existing header and HDUList
+
+    ..todo.. Confirm this works when you are modifying an inner HDU
+
+    Args:
+        update_det (int or list):
+        outfile (str):
+
+    Returns:
+        fits.HDUList, fits.PrimaryHDU
+
+    """
+    # Error check
     if (update_det is not None) and os.path.isfile(outfile):
-        hdus = fits.open(outfile)
-        msgs.info("Using existing spec1d file, including the Header")
-        msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
-        prihdu = hdus[0]
-        # Names
-        hdu_names = [hdu.name for hdu in hdus]
-        # Remove the detector(s) being updated
-        if not isinstance(update_det, list):
-            update_det = [update_det]
-        popme = []
-        # Find em
-        for ss,hdu_name in enumerate(hdu_names):
-            for det in update_det:
-                sdet = parse.get_dnum(det, prefix=False)
-                idx = '{:s}{:s}'.format(specobjs.naming_model['det'], sdet)
-                if idx in hdu_name:
-                    popme.append(ss)
-        # Remove em (and the bit in the Header too)
-        for popthis in reversed(popme):
-            hdus.pop(popthis)
-            keywd = 'EXT{:04d}'.format(popthis)
-            prihdu.header.remove(keywd)
+        msgs.error("Should not be here")
+    #
+    hdus = fits.open(outfile)
+    msgs.info("Using existing output file, including the Header")
+    msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
+    prihdu = hdus[0]
+    # Names
+    hdu_names = [hdu.name for hdu in hdus]
+    # Remove the detector(s) being updated
+    if not isinstance(update_det, list):
+        update_det = [update_det]
+    popme = []
+    # Find em
+    for ss,hdu_name in enumerate(hdu_names):
+        for det in update_det:
+            sdet = parse.get_dnum(det, prefix=False)
+            idx = '{:s}{:s}'.format(newspecobj.naming_model['det'], sdet)
+            if idx in hdu_name:
+                popme.append(ss)
+    # Remove em (and the bit in the Header too)
+    for popthis in reversed(popme):
+        hdus.pop(popthis)
+        keywd = 'EXT{:04d}'.format(popthis)
+        prihdu.header.remove(keywd)
     # Return
     return hdus, prihdu
-
-
 
 
 def save_sens_dict(sens_dict, outfile, overwrite=True):

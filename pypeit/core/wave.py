@@ -495,12 +495,14 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     gdslits = np.where(~maskslits)[0]
     # Loop on slits to apply
     for slit in gdslits:
-        indx = (specObjs.slitid-1) == slit
+        indx = specObjs.SLITID == slit
         this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:
             if specobj is None:
                 continue
+            specobj.apply_helio(vel_corr, refframe)
+            '''
             # Loop on extraction methods
             for attr in ['boxcar', 'optimal']:
                 if not hasattr(specobj, attr):
@@ -510,6 +512,7 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
                               + '{0} extraction for object:'.format(attr)
                               + msgs.newline() + "{0}".format(str(specobj)))
                     getattr(specobj, attr)['WAVE'] = getattr(specobj, attr)['WAVE'] * vel_corr
+            '''
     # Return
     return vel, vel_corr  # Mainly for debugging
 
