@@ -193,16 +193,37 @@ class Reduce(object):
     def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                           show_peaks=False, show_fits=False, show_trace=False, show=False,
                      manual_extract_dict=None, debug=False):
+        """
+
+        Args:
+            image:
+            std:
+            ir_redux:
+            std_trace:
+            maskslits:
+            show_peaks:
+            show_fits:
+            show_trace:
+            show:
+            manual_extract_dict:
+            debug:
+
+        Returns:
+
+        """
 
         # Positive image
         parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_init, nobj_init, skymask_pos = \
-            self.find_objects_pypeline(image, std=std, ir_redux=ir_redux, std_trace=std_trace, maskslits=maskslits,
-                                   show_peaks = show_peaks, show_fits = show_fits, show_trace = show_trace,
+            self.find_objects_pypeline(image, std=std, ir_redux=ir_redux,
+                                       std_trace=std_trace, maskslits=maskslits,
+                                       show_peaks = show_peaks, show_fits = show_fits,
+                                       show_trace = show_trace,
                                        manual_extract_dict=parse_manual, debug=debug)
 
         # For nobj we take only the positive objects
         if ir_redux:
+            msgs.info("Finding objects in the negative image")
             # Parses
             parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
@@ -210,10 +231,15 @@ class Reduce(object):
                                            std_trace=std_trace, maskslits=maskslits,
                                            show_peaks=show_peaks, show_fits=show_fits,
                                            show_trace=show_trace,
-                                           manual_extract_dict=parse_manual)
-            #self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
+                                           manual_extract_dict=parse_manual,
+                                           debug=debug)
+            # Mask
             skymask = skymask_pos & skymask_neg
-            sobjs_obj_init.append_neg(sobjs_obj_init_neg)
+            # Add
+            if sobjs_obj_init_neg.nobj > 0:
+                sobjs_obj_init.append_neg(sobjs_obj_init_neg)
+            else:
+                msgs.warn("No negative objects found..")
         else:
             skymask = skymask_pos
 

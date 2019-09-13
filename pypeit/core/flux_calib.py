@@ -13,7 +13,6 @@ from astropy import coordinates
 from astropy.table import Table, Column
 from astropy.io import ascii
 from astropy.io import fits
-from astropy.stats import sigma_clipped_stats
 
 from matplotlib import pyplot as plt
 
@@ -25,6 +24,8 @@ from pypeit import debugger
 from pypeit.wavemodel import conv2res
 from pypeit.core import pydl, load, save, coadd1d
 from pypeit.spectrographs.util import load_spectrograph
+
+from IPython import embed
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
@@ -661,7 +662,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
     flux_star = flux_star * ext_corr
     ivar_star = ivar_star / ext_corr ** 2
 
-    std_dict =  get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
+    std_dict = get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
+
     # Interpolate the standard star onto the current set of observed wavelengths
     flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],bounds_error=False,
                                            fill_value='extrapolate')(wave_star)

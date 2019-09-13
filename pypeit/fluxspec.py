@@ -178,11 +178,13 @@ class FluxSpec(object):
         elif self.spectrograph.pypeline == 'Echelle':
             # Find brightest object in each order
             std_brightest = self.std_specobjs[flux_calib.find_standard(self.std_specobjs)]
-            std_objid = std_brightest['idx'].split('-')[0]
-            self.std_idx = np.zeros(len(self.std_specobjs), dtype=bool)
-            for ii in range(len(self.std_specobjs)):
-                if std_objid in self.std_specobjs[ii]['idx']:
-                    self.std_idx[ii] = True
+            #std_objid = std_brightest['idx'].split('-')[0]
+            #std_objid = std_brightest.ECH_FRACPOS
+            #self.std_idx = np.zeros(len(self.std_specobjs), dtype=bool)
+            #for ii in range(len(self.std_specobjs)):
+            #    if std_objid in self.std_specobjs[ii]['idx']:
+            #        self.std_idx[ii] = True
+            self.std_idx = np.isclose(std_brightest.ECH_FRACPOS, self.std_specobjs.ECH_FRACPOS)
             # Set internal
             self.std = self.std_specobjs[self.std_idx]
             # Step
@@ -443,15 +445,20 @@ class Echelle(FluxSpec):
             std = self.std[iord] #std_specobjs[std_idx]
 
             # THIS IS A CRAZY KLUDGE....
-            try:
-                wavemask = std.optimal['WAVE_GRID'] > 0.0 #*units.AA
-            except KeyError:
-                wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
-                this_wave = std.optimal['WAVE'][wavemask]
-            else:
-                this_wave = std.optimal['WAVE_GRID'][wavemask]
+            if 'OPT_WAVE_GRID' in std._data.keys():
+                # Deal with this
+                embed(header='449 of fluxspec')
+            #try:
+            #    wavemask = std.optimal['WAVE_GRID'] > 0.0 #*units.AA
+            #except KeyError:
+            #    wavemask = std.optimal['WAVE'] > 1000.0 * units.AA
+            #    this_wave = std.optimal['WAVE'][wavemask]
+            #else:
+            #    this_wave = std.optimal['WAVE_GRID'][wavemask]
+            wavemask = std.OPT_WAVE > 1000.0#*units.AA)
+            this_wave = std.OPT_WAVE[wavemask]
 
-            counts, ivar = std.optimal['COUNTS'][wavemask], std.optimal['COUNTS_IVAR'][wavemask]
+            counts, ivar = std.OPT_COUNTS[wavemask], std.OPT_COUNTS_IVAR[wavemask]
             sens_dict_iord = flux_calib.generate_sensfunc(this_wave, counts, ivar,
                                                           float(self.std_header['AIRMASS']),
                                                           self.std_header['EXPTIME'],
@@ -465,6 +472,7 @@ class Echelle(FluxSpec):
                                                           poly_norder=self.poly_norder,
                                                           polycorrect=self.polycorrect, debug=self.debug)
             sens_dict_iord['ech_orderindx'] = iord
+            sens_dict_iord['ech_order'] = std.ECH_ORDER
             self.sens_dict[str(iord)] = sens_dict_iord
         ## add some keys to be saved into primary header in masterframe
         for key in ['wave_max', 'exptime', 'airmass', 'std_file', 'std_ra', 'std_dec',
@@ -500,10 +508,18 @@ class Echelle(FluxSpec):
             sens_dict_iord = self.sens_dict[str(iord)]
             for sci_obj in self.sci_specobjs:
                 if sci_obj.ech_orderindx == iord:
+                    embed(header='503 of fluxspec')
                     flux_calib.apply_standard_sens(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
                                                    self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
                                                    longitude=self.spectrograph.telescope['longitude'],
                                                    latitude=self.spectrograph.telescope['latitude'])
+                #sci_obj.apply_flux_calib(self.sens_dict['0'],
+                #                         self.sci_header['EXPTIME'],
+                #                         telluric_correct=self.par['telluric_correct'],
+                #                         extinct_correct=self.par['extinct_correct'],
+                #                         longitude=self.spectrograph.telescope['longitude'],
+                #                         latitude=self.spectrograph.telescope['latitude'],
+                #                         airmass=self.sci_header['AIRMASS'])
 
         self.steps.append(inspect.stack()[0][3])
 

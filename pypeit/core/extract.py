@@ -2480,8 +2480,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
-                thisobj = newspecobj.SpecObj('Echelle', sobjs_align[0].det,
-                                             objtype=sobjs_align[0].objtype,
+                thisobj = newspecobj.SpecObj('Echelle', sobjs_align[0].DET,
+                                             objtype=sobjs_align[0].OBJTYPE,
                                              orderindx=iord,
                                              ech_order=order_vec[iord])
                 #thisobj.ech_orderindx = iord
