@@ -42,7 +42,7 @@ def data_path(filename):
 
 def test_gen_sensfunc():
 
-    kastb = load_spectrograph('shane_kast_blue')
+    kastr = load_spectrograph('shane_kast_red')
 
     # Load a random spectrum for the sensitivity function
     sfile = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
@@ -53,11 +53,12 @@ def test_gen_sensfunc():
     DEC = '52:52:01.0'
 
     # Get the sensitivity function
-    sens_dict = flux_calib.generate_sensfunc(specobjs[0][0].boxcar['WAVE'],
-                                             specobjs[0][0].boxcar['COUNTS'],
-                                             specobjs[0][0].boxcar['COUNTS_IVAR'],
+    sens_dict = flux_calib.generate_sensfunc(specobjs[0][0].BOX_WAVE,
+                                             specobjs[0][0].BOX_COUNTS,
+                                             specobjs[0][0].BOX_COUNTS_IVAR,
                                              fitstbl['airmass'][4], fitstbl['exptime'][4],
-                                             kastb.telescope['longitude'], kastb.telescope['latitude'],
+                                             kastr.telescope['longitude'],
+                                             kastr.telescope['latitude'],
                                              ra=RA, dec=DEC)
 
     # Test

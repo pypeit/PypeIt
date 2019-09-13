@@ -1,9 +1,9 @@
 """
-Module to run tests on arload
+Module to run tests loading
 """
 import os
 import pytest
-from pypeit.specobjs import SpecObjs
+from pypeit import newspecobjs
 
 from pypeit.core import load
 
@@ -26,10 +26,11 @@ def data_path(filename):
 
 def test_load_specobjs():
     spec_file = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
-    specobjs, head0 = load.load_specobjs(spec_file)
+    specobjs = newspecobjs.SpecObjs.from_fitsfile(spec_file)
+    #specobjs, head0 = load.load_specobjs(spec_file)
     # Test
-    assert isinstance(specobjs, SpecObjs)
-    assert len(specobjs[0].boxcar['COUNTS']) == 1200
+    assert isinstance(specobjs, newspecobjs.SpecObjs)
+    assert len(specobjs[0].BOX_COUNTS) == 1200
 
 
 def test_load_1dspec():
