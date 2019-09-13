@@ -296,7 +296,8 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     # Loop over slits, and then over objects here
     for slit in range(nslits):
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(slit))
-        indx = specobjs.slitid == slit
+        # TODO -- This only will work for MultiSlit
+        indx = specobjs.SLITID == slit
         this_specobjs = specobjs[indx]
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
@@ -309,7 +310,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
         for ss, specobj in enumerate(this_specobjs):
             if specobj is None:
                 continue
-            msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.slitid))
+            msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.SLITID))
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
                 sky_wave = specobj.BOX_WAVE #.to('AA').value
@@ -644,7 +645,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
 
     # Loop over slits, and then over objects here
     for slit in gdslits:
-        indx = specobjs.slitid == slit
+        indx = specobjs.SLITID == slit
         this_specobjs = specobjs[indx]
         this_flex_dict = flex_list[slit]
 
@@ -687,7 +688,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobj.IDX), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobj.name), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][iobj]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -731,7 +732,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.IDX), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.name), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
@@ -810,7 +811,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
 
         # Outfile
         outfile = qa.set_qa_filename(basename, method+'_corr', det=det,
-                                       slit=specobjs[sl][0].slitid)
+                                       slit=specobjs[sl][0].SLITID)
 
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -836,7 +837,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].IDX), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].name), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -872,7 +873,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
 
         # Outfile
         outfile = qa.set_qa_filename(basename, method+'_sky', det=det,
-                                       slit=specobjs[sl][0].slitid)
+                                       slit=specobjs[sl][0].SLITID)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -881,7 +882,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.IDX), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.name), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]

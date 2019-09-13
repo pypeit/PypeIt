@@ -686,7 +686,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # boxcar extraction.
                     msgs.info("----------------------------------- PROFILE FITTING --------------------------------------------------------")
                     msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].objid) + " of {:}".format(nobj))
-                    msgs.info("At x = {:5.2f}".format(sobjs[iobj].spat_pixpos) + " on slit # {:}".format(sobjs[iobj].SLITID))
+                    msgs.info("At x = {:5.2f}".format(sobjs[iobj].SPAT_PIXPOS) + " on slit # {:}".format(sobjs[iobj].SLITID))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
                     flux = extract.extract_boxcar(img_minsky * outmask, sobjs[iobj].TRACE_SPAT, box_rad,
                                           ycen=sobjs[iobj].trace_spec)
@@ -827,7 +827,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             iobj = group[ii]
             msgs.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
                       ' with objid = {:d}'.format(sobjs[iobj].objid) + ' on slit # {:d}'.format(sobjs[iobj].SLITID) +
-                      ' at x = {:5.2f}'.format(sobjs[iobj].spat_pixpos))
+                      ' at x = {:5.2f}'.format(sobjs[iobj].SPAT_PIXPOS))
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
             objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))

@@ -1752,7 +1752,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             # ToDO make this the average left and right boundary instead. That would be more robust.
             sobjs[iobj].TRACE_SPAT = slit_left  + xsize*sobjs[iobj].spat_fracpos
         sobjs[iobj].trace_spec = spec_vec
-        sobjs[iobj].spat_pixpos = sobjs[iobj].TRACE_SPAT[specmid]
+        sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
         sobjs[iobj].set_name()
 
@@ -1831,7 +1831,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # assign the final trace
         for iobj in range(nobj_reg):
             sobjs[iobj].TRACE_SPAT = xfit_gweight[:, iobj]
-            sobjs[iobj].spat_pixpos = sobjs[iobj].TRACE_SPAT[specmid]
+            sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
             sobjs[iobj].set_name()
 
 
@@ -1877,7 +1877,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             shift = thisobj.hand_extract_spat - spat_0
             thisobj.TRACE_SPAT = trace_model + shift
             thisobj.trace_spec = spec_vec
-            thisobj.spat_pixpos = thisobj.TRACE_SPAT[specmid]
+            thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
             thisobj.set_idx()
             if hand_extract_fwhm[iobj] is not None: # If a hand_extract_fwhm was input use that for the fwhm
                 thisobj.FWHM = hand_extract_fwhm[iobj]
@@ -1895,10 +1895,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     if nobj_reg > 0 and hand_extract_dict is not None:
-        spat_pixpos = sobjs.spat_pixpos
+        spat_pixpos = sobjs.SPAT_PIXPOS
         hand_flag = sobjs.hand_extract_flag
         spec_fwhm = sobjs.FWHM
-        #spat_pixpos = np.array([spec.spat_pixpos for spec in specobjs])
+        #spat_pixpos = np.array([spec.SPAT_PIXPOS for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
         #spec_fwhm = np.array([spec.FWHM for spec in specobjs])
         reg_ind, = np.where(~hand_flag)
@@ -1907,7 +1907,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         #spat_pixpos_hand = spat_pixpos[hand_ind]
         keep = np.ones(nobj,dtype=bool)
         for ihand in hand_ind:
-            close = np.abs(sobjs[reg_ind].spat_pixpos - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
+            close = np.abs(sobjs[reg_ind].SPAT_PIXPOS - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
                 # Print out a warning
                 msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].name) +
@@ -1923,7 +1923,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     # Sort objects according to their spatial location
     nobj = len(sobjs)
-    spat_pixpos = sobjs.spat_pixpos
+    spat_pixpos = sobjs.SPAT_PIXPOS
     sobjs = sobjs[spat_pixpos.argsort()]
     # Assign integer objids
     sobjs[:].objid = np.arange(nobj)
@@ -2480,7 +2480,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 else:
                     thisobj.TRACE_SPAT = slit_left[:, iord] + slit_width[:, iord] * frac_mean_new[iord]  # new trace
                 thisobj.trace_spec = spec_vec
-                thisobj.spat_pixpos = thisobj.TRACE_SPAT[specmid]
+                thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
@@ -2599,7 +2599,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             # TODO is this robust against half the order being masked?
             if spec.ech_frac_was_fit & (spec.ech_snr > 1.0):
                     spec.TRACE_SPAT = xfit_gweight[:,iord]
-                    spec.spat_pixpos = spec.TRACE_SPAT[specmid]
+                    spec.SPAT_PIXPOS = spec.TRACE_SPAT[specmid]
 
 
 

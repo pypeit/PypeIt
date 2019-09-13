@@ -66,6 +66,7 @@ data_model = {
     'DET': dict(otype=(int,np.int64), desc='Detector number'),
     'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
     'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
+    'SPAT_PIXPOS': dict(otype=(float,np.float32), desc='Spatial location of the trace on detector (pixel)'),
     #
     'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
     #
@@ -153,7 +154,6 @@ class SpecObj(object):
             self.smash_peakflux = None
             self.smash_nsig = None
             self.maskwidth = None
-            self.spat_pixpos = None
 
             # Object profile
             self.prof_nsigma = None
@@ -268,10 +268,10 @@ class SpecObj(object):
         else:
             # Spat
             self.name = naming_model['spat']
-            if self.spat_pixpos is None:
+            if 'SPAT_PIXPOS' not in self._data.meta.keys():
                 self.name += '----'
             else:
-                self.name += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
+                self.name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
             # Slit
             self.name += '-'+naming_model['slit']
             self.name += '{:04d}'.format(self.SLITID)
