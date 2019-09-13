@@ -123,28 +123,33 @@ class SpecObjs(object):
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
-            nspec = self[0].OPT_COUNTS.size
             SNR = np.zeros(self.nobj)
             # Have to do a loop to extract the counts for all objects
             for iobj in range(self.nobj):
                 SNR[iobj] = np.median(self[iobj].OPT_COUNTS*np.sqrt(
                     self[iobj].OPT_COUNTS_IVAR))
+            # Maximize S/N
             istd = SNR.argmax()
+            # Return
             return SpecObjs(specobjs=[self[istd]])
         elif 'Echelle' in pypeline:
-            uni_objid = np.unique(self.ech_objid)
-            uni_order = np.unique(self.ech_orderindx)
+            uni_objid = np.unique(self.ECH_FRACPOS)  # A little risky using floats
+            uni_order = np.unique(self.ECH_ORDER)
             nobj = len(uni_objid)
             norders = len(uni_order)
+            # Build up S/N
             SNR = np.zeros((norders, nobj))
             for iobj in range(nobj):
                 for iord in range(norders):
-                    ind = (self.ech_objid == uni_objid[iobj]) & (self.ech_orderindx == uni_order[iord])
+                    ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
-                    SNR[iord, iobj] = np.median(spec[0].optimal['COUNTS']*np.sqrt(spec[0].optimal['COUNTS_IVAR']))
+                    SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
+            # Maximize S/N
             SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
             objid_std = uni_objid[SNR_all.argmax()]
-            indx = self.ech_objid == objid_std
+            # Finish
+            indx = self.ECH_FRACPOS == objid_std
+            # Return
             return SpecObjs(specobjs=self[indx])
         else:
             msgs.error('Unknown pypeline')

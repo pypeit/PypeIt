@@ -485,7 +485,6 @@ class PypeIt(object):
 
         """
         if std_redux is False and std_outfile is not None:
-            #sobjs, hdr_std = load.load_specobjs(std_outfile)
             sobjs = newspecobjs.SpecObjs.from_fitsfile(std_outfile)
             # Does the detector match?
             # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
