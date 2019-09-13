@@ -1702,10 +1702,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
             if specobj_dict['pypeline'] == 'MultiSlit':
-                thisobj = newspecobj.SpecObjMulti(specobj_dict['det'],
-                                                  slitid=specobj_dict['slitid'],
-                                                  spat_pixpos=spat_pixpos,
-                                                  objtype=specobj_dict['objtype'])
+                thisobj = newspecobj.SpecObj('MultiSlit', specobj_dict['det'],
+                                             (slit_left[specmid], slit_righ[specmid]),
+                                             slitid=specobj_dict['slitid'],
+                                             objtype=specobj_dict['objtype'])
             else:
                 embed('1711 of extract')
             thisobj.spat_fracpos = xcen[iobj]/nsamp
@@ -1754,7 +1754,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         sobjs[iobj].trace_spec = spec_vec
         sobjs[iobj].spat_pixpos = sobjs[iobj].TRACE_SPAT[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
-        sobjs[iobj].set_idx()
+        sobjs[iobj].set_name()
 
         # Determine the fwhm max
         yhalf = 0.5*sobjs[iobj].smash_peakflux
@@ -1832,7 +1832,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         for iobj in range(nobj_reg):
             sobjs[iobj].TRACE_SPAT = xfit_gweight[:, iobj]
             sobjs[iobj].spat_pixpos = sobjs[iobj].TRACE_SPAT[specmid]
-            sobjs[iobj].set_idx()
+            sobjs[iobj].set_name()
 
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects

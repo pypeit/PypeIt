@@ -49,9 +49,27 @@ class SpecObjs(object):
 
     @classmethod
     def from_fitsfile(cls, fits_file):
-        #tbl3 = fits.connect.read_table_fits(hdul, hdu=1)
-        slf = cls.init()
-        # From table
+        """
+
+        Args:
+            fits_file (str):
+
+        Returns:
+            newspecobsj.SpecObjs
+
+        """
+        # HDUList
+        hdul = fits.open(fits_file)
+        nhdu = len(hdul)
+        # Init
+        slf = cls()
+        # Loop on em
+        for kk in range(1,nhdu):
+            tbl = fits.connect.read_table_fits(hdul, hdu=kk)
+            sobj = newspecobj.SpecObj.from_table(tbl)
+            slf.add_sobj(sobj)
+        # Return
+        return slf
 
     def __init__(self, specobjs=None):
 
@@ -108,13 +126,14 @@ class SpecObjs(object):
 
         """
         # Is this MultiSlit or Echelle
-        pypeline = (self.pypeline)[0]
+        pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
-            nspec = self[0].optimal['COUNTS'].size
+            nspec = self[0].OPT_COUNTS.size
             SNR = np.zeros(self.nobj)
             # Have to do a loop to extract the counts for all objects
             for iobj in range(self.nobj):
-                SNR[iobj] = np.median(self[iobj].optimal['COUNTS']*np.sqrt(self[iobj].optimal['COUNTS_IVAR']))
+                SNR[iobj] = np.median(self[iobj].OPT_COUNTS*np.sqrt(
+                    self[iobj].OPT_COUNTS_IVAR))
             istd = SNR.argmax()
             return SpecObjs(specobjs=[self[istd]])
         elif 'Echelle' in pypeline:
@@ -323,12 +342,11 @@ class SpecObjs(object):
             ext += 1
             # Add header keyword
             keywd = 'EXT{:04d}'.format(ext)
-            prihdu.header[keywd] = sobj.IDX
+            prihdu.header[keywd] = sobj.name
 
             # Table
-            stbl = sobj.to_table()
-            shdu = fits.table_to_hdu(stbl)
-            shdu.name = sobj.IDX
+            shdu = fits.table_to_hdu(sobj._data)
+            shdu.name = sobj.name
             # Append
             hdus += [shdu]
 

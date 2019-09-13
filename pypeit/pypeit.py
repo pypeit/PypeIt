@@ -14,7 +14,7 @@ from pypeit import reduce
 from pypeit.core import qa
 from pypeit.core import wave
 from pypeit.core import save
-from pypeit.core import load
+from pypeit import newspecobjs
 from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 from linetools import utils as ltu
@@ -485,15 +485,16 @@ class PypeIt(object):
 
         """
         if std_redux is False and std_outfile is not None:
-            sobjs, hdr_std = load.load_specobjs(std_outfile)
+            #sobjs, hdr_std = load.load_specobjs(std_outfile)
+            sobjs = newspecobjs.SpecObjs.from_fitsfile(std_outfile)
             # Does the detector match?
             # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
             # we would use the standard from another detector
-            this_det = sobjs.det == det
+            this_det = sobjs.DET == det
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
-                std_trace = sobjs_std.trace_spat
+                std_trace = sobjs_std.TRACE_SPAT
                 # flatten the array if this multislit
                 if 'MultiSlit' in self.spectrograph.pypeline:
                     std_trace = std_trace.flatten()

@@ -75,7 +75,7 @@ data_model = {
 }
 
 
-class SpecObj(dict):
+class SpecObj(object):
     """Class to handle object spectra from a single exposure
     One generates one of these Objects for each spectrum in the exposure. They are instantiated by the object
     finding routine, and then all spectral extraction information for the object are assigned as attributes
@@ -104,24 +104,38 @@ class SpecObj(dict):
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     @classmethod
-    def from_table(cls, table):
-        # Instantiate
-        slf = cls(table.meta['DET'], table.meta['SLITID'])
-        # Loop me
+    def from_table(cls, table, indict=None):
+        if table.meta['PYPELINE'] == 'MultiSlit':
+            # Instantiate
+            slf = cls(table.meta['PYPELINE'], table.meta['DET'], None,
+                      slitid=table.meta['SLITID'], indict=indict)
+        else:
+            embed(header='112')
+        # Pop a few that land in standard FITS header
+        # Loop me -- Do this to deal with checking the data model
         for key in table.keys():
-            slf[key] = table[key].data
+            setattr(slf, key, table[key].data)
         for key in table.meta.keys():
-            slf[key] = table.meta[key]
+            # Skip ones that can appear in FITS header
+            if key in ['EXTNAME']:
+                continue
+            #
+            setattr(slf, key, table.meta[key])
+        # Name
+        slf.set_name()
         # Return
         return slf
 
-    def __init__(self, det, slitid=None,
+    def __init__(self, pypeline, det, slit_spat,
+                 slitid=-1,
                  indict=None, objtype='unknown', orderindx=None):
+
+        self._data = Table()
 
         # For copying the object
         if indict is not None:
             if '_SpecObj_initialised' in indict:
-                indict.pop('_SpeObj_initialised')
+                indict.pop('_SpecObj_initialised')
             self.__dict__ = indict
         else:
             # set any attributes here - before initialisation
@@ -130,6 +144,9 @@ class SpecObj(dict):
 
             self.objid = 999
             self.name = None
+
+            # Slit
+            self.slit_spat = slit_spat  # (left, right)
 
             # Object finding
             self.spat_fracpos = None
@@ -150,14 +167,16 @@ class SpecObj(dict):
         # after initialisation, setting attributes is the same as setting an item
         self.__initialised = True
 
-        # Initialize a few
-        self.FLEX_SHIFT = 0.
-        self.OBJTYPE = objtype
+        # Initialize a few, if we aren't copying
+        if indict is None:
+            self.FLEX_SHIFT = 0.
+            self.OBJTYPE = objtype
+            self.DET = det
+            self.PYPELINE = pypeline
 
-        #
-        if slitid is not None:
-            self.SLITID = slitid
-            self.PYPELINE = 'MultiSlit'
+            # pypeline specific
+            if self.PYPELINE == 'MultiSlit':
+                self.SLITID = slitid
 
         # Name
         self.set_name()
@@ -178,14 +197,27 @@ class SpecObj(dict):
         elif item in self.__dict__:       # any normal attributes are handled normally
             dict.__setattr__(self, item, value)
         else:
-            if item not in data_model.keys():
-                raise IOError("Cannot set this attribute.  It is not in the data model")
-            if not isinstance(value, data_model[item]['otype']):
-                print("Wrong data type for attribute: {}".format(item))
-                print("Allowed type(s) are: {}".format(data_model[item]['otype']))
-                raise IOError("Try again")
-            # Special checking for arrays?
             self.__setitem__(item, value)
+
+    def __setitem__(self, item, value):
+        if item not in data_model.keys():
+            raise IOError("Cannot set {} attribute.  It is not in the data model".format(item))
+        if not isinstance(value, data_model[item]['otype']):
+            print("Wrong data type for attribute: {}".format(item))
+            print("Allowed type(s) are: {}".format(data_model[item]['otype']))
+            raise IOError("Try again")
+        if isinstance(value, np.ndarray):
+            self._data[item] = value
+        else:
+            self._data.meta[item] = value
+
+    def __getitem__(self, item):
+        if item in self._data.keys():
+            return self._data[item].data
+        elif item in self._data.meta.keys():
+            return self._data.meta[item]
+        else:
+            raise KeyError
 
     '''
     @staticmethod
@@ -214,13 +246,13 @@ class SpecObj(dict):
         Generate a unique index for this spectrum based on the
         slit/order, its position and for multi-slit the detector.
 
-        Sets self.IDX internally
+        Sets self.name internally
 
         Returns:
-            str: :attr:`self.IDX`
+            str: :attr:`self.name`
 
         """
-        if 'Echelle' in self.pypeline:
+        if 'Echelle' in self.PYPELINE:
             # ObjID
             self.name = naming_model['obj']
             if self.ech_objid is None:
@@ -242,10 +274,7 @@ class SpecObj(dict):
                 self.name += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
             # Slit
             self.name += '-'+naming_model['slit']
-            if self.SLITID is None:
-                self.name += '----'
-            else:
-                self.name += '{:04d}'.format(self.SLITID)
+            self.name += '{:04d}'.format(self.SLITID)
         # Detector
         sdet = parse.get_dnum(self.DET, prefix=False)
         self.name += '-{:s}{:s}'.format(naming_model['det'], sdet)
@@ -260,9 +289,9 @@ class SpecObj(dict):
             SpecObj
 
         """
-        sobj_copy = SpecObj(indict=copy.deepcopy(self.__dict__))  # Instantiate
-        for key, item in self.items():
-            sobj_copy[key] = item
+        sobj_copy = SpecObj(self.PYPELINE, self.DET, self.slit_spat,
+                            indict=self.__dict__.copy())
+        # Return
         return sobj_copy
 
     def flexure_interp(self, sky_wave, fdict):
@@ -282,9 +311,9 @@ class SpecObj(dict):
         x = np.linspace(0., 1., npix)
         # Apply
         for attr in ['BOX', 'OPT']:
-            if attr+'_WAVE' in self.keys():
+            if attr+'_WAVE' in self._data.keys():
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
-                          msgs.newline() + "{0:s}".format(str(self.IDX)))
+                          msgs.newline() + "{0:s}".format(str(self.name)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
                 self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
         # Shift sky spec too
@@ -311,41 +340,14 @@ class SpecObj(dict):
         """
         # Apply
         for attr in ['BOX', 'OPT']:
-            if attr+'_WAVE' in self.keys():
+            if attr+'_WAVE' in self._data.keys():
                 msgs.info('Applying {0} correction to '.format(refframe)
                           + '{0} extraction for object:'.format(attr)
-                          + msgs.newline() + "{0}".format(str(self.IDX)))
+                          + msgs.newline() + "{0}".format(str(self.name)))
                 self[attr+'_WAVE'] *= vel_corr
                 # Record
                 self['VEL_TYPE'] = refframe
                 self['VEL_CORR'] = vel_corr
-
-    def to_table(self):
-        """
-        Generate a simple Table from the object
-
-        Required for I/O
-
-        Returns:
-            astropy.table.Table:
-
-        """
-        npix = len(self.TRACE_SPAT)
-
-        # Init
-        tbl = Table()
-        # Loop me
-        for key in self.keys():
-            # If array, stuff it in the
-            if isinstance(self[key], np.ndarray):
-                if len(self[key]) == npix:
-                    tbl[key] = self[key]
-                else:
-                    tbl.meta[key] = self[key]
-            else:
-                tbl.meta[key] = self[key]
-        # Return
-        return tbl
 
     def to_xspec1d(self, extraction='optimal'):
         """
