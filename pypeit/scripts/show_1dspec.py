@@ -32,20 +32,31 @@ def main(args, unit_test=False):
 
     from linetools.guis.xspecgui import XSpecGui
 
-    from pypeit.core import load
+    from pypeit import newspecobjs
+    from pypeit import msgs
+
+    sobjs = newspecobjs.SpecObjs.from_fitsfile(args.file)
 
     # List only?
     if args.list:
         print("Showing object names for input file...")
-        hdu = fits.open(args.file)
-        for ii in range(1,len(hdu)):
-            name = hdu[ii].name
-            print("EXT{:07d} = {}".format(ii, name))
+        for ii in range(len(sobjs)):
+            name = sobjs[ii].name
+            print("EXT{:07d} = {}".format(ii+1, name))
         return
 
     # Load spectrum
-    spec = load.load_1dspec(args.file, exten=args.exten, extract=args.extract,
-                              objname=args.obj, flux=args.flux)
+    #spec = load.load_1dspec(args.file, exten=args.exten, extract=args.extract,
+    #                          objname=args.obj, flux=args.flux)
+    if args.obj is not None:
+        exten = sobjs.name.index(args.obj)
+        if exten < 0:
+            msgs.error("Bad input object name: {:s}".format(args.obj))
+    else:
+        exten = args.exten-1 # 1-index in FITS file
+
+    spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+
     if unit_test is False:
         app = QApplication(sys.argv)
         # Screen dimensions

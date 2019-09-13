@@ -1,6 +1,7 @@
 """ Module for loading PypeIt files
 """
 import os
+import warnings
 
 import numpy as np
 
@@ -15,7 +16,7 @@ import linetools.utils
 import IPython
 
 from pypeit import msgs
-from pypeit import specobjs
+from pypeit import newspecobjs
 from pypeit import debugger
 from pypeit.core import parse
 
@@ -75,6 +76,13 @@ def load_ordloc(fname):
     return ltrace, rtrace
 
 
+def load_specobjs(fname,order=None, verbose=False):
+    msgs.warn("This method is DEPRECATED")
+    sobjs = newspecobjs.SpecObjs.from_fitsfile(fname)
+    head0 = fits.open(fname)[0].header
+    return sobjs, head0
+
+'''
 def load_specobjs(fname,order=None, verbose=False):
     """ Load a spec1d file into a list of SpecObjExp objects
     Parameters
@@ -155,6 +163,7 @@ def load_specobjs(fname,order=None, verbose=False):
 
     # Return
     return sobjs, head0
+'''
 
 # TODO I don't think we need this routine
 def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True, nmaskedge=None):
@@ -446,6 +455,7 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
     # Return
     return spectra
 
+'''
 def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
     """
     Parameters
@@ -496,21 +506,7 @@ def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
 
     # Return
     return spec
-
-def load_std_trace(spec1dfile, det):
-
-    sdet = parse.get_dnum(det, prefix=False)
-    hdulist_1d = fits.open(spec1dfile)
-    det_nm = 'DET{:s}'.format(sdet)
-    for hdu in hdulist_1d:
-        if det_nm in hdu.name:
-            tbl = Table(hdu.data)
-            # TODO what is the data model for echelle standards? This routine needs to distinguish between echelle and longslit
-            trace = tbl['TRACE']
-
-    return trace
-
-
+'''
 
 def load_sens_dict(filename):
     """

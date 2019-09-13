@@ -349,9 +349,9 @@ class SpecObj(object):
                 self['VEL_TYPE'] = refframe
                 self['VEL_CORR'] = vel_corr
 
-    def to_xspec1d(self, extraction='optimal'):
+    def to_xspec1d(self, extraction='OPT', fluxed=True):
         """
-        Convert the SpecObj to an XSpectrum1D object
+        Push the data in SpecObj into an XSpectrum1D object
 
         Args:
             extraction (str): Extraction method to convert
@@ -360,19 +360,19 @@ class SpecObj(object):
             linetools.spectra.xspectrum1d.XSpectrum1D:  Spectrum object
 
         """
-        extract = getattr(self, extraction)
-        if len(extract) == 0:
-            msgs.warn("This object has not been extracted with extract={}".format(extraction))
-        if 'FLAM' in extract:
-            flux = extract['FLAM']
-            sig = extract['FLAM_SIG']
+        swave = extraction+'_WAVE'
+        if swave not in self._data.keys():
+            msgs.error("This object has not been extracted with extract={}.".format(extraction))
+        # Fluxed?
+        if fluxed:
+            sflux = extraction+'_FLAM'
+            ssig = extraction+'_FLAM_SIG'
         else:
-            flux = extract['COUNTS']
-            sig = np.zeros_like(flux)
-            gdc = extract['COUNTS_IVAR'] > 0.
-            sig[gdc] = 1./np.sqrt(extract['COUNTS_IVAR'][gdc])
+            sflux = extraction+'_COUNTS'
+            ssig = extraction+'_COUNTS_SIG'
         # Create
-        xspec = xspectrum1d.XSpectrum1D.from_tuple((extract['WAVE'], flux, sig))
+        xspec = xspectrum1d.XSpectrum1D.from_tuple((self[swave], self[sflux], self[ssig]))
+        # Return
         return xspec
 
     def show(self, extraction='optimal'):
