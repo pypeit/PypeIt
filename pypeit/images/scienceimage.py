@@ -228,7 +228,8 @@ def build_from_file_list(spectrograph, det, par, bpm,
     if (pixel_flat is not None) or (illum_flat is not None):
         process_steps += ['flatten']
     process_steps += ['extras']
-    process_steps += ['crmask']
+    if par['cr_reject']:
+        process_steps += ['crmask']
 
     buildImage = buildimage.BuildImage(spectrograph, det, par, file_list)
     pypeitImage = buildImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,

@@ -1703,12 +1703,17 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             # ToDo Label with objid and objind here?
             if specobj_dict['pypeline'] == 'MultiSlit':
                 thisobj = newspecobj.SpecObj('MultiSlit', specobj_dict['det'],
-                                             (slit_left[specmid], slit_righ[specmid]),
                                              slitid=specobj_dict['slitid'],
                                              objtype=specobj_dict['objtype'])
+            elif specobj_dict['pypeline'] == 'Echelle':
+                thisobj = newspecobj.SpecObj('Echelle', specobj_dict['det'],
+                                             orderindx=specobj_dict['orderindx'],
+                                             ech_order=specobj_dict['order'],
+                                             objtype=specobj_dict['objtype'])
             else:
-                embed('1711 of extract')
-            thisobj.spat_fracpos = xcen[iobj]/nsamp
+                msgs.error("Should not get here")
+
+            thisobj.SPAT_FRACPOS = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
             thisobj.smash_nsig = ypeak[iobj]/sigma
             sobjs.add_sobj(thisobj)
@@ -1746,11 +1751,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                 msgs.info('Using input STANDARD star trace as crutch for object tracing')
             x_trace = np.interp(specmid, spec_vec, std_trace)
             shift = np.interp(specmid, spec_vec,
-                              slit_left + xsize * sobjs[iobj].spat_fracpos) - x_trace
+                              slit_left + xsize * sobjs[iobj].SPAT_FRACPOS) - x_trace
             sobjs[iobj].TRACE_SPAT = std_trace + shift
         else:    # If no standard is provided shift left slit boundary over to be initial trace
             # ToDO make this the average left and right boundary instead. That would be more robust.
-            sobjs[iobj].TRACE_SPAT = slit_left  + xsize*sobjs[iobj].spat_fracpos
+            sobjs[iobj].TRACE_SPAT = slit_left  + xsize*sobjs[iobj].SPAT_FRACPOS
         sobjs[iobj].trace_spec = spec_vec
         sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
@@ -1758,7 +1763,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
         # Determine the fwhm max
         yhalf = 0.5*sobjs[iobj].smash_peakflux
-        xpk = sobjs[iobj].spat_fracpos*nsamp
+        xpk = sobjs[iobj].SPAT_FRACPOS*nsamp
         x0 = int(np.rint(xpk))
         # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
         # Find right location where smash profile croses yhalf
@@ -1870,8 +1875,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
             thisobj.hand_extract_flag = True
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False) # interpolate from ximg
-            thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos*nsamp,np.arange(nsamp),fluxconv_cont) # interpolate from fluxconv
+            thisobj.SPAT_FRACPOS = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False) # interpolate from ximg
+            thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp),fluxconv_cont) # interpolate from fluxconv
             # assign the trace
             spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
             shift = thisobj.hand_extract_spat - spat_0
@@ -1936,7 +1941,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
             sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM
-        sep = np.abs(xtmp-sobjs[iobj].spat_fracpos)
+        sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
         sep_inc = sobjs[iobj].maskwidth/nsamp
         close = sep <= sep_inc
         qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2,-9.0))
@@ -2326,6 +2331,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         inmask_iord = inmask & thismask
         specobj_dict['slitid'] = iord
         specobj_dict['orderindx'] = iord
+        specobj_dict['order'] = order_vec[iord]
         try:
             std_in = std_trace[:,iord]
         except TypeError:
@@ -2337,12 +2343,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
-                    show_fits=show_single_fits, show_trace=show_single_trace, specobj_dict=specobj_dict)
+                    show_fits=show_single_fits, show_trace=show_single_trace,
+                    specobj_dict=specobj_dict)
         # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
-        for spec in sobjs_slit:
-            spec.ech_orderindx = iord
-            spec.ech_order = order_vec[iord]
-            _ = spec.set_idx()
+        #for spec in sobjs_slit:
+        #    spec.ech_orderindx = iord
+        #    spec.ech_order = order_vec[iord]
+        #    _ = spec.set_idx()
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)
@@ -2352,7 +2359,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
 
     FOF_frac = fof_link/(np.median(np.median(slit_width,axis=0)*plate_scale_ord))
     # Run the FOF. We use fake coordinaes
-    fracpos = sobjs.spat_fracpos
+    fracpos = sobjs.SPAT_FRACPOS
     ra_fake = fracpos/1000.0 # Divide all angles by 1000 to make geometry euclidian
     dec_fake = 0.0*fracpos
     if nfound>1:
@@ -2410,11 +2417,18 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         for iord in range(norders):
             on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             # ToDO fix specobjs set_item to get rid of these crappy loops
-            for spec in sobjs_align[on_order]:
-                spec.ech_fracpos = uni_frac[iobj]
-                spec.ech_objid = uni_obj_id[iobj]
-                spec.objid = uni_obj_id[iobj]
-                spec.ech_frac_was_fit = False
+            sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
+            sobjs_align[on_order].ech_objid = uni_obj_id[iobj]
+            sobjs_align[on_order].objid = uni_obj_id[iobj]
+            sobjs_align[on_order].ech_frac_was_fit = False
+            #for spec in sobjs_align[on_order]:
+                #spec.ech_fracpos = uni_frac[iobj]
+                #spec.ech_objid = uni_obj_id[iobj]
+            #    spec.objid = uni_obj_id[iobj]
+            #    spec.ech_frac_was_fit = False
+
+    # Reset names (just in case)
+    sobjs_align.set_names()
 
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
     # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
@@ -2466,12 +2480,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
-                thisobj = newspecobj.SpecObj(frameshape, slit_spat_pos[iord,:], det = sobjs_align[0].det,
-                                           setup = sobjs_align[0].setup, slitid = iord,
-                                           objtype=sobjs_align[0].objtype, pypeline=sobjs_align[0].pypeline)
-                thisobj.ech_orderindx = iord
-                thisobj.ech_order = order_vec[iord]
-                thisobj.spat_fracpos = uni_frac[iobj]
+                thisobj = newspecobj.SpecObj('Echelle', sobjs_align[0].det,
+                                             objtype=sobjs_align[0].objtype,
+                                             orderindx=iord,
+                                             ech_order=order_vec[iord])
+                #thisobj.ech_orderindx = iord
+                #thisobj.ech_order = order_vec[iord]
+                thisobj.SPAT_FRACPOS = uni_frac[iobj]
                 # Assign traces using the fractional position fit above
                 if std_trace is not None:
                     x_trace = np.interp(slit_spec_pos, spec_vec, std_trace[:,iord])
@@ -2487,11 +2502,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 imin = np.argmin(np.abs(sobjs_align[this_obj_id].ech_orderindx - iord))
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
-                thisobj.ech_fracpos = uni_frac[iobj]
+                thisobj.ECH_FRACPOS = uni_frac[iobj]
                 thisobj.ech_objid = uni_obj_id[iobj]
                 #thisobj.objid = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
-                thisobj.set_idx()
+                thisobj.set_name()
                 sobjs_align.add_sobj(thisobj)
                 obj_id = np.append(obj_id, uni_obj_id[iobj])
                 gfrac = np.append(gfrac, uni_frac[iobj])
@@ -2601,17 +2616,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                     spec.TRACE_SPAT = xfit_gweight[:,iord]
                     spec.SPAT_PIXPOS = spec.TRACE_SPAT[specmid]
 
-
-
-
     #TODO Put in some criterion here that does not let the fractional position change too much during the iterative
     # tracefitting. The problem is spurious apertures identified on one slit can be pulled over to the center of flux
     # resulting in a bunch of objects landing on top of each other.
 
     # Set the IDs
-    for spec in sobjs_final:
-        spec.ech_order = order_vec[spec.ech_orderindx]
-    sobjs_final.set_idx()
+    sobjs_final.ECH_ORDER = order_vec[sobjs_final.ech_orderindx]
+    #for spec in sobjs_final:
+    #    spec.ech_order = order_vec[spec.ech_orderindx]
+    sobjs_final.set_names()
 
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
     skymask = skymask_objfind | skymask_fwhm

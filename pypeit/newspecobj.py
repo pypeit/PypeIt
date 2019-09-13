@@ -67,11 +67,11 @@ data_model = {
     'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
     'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
     'SPAT_PIXPOS': dict(otype=(float,np.float32), desc='Spatial location of the trace on detector (pixel)'),
+    'SPAT_FRACPOS': dict(otype=(float,np.float32), desc='Fractional location of the object on the slit'),
     #
     'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
     #
-    'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
-    'ECH_ORDERINDX': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
+    'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Syned echelle fractional location of the object on the slit'),
     'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
 }
 
@@ -108,10 +108,11 @@ class SpecObj(object):
     def from_table(cls, table, indict=None):
         if table.meta['PYPELINE'] == 'MultiSlit':
             # Instantiate
-            slf = cls(table.meta['PYPELINE'], table.meta['DET'], None,
+            slf = cls(table.meta['PYPELINE'], table.meta['DET'],
                       slitid=table.meta['SLITID'], indict=indict)
         else:
-            embed(header='112')
+            slf = cls(table.meta['PYPELINE'], table.meta['DET'],
+                      indict=indict, ech_order=table.meta['ECH_ORDER'])
         # Pop a few that land in standard FITS header
         # Loop me -- Do this to deal with checking the data model
         for key in table.keys():
@@ -127,9 +128,11 @@ class SpecObj(object):
         # Return
         return slf
 
-    def __init__(self, pypeline, det, slit_spat,
-                 slitid=-1,
-                 indict=None, objtype='unknown', orderindx=None):
+    def __init__(self, pypeline, det, objtype='unknown',
+                 indict=None,
+                 slitid=None,
+                 ech_order=None,
+                 orderindx=None):
 
         self._data = Table()
 
@@ -146,11 +149,7 @@ class SpecObj(object):
             self.objid = 999
             self.name = None
 
-            # Slit
-            self.slit_spat = slit_spat  # (left, right)
-
             # Object finding
-            self.spat_fracpos = None
             self.smash_peakflux = None
             self.smash_nsig = None
             self.maskwidth = None
@@ -163,6 +162,12 @@ class SpecObj(object):
 
             # Trace
             self.trace_spec = None  # Only for debuggin, internal plotting
+
+            # Echelle
+            self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
+            self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+            self.ech_frac_was_fit = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+            self.ech_snr = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
 
         # after initialisation, setting attributes is the same as setting an item
         self.__initialised = True
@@ -177,9 +182,23 @@ class SpecObj(object):
             # pypeline specific
             if self.PYPELINE == 'MultiSlit':
                 self.SLITID = slitid
+            elif self.PYPELINE == 'Echelle':
+                self.ECH_ORDER = ech_order
+                self.ech_orderindx = orderindx
+            else:
+                msgs.error("Uh oh")
 
         # Name
         self.set_name()
+
+    @property
+    def slit_order(self):
+        if self.PYPELINE == 'Echelle':
+            return self.ECH_ORDER
+        elif self.PYPELINE == 'MultiSlit':
+            return self.SLITID
+        else:
+            msgs.error("Uh oh")
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -255,16 +274,13 @@ class SpecObj(object):
         if 'Echelle' in self.PYPELINE:
             # ObjID
             self.name = naming_model['obj']
-            if self.ech_objid is None:
+            if 'ECH_FRACPOS' not in self._data.meta.keys():
                 self.name += '----'
             else:
-                self.name += '{:04d}'.format(self.ech_objid)
-            self.name += '-'+naming_model['order']
+                self.name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
             # Order
-            if self.ech_orderindx is None:
-                self.name += '----'
-            else:
-                self.name += '{:04d}'.format(self.ech_order)
+            self.name += '-'+naming_model['order']
+            self.name += '{:04d}'.format(self.ECH_ORDER)
         else:
             # Spat
             self.name = naming_model['spat']
@@ -281,6 +297,7 @@ class SpecObj(object):
         # Return
         return self.name
 
+
     def copy(self):
         """
         Generate a copy of this object
@@ -289,7 +306,7 @@ class SpecObj(object):
             SpecObj
 
         """
-        sobj_copy = SpecObj(self.PYPELINE, self.DET, self.slit_spat,
+        sobj_copy = SpecObj(self.PYPELINE, self.DET,
                             indict=self.__dict__.copy())
         # Return
         return sobj_copy

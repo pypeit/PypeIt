@@ -482,7 +482,7 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
         refframe (str):
 
     Returns:
-        Two objects are returned::
+        Two objects are returned:
             - float: - The velocity correction that should be applied to the wavelength array.
             - float: The relativistic velocity correction that should be multiplied by the
                   wavelength array to convert each wavelength into the user-specified
@@ -496,7 +496,12 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     gdslits = np.where(~maskslits)[0]
     # Loop on slits to apply
     for slit in gdslits:
-        indx = specObjs.SLITID == slit
+        if specObjs[0].PYPELINE == 'Echelle':
+            indx = specObjs.ech_orderindx == slit
+        elif specObjs[0].PYPELINE == 'MultiSlit':
+            indx = specObjs.SLITID == slit
+        else:
+            msgs.error("Should not get here")
         this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:

@@ -5,20 +5,15 @@ import re
 
 import numpy as np
 
-from scipy import interpolate
-
-from astropy import units
-from astropy.table import Table
 from astropy.units import Quantity
 from astropy.io import fits
-
-from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core import save
 from pypeit import newspecobj
 from pypeit.io import initialize_header
 
+from IPython import embed
 
 class SpecObjs(object):
     """
@@ -154,7 +149,6 @@ class SpecObjs(object):
         else:
             msgs.error('Unknown pypeline')
 
-
     def append_neg(self, sobjs_neg):
         """
         Append negative objects and change the sign of their objids for IR reductions
@@ -163,25 +157,19 @@ class SpecObjs(object):
             sobjs_neg (SpecObjs):
 
         """
-
         # Assign the sign and the objids
-        for spec in sobjs_neg:
-            spec.sign = -1.0
-            try:
-                spec.objid = -spec.objid
-            except TypeError:
-                pass
-            try:
-                spec.ech_objid = -spec.ech_objid
-            except TypeError:
-                pass
-
+        sobjs_neg.sign = -1.0
+        if sobjs_neg[0].PYPELINE == 'Echelle':
+            sobjs_neg.ech_objid = -1*sobjs_neg.ech_objid
+        elif sobjs_neg[0].PYPELINE == 'MultiSlit':
+            sobjs_neg.objid = -sobjs_neg.objid
+        else:
+            msgs.error("Should not get here")
         self.add_sobj(sobjs_neg)
 
         # Sort objects according to their spatial location. Necessary for the extraction to properly work
         if self.nobj > 0:
-            spat_pixpos = self.spat_pixpos
-            self.specobjs = self.specobjs[spat_pixpos.argsort()]
+            self.specobjs = self.specobjs[np.argsort(self.SPAT_PIXPOS)]
 
     def purge_neg(self):
         """
@@ -192,6 +180,10 @@ class SpecObjs(object):
         if self.nobj > 0:
             index = (self.objid < 0) | (self.ech_objid < 0)
             self.remove_sobj(index)
+
+    def set_names(self):
+        for sobj in self.specobjs:
+            sobj.set_name()
 
     def add_sobj(self, sobj):
         """
