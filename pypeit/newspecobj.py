@@ -490,4 +490,7 @@ class SpecObj(object):
         xspec.plot(xspec=True)
 
 
-
+    def __repr__(self):
+        txt = '<{:s}: {:s}'.format(self.__class__.__name__, self.name)
+        txt += '>'
+        return txt

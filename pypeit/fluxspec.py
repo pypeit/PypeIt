@@ -496,30 +496,30 @@ class Echelle(FluxSpec):
 
         Wrapper to flux.apply_sensfunc()
 
-        Returns
-        -------
+        Args:
+            sci_file (str):
 
         """
         # Load
         self.load_objs(sci_file, std=False)
-        # Run
+        # Loop on Echelle order
         norder = self.sens_dict['meta']['nslits']
         for iord in range(norder):
             sens_dict_iord = self.sens_dict[str(iord)]
+            ech_order = sens_dict_iord['ech_order']
             for sci_obj in self.sci_specobjs:
-                if sci_obj.ech_orderindx == iord:
-                    embed(header='503 of fluxspec')
-                    flux_calib.apply_standard_sens(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
-                                                   self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
-                                                   longitude=self.spectrograph.telescope['longitude'],
-                                                   latitude=self.spectrograph.telescope['latitude'])
-                #sci_obj.apply_flux_calib(self.sens_dict['0'],
-                #                         self.sci_header['EXPTIME'],
-                #                         telluric_correct=self.par['telluric_correct'],
-                #                         extinct_correct=self.par['extinct_correct'],
-                #                         longitude=self.spectrograph.telescope['longitude'],
-                #                         latitude=self.spectrograph.telescope['latitude'],
-                #                         airmass=self.sci_header['AIRMASS'])
+                if sci_obj.ECH_ORDER == ech_order:
+                    #flux_calib.apply_standard_sens(sci_obj, sens_dict_iord, float(self.sci_header['AIRMASS']),
+                    #                               self.sci_header['EXPTIME'], extinct_correct=self.par['extinct_correct'],
+                    #                               longitude=self.spectrograph.telescope['longitude'],
+                    #                               latitude=self.spectrograph.telescope['latitude'])
+                    sci_obj.apply_flux_calib(sens_dict_iord,
+                                         self.sci_header['EXPTIME'],
+                                         #telluric_correct=self.par['telluric_correct'],
+                                         extinct_correct=self.par['extinct_correct'],
+                                         longitude=self.spectrograph.telescope['longitude'],
+                                         latitude=self.spectrograph.telescope['latitude'],
+                                         airmass=float(self.sci_header['AIRMASS']))
 
         self.steps.append(inspect.stack()[0][3])
 

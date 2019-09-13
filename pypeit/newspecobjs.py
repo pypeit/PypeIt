@@ -273,8 +273,16 @@ class SpecObjs(object):
         return lst_to_array(lst)
 
     # Printing
-    #def __repr__(self):
-    #    return self.summary.__repr__()
+    def __repr__(self):
+        txt = '<{:s}:'.format(self.__class__.__name__)
+        if self.nobj == 0:
+            txt += "Empty SpecObjs"
+        else:
+            txt += '\n'
+            for sobj in self.specobjs:
+                txt += '  {} \n'.format(sobj)
+        txt += '>'
+        return txt
 
     def __len__(self):
         return len(self.specobjs)
