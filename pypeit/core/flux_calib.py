@@ -548,7 +548,7 @@ def find_standard(specobj_list):
         if spobj is None:
             medfx.append(0.)
         else:
-            medfx.append(np.median(spobj.boxcar['COUNTS']))
+            medfx.append(np.median(spobj.BOX_COUNTS))
     try:
         mxix = np.argmax(np.array(medfx))
     except:
@@ -580,56 +580,7 @@ def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=T
       Used for extinction correction
     """
 
-    # Loop on extraction modes
-    for extract_type in ['boxcar', 'optimal']:
-        extract = getattr(spec_obj, extract_type)
-        if len(extract) == 0:
-            continue
-        msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() + "{}".format(spec_obj))
-        try:
-            wave = np.copy(np.array(extract['WAVE_GRID']))
-        except KeyError:
-            wave = np.copy(np.array(extract['WAVE']))
-        wave_sens = sens_dict['wave']
-        sensfunc = sens_dict['sensfunc'].copy()
 
-        # Did the user request a telluric correction from the same file?
-        if telluric_correct and 'telluric' in sens_dict.keys():
-            # This assumes there is a separate telluric key in this dict.
-            telluric = sens_dict['telluric']
-            msgs.info('Applying telluric correction')
-            sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
-
-        sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
-
-        if extinct_correct:
-            if longitude is None or latitude is None:
-                msgs.error('You must specify longitude and latitude if we are extinction correcting')
-            # Apply Extinction if optical bands
-            msgs.info("Applying extinction correction")
-            msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-            extinct = load_extinction_data(longitude,latitude)
-            ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
-            senstot = sensfunc_obs * ext_corr
-        else:
-            senstot = sensfunc_obs.copy()
-
-        flam = extract['COUNTS'] * senstot/ exptime
-        flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
-        flam_var = extract['COUNTS_IVAR'] / (senstot / exptime) **2
-
-        # Mask bad pixels
-        msgs.info(" Masking bad pixels")
-        msk = np.zeros_like(senstot).astype(bool)
-        msk[senstot <= 0.] = True
-        msk[extract['COUNTS_IVAR'] <= 0.] = True
-        flam[msk] = 0.
-        flam_sig[msk] = 0.
-        flam_var[msk] = 0.
-
-        extract['FLAM'] = flam
-        extract['FLAM_SIG'] = flam_sig
-        extract['FLAM_IVAR'] = flam_var
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, latitude, telluric=True, star_type=None,
                       star_mag=None, ra=None, dec=None, std_file = None, poly_norder=4, BALM_MASK_WID=5., nresln=20.,

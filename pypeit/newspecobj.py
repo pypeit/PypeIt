@@ -14,6 +14,7 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core import parse
+from pypeit.core import flux_calib
 
 naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
@@ -27,6 +28,9 @@ data_model = {
     'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
     'FWHMFIT': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),
     'OPT_WAVE': dict(otype=np.ndarray, atype=float, desc='Optimal Wavelengths (Angstroms)'),
+    'OPT_FLAM': dict(otype=np.ndarray, atype=float, desc='Optimal flux (erg/s/cm^2/Ang)'),
+    'OPT_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Optimal flux uncertainty (erg/s/cm^2/Ang)'),
+    'OPT_FLAM_IVAR': dict(otype=np.ndarray, atype=float, desc='Optimal flux inverse variance (erg/s/cm^2/Ang)^-2'),
     'OPT_COUNTS': dict(otype=np.ndarray, atype=float, desc='Optimal flux (counts)'),
     'OPT_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
                             desc='Inverse variance of optimally extracted flux using modelivar image (counts^2)'),
@@ -42,17 +46,20 @@ data_model = {
     'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
     #
-    'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Optimal Wavelengths (Angstroms)'),
-    'BOX_COUNTS': dict(otype=np.ndarray, atype=float, desc='Optimal flux (counts)'),
+    'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Boxcar Wavelengths (Angstroms)'),
+    'BOX_FLAM': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (erg/s/cm^2/Ang)'),
+    'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Boxcar flux uncertainty (erg/s/cm^2/Ang)'),
+    'BOX_FLAM_IVAR': dict(otype=np.ndarray, atype=float, desc='Boxcar flux inverse variance (erg/s/cm^2/Ang)^-2'),
+    'BOX_COUNTS': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (counts)'),
     'BOX_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
                             desc='Inverse variance of optimally extracted flux using modelivar image (counts^2)'),
     'BOX_COUNTS_SIG': dict(otype=np.ndarray, atype=float,
-                           desc='Optimally extracted noise from IVAR (counts)'),
+                           desc='Boxcar extracted noise from IVAR (counts)'),
     'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
-                             desc='Optimally extracted noise variance, sky+read noise only (counts^2)'),
+                             desc='Boxcar extracted noise variance, sky+read noise only (counts^2)'),
     'BOX_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimally extracted flux'),
-    'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Optimally extracted sky (counts)'),
-    'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Optimally extracted RN squared (counts)'),
+    'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted sky (counts)'),
+    'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted RN squared (counts)'),
     'BOX_FRAC_USE': dict(otype=np.ndarray, atype=float,
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'BOX_CHI2': dict(otype=np.ndarray, atype=float,
@@ -343,6 +350,79 @@ class SpecObj(object):
         self.FLEX_SHIFT = fdict['shift']
         # Return
         return new_sky
+
+    def apply_flux_calib(self, sens_dict, exptime, telluric_correct=False, extinct_correct=False,
+                         airmass=None, longitude=None, latitude=None):
+        """
+        Apply a sensitivity function to our spectrum
+
+        FLAM, FLAM_SIG, and FLAM_IVAR are generated
+
+        Args:
+            sens_dict (dict):
+                Sens Function dict
+            exptime (float):
+            telluric_correct:
+            extinct_correct:
+            airmass (float, optional):
+            longitude (float, optional):
+                longitude in degree for observatory
+            latitude:
+                latitude in degree for observatory
+                Used for extinction correction
+
+        """
+        # Loop on extraction modes
+        for attr in ['BOX', 'OPT']:
+            if attr+'_WAVE' not in self._data.keys():
+                continue
+            msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
+            #
+            #try:
+            #    wave = np.copy(np.array(extract['WAVE_GRID']))
+            #except KeyError:
+            wave = self[attr+'_WAVE']
+            wave_sens = sens_dict['wave']
+            sensfunc = sens_dict['sensfunc'].copy()
+
+            # Did the user request a telluric correction from the same file?
+            if telluric_correct and 'telluric' in sens_dict.keys():
+                # This assumes there is a separate telluric key in this dict.
+                telluric = sens_dict['telluric']
+                msgs.info('Applying telluric correction')
+                sensfunc = sensfunc * (telluric > 1e-10) / (telluric + (telluric < 1e-10))
+
+            sensfunc_obs = interpolate.interp1d(wave_sens, sensfunc, bounds_error=False,
+                                                      fill_value='extrapolate')(wave)
+            if extinct_correct:
+                if longitude is None or latitude is None:
+                    msgs.error('You must specify longitude and latitude if we are extinction correcting')
+                # Apply Extinction if optical bands
+                msgs.info("Applying extinction correction")
+                msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
+                extinct = flux_calib.load_extinction_data(longitude, latitude)
+                ext_corr = flux_calib.extinction_correction(wave * units.AA, airmass, extinct)
+                senstot = sensfunc_obs * ext_corr
+            else:
+                senstot = sensfunc_obs.copy()
+
+            flam = self[attr+'_COUNTS'] * senstot / exptime
+            flam_sig = (senstot / exptime) / (np.sqrt(self[attr+'_COUNTS_IVAR']))
+            flam_var = self[attr+'_COUNTS_IVAR'] / (senstot / exptime) ** 2
+
+            # Mask bad pixels
+            msgs.info(" Masking bad pixels")
+            msk = np.zeros_like(senstot).astype(bool)
+            msk[senstot <= 0.] = True
+            msk[self[attr+'_COUNTS_IVAR'] <= 0.] = True
+            flam[msk] = 0.
+            flam_sig[msk] = 0.
+            flam_var[msk] = 0.
+
+            # Finish
+            self[attr+'_FLAM'] = flam
+            self[attr+'_FLAM_SIG'] = flam_sig
+            self[attr+'_FLAM_IVAR'] = flam_var
 
     def apply_helio(self, vel_corr, refframe):
         """

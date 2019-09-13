@@ -15,7 +15,7 @@ from pypeit import msgs
 from pypeit.core import flux_calib
 from pypeit.core import load
 from pypeit.core import save
-from pypeit import specobjs
+from pypeit import newspecobjs
 from pypeit import debugger
 
 from IPython import embed
@@ -103,7 +103,6 @@ class FluxSpec(object):
         self.polycorrect = par['polycorrect']
         self.debug = debug
 
-    # TODO This needs to be modified to return whatever it loaded. Pypeline independent.
     def load_objs(self, spec1d_file, std=True):
         """
         Load specobjs and heade from an input spec1d_file
@@ -118,7 +117,9 @@ class FluxSpec(object):
             Loads up self.std_specobjs or self.sci_specobjs
 
         """
-        specobjs, header = load.load_specobjs(spec1d_file)
+        specobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_file)
+        header = fits.open(spec1d_file)[0].header
+        #
         if std:
             self.std_specobjs, self.std_header = specobjs, header
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
@@ -131,7 +132,7 @@ class FluxSpec(object):
             msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
                 len(self.sci_specobjs), spec1d_file))
         # Check instrument
-        spectro = header['INSTRUME']
+        spectro = header['PYP_SPEC']
         assert spectro == self.spectrograph.spectrograph
         return specobjs, header
 
@@ -292,33 +293,15 @@ class FluxSpec(object):
         """
         Write the flux-calibrated science spectra
 
-        Parameters
-        ----------
-        outfile : str
-
-        Returns
-        -------
-
+        Args:
+            outfile (str):
         """
         if len(self.sci_specobjs) == 0:
             msgs.warn("No science spectra to write to disk!")
-        #
-        if 'VEL-TYPE' in self.sci_header.keys():
-            helio_dict = dict(refframe=self.sci_header['VEL-TYPE'],
-                              vel_correction=self.sci_header['VEL'])
-        else:
-            helio_dict = None
-        # KLUDGE ME
-        if isinstance(self.sci_specobjs, list):
-            specObjs = specobjs.SpecObjs(self.sci_specobjs)
-        elif isinstance(self.sci_specobjs, specobjs.SpecObjs):
-            specObjs = self.sci_specobjs
-        else:
-            msgs.error("BAD INPUT")
+            return
 
-        #save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=None, overwrite=True,update_det=None)
-        save.save_1d_spectra_fits(specObjs, self.sci_header, self.spectrograph, outfile,
-                                  helio_dict=helio_dict,overwrite=True)
+        self.sci_specobjs.write_to_fits(outfile, header=self.sci_header,
+                                        spectrograph=self.spectrograph, overwrite=True)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -364,10 +347,10 @@ class MultiSlit(FluxSpec):
             return None
 
         self.sens_dict = {}
-        this_wave = self.std.optimal['WAVE']
+        this_wave = self.std.OPT_WAVE
         sens_dict_long = flux_calib.generate_sensfunc(this_wave,
-                                                      self.std.optimal['COUNTS'],
-                                                      self.std.optimal['COUNTS_IVAR'],
+                                                      self.std.OPT_COUNTS,
+                                                      self.std.OPT_COUNTS_IVAR,
                                                       self.std_header['AIRMASS'],
                                                       self.std_header['EXPTIME'],
                                                       self.spectrograph.telescope['longitude'],
@@ -400,15 +383,18 @@ class MultiSlit(FluxSpec):
         -------
 
         """
-        # Load
+        # Load into self.sci_specobjs
         self.load_objs(sci_file, std=False)
+
         # Run
         for sci_obj in self.sci_specobjs:
-            flux_calib.apply_standard_sens(sci_obj, self.sens_dict['0'], self.sci_header['AIRMASS'],
-                                           self.sci_header['EXPTIME'], telluric_correct=self.par['telluric_correct'],
-                                           extinct_correct=self.par['extinct_correct'],
-                                           longitude=self.spectrograph.telescope['longitude'],
-                                           latitude=self.spectrograph.telescope['latitude'])
+            sci_obj.apply_flux_calib(self.sens_dict['0'],
+                                     self.sci_header['EXPTIME'],
+                                     telluric_correct=self.par['telluric_correct'],
+                                     extinct_correct=self.par['extinct_correct'],
+                                     longitude=self.spectrograph.telescope['longitude'],
+                                     latitude=self.spectrograph.telescope['latitude'],
+                                     airmass=self.sci_header['AIRMASS'])
         self.steps.append(inspect.stack()[0][3])
 
 
