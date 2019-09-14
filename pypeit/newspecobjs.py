@@ -245,7 +245,7 @@ class SpecObjs(object):
             sobj_copy.add_sobj(sobj.copy())
         return sobj_copy
 
-    def grab_spec_arrays(self, obj_id, ECH_ORDER=None, **kwargs):
+    def grab_spec_arrays(self, obj_id, DET=None, ECH_ORDER=None, **kwargs):
         # In development
         pass
 
