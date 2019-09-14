@@ -12,6 +12,9 @@ from pypeit.tests.tstutils import dev_suite_required
 from pypeit.tests.tstutils import load_kast_blue_masters
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.images import scienceimage
+from pypeit.images import rawimage
+from pypeit.images import processrawimage
+from pypeit.core import procimg
 
 
 def data_path(filename):
@@ -48,8 +51,11 @@ def test_standard_instantiate():
     """
     # Empty
     bpm = np.zeros((100,100))
-    sciImg = scienceimage.ScienceImage(kast_blue, [], kast_par['scienceframe']['process'], bpm)
-    assert sciImg.nfiles == 0
+    det = 1
+    sciImg = scienceimage.ScienceImage(kast_blue, det, kast_par['scienceframe']['process'],
+                                       np.zeros_like(bpm),
+                                       np.zeros_like(bpm),
+                                       bpm)
 
 
 @dev_suite_required
@@ -57,16 +63,28 @@ def test_instantiate_from_one(shane_kast_blue_sci_files):
     """
     Run on a single science frame
     """
+    #
     det = 1
     # Load calibrations
     tslits_dict, mstrace, tilts_dict, pixelflat = load_kast_blue_masters(
         tslits=True, tilts=True, pixflat=True)
     bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
+    # Process steps
+    bias = None
+    par = kast_par['scienceframe']['process']
+    process_steps = procimg.init_process_steps(bias, par)
+    process_steps += ['trim', 'apply_gain', 'orient']
+    process_steps += ['flatten']
+    process_steps += ['extras']
+    process_steps += ['crmask']
+    # Load
+    rawImage = rawimage.RawImage(shane_kast_blue_sci_files[0], kast_blue, det)
+    processRawImage = processrawimage.ProcessRawImage(rawImage,
+                                                      kast_par['scienceframe']['process'])
+    pypeItImage = processRawImage.process(process_steps, pixel_flat=pixelflat)
     # Do it
-    sciImg = scienceimage.ScienceImage.from_single_file(kast_blue, det, kast_par['scienceframe']['process'],
-                                            bpm, shane_kast_blue_sci_files[0], None, pixelflat)
-    # Test
-    assert sciImg.nfiles == 1
+    sciImg = scienceimage.ScienceImage(kast_blue, det, kast_par['scienceframe']['process'],
+                                       pypeItImage.image, pypeItImage.ivar, bpm)
 
 
 @dev_suite_required
@@ -80,10 +98,12 @@ def test_from_list(shane_kast_blue_sci_files):
         tslits=True, tilts=True, pixflat=True)
     bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Do it
-    sciImg = scienceimage.ScienceImage.from_file_list(kast_blue, det, kast_par['scienceframe']['process'],
-                                                        bpm, shane_kast_blue_sci_files, None, pixelflat)
+    sciImg = scienceimage.build_from_file_list(kast_blue, det,
+                                               kast_par['scienceframe']['process'],
+                                               bpm, shane_kast_blue_sci_files,
+                                               None, pixelflat)
     # Test
-    assert sciImg.nfiles == 2
+    assert isinstance(sciImg, scienceimage.ScienceImage)
 
 
 @dev_suite_required
@@ -97,10 +117,12 @@ def test_proc_diff(nires_sci_files, nires_bg_files):
     pixelflat = np.ones_like(bpm)
 
     # Sci image
-    sciImg = scienceimage.ScienceImage.from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
+    sciImg = scienceimage.build_from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
                                        nires_sci_files, None, pixelflat)
     # Bg image
-    bgImg = scienceimage.ScienceImage.from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
+    bgImg = scienceimage.build_from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
                                                       nires_bg_files, None, pixelflat)
     # Difference
     sciImg = sciImg - bgImg
+    # Test
+    assert isinstance(sciImg, scienceimage.ScienceImage)

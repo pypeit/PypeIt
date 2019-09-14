@@ -2,7 +2,6 @@
 """
 import os
 import datetime
-import copy
 from pkg_resources import resource_filename
 from collections import OrderedDict
 
@@ -17,7 +16,6 @@ import pypeit  # For path
 from pypeit import msgs
 from pypeit.core.wavecal import defs
 
-from pypeit import debugger
 from IPython import embed
 
 # TODO: These should not be declared here
@@ -25,34 +23,8 @@ line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
 nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
 reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
-def save_wavelength_calibration(outfile, wv_calib, overwrite=True):
-    """
-    Save a wavelength solution to a file.
 
-    Args:
-        outfile (:obj:`str`):
-            Name for the output file.
-        wv_calib (:obj:`dict`):
-            Dictionary with the wavelength solution.  TODO: Document
-            the format of this dictionary!
-        overwrite (:obj:`bool`, optional):
-            Overwrite any existing file.
-    """
-    # Check if it exists
-    if os.path.exists(outfile) and not overwrite:
-        # TODO: Should this throw an error instead?
-        msgs.warn('File exists: {0}'.format(outfile) + msgs.newline()
-                  + 'Set overwrite=True to overwrite it.')
-        return
-
-    # jsonify has the annoying property that it modifies the objects
-    # when it jsonifies them so make a copy, which converts lists to
-    # arrays, so we make a copy
-    data_for_json = copy.deepcopy(wv_calib)
-    gddict = linetools.utils.jsonify(data_for_json)
-    linetools.utils.savejson(outfile, gddict, easy_to_read=True, overwrite=True)
-
-
+# TODO -- Move this to the WaveCalib object
 def load_wavelength_calibration(filename):
     """
     Load the wavelength calibration data from a file.

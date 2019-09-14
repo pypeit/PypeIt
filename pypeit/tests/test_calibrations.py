@@ -75,6 +75,10 @@ def multi_caliBrate_reuse(multi_caliBrate):
     multi_caliBrate.save_masters = True
     return multi_caliBrate
 
+###################################################
+# TESTS BEGIN HERE
+
+
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
@@ -93,12 +97,12 @@ def test_bias(multi_caliBrate):
 
 def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
-    assert arc.shape == (2048,350)
+    assert arc.image.shape == (2048,350)
 
 
 def test_tiltimg(multi_caliBrate):
     tilt = multi_caliBrate.get_tiltimg()
-    assert tilt.shape == (2048,350)
+    assert tilt.image.shape == (2048,350)
 
 def test_bpm(multi_caliBrate):
     # Prep
@@ -252,7 +256,7 @@ def test_reuse(multi_caliBrate_reuse):
     _msarc = multi_caliBrate_reuse.get_tiltimg()
     assert multi_caliBrate_reuse._cached('tiltimg',
                     multi_caliBrate_reuse.master_key_dict['arc']), 'Should find cached data.'
-    assert os.path.isfile(multi_caliBrate_reuse.arcImage.file_path), \
+    assert os.path.isfile(multi_caliBrate_reuse.arcImage.master_file_path), \
             'Should find master file.'
     assert multi_caliBrate_reuse.arcImage.load() is not None, \
             'Load should not return None'

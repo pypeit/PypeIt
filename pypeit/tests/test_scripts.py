@@ -12,7 +12,7 @@ import matplotlib
 matplotlib.use('agg')  # For Travis
 
 from pypeit import msgs
-from pypeit.scripts import setup, run_pypeit, show_1dspec, coadd_1dspec, chk_edges, view_fits
+from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import ginga
 
@@ -22,59 +22,17 @@ def data_path(filename):
 
 
 '''
-@dev_suite_required
-def test_run_pypeit():
-    # Get the directories
-    rawdir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/')
-    assert os.path.isdir(rawdir), 'Incorrect raw directory'
-
-    # Just get a few files
-    testrawdir = os.path.join(rawdir, 'TEST')
-    if os.path.isdir(testrawdir):
-        shutil.rmtree(testrawdir)
-    os.makedirs(testrawdir)
-    files = [ 'b21.fits.gz', 'b22.fits.gz', 'b23.fits.gz', 'b27.fits.gz', 'b1.fits.gz',
-              'b11.fits.gz', 'b12.fits.gz', 'b13.fits.gz' ]
-    for f in files:
-        shutil.copy(os.path.join(rawdir, f), os.path.join(testrawdir, f))
-
-    outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
-
-    # For previously failed tests
-    if os.path.isdir(outdir):
-        shutil.rmtree(outdir)
-
-    # Run the setup
-    args = setup.parser(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
-                                        '--output_path', outdir])
-    setup.main(args)
-
-    # Change to the configuration directory and set the pypeit file
-    configdir = os.path.join(outdir, 'shane_kast_blue_A')
-    pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
-    assert os.path.isfile(pyp_file), 'PypeIt file not written.'
-
-    # Perform the original reductions
-    args = run_pypeit.parser([pyp_file, '-o'])
-    run_pypeit.main(args)
-
-    # Now try to reuse the old masters
-    args = run_pypeit.parser([pyp_file, '-o', '-m'])
-    run_pypeit.main(args)
-
-    # Now try not overwriting and using the old masters
-    args = run_pypeit.parser([pyp_file, '-m'])
-    run_pypeit.main(args)
-
-    # Clean-up
-    shutil.rmtree(outdir)
-    shutil.rmtree(testrawdir)
-
+def test_view_fits():
+    """ Only test the list option
+    """
+    spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    pargs = view_fits.parser([spec_file, '--list'])
+'''
 
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                                'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs, unit_test=True)
@@ -90,14 +48,15 @@ def test_chk_edges():
     pargs = chk_edges.parser([mstrace_root])
     chk_edges.main(pargs)
 
-
-def test_view_fits():
-    """ Only test the list option
-    """
-    spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    pargs = view_fits.parser([spec_file, '--list'])
-'''
-
+@cooked_required
+def test_chk_flat():
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
+                                'MasterFlat_A_1_01.fits')
+    # Ginga needs to be open in RC mode
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    #
+    pargs = chk_flats.parser([mstrace_root])
+    chk_flats.main(pargs)
 
 def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')

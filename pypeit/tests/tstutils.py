@@ -164,7 +164,8 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False,
 
     if tilts:
         tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))
-        tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
+        #tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
+        tilts_dict = wavetilts.WaveTilts.from_master_file(tilts_file).tilts_dict
         ret.append(tilts_dict)
 
     if wvcalib:
@@ -176,12 +177,12 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False,
 
     # Pixelflat
     if pixflat:
-        flatField = flatfield.FlatField(spectrograph,
-                                        spectrograph.default_pypeit_par()['calibrations']['pixelflatframe'])
+        #flatField = flatfield.FlatField(spectrograph,
+        #                                spectrograph.default_pypeit_par()['calibrations']['pixelflatframe'])
         calib_file = os.path.join(master_dir,
                                   MasterFrame.construct_file_name('Flat', master_key))
-        pixelflat = flatField.load_from_file(calib_file, 2)
-        ret.append(pixelflat)
+        flatField = flatfield.FlatField.from_master_file(calib_file)
+        ret.append(flatField.mspixelflat)
 
     # Return
     return ret
