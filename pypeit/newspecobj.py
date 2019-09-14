@@ -15,6 +15,7 @@ from linetools.spectra import xspectrum1d
 from pypeit import msgs
 from pypeit.core import parse
 from pypeit.core import flux_calib
+from pypeit import utils
 
 naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
@@ -78,7 +79,7 @@ data_model = {
     #
     'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
     #
-    'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Syned echelle fractional location of the object on the slit'),
+    'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
     'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
 }
 
@@ -424,29 +425,44 @@ class SpecObj(object):
                 self['VEL_TYPE'] = refframe
                 self['VEL_CORR'] = vel_corr
 
-    def to_xspec1d(self, extraction='OPT', fluxed=True):
+    def to_arrays(self, extraction='OPT', fluxed=True):
         """
-        Push the data in SpecObj into an XSpectrum1D object
 
         Args:
             extraction (str): Extraction method to convert
+            fluxed:
 
         Returns:
-            linetools.spectra.xspectrum1d.XSpectrum1D:  Spectrum object
+            tuple: wave, flux, ivar, mask arrays
 
         """
         swave = extraction+'_WAVE'
+        smask = extraction+'_MASK'
         if swave not in self._data.keys():
             msgs.error("This object has not been extracted with extract={}.".format(extraction))
         # Fluxed?
         if fluxed:
             sflux = extraction+'_FLAM'
-            ssig = extraction+'_FLAM_SIG'
+            sivar = extraction+'_FLAM_IVAR'
         else:
             sflux = extraction+'_COUNTS'
-            ssig = extraction+'_COUNTS_SIG'
+            sivar = extraction+'_COUNTS_IVAR'
+        # Return
+        return self[swave], self[sflux], self[sivar], self[smask]
+
+    def to_xspec1d(self, **kwargs):
+        """
+        Push the data in SpecObj into an XSpectrum1D object
+
+
+        Returns:
+            linetools.spectra.xspectrum1d.XSpectrum1D:  Spectrum object
+
+        """
+        wave, flux, ivar, _ = self.to_arrays(**kwargs)
+        sig = np.sqrt(utils.inverse(ivar))
         # Create
-        xspec = xspectrum1d.XSpectrum1D.from_tuple((self[swave], self[sflux], self[ssig]))
+        xspec = xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
         # Return
         return xspec
 

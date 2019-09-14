@@ -17,7 +17,7 @@ from pypeit import utils
 from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
-from pypeit.traceslits import TraceSlits
+from pypeit import newspecobjs
 from pypeit import edgetrace
 from pypeit.images import scienceimage
 from pypeit import reduce
@@ -916,9 +916,10 @@ class Coadd2d(object):
             skymodel_stack[ifile, :, :] = skymodel
 
             # Specobjs
-            head1d_list.append(head)
-            sobjs, head = load.load_specobjs(spec1d_files[ifile])
-            this_det = sobjs.det == self.det
+            sobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
+            #load.load_specobjs(spec1d_files[ifile])
+            head1d_list.append(sobjs.header)
+            this_det = sobjs.DET == self.DET
             specobjs_list.append(sobjs[this_det])
 
         # slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)

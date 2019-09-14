@@ -245,6 +245,10 @@ class SpecObjs(object):
             sobj_copy.add_sobj(sobj.copy())
         return sobj_copy
 
+    def grab_spec_arrays(self, obj_id, ECH_ORDER=None, **kwargs):
+        # In development
+        pass
+
     def set_idx(self):
         """
         Set the idx in all the SpecObj
