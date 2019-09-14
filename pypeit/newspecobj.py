@@ -245,28 +245,6 @@ class SpecObj(object):
         else:
             raise KeyError
 
-    '''
-    @staticmethod
-    def sobjs_key():
-        """
-        This function returns the dictionary that defines the mapping between specobjs attributes and the fits header
-        cards
-
-        Returns:
-            dict:
-
-        """
-        sobjs_key_dict = dict(det='DET',
-                              objid='OBJID',
-                              slitid='SLITID',
-                              ech_objid='ECHOBJID',
-                              ech_orderindx='ECHOINDX',
-                              ech_order='ECHORDER',
-                              pypeline='PYPELINE')
-
-        return sobjs_key_dict
-    '''
-
     def set_name(self):
         """
         Generate a unique index for this spectrum based on the

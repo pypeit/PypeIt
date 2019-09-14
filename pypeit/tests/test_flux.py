@@ -16,7 +16,7 @@ from astropy import units
 
 from pypeit.core import flux_calib
 from pypeit.core import load
-from pypeit import telescopes
+from pypeit import newspecobjs
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit.tests.tstutils import dummy_fitstbl
@@ -46,7 +46,7 @@ def test_gen_sensfunc():
 
     # Load a random spectrum for the sensitivity function
     sfile = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
-    specobjs = load.load_specobjs(sfile)
+    specobjs = newspecobjs.SpecObjs.from_fitsfile(sfile)
 #    telescope = telescopes.ShaneTelescopePar()
     fitstbl = dummy_fitstbl()
     RA = '05:06:36.6'

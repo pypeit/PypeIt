@@ -45,6 +45,9 @@ class SpecObjs(object):
     @classmethod
     def from_fitsfile(cls, fits_file):
         """
+        Instantiate from a FITS file
+
+        Also tag on the Header
 
         Args:
             fits_file (str):
@@ -58,6 +61,8 @@ class SpecObjs(object):
         nhdu = len(hdul)
         # Init
         slf = cls()
+        # Add on the header
+        slf.header = hdul[0].header
         # Loop on em
         for kk in range(1,nhdu):
             tbl = fits.connect.read_table_fits(hdul, hdu=kk)
@@ -75,6 +80,9 @@ class SpecObjs(object):
             if isinstance(specobjs, (list, np.ndarray)):
                 specobjs = np.array(specobjs)
             self.specobjs = specobjs
+
+        # Other attributes
+        self.header = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array

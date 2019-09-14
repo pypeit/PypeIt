@@ -20,60 +20,6 @@ from pypeit import newspecobjs
 from pypeit import debugger
 from pypeit.core import parse
 
-def load_extraction(name, frametype='<None>', wave=True):
-    msgs.info('Loading a pre-existing {0} extraction frame:'.format(frametype)
-                + msgs.newline() + name)
-    props_savas = dict({"ORDWN":"ordwnum"})
-    props = dict({})
-    props_allow = props_savas.keys()
-    infile = fits.open(name)
-    sciext = np.array(infile[0].data, dtype=np.float)
-    sciwav = -999999.9*np.ones((sciext.shape[0],sciext.shape[1]))
-    hdr = infile[0].header
-    norders = hdr["NUMORDS"]
-    pxsz    = hdr["PIXSIZE"]
-    props = dict({})
-    for o in range(norders):
-        hdrname = "CDELT{0:03d}".format(o+1)
-        cdelt = hdr[hdrname]
-        hdrname = "CRVAL{0:03d}".format(o+1)
-        crval = hdr[hdrname]
-        hdrname = "CLINV{0:03d}".format(o+1)
-        clinv = hdr[hdrname]
-        hdrname = "CRPIX{0:03d}".format(o+1)
-        crpix = hdr[hdrname]
-        hdrname = "CNPIX{0:03d}".format(o+1)
-        cnpix = hdr[hdrname]
-        sciwav[:cnpix,o] = 10.0**(crval + cdelt*(np.arange(cnpix)-crpix))
-        #sciwav[:cnpix,o] = clinv * 10.0**(cdelt*(np.arange(cnpix)-crpix))
-        #sciwav[:cnpix,o] = clinv * (1.0 + pxsz/299792.458)**np.arange(cnpix)
-    for k in props_allow:
-        prsav = np.zeros(norders)
-        try:
-            for o in range(norders):
-                hdrname = "{0:s}{1:03d}".format(k,o+1)
-                prsav[o] = hdr[hdrname]
-            props[props_savas[k]] = prsav.copy()
-        except:
-            pass
-    del infile, hdr, prsav
-    if wave is True:
-        return sciext, sciwav, props
-    else:
-        return sciext, props
-
-
-def load_ordloc(fname):
-    # Load the files
-    mstrace_bname, mstrace_bext = os.path.splitext(fname)
-    lname = mstrace_bname+"_ltrace"+mstrace_bext
-    rname = mstrace_bname+"_rtrace"+mstrace_bext
-    # Load the order locations
-    ltrace = np.array(fits.getdata(lname, 0),dtype=np.float)
-    msgs.info("Loaded left order locations for frame:"+msgs.newline()+fname)
-    rtrace = np.array(fits.getdata(rname, 0),dtype=np.float)
-    msgs.info("Loaded right order locations for frame:"+msgs.newline()+fname)
-    return ltrace, rtrace
 
 
 def load_specobjs(fname,order=None, verbose=False):

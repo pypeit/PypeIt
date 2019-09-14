@@ -507,6 +507,7 @@ def apply_sensfunc_specobjs(specobjs, sens_meta, sens_table, airmass, exptime, e
         plt.ylabel('Flux')
         plt.show()
 
+'''
 def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, debug=False, show=False):
 
     sens_meta = Table.read(sensfile, 1)
@@ -526,6 +527,7 @@ def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, d
                                 tell_correct=tell_correct, longitude=longitude, latitude=latitude,
                                 debug=debug, show=show)
         save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
+'''
 
 ### Routines for standard sensfunc started from here
 def find_standard(specobj_list):
