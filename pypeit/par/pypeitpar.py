@@ -57,7 +57,6 @@ assuming you want it to be accessed throughout the code.
 ----
 """
 import os
-import glob
 import warnings
 from pkg_resources import resource_filename
 import inspect
@@ -67,11 +66,12 @@ from collections import OrderedDict
 import numpy
 
 from configobj import ConfigObj
-from astropy.time import Time
 
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
+
+from IPython import embed
 
 # Needs this to determine the valid spectrographs TODO: This causes a
 # circular import.  Spectrograph specific parameter sets and where they
@@ -2095,25 +2095,13 @@ class ScienceImagePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, boxcar_radius=None, trace_npoly=None,
-                 global_sky_std=None, sig_thresh=None, maxnumber=None, sn_gauss=None,
-                 find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
-                 find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, ech_find_max_snr=None,
-                 ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 std_prof_nsigma=None,
-                 model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
+    def __init__(self, findobj=None, skysub=None,
+                 extraction=None):
 
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
-
-        # Check the manual input
-        if manual is not None:
-            if not isinstance(manual, (ParSet, dict, list)):
-                raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
-            _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
-            pars['manual'] = _manual
 
         # Initialize the other used specifications for this parameter
         # set
@@ -2124,45 +2112,82 @@ class ScienceImagePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+        defaults['findobj'] = FindObjPar()
+        dtypes['findobj'] = [ ParSet, dict ]
+        descr['findobj'] = 'Parameters for the find object and tracing algorithms'
 
-        defaults['bspline_spacing'] = 0.6
-        dtypes['bspline_spacing'] = [int, float]
-        descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
+        defaults['skysub'] = SkySubPar()
+        dtypes['skysub'] = [ ParSet, dict ]
+        descr['skysub'] = 'Parameters for sky subtraction algorithms'
 
-        defaults['sky_sigrej'] = 3.0
-        dtypes['sky_sigrej'] = float
-        descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
+        defaults['extraction'] = ExtractionPar()
+        dtypes['extraction'] = [ ParSet, dict ]
+        descr['extraction'] = 'Parameters for extraction algorithms'
 
-        # TODO: Consider adding a parameter for trim_edg for skysub+object model
+        # Instantiate the parameter set
+        super(ScienceImagePar, self).__init__(list(pars.keys()),
+                                              values=list(pars.values()),
+                                              defaults=list(defaults.values()),
+                                              options=list(options.values()),
+                                              dtypes=list(dtypes.values()),
+                                              descr=list(descr.values()))
+        self.validate()
 
-        # Boxcar Parameters
-        defaults['boxcar_radius'] = 1.5
-        dtypes['boxcar_radius'] = [int, float]
-        descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['findobj', 'skysub', 'extraction']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
 
+    def validate(self):
+        pass
+
+
+class FindObjPar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant
+    to finding and tracing objects.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, trace_npoly=None, sig_thresh=None,
+                 find_trim_edge=None, find_cont_fit=None,
+                 find_npoly_cont=None, find_maxdev=None,
+                 find_extrap_npoly=None, maxnumber=None,
+                 find_fwhm=None, ech_find_max_snr=None,
+                 ech_find_min_snr=None, ech_find_nabove_min_snr=None,
+                 ):
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
         defaults['trace_npoly'] = 5
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of legendre polynomial fits to object traces.'
-
-        defaults['std_prof_nsigma'] = 30.
-        dtypes['std_prof_nsigma'] = float
-        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
-
-        defaults['global_sky_std'] = True
-        dtypes['global_sky_std'] = bool
-        descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
-                                  'off for example for near-IR reductions with narrow slits, since bright standards can' \
-                                  'fill the slit causing global sky-subtraction to fail. In these situations we go ' \
-                                  'straight to local sky-subtraction since it is designed to deal with such situations'
-
-        defaults['sig_thresh'] = 10.0
-        dtypes['sig_thresh'] = [int, float]
-        descr['sig_thresh'] = 'Significance threshold for object finding.'
 
         defaults['maxnumber'] = 10
         dtypes['maxnumber'] = int
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
                              'None for no limit.'
+
+        defaults['sig_thresh'] = 10.0
+        dtypes['sig_thresh'] = [int, float]
+        descr['sig_thresh'] = 'Significance threshold for object finding.'
 
         defaults['find_trim_edge'] = [5,5]
         dtypes['find_trim_edge'] = list
@@ -2176,7 +2201,11 @@ class ScienceImagePar(ParSet):
         defaults['find_npoly_cont'] = 1
         dtypes['find_npoly_cont'] = int
         descr['find_npoly_cont'] = 'Polynomial order for fitting continuum to the illumination pattern across the trace rectified image' \
-                                 ' (masking objects) when searching for peaks to initially identify objects'
+                                   ' (masking objects) when searching for peaks to initially identify objects'
+
+        defaults['find_extrap_npoly'] = 3
+        dtypes['find_extrap_npoly'] = int
+        descr['find_extrap_npoly'] = 'Polynomial order used for trace extrapolation'
 
         defaults['find_maxdev'] = 2.0
         dtypes['find_maxdev'] = [int, float]
@@ -2199,15 +2228,153 @@ class ScienceImagePar(ParSet):
         defaults['ech_find_nabove_min_snr'] = 2
         dtypes['ech_find_nabove_min_snr'] = int
         descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
-                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+                                           ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
 
-        #defaults['find_extrap_method'] = 'poly'
-        #dtypes['find_extrap_method'] = str
-        #descr['find_extrap_method'] = 'Method used for extrapolating traces for echelle data when traces do not cover the entire detector'
+        # Instantiate the parameter set
+        super(FindObjPar, self).__init__(list(pars.keys()),
+                                        values=list(pars.values()),
+                                        defaults=list(defaults.values()),
+                                        options=list(options.values()),
+                                        dtypes=list(dtypes.values()),
+                                        descr=list(descr.values()))
+        self.validate()
 
-        defaults['find_extrap_npoly'] = 3
-        dtypes['find_extrap_npoly'] = int
-        descr['find_extrap_npoly'] = 'Polynomial order used for trace extrapolation'
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+
+        # Basic keywords
+        parkeys = ['trace_npoly', 'sig_thresh', 'find_trim_edge',
+                   'find_cont_fit', 'find_npoly_cont',
+                   'find_extrap_npoly', 'maxnumber',
+                   'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr',
+                   ]
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
+
+
+class SkySubPar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant
+    to sky subtraction.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self,
+                 bspline_spacing=None, sky_sigrej=None,
+                 global_sky_std=None, no_poly=None,
+                 ):
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        defaults['bspline_spacing'] = 0.6
+        dtypes['bspline_spacing'] = [int, float]
+        descr['bspline_spacing'] = 'Break-point spacing for the bspline sky subtraction fits.'
+
+        defaults['sky_sigrej'] = 3.0
+        dtypes['sky_sigrej'] = float
+        descr['sky_sigrej'] = 'Rejection parameter for local sky subtraction'
+
+        defaults['global_sky_std'] = True
+        dtypes['global_sky_std'] = bool
+        descr['global_sky_std'] = 'Global sky subtraction will be performed on standard stars. This should be turned' \
+                                  'off for example for near-IR reductions with narrow slits, since bright standards can' \
+                                  'fill the slit causing global sky-subtraction to fail. In these situations we go ' \
+                                  'straight to local sky-subtraction since it is designed to deal with such situations'
+
+        defaults['no_poly'] = False
+        dtypes['no_poly'] = bool
+        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+
+
+        # Instantiate the parameter set
+        super(SkySubPar, self).__init__(list(pars.keys()),
+                                        values=list(pars.values()),
+                                        defaults=list(defaults.values()),
+                                        options=list(options.values()),
+                                        dtypes=list(dtypes.values()),
+                                        descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+
+        # Basic keywords
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std',
+                   'no_poly',
+                   ]
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
+
+
+class ExtractionPar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant
+    to extraction.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self,
+                 boxcar_radius=None, std_prof_nsigma=None,
+                 sn_gauss=None, model_full_slit=None, manual=None,
+                 ):
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Check the manual input
+        if manual is not None:
+            if not isinstance(manual, (ParSet, dict, list)):
+                raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
+            _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
+            pars['manual'] = _manual
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        # Boxcar Parameters
+        defaults['boxcar_radius'] = 1.5
+        dtypes['boxcar_radius'] = [int, float]
+        descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
+
+        defaults['std_prof_nsigma'] = 30.
+        dtypes['std_prof_nsigma'] = float
+        descr['std_prof_nsigma'] = 'prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.'
 
         defaults['sn_gauss'] = 4.0
         dtypes['sn_gauss'] = [int, float]
@@ -2218,33 +2385,30 @@ class ScienceImagePar(ParSet):
         defaults['model_full_slit'] = False
         dtypes['model_full_slit'] = bool
         descr['model_full_slit'] = 'If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will ' \
-                            'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
-                            'observations using narrow slits or echelle observations with narrow slits'
-
-        defaults['no_poly'] = False
-        dtypes['no_poly'] = bool
-        descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+                                   'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
+                                   'observations using narrow slits or echelle observations with narrow slits'
 
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
         # Instantiate the parameter set
-        super(ScienceImagePar, self).__init__(list(pars.keys()),
-                                              values=list(pars.values()),
-                                              defaults=list(defaults.values()),
-                                              options=list(options.values()),
-                                              dtypes=list(dtypes.values()),
-                                              descr=list(descr.values()))
+        super(ExtractionPar, self).__init__(list(pars.keys()),
+                                        values=list(pars.values()),
+                                        defaults=list(defaults.values()),
+                                        options=list(options.values()),
+                                        dtypes=list(dtypes.values()),
+                                        descr=list(descr.values()))
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
-                   'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
-                   'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev', 'find_extrap_npoly',
-                   'ech_find_max_snr', 'ech_find_min_snr', 'ech_find_nabove_min_snr', 'std_prof_nsigma', 'sky_sigrej']
+
+        # Basic keywords
+        parkeys = ['boxcar_radius', 'std_prof_nsigma',
+                   'sn_gauss', 'model_full_slit',
+                   'manual'
+                   ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
