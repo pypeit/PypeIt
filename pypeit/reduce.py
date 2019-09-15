@@ -92,7 +92,9 @@ class Reduce(object):
         # TODO -- I find it very confusing to break apart the main parset
         self.proc_par = self.par['scienceframe']['process']
         # TODO Rename the scienceimage arset to reduce.
-        self.redux_par = self.par['scienceimage']
+        self.findobj_par = self.par['scienceimage']['findobj']
+        self.skysub_par = self.par['scienceimage']['skysub']
+        self.extraction_par = self.par['scienceimage']['extraction']
         self.wave_par = self.par['calibrations']['wavelengths']
         self.flex_par = self.par['flexure']
 
@@ -293,7 +295,7 @@ class Reduce(object):
         if std:
             sigrej = 7.0
             update_crmask = False
-            if not self.redux_par['global_sky_std']:
+            if not self.skysub_par['global_sky_std']:
                 msgs.info('Skipping global sky-subtraction for standard star.')
                 return self.global_sky
         else:
@@ -318,8 +320,8 @@ class Reduce(object):
                                                              self.tslits_dict['slit_righ'][:,slit],
                                                              inmask=inmask,
                                                              sigrej=sigrej,
-                                                             bsp=self.redux_par['bspline_spacing'],
-                                                             no_poly=self.redux_par['no_poly'],
+                                                             bsp=self.skysub_par['bspline_spacing'],
+                                                             no_poly=self.skysub_par['no_poly'],
                                                              pos_mask = (not self.ir_redux),
                                                              show_fit=show_fit)
             # Mask if something went wrong
@@ -621,17 +623,21 @@ class MultiSlit(Reduce):
             #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],
-                                self.tslits_dict['slit_righ'][:,slit], inmask=inmask, ir_redux=ir_redux,
-                                ncoeff=self.redux_par['trace_npoly'], std_trace=std_trace,
-                                sig_thresh=self.redux_par['sig_thresh'], hand_extract_dict=manual_extract_dict,
+                                self.tslits_dict['slit_righ'][:,slit], inmask=inmask,
+                                ir_redux=ir_redux,
+                                ncoeff=self.findobj_par['trace_npoly'],
+                                std_trace=std_trace,
+                                sig_thresh=self.findobj_par['sig_thresh'],
+                                hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
                                 show_fits=show_fits, show_trace=show_trace,
-                                trim_edg=self.redux_par['find_trim_edge'],
-                                cont_fit=self.redux_par['find_cont_fit'],
-                                npoly_cont=self.redux_par['find_npoly_cont'],
-                                fwhm=self.redux_par['find_fwhm'],
-                                maxdev=self.redux_par['find_maxdev'],
-                                qa_title=qa_title, nperslit=self.redux_par['maxnumber'], debug_all=debug)
+                                trim_edg=self.findobj_par['find_trim_edge'],
+                                cont_fit=self.findobj_par['find_cont_fit'],
+                                npoly_cont=self.findobj_par['find_npoly_cont'],
+                                fwhm=self.findobj_par['find_fwhm'],
+                                maxdev=self.findobj_par['find_maxdev'],
+                                qa_title=qa_title, nperslit=self.findobj_par['maxnumber'],
+                                debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
@@ -704,11 +710,12 @@ class MultiSlit(Reduce):
                     self.extractmask[thismask] = skysub.local_skysub_extract(
                     self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.sciImg.rn2img,
                     thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
-                    self.sobjs[thisobj], spat_pix=spat_pix, model_full_slit=self.redux_par['model_full_slit'],
-                    box_rad=self.redux_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
-                    sigrej=self.redux_par['sky_sigrej'],
-                    model_noise=model_noise, std=std, bsp=self.redux_par['bspline_spacing'],
-                    sn_gauss=self.redux_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
+                    self.sobjs[thisobj], spat_pix=spat_pix,
+                    model_full_slit=self.extraction_par['model_full_slit'],
+                    box_rad=self.extraction_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
+                    sigrej=self.skysub_par['sky_sigrej'],
+                    model_noise=model_noise, std=std, bsp=self.skysub_par['bspline_spacing'],
+                    sn_gauss=self.extraction_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
@@ -753,21 +760,30 @@ class Echelle(Reduce):
         # TODO This is a bad idea -- we want to find everything for standards
         #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
-            image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
-            spec_min_max=np.vstack((self.tslits_dict['spec_min'],self.tslits_dict['spec_max'])),
-            inmask=inmask, ir_redux=ir_redux, ncoeff=self.redux_par['trace_npoly'], order_vec=order_vec,
-            hand_extract_dict=manual_extract_dict, plate_scale=plate_scale, std_trace=std_trace,
-            specobj_dict=specobj_dict,sig_thresh=self.redux_par['sig_thresh'], show_peaks=show_peaks, show_fits=show_fits,
-            trim_edg=self.redux_par['find_trim_edge'], cont_fit=self.redux_par['find_cont_fit'],
-            npoly_cont=self.redux_par['find_npoly_cont'], fwhm=self.redux_par['find_fwhm'],
-            maxdev=self.redux_par['find_maxdev'], max_snr=self.redux_par['ech_find_max_snr'],
-            min_snr=self.redux_par['ech_find_min_snr'], nabove_min_snr=self.redux_par['ech_find_nabove_min_snr'],
+            image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'],
+            self.tslits_dict['slit_righ'],
+            spec_min_max=np.vstack((self.tslits_dict['spec_min'],
+                                    self.tslits_dict['spec_max'])),
+            inmask=inmask, ir_redux=ir_redux, ncoeff=self.findobj_par['trace_npoly'],
+            order_vec=order_vec,
+            hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
+            std_trace=std_trace,
+            specobj_dict=specobj_dict,sig_thresh=self.findobj_par['sig_thresh'],
+            show_peaks=show_peaks, show_fits=show_fits,
+            trim_edg=self.findobj_par['find_trim_edge'],
+            cont_fit=self.findobj_par['find_cont_fit'],
+            npoly_cont=self.findobj_par['find_npoly_cont'],
+            fwhm=self.findobj_par['find_fwhm'],
+            maxdev=self.findobj_par['find_maxdev'],
+            max_snr=self.findobj_par['ech_find_max_snr'],
+            min_snr=self.findobj_par['ech_find_min_snr'],
+            nabove_min_snr=self.findobj_par['ech_find_nabove_min_snr'],
             show_trace=show_trace, debug=debug)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            self.show('image', image=image*(self.sciImg.mask == 0), chname = 'ech_objfind',sobjs=sobjs_ech, slits=False)
+            self.show('image', image=image*(self.sciImg.mask == 0), chname='ech_objfind',sobjs=sobjs_ech, slits=False)
 
         return sobjs_ech, len(sobjs_ech), skymask
 
@@ -807,10 +823,11 @@ class Echelle(Reduce):
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciImg.image, self.sciImg.ivar, self.sciImg.mask, self.tilts, self.waveimg, self.global_sky,
             self.sciImg.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
-            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.redux_par['bspline_spacing'],
-            box_rad_order=self.redux_par['boxcar_radius']/plate_scale,
-            sigrej=self.redux_par['sky_sigrej'],
-            sn_gauss=self.redux_par['sn_gauss'], model_full_slit=self.redux_par['model_full_slit'],
+            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.skysub_par['bspline_spacing'],
+            box_rad_order=self.extraction_par['boxcar_radius']/plate_scale,
+            sigrej=self.skysub_par['sky_sigrej'],
+            sn_gauss=self.extraction_par['sn_gauss'],
+            model_full_slit=self.extraction_par['model_full_slit'],
             model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
 
