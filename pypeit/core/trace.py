@@ -937,11 +937,10 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     # Values to fit
     trace_fit = np.copy(_trace_cen)
 
-    # NOTE: keck_run_july changes: Down-weight masked parts of the
-    # trace.
     # Uniform weighting during the fit
     trace_fit_ivar = np.ones_like(trace_fit)
-    # Down-weight the masked trace locations
+    # NOTE: keck_run_july changes: Added down-weighting of masked parts
+    # of the trace.
     # TODO: This feels arbitrary
     trace_fit_ivar[_trace_bpm] = 0.1
 

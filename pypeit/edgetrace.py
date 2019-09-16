@@ -2836,7 +2836,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # performs better than use_mad, since larger coefficients
             # will always be considered inliers, if the coefficients
             # vary rapidly with order as they sometimes do.
-            ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
+            #ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
+            ivar = None
+
+            # TODO: Instead, weight by the mean/median value of
+            # sobel_sig along each trace.
 
             # Run the fit
             self.pca[i].build_interpolator(_order, ivar=ivar, function=function, lower=lower,
