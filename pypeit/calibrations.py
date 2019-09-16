@@ -679,9 +679,6 @@ class Calibrations(object):
                            'but it needs fixing.')
                 return None
 
-            from IPython import embed
-            embed()
-
             # Show the result if requested
             if self.show:
                 self.edges.show(thin=10, in_ginga=True)
