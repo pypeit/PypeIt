@@ -647,6 +647,8 @@ class Calibrations(object):
 #                                                master_key=self.master_key_dict['trace'],
 #                                                master_dir=self.master_dir, qa_path=self.qa_path,
 #                                                reuse_masters=self.reuse_masters, msbpm=self.msbpm)
+#        self.par['slitedges'].to_config('in_calibrations.ini', section_name='slitedges',
+#                                        include_descr=False)
         self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
                                             master_key=self.master_key_dict['trace'],
                                             master_dir=self.master_dir)
@@ -670,12 +672,15 @@ class Calibrations(object):
 
             try:
                 self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                      save=self.save_masters)
+                                      save=self.save_masters, debug=True, show_stages=True)
             except:
                 self.edges.save()
                 msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
                            'but it needs fixing.')
                 return None
+
+            from IPython import embed
+            embed()
 
             # Show the result if requested
             if self.show:

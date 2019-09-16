@@ -55,7 +55,7 @@ def main(args):
     import os
     import numpy as np
     from pypeit.spectrographs.util import load_spectrograph
-    from pypeit import traceslits, traceimage, edgetrace
+    from pypeit import traceslits, traceimage, edgetrace, biasframe
     from pypeit.pypeit import PypeIt
     from pypeit.core import parse
 
@@ -87,6 +87,12 @@ def main(args):
         proc_par = rdx.caliBrate.par['traceframe']
         # Slit tracing parameters
         trace_par = rdx.caliBrate.par['slitedges'] if args.use_new else rdx.caliBrate.par['slits']
+
+        # Get the bias files, if requested
+        bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
+        bias_files = rdx.fitstbl.frame_paths(bias_rows)
+        bias_par = rdx.caliBrate.par['biasframe']
+#        bias_files = None
     else:
         spec = load_spectrograph(args.spectrograph)
         master_key_base = 'A_1'
@@ -100,6 +106,8 @@ def main(args):
         proc_par = par['calibrations']['traceframe']
         trace_par = par['calibrations']['slitedges'] if args.use_new \
                         else par['calibrations']['slits']
+        bias_files = None
+        bias_par = None
     
     detectors = np.arange(spec.ndet)+1 if args.detector is None else [args.detector]
     master_dir = os.path.join(redux_path, args.master_dir)
@@ -107,15 +115,26 @@ def main(args):
         # Master keyword for output file name
         master_key = '{0}_{1}'.format(master_key_base, str(det).zfill(2))
 
+        # Get the bias frame if requested
+        if bias_files is None:
+            proc_par['process']['bias'] = 'skip'
+            msbias = None
+        else:
+            biasFrame = biasframe.BiasFrame(spec, files=bias_files, det=det, par=bias_par,
+                                            master_key=master_key, master_dir=master_dir)
+            msbias = biasFrame.build_image()
+
         # Build the trace image
-        traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par)
-        traceImage.build_image()
+
+        traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
+        traceImage.build_image(bias=msbias)
 
         # Platescale
         plate_scale = parse.parse_binning(binning)[1]*spec.detector[det-1]['platescale']
 
         # Trace the slit edges
         if args.use_new:
+#            trace_par.to_config('trace_edges.ini', section_name='slitedges', include_descr=False)
 #            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
 #                                           master_dir=master_dir, img=traceImage, det=det,
 #                                           auto=True, debug=args.debug, show_stages=args.show)
