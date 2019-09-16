@@ -218,7 +218,7 @@ class PypeItSetup(object):
 
         Args:
             pypeit_file (str):
-              Name of PypeIt file
+              Name of PypeIt file to be generated
             root (str):
             spectrograph (str):
               Name of spectrograph
@@ -445,6 +445,7 @@ class PypeItSetup(object):
 
         else:
             # Write the calib file
+            # This is currently needed for QA
             calib_file = self.spectrograph.spectrograph + '.calib' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')

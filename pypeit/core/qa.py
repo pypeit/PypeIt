@@ -325,15 +325,14 @@ def html_exp_pngs(exp_name, det):
     # Return
     return links, body
 
-def gen_mf_html(pypeit_file):
+def gen_mf_html(pypeit_file, qa_path):
     """ Generate the HTML for a MasterFrame set
-    Parameters
-    ----------
-    pypeit_file : str
 
-    Returns
-    -------
-
+    Args:
+        pypeit_file (str):
+            Name of the PypeIt file, no path
+        qa_path (str):
+            Path to the QA folder
     """
     # Read calib file
     calib_file = pypeit_file.replace('.pypeit', '.calib')
@@ -350,7 +349,7 @@ def gen_mf_html(pypeit_file):
         else:
             cbsets.append(key)
     # Generate MF file
-    MF_filename = 'QA/MF_{:s}.html'.format(setup)
+    MF_filename = os.path.join('{:s}'.format(qa_path), 'MF_{:s}.html'.format(setup))
     body = ''
     with open(MF_filename,'w') as f:
         # Start

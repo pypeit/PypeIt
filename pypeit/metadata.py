@@ -1568,6 +1568,7 @@ class PypeItMetaData:
         Args:
             ofile (:obj:`str`):
                 Name (typically the root) for the output .pypeit file.
+                Note: This does *not* specify the filename used.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file(s).
             ignore (:obj:`list`, optional):
@@ -1585,12 +1586,14 @@ class PypeItMetaData:
                     - `empty`: The columns are added but their values
                       are all originally set to -1.  **This is
                       currently the only option.**
-            configs (str, optional):
-                Configs to (TODO: to what?)
+            configs (list, optional):
+                Configs to write to the PypeIt file
 
         Raises:
             PypeItError:
                 Raised if the 'setup' isn't defined and split is True.
+        Returns:
+            list:  List of PypeIt files generated
         """
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
@@ -1601,6 +1604,7 @@ class PypeItMetaData:
         # TODO: The output directory and file name are too obscure here
         # given the input arguments.
 
+        ofiles = []
         for setup,i in zip(setups, indx):
             # Create the output directory
             root = '{0}_{1}'.format(self.spectrograph.spectrograph, setup)
@@ -1624,6 +1628,10 @@ class PypeItMetaData:
             # Write the file
             make_pypeit_file(_ofile, self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
                              setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
+            #
+            ofiles.append(_ofile)
+        # Return
+        return ofiles
 
     def write(self, ofile, columns=None, format=None, overwrite=False):
         """

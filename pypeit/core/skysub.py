@@ -475,99 +475,97 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                          std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False,sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
                          show_resids=False):
-
     """Perform local sky subtraction and  extraction
 
      Args:
+         sciimg (np.ndarray): (nspec, nspat)
+             sky-subtracted image
+         sciivar (np.ndarray): (nspec, nspat)
+             inverse variance of sky-subtracted image
+         tilts: ndarray, (nspec, nspat)
+             spectral tilts
+         waveimg numpy float 2-d array (nspec, nspat)
+             2-d wavelength map
+         global_sky : ndarray (nspec, nspat)
+             Global sky model produced by global_skysub
+         rn2_img:
+             Image with the read noise squared per pixel
+         thismask : numpy boolean array, shape (nspec, nspat)
+             Specifies pixels in the slit in question
+         slit_left: ndarray of shape (nspec, 1) or (nspec)
+             Left slit boundary in floating point pixels.
+         slit_righ: ndarray of shape (nspec, 1) or (nspec)
+              Right slit boundary in floating point pixels.
+         sobjs:   SpecoObjs object
+              Object containing the information about the objects found on the slit/order from objfind or ech_objfind
+         spat_pix: float ndarray, shape (nspec, nspat), default = None
+              Image containing the spatial location of pixels. If not input, it will be computed from
+              spat_img = np.outer(np.ones(nspec), np.arange(nspat)). This option should generally not be used unless one
+              is extracting 2d coadds for which a rectified image contains sub-pixel spatial information.
+         adderr: float, default = 0.01
+             Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
+             S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
+         bsp: float, default = 0.6
+             Break point spacing in pixels for the b-spline sky subtraction.
+         inmask: ndarray, bool, (nspec, nspat)
+             Input mask with True=Good, False=Bad
+         extract_maskwidth: float, default = 4.0
+             Determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
+             maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
+         trim_edg: tuple of ints of floats, default = (3,3)
+             Number of pixels to be ignored on the (left,right) edges of the slit in object/sky model fits.
+         std: bool, default = False
+             This should be set to True if the object being extracted is a standards star so that the reduction parameters
+             can be adjusted accordingly.
+         prof_nsigma: int or float, default = None
+             Number of sigmas that the object profile will be fit, i.e. the region extending from
+             -prof_nsigma to +prof_nsigma will be fit where sigma = FWHM/2.35. This option should only be used for bright
+             large extended source with tails in their light profile like elliptical galaxies. If prof_nsigma is set then
+             the profiles will no longer be apodized by an exponential at large distances from the trace.
+         niter: int, default = 4
+             Number of iterations for successive profile fitting and local sky-subtraction
+         box_rad: int or float, default = 7
+             Boxcar radius in *pixels* used for boxcar extraction.
+         sigrej:
+             Outlier rejection threshold for sky and object fitting
+         bkpts_optimal = bool, default = True
+             Parameter governing whether spectral direction breakpoints for b-spline sky/object modeling are determined
+             optimally. If:
 
-     sciimg : numpy float 2-d array (nspec, nspat)
-         sky-subtracted image
-     sciivar : numpy float 2-d array (nspec, nspat)
-         inverse variance of sky-subtracted image
-     tilts: ndarray, (nspec, nspat)
-         spectral tilts
-     waveimg numpy float 2-d array (nspec, nspat)
-         2-d wavelength map
-     global_sky : ndarray (nspec, nspat)
-         Global sky model produced by global_skysub
-     rn2_img:
-         Image with the read noise squared per pixel
-     thismask : numpy boolean array, shape (nspec, nspat)
-         Specifies pixels in the slit in question
-     slit_left: ndarray of shape (nspec, 1) or (nspec)
-         Left slit boundary in floating point pixels.
-     slit_righ: ndarray of shape (nspec, 1) or (nspec)
-          Right slit boundary in floating point pixels.
-     sobjs:   SpecoObjs object
-          Object containing the information about the objects found on the slit/order from objfind or ech_objfind
-     spat_pix: float ndarray, shape (nspec, nspat), default = None
-          Image containing the spatial location of pixels. If not input, it will be computed from
-          spat_img = np.outer(np.ones(nspec), np.arange(nspat)). This option should generally not be used unless one
-          is extracting 2d coadds for which a rectified image contains sub-pixel spatial information.
-     adderr: float, default = 0.01
-         Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
-         S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
-     bsp: float, default = 0.6
-         Break point spacing in pixels for the b-spline sky subtraction.
-     inmask: ndarray, bool, (nspec, nspat)
-         Input mask with True=Good, False=Bad
-     extract_maskwidth: float, default = 4.0
-         Determines the initial size of the region in units of fwhm that will be used for local sky subtraction. This
-         maskwidth is defined in the obfjind code, but is then updated here as the profile fitting improves the fwhm estimates
-     trim_edg: tuple of ints of floats, default = (3,3)
-         Number of pixels to be ignored on the (left,right) edges of the slit in object/sky model fits.
-     std: bool, default = False
-         This should be set to True if the object being extracted is a standards star so that the reduction parameters
-         can be adjusted accordingly.
-     prof_nsigma: int or float, default = None
-         Number of sigmas that the object profile will be fit, i.e. the region extending from
-         -prof_nsigma to +prof_nsigma will be fit where sigma = FWHM/2.35. This option should only be used for bright
-         large extended source with tails in their light profile like elliptical galaxies. If prof_nsigma is set then
-         the profiles will no longer be apodized by an exponential at large distances from the trace.
-     niter: int, default = 4
-         Number of iterations for successive profile fitting and local sky-subtraction
-     box_rad: int or float, default = 7
-         Boxcar radius in *pixels* used for boxcar extraction.
-     sigrej:
-         Outlier rejection threshold for sky and object fitting
-     bkpts_optimal = bool, default = True
-         Parameter governing whether spectral direction breakpoints for b-spline sky/object modeling are determined
-         optimally. If:
+             bkpts_optima=True
+                 The optimal break-point spacing will be determined directly using the optimal_bkpts function
+                 by measuring how well we are sampling the sky  using the piximg = (nspec-1)*yilyd. The bsp parameter
+                 in this case corresponds to the minimum distance between breakpoints which we allow.
+             bkpts_optimal = False:
+                  The break-points will be chosen to have a uniform spacing in pixel units sets by the bsp parameter, i.e.
+                  using the bkspace functionality of the pydl bspline class:
 
-         bkpts_optima=True
-             The optimal break-point spacing will be determined directly using the optimal_bkpts function
-             by measuring how well we are sampling the sky  using the piximg = (nspec-1)*yilyd. The bsp parameter
-             in this case corresponds to the minimum distance between breakpoints which we allow.
-         bkpts_optimal = False:
-              The break-points will be chosen to have a uniform spacing in pixel units sets by the bsp parameter, i.e.
-              using the bkspace functionality of the pydl bspline class:
-
-              bset = pydl.bspline(piximg_values, nord=4, bkspace=bsp)
-              fullbkpt = bset.breakpoints
-     debug_bkpts: bool, default=False
-          Make an interactive plot to the screen to indicate how the breakpoints are being chosen.
-     sn_gauss: int or float, default = 4.0
-          The signal to noise threshold above which optimal extraction with non-parametric b-spline fits to the objects
-          spatial profile will be performed. For objects with median S/N < sn_gauss, a Gaussian profile will simply
-          be assumed because there is not enough S/N to justify performing a more complicated fit.
-     model_full_slit: bool, default = False
-          Set the maskwidth of the objects to be equal to the slit width/2 such that the entire slit will be modeled
-          by the local skysubtraction. This mode is recommended for echelle spectra with reasonably narrow slits.
-     model_noise: bool, default = True
-          If True, the model of the object, sky will be combined with the rn2img to create (and iteratively update) a
-          model inverse variance image. If False, a variance model will not be created and instead the input sciivar
-          will always be taken to be the inverse variance. Note that in order for the noise model to make any sense
-          one needs to be subtracting the sky and *not* the sky residuals. In other words, for near-IR reductions
-          where difference imaging has been performed and this algorithm is used to fit out the sky residuals (but
-          not the sky itself) one should definitely set model_noise=False since otherwise the code will attempt to
-          create a noise model using sky residuals instead of the sky, which is incorrect (does not have the right count
-          levels). In principle this could be improved if the user could pass in a model of what the sky is for near-IR
-          difference imaging + residual subtraction
-    show_profile: bool, default=False
-          Show QA for the object profile fitting to the screen. Note that this will show interactive matplotlib plots
-          which will block the execution of the code until the window is closed.
-    show_resids:
-          Show the
+                  bset = pydl.bspline(piximg_values, nord=4, bkspace=bsp)
+                  fullbkpt = bset.breakpoints
+         debug_bkpts: bool, default=False
+              Make an interactive plot to the screen to indicate how the breakpoints are being chosen.
+         sn_gauss: int or float, default = 4.0
+              The signal to noise threshold above which optimal extraction with non-parametric b-spline fits to the objects
+              spatial profile will be performed. For objects with median S/N < sn_gauss, a Gaussian profile will simply
+              be assumed because there is not enough S/N to justify performing a more complicated fit.
+         model_full_slit: bool, default = False
+              Set the maskwidth of the objects to be equal to the slit width/2 such that the entire slit will be modeled
+              by the local skysubtraction. This mode is recommended for echelle spectra with reasonably narrow slits.
+         model_noise: bool, default = True
+              If True, the model of the object, sky will be combined with the rn2img to create (and iteratively update) a
+              model inverse variance image. If False, a variance model will not be created and instead the input sciivar
+              will always be taken to be the inverse variance. Note that in order for the noise model to make any sense
+              one needs to be subtracting the sky and *not* the sky residuals. In other words, for near-IR reductions
+              where difference imaging has been performed and this algorithm is used to fit out the sky residuals (but
+              not the sky itself) one should definitely set model_noise=False since otherwise the code will attempt to
+              create a noise model using sky residuals instead of the sky, which is incorrect (does not have the right count
+              levels). In principle this could be improved if the user could pass in a model of what the sky is for near-IR
+              difference imaging + residual subtraction
+        show_profile: bool, default=False
+              Show QA for the object profile fitting to the screen. Note that this will show interactive matplotlib plots
+              which will block the execution of the code until the window is closed.
+        show_resids:
+              Show the
     Returns:
         :func:`tuple`
         (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
@@ -877,7 +875,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         canvas.add('constructedcanvas', canvas_list)
 
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
-
 
 
 def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, tslits_dict, sobjs, order_vec,

@@ -16,14 +16,18 @@ from pypeit.core import wave
 from pypeit.core import save
 from pypeit import newspecobjs
 from pypeit.core import pixels
+from pypeit.core import extract
 from pypeit.spectrographs.util import load_spectrograph
 from linetools import utils as ltu
-from IPython import embed
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
+
+from linetools import utils as ltu
+
+from IPython import embed
 
 class PypeIt(object):
     """
@@ -119,7 +123,14 @@ class PypeIt(object):
         self.show = show
 
         # Check the output paths are ready
-        self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+        #  This was over-writing what we may have input!!
+        #self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+
+        # Set paths
+        if self.par['calibrations']['caldir'] == 'default':
+            self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')
+        else:
+            self.calibrations_path = self.par['calibrations']['caldir']
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
@@ -154,12 +165,7 @@ class PypeIt(object):
     def science_path(self):
         """Return the path to the science directory."""
         return os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['scidir'])
-        
-    @property
-    def calibrations_path(self):
-        """Return the path to the calibrations directory."""
-        return os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['caldir'])
-        
+
     @property
     def qa_path(self):
         """Return the path to the top-level QA directory."""
@@ -169,8 +175,7 @@ class PypeIt(object):
         """
         Generate QA wrappers
         """
-        # TODO: pass qa path
-        qa.gen_mf_html(self.pypeit_file)
+        qa.gen_mf_html(self.pypeit_file, self.qa_path)
         qa.gen_exp_html()
 
     # TODO: This should go in a more relevant place
@@ -538,7 +543,7 @@ class PypeIt(object):
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
 
-        # Science image
+        # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
         #self.sciImg = scienceimage.ScienceImage.from_file_list(
         self.sciImg = scienceimage.build_from_file_list(
@@ -546,7 +551,7 @@ class PypeIt(object):
             self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
             self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
 
-        # Background subtract?
+        # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
             self.sciImg = self.sciImg - scienceimage.build_from_file_list(
@@ -561,15 +566,18 @@ class PypeIt(object):
         # For QA on crash
         msgs.sciexp = self.sciImg
 
-        # Object finding, first pass on frame without sky subtraction
+        # Instantiate Reduce object
         self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
-
+        # Required for pypeline specific object
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
                                            self.caliBrate.tslits_dict, self.par,
                                            self.caliBrate.tilts_dict['tilts'],
                                            maskslits=self.maskslits,
-                                           ir_redux = self.ir_redux,
-                                           objtype=self.objtype, setup=self.setup,
+                                           ir_redux=self.ir_redux,
+                                           std_redux=self.std_redux,
+                                           objtype=self.objtype,
+                                           setup=self.setup,
+                                           show=self.show,
                                            det=det, binning=self.binning)
 
         if self.show:
@@ -578,34 +586,46 @@ class PypeIt(object):
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        # Do one iteration of object finding, and sky subtract to get initial sky model
-        self.sobjs_obj, self.nobj, skymask_init = \
-            self.redux.find_objects(self.sciImg.image, std=self.std_redux, ir_redux=self.ir_redux,
-                                    std_trace=std_trace, maskslits=self.maskslits,
-                                    show=self.show & (not self.std_redux),
-                                    manual_extract_dict=manual_extract_dict)
-
-        # Global sky subtraction, first pass. Uses skymask from object finding step above
-        self.initial_sky = \
-            self.redux.global_skysub(skymask=skymask_init,
-                                    std=self.std_redux, maskslits=self.maskslits, show=self.show)
-        if not self.std_redux:
-            # Object finding, second pass on frame *with* sky subtraction. Show here if requested
-            self.sobjs_obj, self.nobj, self.skymask = \
-                self.redux.find_objects(self.sciImg.image - self.initial_sky, std=self.std_redux,
-                                        ir_redux=self.ir_redux, std_trace=std_trace,maskslits=self.maskslits,
-                                        show=self.show, manual_extract_dict=manual_extract_dict)
+        # Find objects
+        self.sobjs_obj, self.nobj, self.skymask = self.redux.find_objects(
+            std_trace=std_trace, manual_extract_dict=manual_extract_dict)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
-            # Global sky subtraction second pass. Uses skymask from object finding
-            self.global_sky = self.initial_sky if self.std_redux else \
-                self.redux.global_skysub(skymask=self.skymask, maskslits=self.maskslits, show=self.show)
+            if self.par['scienceimage']['extraction']['boxcar_only']:
+                # Quick loop over the objects
+                slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
+                for iord in range(self.nobj):
+                    if self.spectrograph.pypeline == 'Echelle':
+                        thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)# pos indices of objects for this slit
+                        sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
+                        plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
+                    else:
+                        thisobj = iord
+                        sobj = self.sobjs_obj[thisobj]
+                        plate_scale = self.spectrograph.detector[self.det-1]['platescale']
+                    # True  = Good, False = Bad for inmask
+                    thismask = (slitmask == iord) # pixels for this slit
+                    inmask = (self.sciImg.mask == 0) & thismask
+                    # Do it
+                    extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                                                   self.caliBrate.mswave, self.redux.initial_sky, self.sciImg.rn2img,
+                                                   self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
+                # Fill me up -- Should sync with the nobj=0 case  -- Could just set this as the DEFAULTS before optimal
+                self.sobjs = self.sobjs_obj
+                self.skymodel = self.redux.initial_sky
+                self.objmodel = np.zeros_like(self.sciImg.image)
+                self.ivarmodel = np.copy(self.sciImg.ivar)
+                self.outmask = self.sciImg.mask
+            else:
+                # Global sky subtraction second pass. Uses skymask from object finding
+                self.global_sky = self.redux.initial_sky if self.std_redux else \
+                    self.redux.global_skysub(skymask=self.skymask, maskslits=self.maskslits, show=self.show)
 
-            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-            self.redux.local_skysub_extract(self.caliBrate.mswave, self.global_sky, self.sobjs_obj,
-                                            model_noise=(not self.ir_redux),std = self.std_redux,
-                                            maskslits=self.maskslits, show_profile=self.show,show=self.show)
+                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
+                    self.redux.local_skysub_extract(self.caliBrate.mswave, self.global_sky, self.sobjs_obj,
+                                                model_noise=(not self.ir_redux),std = self.std_redux,
+                                                maskslits=self.maskslits, show_profile=self.show,show=self.show)
 
             # Purge out the negative objects if this was a near-IR reduction.
             # TODO should we move this purge call to local_skysub_extract??
@@ -629,7 +649,7 @@ class PypeIt(object):
                 msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
             msgs.warn(msgs_string)
             # set to first pass global sky
-            self.skymodel = self.initial_sky
+            self.skymodel = self.redux.initial_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciImg.ivar)

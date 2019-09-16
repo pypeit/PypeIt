@@ -286,6 +286,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     11-Mar-2005  Written by J. Hennawi and S. Burles.
     28-May-2018  Ported to python by J. Hennawi
     """
+    # Setup
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
@@ -458,6 +459,53 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     specobj.BOX_RADIUS = box_radius
 
     return None
+
+
+def extract_specobj_boxcar(sciimg,ivar, mask, waveimg, skyimg, rn2_img, box_radius, specobj):
+    # Setup
+    imgminsky = sciimg - skyimg
+    nspat = imgminsky.shape[1]
+    nspec = imgminsky.shape[0]
+
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
+    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+
+
+    # Fill in the boxcar extraction tags
+    flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    # Denom is computed in case the trace goes off the edge of the image
+    box_denom = extract_boxcar(waveimg*mask > 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    wave_box  = extract_boxcar(waveimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)/(box_denom + (box_denom == 0.0))
+    varimg = 1.0/(ivar + (ivar == 0.0))
+    var_box  = extract_boxcar(varimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    nvar_box  = extract_boxcar(var_no*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    sky_box  = extract_boxcar(skyimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    rn2_box  = extract_boxcar(rn2_img*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    rn_posind = (rn2_box > 0.0)
+    rn_box = np.zeros(rn2_box.shape,dtype=float)
+    rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
+    pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    # If every pixel is masked then mask the boxcar extraction
+    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot)
+
+    bad_box = (wave_box <= 0.0) | (np.isfinite(wave_box) == False) | (box_denom == 0.0)
+    # interpolate bad wavelengths over masked pixels
+    if bad_box.any():
+        f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
+        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],grid=False)
+
+    ivar_box = 1.0/(var_box + (var_box == 0.0))
+    nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
+
+    specobj.boxcar['WAVE'] = wave_box
+    specobj.boxcar['COUNTS'] = flux_box*mask_box
+    specobj.boxcar['COUNTS_IVAR'] = ivar_box*mask_box
+    specobj.boxcar['COUNTS_SIG'] = np.sqrt(utils.calc_ivar(ivar_box*mask_box))
+    specobj.boxcar['COUNTS_NIVAR'] = nivar_box*mask_box
+    specobj.boxcar['MASK'] = mask_box
+    specobj.boxcar['COUNTS_SKY'] = sky_box
 
 
 
@@ -2184,8 +2232,9 @@ def pca_trace(xinit_in, spec_min_max=None, predict = None, npca = None, pca_expl
 
 
 
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
-                fof_link=1.5, order_vec=None, plate_scale=0.2, ir_redux=False,
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits,
+                inmask=None, spec_min_max=None,
+                fof_link=1.5, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
@@ -2289,16 +2338,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     frameshape = image.shape
     nspec = frameshape[0]
     nspat = frameshape[1]
-    norders = slit_left.shape[1]
+    norders = len(order_vec)
 
     if spec_min_max is None:
         spec_min_max = np.zeros(2,norders)
         for iord in range(norders):
             ispec, ispat = np.where(slitmask == iord)
             spec_min_max[:,iord] = ispec.min(), ispec.max()
-
-    if order_vec is None:
-        order_vec = np.arange(norders)
 
     if isinstance(plate_scale,(float, int)):
         plate_scale_ord = np.full(norders, plate_scale)
@@ -2325,7 +2371,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Loop over orders and find objects
     sobjs = newspecobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
-    for iord in range(norders):
+    gdorders = np.arange(norders)[np.invert(maskslits)]
+    for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
         inmask_iord = inmask & thismask

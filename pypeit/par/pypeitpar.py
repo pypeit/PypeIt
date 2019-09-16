@@ -970,6 +970,7 @@ class ReducePar(ParSet):
         descr['qadir'] = 'Directory relative to calling directory to write quality ' \
                          'assessment files.'
 
+        defaults['redux_path'] = os.getcwd()
         dtypes['redux_path'] = str
         descr['redux_path'] = 'Path to folder for performing reductions.  Default is the ' \
                               'current working directory.'
@@ -2161,6 +2162,7 @@ class FindObjPar(ParSet):
                  find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None,
                  ech_find_min_snr=None, ech_find_nabove_min_snr=None,
+                 skip_second_find=None,
                  ):
         # Grab the parameter names and values from the function
         # arguments
@@ -2230,6 +2232,10 @@ class FindObjPar(ParSet):
         descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
                                            ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
 
+        defaults['skip_second_find'] = False
+        dtypes['skip_second_find'] = bool
+        descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
+
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -2249,6 +2255,7 @@ class FindObjPar(ParSet):
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
                    'ech_find_min_snr', 'ech_find_nabove_min_snr',
+                   'skip_second_find',
                    ]
         kwargs = {}
         for pk in parkeys:
@@ -2344,6 +2351,7 @@ class ExtractionPar(ParSet):
     def __init__(self,
                  boxcar_radius=None, std_prof_nsigma=None,
                  sn_gauss=None, model_full_slit=None, manual=None,
+                 boxcar_only=None,
                  ):
         # Grab the parameter names and values from the function
         # arguments
@@ -2371,6 +2379,10 @@ class ExtractionPar(ParSet):
         defaults['boxcar_radius'] = 1.5
         dtypes['boxcar_radius'] = [int, float]
         descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
+
+        defaults['boxcar_only'] = False
+        dtypes['boxcar_only'] = bool
+        descr['boxcar_only'] = 'Perform boxcar extraction only (i.e. skip Optimal)'
 
         defaults['std_prof_nsigma'] = 30.
         dtypes['std_prof_nsigma'] = float
@@ -2407,7 +2419,7 @@ class ExtractionPar(ParSet):
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma',
                    'sn_gauss', 'model_full_slit',
-                   'manual'
+                   'manual', 'boxcar_only'
                    ]
         kwargs = {}
         for pk in parkeys:

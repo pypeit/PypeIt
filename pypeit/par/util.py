@@ -15,7 +15,8 @@ from astropy.table import Table
 from configobj import ConfigObj
 
 from pypeit import msgs
-from pypeit import debugger
+
+from IPython import embed
 
 #-----------------------------------------------------------------------
 # Parameter utility functions
@@ -556,7 +557,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
     """
     # Error checking
     if not isinstance(data_files, list):
-        raise IOError("files_root needs to be a list")
+        raise IOError("data_files needs to be a list")
 
     # Defaults
     if cfg_lines is None:

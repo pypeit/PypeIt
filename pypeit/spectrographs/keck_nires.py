@@ -95,6 +95,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
+        par['scienceimage']['boxcar_radius'] = 0.75  # arcsec
 
         # Overscan but not bias
         #  This seems like a kludge of sorts
