@@ -30,6 +30,7 @@
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx_automodapi.automodapi',
     'sphinx.ext.napoleon',
     'sphinx.ext.doctest',
     'sphinx.ext.graphviz',
@@ -44,6 +45,9 @@ extensions = [
 
 # Nicer math rendering than sphinx default?
 # mathjax_path='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML'
+
+#automodapi
+numpydoc_show_class_members = False
 
 # Napoleon settings 
 napoleon_numpy_docstring = True 

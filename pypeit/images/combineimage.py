@@ -1,4 +1,5 @@
-""" Object to hold + process a single image"""
+""" Class to generate an image from one or more files (and other pieces).
+"""
 
 import inspect
 
@@ -20,7 +21,7 @@ from pypeit.images import maskimage
 from IPython import embed
 
 
-class BuildImage(object):
+class CombineImage(object):
     """
     Class to generate an image from one or more files (and other pieces).
 
@@ -48,7 +49,7 @@ class BuildImage(object):
         self.par = par  # This musts be named this way as it is frequently a child
         self.files = files
 
-    def process_one(self, filename, process_steps, bias, pixel_flat, illum_flat=None, bpm=None):
+    def process_one(self, filename, process_steps, bias, pixel_flat=None, illum_flat=None, bpm=None):
         """
         Process a single image
 
@@ -59,7 +60,7 @@ class BuildImage(object):
                 List of processing steps
             bias (np.ndarray or None):
                 Bias image
-            pixel_flat (np.ndarray):
+            pixel_flat (np.ndarray, optional):
                 Flat image
             illum_flat (np.ndarray, optional):
                 Illumination image
@@ -118,7 +119,7 @@ class BuildImage(object):
         # Loop on the files
         for kk, ifile in enumerate(self.files):
             # Process a single image
-            pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat, illum_flat=illum_flat, bpm=bpm)
+            pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm)
             # Are we all done?
             if len(self.files) == 1:
                 return pypeitImage
@@ -185,9 +186,6 @@ class BuildImage(object):
             int
 
         """
-        if isinstance(self.files, list):
-            return len(self.files)
-        else:
-            return 0
+        return len(self.files) if isinstance(self.files, list) else 0
 
 

@@ -923,7 +923,6 @@ class TraceSlits(masterframe.MasterFrame):
 
         # fill dict for PypeIt
         self.tslits_dict = self._fill_tslits_dict()
-        embed(header='926 of trace')
 
         # Make the QA
         if write_qa:

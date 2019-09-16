@@ -56,6 +56,10 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # self.sky_file = ?
 
     @property
+    def norders(self):
+        return 22
+
+    @property
     def pypeline(self):
         return 'Echelle'
 

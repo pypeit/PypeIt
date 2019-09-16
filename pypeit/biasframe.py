@@ -143,8 +143,8 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if self.pypeitImage is None:
             msgs.warn('No MasterBias to save!')
             return
-        if not isinstance(self.pypeitImage.image, np.ndarray):
-            msgs.warn('MasterBias is not an image.')
+        if not self.pypeitImage.validate():
+            msgs.warn('MasterBias is not a proper image.')
             return
         # Proceed
         _outfile = self.master_file_path if outfile is None else outfile
@@ -155,7 +155,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return
         # Save
         hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        pypeitimage.save_images(self.pypeitImage, _outfile, hdr=hdr, iext='BIAS')
+        self.pypeitImage.write(_outfile, hdr=hdr, iext='BIAS')
         msgs.info('Master frame written to {0}'.format(_outfile))
         #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
         #                            raw_files=self.file_list, steps=self.process_steps)
@@ -190,7 +190,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             if master_file is None:
                 return
             else:  # Load
-                self.pypeitImage = pypeitimage.load_images(master_file)
+                self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file)
                 return self.pypeitImage
             #return super(BiasFrame, self).load('BIAS', ifile=ifile, is_pypeitImage=True)
 

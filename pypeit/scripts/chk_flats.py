@@ -49,6 +49,9 @@ def main(pargs):
     # Illumination flat
     if flatField.msillumflat is not None:
         viewer, ch = ginga.show_image(flatField.msillumflat, chname='Illumination Flat')
+    # Illumination flat
+    if flatField.flat_model is not None:
+        viewer, ch = ginga.show_image(flatField.flat_model, chname='Flat Model')
 
     print("Check your Ginga viewer")
 
