@@ -414,7 +414,7 @@ class PypeIt(object):
                 sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
                 sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
                 sci_dict[self.det]['specobjs'], \
-                        = self.extract_one(frames, self.det, bg_frames=bg_frames,
+                        = self.extract_one(frames, self.det, bg_frames,
                                            std_outfile=std_outfile)
             # JFH TODO write out the background frame?
 
@@ -513,20 +513,23 @@ class PypeIt(object):
 
         return std_trace
 
-    def extract_one(self, frames, det, bg_frames=[], std_outfile=None):
+    def extract_one(self, frames, det, bg_frames, std_outfile=None):
         """
         Extract a single exposure/detector pair
 
         sci_ID and det need to have been set internally prior to calling this method
 
         Args:
-            frames (list):  List of frames to extract;  stacked if more than one is provided
+            frames (list):
+                List of frames to extract;  stacked if more than one is provided
             det (int):
-            bg_frames (list, optional): List of frames to use as the background
+            bg_frames (list):
+                List of frames to use as the background
+                Can be empty
             std_outfile (str, optional):
 
         Returns:
-            eight objects are returned::
+            seven objects are returned::
                 - ndarray: Science image
                 - ndarray: Science inverse variance image
                 - ndarray: Model of the sky
@@ -570,8 +573,7 @@ class PypeIt(object):
         self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
         # Required for pypeline specific object
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
-                                           self.caliBrate.tslits_dict, self.par,
-                                           self.caliBrate.tilts_dict['tilts'],
+                                           self.par, self.caliBrate,
                                            maskslits=self.maskslits,
                                            ir_redux=self.ir_redux,
                                            std_redux=self.std_redux,
@@ -590,45 +592,21 @@ class PypeIt(object):
         self.sobjs_obj, self.nobj, self.skymask = self.redux.find_objects(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict)
 
-        # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
-        if self.nobj > 0:
-            if self.par['scienceimage']['extraction']['boxcar_only']:
-                # Quick loop over the objects
-                slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
-                for iord in range(self.nobj):
-                    if self.spectrograph.pypeline == 'Echelle':
-                        thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)# pos indices of objects for this slit
-                        sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
-                        plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
-                    else:
-                        thisobj = iord
-                        sobj = self.sobjs_obj[thisobj]
-                        plate_scale = self.spectrograph.detector[self.det-1]['platescale']
-                    # True  = Good, False = Bad for inmask
-                    thismask = (slitmask == iord) # pixels for this slit
-                    inmask = (self.sciImg.mask == 0) & thismask
-                    # Do it
-                    extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
-                                                   self.caliBrate.mswave, self.redux.initial_sky, self.sciImg.rn2img,
-                                                   self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
-                # Fill me up -- Should sync with the nobj=0 case  -- Could just set this as the DEFAULTS before optimal
-                self.sobjs = self.sobjs_obj
-                self.skymodel = self.redux.initial_sky
-                self.objmodel = np.zeros_like(self.sciImg.image)
-                self.ivarmodel = np.copy(self.sciImg.ivar)
-                self.outmask = self.sciImg.mask
-            else:
-                # Global sky subtraction second pass. Uses skymask from object finding
-                self.global_sky = self.redux.initial_sky if self.std_redux else \
-                    self.redux.global_skysub(skymask=self.skymask, maskslits=self.maskslits, show=self.show)
+        # Extract (if nobj==0, this passess back 'dummy' arrays)
+        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.extract()
 
-                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                    self.redux.local_skysub_extract(self.caliBrate.mswave, self.global_sky, self.sobjs_obj,
-                                                model_noise=(not self.ir_redux),std = self.std_redux,
-                                                maskslits=self.maskslits, show_profile=self.show,show=self.show)
-
+        # Objects extracted?
+        if self.sobjs_obj.nobj == 0:
+            # Print status message
+            msgs_string = 'No objects to extract for target {:s}'.format(
+                frames[0]) + msgs.newline()
+            msgs_string += 'On frames:' + msgs.newline()
+            for iframe in frames:
+                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
+            msgs.warn(msgs_string)
+        else:
             # Purge out the negative objects if this was a near-IR reduction.
-            # TODO should we move this purge call to local_skysub_extract??
+            # TODO should we move this purge call to local_skysub_extract?? Yes.
             if self.ir_redux:
                 self.sobjs.purge_neg()
 
@@ -636,29 +614,9 @@ class PypeIt(object):
             if not self.std_redux:
                 self.redux.flexure_correct(self.sobjs, self.basename)
 
-            # Grab coord
+            # Heliocentric
             radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
             self.redux.helio_correct(self.sobjs, radec, self.obstime)
-            #embed(header='620 of pypeit')
-
-        else:
-            # Print status message
-            msgs_string = 'No objects to extract for target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
-            msgs_string += 'On frames:' + msgs.newline()
-            for iframe in frames:
-                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
-            msgs.warn(msgs_string)
-            # set to first pass global sky
-            self.skymodel = self.redux.initial_sky
-            self.objmodel = np.zeros_like(self.sciImg.image)
-            # Set to sciivar. Could create a model but what is the point?
-            self.ivarmodel = np.copy(self.sciImg.ivar)
-            # Set to the initial mask in case no objects were found
-            self.outmask = self.sciImg.mask
-            # empty specobjs object from object finding
-            if self.ir_redux:
-                self.sobjs_obj.purge_neg()
-            self.sobjs = self.sobjs_obj
 
         return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
