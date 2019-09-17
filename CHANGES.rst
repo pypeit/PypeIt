@@ -23,24 +23,30 @@
 - Refactor BPM generation
 - Merge raw_image loading with datasec_img and oscansec_img generation
 - Sync datasec_img to image in ProcessRawImage
-- Started (barely) on a path to having calibration images in counts and not ADU
+- Started (barely) on a path to having calibration images in counts and
+  not ADU
 - Refactors GMOS for get_rawimage method
 - Enables GMOS overscan subtraction
 - Adds R400 wavelength solution for old E2V chip
-- Revises simple_calib() method for quick and dirty wavelength calibration
+- Revises simple_calib() method for quick and dirty wavelength
+  calibration
 - Adds a related show_wvcalib script
 - Changes to ech_combspec to better treat filenames
 - Fixed bug when bias was set to 'force' which was not bias subtracting
-- Implemented changes to vlt_xshooter_nir to now require darks taken between flats
-- Made flat fielding code a bit more robust against hot pixels at edge of orders
+- Implemented changes to vlt_xshooter_nir to now require darks taken
+  between flats
+- Made flat fielding code a bit more robust against hot pixels at edge
+  of orders
 - Added pypeit_chk_flat script to view flat images
-- Refactored image objects into RawImage, ProcessRawImage, PypeItImage, BuildImage
-- Moved load() and save() methods from MasterFrame to the individual calibration objects
+- Refactored image objects into RawImage, ProcessRawImage, PypeItImage,
+  BuildImage
+- Moved load() and save() methods from MasterFrame to the individual
+  calibration objects
 - Converted ArcImage and FlatImages into counts
 - Added code to allow for IVAR and RN2 image generation for calibs
 - Added several from_master_file() instantiation methods
 - Use coadd2d.weighted_combine() to stack calibration images
-- Major refactor of slit edge tracing (WIP)
+- Major refactor of slit edge tracing
 
 0.11.0 (22 Jun 2019)
 --------------------
