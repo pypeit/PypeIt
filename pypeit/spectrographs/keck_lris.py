@@ -708,11 +708,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             # Apply the mask
             xbin = int(binning.split(',')[0])
             badc = 16//xbin
-            bpm_img[:, 0:badc] = 1
+            bpm_img[:,:badc] = 1
 
             # Mask the end too (this is risky as an edge may appear)
             #  But there is often weird behavior at the ends of these detectors
-            bpm_img[:, -10:] = 1
+            bpm_img[:,-10:] = 1
 
         return bpm_img
 

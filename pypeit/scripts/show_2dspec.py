@@ -128,12 +128,12 @@ def main(args):
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
-#    tslits_dict = TraceSlits.load_from_file(trc_file)[0]
     # TODO -- Remove this once the move to Edges is complete
-    if not args.old:
+    if args.old:
+        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
+    else:
         trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-
-    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
     slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'],

@@ -14,6 +14,7 @@ import matplotlib
 matplotlib.use('agg')  # For Travis
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
+from pypeit.scripts import run_pypeit
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import ginga
 
@@ -27,55 +28,57 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
-'''
-@dev_suite_required
-def test_run_pypeit():
-    # Get the directories
-    rawdir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/')
-    assert os.path.isdir(rawdir), 'Incorrect raw directory'
-
-    # Just get a few files
-    testrawdir = os.path.join(rawdir, 'TEST')
-    if os.path.isdir(testrawdir):
-        shutil.rmtree(testrawdir)
-    os.makedirs(testrawdir)
-    files = [ 'b21.fits.gz', 'b22.fits.gz', 'b23.fits.gz', 'b27.fits.gz', 'b1.fits.gz',
-              'b11.fits.gz', 'b12.fits.gz', 'b13.fits.gz' ]
-    for f in files:
-        shutil.copy(os.path.join(rawdir, f), os.path.join(testrawdir, f))
-
-    outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
-
-    # For previously failed tests
-    if os.path.isdir(outdir):
-        shutil.rmtree(outdir)
-
-    # Run the setup
-    args = setup.parser(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
-                                        '--output_path', outdir])
-    setup.main(args)
-
-    # Change to the configuration directory and set the pypeit file
-    configdir = os.path.join(outdir, 'shane_kast_blue_A')
-    pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
-    assert os.path.isfile(pyp_file), 'PypeIt file not written.'
-
-    # Perform the original reductions
-    args = run_pypeit.parser([pyp_file, '-o'])
-    run_pypeit.main(args)
-
-    # Now try to reuse the old masters
-    args = run_pypeit.parser([pyp_file, '-o', '-m'])
-    run_pypeit.main(args)
-
-    # Now try not overwriting and using the old masters
-    args = run_pypeit.parser([pyp_file, '-m'])
-    run_pypeit.main(args)
-
-    # Clean-up
-    shutil.rmtree(outdir)
-    shutil.rmtree(testrawdir)
-'''
+# TODO: This was taken out at some point.  Was it just because it takes
+# a while to run and we always run on the dev-suite anyway?  I've
+# commented this out, but I actually like this test and suggest we leave
+# it in...
+#@dev_suite_required
+#def test_run_pypeit():
+#    # Get the directories
+#    rawdir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/')
+#    assert os.path.isdir(rawdir), 'Incorrect raw directory'
+#
+#    # Just get a few files
+#    testrawdir = os.path.join(rawdir, 'TEST')
+#    if os.path.isdir(testrawdir):
+#        shutil.rmtree(testrawdir)
+#    os.makedirs(testrawdir)
+#    files = [ 'b21.fits.gz', 'b22.fits.gz', 'b23.fits.gz', 'b27.fits.gz', 'b1.fits.gz',
+#              'b11.fits.gz', 'b12.fits.gz', 'b13.fits.gz' ]
+#    for f in files:
+#        shutil.copy(os.path.join(rawdir, f), os.path.join(testrawdir, f))
+#
+#    outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
+#
+#    # For previously failed tests
+#    if os.path.isdir(outdir):
+#        shutil.rmtree(outdir)
+#
+#    # Run the setup
+#    args = setup.parser(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
+#                                        '--output_path', outdir])
+#    setup.main(args)
+#
+#    # Change to the configuration directory and set the pypeit file
+#    configdir = os.path.join(outdir, 'shane_kast_blue_A')
+#    pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
+#    assert os.path.isfile(pyp_file), 'PypeIt file not written.'
+#
+#    # Perform the original reductions
+#    args = run_pypeit.parser([pyp_file, '-o'])
+#    run_pypeit.main(args)
+#
+#    # Now try to reuse the old masters
+#    args = run_pypeit.parser([pyp_file, '-o', '-m'])
+#    run_pypeit.main(args)
+#
+#    # Now try not overwriting and using the old masters
+#    args = run_pypeit.parser([pyp_file, '-m'])
+#    run_pypeit.main(args)
+#
+#    # Clean-up
+#    shutil.rmtree(outdir)
+#    shutil.rmtree(testrawdir)
 
 
 @cooked_required
