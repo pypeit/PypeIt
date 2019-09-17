@@ -672,15 +672,12 @@ class Calibrations(object):
 
             try:
                 self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                      save=self.save_masters)#, debug=True, show_stages=True)
+                                      save=self.save_masters) #, debug=True, show_stages=True)
             except:
                 self.edges.save()
                 msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
                            'but it needs fixing.')
                 return None
-
-            #from IPython import embed
-            #embed(header='683 of calibrations')
 
             # Show the result if requested
             if self.show:

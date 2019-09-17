@@ -191,7 +191,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slitedges']['fit_order'] = 8
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['trace_thresh'] = 10.
-        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['length_range'] = 0.3
 

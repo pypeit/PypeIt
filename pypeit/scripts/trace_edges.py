@@ -92,7 +92,6 @@ def main(args):
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
         bias_files = rdx.fitstbl.frame_paths(bias_rows)
         bias_par = rdx.caliBrate.par['biasframe']
-#        bias_files = None
     else:
         spec = load_spectrograph(args.spectrograph)
         master_key_base = 'A_1'

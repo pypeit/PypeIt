@@ -119,7 +119,7 @@ class TracePCA:
         return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
                                function=self.function).T
 
-# TODO: This is a place holder
+# TODO: This is a place holder; it's never called and will fault if it is!
 def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca=None,
                      pca_explained_var=99.0, coeff_weights=None, function='polynomial', lower=3.0,
                      upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25, debug=False):
