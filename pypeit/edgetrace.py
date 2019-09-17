@@ -4083,8 +4083,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Caveats:
         #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
         par = EdgeTracePar()
-        this = cls(load_spectrograph(tslits_dict['spectrograph'], par, master_key=master_key,
-                   master_dir=master_dir))
+        this = cls(load_spectrograph(tslits_dict['spectrograph']), par, master_key=master_key,
+                   master_dir=master_dir)
         #   - img and sobel_sig should not be None
         this.img = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
         this.sobel_sig = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
@@ -4099,7 +4099,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         nleft = tslits_dict['slit_left'].shape[1]
         nright = tslits_dict['slit_righ'].shape[1]
         this.traceid = np.append(-np.arange(nleft)-1, np.arange(nright)+1)
-        this.spat_cen = np.hstack(tslits_dict['slit_left'], tslits_dict['slit_righ'])
+        this.spat_cen = np.hstack((tslits_dict['slit_left'], tslits_dict['slit_righ']))
         this.spat_fit = this.spat_cen.copy()
         this.spat_fit_type = 'legendre'
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
