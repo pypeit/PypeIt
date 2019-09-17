@@ -157,91 +157,89 @@ def extract_asymbox2(image,left_in,right_in, ycen=None, weight_image=None):
     return fextract.T
 
 
-def extract_boxcar(image,trace_in, radius_in, ycen = None):
-    """ Extract the total flux within a boxcar window at many positions. The ycen position is optional. If it is not provied, it is assumed to be integers
-     in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
-     extract_  routines. Based on idlspec2d/spec2d/extract_boxcar.pro
-
-     Parameters
-     ----------
-     image :  float ndarray
-         Image to extract from. It is a 2-d array with shape (nspec, nspat)
-
-     trace_in :  float ndarray
-         Trace for the region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
-         (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-
-     radius :  float or ndarray
-         boxcar radius in floating point pixels. This can be either be in put as a scalar or as an array to perform
-         boxcar extraction a varaible radius. If an array is input it must have the same size and shape as trace_in, i.e.
-         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
-
-
-     Optional Parameters
-     -------------------
-     ycen :  float ndarray
-         Y positions corresponding to trace_in (expected as integers). Will be rounded to the nearest integer if floats
-         are provided. This needs to have the same shape as trace_in  provided above. In other words,
-         either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-
-
-     Returns
-     -------
-     fextract:   ndarray
-         Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
-         Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
-         the case of a single trace.
-
-     Revision History
-     ----------------
-     24-Mar-1999  Written by David Schlegel, Princeton.
-     22-Apr-2018  Ported to python by Joe Hennawi
-     """
-
-
-    # Checks on radius
-    if (isinstance(radius_in,int) or isinstance(radius_in,float)):
-        radius = radius_in
-    elif ((np.size(radius_in)==np.size(trace_in)) & (np.shape(radius_in) == np.shape(trace_in))):
-        radius = radius_in.T
-    else:
-        raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
-                         'with the same shape and size as trace_in')
-
-    trace = trace_in.T
-
-    dim = trace.shape
-    ndim = len(dim)
-    if (ndim == 1):
-        nTrace = 1
-        npix = dim[0]
-    else:
-        nTrace = dim[0]
-        npix = dim[1]
-
-    if ycen is None:
-        if ndim == 1:
-            ycen_out = np.arange(npix, dtype='int')
-        elif ndim == 2:
-            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
-        else:
-            raise ValueError('trace is not 1 or 2 dimensional')
-    else:
-        ycen_out = ycen.T
-        ycen_out = np.rint(ycen_out).astype(int)
-
-    if ((np.size(trace) != np.size(ycen_out)) | (np.shape(trace) != np.shape(ycen_out))):
-        raise ValueError('Number of elements and shape of trace and ycen must be equal')
-
-
-
-    left = trace - radius
-    right = trace + radius
-    fextract = extract_asymbox2(image, left, right, ycen_out)
-
-    return fextract
-
-
+#def extract_boxcar(image,trace_in, radius_in, ycen = None):
+#    """ Extract the total flux within a boxcar window at many positions. The ycen position is optional. If it is not provied, it is assumed to be integers
+#     in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
+#     extract_  routines. Based on idlspec2d/spec2d/extract_boxcar.pro
+#
+#     Parameters
+#     ----------
+#     image :  float ndarray
+#         Image to extract from. It is a 2-d array with shape (nspec, nspat)
+#
+#     trace_in :  float ndarray
+#         Trace for the region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+#         (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+#
+#     radius :  float or ndarray
+#         boxcar radius in floating point pixels. This can be either be in put as a scalar or as an array to perform
+#         boxcar extraction a varaible radius. If an array is input it must have the same size and shape as trace_in, i.e.
+#         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+#
+#
+#     Optional Parameters
+#     -------------------
+#     ycen :  float ndarray
+#         Y positions corresponding to trace_in (expected as integers). Will be rounded to the nearest integer if floats
+#         are provided. This needs to have the same shape as trace_in  provided above. In other words,
+#         either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+#
+#
+#     Returns
+#     -------
+#     fextract:   ndarray
+#         Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+#         Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+#         the case of a single trace.
+#
+#     Revision History
+#     ----------------
+#     24-Mar-1999  Written by David Schlegel, Princeton.
+#     22-Apr-2018  Ported to python by Joe Hennawi
+#     """
+#
+#
+#    # Checks on radius
+#    if (isinstance(radius_in,int) or isinstance(radius_in,float)):
+#        radius = radius_in
+#    elif ((np.size(radius_in)==np.size(trace_in)) & (np.shape(radius_in) == np.shape(trace_in))):
+#        radius = radius_in.T
+#    else:
+#        raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
+#                         'with the same shape and size as trace_in')
+#
+#    trace = trace_in.T
+#
+#    dim = trace.shape
+#    ndim = len(dim)
+#    if (ndim == 1):
+#        nTrace = 1
+#        npix = dim[0]
+#    else:
+#        nTrace = dim[0]
+#        npix = dim[1]
+#
+#    if ycen is None:
+#        if ndim == 1:
+#            ycen_out = np.arange(npix, dtype='int')
+#        elif ndim == 2:
+#            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
+#        else:
+#            raise ValueError('trace is not 1 or 2 dimensional')
+#    else:
+#        ycen_out = ycen.T
+#        ycen_out = np.rint(ycen_out).astype(int)
+#
+#    if ((np.size(trace) != np.size(ycen_out)) | (np.shape(trace) != np.shape(ycen_out))):
+#        raise ValueError('Number of elements and shape of trace and ycen must be equal')
+#
+#
+#
+#    left = trace - radius
+#    right = trace + radius
+#    fextract = extract_asymbox2(image, left, right, ycen_out)
+#
+#    return fextract
 
 
 def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, specobj, min_frac_use = 0.05):
@@ -407,29 +405,53 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
+#   OLD usage with extract_boxcar()
     # Fill in the boxcar extraction tags
-    flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    flux_box  = extract_boxcar(imgminsky*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    # Denom is computed in case the trace goes off the edge of the image
+#    box_denom = extract_boxcar(waveimg*mask > 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    wave_box  = extract_boxcar(waveimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)/(box_denom + (box_denom == 0.0))
+#    varimg = 1.0/(ivar + (ivar == 0.0))
+#    var_box  = extract_boxcar(varimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    nvar_box  = extract_boxcar(var_no*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    sky_box  = extract_boxcar(skyimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    rn2_box  = extract_boxcar(rn2_img*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    rn_posind = (rn2_box > 0.0)
+#    rn_box = np.zeros(rn2_box.shape,dtype=float)
+#    rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
+#    pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+#    # If every pixel is masked then mask the boxcar extraction
+#    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot) & \
+#               np.isfinite(wave_box) & (wave_box > 0.0)
+
+#   NEW usage with moment1d()
+    # Fill in the boxcar extraction tags
+    flux_box = moment1d(imgminsky*mask, specobj.trace_spat, 2*box_radius,
+                        row=specobj.trace_spec)[0]
     # Denom is computed in case the trace goes off the edge of the image
-    box_denom = extract_boxcar(waveimg*mask > 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    wave_box  = extract_boxcar(waveimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)/(box_denom + (box_denom == 0.0))
+    box_denom = moment1d(waveimg*mask > 0.0, specobj.trace_spat, 2*box_radius,
+                         row=specobj.trace_spec)[0]
+    wave_box = moment1d(waveimg*mask, specobj.trace_spat, 2*box_radius,
+                        row=specobj.trace_spec)[0] / (box_denom + (box_denom == 0.0))
     varimg = 1.0/(ivar + (ivar == 0.0))
-    var_box  = extract_boxcar(varimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    nvar_box  = extract_boxcar(var_no*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    sky_box  = extract_boxcar(skyimg*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
-    rn2_box  = extract_boxcar(rn2_img*mask, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    var_box = moment1d(varimg*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
+    nvar_box = moment1d(var_no*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
+    sky_box = moment1d(skyimg*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
+    rn2_box = moment1d(rn2_img*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
     rn_posind = (rn2_box > 0.0)
     rn_box = np.zeros(rn2_box.shape,dtype=float)
     rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
-    pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec)
+    pixtot = moment1d(ivar*0 + 1.0, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
+    pixmsk = moment1d(ivar*mask == 0.0, specobj.trace_spat, 2*box_radius,
+                      row=specobj.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
-    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot) & \
-               np.isfinite(wave_box) & (wave_box > 0.0)
-
+    mask_box = (pixmsk != pixtot) & np.isfinite(wave_box) & (wave_box > 0.0)
     bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
         f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
-        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],grid=False)
+        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],
+                                   grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
@@ -2496,11 +2518,25 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
-            flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-            var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+
+            #   OLD usage with extract_boxcar()
+#            flux_tmp  = extract_boxcar(image*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+#            var_tmp  = extract_boxcar(varimg*inmask_iord, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+#            ivar_tmp = utils.calc_ivar(var_tmp)
+#            pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
+#            mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
+
+            #   NEW usage with moment1d()
+            flux_tmp  = moment1d(image*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+                                 row=spec.trace_spec)[0]
+            var_tmp  = moment1d(varimg*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+                                row=spec.trace_spec)
             ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = extract_boxcar(ivar*0 + 1.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec)
-            mask_tmp = (extract_boxcar(ivar*inmask_iord == 0.0, spec.trace_spat,box_rad_pix, ycen = spec.trace_spec) != pixtot)
+            pixtot  = moment1d(ivar*0 + 1.0, spec.trace_spat, 2*box_rad_pix,
+                               row=spec.trace_spec)
+            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.trace_spat, 2*box_rad_pix,
+                                row=spec.trace_spec) != pixtot
+
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
             mask_box[:,iord,iobj] = mask_tmp
