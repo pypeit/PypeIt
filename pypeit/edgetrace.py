@@ -159,7 +159,13 @@ class EdgeTraceBitMask(BitMask):
         List of flags used to mark traces inserted for various
         reasons.
         """
-        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT'] 
+        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT']
+
+    @property
+    def exclude_flags(self):
+        # We will not exclude SYNCINSERT slits edges from the masking
+        #   These can easily crop up for star boxes and at the edge of the detector
+        return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT']
 
 
 class EdgeTraceSet(masterframe.MasterFrame):
@@ -1362,7 +1368,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Plot the trace fits
         show_fit = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                      exclude=self.bitmask.insert_flags))
+                                                      exclude=self.bitmask.exclude_flags))
         for i in range(self.ntrace):
             if not trace_indx[i]:
                 continue
@@ -2033,8 +2039,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             return False
+        # Do it
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                 exclude=self.bitmask.insert_flags))
+                                                 exclude=self.bitmask.exclude_flags))
         side = np.clip(self.traceid[gpm], -1, 1)
         return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
 
@@ -3452,7 +3459,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         if debug:
             msgs.info('Show instance includes inserted traces but before checking the sync.')
-            self.show(thin=10, include_img=True)
+            self.show(thin=10, include_img=True, idlabel=True, flag='any')
 
         # Check the full synchronized list and log completion of the
         # method
@@ -4035,7 +4042,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Find the traces that are *not* fully masked. This will catch
         # slits that are masked as too short but not clipped because of
         # par['sync_clip'] = False.
-        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
+        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                 exclude=self.bitmask.exclude_flags))
 
         tslits_dict['slit_left_orig'] = self.spat_fit[:,gpm & self.is_left]
         tslits_dict['slit_righ_orig'] = self.spat_fit[:,gpm & self.is_right]
