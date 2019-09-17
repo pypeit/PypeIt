@@ -307,7 +307,7 @@ Key                      Type              Options                              
 ``max_nudge``            int               ..                                           ..              If parts of any (predicted) trace fall off the detector edge, allow them to be nudged away from the detector edge up to and including this maximum number of pixels.  If None, no limit is set; otherwise should be 0 or larger.                                                                                                                                                                                                                                           
 ``sync_predict``         str               ``pca``, ``nearest``                         ``pca``         Mode to use when predicting the form of the trace to insert.  Use `pca` to use the PCA decomposition or `nearest` to reproduce the shape of the nearest trace.                                                                                                                                                                                                                                                                                                             
 ``sync_center``          str               ``median``, ``nearest``, ``gap``             ``median``      Mode to use for determining the location of traces to insert.  Use `median` to use the median of the matched left and right edge pairs, `nearest` to use the length of the nearest slit, or `gap` to offset by a fixed gap width from the next slit edge.                                                                                                                                                                                                                  
-``gap_offset``           int, float        ..                                           1.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                   
+``gap_offset``           int, float        ..                                           5.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                   
 ``sync_to_edge``         bool              ..                                           True            If adding a first left edge or a last right edge, ignore `center_mode` for these edges and place them at the edge of the detector (with the relevant shape).                                                                                                                                                                                                                                                                                                               
 ``minimum_slit_length``  int, float        ..                                           ..              Minimum slit length in arcsec.  Slit lengths are determined by the median difference between the left and right edge locations for the unmasked trace locations.  Short slits are masked or clipped.  If None, no minimum slit length applied.                                                                                                                                                                                                                             
 ``length_range``         int, float        ..                                           ..              Allowed range in slit length compared to the median slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.                                                                                                                                                                                                                                                            
@@ -358,7 +358,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``science``, ``trace``, ``arc``, ``standard``, ``tilt``, ``pixelflat``, ``dark``, ``pinhole``, ``bias``  ``science``                   Frame type.  Options are: science, trace, arc, standard, tilt, pixelflat, dark, pinhole, bias                                                                                                                                                                  
+``frametype``  str                                             ``science``, ``pixelflat``, ``bias``, ``pinhole``, ``dark``, ``tilt``, ``trace``, ``arc``, ``standard``  ``science``                   Frame type.  Options are: science, pixelflat, bias, pinhole, dark, tilt, trace, arc, standard                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -588,7 +588,7 @@ Alterations to the default parameters are::
           fit_order = 3
           fit_min_spec_length = 0.2
           sync_center = gap
-          minimum_slit_length = 2
+          minimum_slit_length = 6
   [scienceframe]
       exprng = 29, None
   [flexure]
@@ -636,7 +636,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
-          minimum_slit_length = 2
+          minimum_slit_length = 6
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -688,7 +688,7 @@ Alterations to the default parameters are::
           number = 1
       [[wavelengths]]
           lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
-          nonlinear_counts = 70731.92549999998
+          nonlinear_counts = 56360.1
           sigdetect = 10.0
           rms_threshold = 0.2
       [[slits]]
@@ -696,7 +696,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
-          minimum_slit_length = 2
+          minimum_slit_length = 6
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -723,6 +723,7 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
+          number = 5
       [[darkframe]]
           exprng = 20, None
       [[arcframe]]
@@ -739,7 +740,7 @@ Alterations to the default parameters are::
           [[[process]]]
               satpix = nothing
       [[traceframe]]
-          number = 5
+          number = 3
       [[standardframe]]
           number = 1
           exprng = None, 20
@@ -842,7 +843,7 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
-          number = 5
+          number = 3
           exprng = 0, None
       [[standardframe]]
           number = 1
@@ -854,6 +855,8 @@ Alterations to the default parameters are::
           rms_threshold = 0.2
           match_toler = 2.5
           n_first = 3
+      [[slitedges]]
+          sync_predict = nearest
       [[tilts]]
           maxdev_tracefit = 0.02
           spec_order = 5
@@ -893,7 +896,7 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
-          number = 5
+          number = 3
           exprng = 0, None
       [[standardframe]]
           number = 1
@@ -901,6 +904,8 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
           nonlinear_counts = 49806.6
+      [[slitedges]]
+          sync_predict = nearest
   [scienceframe]
       exprng = 61, None
   [flexure]
@@ -943,6 +948,8 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
           nonlinear_counts = 91200.0
+      [[slitedges]]
+          sync_predict = nearest
   [scienceframe]
       exprng = 61, None
   [flexure]
@@ -1145,24 +1152,30 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_nir
   [calibrations]
       [[biasframe]]
-          useframe = none
           number = 5
       [[arcframe]]
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[pixelflatframe]]
           number = 5
           [[[process]]]
               satpix = nothing
+              bias = force
       [[traceframe]]
           number = 3
+          [[[process]]]
+              bias = force
       [[standardframe]]
           number = 1
+          [[[process]]]
+              bias = skip
       [[flatfield]]
           illumflatten = False
           tweak_slits_thresh = 0.9
@@ -1188,7 +1201,7 @@ Alterations to the default parameters are::
           edge_thresh = 50.0
           max_shift_adj = 0.5
           fit_order = 8
-          fit_min_spec_length = 0.4
+          fit_min_spec_length = 0.5
           left_right_pca = True
           trace_thresh = 10.0
           length_range = 0.3
@@ -1197,10 +1210,10 @@ Alterations to the default parameters are::
           maxdev_tracefit = 0.04
           maxdev2d = 0.04
   [scienceframe]
-      useframe = none
       [[process]]
           satpix = nothing
           sigclip = 20.0
+          bias = skip
   [scienceimage]
       bspline_spacing = 0.8
       trace_npoly = 8
@@ -1504,6 +1517,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           edge_thresh = 10.0
           max_shift_adj = 3.0
+          fit_min_spec_length = 0.3
           left_right_pca = True
       [[tilts]]
           tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10

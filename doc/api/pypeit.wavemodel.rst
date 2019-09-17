@@ -2,6 +2,6 @@ pypeit.wavemodel module
 =======================
 
 .. automodule:: pypeit.wavemodel
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,7 +1,7 @@
-pypeit.core.load module
+pypeit.tiltimage module
 =======================
 
-.. automodule:: pypeit.core.load
+.. automodule:: pypeit.tiltimage
    :members:
    :undoc-members:
    :show-inheritance:
