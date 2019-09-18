@@ -4,26 +4,28 @@ import inspect
 import copy
 
 import numpy as np
-import matplotlib.pyplot as plt
-
-from pypeit import msgs
-from pypeit.core import arc
-from pypeit import utils
-from pypeit.core import qa
-from pypeit.core import trace_slits
-from pypeit.core import extract
-from astropy.stats import sigma_clipped_stats
-import matplotlib as mpl
-from matplotlib.lines import Line2D
 import scipy
+from matplotlib import pyplot as plt
+from matplotlib import cm, lines
 
 from IPython import embed
 
+from astropy.stats import sigma_clipped_stats
+
+from pypeit import msgs
+from pypeit import utils
+from pypeit.core import arc
+from pypeit.core import qa
+from pypeit.core import trace_slits
+from pypeit.core import extract
+from pypeit.core.moment import moment1d
+from pypeit.core.trace import fit_trace
+
+# TODO: Why is this try statement needed?
 try:
     from pypeit import ginga
 except ImportError:
     pass
-
 
 def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=2.0,
                     only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0,
@@ -262,27 +264,49 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                 else:
                     tilts_guess_now = tilts_guess[:, iline]
         # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
-        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_guess_now, fwhm/2.0) > 0.99*fwhm)
+#        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_guess_now, fwhm/2.0) > 0.99*fwhm)
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_guess_now, fwhm) > 0.99*fwhm
         # If more than 80% of the pixels are masked, then don't mask at all. This happens when the traces leave the good
         # part of the slit. If we proceed with everything masked the iter_tracefit fitting will crash.
         if (np.sum(tilts_sub_mask_box) < 0.8*nsub):
             tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
         # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
         # since the sub image is different for every aperture, i.e. each aperature has its own image
-        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tset_out = extract.iter_tracefit(
-            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
-            maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
-        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
+#        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tset_out = extract.iter_tracefit(
+#            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
+#            maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
+
+        # TODO: Need to have fit_trace return the TraceSet
+        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_msk_out, tset_out \
+                = fit_trace(sub_img, tilts_guess_now, spat_order, bpm=np.invert(sub_inmask),
+                            trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm, maxdev=maxdev,
+                            niter=6, idx=str(iline), debug=show_tracefits, xmin=0.0,
+                            xmax=float(nsub-1))
+
+#        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm) > 0.99*fwhm
         if gauss: # If gauss is set, do a Gaussian refinement to the flux weighted tracing
             if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
                 tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
-            tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, tset_gw = extract.iter_tracefit(
-                sub_img, tilts_sub_fit_out, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
-                maxdev=maxdev, niter=3, idx=str(iline),show_fits=show_tracefits, xmin=0.0, xmax=float(nsub-1))
+            # TODO: Should the below have included gweight=True?
+            # Assuming yes, I've set the weighting to gaussian in the
+            # call to fit_trace()
+#            tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, tset_gw = extract.iter_tracefit(
+#                sub_img, tilts_sub_fit_out, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
+#                maxdev=maxdev, niter=3, idx=str(iline),show_fits=show_tracefits, xmin=0.0, xmax=float(nsub-1))
+
+            # TODO: Need to have fit_trace return the TraceSet
+            tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, tilts_sub_msk_gw, tset_gw \
+                    = fit_trace(sub_img, tilts_sub_fit_out, spat_order, bpm=np.invert(sub_inmask),
+                                trace_bpm=np.invert(tilts_sub_mask_box), weighting='gaussian',
+                                fwhm=fwhm, maxdev=maxdev, niter=3, idx=str(iline),
+                                debug=show_tracefits, xmin=0.0, xmax=float(nsub-1))
+
             tilts_sub_fit_out = tilts_sub_fit_gw
             tilts_sub_out = tilts_sub_gw
             tilts_sub_err_out = tilts_sub_err_gw
-        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
+#        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm) > 0.99*fwhm
 
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
@@ -806,10 +830,14 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
     ax.set_xlim((xmin,xmax))
     ax.set_ylim((-5.0*rms,5.0*rms))
     # Legend
-    legend_elements = [Line2D([0], [0],linestyle=' ', color='k', marker='o', mfc='k', markersize=4.0, label='good'),
-                       Line2D([0], [0], linestyle=' ', color='r', marker='o', mfc='r', markersize=4.0, label='rejected'),
-                       Line2D([0], [0], linestyle=' ', color='g', marker='s', mfc='g', markersize=7.0, label='all RMS'),
-                       Line2D([0], [0], linestyle=' ', color='orange', marker='^', mfc='orange', markersize=7.0, label='good RMS')]
+    legend_elements = [lines.Line2D([0], [0], linestyle=' ', color='k', marker='o', mfc='k',
+                                    markersize=4.0, label='good'),
+                       lines.Line2D([0], [0], linestyle=' ', color='r', marker='o', mfc='r',
+                                    markersize=4.0, label='rejected'),
+                       lines.Line2D([0], [0], linestyle=' ', color='g', marker='s', mfc='g',
+                                    markersize=7.0, label='all RMS'),
+                       lines.Line2D([0], [0], linestyle=' ', color='orange', marker='^',
+                                    mfc='orange', markersize=7.0, label='good RMS')]
     ax.legend(handles=legend_elements)
 
     # Finish
@@ -829,10 +857,6 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
 def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask,spat_order, spec_order, rms, fwhm,
                    setup='A', slit=0, outfile=None, show_QA=False, out_dir=None):
 
-
-    import matplotlib as mpl
-    from matplotlib.lines import Line2D
-
     plt.rcdefaults()
     plt.rcParams['font.family']= 'Helvetica'
 
@@ -845,7 +869,7 @@ def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, re
     # Show the fit residuals as a function of spatial position
     line_indx = np.outer(np.ones(nspat), np.arange(nuse))
     lines_spec = tilts_spec_fit[0, :]
-    cmap = mpl.cm.get_cmap('coolwarm', nuse)
+    cmap = cm.get_cmap('coolwarm', nuse)
 
     fig, ax = plt.subplots(figsize=(14, 12))
     # dummy mappable shows the spectral pixel
@@ -870,9 +894,10 @@ def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, re
     ax.set_xlabel('Spatial Offset from Central Trace (pixels)')
     ax.set_ylabel('Arc Line Tilt Residual (pixels)')
 
-    legend_elements = [Line2D([0], [0], color='cornflowerblue', linestyle='-', linewidth=3.0, label='residual'),
-                       Line2D([0], [0], color='limegreen', linestyle=' ', marker='o', mfc='limegreen', markersize=7.0,
-                              label='rejected')]
+    legend_elements = [lines.Line2D([0], [0], color='cornflowerblue', linestyle='-', linewidth=3.0,
+                                    label='residual'),
+                       lines.Line2D([0], [0], color='limegreen', linestyle=' ', marker='o',
+                                    mfc='limegreen', markersize=7.0, label='rejected')]
     ax.legend(handles=legend_elements)
     ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
                  'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slit, rms, rms / fwhm), fontsize=15)

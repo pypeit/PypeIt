@@ -6,28 +6,25 @@ import inspect
 
 import numpy as np
 import scipy
+from matplotlib import pyplot as plt
 
+from IPython import embed
 
-#from matplotlib import gridspec, font_manager
+from sklearn.decomposition import PCA
 
 from astropy import stats
 
 from pypeit import msgs
-from pypeit.core import pydl
 from pypeit import utils
-from pypeit.core import pixels
 from pypeit import ginga
-from matplotlib import pyplot as plt
-from pypeit.core import trace_slits
-from pypeit.core import arc
-from scipy import interpolate
-
-from sklearn.decomposition import PCA
 from pypeit import specobjs
 #from pypeit import tracepca
+from pypeit.core import pydl
+from pypeit.core import pixels
+from pypeit.core import trace_slits
+from pypeit.core import arc
 from pypeit.core.pydl import spheregroup
-
-from IPython import embed
+from pypeit.core.moment import moment1d
 
 # MASK VALUES FROM EXTRACTION
 # 0 
@@ -39,122 +36,122 @@ from IPython import embed
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-def extract_asymbox2(image,left_in,right_in, ycen=None, weight_image=None):
-    """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
-    specified by the left_in and right_in traces.  The ycen position is optional. If it is not provied, it is assumed to be integers
-    in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
-    extract_  routines. Based on idlspec2d/spec2d/extract_asymbox2.pro
-
-    Args:
-    image :  float ndarray
-        Image to extract from. It is a 2-d array with shape (nspec, nspat)
-    left  :  float ndarray
-        Left boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
-        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-
-    right  :  float ndarray
-        Right boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
-        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-
-
-    Returns:
-    ycen :  float ndarray
-        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
-        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
-        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-
-    weight_image: float ndarray
-        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
-
-    Returns
-    -------
-    fextract:   ndarray
-       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
-       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
-       the case of a single trace.
-
-
-    Revision History
-    ----------------
-    24-Mar-1999  Written by David Schlegel, Princeton.
-    17-Feb-2003  Written with slow IDL routine, S. Burles, MIT
-    22-Apr-2018  Ported to python by Joe Hennawi
-    """
-
-    # ToDO it would be nice to avoid this transposing, but I got confused during the IDL port
-    left = left_in.T
-    right = right_in.T
-
-    dim = left.shape
-    ndim = left.ndim
-    if (ndim == 1):
-        nTrace = 1
-        npix = dim[0]
-    else:
-        nTrace = dim[0]
-        npix = dim[1]
-
-    if ycen is None:
-        if ndim == 1:
-            ycen_out = np.arange(npix, dtype=int)
-        elif ndim == 2:
-            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
-        else:
-            raise ValueError('trace is not 1 or 2 dimensional')
-    else:
-        ycen_out = ycen.T
-        ycen_out = np.rint(ycen_out).astype(int)
-
-    if ((np.size(left) != np.size(ycen_out)) | (np.shape(left) != np.shape(ycen_out))):
-        raise ValueError('Number of elements and left of trace and ycen must be equal')
-
-    idims = image.shape
-    nspat = idims[1]
-    nspec = idims[0]
-
-    maxwindow = np.max(right - left)
-    tempx = np.int(maxwindow + 3.0)
-
-    bigleft = np.outer(left[:], np.ones(tempx))
-    bigright = np.outer(right[:], np.ones(tempx))
-    spot = np.outer(np.ones(npix * nTrace), np.arange(tempx)) + bigleft - 1
-    bigy = np.outer(ycen_out[:], np.ones(tempx, dtype='int'))
-
-    fullspot = np.array(np.fmin(np.fmax(np.round(spot + 1) - 1, 0), nspat - 1), int)
-    fracleft = np.fmax(np.fmin(fullspot - bigleft, 0.5), -0.5)
-    fracright = np.fmax(np.fmin(bigright - fullspot, 0.5), -0.5)
-    del bigleft
-    del bigright
-    bool_mask1 = (spot >= -0.5) & (spot < (nspat - 0.5))
-    bool_mask2 = (bigy >= 0) & (bigy <= (nspec - 1))
-    weight = (np.fmin(np.fmax(fracleft + fracright, 0), 1)) * bool_mask1 * bool_mask2
-    del spot
-    del fracleft
-    del fracright
-    bigy = np.fmin(np.fmax(bigy, 0), nspec - 1)
-
-    if weight_image is not None:
-        temp = np.array([weight_image[x1, y1] * image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
-        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
-        fextract = np.sum(temp2, axis=2)
-        temp_wi = np.array([weight_image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
-        temp2_wi = np.reshape(weight.flatten() * temp_wi, (nTrace, npix, tempx))
-        f_ivar = np.sum(temp2_wi, axis=2)
-        fextract = fextract / (f_ivar + (f_ivar == 0)) * (f_ivar > 0)
-    else:
-        # Might be a more pythonic way to code this. I needed to switch the flattening order in order to get
-        # this to work
-        temp = np.array([image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
-        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
-        fextract = np.sum(temp2, axis=2)
-
-    # IDL version model functionality not implemented yet
-    # At the moment I'm not reutnring the f_ivar for the weight_image mode. I'm not sure that this functionality is even
-    # ever used
-
-    if(nTrace ==1):
-        fextract = fextract.reshape(npix)
-    return fextract.T
+#def extract_asymbox2(image,left_in,right_in, ycen=None, weight_image=None):
+#    """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
+#    specified by the left_in and right_in traces.  The ycen position is optional. If it is not provied, it is assumed to be integers
+#    in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
+#    extract_  routines. Based on idlspec2d/spec2d/extract_asymbox2.pro
+#
+#    Args:
+#    image :  float ndarray
+#        Image to extract from. It is a 2-d array with shape (nspec, nspat)
+#    left  :  float ndarray
+#        Left boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+#        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+#
+#    right  :  float ndarray
+#        Right boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+#        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+#
+#
+#    Returns:
+#    ycen :  float ndarray
+#        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
+#        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
+#        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+#
+#    weight_image: float ndarray
+#        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
+#
+#    Returns
+#    -------
+#    fextract:   ndarray
+#       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+#       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+#       the case of a single trace.
+#
+#
+#    Revision History
+#    ----------------
+#    24-Mar-1999  Written by David Schlegel, Princeton.
+#    17-Feb-2003  Written with slow IDL routine, S. Burles, MIT
+#    22-Apr-2018  Ported to python by Joe Hennawi
+#    """
+#
+#    # ToDO it would be nice to avoid this transposing, but I got confused during the IDL port
+#    left = left_in.T
+#    right = right_in.T
+#
+#    dim = left.shape
+#    ndim = left.ndim
+#    if (ndim == 1):
+#        nTrace = 1
+#        npix = dim[0]
+#    else:
+#        nTrace = dim[0]
+#        npix = dim[1]
+#
+#    if ycen is None:
+#        if ndim == 1:
+#            ycen_out = np.arange(npix, dtype=int)
+#        elif ndim == 2:
+#            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
+#        else:
+#            raise ValueError('trace is not 1 or 2 dimensional')
+#    else:
+#        ycen_out = ycen.T
+#        ycen_out = np.rint(ycen_out).astype(int)
+#
+#    if ((np.size(left) != np.size(ycen_out)) | (np.shape(left) != np.shape(ycen_out))):
+#        raise ValueError('Number of elements and left of trace and ycen must be equal')
+#
+#    idims = image.shape
+#    nspat = idims[1]
+#    nspec = idims[0]
+#
+#    maxwindow = np.max(right - left)
+#    tempx = np.int(maxwindow + 3.0)
+#
+#    bigleft = np.outer(left[:], np.ones(tempx))
+#    bigright = np.outer(right[:], np.ones(tempx))
+#    spot = np.outer(np.ones(npix * nTrace), np.arange(tempx)) + bigleft - 1
+#    bigy = np.outer(ycen_out[:], np.ones(tempx, dtype='int'))
+#
+#    fullspot = np.array(np.fmin(np.fmax(np.round(spot + 1) - 1, 0), nspat - 1), int)
+#    fracleft = np.fmax(np.fmin(fullspot - bigleft, 0.5), -0.5)
+#    fracright = np.fmax(np.fmin(bigright - fullspot, 0.5), -0.5)
+#    del bigleft
+#    del bigright
+#    bool_mask1 = (spot >= -0.5) & (spot < (nspat - 0.5))
+#    bool_mask2 = (bigy >= 0) & (bigy <= (nspec - 1))
+#    weight = (np.fmin(np.fmax(fracleft + fracright, 0), 1)) * bool_mask1 * bool_mask2
+#    del spot
+#    del fracleft
+#    del fracright
+#    bigy = np.fmin(np.fmax(bigy, 0), nspec - 1)
+#
+#    if weight_image is not None:
+#        temp = np.array([weight_image[x1, y1] * image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
+#        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
+#        fextract = np.sum(temp2, axis=2)
+#        temp_wi = np.array([weight_image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
+#        temp2_wi = np.reshape(weight.flatten() * temp_wi, (nTrace, npix, tempx))
+#        f_ivar = np.sum(temp2_wi, axis=2)
+#        fextract = fextract / (f_ivar + (f_ivar == 0)) * (f_ivar > 0)
+#    else:
+#        # Might be a more pythonic way to code this. I needed to switch the flattening order in order to get
+#        # this to work
+#        temp = np.array([image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
+#        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
+#        fextract = np.sum(temp2, axis=2)
+#
+#    # IDL version model functionality not implemented yet
+#    # At the moment I'm not reutnring the f_ivar for the weight_image mode. I'm not sure that this functionality is even
+#    # ever used
+#
+#    if(nTrace ==1):
+#        fextract = fextract.reshape(npix)
+#    return fextract.T
 
 
 #def extract_boxcar(image,trace_in, radius_in, ycen = None):
@@ -1572,10 +1569,15 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
     # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
     # TODO Should we be passing the mask here with extract_asymbox or not?
-    flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym, weight_image=totmask.astype(float))
-    mask_spec = extract_asymbox2(totmask, left_asym, righ_asym, weight_image=totmask.astype(float)) < 0.3
-    flux_mean, flux_median, flux_sig = stats.sigma_clipped_stats(flux_spec, mask = mask_spec, axis=0, sigma = 3.0,
-                                                           cenfunc='median', stdfunc=utils.nan_mad_std)
+#    flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym, weight_image=totmask.astype(float))
+#    mask_spec = extract_asymbox2(totmask, left_asym, righ_asym, weight_image=totmask.astype(float)) < 0.3
+    flux_spec = moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
+                         fwgt=totmask.astype(float))
+    mask_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym), 
+                         fwgt==totmask.astype(float)) < 0.3
+    flux_mean, flux_median, flux_sig \
+            = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma = 3.0,
+                                        cenfunc='median', stdfunc=utils.nan_mad_std)
 ##   New CODE
     # 1st iteration
     smash_mask = np.isfinite(flux_mean)
@@ -1824,13 +1826,19 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         xinit_fweight = np.copy(sobjs.trace_spat.T)
         spec_mask = (spec_vec >= spec_min_max[0]) & (spec_vec <= spec_min_max[1])
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
-        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
-                                             maxdev=maxdev, idx = sobjs.idx,
-                                             show_fits=show_fits)
+#        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
+#                                             maxdev=maxdev, idx = sobjs.idx,
+#                                             show_fits=show_fits)
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
+                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                 idx=sobjs.idx, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
-        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff,inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
-                                              maxdev=maxdev, gweight = True,
-                                              idx = sobjs.idx, show_fits=show_fits)
+#        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff,inmask=inmask, trc_inmask=trc_inmask, fwhm=fwhm,
+#                                              maxdev=maxdev, gweight = True,
+#                                              idx = sobjs.idx, show_fits=show_fits)
+        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask),
+                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                 weighting='gaussian', idx=sobjs.idx, debug=show_fits)[0]
         # Linearly extrapolate the traces where they are bad
         #xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max, npoly=extrap_npoly)
 
@@ -2607,12 +2615,22 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
         inmask_now = inmask & allmask
-        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, trc_inmask=trc_inmask,
-                                             fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
+#        xfit_fweight, _, _, _= iter_tracefit(image, xinit_fweight, ncoeff, inmask = inmask_now, trc_inmask=trc_inmask,
+#                                             fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
+
+        xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask_now),
+                                 trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
+                                 debug=show_fits)[0]
+
         # Perform iterative Gaussian weighted centroiding
         xinit_gweight = xfit_fweight.copy()
-        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now,  trc_inmask=trc_inmask,
-                                              gweight=True, fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
+#        xfit_gweight, _ , _, _= iter_tracefit(image, xinit_gweight, ncoeff, inmask = inmask_now,  trc_inmask=trc_inmask,
+#                                              gweight=True, fwhm=fwhm, maxdev=maxdev, show_fits=show_fits)
+
+        xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask_now),
+                                 trace_bpm=np.invert(trc_inmask), weighting='gaussian', fwhm=fwhm,
+                                 maxdev=maxdev, debug=show_fits)[0]
+
         #xfit_final = trace_slits.extrapolate_trace(xfit_gweight, spec_min_max, npoly=extrap_npoly)
         #TODO  Assign the new traces. Only assign the orders that were not orginally detected and traced. If this works
         # well, we will avoid doing all of the iter_tracefits above to make the code faster.
