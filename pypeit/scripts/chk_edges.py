@@ -37,7 +37,7 @@ def main(pargs):
 
     if not pargs.old:
         edges = edgetrace.EdgeTraceSet.from_file(pargs.root)
-        if mpl:
+        if pargs.mpl:
             edges.show(thin=10, include_img=True, idlabel=True)
         else:
             edges.show(thin=10, in_ginga=True)
