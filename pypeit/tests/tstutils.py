@@ -11,7 +11,7 @@ from IPython import embed
 from astropy import time
 
 from pypeit import arcimage
-from pypeit import traceslits
+#from pypeit import traceslits
 from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import flatfield
