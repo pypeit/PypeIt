@@ -1769,7 +1769,7 @@ class EdgeTracePar(ParSet):
                                'edge pairs, `nearest` to use the length of the nearest slit, ' \
                                'or `gap` to offset by a fixed gap width from the next slit edge.'
 
-        defaults['gap_offset'] = 1.
+        defaults['gap_offset'] = 5.
         dtypes['gap_offset'] = [int, float]
         descr['gap_offset'] = 'Offset (pixels) used for the slit edge gap width when inserting ' \
                               'slit edges (see `sync_center`) or when nudging predicted slit ' \

@@ -174,6 +174,7 @@ class MasterFrame(object):
 def items_from_master_file(master_file):
     """
     Grab items from the Master file
+    In particular, generate the spectrograph object
 
     Either the header or some other part of the object
 
@@ -184,7 +185,8 @@ def items_from_master_file(master_file):
     Returns:
         pypeit.spectrograph.Spectrograph, list:
           Spectrograph generated from information in the the master object,
-          Other items
+          extras -- Avoid having this grow out of control!
+            If FITS, the extras list is:  [head0]
 
     """
     ext = master_file.split('.')[-1]

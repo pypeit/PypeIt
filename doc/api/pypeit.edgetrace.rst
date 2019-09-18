@@ -2,6 +2,6 @@ pypeit.edgetrace module
 =======================
 
 .. automodule:: pypeit.edgetrace
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

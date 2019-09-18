@@ -85,7 +85,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def default_pypeit_par(self):
+    @staticmethod
+    def default_pypeit_par():
         """
         Set default parameters for Keck LRISb reductions.
         """
@@ -153,7 +154,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        par = self.__class__.default_pypeit_par() if inp_par is None else inp_par
 
         headarr = self.get_headarr(scifile)
 

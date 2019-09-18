@@ -17,14 +17,11 @@ def parser(options=None):
     parser.add_argument('root', type=str, default = None, help='PYPIT Master Trace file root [e.g. MasterTrace_A_01_aa.fits]')
     parser.add_argument("--chname", default='MTrace', type=str, help="Channel name for image in Ginga")
     parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
-    parser.add_argument("--new", default=False, action="store_true", help="Uses new tracing")
-    #parser.add_argument("--show", type=str, help="Use the show() method of TraceSlits to show something else")
+    parser.add_argument("--old", default=False, action="store_true", help="Used old slit tracing")
+    parser.add_argument('--mpl', default=False, action='store_true',
+                        help='Use a matplotlib window instead of ginga to show the trace')
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(pargs):
@@ -38,9 +35,12 @@ def main(pargs):
 
     import subprocess
 
-    if pargs.new:
+    if not pargs.old:
         edges = edgetrace.EdgeTraceSet.from_file(pargs.root)
-        edges.show(thin=10, in_ginga=True)
+        if mpl:
+            edges.show(thin=10, include_img=True, idlabel=True)
+        else:
+            edges.show(thin=10, in_ginga=True)
         return 0
 
     # Load up

@@ -14,6 +14,6 @@ Module contents
 ---------------
 
 .. automodule:: pypeit.par
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

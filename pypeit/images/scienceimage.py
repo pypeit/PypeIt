@@ -15,7 +15,7 @@ from pypeit.par import pypeitpar
 from pypeit import utils
 
 from pypeit.images import pypeitimage
-from pypeit.images import buildimage
+from pypeit.images import combineimage
 
 from IPython import embed
 
@@ -231,8 +231,8 @@ def build_from_file_list(spectrograph, det, par, bpm,
     if par['cr_reject']:
         process_steps += ['crmask']
 
-    buildImage = buildimage.BuildImage(spectrograph, det, par, file_list)
-    pypeitImage = buildImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
+    combineImage = combineimage.CombineImage(spectrograph, det, par, file_list)
+    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
                                  illum_flat=illum_flat, sigma_clip=sigma_clip,
                                  sigrej=sigrej, maxiters=maxiters)
 

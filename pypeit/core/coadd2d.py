@@ -845,7 +845,8 @@ class Coadd2d(object):
             head2d_list.append(head)
             spec1d_files.append(f.replace('spec2d', 'spec1d'))
             tracefiles.append(os.path.join(master_path,
-                                           MasterFrame.construct_file_name('Trace', trace_key)))
+                            '{0}.gz'.format(MasterFrame.construct_file_name('Edges', trace_key))))
+#                                           MasterFrame.construct_file_name('Trace', trace_key)))
             waveimgfiles.append(os.path.join(master_path,
                                              MasterFrame.construct_file_name('Wave', wave_key)))
             tiltfiles.append(os.path.join(master_path,
@@ -904,7 +905,8 @@ class Coadd2d(object):
 
             # Slit Traces and slitmask
 #            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
-            tslits_dict = edgetrace.EdgeTraceSet.from_file(tracefiles[0]).convert_to_tslits_dict()
+            tslits_dict \
+                    = edgetrace.EdgeTraceSet.from_file(tracefiles[ifile]).convert_to_tslits_dict()
             tslits_dict_list.append(tslits_dict)
             slitmask = pixels.tslits2mask(tslits_dict)
             slitmask_stack[ifile, :, :] = slitmask
