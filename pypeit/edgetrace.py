@@ -199,8 +199,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         edges = EdgeTraceSet(spec, par, load=True)
 
     In the latter case, note that the `load` argument takes
-    precedence and an exception is raised if one provides both both
-    `img` and sets `load=True`.
+    precedence and an exception is raised if one provides both `img`
+    and sets `load=True`.
 
     Most commonly, one will use the automatic tracing routine to
     trace the slit edges; see the description of the steps used
