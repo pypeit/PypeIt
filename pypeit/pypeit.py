@@ -592,10 +592,10 @@ class PypeIt(object):
         self.sobjs_obj, self.nobj, self.skymask = self.redux.find_objects(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict)
 
-        # Extract (if nobj==0, this passess back 'dummy' arrays)
+        # Extract (if nobj==0, this passes back 'dummy' arrays required for spec2d outputs)
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.extract()
 
-        # Objects extracted?
+        # Finish up
         if self.sobjs_obj.nobj == 0:
             # Print status message
             msgs_string = 'No objects to extract for target {:s}'.format(
