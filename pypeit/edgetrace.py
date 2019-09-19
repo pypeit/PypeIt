@@ -2577,7 +2577,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 continue
 
             # Perform the fit
-            fit[:,indx], cen[:,indx], err[:,indx], msk[:,indx] \
+            fit[:,indx], cen[:,indx], err[:,indx], msk[:,indx], _ \
                     = trace.fit_trace(_sobel_sig, self.spat_cen[:,indx], order, ivar=ivar,
                                       bpm=bpm, trace_bpm=spat_bpm[:,indx],
                                       weighting=weighting, fwhm=fwhm, maxshift=maxshift,

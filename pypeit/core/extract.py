@@ -18,11 +18,12 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
 from pypeit import specobjs
-#from pypeit import tracepca
+from pypeit import tracepca
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import trace_slits
 from pypeit.core import arc
+from pypeit.core.trace import fit_trace
 from pypeit.core.pydl import spheregroup
 from pypeit.core.moment import moment1d
 
@@ -36,207 +37,207 @@ from pypeit.core.moment import moment1d
 mask_flags = dict(bad_pix=2**0, CR=2**1, NAN=2**5, bad_row=2**6)
 
 
-#def extract_asymbox2(image,left_in,right_in, ycen=None, weight_image=None):
-#    """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
-#    specified by the left_in and right_in traces.  The ycen position is optional. If it is not provied, it is assumed to be integers
-#    in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
-#    extract_  routines. Based on idlspec2d/spec2d/extract_asymbox2.pro
-#
-#    Args:
-#    image :  float ndarray
-#        Image to extract from. It is a 2-d array with shape (nspec, nspat)
-#    left  :  float ndarray
-#        Left boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
-#        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-#
-#    right  :  float ndarray
-#        Right boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
-#        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-#
-#
-#    Returns:
-#    ycen :  float ndarray
-#        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
-#        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
-#        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-#
-#    weight_image: float ndarray
-#        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
-#
-#    Returns
-#    -------
-#    fextract:   ndarray
-#       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
-#       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
-#       the case of a single trace.
-#
-#
-#    Revision History
-#    ----------------
-#    24-Mar-1999  Written by David Schlegel, Princeton.
-#    17-Feb-2003  Written with slow IDL routine, S. Burles, MIT
-#    22-Apr-2018  Ported to python by Joe Hennawi
-#    """
-#
-#    # ToDO it would be nice to avoid this transposing, but I got confused during the IDL port
-#    left = left_in.T
-#    right = right_in.T
-#
-#    dim = left.shape
-#    ndim = left.ndim
-#    if (ndim == 1):
-#        nTrace = 1
-#        npix = dim[0]
-#    else:
-#        nTrace = dim[0]
-#        npix = dim[1]
-#
-#    if ycen is None:
-#        if ndim == 1:
-#            ycen_out = np.arange(npix, dtype=int)
-#        elif ndim == 2:
-#            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
-#        else:
-#            raise ValueError('trace is not 1 or 2 dimensional')
-#    else:
-#        ycen_out = ycen.T
-#        ycen_out = np.rint(ycen_out).astype(int)
-#
-#    if ((np.size(left) != np.size(ycen_out)) | (np.shape(left) != np.shape(ycen_out))):
-#        raise ValueError('Number of elements and left of trace and ycen must be equal')
-#
-#    idims = image.shape
-#    nspat = idims[1]
-#    nspec = idims[0]
-#
-#    maxwindow = np.max(right - left)
-#    tempx = np.int(maxwindow + 3.0)
-#
-#    bigleft = np.outer(left[:], np.ones(tempx))
-#    bigright = np.outer(right[:], np.ones(tempx))
-#    spot = np.outer(np.ones(npix * nTrace), np.arange(tempx)) + bigleft - 1
-#    bigy = np.outer(ycen_out[:], np.ones(tempx, dtype='int'))
-#
-#    fullspot = np.array(np.fmin(np.fmax(np.round(spot + 1) - 1, 0), nspat - 1), int)
-#    fracleft = np.fmax(np.fmin(fullspot - bigleft, 0.5), -0.5)
-#    fracright = np.fmax(np.fmin(bigright - fullspot, 0.5), -0.5)
-#    del bigleft
-#    del bigright
-#    bool_mask1 = (spot >= -0.5) & (spot < (nspat - 0.5))
-#    bool_mask2 = (bigy >= 0) & (bigy <= (nspec - 1))
-#    weight = (np.fmin(np.fmax(fracleft + fracright, 0), 1)) * bool_mask1 * bool_mask2
-#    del spot
-#    del fracleft
-#    del fracright
-#    bigy = np.fmin(np.fmax(bigy, 0), nspec - 1)
-#
-#    if weight_image is not None:
-#        temp = np.array([weight_image[x1, y1] * image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
-#        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
-#        fextract = np.sum(temp2, axis=2)
-#        temp_wi = np.array([weight_image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
-#        temp2_wi = np.reshape(weight.flatten() * temp_wi, (nTrace, npix, tempx))
-#        f_ivar = np.sum(temp2_wi, axis=2)
-#        fextract = fextract / (f_ivar + (f_ivar == 0)) * (f_ivar > 0)
-#    else:
-#        # Might be a more pythonic way to code this. I needed to switch the flattening order in order to get
-#        # this to work
-#        temp = np.array([image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
-#        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
-#        fextract = np.sum(temp2, axis=2)
-#
-#    # IDL version model functionality not implemented yet
-#    # At the moment I'm not reutnring the f_ivar for the weight_image mode. I'm not sure that this functionality is even
-#    # ever used
-#
-#    if(nTrace ==1):
-#        fextract = fextract.reshape(npix)
-#    return fextract.T
+def extract_asymbox2(image,left_in,right_in, ycen=None, weight_image=None):
+    """ Extract the total flux within a variable window at many positions. This routine will accept an asymmetric/variable window
+    specified by the left_in and right_in traces.  The ycen position is optional. If it is not provied, it is assumed to be integers
+    in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
+    extract_  routines. Based on idlspec2d/spec2d/extract_asymbox2.pro
+
+    Args:
+    image :  float ndarray
+        Image to extract from. It is a 2-d array with shape (nspec, nspat)
+    left  :  float ndarray
+        Left boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+    right  :  float ndarray
+        Right boundary of region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+        (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
 
 
-#def extract_boxcar(image,trace_in, radius_in, ycen = None):
-#    """ Extract the total flux within a boxcar window at many positions. The ycen position is optional. If it is not provied, it is assumed to be integers
-#     in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
-#     extract_  routines. Based on idlspec2d/spec2d/extract_boxcar.pro
-#
-#     Parameters
-#     ----------
-#     image :  float ndarray
-#         Image to extract from. It is a 2-d array with shape (nspec, nspat)
-#
-#     trace_in :  float ndarray
-#         Trace for the region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
-#         (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-#
-#     radius :  float or ndarray
-#         boxcar radius in floating point pixels. This can be either be in put as a scalar or as an array to perform
-#         boxcar extraction a varaible radius. If an array is input it must have the same size and shape as trace_in, i.e.
-#         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
-#
-#
-#     Optional Parameters
-#     -------------------
-#     ycen :  float ndarray
-#         Y positions corresponding to trace_in (expected as integers). Will be rounded to the nearest integer if floats
-#         are provided. This needs to have the same shape as trace_in  provided above. In other words,
-#         either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-#
-#
-#     Returns
-#     -------
-#     fextract:   ndarray
-#         Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
-#         Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
-#         the case of a single trace.
-#
-#     Revision History
-#     ----------------
-#     24-Mar-1999  Written by David Schlegel, Princeton.
-#     22-Apr-2018  Ported to python by Joe Hennawi
-#     """
-#
-#
-#    # Checks on radius
-#    if (isinstance(radius_in,int) or isinstance(radius_in,float)):
-#        radius = radius_in
-#    elif ((np.size(radius_in)==np.size(trace_in)) & (np.shape(radius_in) == np.shape(trace_in))):
-#        radius = radius_in.T
-#    else:
-#        raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
-#                         'with the same shape and size as trace_in')
-#
-#    trace = trace_in.T
-#
-#    dim = trace.shape
-#    ndim = len(dim)
-#    if (ndim == 1):
-#        nTrace = 1
-#        npix = dim[0]
-#    else:
-#        nTrace = dim[0]
-#        npix = dim[1]
-#
-#    if ycen is None:
-#        if ndim == 1:
-#            ycen_out = np.arange(npix, dtype='int')
-#        elif ndim == 2:
-#            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
-#        else:
-#            raise ValueError('trace is not 1 or 2 dimensional')
-#    else:
-#        ycen_out = ycen.T
-#        ycen_out = np.rint(ycen_out).astype(int)
-#
-#    if ((np.size(trace) != np.size(ycen_out)) | (np.shape(trace) != np.shape(ycen_out))):
-#        raise ValueError('Number of elements and shape of trace and ycen must be equal')
-#
-#
-#
-#    left = trace - radius
-#    right = trace + radius
-#    fextract = extract_asymbox2(image, left, right, ycen_out)
-#
-#    return fextract
+    Returns:
+    ycen :  float ndarray
+        Y positions corresponding to "Left"  and "Right" (expected as integers). Will be cast to an integer if floats
+        are provided. This needs to have the same shape as left and right broundarys provided above. In other words,
+        either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+    weight_image: float ndarray
+        Weight map to be applied to image before boxcar. It is a 2-d array with shape (nspec, nspat)
+
+    Returns
+    -------
+    fextract:   ndarray
+       Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+       Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+       the case of a single trace.
+
+
+    Revision History
+    ----------------
+    24-Mar-1999  Written by David Schlegel, Princeton.
+    17-Feb-2003  Written with slow IDL routine, S. Burles, MIT
+    22-Apr-2018  Ported to python by Joe Hennawi
+    """
+
+    # ToDO it would be nice to avoid this transposing, but I got confused during the IDL port
+    left = left_in.T
+    right = right_in.T
+
+    dim = left.shape
+    ndim = left.ndim
+    if (ndim == 1):
+        nTrace = 1
+        npix = dim[0]
+    else:
+        nTrace = dim[0]
+        npix = dim[1]
+
+    if ycen is None:
+        if ndim == 1:
+            ycen_out = np.arange(npix, dtype=int)
+        elif ndim == 2:
+            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
+        else:
+            raise ValueError('trace is not 1 or 2 dimensional')
+    else:
+        ycen_out = ycen.T
+        ycen_out = np.rint(ycen_out).astype(int)
+
+    if ((np.size(left) != np.size(ycen_out)) | (np.shape(left) != np.shape(ycen_out))):
+        raise ValueError('Number of elements and left of trace and ycen must be equal')
+
+    idims = image.shape
+    nspat = idims[1]
+    nspec = idims[0]
+
+    maxwindow = np.max(right - left)
+    tempx = np.int(maxwindow + 3.0)
+
+    bigleft = np.outer(left[:], np.ones(tempx))
+    bigright = np.outer(right[:], np.ones(tempx))
+    spot = np.outer(np.ones(npix * nTrace), np.arange(tempx)) + bigleft - 1
+    bigy = np.outer(ycen_out[:], np.ones(tempx, dtype='int'))
+
+    fullspot = np.array(np.fmin(np.fmax(np.round(spot + 1) - 1, 0), nspat - 1), int)
+    fracleft = np.fmax(np.fmin(fullspot - bigleft, 0.5), -0.5)
+    fracright = np.fmax(np.fmin(bigright - fullspot, 0.5), -0.5)
+    del bigleft
+    del bigright
+    bool_mask1 = (spot >= -0.5) & (spot < (nspat - 0.5))
+    bool_mask2 = (bigy >= 0) & (bigy <= (nspec - 1))
+    weight = (np.fmin(np.fmax(fracleft + fracright, 0), 1)) * bool_mask1 * bool_mask2
+    del spot
+    del fracleft
+    del fracright
+    bigy = np.fmin(np.fmax(bigy, 0), nspec - 1)
+
+    if weight_image is not None:
+        temp = np.array([weight_image[x1, y1] * image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
+        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
+        fextract = np.sum(temp2, axis=2)
+        temp_wi = np.array([weight_image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
+        temp2_wi = np.reshape(weight.flatten() * temp_wi, (nTrace, npix, tempx))
+        f_ivar = np.sum(temp2_wi, axis=2)
+        fextract = fextract / (f_ivar + (f_ivar == 0)) * (f_ivar > 0)
+    else:
+        # Might be a more pythonic way to code this. I needed to switch the flattening order in order to get
+        # this to work
+        temp = np.array([image[x1, y1] for (x1, y1) in zip(bigy.flatten(), fullspot.flatten())])
+        temp2 = np.reshape(weight.flatten() * temp, (nTrace, npix, tempx))
+        fextract = np.sum(temp2, axis=2)
+
+    # IDL version model functionality not implemented yet
+    # At the moment I'm not reutnring the f_ivar for the weight_image mode. I'm not sure that this functionality is even
+    # ever used
+
+    if(nTrace ==1):
+        fextract = fextract.reshape(npix)
+    return fextract.T
+
+
+def extract_boxcar(image,trace_in, radius_in, ycen = None):
+    """ Extract the total flux within a boxcar window at many positions. The ycen position is optional. If it is not provied, it is assumed to be integers
+     in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
+     extract_  routines. Based on idlspec2d/spec2d/extract_boxcar.pro
+
+     Parameters
+     ----------
+     image :  float ndarray
+         Image to extract from. It is a 2-d array with shape (nspec, nspat)
+
+     trace_in :  float ndarray
+         Trace for the region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+         (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+     radius :  float or ndarray
+         boxcar radius in floating point pixels. This can be either be in put as a scalar or as an array to perform
+         boxcar extraction a varaible radius. If an array is input it must have the same size and shape as trace_in, i.e.
+         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+
+
+     Optional Parameters
+     -------------------
+     ycen :  float ndarray
+         Y positions corresponding to trace_in (expected as integers). Will be rounded to the nearest integer if floats
+         are provided. This needs to have the same shape as trace_in  provided above. In other words,
+         either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+
+
+     Returns
+     -------
+     fextract:   ndarray
+         Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
+         Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
+         the case of a single trace.
+
+     Revision History
+     ----------------
+     24-Mar-1999  Written by David Schlegel, Princeton.
+     22-Apr-2018  Ported to python by Joe Hennawi
+     """
+
+
+    # Checks on radius
+    if (isinstance(radius_in,int) or isinstance(radius_in,float)):
+        radius = radius_in
+    elif ((np.size(radius_in)==np.size(trace_in)) & (np.shape(radius_in) == np.shape(trace_in))):
+        radius = radius_in.T
+    else:
+        raise ValueError('Boxcar radius must a be either an integer, a floating point number, or an ndarray '
+                         'with the same shape and size as trace_in')
+
+    trace = trace_in.T
+
+    dim = trace.shape
+    ndim = len(dim)
+    if (ndim == 1):
+        nTrace = 1
+        npix = dim[0]
+    else:
+        nTrace = dim[0]
+        npix = dim[1]
+
+    if ycen is None:
+        if ndim == 1:
+            ycen_out = np.arange(npix, dtype='int')
+        elif ndim == 2:
+            ycen_out = np.outer(np.ones(nTrace, dtype=int), np.arange(npix, dtype=int))
+        else:
+            raise ValueError('trace is not 1 or 2 dimensional')
+    else:
+        ycen_out = ycen.T
+        ycen_out = np.rint(ycen_out).astype(int)
+
+    if ((np.size(trace) != np.size(ycen_out)) | (np.shape(trace) != np.shape(ycen_out))):
+        raise ValueError('Number of elements and shape of trace and ycen must be equal')
+
+
+
+    left = trace - radius
+    right = trace + radius
+    fextract = extract_asymbox2(image, left, right, ycen_out)
+
+    return fextract
 
 
 def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, specobj, min_frac_use = 0.05):
@@ -2599,18 +2600,20 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
-        pca_fits[:, :, iobj], _, _, _ = pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
-                                                 npca=npca, pca_explained_var=pca_explained_var,
-                                                 coeff_npoly=coeff_npoly,
-                                                 coeff_weights = np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
-                                                 debug=show_pca)
-        # Trial and error shows weighting by S/N instead of S/N^2 performs better
+#        pca_fits[:, :, iobj], _, _, _ = pca_trace((sobjs_final[indx_obj_id].trace_spat).T,
+#                                                 npca=npca, pca_explained_var=pca_explained_var,
+#                                                 coeff_npoly=coeff_npoly,
+#                                                 coeff_weights = np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
+#                                                 debug=show_pca)
 
-        # TODO: Check transpose
-#        pca_fits[:, :, iobj] = tracepca.pca_trace_object(sobjs_final[indx_obj_id].trace_spat.T,
-#                                                         order=coeff_npoly, npca=npca,
-#                                                         pca_explained_var=pca_explained_var,
-#                                                         debug=debug)
+        pca_fits[:,:,iobj] \
+                = tracepca.pca_trace_object(sobjs_final[indx_obj_id].trace_spat.T,
+                                            order=coeff_npoly, npca=npca,
+                                            pca_explained_var=pca_explained_var,
+                                        trace_wgt=np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
+                                            debug=show_pca)
+
+        # Trial and error shows weighting by S/N instead of S/N^2 performs better
 
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()

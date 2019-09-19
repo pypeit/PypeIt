@@ -142,7 +142,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             PCA component coefficients. If the PCA decomposition used
             :math:`N_{\rm comp}` components for :math:`N_{\rm vec}`
             vectors, the shape of this array must be :math:`(N_{\rm
-            comp}, N_{\rm vec})`. The array can be 1D with shape
+            vec}, N_{\rm comp})`. The array can be 1D with shape
             :math:`(N_{\rm vec},)` if there was only one PCA
             component.
         order (:obj:`int`, `numpy.ndarray`_):
@@ -154,13 +154,21 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         ivar (`numpy.ndarray`_, optional):
             Inverse variance in the PCA coefficients to use during
             the fit; see the `invvar` parameter of
-            :func:`pypeit.utils.robust_polyfit_djs`. Must be the same
-            shape as `coeff`. If None, fit is not error weighted.
+            :func:`pypeit.utils.robust_polyfit_djs`. If None, fit is
+            not error weighted. If a vector with shape :math:`(N_{\rm
+            vec},)`, the same error will be assumed for all PCA
+            components (i.e., `ivar` will be expanded to match the
+            shape of `coeff`). If a 2D array, the shape must match
+            `coeff`.
         weights (`numpy.ndarray`_, optional):
             Weights to apply to the PCA coefficients during the fit;
             see the `weights` parameter of
-            :func:`pypeit.utils.robust_polyfit_djs`. Must be the same
-            shape as `coeff`. If None, weights are uniform.
+            :func:`pypeit.utils.robust_polyfit_djs`. If None, the
+            weights are uniform. If a vector with shape
+            :math:`(N_{\rm vec},)`, the same weights will be assumed
+            for all PCA components (i.e., `weights` will be expanded
+            to match the shape of `coeff`). If a 2D array, the shape
+            must match `coeff`.
         function (:obj:`str`, optional):
             Type of function used to fit the data.
         lower (:obj:`float`, optional):
@@ -207,16 +215,22 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     """
     # Check the input
     #   - Get the shape of the input data to fit
-    _coeff = np.atleast_2d(coeff)
+    _coeff = np.asarray(coeff)
+    if _coeff.ndim == 1:
+        _coeff = np.expand_dims(_coeff, 1)
     if _coeff.ndim != 2:
         raise ValueError('Array with coefficiencts cannot be more than 2D')
     nvec, npca = _coeff.shape
     #   - Check the inverse variance
-    _ivar = np.ones(_coeff.shape, dtype=float) if ivar is None else np.atleast_2d(ivar)
+    _ivar = np.ones(_coeff.shape, dtype=float) if ivar is None else np.asarray(ivar)
+    if _ivar.ndim == 1:
+        _ivar = np.expand_dims(_ivar, 1)
     if _ivar.shape != _coeff.shape:
         raise ValueError('Inverse variance array does not match input coefficients.')
     #   - Check the weights
-    _weights = np.ones(_coeff.shape, dtype=float) if weights is None else np.atleast_2d(weights)
+    _weights = np.ones(_coeff.shape, dtype=float) if weights is None else np.asarray(weights)
+    if _weights.ndim == 1:
+        _weights = np.expand_dims(_weights, 1)
     if _weights.shape != _coeff.shape:
         raise ValueError('Weights array does not match input coefficients.')
     #   - Set the abscissa of the data if not provided and check its

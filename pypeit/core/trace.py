@@ -1083,7 +1083,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
 
     # Returns the fit, the actual weighted traces and errors, and
     # measurement flags for the last iteration
-    return trace_fit, cen, err, msk #, traceset
+    return trace_fit, cen, err, msk, traceset
 
 
 def build_trace_bpm(flux, trace_cen, bpm=None, boxcar=None, thresh=None, median_kernel=None):
@@ -1427,7 +1427,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                                                  thresh=trace_thresh, median_kernel=median_kernel)
 
         # Remeasure and fit the trace using uniform weighting
-        trace_peak, _cen, _err, _msk \
+        trace_peak, _cen, _err, _msk, _ \
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm,
                             trace_bpm=trace_peak_bpm, fwhm=fwhm_uniform, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,
@@ -1441,7 +1441,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
         # Redo the measurements and trace fitting with Gaussian
         # weighting
-        trace_peak, _cen, _err, _msk \
+        trace_peak, _cen, _err, _msk, _ \
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm, trace_bpm=trace_peak_bpm,
                             weighting='gaussian', fwhm=fwhm_gaussian, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,

@@ -41,14 +41,23 @@ class TracePCA:
             The row (spectral position) in `trace_cen` to use as the
             reference coordinate system for the PCA. If None, set to
             the :math:`N_{\rm spec}/2`.
+        coo (`numpy.ndarray`_, optional):
+            Floating-point array with the reference coordinates for
+            each trace. If provided, the shape must be :math:`(N_{\rm
+            trace},)`. If None, the reference coordinate system is
+            defined by the value of `trace_cen` at the spectral
+            position defined by `reference_row`. See the `mean`
+            argument of :func:`pypeit.core.pca.pca_decomposition`.
     """
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
-    def __init__(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None):
+    def __init__(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None, coo=None):
 
         # Set the reference row to use for the coordinates of the trace
         self.reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
-        self.trace_coo = trace_cen[self.reference_row,:]
+        self.trace_coo = trace_cen[self.reference_row,:] if coo is None else coo
+        if self.trace_coo.shape != trace_cen.shape[1]:
+            raise ValueError('Provided reference coordinates have incorrect shape.')
         # Save the input
         self.input_npca = npca
         self.input_pcav = pca_explained_var
@@ -119,41 +128,137 @@ class TracePCA:
         return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
                                function=self.function).T
 
-# TODO: This is a WIP development place holder; it's never called and
-# will fault if it is!
+# TODO: Like with the use of TracePCA in EdgeTraceSet, we should
+# integrate the elements of the function below into classes that trace
+# objects and tilts so that the PCA can be called and used later
 def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca=None,
-                     pca_explained_var=99.0, coeff_weights=None, function='polynomial', lower=3.0,
-                     upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25, debug=False):
+                     pca_explained_var=99.0, reference_row=None, coo=None, trace_wgt=None,
+                     function='polynomial', lower=3.0, upper=3.0, maxrej=1, maxiter=25,
+                     debug=False):
+    r"""
+    Decompose and reconstruct the provided traces using
+    principle-component analysis.
 
-        if trace_bpm is None:
-            use_trace = np.ones(trace_cen.shape[1], dtype=bool)
-            reference_row = trace_cen.shape[0]//2
-        else:
-            use_trace = np.sum(np.invert(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
-            reference_row = trace.most_common_trace_row(trace_bpm[:,use_trace])
+    Args:
+        trace_cen (`numpy.ndarray`_):
+            A floating-point array with the spatial location of each
+            each trace. Shape is :math:`(N_{\rm spec}, N_{\rm
+            trace})`.
+        order (:obj:`int`, :obj:`list`, optional):
+            The order of the polynomial to use fit each PCA
+            coefficient as a function of trace position. If None,
+            `order` is set to :math:`3.3 N_{\rm use}/N_{\rm trace}`,
+            where :math:`N_{\rm use}` is the number of traces used to
+            construct the PCA and :math:`N_{\rm trace}` is the number
+            of total traces provided. If an integer (determined
+            automatically if the argument is `None`), the order per
+            PCA component (see `npca`) is set to cascade from
+            high-to-low order as follows::
 
-        # Instantiate the PCA
-        cenpca = TracePCA(trace_cen[:,use_trace], npca=npca, pca_explained_var=pca_explained_var,
-                          reference_row=reference_row)
+                _order = np.clip(order - np.arange(npca), 1, None).astype(int)
 
-        # Set the order of the function fit to the PCA coefficiencts:
-        # Order is set to cascade down to lower order for components
-        # that account for a smaller percentage of the variance.
-        if order is None:
-            order = int(np.clip(np.floor(3.3*np.sum(use_trace)/trace_cen.shape[1]),1.0,3.0))
-        _order = np.clip(order - np.arange(self.pca[i].npca), 1, None).astype(int)
-        msgs.info('Order of function fit to each component: {0}'.format(_order))
+        trace_bpm (`numpy.ndarray`_, optional):
+            Bad-pixel mask for the trace data (True is bad; False is
+            good). Must match the shape of `trace_cen`.
+        min_length (:obj:`float`, optional):
+            The good position of the trace must cover at least this
+            fraction of the spectral dimension for use in the PCA
+            decomposition.
+        npca (:obj:`bool`, optional):
+            The number of PCA components to keep. See
+            :func:`pypeit.core.pca.pca_decomposition`.
+        pca_explained_var (:obj:`float`, optional):
+            The percentage (i.e., not the fraction) of the variance
+            in the data accounted for by the PCA used to truncate the
+            number of PCA coefficients to keep (see `npca`). Ignored
+            if `npca` is provided directly. See
+            :func:`pypeit.core.pca.pca_decomposition`.
+        reference_row (:obj:`int`, optional):
+            The row (spectral position) in `trace_cen` to use as the
+            reference coordinate system for the PCA. If None, set to
+            the :math:`N_{\rm spec}/2` or based on the spectral
+            position that crosses the most number of valid trace
+            positions.
+        coo (`numpy.ndarray`_, optional):
+            Floating-point array with the reference coordinates to
+            use for each trace. If None, coordinates are defined at
+            the reference row of `trace_cen`. Shape must be
+            :math:`(N_{\rm trace},)`.
+        trace_wgt (`numpy.ndarray`_, optional):
+            Weights to apply to the PCA coefficient of each trace
+            during the fit. Weights are independent of the PCA
+            component. See `weights` parameter of
+            :func:`pypeit.core.pca.fit_pca_coefficients`. Shape must
+            be :math:`(N_{\rm trace},)`.
+        function (:obj:`str`, optional):
+            Type of function used to fit the data.
+        lower (:obj:`float`, optional):
+            Number of standard deviations used for rejecting data
+            **below** the mean residual. If None, no rejection is
+            *performed. See
+            :func:`utils.robust_polyfit_djs`.
+        upper (:obj:`float`, optional):
+            Number of standard deviations used for rejecting data
+            **above** the mean residual. If None, no rejection is
+            *performed. See
+            :func:`utils.robust_polyfit_djs`.
+        maxrej (:obj:`int`, optional):
+            Maximum number of points to reject during fit iterations.
+            See :func:`utils.robust_polyfit_djs`.
+        maxiter (:obj:`int`, optional):
+            Maximum number of rejection iterations allows. To force
+            no rejection iterations, set to 0.
+        debug (:obj:`bool`, optional):
+            Show plots useful for debugging.
+    """
+    # Check the input
+    if trace_bpm is None:
+        use_trace = np.ones(trace_cen.shape[1], dtype=bool)
+        _reference_row = reference_row
+    else:
+        use_trace = np.sum(np.invert(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
+        _reference_row = trace.most_common_trace_row(trace_bpm[:,use_trace]) \
+                                if reference_row is None else reference_row
+    _coo = None if coo is None else coo[use_trace]
 
-        # Apply a 10% relative error to each coefficient. This performs
-        # better than use_mad, since larger coefficients will always be
-        # considered inliers, if the coefficients vary rapidly with
-        # order as they sometimes do.
-        ivar = utils.inverse(numpy.square(np.fmax(0.1*np.absolute(cenpca.pca_coeffs), 0.1)))
-        weights = np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0)
+    # Instantiate the PCA
+    cenpca = TracePCA(trace_cen[:,use_trace], npca=npca, pca_explained_var=pca_explained_var,
+                      reference_row=_reference_row, coo=_coo)
 
-        # Run the fit
-        cenpca.build_interpolator(_order, ivar=ivar, weights=weights, function=function,
-                                  lower=lower, upper=upper, maxrej=maxrej, maxiter=maxiter,
-                                  debug=debug)
+    # Set the order of the function fit to the PCA coefficients:
+    # Order is set to cascade down to lower order for components
+    # that account for a smaller percentage of the variance.
+    if order is None:
+        # TODO: Where does this come from?
+        order = int(np.clip(np.floor(3.3*np.sum(use_trace)/trace_cen.shape[1]),1.0,3.0))
+    _order = np.atleast_1d(order)
+    if _order.size == 1:
+        _order = np.clip(order - np.arange(cenpca.npca), 1, None).astype(int)
+    if _order.size != cenpca.npca:
+        msgs.error('Number of polynomial orders does not match the number of PCA components.')
+    msgs.info('Order of function fit to each component: {0}'.format(_order))
 
-        return cenpca.predict(trace_cen[:,use_trace])
+    # Apply a 10% relative error to each coefficient. This performs
+    # better than use_mad, since larger coefficients will always be
+    # considered inliers, if the coefficients vary rapidly with
+    # order as they sometimes do.
+
+    # TODO: This inverse variance usage has performance issues and
+    # tends to lead to rejection of coefficients that are near 0.
+    # Instead of setting the floor to an absolute value 0.1, why not a
+    # relative value like the mean or median of the coefficients? I.e.
+#    ivar = utils.inverse(numpy.square(np.fmax(0.1*np.absolute(cenpca.pca_coeffs),
+#                                              0.1*np.median(cenpca.pca_coeffs))))
+    ivar = utils.inverse(numpy.square(np.fmax(0.1*np.absolute(cenpca.pca_coeffs), 0.1)))
+
+    # Set any additional weights for each trace
+    weights = np.ones(np.sum(use_trace), dtype=float)
+                if trace_wgt is None else trace_wgt[use_trace]
+
+    # Build the interpolator that allows prediction of new traces
+    cenpca.build_interpolator(_order, ivar=ivar, weights=weights, function=function,
+                              lower=lower, upper=upper, maxrej=maxrej, maxiter=maxiter,
+                              debug=debug)
+
+    # Return the traces predicted for all 
+    return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)

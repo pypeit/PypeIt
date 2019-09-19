@@ -14,6 +14,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit import tracepca
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import trace_slits
@@ -276,8 +277,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 #            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
 #            maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
 
-        # TODO: Need to have fit_trace return the TraceSet
-        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_msk_out, tset_out \
+        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, _, tset_out \
                 = fit_trace(sub_img, tilts_guess_now, spat_order, bpm=np.invert(sub_inmask),
                             trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm, maxdev=maxdev,
                             niter=6, idx=str(iline), debug=show_tracefits, xmin=0.0,
@@ -296,7 +296,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 #                maxdev=maxdev, niter=3, idx=str(iline),show_fits=show_tracefits, xmin=0.0, xmax=float(nsub-1))
 
             # TODO: Need to have fit_trace return the TraceSet
-            tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, tilts_sub_msk_gw, tset_gw \
+            tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, _, _ \
                     = fit_trace(sub_img, tilts_sub_fit_out, spat_order, bpm=np.invert(sub_inmask),
                                 trace_bpm=np.invert(tilts_sub_mask_box), weighting='gaussian',
                                 fwhm=fwhm, maxdev=maxdev, niter=3, idx=str(iline),
@@ -499,10 +499,16 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     iuse = trace_dict0['use_tilt']
     nuse = np.sum(iuse)
     msgs.info('PCA modeling {:d} good tilts'.format(nuse))
-    pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
-        trace_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca=npca, coeff_npoly=coeff_npoly_pca,
-        lower=sigrej_pca, upper=sigrej_pca, order_vec=lines_spec, xinit_mean=lines_spec,
-        minv=0.0, maxv=float(trace_dict0['nsub'] - 1), debug=debug_pca)
+#    pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
+#        trace_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca=npca, coeff_npoly=coeff_npoly_pca,
+#        lower=sigrej_pca, upper=sigrej_pca, order_vec=lines_spec, xinit_mean=lines_spec,
+#        minv=0.0, maxv=float(trace_dict0['nsub'] - 1), debug=debug_pca)
+
+    bpm = np.ones(trace_dict0['tilts_sub_fit'].shape, dtype=bool)
+    bpm[:,iuse] = False
+    pca_fit = tracepca.pca_trace_object(trace_dict0['tilts_sub_fit'], order=coeff_npoly_pca,
+                                        trace_bpm=bpm, npca=npca, coo=lines_spec, lower=sigrej_pca,
+                                        upper=sigrej_pca, debug=debug_pca)
 
     # Now trace again with the PCA predictions as the starting crutches
     trace_dict1 = trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=inmask, gauss=gauss, tilts_guess=pca_fit,
