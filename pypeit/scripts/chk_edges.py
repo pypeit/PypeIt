@@ -18,7 +18,8 @@ def parser(options=None):
     parser.add_argument("--chname", default='MTrace', type=str, help="Channel name for image in Ginga")
     parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
     parser.add_argument("--old", default=False, action="store_true", help="Used old slit tracing")
-    #parser.add_argument("--show", type=str, help="Use the show() method of TraceSlits to show something else")
+    parser.add_argument('--mpl', default=False, action='store_true',
+                        help='Use a matplotlib window instead of ginga to show the trace')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -36,7 +37,10 @@ def main(pargs):
 
     if not pargs.old:
         edges = edgetrace.EdgeTraceSet.from_file(pargs.root)
-        edges.show(thin=10, in_ginga=True)
+        if pargs.mpl:
+            edges.show(thin=10, include_img=True, idlabel=True)
+        else:
+            edges.show(thin=10, in_ginga=True)
         return 0
 
     # Load up

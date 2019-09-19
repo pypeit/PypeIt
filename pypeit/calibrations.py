@@ -18,7 +18,7 @@ from pypeit import tiltimage
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
-from pypeit import traceslits
+#from pypeit import traceslits
 from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import wavetilts
@@ -27,7 +27,6 @@ from pypeit import waveimage
 from pypeit.metadata import PypeItMetaData
 
 from pypeit.core import parse
-from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph

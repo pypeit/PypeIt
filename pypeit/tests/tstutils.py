@@ -11,7 +11,7 @@ from IPython import embed
 from astropy import time
 
 from pypeit import arcimage
-from pypeit import traceslits
+#from pypeit import traceslits
 from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import flatfield
@@ -158,7 +158,8 @@ def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, 
         ret.append(msarc)
 
     if edges:
-        trace_file = os.path.join(master_dir, MasterFrame.construct_file_name('Trace', master_key))
+        trace_file = '{0}.gz'.format(os.path.join(master_dir,
+                                        MasterFrame.construct_file_name('Edges', master_key)))
 #        tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(trace_file)
 #        ret.append(tslits_dict)
 #        ret.append(mstrace)
@@ -189,29 +190,30 @@ def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, 
     # Return
     return ret
 
-def instant_traceslits(mstrace_file, det=None):
-    """
-    Instantiate a TraceSlits object from the master file
+#def instant_traceslits(mstrace_file, det=None):
+#    """
+#    Instantiate a TraceSlits object from the master file
+#
+#    The loaded tslits_dict is set as the atribute
+#
+#    Args:
+#        mstrace_file (str):
+#        det (int, optional):
+#
+#    Returns:
+#        Spectrograph, TraceSlits:
+#
+#    """
+#    # Load
+#    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(mstrace_file)
+#    # Instantiate
+#    spectrograph = load_spectrograph(tslits_dict['spectrograph'])
+#    par = spectrograph.default_pypeit_par()
+#    msbpm = spectrograph.bpm(None, det, shape=mstrace.shape)
+#    #binning = tslits_dict['binspectral'], tslits_dict['binspatial']
+#    traceSlits = traceslits.TraceSlits(spectrograph, par['calibrations']['slits'],
+#                                       msbpm=msbpm)
+#    traceSlits.mstrace = copy.deepcopy(mstrace)
+#    traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
+#    return spectrograph, traceSlits
 
-    The loaded tslits_dict is set as the atribute
-
-    Args:
-        mstrace_file (str):
-        det (int, optional):
-
-    Returns:
-        Spectrograph, TraceSlits:
-
-    """
-    # Load
-    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(mstrace_file)
-    # Instantiate
-    spectrograph = load_spectrograph(tslits_dict['spectrograph'])
-    par = spectrograph.default_pypeit_par()
-    msbpm = spectrograph.bpm(None, det, shape=mstrace.shape)
-    #binning = tslits_dict['binspectral'], tslits_dict['binspatial']
-    traceSlits = traceslits.TraceSlits(spectrograph, par['calibrations']['slits'],
-                                       msbpm=msbpm)
-    traceSlits.mstrace = copy.deepcopy(mstrace)
-    traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
-    return spectrograph, traceSlits

@@ -435,7 +435,11 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     # weighting, where width is the sigma of the Gaussian
     _radius = _width/2 if _weighting == 'uniform' else _width*3
 
-    # Window for the integration for each coordinate
+    # Window for the integration for each coordinate. In the
+    # calculation of `c`, the increase of the window size by 4 isn't
+    # strictly necessary. At minimum it has to be 2, but the increase
+    # by 4 ensures there are 0 pixels at either end of the integration
+    # window. TODO: Should consider changing this to 2.
     i1 = np.floor(_col - _radius + 0.5).astype(int)
     i2 = np.floor(_col + _radius + 0.5).astype(int)
     c = i1[:,None]-1+np.arange(int(np.amax(np.amin(i2-i1)-1,0))+4)[None,:]

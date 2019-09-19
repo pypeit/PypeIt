@@ -26,7 +26,6 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core.parse import get_dnum
 from pypeit.core import trace_slits
-from pypeit import traceslits
 
 def parser(options=None):
 

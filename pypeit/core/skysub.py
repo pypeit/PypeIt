@@ -1073,10 +1073,6 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord)
-#        try:  # MagE debuggin
-#            fwhm_here[iord] = np.median(sobjs[indx].fwhmfit)
-#        except:
-#            embed(header='1059 of skysub')
         fwhm_here[iord] = np.median(sobjs[indx].fwhmfit)
         # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
         # for future fits
