@@ -709,18 +709,19 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
                     #  NEW code using moment1d()
                     flux = moment1d(img_minsky * outmask, sobjs[iobj].trace_spat, 2*box_rad,
-                                    row=sobjs[iobj].trace_spec)
+                                    row=sobjs[iobj].trace_spec)[0]
                     mvarimg = 1.0 / (modelivar + (modelivar == 0))
                     mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].trace_spat, 2*box_rad,
-                                        row=sobjs[iobj].trace_spec)
+                                        row=sobjs[iobj].trace_spec)[0]
                     pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, 2*box_rad,
-                                      row=sobjs[iobj].trace_spec)
+                                      row=sobjs[iobj].trace_spec)[0]
                     mask_box = moment1d(np.invert(outmask), sobjs[iobj].trace_spat, 2*box_rad,
-                                        row=sobjs[iobj].trace_spec) != pixtot
+                                        row=sobjs[iobj].trace_spec)[0] != pixtot
                     box_denom = moment1d(waveimg > 0.0, sobjs[iobj].trace_spat, 2*box_rad,
-                                         row=sobjs[iobj].trace_spec)
+                                         row=sobjs[iobj].trace_spec)[0]
                     wave = moment1d(waveimg, sobjs[iobj].trace_spat, 2*box_rad,
-                                    row=sobjs[iobj].trace_spec) / (box_denom + (box_denom == 0.0))
+                                    row=sobjs[iobj].trace_spec)[0] \
+                                / (box_denom + (box_denom == 0.0))
                     fluxivar = mask_box / (mvar_box + (mvar_box == 0.0))
                 else:
                     # For later iterations, profile fitting is based on an optimal extraction

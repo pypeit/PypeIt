@@ -1573,9 +1573,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 #    flux_spec = extract_asymbox2(thisimg, left_asym, righ_asym, weight_image=totmask.astype(float))
 #    mask_spec = extract_asymbox2(totmask, left_asym, righ_asym, weight_image=totmask.astype(float)) < 0.3
     flux_spec = moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
-                         fwgt=totmask.astype(float))
+                         fwgt=totmask.astype(float))[0]
     mask_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym), 
-                         fwgt==totmask.astype(float)) < 0.3
+                         fwgt==totmask.astype(float))[0] < 0.3
     flux_mean, flux_median, flux_sig \
             = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma = 3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
@@ -2539,12 +2539,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             flux_tmp  = moment1d(image*inmask_iord, spec.trace_spat, 2*box_rad_pix,
                                  row=spec.trace_spec)[0]
             var_tmp  = moment1d(varimg*inmask_iord, spec.trace_spat, 2*box_rad_pix,
-                                row=spec.trace_spec)
+                                row=spec.trace_spec)[0]
             ivar_tmp = utils.calc_ivar(var_tmp)
             pixtot  = moment1d(ivar*0 + 1.0, spec.trace_spat, 2*box_rad_pix,
-                               row=spec.trace_spec)
+                               row=spec.trace_spec)[0]
             mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.trace_spat, 2*box_rad_pix,
-                                row=spec.trace_spec) != pixtot
+                                row=spec.trace_spec)[0] != pixtot
 
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)

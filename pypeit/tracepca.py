@@ -252,7 +252,7 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     ivar = utils.inverse(numpy.square(np.fmax(0.1*np.absolute(cenpca.pca_coeffs), 0.1)))
 
     # Set any additional weights for each trace
-    weights = np.ones(np.sum(use_trace), dtype=float)
+    weights = np.ones(np.sum(use_trace), dtype=float) \
                 if trace_wgt is None else trace_wgt[use_trace]
 
     # Build the interpolator that allows prediction of new traces
