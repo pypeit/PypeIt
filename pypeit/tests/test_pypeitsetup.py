@@ -1,12 +1,7 @@
-# Module to run tests on PypeItSetup class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on PypeItSetup class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest
@@ -75,13 +70,13 @@ def test_image_type():
     setupc.get_frame_types(flag_unknown=True)
     assert 'framebit' in setupc.fitstbl.keys()
     assert np.sum(setupc.fitstbl.find_frames('arc')) == 1
-    assert np.sum(setupc.fitstbl.find_frames('unknown')) == 0
+    assert np.sum(setupc.fitstbl.find_frames('None')) == 0
 
     assert np.sum(setupc.fitstbl.find_frames('pixelflat')
                     & setupc.fitstbl.find_frames('trace')) == 12
 
 @dev_suite_required
-def test_match():
+def test_type():
     # Check for files
     files = get_files()
     # Init
@@ -96,10 +91,7 @@ def test_match():
                                      cfg_lines=cfg_lines)
     setupc.build_fitstbl(files)
     setupc.get_frame_types(flag_unknown=True)
-    # Match to science
-    fitstbl = setupc.match_to_science()
-    indx = fitstbl.find_frames('science')
-    assert setupc.fitstbl['sci_ID'][indx].tolist() == [1,2]
+    assert np.sum(setupc.fitstbl.find_frames('science')) == 2
 
 #def test_match_ABBA():
 #    if skip_test:
@@ -134,11 +126,11 @@ def test_run():
     # Init
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    par, spectrograph, fitstbl, setup_dict = setupc.run()
+    par, spectrograph, fitstbl = setupc.run()
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
     assert isinstance(fitstbl, PypeItMetaData)
-    assert isinstance(setup_dict, dict)
+    #assert isinstance(setup_dict, dict)
 
 @dev_suite_required
 def test_run_calcheck():
@@ -147,7 +139,7 @@ def test_run_calcheck():
     # Init
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    par, spectrograph, fitstbl, setup_dict = setupc.run(calibration_check=True)
+    par, spectrograph, fitstbl = setupc.run(calibration_check=True)
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
 
@@ -157,7 +149,7 @@ def test_run_setup():
     # Init
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
     # Run
-    par, spectrograph, fitstbl, setup_dict = setupc.run(setup_only=True)
+    par, spectrograph, fitstbl = setupc.run(setup_only=True)
     # Test
-    assert par == None
+    assert par is None
 

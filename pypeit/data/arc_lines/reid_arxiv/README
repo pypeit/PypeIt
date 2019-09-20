@@ -1,0 +1,88 @@
+
+LRIS
+----
+
+Generated with the scripts in pypeit.core.wavecal.templates.py
+
+DEIMOS
+------
+
+Generated with the scripts in pypeit.core.wavecal.templates.py
+
+Kastb
+-----
+
+Generated with the scripts in pypeit.core.wavecal.templates.py
+
+
+GNIRS
+-----------
+gemini_gnirs.json
+
+See dev_algorithms/wavelengths/gnirs_wave_calib.py in the dev suite. We created gemini_gnirs_idl.json
+using this file from IDL: 
+
+scifile ='/Users/joe/REDUX/gnirs_redux/1420+0227/Science/1420+0227_1/sci-N20110622S0304-307.fits'
+
+Then ran:
+
+| N20160127S0399.fits | 2016-01-27 |   science,arc   | J1335+3533 |   300.0 | 32/mmSB_G5533 | SCXD_G5531 |
+
+to create gemini_gnirs.json
+
+
+NIRES
+-----------
+keck_nires.json is based on holy-grail applied to this frame:
+|     filename         |                  date | frametype      |      target | exptime |
+| s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0090.fits.gz | 2018-06-0413:02:07.85 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0091.fits.gz | 2018-06-0413:08:00.26 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0092.fits.gz | 2018-06-0413:13:54.71 |    science,arc |  J1724+1901 |   300.0 |
+| s180604_0089.fits.gz | 2018-06-0412:56:12.38 |    science,arc |  J1724+1901 |   300.0 |
+
+Created with Holy Grail, sigdetect = 5.0, and line list OH_NIRES
+
+
+
+
+X-shooter
+---------
+* NIR
+  ---
+vlt_xshooter_nir.json
+
+| XSHOO.2017-06-28T23:51:39.115.fits    |  x    | science,arc     |   pisco    | 1200.0 |
+
+
+Created with sigdetect = 5.0. Line identifications were first done in
+IRAF by Ema Farina (on J0100, XSHOO.2016-08-02T09:32:03.463.fits.gz)to
+create vlt_xshooter_nir_iraf.json, then this database was used to
+reidentify the above frame, and was archived.
+
+
+* VIS 1x1
+  -------
+  | XSHOO.2010-04-28T14:36:27.000.fits.gz | 2010-04-28T14:36:27.000 | arc | ThAr | 2.0000 |
+  Created with sigdetect = 3.0. Line identifications were first done in
+  IRAF by Ema Farina to create Old/vlt_xshooter_vis1x1_iraf.json. This
+  database was than re-Id within PypeIt and archived as: vlt_xshooter_vis1x1.json.
+  Quality assessment plots are stored in : 
+  PNGs/vlt_xshooter_vis1x1_arc_2dfit_global.png
+  PNGs/vlt_xshooter_vis1x1_arc_2dfit_orders.png
+  In Old/VIS_arm_ThAr_lines_atlas.pdf you may find the ThAr line atlas provided
+  by ESO. This is NOT the line list used by PypeIt, but it is a useful tool
+  for line reidentification because the flux matches (more or less) that 
+  extracted from the arc image.
+
+
+* UVB 1x1
+  -------
+
+  In Old/UVB_arm_ThAr_lines_atlas.pdf you may find the ThAr line atlas provided
+  by ESO. This is NOT the line list used by PypeIt, but it is a useful tool
+  for line reidentification because the flux matches (more or less) that 
+  extracted from the arc image.
+
+
+

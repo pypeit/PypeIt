@@ -1,4 +1,6 @@
-# Module to run tests on pyidl functions
+"""
+Module to run tests on pyidl functions
+"""
 
 import numpy as np
 from pypeit.core.pydl import bspline

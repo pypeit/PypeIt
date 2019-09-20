@@ -1,9 +1,6 @@
-# Module to run tests on arvcorr
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to run tests on arvcorr
+"""
 import numpy as np
 import pytest
 
@@ -11,11 +8,11 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord
 from astropy import units
 
+from linetools import utils as ltu
+
 from pypeit.core import wave
 from pypeit import specobjs
-from pypeit import metadata
-from pypeit.tests.tstutils import load_kast_blue_masters
-from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import dummy_fitstbl
 
 mjd = 57783.269661
 RA = '07:06:23.45'
@@ -28,7 +25,7 @@ alt = 4160.0               # Elevation of the telescope (in m)
 
 @pytest.fixture
 def fitstbl():
-    return metadata.dummy_fitstbl()
+    return dummy_fitstbl()
 
 
 def test_geovelocity():
@@ -58,14 +55,14 @@ def test_geocorrect(fitstbl):
 #    spectrograph = load_spectrograph('keck_lris_blue')
 
     # Specobjs (wrap in a list to mimic a slit)
-    sobj_list = specobjs.dummy_specobj(fitstbl, extraction=True)
+    sobj_list = specobjs.dummy_specobj((2048,2048), extraction=True)
     specObjs = specobjs.SpecObjs(sobj_list)
     scidx = 5
-    tbname = fitstbl['date'][scidx]
-    obstime = Time(tbname, format='isot')#'%Y-%m-%dT%H:%M:%S.%f')
+    obstime = Time(fitstbl['mjd'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
     maskslits = np.array([False]*specObjs.nobj)
+    radec = ltu.radec_to_coord((fitstbl["ra"][scidx], fitstbl["dec"][scidx]))
 
-    helio, hel_corr = wave.geomotion_correct(specObjs, maskslits, fitstbl, scidx, obstime,
+    helio, hel_corr = wave.geomotion_correct(specObjs, radec, obstime, maskslits,
                                                lon, lat, alt, 'heliocentric')
     assert np.isclose(helio, -9.17461338, rtol=1e-5)  # Checked against x_keckhelio
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original

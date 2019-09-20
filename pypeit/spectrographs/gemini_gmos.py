@@ -1,10 +1,7 @@
 """ Module for LRIS specific codes
 """
-from __future__ import absolute_import, division, print_function
-
-
 import glob
-
+import os
 import numpy as np
 from astropy.io import fits
 
@@ -29,31 +26,46 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         super(GeminiGMOSSpectrograph, self).__init__()
         self.timeunit = 'isot'  # Synthesizes date+time
 
-    def gemini_header_keys(self):
-        def_keys = self.default_header_keys()
-        def_keys[0]['time'] = 'OBSEPOCH'      # The time stamp of the observation (i.e. decimal MJD)
-        def_keys[0]['dispname'] = 'GRATING'      # The time stamp of the observation (i.e. decimal MJD)
-        def_keys[0]['idname'] = 'OBSTYPE'     # Frame type
-        def_keys[0]['decker'] = 'MASKNAME'
-        def_keys[0]['dispangle'] = 'CENTWAVE'
-        def_keys[0]['exptime'] = 'EXPTIME'
-        #
-        def_keys[0]['date'] = 'DATE-OBS'
-        def_keys[0]['time'] = 'TIME-OBS'
-        def_keys[0]['airmass'] = 'AIRMASS'
-        #
-        def_keys[0]['target'] = 'OBJECT'
-        def_keys[0]['ra'] = 'RA'    # deg
-        def_keys[0]['dec'] = 'DEC'  # deg
-        #
+    def init_meta(self):
+        """
+        Generate the meta data dictionary.
+        """
+        self.meta = {}
+        # Required (core)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='MASKNAME')
+        self.meta['binning'] = dict(card=None, compound=True)
+        # TODO: Can we define the card here that compound meta uses to
+        # set the binning?  Would be better to have all header cards
+        # collected in this function...
+#        self.meta['binning'] = dict(ext=1, card='CCDSUM')
 
-        def_keys[1] = {}
-        def_keys[1]['binning'] = 'CCDSUM'
-        # Return
-        return def_keys
+        self.meta['mjd'] = dict(ext=0, card='OBSEPOCH')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        self.meta['dispname'] = dict(ext=0, card='GRATING')
+        self.meta['dispangle'] = dict(ext=0, card='CENTWAVE', rtol=1e-5)
+        self.meta['dichroic'] = dict(ext=0, card='FILTER1')
 
-    def _set_calib_par(self, user_supplied=None):
-        self.calib_par = CalibrationsPar()
+
+    def compound_meta(self, headarr, meta_key):
+        """
+
+        Args:
+            headarr: list
+            meta_key: str
+
+        Returns:
+            value
+
+        """
+        if meta_key == 'binning':
+            binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
+            binning = parse.binning2string(binspec, binspatial)
+            return binning
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -61,13 +73,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'OBJECT')
-        if ftype == 'arc':
-            return good_exp & (fitstbl['idname'] == 'ARC')
-        if ftype == 'pixelflat' or ftype == 'trace':
-            return good_exp & (fitstbl['idname'] == 'FLAT')
+            return good_exp & (fitstbl['target'] != 'CuAr') & (fitstbl['target'] != 'GCALflat') & (fitstbl['target'] != 'Bias')
+            #& (fitstbl['idname'] == 'OBJECT')
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
+        if ftype in ['pixelflat', 'trace']:
+            return good_exp & (fitstbl['target'] == 'GCALflat')#& (fitstbl['idname'] == 'FLAT')
         if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'BIAS')
+            return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -80,14 +93,15 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 20.
-        par['calibrations']['slits']['polyorder'] = 3
-        par['calibrations']['slits']['fracignore'] = 0.02
-        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
+        par['calibrations']['slits']['trace_npoly'] = 3
+        # TODO: No longer a parameter
+#        par['calibrations']['slits']['fracignore'] = 0.02
+#        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.40  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 5.  # Doesn't work for reddest chip
-        par['calibrations']['wavelengths']['lowest_nsig'] = 5.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.  # Doesn't work for reddest chip
+        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'ArI', 'ArII']
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -108,7 +122,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+    def load_raw_frame(self, raw_file, det=None, **null_kwargs):
         """
         Wrapper to the raw image reader for LRIS
 
@@ -122,13 +136,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             raw_img: ndarray
               Raw image;  likely unsigned int
-            head0: Header
+            hdu: HDUList
 
         """
-        raw_img, head0, _ = read_gmos(raw_file, det=det)
+        raw_img, hdu, _ = read_gmos(raw_file, det=det)
 
-        return raw_img, head0
-
+        return raw_img, hdu
 
     def get_image_shape(self, filename=None, det=None, **null_kwargs):
         """
@@ -145,17 +158,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.naxis = (self.load_raw_frame(filename, det=det)[0]).shape
         return self.naxis
 
-    def get_image_section(self, filename, det, section='datasec'):
+    def get_image_section(self, inp=None, det=1, section='datasec'):
         """
         Return a string representation of a slice defining a section of
         the detector image.
 
-        Overwrites base class function to use :func:`read_deimos` to get
+        Overwrites base class function to use :func:`read_gmos` to get
         the image sections.
 
         .. todo::
             - It feels really ineffiecient to just get the image section
-              using the full :func:`read_deimos`.  Can we parse that
+              using the full :func:`read_gmos`.  Can we parse that
               function into something that can give you the image
               section directly?
 
@@ -164,115 +177,41 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         is defined directly.
 
         Args:
-            filename (str):
-                data filename
-            det (int):
-                Detector number
+            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+                String providing the file name to read, or the relevant
+                header object.  Default is None, meaning that the
+                detector attribute must provide the image section
+                itself, not the header keyword.
+            det (:obj:`int`, optional):
+                1-indexed detector number.
             section (:obj:`str`, optional):
-                The section to return.  Should be either datasec or
-                oscansec, according to the :class:`DetectorPar`
-                keywords.
+                The section to return.  Should be either 'datasec' or
+                'oscansec', according to the
+                :class:`pypeitpar.DetectorPar` keywords.
 
         Returns:
-            list, bool: A list of string representations for the image
-            sections, one string per amplifier, followed by three
-            booleans: if the slices are one indexed, if the slices
-            should include the last pixel, and if the slice should have
-            their order transposed.
+            tuple: Returns three objects: (1) A list of string
+            representations for the image sections, one string per
+            amplifier.  The sections are *always* returned in PypeIt
+            order: spectral then spatial.  (2) Boolean indicating if the
+            slices are one indexed.  (3) Boolean indicating if the
+            slices should include the last pixel.  The latter two are
+            always returned as True following the FITS convention.
         """
         # Read the file
-        temp, head0, secs = read_gmos(filename, det=det)
+        if inp is None:
+            msgs.error('Must provide Gemini GMOS file to get image section.')
+        elif not os.path.isfile(inp):
+            msgs.error('File {0} does not exist!'.format(inp))
+        temp, head0, secs = read_gmos(inp, det=det)
         if section == 'datasec':
-            return secs[0], False, False, False
+            return secs[0], False, False
         elif section == 'oscansec':
             # Need to flip these
-            return secs[1], False, False, False
+            # TODO: What does the above mean?
+            return secs[1], False, False
         else:
             raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-    def gemini_get_match_criteria(self):
-        """
-        Note: match the acs on central wavelengths for dithered spectra (chip gap avoidance).
-        Does not match the flats so there could be some weirdness at the edges (MW).
-
-        Returns:
-            dict: dict of header keywords to match the files on.
-
-        """
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        # Science
-        match_criteria['science']['number'] = 1
-        # Standard
-        match_criteria['standard']['number'] = 1  # Can be over-ruled by flux calibrate = False
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['decker'] = ''
-        match_criteria['standard']['match']['dispangle'] = ''
-        # Bias
-        match_criteria['bias']['number'] = 5
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['decker'] = ''
-        # Pixelflat
-        match_criteria['pixelflat']['number'] = 1
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['decker'] = ''
-        # Traceflat
-        match_criteria['trace']['number'] = 1
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['decker'] = ''
-        # Arc
-        match_criteria['arc']['number'] = 1
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['decker'] = ''
-        match_criteria['arc']['match']['dispangle'] = ''
-
-        # Return
-        return match_criteria
-
-    def get_match_criteria(self):
-        return self.gemini_get_match_criteria()
-
-    def metadata_keys(self):
-        return ['filename', 'date', 'frametype', 'target', 'exptime', 'dispname', 'decker', 'dispangle']
-
-
-    def setup_arcparam(self, arcparam, disperser=None, **null_kwargs):
-        """
-        Setup the arc parameters
-
-        Args:
-            arcparam: dict
-            disperser: str, REQUIRED
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            arcparam is modified in place
-
-        """
-        arcparam['lamps'] = ['CuI', 'ArI', 'ArII'] #  May be a handful of CuII lines too
-        arcparam['nonlinear_counts'] = self.detector[0]['nonlinear']*self.detector[0]['saturation']
-        if 'R150' in disperser:
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][1] = 6000.
-            arcparam['wv_cen'] = 4000.
-        elif 'R400' in disperser:
-            arcparam['disp']=0.74 # Ang per pixel (unbinned) :: E2V  is 0.67
-            arcparam['min_ampl'] = 1000.0
-        elif 'B600' in disperser:
-            arcparam['n_first']=2 # Too much curvature for 1st order
-            arcparam['disp']=0.63 # Ang per pixel (unbinned)
-            arcparam['b1']= 4.54698031e-04
-            arcparam['b2']= -6.86414978e-09
-            arcparam['wvmnx'][0] = 3800.
-            arcparam['wvmnx'][1] = 8000.
-            arcparam['wv_cen'] = 4000.
-        else:
-            msgs.error('Not ready for this disperser {:s}!'.format(disperser))
 
 
 class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
@@ -289,7 +228,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         self.detector = [
             # Detector 1
             DetectorPar(dataext         = 1,
-                        dispaxis        = 0,  # Device is fussed with by the image reader
+                        specaxis        = 0,  # Device is fussed with by the image reader
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -304,7 +243,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -319,7 +258,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -335,11 +274,7 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
         ]
         self.numhead = 13
 
-    def header_keys(self):
-        head_keys = self.gemini_header_keys()
-        return head_keys
-
-    def bpm(self, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
@@ -354,11 +289,12 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(filename=filename, det=det)
+        self.empty_bpm(shape=shape, filename=filename, det=det)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
 
+            # TODO: Fix this
             # Get the binning
             hdu = fits.open(filename)
             binning = hdu[1].header['CCDSUM']
@@ -403,6 +339,69 @@ class GeminiGMOSSSpectrograph(GeminiGMOSSpectrograph):
 
         return self.bpm_img
 
+
+
+class GeminiGMOSSHamSpectrograph(GeminiGMOSSSpectrograph):
+    """
+    Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
+    """
+    def __init__(self):
+
+        # Get it started
+        super(GeminiGMOSSHamSpectrograph, self).__init__()
+        self.spectrograph = 'gemini_gmos_south_ham'
+
+        self.detector = [  #  Hamamatsu (since 201?)
+            # Detector 1
+            DetectorPar(dataext         = 1,  # Not sure this is used
+                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 129000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
+                        suffix          = '_01'
+                        ),
+            # Detector 2
+            DetectorPar(dataext         = 2,  # Not sure this is used
+                        specaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 123000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
+                        suffix          = '_02'
+                        ),
+            # Detector 3
+            DetectorPar(dataext         = 3,  # Not sure this is used
+                        specaxis        = 0,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.080,
+                        darkcurr        = 0.0,
+                        saturation      = 125000.,
+                        nonlinear       = 0.95,
+                        numamplifiers   = 4,
+                        gain            = [1.83]*4,
+                        ronoise         = [3.98]*4,
+                        suffix          = '_03'
+                        ),
+        ]
+        self.numhead = 13
+
+
+
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument
@@ -413,10 +412,6 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
         super(GeminiGMOSNSpectrograph, self).__init__()
         self.telescope = telescopes.GeminiNTelescopePar()
         self.camera = 'GMOS-N'
-
-    def header_keys(self):
-        head_keys = self.gemini_header_keys()
-        return head_keys
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
@@ -432,7 +427,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  Hamamatsu (since 2011)
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 1,  # I think this is ignored, even if true
+                        specaxis        = 0,  # FW: this should be 0 for gmos_ham
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -447,7 +442,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 1,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -462,7 +457,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 1,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -493,7 +488,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         self.detector = [  #  E2V
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
-                        dispaxis        = 0,  # I think this is ignored
+                        specaxis        = 0,  # I think this is ignored
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -508,7 +503,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 2
             DetectorPar(dataext         = 2,  # Not sure this is used
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -523,7 +518,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
                         ),
             # Detector 3
             DetectorPar(dataext         = 3,  # Not sure this is used
-                        dispaxis        = 0,
+                        specaxis        = 0,
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
@@ -539,11 +534,15 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         ]
         self.numhead = 7
 
-    def header_keys(self):
-        head_keys = self.gemini_header_keys()
-        head_keys[0]['exptime'] = 'EXPOSURE'
-        return head_keys
+    def init_meta(self):
+        """
+        Generate the meta data dictionary.
+        """
+        super(GeminiGMOSNE2VSpectrograph, self).init_meta()
+        self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
 
+
+# TODO: Put this inside the class or abstract it.
 def read_gmos(raw_file, det=1):
     """
     Read the GMOS data file
@@ -561,7 +560,7 @@ def read_gmos(raw_file, det=1):
     -------
     array : ndarray
       Combined image 
-    header : FITS header
+    hdu : FITS HDUList
     sections : list
       List of datasec, oscansec, ampsec sections
     """
@@ -653,12 +652,12 @@ def read_gmos(raw_file, det=1):
     head0['BZERO'] = 32768-obzero
 
     # Return, transposing array back to goofy Python indexing
-    return array, head0, (dsec, osec)
+    return array, hdu, (dsec, osec)
 
 
 def gemini_read_amp(inp, ext):
     """
-    Read one amplifier of an LRIS multi-extension FITS image
+    Read one amplifier of an Gemini GMOS multi-extension FITS image
 
     Parameters
     ----------

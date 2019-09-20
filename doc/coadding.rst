@@ -49,6 +49,7 @@ object identifier string (used to ID the object)
 and the name of an output file.  Here is an example
 case::
 
+    'spectrograph': 'shane_kast_blue'
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'a':
         'object': 'O503-S4701-D01-I0035'
@@ -65,6 +66,7 @@ string could be very different from exposure to exposure.
 For this case, there is functionality to specifiy an object identifier
 string for each specified file. The .yaml file would look like this::
 
+    'spectrograph': 'shane_kast_blue'
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'a':
         'object': ['O290-S1592-D02-I0002', 'O457-S1592-D02-I0003
@@ -110,6 +112,29 @@ and/or specify whether the spectrum is fluxed::
 
 Note that these parameters must be outside of the 'a', 'b', 'c', etc. dicts
 or else they will have no effect.
+
+Flux Scaling
+++++++++++++
+
+Each entry can include a *scale* dict that will be used to
+scale the flux of the coadded spectrum using an input filter
+and magnitude.  Here is an example::
+
+    'a':
+        'object': ['SPAT0119-SLIT0000-DET01', 'SPAT0159-SLIT0000-DET01', 'SPAT0079-SLIT0000-DET01']
+        'outfile': 'FRB181112_fors2.fits'
+        'scale': {'filter': 'DES_r', 'mag': 21.73, 'mag_type': 'AB', 'masks': [[0., 6000.]]}
+
+The call here will convolve the coadded spectrum with the DES r-band filter,
+and then scale the flux to give an AB magnitude of 21.73.  Furthermore,
+the spectral wavelengths less than 6000 Ang are masked in the analysis.
+
+Filters
+-------
+
+Here is the set of ingested filters:
+
+DES_g, DES_r, DES_i DES_z, DES_Y
 
 Cosmic Ray Cleaning
 +++++++++++++++++++
@@ -178,6 +203,7 @@ You can adjust the default methods by which PypeIt coadds
 spectra by adding a dict named 'global' or a 'local' dict
 in the object block::
 
+    'spectrograph': 'shane_kast_blue'
     'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
     'global':
         'wave_grid_method': 'velocity'

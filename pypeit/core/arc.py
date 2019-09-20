@@ -1,101 +1,440 @@
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import inspect
 
 import numpy as np
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
 
-from scipy.ndimage.filters import gaussian_filter
 
-from astropy.stats import sigma_clipped_stats
+import scipy
+from astropy.stats import sigma_clipped_stats, sigma_clip
 
-from pypeit import ararclines
 from pypeit import debugger
+
 from pypeit import msgs
 from pypeit import utils
-from pypeit.core import parse
-from pypeit.core import pixels
-from pypeit.core.wavecal import autoid
+#from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import wvutils
 from pypeit import debugger
 
-# TODO: This routine is now defunct I think.
-def setup_param(spectro_class, msarc_shape, fitstbl, arc_idx,
-                calibrate_lamps=None):
-    """ Setup for arc analysis
+from pypeit.core import pydl
+from pypeit.core import qa
+
+
+def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
+    """Routine to obtain the 2D wavelength solution for an echelle spectrograph. This is calculated from the spec direction
+    pixelcentroid and the order number of identified arc lines. The fit is a simple least-squares with rejections.
+    This is a port of the XIDL code: x_fit2darc.pro
 
     Parameters
     ----------
-    spectrograph : str
-    msarc_shape : tuple
-    fitstbl : Table/PypeItMetaData
-      Contains relevant information from fits header files
-    arc_idx : int
-      Index of the arc frame in the fitstbl
-    calibrate_lamps : str, optional
-       List of lamps used
+    all_wv: np.array
+     wavelength of the identified lines
+    all_pix: np.array
+      y-centroid position of the identified lines
+    all_orders: np.array
+      order number of the identified lines
+    nspec: int
+      Size of the image in the spectral direction
+    nspec_coeff : np.int
+      order of the fitting along the spectral (pixel) direction for each order
+    norder_coeff : np.int
+      order of the fitting in the order direction
+    sigrej: np.float
+      sigma level for the rejection
+    debug: boolean
+      Extra plots to check the status of the procedure
+
+    Returns:
+    -------
+    """
+
+    # Normalize  for pixels. Fits are performed in normalized units (pixels/(nspec-1) to be able to deal with various
+    # binnings.
+    min_spec = 0.0
+    max_spec = 1.0
+    xnspecmin1 = float(nspec-1)
+    # Normalize for orders
+    min_order = np.min(all_orders)
+    max_order = np.max(all_orders)
+
+    if debug:
+        # set some plotting parameters
+        utils.pyplot_rcparams()
+        plt.figure(figsize=(7,5))
+        msgs.info("Plot identified lines")
+        cm = plt.cm.get_cmap('RdYlBu_r')
+        sc = plt.scatter(all_orders, all_pix,c=all_wv/10000., cmap=cm)
+        cbar = plt.colorbar(sc)
+        cbar.set_label(r'Wavelength [$\mu$m]', rotation=270,
+                       labelpad=20)
+        plt.xlabel(r'Normalized Orders')
+        plt.ylabel(r'Normalized Pixels')
+        plt.title(r'Location of the identified lines')
+        plt.show()
+
+
+    # Fit the product of wavelength and order number with a 2d legendre polynomial
+    all_wv_order = all_wv * all_orders
+    fitmask, coeff2 = utils.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
+                                               function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
+                                               minx=min_spec,maxx=max_spec, minx2=min_order, maxx2=max_order,
+                                               use_mad=True, sticky=False)
+    wv_order_mod = utils.func_val(coeff2, all_pix/xnspecmin1, func2d, x2=all_orders,
+                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+    resid = (wv_order_mod[fitmask]-all_wv_order[fitmask])
+    fin_rms = np.std(resid)
+    msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
+
+    orders = np.unique(all_orders)
+    fit_dict = dict(coeffs=coeff2, orders=orders,
+                    nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
+                    min_spec=min_spec, max_spec=max_spec,
+                    min_order=min_order, max_order=max_order,
+                    nspec=nspec, all_pix=all_pix, all_wv=all_wv,
+                    func2d=func2d,xnorm=xnspecmin1,
+                    all_orders=all_orders, all_mask=fitmask)
+
+
+    if debug:
+        fit2darc_global_qa(fit_dict)
+        fit2darc_orders_qa(fit_dict)
+
+    return fit_dict
+
+
+
+def fit2darc_global_qa(fit_dict, outfile=None):
+    """ QA on 2D fit of the wavelength solution.
+
+    Parameters
+    ----------
+    fit_dict: dict
+      dict of the 2D arc solution
+    outfile:
+      parameter for QA
+
+    Returns
+    -------
+    """
+
+    msgs.info("Creating QA for 2D wavelength solution")
+
+    utils.pyplot_rcparams()
+
+    # Extract info from fit_dict
+    nspec = fit_dict['nspec']
+    orders = fit_dict['orders']
+    nspec_coeff = fit_dict['nspec_coeff']
+    norder_coeff = fit_dict['norder_coeff']
+    all_wv = fit_dict['all_wv']
+    all_pix = fit_dict['all_pix']
+    all_orders = fit_dict['all_orders']
+    fitmask = fit_dict['all_mask']
+    coeffs = fit_dict['coeffs']
+    func2d = fit_dict['func2d']
+    min_spec = fit_dict['min_spec']
+    max_spec = fit_dict['max_spec']
+    min_order = fit_dict['min_order']
+    max_order = fit_dict['max_order']
+    xnorm = fit_dict['xnorm']
+    resid_wl_global = []
+
+    # Define pixels array
+    spec_vec_norm = np.arange(nspec)/xnorm
+
+    # Define figure properties
+    plt.figure(figsize=(8, 5))
+
+    # Variable where to store the max wavelength covered by the
+    # spectrum
+    mx = 0.
+
+    # Loop over orders
+    for ii in orders:
+
+        # define the color
+        rr = (ii - np.max(orders)) / (np.min(orders) - np.max(orders))
+        gg = 0.0
+        bb = (ii - np.min(orders)) / (np.max(orders) - np.min(orders))
+
+        # evaluate solution
+        wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=np.ones_like(spec_vec_norm)*ii,
+                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+        # Plot solution
+        plt.plot(wv_order_mod / ii, spec_vec_norm*xnorm, color=(rr, gg, bb),
+                 linestyle='-', linewidth=2.5)
+
+        # Evaluate residuals at each order
+        on_order = all_orders == ii
+        this_pix = all_pix[on_order]
+        this_wv = all_wv[on_order]
+        this_msk = fitmask[on_order]
+        this_order = all_orders[on_order]
+        wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
+                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+        resid_wl = (wv_order_mod_resid / ii - this_wv)
+        resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
+        plt.scatter((wv_order_mod_resid[~this_msk] / ii) + \
+                    100. * resid_wl[~this_msk], this_pix[~this_msk], \
+                    marker='x', color='black', linewidths=2.5, s=16.)
+        plt.scatter((wv_order_mod_resid[this_msk] / ii) + \
+                    100. * resid_wl[this_msk], this_pix[this_msk], \
+                    color=(rr, gg, bb), linewidth=2.5, s=16.)
+        if np.max(wv_order_mod_resid / ii) > mx:
+            mx = np.max(wv_order_mod_resid / ii)
+
+    rms_global = np.std(resid_wl_global)
+
+    plt.text(mx, np.max(spec_vec_norm*xnorm), r'residuals $\times$100', \
+             ha="right", va="top")
+    plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
+        norder_coeff, nspec_coeff, rms_global))
+    plt.xlabel(r'Wavelength [$\AA$]')
+    plt.ylabel(r'Row [pixel]')
+
+    # Finish
+    if outfile is not None:
+        plt.savefig(outfile, dpi=800)
+        plt.close()
+    else:
+        plt.show()
+
+    # restore default rcparams
+    utils.pyplot_rcparams_default()
+
+
+def fit2darc_orders_qa(fit_dict, outfile=None):
+    """ QA on 2D fit of the wavelength solution of an Echelle spectrograph.
+    Each panel contains a single order with the global fit and the
+    residuals.
+
+    Parameters
+    ----------
+    fit_dict: dict
+      dict of the 2D arc solution
+    outfile:
+      parameter for QA
+
+    Returns
+    -------
+    """
+
+    msgs.info("Creating QA for 2D wavelength solution")
+
+    utils.pyplot_rcparams()
+
+    # Extract info from fit_dict
+    # Extract info from fit_dict
+    nspec = fit_dict['nspec']
+    orders = fit_dict['orders']
+    nspec_coeff = fit_dict['nspec_coeff']
+    norder_coeff = fit_dict['norder_coeff']
+    all_wv = fit_dict['all_wv']
+    all_pix = fit_dict['all_pix']
+    all_orders = fit_dict['all_orders']
+    fitmask = fit_dict['all_mask']
+    coeffs = fit_dict['coeffs']
+    func2d = fit_dict['func2d']
+    min_spec = fit_dict['min_spec']
+    max_spec = fit_dict['max_spec']
+    min_order = fit_dict['min_order']
+    max_order = fit_dict['max_order']
+    xnorm = fit_dict['xnorm']
+    resid_wl_global = []
+
+    # Define pixels array
+    spec_vec_norm = np.arange(nspec)/xnorm
+
+    # set the size of the plot
+    nrow = np.int(2)
+    ncol = np.int(np.ceil(len(orders) / 2.))
+    fig = plt.figure(figsize=(5 * ncol, 6 * nrow))
+
+    outer = gridspec.GridSpec(nrow, ncol, wspace=0.3, hspace=0.2)
+
+    for ii_row in range(nrow):
+        for ii_col in range(ncol):
+            if (ii_row * ncol + ii_col) < len(orders):
+                inner = gridspec.GridSpecFromSubplotSpec(2, 1,
+                                                         height_ratios=[2, 1], width_ratios=[1],
+                                                         subplot_spec=outer[ii_row * ncol + ii_col],
+                                                         wspace=0.1, hspace=0.0)
+                ax0 = plt.Subplot(fig, inner[0])
+                ax1 = plt.Subplot(fig, inner[1], sharex=ax0)
+                plt.setp(ax0.get_xticklabels(), visible=False)
+
+                ii = orders[ii_row * ncol + ii_col]
+
+                # define the color
+                rr = (ii - np.max(orders)) / (np.min(orders) - np.max(orders))
+                gg = 0.0
+                bb = (ii - np.min(orders)) / (np.max(orders) - np.min(orders))
+
+                # Evaluate function
+                # evaluate solution
+                wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=ii*np.ones_like(spec_vec_norm),
+                                              minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+                # Evaluate delta lambda
+                dwl = (wv_order_mod[-1] - wv_order_mod[0])/ii/xnorm/(spec_vec_norm[-1] - spec_vec_norm[0])
+
+                # Estimate the residuals
+                on_order = all_orders == ii
+                this_order = all_orders[on_order]
+                this_pix = all_pix[on_order]
+                this_wv = all_wv[on_order]
+                this_msk = fitmask[on_order]
+
+                wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
+                                              minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+                resid_wl = (wv_order_mod_resid/ii - this_wv)
+                resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
+
+                # Plot the fit
+                ax0.set_title('Order = {0:0.0f}'.format(ii))
+                ax0.plot(spec_vec_norm*xnorm, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
+                         linewidth=2.5)
+                ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid[~this_msk] / ii / 10000.) + \
+                            100. * resid_wl[~this_msk] / 10000., marker='x', color='black', \
+                            linewidth=2.5, s=16.)
+                ax0.scatter(this_pix[this_msk], (wv_order_mod_resid[this_msk] / ii / 10000.) + \
+                            100. * resid_wl[this_msk] / 10000., color=(rr, gg, bb), \
+                            linewidth=2.5, s=16.)
+
+                ax0.set_ylabel(r'Wavelength [$\mu$m]')
+
+                # Plot the residuals
+                ax1.scatter(this_pix[~this_msk], (resid_wl[~this_msk] / dwl), marker='x', color='black', \
+                            linewidth=2.5, s=16.)
+                ax1.scatter(this_pix[this_msk], (resid_wl[this_msk] / dwl), color=(rr, gg, bb), \
+                            linewidth=2.5, s=16.)
+                ax1.axhline(y=0., color=(rr, gg, bb), linestyle=':', linewidth=2.5)
+                ax1.get_yaxis().set_label_coords(-0.15, 0.5)
+
+                rms_order = np.std(resid_wl[this_msk])
+
+                ax1.set_ylabel(r'Res. [pix]')
+
+                ax0.text(0.1, 0.9, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
+                         transform=ax0.transAxes)
+                ax0.text(0.1, 0.8, r'$\Delta\lambda$={0:.3f} Pixel/$\AA$'.format(np.abs(dwl)), ha="left", va="top",
+                         transform=ax0.transAxes)
+                ax0.get_yaxis().set_label_coords(-0.15, 0.5)
+
+                fig.add_subplot(ax0)
+                fig.add_subplot(ax1)
+
+    rms_global = np.std(resid_wl_global)
+
+    fig.text(0.5, 0.04, r'Row [pixel]', ha='center', size='large')
+    fig.suptitle(
+        r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#, residuals $\times$100'.format(
+            norder_coeff,
+            nspec_coeff, rms_global))
+
+    # Finish
+    if outfile is not None:
+        plt.savefig(outfile, dpi=800)
+        plt.close()
+    else:
+        plt.show()
+
+
+# JFH CAn we replace reasize with this simpler function:  rebin_factor
+# https://scipy-cookbook.readthedocs.io/items/Rebinning.html
+def resize_mask2arc(shape_arc, slitmask_orig):
+    """
+    Resizes a slitmask created with some original binning to be a slitmak relevant to an arc with a different binning
+
+    Args:
+        shape_arc: tuple
+            shape of the arc
+        slitmask_orig: ndarray, float
+            original slitmask
+    Returns:
+        slitmask: ndarray, float
+            Slitmask with shape corresponding to that of the arc
 
     """
-    # These defaults need to be updated to the General algorithm. Some of these tags are now defunct.
-    # Defaults
-    arcparam = dict(llist='',
-                    disp=0.,             # Ang/unbinned pixel
-                    b1=0.,               # Pixel fit term (binning independent)
-                    b2=0.,               # Pixel fit term
-                    lamps=[],            # Line lamps on
-                    wv_cen=0.,           # Estimate of central wavelength
-                    wvmnx=[2900.,12000.],# Guess at wavelength range
-                    disp_toler=0.1,      # 10% tolerance
-                    match_toler=3.,      # Matching tolerance (pixels)
-                    func='legendre',     # Function for fitting
-                    n_first=1,           # Order of polynomial for first fit
-                    n_final=4,           # Order of polynomial for final fit
-                    nsig_rej=2.,         # Number of sigma for rejection
-                    nsig_rej_final=3.0,  # Number of sigma for rejection (final fit)
-                    Nstrong=13)          # Number of lines for auto-analysis
+    (nspec, nspat) = shape_arc
+    # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
+    # be a different size
+    (nspec_orig,nspat_orig) = slitmask_orig.shape
+    if nspec_orig != nspec:
+        if ((nspec_orig > nspec) & (nspec_orig % nspec != 0)) | ((nspec > nspec_orig) & (nspec % nspec_orig != 0)):
+            msgs.error('Problem with images sizes. arcimg size and calibration size need to be integer multiples of each other')
+        else:
+            msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
+        slitmask = utils.rebin(slitmask_orig, (nspec, nspat))
+        # Previous line using skimage
+        #slitmask = ((np.round(resize(slitmask_orig.astype(np.integer), (nspec, nspat), preserve_range=True, order=0))).astype(np.integer)).astype(slitmask_orig.dtype)
+    else:
+        slitmask = slitmask_orig
 
-    # Instrument/disperser specific.  If 'dispname' was not read by the
-    # fits headers because, e.g., it's not available, the spectrograph
-    # instance must be able to setup the arc parameters without it.
-    try:
-        disperser = fitstbl['dispname'][arc_idx]
-    except:
-        disperser = None
-    binspatial, binspectral = parse.parse_binning(fitstbl['binning'][arc_idx])
+    return slitmask
 
-    # TODO: JFH: Why is the arcparam being modified in place instead of
-    # being passed back from the spectrograh class.  This code looks
-    # rather sloppy.
-    # It is very sloppy
-    modify_dict = spectro_class.setup_arcparam(arcparam, disperser=disperser, fitstbl=fitstbl,
-                                               arc_idx=arc_idx, binspatial=binspatial,
-                                               binspectral=binspectral, msarc_shape=msarc_shape)
-    # Load linelist
-    if calibrate_lamps is not None:
-        arcparam['lamps'] = calibrate_lamps
-    slmps = arcparam['lamps'][0]
-    for lamp in arcparam['lamps'][1:]:
-        slmps=slmps+','+lamp
-    msgs.info('Loading line list using {:s} lamps'.format(slmps))
+def resize_slits2arc(shape_arc, shape_orig, trace_orig):
+    """
+    Resizes a a trace created with some original binning to be a relevant to an arc with a different binning
 
-    # This step is nearly defunct
-    if False:
-        arcparam['llist'] = ararclines.load_arcline_list(arcparam['lamps'], disperser,
-                                                     spectro_class.spectrograph,
-                                                     wvmnx=arcparam['wvmnx'],
-                                                     modify_parse_dict=modify_dict)
+    Args:
+        shape_arc: tuple
+            shape of the arc
+        shape_orig: tuple
+            original shape of the images used to create the trace
+        trace_orig: ndarray, float
+            trace that you want to resize
+    Returns:
+        trace: ndarray, float
+            trace corresponding to the binning of the arc
 
-    # JFH Do we need this line of code since we no longer use the other methods of arc_lines?
-    # Binning
-    arcparam['disp'] *= binspectral
+    """
+    (nspec, nspat) = shape_arc
+    # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
+    # be a different size
+    (nspec_orig,nspat_orig) = shape_orig
+    if nspec_orig != nspec:
+        msgs.info('Calibration images have different binning than the arcimg. Resizing calibs for arc spectrum extraction.')
+        spec_vec_orig = np.arange(nspec_orig)/float(nspec_orig - 1)
+        spec_vec = np.arange(nspec)/float(nspec - 1)
+        spat_ratio = float(nspat)/float(nspat_orig)
+        trace = (scipy.interpolate.interp1d(spec_vec_orig, spat_ratio*trace_orig, axis=0, bounds_error=False,fill_value='extrapolate'))(spec_vec)
+    else:
+        trace = trace_orig
 
-    # Return
-    return arcparam
+    return trace
 
-def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5):
 
-    """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
-    fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
+def resize_spec(spec_from, nspec_to):
+    """
+
+    Args:
+        spec_from: ndarray, float (nspec, nslits) or (nspec,)
+          Input spectrum which you want to resize via interpolation
+        nspec_to: int, size of spectrum you to resize to
+
+    Returns:
+        spec_to: ndarray, float, same size as spec_from
+          New spectra or spectrum with size nspec_to
+
+    """
+
+    nspec_from = spec_from.shape[0]
+    # Is our arc a different size than the other calibs? If yes, slit_left/slit_righ, slitpix, and inmask will
+    # be a different size
+    if nspec_from != nspec_to:
+        spec_vec_from = np.arange(nspec_from)/float(nspec_from - 1)
+        spec_vec_to = np.arange(nspec_to)/float(nspec_to - 1)
+        spec_to = (scipy.interpolate.interp1d(spec_vec_from, spec_from, axis=0, bounds_error=False,fill_value='extrapolate'))(spec_vec_to)
+    else:
+        spec_to = spec_from
+
+    return spec_to
+
+
+
+def get_censpec(slit_cen, slitmask, arcimg, inmask = None, box_rad = 3.0, xfrac = 0.5, nonlinear_counts=1e10):
+
+    """Extract a spectrum down
 
 
     Parameters
@@ -142,128 +481,35 @@ def get_censpec(slit_left, slit_righ, slitpix, arcimg, inmask = None, box_rad = 
      """
 
     if inmask is None:
-        inmask = slitpix > 0
+        inmask = slitmask > -1
 
-    nslits = slit_left.shape[1]
+    # Mask saturated parts of the arc image for the extraction
+    inmask = inmask & (arcimg < nonlinear_counts)
+
+    nslits = slit_cen.shape[1]
     (nspec, nspat) = arcimg.shape
+
     maskslit = np.zeros(nslits, dtype=np.int)
-    trace = slit_left + xfrac*(slit_righ - slit_left)
     arc_spec = np.zeros((nspec, nslits))
     spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
 
-
     for islit in range(nslits):
-        msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit + 1))
+        msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
         # Create a mask for the pixels that will contribue to the arc
-        trace_img = np.outer(trace[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        arcmask = (slitpix > 0) & inmask & (spat_img > (trace_img - box_rad)) & (spat_img < (trace_img + box_rad))
+        slit_img = np.outer(slit_cen[:,islit], np.ones(nspat))  # central trace replicated spatially
+        arcmask = (slitmask > -1) & inmask & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
         # Trimming the image makes this much faster
         left = np.fmax(spat_img[arcmask].min() - 4,0)
         righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
         this_mean, this_med, this_sig = sigma_clipped_stats(arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ])
                                                             , sigma=3.0, axis=1)
-        arc_spec[:,islit] = this_med.data
+        imask = np.isnan(this_med)
+        this_med[imask]=0.0
+        arc_spec[:,islit] = this_med
         if not np.any(arc_spec[:,islit]):
             maskslit[islit] = 1
 
     return arc_spec, maskslit
-
-
-# ToDO this code needs to be replaced. It is not masking outliers, and zeros out orders that leave the detector
-def get_censpec_old(lordloc, rordloc, pixlocn, frame, nonlinear_counts=None, gen_satmask=False):
-    """ Extract a simple spectrum down the center of each slit
-    Parameters
-    ----------
-    frame : ndarray
-      Image
-    det : int
-    gen_satmask : bool, optional
-      Generate a saturation mask?
-
-    Returns
-    -------
-    arccen : ndarray
-      Extracted arcs.  This *need* not be one per slit/order,
-      although I wish it were (with `rejected` ones padded with zeros)
-    maskslit : bool array
-      1 = Bad slit/order for extraction (incomplete)
-      0 = Ok
-    satmask : ndarray
-      Saturation mask
-      None if gen_satmask=False
-    """
-    ordcen = 0.5*(lordloc+rordloc)
-    ordwid = 0.5*np.abs(lordloc-rordloc)
-    satsnd = None
-    if gen_satmask and nonlinear_counts is not None:
-        msgs.info("Generating a mask of arc line saturation streaks")
-        satmask = saturation_mask(frame, nonlinear_counts)
-        satsnd = order_saturation(satmask, (ordcen+0.5).astype(int), (ordwid+0.5).astype(int))
-
-    # Extract a rough spectrum of the arc in each slit
-    msgs.info("Extracting an approximate arc spectrum at the centre of each slit")
-    tordcen = None
-    maskslit = np.zeros(ordcen.shape[1], dtype=bool)
-    for i in range(ordcen.shape[1]):
-        wl = np.size(np.where(ordcen[:, i] <= pixlocn[0,0,1])[0])
-        wh = np.size(np.where(ordcen[:, i] >= pixlocn[0,-1,1])[0])
-        if wl == 0 and wh == 0:
-            # The center of the slit is always on the chip
-            if tordcen is None:
-                tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
-                tordcen[:, 0] = ordcen[:, i]
-            else:
-                tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
-        else:
-            # A slit isn't always on the chip
-            if tordcen is None:
-                tordcen = np.zeros((ordcen.shape[0], 1), dtype=np.float)
-            else:
-                tordcen = np.append(tordcen, ordcen[:, i].reshape((ordcen.shape[0], 1)), axis=1)
-            maskslit[i] = True
-    w = np.where(~maskslit)[0]
-    if tordcen is None:
-        msgs.warn("Could not determine which slits are fully on the detector")
-        msgs.info("Assuming all slits are fully on the detector")
-        ordcen = pixels.phys_to_pix(ordcen, pixlocn, 1)
-    else:
-        ordcen = pixels.phys_to_pix(tordcen[:,w], pixlocn, 1)
-
-    pixcen = np.arange(frame.shape[0])
-    temparr = pixcen.reshape(frame.shape[0], 1).repeat(ordcen.shape[1], axis=1)
-    # Average over three pixels to remove some random fluctuations, and increase S/N
-    op1 = ordcen+1
-    op2 = ordcen+2
-    om1 = ordcen-1
-    om2 = ordcen-2
-    w = np.where(om1 < 0)
-    om1[w] += 1
-    w = np.where(om2 == -1)
-    om2[w] += 1
-    w = np.where(om2 == -2)
-    om2[w] += 2
-    w = np.where(op1 >= frame.shape[1])
-    op1[w] -= 1
-    w = np.where(op2 == frame.shape[1])
-    op2[w] -= 1
-    w = np.where(op2 == frame.shape[1]+1)
-    op2[w] -= 2
-    # Construct the good ones
-    gd_arccen = (1.0/5.0) * (frame[temparr, ordcen] +
-                             frame[temparr, op1] + frame[temparr, op2] +
-                             frame[temparr, om1] + frame[temparr, om2])
-    # Pad masked ones with zeros
-    if np.any(maskslit):
-        arccen = np.zeros((gd_arccen.shape[0], maskslit.size))
-        gd = np.where(~maskslit)[0]
-        arccen[:,gd] = gd_arccen
-    else:
-        arccen = gd_arccen
-    del temparr
-
-    return arccen, maskslit, satsnd
-
-
 
 
 
@@ -440,14 +686,117 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     ax.set_xlabel('Data #', fontsize=14)
     ax.set_ylabel('Amplitude', fontsize=14)
     mode = 'Valley detection' if valley else 'Peak detection'
-    ax.set_title("%s (mph=%s, mpd=%d, threshold=%s, edge='%s')"
+    ax.set_title("%s (mph=%s, mpd=%f, threshold=%s, edge='%s')"
                  % (mode, str(mph), mpd, str(threshold), edge))
     # plt.grid()
     plt.show()
 
-# ToDO JFH nfitpix should be chosen based on the spectral sampling of the spectroscopic setup
-def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 10.0, cont_samp = 30, nonlinear_counts=1e10, niter_cont = 3,
-                 nfind = None, verbose = False, debug=False):
+def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
+                   cont_mask_neg=False, npoly=None, debug=False):
+    """
+    Routine to determine the continuum and continuum pixels in spectra with peaks.
+
+    Args:
+       spec:  ndarray, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
+       inmask: ndarray, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
+       niter_cont: int, default = 3
+            Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
+       npoly: int, default = None
+            If set the code will perform a polynomimal fit to the interpolate a running median filter of the
+            continuum points instead of the default behavior which is to just return the
+            interpolated running median filter
+       sigthresh: float, default = 2.0
+            Signifiance threshold for peak finding
+       sigrej: float, default = 3.0
+            Sigma clipping rejection threshold for threshold determination
+       fwhm:  float, default = 4.0
+            Number of pixels per fwhm resolution element.
+       cont_samp: float, default = 30.0
+            The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
+            median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
+            (i.e. that don't have peaks).
+       cont_frac_fwhm float, default = 1.0
+            Width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
+            parameter
+       cont_mask_neg: bool, default = False
+           If True, the code will also search for negative peaks when iteratively determining the continuum. This option is
+           used for object finding in the near-IR where there will also be negative peaks.
+       cont_samp: float, default = 30.0
+           The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
+           median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
+        debug: bool, default = False
+           Show plots for debugging
+
+    Returns: (cont, cont_mask)
+        cont: ndarray, float, shape (nspec) The continuum determined
+        cont_mask: ndarray, bool, shape (nspec) A mask indicating which pixels were used for continuum determination
+
+
+    """
+
+    if inmask is None:
+        inmask = np.ones(spec.size,dtype=bool)
+        cont_mask = np.copy(inmask)
+    else:
+        cont_mask = np.copy(inmask)
+
+    nspec = spec.size
+    spec_vec = np.arange(nspec)
+    cont_now = np.zeros(nspec)
+    mask_sm = np.round(cont_frac_fwhm*fwhm).astype(int)
+    mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
+    for iter in range(niter_cont):
+        spec_sub = spec - cont_now
+        mask_sigclip = np.invert(cont_mask & inmask)
+        (mean, med, stddev) = sigma_clipped_stats(spec_sub, mask=mask_sigclip, sigma_lower=sigrej, sigma_upper=sigrej)
+        # be very liberal in determining threshold for continuum determination
+        thresh = med + sigthresh*stddev
+        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75)
+        # mask out the peaks we find for the next continuum iteration
+        cont_mask_fine = np.ones_like(cont_now)
+        cont_mask_fine[pixt_now] = 0.0
+        if cont_mask_neg is True:
+            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75)
+            cont_mask_fine[pixt_now_neg] = 0.0
+        # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
+        cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999) & inmask
+        # If more than half the spectrum is getting masked than short circuit this masking
+        frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
+        if (frac_mask > 0.70):
+            msgs.warn('Too many pixels masked in spectrum continuum definiton: frac_mask = {:5.3f}'.format(frac_mask) + ' . Not masking....')
+            cont_mask = np.ones_like(cont_mask) & inmask
+        ngood = np.sum(cont_mask)
+        samp_width = np.ceil(ngood/cont_samp).astype(int)
+        cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
+        if npoly is not None:
+            # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
+            msk, poly = utils.robust_polyfit_djs(spec_vec[cont_mask], cont_med, npoly, function='polynomial', maxiter=25,
+                                                 upper=3.0, lower=3.0, minx=0.0, maxx=float(nspec-1))
+            cont_now = utils.func_val(poly, spec_vec, 'polynomial')
+        else:
+            cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
+
+        if debug & (iter == (niter_cont-1)):
+            plt.plot(spec_vec, spec,'k', label='Spectrum')
+            #plt.plot(spec_vec, spec*cont_mask,'k', label='Spectrum*cont_mask')
+            plt.plot(spec_vec, cont_now,'g',label='continuum')
+            plt.plot(spec_vec, spec_sub,'b',label='spec-cont')
+            plt.plot(spec_vec[cont_mask], spec[cont_mask], color='green', markersize=3.0,
+                     mfc='green', linestyle='None', fillstyle='full',
+                     zorder=9, marker='o', label = 'Used for cont')
+            plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
+                     mfc='red', linestyle='None', fillstyle='full',
+                     zorder=9, marker='o', label = 'masked for cont')
+            plt.legend()
+            plt.show()
+
+
+    return cont_now, cont_mask
+
+
+def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None, cont_subtract=True,
+                 cont_frac_fwhm=1.0, max_frac_fwhm=3.0, min_pkdist_frac_fwhm = 0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3, nfind=None,
+                 verbose=False, debug=False, debug_peak_find=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -459,30 +808,49 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
 
     Optional Parameters
     -------------------
-    nfitpix: int, default 5
-       Number of pixels that are used in the fits for Gaussian arc line centroiding.
+    sigdetect: float, default=20.
+       Sigma threshold above fluctuations for arc-line detection. Arcs are continuum subtracted and the fluctuations are
+       computed after continuum subtraction.
 
-    sigdetect: float, default 20.
-       sigma threshold above continuum subtracted fluctuations for arc-line detection
+    input_thresh: float, str, default= None
+       Optionally the user can specify the threhsold that peaks must be above to be kept. In this case the sigdetect parameter
+       will be ignored. This is most useful for example for cases where cont_subtract =False, and the user prefers to determine
+       the significance  threhsold outside of this routine, rather than using this routines defaults to determine the
+       continuum level and standard deviation of the continuum subtracted spetrum. If a string input of 'None' is set then
+       the code will simply return all peaks irrespective of any threshold. This is equivalent to setting the mph parameter
+       to None in the detect_peaks code.
 
-    fwhm:  float, default = 10.0
-       fwhm in pixels used for filtering out arc lines that are too wide and not considered in fits.
+    fwhm:  float, default = 4.0
+       Number of pixels per fwhm resolution element.
 
-    mask_width float, default = 10.0
-       width in pixels used for masking peaks in the spectrum when the continuum is being defined. Should be comparable
-       or larger than the FWHM of the arc lines.
+    fit_frac_fwhm: float, default 0.5
+       Number of pixels that are used in the fits for Gaussian arc line centroiding expressed as a fraction of the fwhm parameter
+
+    max_frac_fwhm:  float, default = 2.5
+       maximum width allowed for usable arc lines expressed relative to the fwhm.
+
+    min_pkdist_frac_fwhm: float, default = 0.75
+       minimum allowed separation between peaks expressed relative to the fwhm.
+
+    cont_frac_fwhm float, default = 1.0
+       width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
+       parameter
+
+    cont_subtract: bool, default = True
+       If true, the code will continuum subtract the input array by iteratively determining the continuum
 
     cont_samp: float, default = 30.0
        The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
-       median filtering, with a width of ngood/nsamp, where ngood is the number of good pixels for estimating the continuum
+       median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
        (i.e. that don't have peaks).
+
+    niter_cont: int, default = 3
+       Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
+
 
     nonlinear_counts: float, default = 1e10
        Value above which to mask saturated arc lines. This should be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
        Default is 1e10 which is to not mask.
-
-    niter_cont: int, default = 3
-       Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
 
     nfind: int, default = None
        Return only the nfind highest significance lines. The default is None, which means the code will
@@ -497,7 +865,9 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     Returns
     -------
     tampl : ndarray
-      The amplitudes of the line detections
+      The amplitudes of the line detections in the true arc
+    tampl_cont : ndarray
+      The amplitudes of the line detections in the continuum subtracted arc
     tcent : ndarray
       The centroids of the line detections
     twid : ndarray
@@ -513,8 +883,6 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
       the line free region. Bad lines are assigned a significance of -1, since they don't have an amplitude fit
     """
 
-    # debug = True
-
     # Detect the location of the arc lines
     if verbose:
         msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
@@ -526,51 +894,38 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
     detns = detns.astype(np.float)
     xrng = np.arange(detns.size, dtype=np.float)
 
-    nspec = detns.size
-    cont_mask = np.ones(detns.size, dtype=bool)
-    spec_vec = np.arange(nspec)
-    cont_now = np.arange(nspec)
-    mask_sm = np.round(mask_width).astype(int)
-    mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
-    for iter in range(niter_cont):
-        arc_now = detns - cont_now
-        (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
-        # be very liberal in determining threshold for continuum determination
-        thresh = med + 2.0*stddev
-        pixt_now = detect_peaks(arc_now, mph = thresh, mpd = 3.0)
-        # mask out the peaks we find for the next continuum iteration
-        cont_mask_fine = np.ones_like(cont_now)
-        cont_mask_fine[pixt_now] = 0.0
-        # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
-        cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
-        # If more than half the spectrum is getting masked than short circuit this masking
-        frac_mask = np.sum(~cont_mask)/float(nspec)
-        if (frac_mask > 0.67):
-            msgs.warn('Too many pixels masked in arc continuum definiton: frac_mask = {:5.3f}'.format(frac_mask) + ' . Not masking....')
-            cont_mask = np.ones_like(cont_mask)
-        ngood = np.sum(cont_mask)
-        samp_width = np.ceil(ngood/cont_samp).astype(int)
-        cont_med = utils.fast_running_median(detns[cont_mask], samp_width)
-        cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
-
-    #msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
-    # Final peak detection
-
-    # TODO ADD an option here to not continuum subtract at all
+    if cont_subtract:
+        cont_now, cont_mask = iter_continuum(detns, fwhm=fwhm, niter_cont=niter_cont, cont_samp=cont_samp,
+                                             cont_frac_fwhm=cont_frac_fwhm)
+    else:
+        cont_mask = np.ones(detns.size, dtype=bool)
+        cont_now = np.zeros_like(detns)
 
     arc = detns - cont_now
-    (mean, med, stddev) = sigma_clipped_stats(arc_now[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
-    thresh = med + sigdetect*stddev
-    pixt = detect_peaks(arc, mph=thresh, mpd=3.0) #, show=debug)
-    # Gaussian fitting appears to work better on the non-continuum subtracted data
+    if input_thresh is None:
+        (mean, med, stddev) = sigma_clipped_stats(arc[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
+        thresh = med + sigdetect*stddev
+    else:
+        med = 0.0
+        if isinstance(input_thresh,(float, int)):
+            thresh = input_thresh
+        elif isinstance(input_thresh, str):
+            if input_thresh == 'None':
+                thresh = None
+        else:
+            msgs.error('Unrecognized value for thresh')
+        stddev = 1.0
+    pixt = detect_peaks(arc, mph=thresh, mpd=fwhm*min_pkdist_frac_fwhm, show=debug_peak_find)
+    nfitpix = np.round(fit_frac_fwhm*fwhm).astype(int)
+    fwhm_max = max_frac_fwhm*fwhm
     tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
-    #tampl, tcent, twid, centerr = fit_arcspec(xrng, arc_in, pixt, nfitpix)
+    # This is the amplitude of the lines in the actual detns spectrum not continuum subtracted
     tampl_true = np.interp(pixt, xrng, detns)
     tampl = np.interp(pixt, xrng, arc)
     #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
     #        & amplitude not nonlinear
-    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < fwhm/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
-           (tampl_true < nonlinear_counts)
+    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
+           (tampl_true < nonlinear_counts) & (np.abs(tcent-pixt) < fwhm*0.75)
     ww = np.where(good)
     # Compute the significance of each line, set the significance of bad lines to be -1
     nsig = (tampl - med)/stddev
@@ -592,22 +947,22 @@ def detect_lines(censpec, nfitpix=5, sigdetect = 5.0, fwhm = 10.0, mask_width = 
             good = good[ikeep]
 
     if debug:
-        # Interpolate for bad lines since the fitting code often returns nan
         plt.figure(figsize=(14, 6))
         plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc', linewidth = 1.0)
-        plt.plot(tcent[~good], tampl[~good],'r+', markersize =6.0, label = 'bad peaks')
+        plt.plot(tcent[np.invert(good)], tampl[np.invert(good)],'r+', markersize =6.0, label = 'bad peaks')
         plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
-        plt.hlines(thresh, xrng.min(), xrng.max(), color='cornflowerblue', linestyle=':', linewidth=2.0,
-                   label='threshold', zorder=10)
+        if thresh is not None:
+            plt.hlines(thresh, xrng.min(), xrng.max(), color='cornflowerblue', linestyle=':', linewidth=2.0,
+                       label='threshold', zorder=10)
         if nonlinear_counts < 1e9:
             plt.hlines(nonlinear_counts,xrng.min(), xrng.max(), color='orange', linestyle='--',linewidth=2.0,
                        label='nonlinear', zorder=10)
         plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
-        plt.ylim(-5.0*thresh, 1.5*arc.max())
+        plt.ylim(arc.min(), 1.5*arc.max())
         plt.legend()
         plt.show()
 
-    return tampl_true, tcent, twid, centerr, ww, arc, nsig
+    return tampl_true, tampl, tcent, twid, centerr, ww, arc, nsig
 
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
@@ -625,6 +980,9 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 
     """
 
+    fitp_even = fitp if fitp % 2 == 0 else fitp + 1
+    fit_interval = fitp_even//2
+
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
@@ -635,16 +993,20 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     centerr = -1.0*np.ones(sz_p, dtype=np.float)
 
     for p in range(sz_p):
-        pmin = pixt[p]-(fitp-1)//2
-        pmax = pixt[p]-(fitp-1)//2 + fitp
+        # This interval is always symmetric about the peak
+        pmin = pixt[p] - fit_interval
+        pmax = pixt[p] + fit_interval + 1
         if pmin < 0:
             pmin = 0
         if pmax > sz_a:
             pmax = sz_a
         if pmin == pmax:
             continue
-        if pixt[p]-pmin <= 1 or pmax-pixt[p] <= 1:
-            continue  # Probably won't be a good solution
+        if (pmax - pmin) < (fit_interval):
+            continue # Probably won't be a good solution
+#       JFH Removed below
+#       if pixt[p]-pmin <= 1 or pmax-pixt[p] <= 1:
+#            continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
             popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
@@ -663,21 +1025,21 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     return ampl, cent, widt, centerr
 
 
-def simple_calib_driver(msarc, aparm, censpec, ok_mask, nfitpix=5, get_poly=False,
-                        IDpixels=None, IDwaves=None):
+def simple_calib_driver(msarc, llist, censpec, ok_mask, nfitpix=5, get_poly=False,
+                        IDpixels=None, IDwaves=None, nonlinear_counts=None):
     wv_calib = {}
     for slit in ok_mask:
-        iwv_calib = simple_calib(msarc, aparm, censpec[:, slit], nfitpix=nfitpix,
-                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves)
+        iwv_calib = simple_calib(msarc, llist, censpec[:, slit], nfitpix=nfitpix,
+                                 get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
+                                 nonlinear_counts=nonlinear_counts)
         wv_calib[str(slit)] = iwv_calib.copy()
     return wv_calib
 
 
-def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
-                 IDpixels=None, IDwaves=None, debug=False, sigdetect=5.):
+def simple_calib(msarc, llist, censpec, nfitpix=5, get_poly=False,
+                 IDpixels=None, IDwaves=None, debug=False, sigdetect=5.,
+                 nonlinear_counts=None):
     """Simple calibration algorithm for longslit wavelengths
-
-    Uses slf._arcparam to guide the analysis
 
     Parameters
     ----------
@@ -697,17 +1059,16 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
 
     # Extract the arc
     msgs.work("Detecting lines..")
-    tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
-                                                         sigdetect=sigdetect,
-                                                         nonlinear_counts = aparm['nonlinear_counts'])
+    #tampl, tcent, twid, _, w, yprep, nsig = detect_lines(censpec, nfitpix=nfitpix,
+    #                                                     sigdetect=sigdetect,
+    #                                                     nonlinear_counts = aparm['nonlinear_counts'])
+    tcent, ecent, cut_tcent, icut, spec_cont_sub = wvutils.arc_lines_from_spec(
+        censpec, sigdetect=sigdetect, nonlinear_counts=nonlinear_counts)#, debug = debug_peaks)
 
     # Cut down to the good ones
-    tcent = tcent[w]
-    tampl = tampl[w]
+    tcent = tcent[icut]
+    #tampl = tampl[w]
     msgs.info('Detected {:d} lines in the arc spectrum.'.format(len(w[0])))
-
-    # Read Arc linelist
-    llist = aparm['llist']
 
     # IDs were input by hand
     if IDpixels is not None:
@@ -750,6 +1111,9 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                 idsion[jj] = llist['Ion'][imnw]
                 msgs.info("Identifying arc line: {:s} {:g}".format(idsion[jj],ids[jj]))
     else:
+        # DEPRECATED!!
+        debugger.set_trace()
+        '''
         # Generate dpix pairs
         msgs.info("Using pair algorithm for wavelength solution")
         nlist = len(llist)
@@ -798,9 +1162,13 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
                 debugger.plot1d(yprep)
             else:
                 msgs.error('Insufficient lines to auto-fit.')
+        '''
 
     # Debug
     msgs.work('Cross correlate here?')
+
+    debugger.set_trace() # STOPPED HERE
+    #  SHOULD MAKE A CALL to fitting.iterative_fitting()
 
     # Setup for fitting
     ifit = idx_str[gd_str]
@@ -810,24 +1178,24 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     all_ids[ifit] = ids[gd_str]
     all_idsion[ifit] = idsion[gd_str]
     # Fit
-    n_order = aparm['n_first']
+    n_order = par['n_first']
     flg_quit = False
     fmin, fmax = -1., 1.
     msgs.info('Iterative wavelength fitting..')
     #debug=True
-    while (n_order <= aparm['n_final']) and (flg_quit is False):
+    while (n_order <= par['n_final']) and (flg_quit is False):
         #msgs.info('n_order={:d}'.format(n_order))
         # Fit with rejection
         xfit, yfit = tcent[ifit], all_ids[ifit]
-        mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej'], minv=fmin, maxv=fmax)
-        rms_ang = utils.calc_fit_rms(xfit, yfit, fit, aparm['func'], minv=fmin, maxv=fmax)
+        mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=par['func'], sigma=par['sigrej_first'], minv=fmin, maxv=fmax)
+        rms_ang = utils.calc_fit_rms(xfit, yfit, fit, par['func'], minv=fmin, maxv=fmax)
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
         # Find new points (should we allow removal of the originals?)
-        twave = utils.func_val(fit, tcent, aparm['func'], minv=fmin, maxv=fmax)
+        twave = utils.func_val(fit, tcent, par['func'], minv=fmin, maxv=fmax)
         for ss,iwave in enumerate(twave):
             mn = np.min(np.abs(iwave-llist['wave']))
-            if mn/aparm['disp'] < aparm['match_toler']:
+            if mn/aparm['disp'] < par['match_toler']:
                 imn = np.argmin(np.abs(iwave-llist['wave']))
                 if debug:
                     print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
@@ -840,7 +1208,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
         if debug:
             debugger.set_trace()
         # Increment order
-        if n_order < aparm['n_final']:
+        if n_order < par['n_final']:
             n_order += 1
         else:
             # This does 2 iterations at the final order
@@ -849,7 +1217,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     # Final fit (originals can now be rejected)
     fmin, fmax = 0., 1.
     xfit, yfit = tcent[ifit]/(msarc.shape[0]-1), all_ids[ifit]
-    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=aparm['func'], sigma=aparm['nsig_rej_final'], minv=fmin, maxv=fmax)
+    mask, fit = utils.robust_polyfit(xfit, yfit, n_order, function=par['func'], sigma=par['sigrej_final'], minv=fmin, maxv=fmax)
     irej = np.where(mask==1)[0]
     if len(irej) > 0:
         xrej = xfit[irej]
@@ -901,7 +1269,7 @@ def simple_calib(msarc, aparm, censpec, nfitpix=5, get_poly=False,
     # Return
     return final_fit
 
-
+# JFH I think this is all deprecated code as it is in wavecalib.py now
 def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
     """Holy grail algorithms for wavelength calibration
 
@@ -1016,126 +1384,6 @@ def saturation_mask(a, satlevel):
                 mask = determine_saturation_region(a, x, y, -1, -1, satdown, satlevel, mask)
 
     return mask.astype(int)
-
-
-def arc_fit_qa(fit, outfile, ids_only=False, title=None):
-    """
-    QA for Arc spectrum
-
-    Parameters
-    ----------
-    setup: str
-      For outfile
-    fit : dict
-      Wavelength fit for this slit
-    slit : int
-      For outfile
-    arc_spec : ndarray
-      Arc spectrum
-    outfile : str, optional
-      Name of output file
-      or 'show' to show on screen
-    """
-
-    plt.rcdefaults()
-    plt.rcParams['font.family']= 'times new roman'
-
-    # Grab the named of the method
-    #method = inspect.stack()[0][3]
-    # Outfil
-    #if outfile is None:
-    #    outfile = qa.set_qa_filename(setup, method, slit=(slit + 1), out_dir=out_dir)
-    #
-    arc_spec = fit['spec']
-
-    # Begin
-    if not ids_only:
-        plt.figure(figsize=(8, 4.0))
-        plt.clf()
-        gs = gridspec.GridSpec(2, 2)
-        idfont = 'xx-small'
-    else:
-        plt.figure(figsize=(11, 8.5))
-        plt.clf()
-        gs = gridspec.GridSpec(1, 1)
-        idfont = 'small'
-
-    # Simple spectrum plot
-    ax_spec = plt.subplot(gs[:,0])
-    ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
-    ymin, ymax = 0., np.max(arc_spec)
-    ysep = ymax*0.03
-    for kk, x in enumerate(fit['xfit']*fit['xnorm']):
-        ind_left = np.fmax(int(x)-2, 0)
-        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
-        yline = np.max(arc_spec[ind_left:ind_righ])
-        # Tick mark
-        ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
-        # label
-        ax_spec.text(x, yline+ysep*1.3,
-            '{:s} {:g}'.format(fit['ions'][kk], fit['yfit'][kk]), ha='center', va='bottom',
-            size=idfont, rotation=90., color='green')
-    ax_spec.set_xlim(0., len(arc_spec))
-    ax_spec.set_ylim(ymin, ymax*1.2)
-    ax_spec.set_xlabel('Pixel')
-    ax_spec.set_ylabel('Flux')
-    if title is not None:
-        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
-                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
-    if ids_only:
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        plt.savefig(outfile, dpi=800)
-        plt.close()
-        return
-
-    # Arc Fit
-    ax_fit = plt.subplot(gs[0, 1])
-    # Points
-    ax_fit.scatter(fit['xfit']*fit['xnorm'], fit['yfit'], marker='x')
-    if len(fit['xrej']) > 0:
-        ax_fit.scatter(fit['xrej']*fit['xnorm'], fit['yrej'], marker='o',
-            edgecolor='gray', facecolor='none')
-    # Solution
-    xval = np.arange(len(arc_spec))
-    wave = utils.func_val(fit['fitc'], xval/fit['xnorm'], 'legendre',
-        minv=fit['fmin'], maxv=fit['fmax'])
-    ax_fit.plot(xval, wave, 'r-')
-    xmin, xmax = 0., len(arc_spec)
-    ax_fit.set_xlim(xmin, xmax)
-    ymin,ymax = np.min(wave)*.95,  np.max(wave)*1.05
-    ax_fit.set_ylim(np.min(wave)*.95,  np.max(wave)*1.05)
-    ax_fit.set_ylabel('Wavelength')
-    ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
-    # Stats
-    wave_fit = utils.func_val(fit['fitc'], fit['xfit'], 'legendre',
-        minv=fit['fmin'], maxv=fit['fmax'])
-    rms = np.sqrt(np.sum((fit['yfit']-wave_fit)**2)/len(fit['xfit'])) # Ang
-    dwv_pix = np.median(np.abs(wave-np.roll(wave,1)))
-    ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),
-        r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
-    ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),
-        'RMS={:.3f} (pixels)'.format(rms/dwv_pix), size='small')
-    # Arc Residuals
-    ax_res = plt.subplot(gs[1,1])
-    res = fit['yfit']-wave_fit
-    ax_res.scatter(fit['xfit']*fit['xnorm'], res/dwv_pix, marker='x')
-    ax_res.plot([xmin,xmax], [0.,0], 'k--')
-    ax_res.set_xlim(xmin, xmax)
-    ax_res.set_xlabel('Pixel')
-    ax_res.set_ylabel('Residuals (Pix)')
-
-    # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if outfile == 'show':
-        plt.show()
-    else:
-        plt.savefig(outfile, dpi=400)
-    plt.close()
-
-    plt.rcdefaults()
-
-
-    return
 
 
 

@@ -1,10 +1,266 @@
-0.9.1dev (unreleased)
----------------------
+
+0.11.1dev
+---------
+
+
+0.11.0 (22 Jun 2019)
+--------------------
+
+- Add magellan_mage, including a new ThAr linelist and an archived solution
+- Polish several key echelle methods
+- Modify create_linelist to default to vacuum
+- Update Xshooter, NIRES, and GNIRS
+- Refactor ProcessImages into ProcessRawImage, PypeItImage, CalibrationImage, ScienceImage, and ImageMask
+- Refactor ScienceImage into SciImgStack
+- Fix arc tilts bug
+- Started an X-Shooter doc and introduced a [process][bias] parameter
+- Modified processing steps for bias + overscan subtraction
+- Started notes on how to generate a new spectrograph in PypeIt
+- Refactoring of reduce to take a ScienceImage object for the images and the mask
+- Updates to many spectrograph files to put datasec, oscansec in the raw frame
+- Add find_trim_edge and std_prof_nsigma parameters
+- A bit of tuning for MagE
+- Fixes for Echelle in fluxspec
+- Writes a chosen set of header cards to the spec1D and coadd files
+- Updates for FORS2
+
+
+0.10.1 (22 May 2019)
+--------------------
+
+- Minor bug fix to allow for `None` exposure times when typing frames.
+
+0.10.0 (21 May 2019)
+--------------------
+
+- Enable PyPI
+- Streamline some of the instantiation at the beginning of
+  PypeIt.__init__.
+    - Moves the call to default_pypeit_par into config_specific_par.
+    - Adds a finalize_usr_build() function to PypeItMetaData to
+      consolidate the few opaque steps when finishing the meta data
+      build.
+- Hack for Kastr
+- Turn on Shane Kastb grism wavelength solutions (not tested)
+- Started splitting Arc Line Templates Notebook into pieces
+- Allows for slice like syntax when defining calibration groups.
+- Introduce 'tilt' frame type.  Not used yet.  Everything that's typed
+  as an 'arc' is now also typed as a 'tilt'.
+- Use matplotlib 'agg' backend to the top-level `__init__.py` to allow
+  for running the code under a screen; may need a better approach.
+- Numerous doc and style fixes
+- Add `master_type` to `MasterFrame` (and derived classes), which is
+  used to set the name of the master frame output file.
+- Significant edits to `MasterFrame` to streamline IO for derived
+  classes.  Lead to significant changes to `Calibrations`.
+- Main paths now set in `PypeIt`.
+- Allow `connect_to_ginga` to start up the ginga viewer.
+- Add a pytest `skipif` that checks if the Cooked directory exists in
+  the dev-suite.  Use this to run the tests that only need the raw image
+  data or don't need the dev-suite at all.
+- Move wavelength calibration save/load out of `pypeit.wavecalib` into
+  `pypeit.core.wavecal.waveio.py`
+- Rename default directory for calibration masters to `Masters` and
+  removed inclusion of spectrograph name.
+- Fix oscan sec in read_lris()
+- Fix bad return in tracewave.tilts_find_lines()
+- Several doc edits
+- Fix handling of maskslits
+- Fix flexure crashing
+- Change `pypeit.spectrographs.spectrograph.get_image_section` to
+  *always* return the sections ordered spectral then spatial to match
+  the PypeIt convention to match how binning is returned.  Propagated to
+  get_datasec_img.
+- Changed all functions related to binning to ensure that binning is
+  always ordered spectral vs. spatial with the PypeIt convention that
+  images have shape (nspec,nspat).  Includes associated documentation.
+- Allow `pypeit.bitmask.BitMask` and `pypeit.par.parset.ParSet` to save
+  and load from fits file headers.
+- Force BitMask definitions in framematch.py and processimages.py to use
+  and OrderedDict.  They need to be an OrderedDicts for now to ensure
+  that the bits assigned to each key is always the same. As of python
+  3.7, normal dict types are guaranteed to preserve insertion order as
+  part of its data model. When/if we require python 3.7, we can remove
+  this (and other) OrderedDict usage in favor of just a normal dict.
+- Changed default for add and rm slits parameters.
+- Doc improvements and removal of old, commented methods.
+- Edited function that replaces bad columns in images and added tests.
+- Added `pypeit.io` with routines to:
+    - manipulate `numpy.recarray` objects and converting them into
+      `astropy.fits.BinTableHDU` objects.
+    - gzip compress a file
+    - general parser to pull lists of items from fits headers
+- Added metadata to `MasterFrame` objects written to fits files.
+- Added `'observed'` option for wavelength reference frame that skips
+  any relative motion corrections.
+
+0.9.3 (28 Feb 2019)
+-------------------
+- Fixed a bug that was introduced when the binning was switched to the
+  PypeIt convention.
+- Fixed a bug whereby 2d images were not being saved if no objects were
+  detected.
+- Revamped the naming convention of output files to have the original
+  filename in it.
+
+0.9.2 (25 Feb 2019)
+-------------------
+
+- Many doc string updates in top level routines (not core)
+- Updates to install and cookbook docs
+- Continued the process of requiring spectrograph and par in each base
+  class
+- More doc + cleaning at top level, e.g. base classes
+- Eliminates BPM base class
+- Hot fix for flatfield;  illumflat was getting divided into the
+  pixelflatnrm image
+- Implementation of 2d coadds including a script to perform them.
+- Fixed bug in extract.fit_profile that was introduced when implementing
+  2d coadds
+- Polynomial order for object finding is now part of parset.
+- Improved X-shooter object tracing by increasing order.
+- Improved determination of threshold determination regions for object
+  finding.
+- Added S/N floor to ivar determination for image procing.
+- Reworked master output for traceslits
+- Fixed a bug associated with binned images being proc'd incorrectly.
+- Fixed master_key outputs in headers to deal with different detectors.
+- Modify -c in pypeit_setup to require a setup (or all) be specified
+  when writing, e.g. 'all' or 'A,C'
+- Generated a new spectrograph child for LRISr in long-slit read-out
+  mode (only 2 amps, 1 per detector)
+- Require astropy >=3.1  [required for coadding at the least]
+- Fixed a circular import which required move qa from wavecal into
+  autoid.
+- Fixed a bug in LRIS-R that spectrograph which was not using binning
+  for wavelength fwhm.
+- Updated docs on add/rm slits.
+- Fixed and tuned up fluxing script and fluxing routines.
+- Introduce sky_sigrej parameter
+- Better handling of ManualExtraction
+- Add template for LRISr 600/5000 wavelengths
+- PYDL LICENSE and licenses folder
+- Updates for new Cooked (v1.0)
+
+0.9.1 (4 Feb 2019)
+------------------
 
 - Move write method for sensitivity function
 - Modify I/O for detnum parameter
 - Modify idx code in SpecObj
 - Fixed a bug on datatype formatting
+- Reworked masteframe and all base classes to be more homogenous so that
+  one only ever overloads the save_master and load_master methods.
+- Many changes fixes wavecal/autoid.py to make the lines being used
+  explicitly clear. This fixed many bugs in the the wavelength fitting
+  that were recently introduced.
+- Introduced reidentification algorithm for wavelengths and many
+  associated algorithms. Reidentification is now the default for
+  x-shooter and NIRES. Other changes to the wavelength interface and
+  routines to make them more compatible with echelle.
+- Tweaked LA cosmics defaults. Add instrument specific parameters in
+  spectrograh classes along with routines that check binning and decide
+  on best params for LRIS-RED
+- Now updating cosmic ray masking after each global sky subtraction
+- Major developments for echelle functionality, including object
+  wavelengths, and reduction control flow.
+- Introduced wavemodel.py to simulate/extract/ID sky and ThAr spectral
+  emission lines.
+- Significant refactor of tracing slit/edge orders and new docs+tests
+- Changed back BPM image to be aligned with datasec *not* the raw image
+  shape (without trimming)
+- Renabled ability to add user supplied slits
+- Miscellaneious echelle-related advances
+- PNGs of X-Shooter fits
+- Sped up trace plotting in ginga
+- Fussed again with how time is handled in PypeIt.  Hopefully the last
+  time..
+- dispaxis renamed specaxis and dispflip to specflip
+- Lots of VLT/X-Shooter development
+- Removed a number of files that had been mistakingly added into the
+  repo
+- Now running on cooked v=0.92
+- Allow for multiple paths to be defined in the pypeit file
+- Changed the procedure used to identify instrument configurations and
+  identify which frames to use when calibrating science exposures.
+- Added configurations, calibration groups, and background index to
+- Total revamp of Tilts. Arc line tracing significantly improved.
+- Fixes to trace_crude_init, trace_fweight, and trace_gweight.
+- Many other small bug fixes and modifications particularly in the
+  fitting routines.
+- Lots of development related to echelle functionality.
+- Major enhancements to fitting routines (in utils)
+- Make GMOS south works and update OH line lists, and also add LBT/MODS.
+- Introduce calib groups
+- Removes setup designation.  Largely replaced with master_key
+- Refactor Calibrations class to handle new calib groups
+- Refactor QA to handle new calib groups
+- Refactor tests to handle new calib groups
+- Pushed pieces of run_pypeit into the PypeIt class
+- Removed future as a dependency
+- Change point step size to 50 pixels in show_slits and show_trace for
+  major speed up
+- Implemented difference imaging for near-IR reductions for both
+  Multislit and Echelle
+- Fixed a bug in echelle object finding algorithm.
+- Fixed bug in object finding associated with defining the background
+  level for bright telluric standards and short slits.
+- Implemented using standard stars as crutches for object tracing.
+- Reworked the implementation of reuse_masters in the PypeIt class and
+  in the Calibrations class.
+- New behavior associated with the -o overwrite feature in run_pypeit.
+  User prompting feature has been disabled. Existing science files will
+  not be re-created unless the -o option is set.
+- Fixed a bug where local sky subtraction was crashing when all the
+  pixels get masked.
+- Nearly resurrected simple_calib
+- New method to build the fitstbl of meta data
+- Refactor handling of meta data including a data model defining core
+  and additional meta data
+- Replaces metadata_keys with pypeit_file_keys for output to PypeIt file
+- Updates new metadata approach for VLT, Keck, Lick, Gemini instruments
+- Remove PypeItSetup call from within PypeIt
+- Remove lacosmic specific method in Spectrograph;  replaced with
+  config_specific_par
+- setup block now required when running on a PypeIt file
+- Introduced a new method of determining breakpoint locations for local
+  sky subtraction which takes the sampling set by the wavelength tilts
+  into account.
+- Fixed a major bug in the near-IR difference imaging for the case of
+  A-B, i.e. just two images.
+- Introduced routines into core.procimg that will be used in 2-d
+  co-adding.
+- Tweaks to VLT X-SHOOTER spectrograph class to improve reductions.
+- Moved methods for imaging processing from scienceimage class to
+  processimages class.
+- Introduce full_template() method for multi-slit wavelength
+  calibrations; includes nsnippet parameter
+- Generate full template files for LRIS, DEIMOS, Kastb
+- Added a few new Arc lines for DEIMOS in the blue
+- Introduce mask_frac_thresh and smash_range parameters for slit
+  tracing; modified LRISb 300 defaults
+- Updated slit tracing docs
+- Introduced --show command in pypeit_chk_edges
+- Added echelle specific local_skysub_extract driver.
+- Refactored PypeIt and ScienceImage classes and introduced Reduce
+  class. ScienceImage now only does proc-ing whereas reduction
+  operations are done by Reduce. Reduce is now subclassed in an
+  instrument specific way using instantiate_me instead of PypeIt. This
+  was necessary to enable using the same reduction functionality for 2d
+  coadds.
+- Added and improved routines for upcoming coadd2d functionality.
+- Fixed bug in weight determination for 1d spectral coadds.
+- Major fixes and improvements to Telluric corrections and fluxing
+  routines.
+- Fluxing now implemented via a script.
+- Turned flexure back on for several instruments
+- Introduced VLT/FORS2 spectrograph
+- Swapped binspec and binspat in parse binning methods
+- Extended LRISr 1200_900 arc template
+- Modified add/rm slit methods to be spec,spat
+- Add an option in coadding to scale the coadded spectrum to a given
+  magnitude in a given filter
+- Extended DEIMOS 1200G template
 
 0.9.0
 -----
@@ -73,8 +329,8 @@
 - Got rid of arcparam and added info and docs to wavelengths parset. 
 - Improved and commented autoid.py arclines code. 
 - Added utilities to wavecalib to compute shift,stretch of two spectra. 
-- Completely revamped cross-correlation algorithm in wavecalib to give roburt results.
-
+- Completely revamped cross-correlation algorithm in wavecalib to give
+  roburt results.
 
 0.8.1
 -----

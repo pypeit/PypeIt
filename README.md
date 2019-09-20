@@ -4,13 +4,27 @@ documentation visit:
 
 http://pypeit.readthedocs.io
 
+and/or see our HOWTO:
+
+https://tinyurl.com/pypeit-howto
+
+and/or join our PypeIt Users Slack 
+(the invite is recorded in this Issue:
+https://github.com/pypeit/PypeIt/issues/676)
+
 # Instruments Served
-* Keck/LRIS 
+* Gemini/GNIRS
+* Gemini/GMOS (soon)
 * Lick/Kast 
-* WHT/ISIS
-* TNG/Dolores
-* Keck/DEIMOS (coming soon)
 * Lick/APF (planned)
+* Magellan/MagE
+* Keck/DEIMOS
+* Keck/LRIS 
+* Keck/MOSFIRE (soon)
+* Keck/NIRES
+* Keck/NIRSPEC (low-dispersion)
+* VLT/X-Shooter
+* VLT/FORS2
 
 # Requirements
 

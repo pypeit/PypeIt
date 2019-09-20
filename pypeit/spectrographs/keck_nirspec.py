@@ -1,10 +1,10 @@
 """ Module for Keck/NIRSPEC specific codes
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
 from pypeit import msgs
+from pypeit.par import pypeitpar
+from pypeit.spectrographs import spectrograph
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -12,7 +12,6 @@ from pypeit.spectrographs import spectrograph
 
 from pypeit import debugger
 
-# TODO: this is just the low-resolution version for now...
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRSPEC specific code
@@ -21,21 +20,20 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(KeckNIRSPECSpectrograph, self).__init__()
         self.telescope = telescopes.KeckTelescopePar()
-        self.spectrograph = 'keck_nirspec'
         self.camera = 'NIRSPEC'
         self.detector = [
                 # Detector 1
             pypeitpar.DetectorPar(
                             dataext         = 0,
-                            dispaxis        = 0,
-                            dispflip        = False,
+                            specaxis        = 0,
+                            specflip        = False,
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
                             platescale      = 0.193,
                             darkcurr        = 0.8,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
+                            saturation      = 100000.,
+                            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
                             numamplifiers   = 1,
                             gain            = 5.8,
                             ronoise         = 23,
@@ -53,21 +51,20 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         Set default parameters for NIRSPEC reductions
         """
         par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'keck_nirspec'
         # Frame numbers
         par['calibrations']['standardframe']['number'] = 1
         par['calibrations']['biasframe']['number'] = 0
         par['calibrations']['pixelflatframe']['number'] = 5
         par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 0
-        # Set wave tilts order
-        par['calibrations']['tilts']['order'] = 2
+        par['calibrations']['arcframe']['number'] = 1
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
-        # Always correct for flexure, starting with default parameters
+        # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
         par['flexure'] = pypeitpar.FlexurePar()
+        par['flexure']['method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
+        par['calibrations']['arcframe']['exprng'] = [1, None]
         par['calibrations']['biasframe']['exprng'] = [None, 2]
         par['calibrations']['darkframe']['exprng'] = [None, 5]
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -75,15 +72,23 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['standardframe']['exprng'] = [None,5]
         par['scienceframe']['exprng'] = [1, None]
+        # Lower the default threshold for tilts
+        par['calibrations']['tilts']['tracethresh'] = 10.
+        # Slits
+        par['calibrations']['slits']['sigdetect'] = 200.
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
+        par['calibrations']['wavelengths']['sigdetect'] = 5.      # Good for NIRSPEC-1
+
         return par
 
+    '''
     def check_headers(self, headers):
         """
         Check headers match expectations for an LRISb exposure.
-
         See also
         :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
         Args:
             headers (list):
                 A list of headers read from a fits file
@@ -99,7 +104,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         """
         Return a dictionary with the header keywords to read from the
         fits file.
-
         Returns:
             dict: A nested dictionary with the header keywords to read.
             The first level gives the extension to read and the second
@@ -136,10 +140,50 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
 
         return hdr_keys
+    '''
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
 
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['decker'] = dict(ext=0, card='SLITNAME')
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='DISPERS')
+        meta['hatch'] = dict(ext=0, card='CALMPOS')
+        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # Lamps
+        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'FLAT']
+        for kk,lamp_name in enumerate(lamp_names):
+            meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        # Ingest
+        self.meta = meta
+
+    def configuration_keys(self):
+        return ['decker', 'dispname']
+
+    '''
     def metadata_keys(self):
         return super(KeckNIRSPECSpectrograph, self).metadata_keys() \
                     + ['echellepos', 'crosspos', 'idname']
+    '''
+    def pypeit_file_keys(self):
+        pypeit_keys = super(KeckNIRSPECSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -159,27 +203,28 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
-                        & (fitstbl['idname'] == 'arclamp')
-
+        if ftype in ['arc', 'tilt']:
+            # TODO: This is a kludge.  Allow science frames to also be
+            # classified as arcs
+            is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 1) \
+                            & (fitstbl['idname'] == 'arclamp')
+            is_obj = self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0) \
+                        & (fitstbl['idname'] == 'object')
+            return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-  
+
     def lamps(self, fitstbl, status):
         """
         Check the lamp status.
-
         Args:
             fitstbl (:obj:`astropy.table.Table`):
                 The table with the fits header meta data.
             status (:obj:`str`):
                 The status to check.  Can be `off`, `arcs`, or `dome`.
-        
         Returns:
             numpy.ndarray: A boolean array selecting fits files that
             meet the selected lamp status.
-
         Raises:
             ValueError:
                 Raised if the status is not one of the valid options.
@@ -197,52 +242,16 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             return fitstbl['lampstat06'] == 1
 
         raise ValueError('No implementation for status = {0}'.format(status))
-        
-    def get_match_criteria(self):
-        """Set the general matching criteria for Keck NIRSPEC."""
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-        match_criteria['pixelflat']['match']['dispname'] = ''
-
-        match_criteria['trace']['match'] = {}
-        match_criteria['trace']['match']['naxis0'] = '=0'
-        match_criteria['trace']['match']['naxis1'] = '=0'
-        match_criteria['trace']['match']['decker'] = ''
-        match_criteria['trace']['match']['dispname'] = ''
-
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-        match_criteria['arc']['match']['dispname'] = ''
-
-        return match_criteria
 
     # TODO: This function is unstable to shape...
     def bpm(self, shape=None, **null_kwargs):
         """ Generate a BPM
-
         Parameters
         ----------
         shape : tuple, REQUIRED
-
         Returns
         -------
         badpix : ndarray
-
         """
         if shape is None:
             raise ValueError('Must provide shape for Keck NIRSPEC bpm.')
@@ -254,66 +263,26 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         return self.bpm_img
 
-#class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
-#    """
-#    Child to handle NIRSPEC low-dispersion specific code
-#    """
-#
-#    def __init__(self):
-#        # Get it started
-#        super(KeckNIRSPECLowSpectrograph, self).__init__()
-#        self.spectrograph = 'keck_nirspec_low'
-#
-#
-#    def default_pypeit_par(self):
-#        """
-#        Set default parameters for NIRSPEC low-dispersion reductions
-#        """
-#        par = self.nirspec_default_pypeit_par()
-#        return par
-#
-#    def check_header(self, headers):
-#        """Validate elements of the header."""
-#        chk_dict = {}
-#        # chk_dict is 1-indexed!
-#        chk_dict[1] = {}
-#        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-#        chk_dict[1]['NAXIS'] = 2
-#        return chk_dict
-#
-#    def header_keys(self):
-#        """
-#        Header keys specific to keck_nirspec
-#
-#        Returns:
-#
-#        """
-#        head_keys = self.nirspec_header_keys()
-#        # Add the name of the filter used
-#        head_keys[0]['filter'] = 'FILNAME'
-#        return head_keys
-#
-#    def setup_arcparam(self, arcparam, disperser=None, fitstbl=None, arc_idx=None, msarc_shape=None,
-#                       binspectral=None, **null_kwargs):
-#        """
-#
-#        Args:
-#            arcparam:
-#            disperser:
-#            fitstbl:
-#            arc_idx:
-#            msarc_shape:
-#            **null_kwargs:
-#
-#        Returns:
-#
-#        """
-#        arcparam['lamps'] = ['OH_R24000']
-#        if fitstbl['filter'][arc_idx] == 'NIRSPEC-1':
-#            arcparam['n_first'] = 2  # Too much curvature for 1st order
-#            arcparam['disp'] = 2.1093  # Ang per pixel for Low-Res, NIRSPEC-1 filter
-#            arcparam['b1'] = 1. / arcparam['disp'] / msarc_shape[0]
-#            arcparam['wvmnx'][0] = 9400.  # Min wavelength
-#            arcparam['wvmnx'][1] = 11300.  # Max wavelength
-#            arcparam['wv_cen'] = 10000.  # Central wavelength
+class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
+    """
+    Child to handle NIRSPEC low-dispersion specific code
+    """
+
+    def __init__(self):
+        # Get it started
+        super(KeckNIRSPECLowSpectrograph, self).__init__()
+        self.spectrograph = 'keck_nirspec_low'
+
+
+    '''
+    def check_header(self, headers):
+        """Validate elements of the header."""
+        chk_dict = {}
+        # chk_dict is 1-indexed!
+        chk_dict[1] = {}
+        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
+        chk_dict[1]['NAXIS'] = 2
+        return chk_dict
+    '''
+
 

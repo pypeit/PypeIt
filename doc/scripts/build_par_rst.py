@@ -6,11 +6,13 @@ Dynamically build the rst documentation of the pypeit parameters.
 
 import os
 import time
+import textwrap
 import numpy
 
 from pkg_resources import resource_filename
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
+from pypeit.spectrographs.util import load_spectrograph, valid_spectrographs
 
 #-----------------------------------------------------------------------------
 #def class_name(p):
@@ -63,6 +65,29 @@ if __name__ == '__main__':
     lines += ['']
 
     lines += p.to_rst_table()
+    lines += ['']
+
+    lines += ['Instrument-Specific Default Configuration']
+    lines += ['+++++++++++++++++++++++++++++++++++++++++']
+    lines += ['']
+
+    lines += textwrap.wrap('The following provides the changes to the global default parameters '
+                           'provided above for each instrument.  That is, if one were to include '
+                           'these in the PypeIt file, you would be reproducing the effect of the '
+                           '`default_pypeit_par` method specific to each derived '
+                           ':class:`pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
+    lines += ['']
+
+    spectrographs = valid_spectrographs()
+    for spec in spectrographs:
+        s = load_spectrograph(spec)
+        lines += [ ' '.join([s.telescope['name'], s.camera]) ]
+        lines += [ '-'*len(lines[-1]) ]
+        lines += [ 'Alterations to the default parameters are::' ]
+        lines += ['']
+        sl = s.default_pypeit_par().to_config(include_descr=False, exclude_defaults=True)
+        lines += [ '  ' + l for l in sl ]
+        lines += ['']
     lines += ['']
 
     output_rst = os.path.join(pypeit_root, 'doc', 'pypeit_par.rst')

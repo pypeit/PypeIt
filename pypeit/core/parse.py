@@ -1,10 +1,3 @@
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
-try:
-    basestring
-except NameError:  # For Python 3
-    basestring = str
-
 import collections
 import inspect
 
@@ -616,106 +609,56 @@ def is_keyword(v):
     return valid
 
 
+def binning2string(binspectral, binspatial):
+    """
+
+    Args:
+        binspectral (int):
+        binspatial (int):
+
+    Returns:
+        str: Binning in binspectral, binspatial order, e.g. '2,1'
+
+    """
+    return '{:d},{:d}'.format(binspectral, binspatial) # ,binspectral)
+
+
 def parse_binning(binning):
-    """ Convert binning keyword to binning values
+    """
+    Parse input binning into binspectral, binspatial
 
-    Parameters
-    ----------
-    binning : str
-      Probably parsed from the header
+    Note that for some instruments, the meaning will be swapped if
+    parsed directly from the Header.  The developer needs to react accordingly..
 
-    Returns
-    -------
-    binspatial : int
-    binspectral : int
+    Args:
+        binning (str, ndarray or tuple):
+
+    Returns:
+        int,int: binspectral, binspatial
 
     """
     # comma separated format
-    binspatial, binspectral = None, None
-    if isinstance(binning, basestring):
+    if isinstance(binning, str):
         if ',' in binning:
-            binspatial, binspectral = [int(item) for item in binning.split(',')]  # Keck standard, I think
+            binspectral, binspatial = [int(item) for item in binning.split(',')]  # Keck standard, I think
         elif 'x' in binning:
-            binspatial, binspectral = [int(item) for item in binning.split('x')]  # LRIS
+            binspectral, binspatial = [int(item) for item in binning.split('x')]  # LRIS
         elif binning == 'None':
             msgs.warn("Assuming unbinned, i.e.  1x1")
-            binspatial, binspectral = 1,1
+            binspectral, binspatial = 1,1
         else:
-            binspatial, binspectral = [int(item) for item in binning.strip().split(' ')]  # Gemini
+            binspectral, binspatial = [int(item) for item in binning.strip().split(' ')]  # Gemini
+    elif isinstance(binning, tuple):
+        binspectral, binspatial = binning
+    elif isinstance(binning, np.ndarray):
+        binspectral, binspatial = binning
     else:
-        pass
-    # Finish
-    if binspatial is None:
-        msgs.warn("Unable to parse input binning: {}".format(binning))
-        msgs.warn("Assuming unbinned, i.e.  1x1")
-        return 1,1
-    else:
-        return binspatial, binspectral
+        msgs.error("Unable to parse input binning: {}".format(binning))
+    # Return
+    return binspectral, binspatial
 
 
-def dummy_settings(pypeitdir=None, nfile=10, spectrograph='shane_kast_blue',
-                   set_idx=True):
-    """ Generate default settings for use in tests.
-
-
-    Parameters
-    ----------
-    pypeitdir
-    nfile
-    spectrograph
-    set_idx : bool, optional
-      Set dummy index values for science and calibs
-
-    Returns
-    -------
-
-    """
-    # Dummy argflag
-    if spectrograph not in ['shane_kast_blue', 'keck_nirspec', 'keck_deimos', 'keck_nires',
-                            'keck_lris_red']:
-        msgs.error("Not setup for your instrument")  # You will need to fuss with scidx
-    argf = get_argflag_class(("ARMS", spectrograph))
-    argf.init_param()
-    if pypeitdir is None:
-        pypeitdir = __file__[0:__file__.rfind('/')]
-    # Run specific
-    argf.set_param('run pypeitdir {0:s}'.format(pypeitdir))
-    argf.set_param('run spectrograph {:s}'.format(spectrograph))
-    argf.set_param('run directory science ./')
-    # Dummy spect
-    spect = get_spect_class(("ARMS", spectrograph, "dummy"))
-    lines = spect.load_file(base=True)  # Base spectrograph settings
-    spect.set_paramlist(lines)
-    lines = spect.load_file()
-    spect.set_paramlist(lines)
-    # If the instrument settings file sets some argflag settings, implement those changes now
-    if len(spect.__dict__['_settings']) != 0:
-        argf.set_paramlist(spect.__dict__['_settings'])
-    if set_idx:
-        for jj, key in enumerate(spect._spect.keys()):
-            if key in ['det']:
-                continue
-            if 'index' in spect._spect[key].keys():
-                if spectrograph == 'shane_kast_blue':  # Science frames from idx = 5 to 9
-                    assert nfile == 10
-                for kk in [5,6,7,8,9]:
-                    if key == 'science':
-                        spect._spect[key]['index'] += [np.array([kk])]
-                    elif key == 'arc':
-                        spect._spect[key]['index'] += [np.array([1])]
-                    elif key == 'standard':
-                        spect._spect[key]['index'] += [np.array([4])]
-                    elif key == 'bias':
-                        spect._spect[key]['index'] += [np.array([0])]
-                    elif key == 'trace':
-                        spect._spect[key]['index'] += [np.array([2,3])]
-                    elif key == 'pixelflat':
-                        spect._spect[key]['index'] += [np.array([2,3])]
-    init(argf, spect)
-    return
-
-
-def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, transpose=False):
+def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, binning=None):
     """
     Convert a string representation of an array subsection (slice) into
     a list of slice objects.
@@ -736,12 +679,11 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         require_dim (:obj:`int`, optional):
             Test if the string indicates the slice along the proper
             number of dimensions.
-        transpose (:obj:`bool`, optional):
-            Transpose the order of the returned slices.  The
-            following are equivalent::
-                
-                tslices = parse_sec2slice('[:10,10:]')[::-1]
-                tslices = parse_sec2slice('[:10,10:]', transpose=True)
+        binning (:obj:`str`, optional):
+            Assume the slice is for an unbinned array and adjust the
+            returned slice for this binning in each dimension.  If two
+            dimensional, the format of this string must be, e.g., `1,2`
+            for unbinned rows and a factor of 2 binning along columns.
 
     Returns:
         tuple: A tuple of slice objects, one per dimension of the
@@ -756,19 +698,23 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
             slice.
     """
     # Check it's a string
-    if not isinstance(subarray, basestring):
+    if not isinstance(subarray, str):
         raise TypeError('Can only parse string-based subarray sections.')
     # Remove brackets if they're included
     sections = subarray.strip('[]').split(',')
     # Check the dimensionality
     ndim = len(sections)
+    _binning = [1]*ndim if binning is None else np.array(binning.split(',')).astype(int)
+    if len(_binning) != ndim:
+        raise ValueError('Incorrect binning dimensions (found {0}, expected {1}).'.format(
+                            len(_binning), ndim))
     if require_dim is not None and ndim != require_dim:
         raise ValueError('Number of slices ({0}) in {1} does not match '.format(ndim, subarray) + 
                          'required dimensions ({0}).'.format(require_dim))
     # Convert the slice of each dimension from a string to a slice
     # object
     slices = []
-    for s in sections:
+    for s,b in zip(sections,_binning):
         # Must be able to find the colon
         if ':' not in s:
             raise ValueError('Unrecognized slice string: {0}'.format(s))
@@ -785,26 +731,52 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         if include_end and _s[1] is not None:
             # Increment to include last 
             _s[1] += 1
+        _s = [ None if ss is None else ss//b for ss in _s ]
         # Append the new slice
         slices += [slice(*_s)]
 
-    return tuple(slices[::-1] if transpose else slices)
+    return tuple(slices)
 
 
+def str2list(inp, length):
+    """
+    Expand a string with a comma-separated set of integers and slices
+    into a list of the relevant integers.
 
+    Setting a maximum length of the list to 10, examples of the allowed
+    syntax and result are:
 
+        - 'all': [0,1,2,3,4,5,6,7,8,9]
+        - ':4': [0,1,2,3]
+        - '3:5,8:': [3,4,8,9]
+        - '3,1:5,6': [1,2,3,4,6]
 
+    Note the function removes any non-unique integers (see the last
+    example).
 
+    Args:
+        inp (:obj:`str`):
+            String with a comma-separated set of integers and slices;
+            can also be 'all'.
+        length (:obj:`int`):
+            Maximum length of the list, which is needed to allow for
+            open slices (e.g., '8:').
+    
+    Returns:
+        list: List of parsed integers.
+    """
+    if inp == 'None':
+        return None
 
+    gi = np.arange(length)
+    if inp == 'all':
+        # Flag 'em all!
+        return gi.tolist()
 
+    # Parse the input string into a list of integers
+    grp = np.concatenate([[int(g)] if g.find(':') == -1 else (gi[sec2slice(g)]).tolist()
+                                for g in inp.split(',')])
 
-
-
-
-
-
-
-
-
-
+    # Return the list, and ensure the integers are unique
+    return np.unique(grp).tolist()
 

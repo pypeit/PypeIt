@@ -1,246 +1,189 @@
-# Module for generating the Flat Field
-from __future__ import absolute_import, division, print_function
+"""
+Implements the flat-field class.
 
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+"""
 import inspect
 import numpy as np
 import os
 
-#from importlib import reload
-
 from pypeit import msgs
 
-from pypeit import processimages
-from pypeit.core import masters
 from pypeit import masterframe
 from pypeit.core import flat
 from pypeit import ginga
 from pypeit.par import pypeitpar
 from pypeit.core import pixels
+from pypeit.core import procimg
 from pypeit.core import trace_slits
-from pypeit.core import tracewave
-
+from pypeit.images import calibrationimage
 
 from pypeit import debugger
 
-class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
+class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
-    This class will generate the pixel-level FlatField
-      The master() method returns the image
+    Builds pixel-level flat-field and the illumination flat-field.
 
-    Parameters
-    ----------
-    file_list : list
-      List of raw files to produce the flat field
-    spectrograph : str
-    settings : dict-like
-    msbias : ndarray or str or None
-    tslits_dict : dict
-      dict from TraceSlits class (e.g. slitpix)
-    tilts : ndarray
-      tilts from WaveTilts class
-    det : int
-    setup : str
+    Args:
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The `Spectrograph` instance that sets the instrument used to
+            take the observations.  See usage by
+            :class:`pypeit.processimages.ProcessImages` base class.
+        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
+            The parameters used to type and process the flat frames.
+        files (:obj:`list`, optional):
+            The list of files to process.  Can be an empty list.
+        det (:obj:`int`, optional):
+            The 1-indexed detector number to process.
+        master_key (:obj:`str`, optional):
+            The string identifier for the instrument configuration.  See
+            :class:`pypeit.masterframe.MasterFrame`.
+        master_dir (:obj:`str`, optional):
+            Path to master frames
+        msbias (`numpy.ndarray`_, :obj:`str`, optional):
+            Either an image with the bias to be subtracted, or a string
+            providing the method to use for bias correction.
+        msbpm (`numpy.ndarray`_, optional):
+            Bad pixel mask image
+        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`, optional):
+            User-level parameters for constructing the flat-field
+            corrections.  If None, the default parameters are used.
+        tslits_dict (:obj:`dict`):
+            The current slit traces; see
+            :class:`pypeit.traceslits.TraceSlits`.
+        tilts_dict (:obj:`dict`, optional):
+            The current wavelength tilt traces; see
+            :class:`pypeit.wavetilts.WaveTilts`.
+        reuse_masters (:obj:`bool`, optional):
+            Reuse already created master files from disk.
 
-    Attributes
-    ----------
-    frametype : str
-      Set to 'pixelflat'
-    mspixelflat : ndarray
-      Stacked image
-    mspixelflatnrm : ndarray
-      Normalized flat
-    extrap_slit
-    msblaze : ndarray
-      Blaze function fit to normalize
-    blazeext :
-    slit_profiles : ndarray
-      Slit profile(s)
-    self.ntckx : int
-      Number of knots in the spatial dimension
-    self.ntcky : int
-      Number of knots in the spectral dimension
-
+    Attributes:
+        TODO: Fill this in...
+        mspixelflat (ndarray): Stacked image
+        mspixelflatnrm (ndarray): Normalized flat
+        ntckx (int): Number of knots in the spatial dimension
+        ntcky (int): Number of knots in the spectral dimension
     """
 
     # Frame type is a class attribute
     frametype = 'pixelflat'
+    master_type = 'Flat'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None, master_dir=None,
-                 mode=None, flatpar=None, msbias=None, msbpm = None, tslits_dict=None, tilts_dict=None):
+    def __init__(self, spectrograph, par, files=None, det=1, master_key=None,
+                 master_dir=None, reuse_masters=False, flatpar=None, msbias=None, msbpm=None,
+                 tslits_dict=None, tilts_dict=None):
 
         # Image processing parameters
-        self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
+        if not isinstance(par, pypeitpar.FrameGroupPar):
+            msgs.error('Must provide a FrameGroupPar instance as the parameters for FlatField.')
+        self.par = par
 
-        # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
-                                             par=self.par['process'])
-
-        # MasterFrames: Specifically pass the ProcessImages-constructed
-        # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         master_dir=master_dir, mode=mode)
-
-        # Parameters unique to this Object
-        self.msbias = msbias
-        self.tslits_dict = tslits_dict
-        self.tilts_dict = tilts_dict
-        self.msbpm = msbpm
-        if master_dir is None:
-            self.master_dir = os.getcwd()
-        else:
-            self.master_dir = master_dir
-
-        # Key outputs
-        self.rawflatimg = None
-        self.mspixelflat = None
-        self.msillumflat = None
-        self.flat_model = None
-
-        # Child-specific Internals
-        self.extrap_slit = None
-        self.msblaze = None
-        self.blazeext = None
-        self.slit_profiles = None
-        self.ntckx = None
-        self.ntcky = None
+        # Instantiate the base classes
+        #   - Basic processing of the raw images
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
+        #   - Construction and interface as a master frame
+        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+                                         master_key=master_key, reuse_masters=reuse_masters)
 
         # FieldFlattening parameters
         self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
 
+        # Input master frame data
+        self.msbias = msbias
+        self.msbpm = msbpm
+        self.tslits_dict = tslits_dict
+        self.tilts_dict = tilts_dict
+
+        # Parameters unique to this Object
+        self.rawflatimg = None      # Un-normalized pixel flat
+        self.mspixelflat = None     # Normalized pixel flat
+        self.msillumflat = None     # Slit illumination flat
+        self.flat_model = None      # Model flat
+
+        # Completed steps
+        self.steps = []
+
+        # Child-specific Internals
+#        self.extrap_slit = None
+#        self.msblaze = None
+#        self.blazeext = None
+#        self.slit_profiles = None
+#        self.ntckx = None
+#        self.ntcky = None
 
     @property
     def nslits(self):
         """
-        Number of slits
+        Number of slits from the :attr:`tslits_dict` key=slit_left
 
-        Returns
-        -------
-        nslits : int
+        Returns:
+            int: Number of slits
 
         """
         if self.tslits_dict is not None:
-            return self.tslits_dict['lcen'].shape[1]
+            return self.tslits_dict['slit_left'].shape[1]
         else:
             return 0
 
-    def build_pixflat(self, trim=True):
+    def build_pixflat(self, trim=True, force=False):
         """
-        # Generate the flat image
+        Generate the flat image.
 
-        Parameters
-        ----------
-        trim : bool, optional
+        Args:
+            trim (:obj:`bool`, optional):
+                Trim the image down to just the data section.
+            force (:obj:`bool`, optional):
+                Force the flat to be reconstructed if it already exists
 
-        Returns
-        -------
-        self.mspixelflat (points at self.stack)
-
+        Returns:
+            `numpy.ndarray`_:  The image with the unnormalized
+            pixel-flat data.
         """
-        self.mspixelflat = self.process(bias_subtract=self.msbias, bpm = self.msbpm, trim=trim, apply_gain=True)
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        #
-        return self.mspixelflat
+        if self.rawflatimg is None or force:
+            # Process steps
+            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
+            if trim:
+                self.process_steps += ['trim']
+            self.process_steps += ['apply_gain']
+            self.process_steps += ['orient']
+            self.steps.append(inspect.stack()[0][3])
+            # Do it
+            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias,
+                                                                 bpm=self.msbpm)
+        return self.rawflatimg
 
-    def _prep_tck(self):
+    # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
+    def run(self, debug=False, show=False, maskslits=None):
         """
-        Setup for the bspline fitting
+        Generate normalized pixel and illumination flats
 
-        Wrapper to flat.prep_ntck
+        Code flow::
+           1.  Generate the pixelflat image (if necessary)
+           2.  Prepare b-spline knot spacing
+           3.  Loop on slits/orders
+               a. Calculate the slit profile
+               b. Normalize
+               c. Save
 
-        Returns
-        -------
-        self.ntckx -- set internally
-          Number of knots in the spatial dimension
-        self.ntcky -- set internally
-          Number of knots in the spectral dimension
+        Args:
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+            show (:obj:`bool`, optional):
+                Show the results in the ginga viewer.
+            maskslits (np.ndarray, optional):
+               Array specifying whether a slit is good.
+               True = bad
+
+        Returns:
+            `numpy.ndarray`_: Two arrays are returned, the normalized
+            pixel flat data and the slit illumination correction data.
         """
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-        self.ntckx, self.ntcky = flat.prep_ntck(self.tslits_dict['pixwid'],
-                                                  method=self.flatpar['method'],
-                                                  params=self.flatpar['params'],
-                                                  get_slitprofile=self.flatpar['slitprofile'])
-
-    def load_master_illumflat(self):
-        """
-        Load the slit profile from a saved Master file
-
-        Returns
-        -------
-        self.slit_profiles
-
-        """
-        return masters.load_master_frame('illumflat', self.setup, self.mdir)
-
-    # ToDO this routine is deprecated and no longer called
-    def slit_profile(self, slit):
-        """
-        Generate the slit profile for a given slit
-
-        Wrapper to flat.slit_profile()
-
-        Parameters
-        ----------
-        slit : int
-
-        Returns
-        -------
-        modvals : ndarray
-          Pixels in the slit
-        nrmvals : ndarray
-          Pixels in the slit
-        msblaze_slit : ndarray (nwave)
-        blazeext_slit : ndarray (nwave)
-        iextrap_slit : float
-          0 = Do not extrapolate
-          1 = Do extrapolate
-
-        """
-        # Check
-        if self.ntckx is None:
-            msgs.warn("Need to set self.ntckx with _prep_tck first!")
-            return [None]*5
-        # Wrap me
-        slordloc = self.tslits_dict['lcen'][:,slit]
-        srordloc = self.tslits_dict['rcen'][:,slit]
-        modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit \
-                = flat.slit_profile(slit, self.mspixelflat, self.tilts_dict['tilts'], slordloc, srordloc,
-                                      self.tslits_dict['slitpix'], self.tslits_dict['pixwid'],
-                                      ntckx=self.ntckx, ntcky=self.ntcky)
-        # Step
-        step = inspect.stack()[0][3]
-        if step not in self.steps:  # Only do it once
-            self.steps.append(step)
-        # Return
-        return modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit
-
-    def run(self, debug = False, show = False):
-        """
-        Main driver to generate normalized flat field and illumination flats
-
-        Code flow:
-          1.  Generate the pixelflat image (if necessary)
-          2.  Prepare b-spline knot spacing
-          3.  Loop on slits/orders
-             a. Calculate the slit profile
-             b. Normalize
-             c. Save
-
-        Parameters
-        ----------
-        datasec_img
-
-        Returns
-        -------
-        self.mspixelflatnrm
-        self.slit_profiles
-
-        """
+        # Mask
+        if maskslits is None:
+            maskslits = np.zeros(self.nslits, dtype=bool)
 
         # Build the pixel flat (as needed)
-        if self.rawflatimg is None:
-            self.rawflatimg = self.build_pixflat()
+        self.build_pixflat()
 
         # Prep tck (sets self.ntckx, self.ntcky)
         #self._prep_tck()
@@ -249,195 +192,134 @@ class FlatField(processimages.ProcessImages, masterframe.MasterFrame):
         self.mspixelflat = np.ones_like(self.rawflatimg)
         self.msillumflat = np.ones_like(self.rawflatimg)
         self.flat_model = np.zeros_like(self.rawflatimg)
+        self.slitmask = pixels.tslits2mask(self.tslits_dict)
 
         final_tilts = np.zeros_like(self.rawflatimg)
 
+        # If we are tweaking slits allocate the new aray to hold tweaked slit boundaries
+        if self.flatpar['tweak_slits']:
+            self.tslits_dict['slit_left_tweak'] = np.zeros_like(self.tslits_dict['slit_left'])
+            self.tslits_dict['slit_righ_tweak'] = np.zeros_like(self.tslits_dict['slit_righ'])
+
         # Loop on slits
         for slit in range(self.nslits):
-            msgs.info("Computing flat field image for slit: {:d}".format(slit + 1))
-            thismask = (self.tslits_dict['slitpix'] == slit + 1)
+            # Is this a good slit??
+            if maskslits[slit]:
+                msgs.info('Skipping bad slit: {}'.format(slit))
+                continue
+            #
+            msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
             if self.msbpm is not None:
-                inmask = ~self.msbpm
+                inmask = np.invert(self.msbpm)
             else:
                 inmask = np.ones_like(self.rawflatimg,dtype=bool)
 
             # Fit flats for a single slit
-            this_tilts_dict = {'tilts':self.tilts_dict['tilts'], 'coeffs':self.tilts_dict['coeffs'][:,:,slit],
-                               'func2D':self.tilts_dict['func2D']}
-            nonlinear_counts = self.spectrograph.detector[self.det - 1]['nonlinear']*\
-                               self.spectrograph.detector[self.det - 1]['saturation']
-            pixelflat, illumflat, flat_model, thismask_out, slit_left_out, slit_righ_out = \
-                flat.fit_flat(self.rawflatimg, this_tilts_dict, thismask,self.tslits_dict['lcen'][:, slit],
-                              self.tslits_dict['rcen'][:,slit],inmask=inmask,tweak_slits = self.flatpar['tweak_slits'],
-                              nonlinear_counts=nonlinear_counts, debug=debug)
+            this_tilts_dict = {'tilts':self.tilts_dict['tilts'],
+                               'coeffs':self.tilts_dict['coeffs'][:,:,slit].copy(),
+                               'slitcen':self.tilts_dict['slitcen'][:,slit].copy(),
+                               'func2d':self.tilts_dict['func2d']}
+            nonlinear_counts = self.spectrograph.nonlinear_counts(det=self.det)
+
+            pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, \
+                    slit_righ_out \
+                            = flat.fit_flat(self.rawflatimg, this_tilts_dict, self.tslits_dict,
+                                           slit, inmask=inmask, nonlinear_counts=nonlinear_counts,
+                                           spec_samp_fine=self.flatpar['spec_samp_fine'],
+                                           spec_samp_coarse=self.flatpar['spec_samp_coarse'],
+                                           spat_samp=self.flatpar['spat_samp'],
+                                           tweak_slits=self.flatpar['tweak_slits'],
+                                           tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
+                                           tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],
+                                           debug=debug)
+
             self.mspixelflat[thismask_out] = pixelflat[thismask_out]
             self.msillumflat[thismask_out] = illumflat[thismask_out]
             self.flat_model[thismask_out] = flat_model[thismask_out]
+
             # Did we tweak slit boundaries? If so, update the tslits_dict and the tilts_dict
             if self.flatpar['tweak_slits']:
-                self.tslits_dict['lcen'][:, slit] = slit_left_out
-                self.tslits_dict['rcen'][:, slit] = slit_righ_out
-                this_tilts = tracewave.coeff2tilts(this_tilts_dict['coeffs'], self.rawflatimg.shape, self.tilts_dict['func2D'])
-                final_tilts[thismask_out] = this_tilts[thismask_out]
+                self.tslits_dict['slit_left'][:,slit] = slit_left_out
+                self.tslits_dict['slit_righ'][:,slit] = slit_righ_out
+                self.tslits_dict['slit_left_tweak'][:,slit] = slit_left_out
+                self.tslits_dict['slit_righ_tweak'][:,slit] = slit_righ_out
+                final_tilts[thismask_out] = tilts_out[thismask_out]
 
-        # If we tweaked the slits update the tslits_dict and the tilts_dict
+        # If we tweaked the slits update the tilts_dict
         if self.flatpar['tweak_slits']:
             self.tilts_dict['tilts'] = final_tilts
-            # Update the tslits_dict
-            self.tslits_dict['slitpix']= pixels.slit_pixels(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.rawflatimg.shape, 0)
-            # ToDo no need to store the ximg and edgmask in the tslits_dict, they can be generated on the fly
-            ximg, edge_mask = pixels.ximg_and_edgemask(self.tslits_dict['lcen'], self.tslits_dict['rcen'], self.tslits_dict['slitpix'])
-            self.tslits_dict['ximg'] = ximg
-            self.tslits_dict['edge_mask'] = edge_mask
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)
 
+        # If illumination flat fielding is turned off, set the illumflat to be None.
+        if not self.flatpar['illumflatten']:
+            msgs.warn('No illumination flat will be applied to your data (illumflatten=False).')
+            self.msillumflat = None
+
         # Return
         return self.mspixelflat, self.msillumflat
 
+    def show(self, slits=True, wcs_match=True):
+        """
+        Show all of the flat field products
 
+        Args:
+            slits (bool, optional):
+            wcs_match (bool, optional):
 
-    def show(self, slits = True, wcs_match = True):
-
-        viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1), wcs_match=wcs_match, clear=True)
-        viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1), wcs_match=wcs_match)
+        """
+        viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
+                                      wcs_match=wcs_match, clear=True)
+        viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1),
+                                      wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.rawflatimg, chname='flat', wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
 
-
         if slits:
             if self.tslits_dict is not None:
-                slit_ids = [trace_slits.get_slitid(self.rawflatimg.shape, self.tslits_dict['lcen'], self.tslits_dict['rcen'], ii)[0]
-                            for ii in range(self.tslits_dict['lcen'].shape[1])]
-                ginga.show_slits(viewer, ch, self.tslits_dict['lcen'], self.tslits_dict['rcen'], slit_ids)
+                slit_ids = [trace_slits.get_slitid(self.rawflatimg.shape,
+                                                   self.tslits_dict['slit_left'],
+                                                   self.tslits_dict['slit_righ'], ii)[0]
+                                for ii in range(self.tslits_dict['slit_left'].shape[1])]
+                ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'],
+                                 self.tslits_dict['slit_righ'], slit_ids)
 
-
-'''
-    def show_old(self, attr='norm', display='ginga'):
+    def save(self, outfile=None, overwrite=True):
         """
-        Show one of the internal images
+        Save the flat-field master data.
 
-        Parameters
-        ----------
-        attr : str
-          mspixelflat -- Show the combined flat image, unnormalized
-          norm -- Show the combined normalized flat image
-        display : str, optional
-
-        Returns
-        -------
-
+        Args:
+            outfile (:obj:`str`, optional):
+                Name for the output file.  Defaults to
+                :attr:`file_path`.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file.
         """
-        if attr == 'mspixelflat':
-            if self.mspixelflat is not None:
-                ginga.show_image(self.mspixelflat)
-        elif attr == 'norm':
-            if self.mspixelflatnrm is not None:
-                ginga.show_image(self.mspixelflatnrm)
+        super(FlatField, self).save([self.rawflatimg, self.mspixelflat, self.msillumflat],
+                                    ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], outfile=outfile,
+                                    overwrite=overwrite, raw_files=self.file_list, steps=self.steps)
 
-'''
-
-'''
-    def run_old(self, armed=False):
+    # TODO: it would be better to have this instantiate the full class
+    # as a classmethod.
+    def load(self, ifile=None, return_header=False):
         """
-        Main driver to generate normalized flat field
+        Load the flat-field data from a save master frame.
 
-        Code flow:
-          1.  Generate the pixelflat image (if necessary)
-          2.  Prepare b-spline knot spacing
-          3.  Loop on slits/orders
-             a. Calculate the slit profile
-             b. Normalize
-             c. Save
+        Args:
+            ifile (:obj:`str`, optional):
+                Name of the master frame file.  Defaults to
+                :attr:`file_path`.
+            return_header (:obj:`bool`, optional):
+                Return the header
 
-        Parameters
-        ----------
-        datasec_img
-        armed : bool, optional
-
-        Returns
-        -------
-        self.mspixelflatnrm
-        self.slit_profiles
-
+        Returns:
+            tuple: Returns three `numpy.ndarray`_ objects with the raw
+            flat-field image, the normalized pixel flat, and the
+            illumination flat.  Also returns the primary header, if
+            requested.
         """
+        return super(FlatField, self).load(['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT'], ifile=ifile,
+                                           return_header=return_header)
 
-        # Build the pixel flat (as needed)
-        if self.mspixelflat is None:
-            self.mspixelflat = self.build_pixflat()
-
-        # Prep tck (sets self.ntckx, self.ntcky)
-        self._prep_tck()
-
-        # Setup
-        self.extrap_slit = np.zeros(self.nslits, dtype=np.int)
-        self.mspixelflatnrm = self.mspixelflat.copy()
-        self.msblaze = np.ones_like(self.tslits_dict['lcen'])
-        self.blazeext = np.ones_like(self.tslits_dict['lcen'])
-        self.slit_profiles = np.ones_like(self.mspixelflat)
-
-        # Loop on slits
-        for slit in range(self.nslits):
-            # Normalize a single slit
-            modvals, nrmvals, msblaze_slit, blazeext_slit, iextrap_slit = self.slit_profile(slit)
-
-            word = np.where(self.tslits_dict['slitpix'] == slit+1)
-            self.extrap_slit[slit] = iextrap_slit
-            if modvals is None:
-                continue
-            # Fill
-            if self.flatpar['slitprofile']:
-                # Leave slit_profiles as ones if the slitprofile is not
-                # being determined, otherwise, set the model.
-                self.slit_profiles[word] = modvals/nrmvals
-            self.mspixelflatnrm[word] /= modvals
-            # Fill
-            self.msblaze[:, slit] = msblaze_slit
-            self.blazeext[:, slit] = blazeext_slit
-
-        # If some slit profiles/blaze functions need to be extrapolated, do that now
-        if armed:
-            if np.sum(self.extrap_slit) != 0.0:
-                slit_profiles, mstracenrm, msblaze \
-                            = flat.slit_profile_pca(self.mspixelflat, self.tilts, self.msblaze,
-                                                      self.extrap_slit, self.slit_profiles,
-                                                      self.tslits_dict['lcen'],
-                                                      self.tslits_dict['rcen'],
-                                                      self.tslits_dict['pixwid'],
-                                                      self.tslits_dict['slitpix'])
-
-        # Apply slit profile
-        winpp = np.where(self.slit_profiles != 0.0)
-        self.mspixelflatnrm[winpp] /= self.slit_profiles[winpp]
-
-        # Set pixels not in slits to 1.
-        msgs.info("Setting pixels outside of slits to 1. in the flat.")
-        inslit = self.tslits_dict['slitpix'] >= 1.
-        self.mspixelflatnrm[~inslit] = 1.
-
-        # QA
-"""
-        if np.array_equal(self._idx_flat, self._idx_trace):
-            # The flat field frame is also being used to trace the slit edges and determine the slit
-            # profile. Avoid recalculating the slit profile and blaze function and save them here.
-            self.SetFrame(self._msblaze, msblaze, det)
-            self.SetFrame(self._slitprof, slit_profiles, det)
-            masters.save_masters(self, det, mftype='slitprof')
-            if settings.argflag["reduce"]["slitprofile"]["perform"]:
-                msgs.info("Preparing QA of each slit profile")
-                #                            arqa.slit_profile(self, mstracenrm, slit_profiles, self._lordloc[det - 1], self._rordloc[det - 1],
-                #                                              self._slitpix[det - 1], desc="Slit profile")
-                arproc.slit_profile_qa(self, mstracenrm, slit_profiles,
-                                       self._lordloc[det - 1], self._rordloc[det - 1],
-                                       self._slitpix[det - 1], desc="Slit profile")
-            msgs.info("Saving blaze function QA")
-            #                        arqa.plot_orderfits(self, msblaze, flat_ext1d, desc="Blaze function")
-            artracewave.plot_orderfits(self.setup, msblaze, flat_ext1d, desc="Blaze function")
-        #
-   """
-
-        # Return
-        return self.mspixelflatnrm, self.slit_profiles
-'''

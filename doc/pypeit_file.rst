@@ -19,7 +19,7 @@ This document provides guidance on generating and modifying
 the file.
 
 We *recommend* that you generate a unique PypeIt file for each
-instrument setup (modulo detectors) or for each target.
+instrument setup (modulo detectors) or for each mask.
 It is possible that you will need to modify the settings for
 different gratings, etc.  It will also enable you to more
 easily customize the associated calibration files to process.

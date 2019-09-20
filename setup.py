@@ -2,11 +2,6 @@
 # -*- coding: utf-8 -*-
 #
 # Licensed under a 3-clause BSD license.
-#
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-#from __future__ import unicode_literals
 
 import sys
 import os
@@ -55,7 +50,7 @@ def get_requirements():
 
 NAME = 'pypeit'
 # do not use x.x.x-dev.  things complain.  instead use x.x.xdev
-VERSION = '0.9.1dev'
+VERSION = '0.11.1dev'
 RELEASE = 'dev' not in VERSION
 
 def run_setup(data_files, scripts, packages, install_requires):

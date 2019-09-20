@@ -1,20 +1,16 @@
-# Module to run tests on WaveImage class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on WaveImage class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest
 import glob
 import numpy as np
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import load_kast_blue_masters, cooked_required
 from pypeit import waveimage
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def data_path(filename):
@@ -22,21 +18,23 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-@dev_suite_required
+@cooked_required
 def test_build_me():
     # Masters
-    spectrograph, TSlits, tilts_dict, wv_calib \
-            = load_kast_blue_masters(get_spectrograph=True, tslits=True, tilts=True, wvcalib=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    tslits_dict, mstrace, tilts_dict, wv_calib \
+            = load_kast_blue_masters(tslits=True, tilts=True, wvcalib=True)
     # Instantiate
-    setup = 'A_01_aa'
-    root_path = data_path('MF') if os.getenv('PYPEIT_DEV') is None \
-                    else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')
-    master_dir = root_path+'_'+spectrograph.spectrograph
-    mode = 'reuse'
-    maskslits = np.zeros(TSlits.nslit, dtype=bool)
-    wvImg = waveimage.WaveImage(TSlits.slitpix, tilts_dict['tilts'], wv_calib, setup=setup,
-                                maskslits=maskslits, master_dir=master_dir, mode=mode)
+    master_key = 'A_01_aa'
+    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
+    nslits = tslits_dict['slit_left'].shape[1]
+    maskslits = np.zeros(nslits, dtype=bool)
+    det = 1
+    wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib,
+                                spectrograph, det, maskslits,
+                                master_key=master_key, master_dir=master_dir,
+                                reuse_masters=True)
     # Build
-    wave = wvImg._build_wave()
-    assert int(np.max(wave)) == 5516
+    wave = wvImg.build_wave()
+    assert int(np.max(wave)) > 5510
 

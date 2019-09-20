@@ -5,18 +5,16 @@ The current main purpose of this is to provide package-level globals
 that can be imported by submodules.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 # Imports for signal and log handling
 import sys
 import signal
 import warnings
 
 # Set version
-__version__ = '0.9.1dev'
+__version__ = '0.11.1dev'
+
+# Report current coverage
+__coverage__ = 0.55
 
 # Import and instantiate the logger
 from pypeit import pypmsgs
@@ -35,13 +33,21 @@ def signal_handler(signalnum, handler):
     """
     if signalnum == 2:
         msgs.info('Ctrl+C was pressed. Ending processes...')
-        close_qa(msgs.pypit_file)
+        close_qa(msgs.pypeit_file)
         msgs.close()
         sys.exit()
 
 signal.signal(signal.SIGINT, signal_handler)
 
 # Ignore all warnings given by python
+# TODO: I'd rather we not do this.  Is there a way we can redirect
+# warnings to pypeit.msgs ?
 warnings.resetwarnings()
 warnings.simplefilter('ignore')
+
+# TODO: Need some way of selectively doing this.  Once you import
+# pypeit, this affects the behavior of pyplot for *anything* else you
+# plot in a given session.
+#from matplotlib import pyplot
+#pyplot.switch_backend('agg')
 

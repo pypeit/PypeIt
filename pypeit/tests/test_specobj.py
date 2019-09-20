@@ -1,11 +1,6 @@
-# Module to run tests on simple fitting routines for arrays
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-### TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on simple fitting routines for arrays
+"""
 import numpy as np
 import sys
 import os
@@ -54,14 +49,4 @@ def test_findobj():
     #assert mtch_obj2[0] == 'O968-S5387-D01-I0026'
 
 
-def test_instr_config():
-    # Make dummy fitsdict
-    fitsdict = {'slitwid': [0.5], 'dichroic': ['d55'],
-                 'dispname': ['B600/400'], 'dispangle': [11000.]}
-    fitstbl = Table(fitsdict)
-    det, scidx = 1, 0
-    #
-    config = specobjs.instconfig(fitstbl[scidx])
-    # Test
-    assert config == 'S05-D55-G600400-T110000-B11'
 

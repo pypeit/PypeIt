@@ -1,9 +1,6 @@
-# Module to run tests on PypeItPar classes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to run tests on PypeItPar classes
+"""
 import os
 
 import pytest
@@ -35,9 +32,6 @@ def test_flexure():
 def test_fluxcalibration():
     pypeitpar.FluxCalibrationPar()
 
-def test_skysubtraction():
-    pypeitpar.SkySubtractionPar()
-
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
 
@@ -56,12 +50,6 @@ def test_traceslits():
 
 def test_wavetilts():
     pypeitpar.WaveTiltsPar()
-
-def test_traceobjects():
-    pypeitpar.TraceObjectsPar()
-
-def test_extractobjects():
-    pypeitpar.ExtractObjectsPar()
 
 def test_calibrations():
     pypeitpar.CalibrationsPar()

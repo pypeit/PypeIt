@@ -1,74 +1,69 @@
 """ Module for Shane/Kast specific codes
 """
-from __future__ import absolute_import, division, print_function
-
-
 import numpy as np
+
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.core import parse
 
 from pypeit import debugger
 
-class WHTISISSpectrograph(spectrograph.Spectrograph):
-    """
-    Child to handle Shane/Kast specific code
-    """
+#class WhtIsisSpectrograph(spectrograph.Spectrograph):
+#    """
+#    Child to handle Shane/Kast specific code
+#    """
+#
+#    def __init__(self):
+#        super(WhtIsisSpectrograph, self).__init__()
+#        self.spectrograph = 'wht_isis_base'
+#        self.telescope = telescopes.WHTTelescopePar()
+#
+#    def metadata_keys(self):
+#        return super(KeckLRISSpectrograph, self).metadata_keys() \
+#                    + ['binning', 'dichroic', 'dispangle']
 
+# TODO: Change this to WHTISISBlueSpectrograph
+class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
+    """
+    Child to handle WHT/ISIS blue specific code
+    """
     def __init__(self):
-        super(WHTISISSpectrograph, self).__init__()
-        self.spectrograph = 'wht_isis_base'
+        # Get it started
+        super(WhtIsisBlueSpectrograph, self).__init__()
+        self.spectrograph = 'wht_isis_blue'
         self.telescope = telescopes.WHTTelescopePar()
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'IMAGETYP'
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        # hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['utc'] = 'UT'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['binning_x'] = 'CCDXBIN'
-        hdr_keys[0]['binning_y'] = 'CCDYBIN'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['decker'] = 'SLITNAME'
-        hdr_keys[0]['dichroic'] = 'DICHNAME'
-        hdr_keys[0]['filter1'] = 'ISIFILTA'
-        hdr_keys[0]['filter2'] = 'ISIFILTB'
-        hdr_keys[0]['decker'] = 'ISISLITU'
-        hdr_keys[0]['slitwid'] = 'ISISLITW'
-        hdr_keys[0]['dichroic'] = 'ISIDICHR'
-        hdr_keys[0]['dispname'] = 'ISIGRAT'
-        hdr_keys[0]['dispangle'] = 'CENWAVE'
-        hdr_keys[0]['lamps'] = 'CAGLAMPS'
-
-        hdr_keys[1]['naxis1'] = 'NAXIS1'
-        hdr_keys[1]['naxis0'] = 'NAXIS2'
-
-        return hdr_keys
-
-    def metadata_keys(self):
-        return super(WHTISISSpectrograph, self).metadata_keys() \
-               + ['binning', 'dichroic', 'dispangle']
+        self.camera = 'ISISb'
+        self.detector = [
+                # Detector 1
+                pypeitpar.DetectorPar(
+                            dataext         = 1,
+                            specaxis        = 0,
+                            specflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.225,
+                            darkcurr        = 0.0,
+                            saturation      = 65535.,
+                            nonlinear       = 0.76,
+                            numamplifiers   = 1,
+                            gain            = 1.2,
+                            ronoise         = 5.0,
+                            datasec         = '[:,2:4030]',
+                            # TODO: What happens when the overscan is
+                            # not defined?!
+                            oscansec        = '[:,:]',
+                            suffix          = '_blue'
+                            )]
+        self.numhead = 2
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file = ?
 
     @staticmethod
     def default_pypeit_par():
@@ -79,9 +74,9 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'wht_isis_blue'
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10., 10.]
+        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'arclines'
+        par['calibrations']['wavelengths']['method'] = 'simple'
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
@@ -97,61 +92,65 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [90, None]
         return par
 
-
-class WHTISISBlueSpectrograph(WHTISISSpectrograph):
-    """
-    Child to handle WHT/ISIS blue specific code
-    """
-    def __init__(self):
-        # Get it started
-        super(WHTISISBlueSpectrograph, self).__init__()
-        self.spectrograph = 'wht_isis_blue'
-        self.telescope = telescopes.WHTTelescopePar()
-        self.camera = 'ISISb'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            dispaxis        = 0,
-                            dispflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.225,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 1.2,
-                            ronoise         = 5.0,
-                            datasec         = '[:,2:4030]',
-                            suffix          = '_blue'
-                            )]
-        self.numhead = 2
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
-
-    def check_headers(self, headers):
+    def init_meta(self):
         """
-        Check headers match expectations for an WHT ISIS Blue exposure.
+        Generate the meta data dict
+        Note that the children can add to this
 
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+        Returns:
+            self.meta: dict (generated in place)
 
-        Args:
-            headers (list):
-                A list of headers read from a fits file
         """
-        expected_values = { '0.DETECTOR': 'EEV12',
-                              '0.ISIARM': 'Blue arm',
-                               '1.NAXIS': 2 }
-        super(WHTISISBlueSpectrograph, self).check_headers(headers,
-                                                           expected_values=expected_values)
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['decker'] = dict(card=None, compound=True)
+        meta['binning'] = dict(card=None, compound=True)
 
-    def validate_metadata(self, fitstbl):
-        fitstbl['binning'] = np.array(['{0},{1}'.format(bx,by) 
-                                for bx,by in zip(fitstbl['binning_x'], fitstbl['binning_y'])])
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        meta['decker'] = dict(ext=0, card='ISISLITU')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='ISIGRAT')
+        meta['dichroic'] = dict(ext=0, card='ISIDICHR')
+        meta['dispangle'] = dict(ext=0, card='CENWAVE', rtol=1e-4)
+        meta['slitwid'] = dict(ext=0, card='ISISLITW')
+        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        # Lamps
+        meta['lampstat01'] = dict(ext=0, card='CAGLAMPS')
+
+        # Ingest
+        self.meta = meta
+
+    def compound_meta(self, headarr, meta_key):
+        if meta_key == 'binning':
+            binspatial = headarr[0]['CCDXBIN']
+            binspec = headarr[0]['CCDYBIN']
+            return parse.binning2string(binspec, binspatial)
+        else:
+            msgs.error("Not ready for this compound meta")
+
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            list: List of keywords of data pulled from meta
+        """
+        return ['dispname', 'decker', 'binning', 'dispangle', 'dichroic']
+
+    def pypeit_file_keys(self):
+        pypeit_keys = super(WhtIsisBlueSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['slitwid']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -159,62 +158,16 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['lamps'] == 'Off') & (fitstbl['idname'] == 'object')
+            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['idname'] == 'object')
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'zero')
         if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['lamps'] == 'W') & (fitstbl['idname'] == 'flat')
+            return good_exp & (fitstbl['lampstat01'] == 'W') & (fitstbl['idname'] == 'flat')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'arc':
-            return good_exp & (fitstbl['lamps'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def get_match_criteria(self):
-        match_criteria = {}
-        for key in framematch.FrameTypeBitMask().keys():
-            match_criteria[key] = {}
-        # Standard
-        match_criteria['standard']['match'] = {}
-        match_criteria['standard']['match']['naxis0'] = '=0'
-        match_criteria['standard']['match']['naxis1'] = '=0'
-#        match_criteria['standard']['match']['decker'] = ''
-#        match_criteria['standard']['match']['dispangle'] = '|<=1'
-        # Bias
-        match_criteria['bias']['match'] = {}
-        match_criteria['bias']['match']['naxis0'] = '=0'
-        match_criteria['bias']['match']['naxis1'] = '=0'
-        # Pixelflat
-        match_criteria['pixelflat']['match'] = {}
-        match_criteria['pixelflat']['match']['naxis0'] = '=0'
-        match_criteria['pixelflat']['match']['naxis1'] = '=0'
-        match_criteria['pixelflat']['match']['decker'] = ''
-        match_criteria['pixelflat']['match']['dispangle'] = '|<=1'
-        # Traceflat
-        match_criteria['trace']['match'] = match_criteria['pixelflat']['match'].copy()
-        # Arc
-        match_criteria['arc']['match'] = {}
-        match_criteria['arc']['match']['naxis0'] = '=0'
-        match_criteria['arc']['match']['naxis1'] = '=0'
-        match_criteria['arc']['match']['dispangle'] = '|<=1'
-
-        return match_criteria
-
-    def default_pypeit_par(self):
-        """
-        Set default parameters for Keck LRISr reductions.
-        """
-        par = WHTISISSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'wht_isis_blue'
-
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
-        par['calibrations']['wavelengths']['min_nsig'] = 10.0
-        par['calibrations']['wavelengths']['lowest_nsig'] =10.0
-        par['calibrations']['wavelengths']['lamps'] = ['CuI', 'NeI', 'ArI', 'ArII', 'HeI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 2
-
-        return par
