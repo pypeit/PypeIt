@@ -7,6 +7,9 @@ traces using principle-component analysis.
 
 import numpy as np
 
+from IPython import embed
+
+from pypeit import msgs
 from pypeit import utils
 from pypeit.core import trace
 from pypeit.core import pca
@@ -55,9 +58,10 @@ class TracePCA:
 
         # Set the reference row to use for the coordinates of the trace
         self.reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
-        self.trace_coo = trace_cen[self.reference_row,:] if coo is None else coo
-        if self.trace_coo.shape != trace_cen.shape[1]:
+        self.trace_coo = trace_cen[self.reference_row,:] if coo is None else np.atleast_1d(coo)
+        if self.trace_coo.size != trace_cen.shape[1]:
             raise ValueError('Provided reference coordinates have incorrect shape.')
+
         # Save the input
         self.input_npca = npca
         self.input_pcav = pca_explained_var
@@ -249,7 +253,7 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     # relative value like the mean or median of the coefficients? I.e.
 #    ivar = utils.inverse(numpy.square(np.fmax(0.1*np.absolute(cenpca.pca_coeffs),
 #                                              0.1*np.median(cenpca.pca_coeffs))))
-    ivar = utils.inverse(numpy.square(np.fmax(0.1*np.absolute(cenpca.pca_coeffs), 0.1)))
+    ivar = utils.inverse(np.square(np.fmax(0.1*np.absolute(cenpca.pca_coeffs), 0.1)))
 
     # Set any additional weights for each trace
     weights = np.ones(np.sum(use_trace), dtype=float) \

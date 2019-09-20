@@ -264,23 +264,22 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                     tilts_guess_now = tilts_guess[:-(spat_max[iline] - nspat + 1),iline]
                 else:
                     tilts_guess_now = tilts_guess[:, iline]
+
         # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
 #        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_guess_now, fwhm/2.0) > 0.99*fwhm)
-        tilts_sub_mask_box = moment1d(sub_thismask, tilts_guess_now, fwhm)[0] > 0.99*fwhm
+        # TODO: Should probably make mesh=False the default in moment1d
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_guess_now, fwhm,
+                                      mesh=False)[0] > 0.99*fwhm
         # If more than 80% of the pixels are masked, then don't mask at all. This happens when the traces leave the good
         # part of the slit. If we proceed with everything masked the iter_tracefit fitting will crash.
         if (np.sum(tilts_sub_mask_box) < 0.8*nsub):
             tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
         # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
         # since the sub image is different for every aperture, i.e. each aperature has its own image
-        from IPython import embed
-        embed()
+#        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tset_out = extract.iter_tracefit(
+#            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
+#            maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
 
-        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tset_out = extract.iter_tracefit(
-            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
-            maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
-
-        embed()
         tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, _, tset_out \
                 = fit_trace(sub_img, tilts_guess_now, spat_order,
                             bpm=np.invert(sub_inmask.astype(bool)),
@@ -289,7 +288,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                             xmax=float(nsub-1))
 
 #        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
-        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm,
+                                      mesh=False)[0] > 0.99*fwhm
         if gauss: # If gauss is set, do a Gaussian refinement to the flux weighted tracing
             if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
                 tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
@@ -312,7 +312,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts_sub_out = tilts_sub_gw
             tilts_sub_err_out = tilts_sub_err_gw
 #        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
-        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm,
+                                      mesh=False)[0] > 0.99*fwhm
 
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
@@ -489,12 +490,6 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
         maxdev_tracefit=maxdev_tracefit,sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
         tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,tcrude_maxshift0=tcrude_maxshift0,
         tcrude_nave=tcrude_nave, show_tracefits=show_tracefits)
-
-    from IPython import embed
-    embed('494')
-
-    exit()
-
 
     # TODO THE PCA may not be necessary. It appears to improve the results though for some instruments where the
     # tracing is problematic. We could consider making this optional to speed things up.

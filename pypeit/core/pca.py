@@ -4,6 +4,8 @@ Implement principle-component-analysis tools.
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
 """
+from IPython import embed
+
 import numpy as np
 
 from matplotlib import pyplot as plt
@@ -224,13 +226,13 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     #   - Check the inverse variance
     _ivar = np.ones(_coeff.shape, dtype=float) if ivar is None else np.asarray(ivar)
     if _ivar.ndim == 1:
-        _ivar = np.expand_dims(_ivar, 1)
+        _ivar = np.tile(_ivar, (_coeff.shape[1],1)).T
     if _ivar.shape != _coeff.shape:
         raise ValueError('Inverse variance array does not match input coefficients.')
     #   - Check the weights
     _weights = np.ones(_coeff.shape, dtype=float) if weights is None else np.asarray(weights)
     if _weights.ndim == 1:
-        _weights = np.expand_dims(_weights, 1)
+        _weights = np.tile(_weights, (_coeff.shape[1],1)).T
     if _weights.shape != _coeff.shape:
         raise ValueError('Weights array does not match input coefficients.')
     #   - Set the abscissa of the data if not provided and check its
