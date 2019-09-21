@@ -146,6 +146,7 @@ def main(args):
     if os.path.isfile(spec1d_file):
         specobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_file)
     else:
+        specobjs = None
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
@@ -178,7 +179,9 @@ def main(args):
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
                                   bitmask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
-    show_trace(specobjs, args.det, viewer, ch)
+
+    if specobjs is not None:
+        show_trace(specobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                     #, args.det)
 
@@ -187,7 +190,8 @@ def main(args):
     image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (mask == 0)  # sky residual map
     viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
                                   cuts=(-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
-    show_trace(specobjs, args.det, viewer, ch)
+    if specobjs is not None:
+        show_trace(specobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                     #, args.det)
 
@@ -197,7 +201,8 @@ def main(args):
     image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (mask == 0)
     viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
                                   cuts = (-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
-    show_trace(specobjs, args.det, viewer, ch)
+    if specobjs is not None:
+        show_trace(specobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                     #, args.det)
 
