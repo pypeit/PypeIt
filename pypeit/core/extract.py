@@ -422,10 +422,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
 #    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.trace_spat,box_radius, ycen = specobj.trace_spec) != pixtot) & \
 #               np.isfinite(wave_box) & (wave_box > 0.0)
 
-    import pdb
-    pdb.set_trace()
-    exit()
-
 #   NEW usage with moment1d()
     # Fill in the boxcar extraction tags
     flux_box = moment1d(imgminsky*mask, specobj.trace_spat, 2*box_radius,
