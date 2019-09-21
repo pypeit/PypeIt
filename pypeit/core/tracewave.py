@@ -267,9 +267,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
         # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
 #        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_guess_now, fwhm/2.0) > 0.99*fwhm)
-        # TODO: Should probably make mesh=False the default in moment1d
-        tilts_sub_mask_box = moment1d(sub_thismask, tilts_guess_now, fwhm,
-                                      mesh=False)[0] > 0.99*fwhm
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_guess_now, fwhm)[0] > 0.99*fwhm
         # If more than 80% of the pixels are masked, then don't mask at all. This happens when the traces leave the good
         # part of the slit. If we proceed with everything masked the iter_tracefit fitting will crash.
         if (np.sum(tilts_sub_mask_box) < 0.8*nsub):
@@ -288,8 +286,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                             xmax=float(nsub-1))
 
 #        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
-        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm,
-                                      mesh=False)[0] > 0.99*fwhm
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
         if gauss: # If gauss is set, do a Gaussian refinement to the flux weighted tracing
             if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
                 tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
@@ -312,8 +309,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts_sub_out = tilts_sub_gw
             tilts_sub_err_out = tilts_sub_err_gw
 #        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
-        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm,
-                                      mesh=False)[0] > 0.99*fwhm
+        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
 
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
