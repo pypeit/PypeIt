@@ -218,7 +218,7 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     # Check the input
     if trace_bpm is None:
         use_trace = np.ones(trace_cen.shape[1], dtype=bool)
-        _reference_row = reference_row
+        _reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
     else:
         use_trace = np.sum(np.invert(trace_bpm), axis=0)/trace_cen.shape[0] > min_length
         _reference_row = trace.most_common_trace_row(trace_bpm[:,use_trace]) \
@@ -265,4 +265,7 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
                               debug=debug)
 
     # Return the traces predicted for all 
-    return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
+    try:
+        return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
+    except:
+        embed()
