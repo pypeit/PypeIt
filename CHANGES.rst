@@ -47,6 +47,10 @@
 - Added several from_master_file() instantiation methods
 - Use coadd2d.weighted_combine() to stack calibration images
 - Major refactor of slit edge tracing
+- Deprecated previous tracing code: `pypeit.traceslits` and
+  `pypeit.core.trace_slits`, as well as some functions in
+  `pypeit.core.extract` that were replaced by
+  `pypeit.core.moment.moment1d` and functions in `pypeit.core.trace`.
 
 0.11.0 (22 Jun 2019)
 --------------------

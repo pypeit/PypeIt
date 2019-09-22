@@ -40,7 +40,6 @@ Submodules
    pypeit.tiltimage
    pypeit.traceimage
    pypeit.tracepca
-   pypeit.traceslits
    pypeit.utils
    pypeit.wavecalib
    pypeit.waveimage
