@@ -44,7 +44,6 @@ def skysub_npoly(thismask):
     return npoly
 
 
-
 def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3.0, maxiter=35,
                   trim_edg=(3,3), pos_mask=True, show_fit=False, no_poly=False, npoly=None):
     """
@@ -692,22 +691,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     msgs.info("At x = {:5.2f}".format(sobjs[iobj].spat_pixpos) + " on slit # {:}".format(sobjs[iobj].slitid))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
-                    #  OLD code using extract_boxcar()
-#                    flux = extract.extract_boxcar(img_minsky * outmask, sobjs[iobj].trace_spat, box_rad,
-#                                          ycen=sobjs[iobj].trace_spec)
-#                    mvarimg = 1.0 / (modelivar + (modelivar == 0))
-#                    mvar_box = extract.extract_boxcar(mvarimg * outmask, sobjs[iobj].trace_spat, box_rad,
-#                                              ycen=sobjs[iobj].trace_spec)
-#                    pixtot = extract.extract_boxcar(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, box_rad,
-#                                            ycen=sobjs[iobj].trace_spec)
-#                    mask_box = (extract.extract_boxcar(np.invert(outmask), sobjs[iobj].trace_spat, box_rad,
-#                                               ycen=sobjs[iobj].trace_spec) != pixtot)
-#                    box_denom = extract.extract_boxcar(waveimg > 0.0, sobjs[iobj].trace_spat, box_rad,
-#                                               ycen=sobjs[iobj].trace_spec)
-#                    wave = extract.extract_boxcar(waveimg, sobjs[iobj].trace_spat, box_rad, ycen=sobjs[iobj].trace_spec) / (
-#                                box_denom + (box_denom == 0.0))
-
-                    #  NEW code using moment1d()
                     flux = moment1d(img_minsky * outmask, sobjs[iobj].trace_spat, 2*box_rad,
                                     row=sobjs[iobj].trace_spec)[0]
                     mvarimg = 1.0 / (modelivar + (modelivar == 0))

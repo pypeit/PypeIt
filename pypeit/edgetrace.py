@@ -78,6 +78,8 @@ import time
 import inspect
 from collections import OrderedDict
 
+from IPython import embed
+
 import numpy as np
 
 from scipy import ndimage
@@ -90,23 +92,20 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from astropy import table
 
-from pypeit.bitmask import BitMask
-from pypeit.par.pypeitpar import EdgeTracePar
-from pypeit.core import parse, pydl, procimg, pca, trace
-
 from pypeit import msgs
 from pypeit import utils
 from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
-from pypeit.core import trace_slits
+from pypeit.bitmask import BitMask
+from pypeit.par.pypeitpar import EdgeTracePar
+from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.traceimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
 
-from IPython import embed
 
 class EdgeTraceBitMask(BitMask):
     """
@@ -362,7 +361,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             A list of strings indicating the main methods applied
             when tracing.
     """
-#    master_type = 'Trace'   # For MasterFrame base
     master_type = 'Edges'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
@@ -884,7 +882,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Decide if mask should be passed to this or not,
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
-        # NOTE: This used to be edgearr_from_binarr
         self.sobel_sig, edge_img \
                 = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
@@ -901,7 +898,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # number?
 #        minimum_spec_length = self.nspec * self.par['det_min_spec_length']
         minimum_spec_length = 50
-        # NOTE: This used to be match_edges()
         _trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
                                               minimum_spec_length=minimum_spec_length)
 
@@ -4129,7 +4125,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict['pad'] = self.par['pad']
         tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
         tslits_dict['spectrograph'] = self.spectrograph.spectrograph
-        slit_spat_pos = trace_slits.slit_spat_pos(tslits_dict)
+        slit_spat_pos = slit_spat_pos(tslits_dict)
         tslits_dict['spec_min'], tslits_dict['spec_max'] = \
             self.spectrograph.slit_minmax(slit_spat_pos,
                                           binspectral=tslits_dict['binspectral'])
@@ -4184,3 +4180,62 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit_type = 'tweaked'
         # TODO: Resort?
 
+# TODO: This needs to be integrated into EdgeTraceSet, or just use
+# EdgeTraceSet.traceid
+def get_slitid(shape, lordloc, rordloc, islit, ypos=0.5):
+    """
+    TODO: This is out of date!
+    Convert slit position to a slitid
+
+    Parameters
+    ----------
+    slf : SciExpObj or tuple
+    det : int
+    islit : int
+    ypos : float, optional
+
+    Returns
+    -------
+    slitid : int
+      Slit center position on the detector normalized to range from 0-10000
+    slitcen : float
+      Slitcenter relative to the detector ranging from 0-1
+    xslit : tuple
+      left, right positions of the slit edges
+    """
+    #if isinstance(slf, tuple):
+    #    shape, lordloc, rordloc = slf
+    #else:
+    #    shape = slf._mstrace[det-1].shape
+    #    lordloc = slf._lordloc[det-1]
+    #    rordloc = slf._rordloc[det-1]
+    # Index at ypos
+    yidx = int(np.round(ypos*lordloc.shape[0]))
+    # Slit at yidx
+    pixl_slit = lordloc[yidx, islit]
+    pixr_slit = rordloc[yidx, islit]
+    # Relative to full image
+    xl_slit = pixl_slit/shape[1]
+    xr_slit = pixr_slit/shape[1]
+    # Center
+    slitcen = np.mean([xl_slit, xr_slit])
+    slitid = int(np.round(slitcen*1e4))
+    # Return them all
+    return slitid, slitcen, (xl_slit, xr_slit)
+
+
+# TODO: This needs to be integrated into EdgeTraceSet
+def slit_spat_pos(tslits_dict):
+    """
+    Generate an array of the slit spat positions
+    from the tslits_dict
+
+    Args:
+        tslits_dict (:obj:`dict`):
+            Trace slits dict
+
+    Returns:
+        np.ndarray
+    """
+    return (tslits_dict['slit_left'][tslits_dict['nspec']//2, :] +
+            tslits_dict['slit_righ'][tslits_dict['nspec']//2,:]) /2/tslits_dict['nspat']

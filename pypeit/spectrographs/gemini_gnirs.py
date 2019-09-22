@@ -70,9 +70,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 par['calibrations'][key]['process']['overscan'] = 'none'
 
         # Slits
-        par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slits']['trace_npoly'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slitedges']['edge_thresh'] = 20.
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['fit_order'] = 5

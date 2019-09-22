@@ -167,7 +167,6 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
 
         # slit
-        par['calibrations']['slits']['sigdetect'] = 300
         par['calibrations']['slitedges']['edge_thresh'] = 300
 
         # Set wave tilts order
@@ -245,7 +244,6 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
-        par['calibrations']['slits']['sigdetect'] = 300
         par['calibrations']['slitedges']['edge_thresh'] = 300
 
         # Set wave tilts order
@@ -328,7 +326,6 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
 
         # slit
-        par['calibrations']['slits']['sigdetect'] = 300
         par['calibrations']['slitedges']['edge_thresh'] = 300
 
         # Set wave tilts order
@@ -406,7 +403,6 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
-        par['calibrations']['slits']['sigdetect'] = 300
         par['calibrations']['slitedges']['edge_thresh'] = 300
 
         # Set wave tilts order

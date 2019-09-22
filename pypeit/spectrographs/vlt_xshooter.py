@@ -184,9 +184,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 100.
-        par['calibrations']['slits']['trace_npoly'] = 8
-        par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 8
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
@@ -450,17 +447,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
 
-        par['calibrations']['slits']['sigdetect'] = 8.0
-        par['calibrations']['slits']['trace_npoly'] = 8
-        par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['length_range'] = 0.3
-#        par['calibrations']['slits']['number'] = -1
-        #par['calibrations']['slits']['fracignore'] = 0.01
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
@@ -495,7 +487,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.5
-#        par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
         par['scienceimage']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['scienceimage']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
@@ -663,13 +654,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
 
         # Adjustments to slit and tilts for UVB
-        par['calibrations']['slits']['sigdetect'] = 8.
-#        par['calibrations']['slits']['pcatype'] = 'pixel'
-        # TODO: polyorder disappeared; check that this doesn't cause
-        # problems.
-#        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
-#        par['calibrations']['slits']['number'] = -1
         par['calibrations']['slitedges']['edge_thresh'] = 8.
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['trace_thresh'] = 10.

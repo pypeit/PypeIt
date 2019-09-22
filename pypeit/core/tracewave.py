@@ -17,10 +17,8 @@ from pypeit import utils
 from pypeit import tracepca
 from pypeit.core import arc
 from pypeit.core import qa
-from pypeit.core import trace_slits
-from pypeit.core import extract
+from pypeit.core import trace
 from pypeit.core.moment import moment1d
-from pypeit.core.trace import fit_trace
 
 # TODO: Why is this try statement needed?
 try:
@@ -247,12 +245,29 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         sub_img = arcimg_trans[min_spat:max_spat, :]
         sub_inmask = inmask_trans[min_spat:max_spat,:]
         sub_thismask = thismask_trans[min_spat:max_spat,:]
-        if do_crude: # First time tracing, do a trace crude
-            tilts_guess_now, err_now = trace_slits.trace_crude_init(
-                sub_img, np.array([lines_spec[iline]]), (sub_img.shape[0] - 1) // 2, invvar=sub_inmask, radius=fwhm,
-                nave=tcrude_nave, maxshift0=tcrude_maxshift0, maxshift=tcrude_maxshift, maxerr=tcrude_maxerr)
-            tilts_guess_now=tilts_guess_now.flatten()
-        else:  # A guess was provided, use that as the crutch, but determine if it is a full trace or a sub-trace
+        if do_crude:
+            # First time tracing, do a trace crude
+
+            # TODO: Worried that using a starting row that is blindly
+            # set as half of sub_img is unstable to very curved slit
+            # traces. Should instead start at the center of the slit as
+            # defined by the slit trace?
+
+            # NOTE: follow_centroid behaves differently from the old
+            # trace_crude_init within 2-4 pixels at the trace edge
+
+            # Smooth the image
+            tilts_guess_now, err_now, _ \
+                    = trace.follow_centroid(utils.boxcar_smooth_rows(sub_img, tcrude_nave),
+                                            (sub_img.shape[0]-1)//2,
+                                            np.array([lines_spec[iline]]), ivar=sub_inmask,
+                                            width=2*fwhm, maxshift_start=tcrude_maxshift0,
+                                            maxshift_follow=tcrude_maxshift,
+                                            maxerror=tcrude_maxerr, continuous=False)
+            tilts_guess_now = tilts_guess_now.flatten()
+        else:
+            # A guess was provided, use that as the crutch, but
+            # determine if it is a full trace or a sub-trace
             if tilts_guess.shape[0] == nspat:
                 # This is full image size tilt trace, sub-window it
                 tilts_guess_now = tilts_guess[min_spat:max_spat, iline]
@@ -266,7 +281,6 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                     tilts_guess_now = tilts_guess[:, iline]
 
         # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
-#        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_guess_now, fwhm/2.0) > 0.99*fwhm)
         tilts_sub_mask_box = moment1d(sub_thismask, tilts_guess_now, fwhm)[0] > 0.99*fwhm
         # If more than 80% of the pixels are masked, then don't mask at all. This happens when the traces leave the good
         # part of the slit. If we proceed with everything masked the iter_tracefit fitting will crash.
@@ -274,41 +288,28 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
         # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
         # since the sub image is different for every aperture, i.e. each aperature has its own image
-#        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tset_out = extract.iter_tracefit(
-#            sub_img, tilts_guess_now, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
-#            maxdev=maxdev, niter=6, idx=str(iline),show_fits=show_tracefits, xmin=0.0,xmax=float(nsub-1))
-
         tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, _, tset_out \
-                = fit_trace(sub_img, tilts_guess_now, spat_order,
-                            bpm=np.invert(sub_inmask.astype(bool)),
-                            trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm, maxdev=maxdev,
-                            niter=6, idx=str(iline), debug=show_tracefits, xmin=0.0,
-                            xmax=float(nsub-1))
+                = trace.fit_trace(sub_img, tilts_guess_now, spat_order,
+                                  bpm=np.invert(sub_inmask.astype(bool)),
+                                  trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm,
+                                  maxdev=maxdev, niter=6, idx=str(iline), debug=show_tracefits,
+                                  xmin=0.0, xmax=float(nsub-1))
 
-#        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
         tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
         if gauss: # If gauss is set, do a Gaussian refinement to the flux weighted tracing
             if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
                 tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
-            # TODO: Should the below have included gweight=True?
-            # Assuming yes, I've set the weighting to gaussian in the
-            # call to fit_trace()
-#            tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, tset_gw = extract.iter_tracefit(
-#                sub_img, tilts_sub_fit_out, spat_order, inmask=sub_inmask, trc_inmask = tilts_sub_mask_box, fwhm=fwhm,
-#                maxdev=maxdev, niter=3, idx=str(iline),show_fits=show_tracefits, xmin=0.0, xmax=float(nsub-1))
-
-            # TODO: Need to have fit_trace return the TraceSet
             tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, _, _ \
-                    = fit_trace(sub_img, tilts_sub_fit_out, spat_order,
-                                bpm=np.invert(sub_inmask.astype(bool)),
-                                trace_bpm=np.invert(tilts_sub_mask_box), weighting='gaussian',
-                                fwhm=fwhm, maxdev=maxdev, niter=3, idx=str(iline),
-                                debug=show_tracefits, xmin=0.0, xmax=float(nsub-1))
+                    = trace.fit_trace(sub_img, tilts_sub_fit_out, spat_order,
+                                      bpm=np.invert(sub_inmask.astype(bool)),
+                                      trace_bpm=np.invert(tilts_sub_mask_box), 
+                                      weighting='gaussian', fwhm=fwhm, maxdev=maxdev, niter=3,
+                                      idx=str(iline), debug=show_tracefits, xmin=0.0,
+                                      xmax=float(nsub-1))
 
             tilts_sub_fit_out = tilts_sub_fit_gw
             tilts_sub_out = tilts_sub_gw
             tilts_sub_err_out = tilts_sub_err_gw
-#        tilts_sub_mask_box = (extract.extract_boxcar(sub_thismask, tilts_sub_fit_out, fwhm/2.0) > 0.99*fwhm)
         tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
 
         # Pack the results into arrays, accounting for possibly falling off the image
@@ -501,14 +502,9 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     # Do a PCA fit, which rejects some outliers
     iuse = trace_dict0['use_tilt']
     nuse = np.sum(iuse)
-    msgs.info('PCA modeling {:d} good tilts'.format(nuse))
-#    pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
-#        trace_dict0['tilts_sub_fit'], predict=np.invert(iuse), npca=npca, coeff_npoly=coeff_npoly_pca,
-#        lower=sigrej_pca, upper=sigrej_pca, order_vec=lines_spec, xinit_mean=lines_spec,
-#        minv=0.0, maxv=float(trace_dict0['nsub'] - 1), debug=debug_pca)
-
     bpm = np.ones(trace_dict0['tilts_sub_fit'].shape, dtype=bool)
     bpm[:,iuse] = False
+    msgs.info('PCA modeling {:d} good tilts'.format(nuse))
     pca_fit = tracepca.pca_trace_object(trace_dict0['tilts_sub_fit'], order=coeff_npoly_pca,
                                         trace_bpm=bpm, npca=npca, coo=lines_spec, lower=sigrej_pca,
                                         upper=sigrej_pca, debug=debug_pca)

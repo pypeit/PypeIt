@@ -487,7 +487,7 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     # TODO: This 0.1 is drawn out of the ether and different from what is done in peak_trace
     img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, 0.1)
     # Returned the smoothed image
-    return utils.boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
+    return utils.boxcar_smooth_rows(img, boxcar)
 
 
 def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, width=6.0,
@@ -568,9 +568,9 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             uses the DISCONTINUOUS flag.
 
     Returns:
-        Two numpy arrays are returned, the optimized center and an
-        estimate of the error; the arrays are masked arrays if
-        `start_cen` is provided as a masked array.
+        Three numpy arrays are returned: the optimized center, an
+        estimate of the error, and a bad-pixel mask (masked values
+        are True).
     """
     if flux.ndim != 2:
         raise ValueError('Input image must be 2D.')
