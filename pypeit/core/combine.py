@@ -5,6 +5,7 @@ import numpy as np
 from astropy import stats
 
 from pypeit import msgs
+from pypeit import utils
 
 from IPython import embed
 

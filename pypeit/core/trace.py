@@ -27,7 +27,7 @@ from pypeit.core import moment, pydl, arc
 
 def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mode='nearest',
                       sigdetect=30.):
-    """
+    r"""
     Find slit edges using the input image.
 
     The primary algorithm is to run a Sobel filter on the image and
@@ -36,12 +36,13 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
 
     Args:
         flux (`numpy.ndarray`_):
-            Calibration frame used to identify slit edges.  Likely a
+            Calibration frame used to identify slit edges. Likely a
             flat-field image that has been lightly smoothed in the
-            spectral direction.  The image should also have its bad
+            spectral direction. The image should also have its bad
             pixels replaced (see
-            :func:`pypeit.core.procimg.replace_columns`).  Its
-            orientation *must* have spectra dispersed along rows.
+            :func:`pypeit.core.procimg.replace_columns`). The image
+            *must* follow the pypeit convention, with shape
+            :math:`(N_{\rm spec}, N_{\rm spat})`.
         bpm (`numpy.ndarray`_, optional):
             A boolean or integer bad-pixel mask.  If None, all pixels
             are assumed valid.  This is used to ignore features in the
@@ -85,7 +86,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     for ii in range(median_iterations):
         sqmstrace = ndimage.median_filter(sqmstrace, size=(7, 3))
 
-    # Make sure there are no spuriously low pixels
+    # Replace pixel values near 0
     sqmstrace[(sqmstrace < 1.0) & (sqmstrace >= 0.0)] = 1.0
     sqmstrace[(sqmstrace > -1.0) & (sqmstrace <= 0.0)] = -1.0
 
@@ -119,16 +120,15 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
 
 
 def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_spec_length=50):
-    """
+    r"""
     Follow slit edges to identify unique slit traces.
 
     Args:
         edge_img (`numpy.ndarray`_):
-            An array marked with -1 for left slit edges and +1 for right
-            slit edges and 0 everywhere else.  The image *must* be
-            oriented with the spatial dimension primarily along the
-            first axis and spectral dimension primarily along the
-            second.  See :func:`detect_slit_edges`.
+            An array marked with -1 for left slit edges and +1 for
+            right slit edges and 0 everywhere else. The image *must*
+            follow the pypeit convention, with shape :math:`(N_{\rm
+            spec},N_{\rm spat})`. See :func:`detect_slit_edges`.
         max_spatial_separation (:obj:`int`, optional):
             The maximum spatial separation between two edges in proximal
             spectral rows before they become separated into different
@@ -495,6 +495,10 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
                     bitmask=None):
     """
     Follow the centroid of features in an image along the first axis.
+
+    In the normal pypeit usage, this follows the spatial position
+    (column) of a feature in the image as a function of spectral
+    position (row).
 
     Starting from a specified row and input centers along each
     column, attempt to follow a set of features to both lower and
@@ -937,11 +941,10 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     # Values to fit
     trace_fit = np.copy(_trace_cen)
 
-    # NOTE: keck_run_july changes: Down-weight masked parts of the
-    # trace.
     # Uniform weighting during the fit
     trace_fit_ivar = np.ones_like(trace_fit)
-    # Down-weight the masked trace locations
+    # NOTE: keck_run_july changes: Added down-weighting of masked parts
+    # of the trace.
     # TODO: This feels arbitrary
     trace_fit_ivar[_trace_bpm] = 0.1
 
@@ -1220,9 +1223,10 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             the provided coordinates are `np.arange(flux.shape[1])`;
             see also :func:`pypeit.edges.EdgeTracePCA.predict`. This
             is used to rectify the input image so that spectra are
-            identically organized along image rows. Shape *must* be
-            identical to `flux`. If None, `flux` is assumed to be
-            rectified on input.
+            identically organized along image rows (i.e., to select
+            the `i`th spectrum, one would slice with `[:,i]`). Shape
+            *must* be identical to `flux`. If None, `flux` is assumed
+            to be rectified on input.
         extract_width (:obj:`float`, optional):
             The width of the extract aperture to use when rectifying
             the flux image. If None, set to `fwhm_gaussian`.
@@ -1240,8 +1244,11 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             `input_thresh` parameter for
             :func:`pypeit.core.arc.detect_lines`.
         peak_clip (:obj:`float, optional):
-            Sigma-clipping threshold used to clip peaks outside with
-            aberrant amplitudes. If None, no clipping is performed.
+            Sigma-clipping threshold used to clip peaks with small
+            values; no large values are clipped. If None, no clipping
+            is performed. Generally, one should instead raise the
+            value of `peak_thresh` instead, if the peak detection
+            algorithm is finding insignificant peaks.
         trough (:obj:`bool`, optional):
             Trace both peaks **and** troughs in the input image. This
             is done by flipping the value of the smashed image about
@@ -1399,9 +1406,9 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         loc = np.round(_cen).astype(int) 
         if peak_clip is not None:
             # Clip the peaks based on their amplitude as a stop-gap for
-            # a detection threshold that may be too low.
-            # TODO: Only clip low values?
-            clipped_peak = sigma_clip(peak[best])
+            # a detection threshold that may be too low. Only clip
+            # aberrantly low values.
+            clipped_peak = sigma_clip(peak[best], sigma_lower=peak_clip, sigma_higher=np.inf)
             peak_mask = np.ma.getmaskarray(clipped_peak)
             if np.any(peak_mask):
                 msgs.warn('Clipping {0} detected peak(s) with aberrant amplitude(s).'.format(

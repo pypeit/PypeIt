@@ -369,8 +369,6 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     nuse = np.sum(use_tilt)
 
     msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse,nlines))
-    if nuse == 0:
-        embed(header='373')
 
     tilts_mad = np.outer(np.ones(nspat),dev_mad)
 

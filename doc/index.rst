@@ -103,6 +103,7 @@ For Developers
    scripts
    flow
    new_spectrograph
+   images
    PypeIt API <api/pypeit>
 
 .. _kast webpage: http://mthamilton.ucolick.org/techdocs/instruments/kast/

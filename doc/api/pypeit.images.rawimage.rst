@@ -1,7 +1,7 @@
-pypeit.core.framematch module
+pypeit.images.rawimage module
 =============================
 
-.. automodule:: pypeit.core.framematch
+.. automodule:: pypeit.images.rawimage
    :members:
    :undoc-members:
    :show-inheritance:

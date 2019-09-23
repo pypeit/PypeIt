@@ -1,7 +1,7 @@
-pypeit.core.wavecal.waveio module
+pypeit.images.combineimage module
 =================================
 
-.. automodule:: pypeit.core.wavecal.waveio
+.. automodule:: pypeit.images.combineimage
    :members:
    :undoc-members:
    :show-inheritance:

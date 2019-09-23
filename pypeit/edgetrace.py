@@ -159,7 +159,13 @@ class EdgeTraceBitMask(BitMask):
         List of flags used to mark traces inserted for various
         reasons.
         """
-        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT'] 
+        return ['USERINSERT', 'SYNCINSERT', 'MASKINSERT', 'ORPHANINSERT']
+
+    @property
+    def exclude_flags(self):
+        # We will not exclude SYNCINSERT slits edges from the masking
+        #   These can easily crop up for star boxes and at the edge of the detector
+        return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT']
 
 
 class EdgeTraceSet(masterframe.MasterFrame):
@@ -167,45 +173,65 @@ class EdgeTraceSet(masterframe.MasterFrame):
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
 
-    TODO: MORE
-
-    img, bpm, and det should be considered mutually exclusive compare to load
-
-    load takes precedence.  I.e., if both img and load are provided, img is ignored!
-
-    if img is provided, the initialization will also run
+    The instantiation of the object can either be used to produce an
+    empty placeholder that you then use multiple times to trace
+    different images, or you can have the tracing begin immediately
+    upon instantiation. For the latter, you must provide (at minimum)
+    the `img` to trace, and the initialization then run
     :func:`initial_trace` or :func:`auto_trace`, depending on the
-    value of `auto`, *and* save the output.
+    value of `auto`. To automatically have the instantiation save the
+    results, set `save=True` on instantiation.
 
-    Nominal run:
-        - initial_trace
-        - centroid_refine
-        - fit_refine (calls fit_trace)
-        - build_pca
-        - peak_refine (calls peak_trace, which uses both pca_trace and fit_trace)
+    To load an existing master file with the result of a trace, you
+    can either use the :attr:`from_file` method::
 
-    Final trace is based on a run of fit_refine that pass through the detected peaks
+        edges = EdgeTraceSet.from_file(file)
 
-    design and object data are only available if the spectrograph
-    class has a get_slitmask function, and that the slit mask data
-    includes the object information.
+    or instantiate the object as would have been done initially and
+    then check if the trace exists and load it::
+    
+        edges = EdgeTraceSet(spec, par)
+        if edges.exists():
+            edges.load()
 
-    TODO: Write a script that uses the empty function to document the
-    data model for these two tables. And for EdgeTraceSet as a whole?
+    or you can attempt to load directly on instantiation::
 
-    TODO: Describe I/O interface
+        edges = EdgeTraceSet(spec, par, load=True)
 
-    TODO: Include a method/check that determines if traces cross one
-    another anywhere.
+    In the latter case, note that the `load` argument takes
+    precedence and an exception is raised if one provides both both
+    `img` and sets `load=True`.
 
-    TODO: Describe left-right PCA functionality
+    Most commonly, one will use the automatic tracing routine to
+    trace the slit edges; see the description of the steps used
+    during auto-tracing in the docs for :func:`auto_trace`.
+
+    The success of the tracing critically depends on the parameters
+    used. The defaults are tuned for each spectrograph based on
+    testing using data in the pypeit development suite. See
+    pypeitpar_ for the full documentation of the
+    :class:`pypeit.par.pypeitpar.EdgeTracePar` parameters. Note that
+    the :class:`pypeit.par.pypeitpar.TraceSlitsPar` parameter group
+    has been deprecated.
+
+    Finally, note that the :attr:`design` and :attr:`object` data are
+    currently empty, as part of a development path for matching slits
+    traced on the detector to slits expected from provided metadata.
+    Once finished these objects will only contain data for
+    spectrograph output files that provide the relevant metadata.
+   
+    .. todo:
+        - Include a method/check that determines if traces cross one
+        another anywhere.
+        - Provide some guidance for the parameters to use.
 
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The object that sets the instrument used to take the
             observations. Used to set :attr:`spectrograph`.
         par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
-            The parameters used to guide slit tracing.
+            The parameters used to guide slit tracing. Used to set
+            :attr:`par`.
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
@@ -228,6 +254,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             along rows, as determined by :attr:`spectrograph` and the
             result of a call to
             :func:`pypeit.spectrograph.Spectrograph.raw_is_transposed`.
+            Cannot be `None`.
         binning (`str`, optional):
             Comma-separated binning along the spectral and spatial
             directions following the PypeIt convention (e.g., '2,1').
@@ -256,17 +283,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
         par (:class:`pypeit.par.pypeitpar.EdgeTracePar`):
             See argument list.
         files (:obj:`list`):
-            The list of raw files used to construct the image used to
-            detect and trace slit edges. Only defined if argument
-            `img` in :func:`initial_trace` or :func:`auto_trace` is a
+            The list of raw files used to construct the trace image
+            (:attr:`img`). Only defined if argument `img` in
+            :func:`initial_trace` or :func:`auto_trace` is a
             :class:`pypeit.traceimage.TraceImage` object.
         img (`numpy.ndarray`_):
-            Image data used to trace slit edges.
+            See argument list.
         bpm (`numpy.ndarray`_):
-            Boolean bad-pixel mask for the trace image; must have the
-            same shape as `img`.
+            See argument list.
         det (:obj:`int`):
-            1-indexed detector number.
+            See argument list.
         sobel_sig (`numpy.ndarray`_)):
             Sobel-filtered image used to detect left and right edges
             of slits.
@@ -290,7 +316,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             an instance of :class:`pypeit.traceimage.TraceImage`.
         traceid (`numpy.ndarray`_):
             The list of unique trace IDs.
-        binning (tuple):
         spat_img (`numpy.ndarray`_):
             An integer array with the spatial pixel nearest to each
             trace edge. This is identically::
@@ -304,7 +329,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             for each spectral pixel *as measured* from the trace
             image. Shape is :math:`(N_{\rm spec},N_{\rm trace})`.
         spat_err (`numpy.ndarray`_):
-            Error in slit edge locations; measurments without errors
+            Error in slit edge locations; measurements without errors
             have their errors set to -1.
         spat_msk (`numpy.ndarray`_):
             An integer array with the mask bits assigned to each
@@ -341,7 +366,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
     master_type = 'Edges'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
-                 img=None, bpm=None, det=1, auto=False, debug=False, binning=None,
+                 img=None, bpm=None, det=1, binning=None, auto=False, debug=False,
                  show_stages=False, save=False, load=False):
 
         # TODO: It's possible for the master key and the detector
@@ -349,6 +374,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key)
 
+        # TODO: Add type-checking for spectrograph and par
         self.spectrograph = spectrograph    # Spectrograph used to take the data
         self.par = par                      # Parameters used for slit edge tracing
 
@@ -439,8 +465,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Args:
             rows (:obj:`int`, optional):
-                Number of rows for each column. If None, the table
-                has empty columns.
+                Number of rows for each column, expected to be the
+                number of matched slits. If None, the table has empty
+                columns.
 
         Returns:
             `astropy.table.Table`_: Instance of the empty design
@@ -473,7 +500,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     table.Column(name='SLITPA', dtype=float, length=length,
                                  description='Slit position angle onsky (deg from N through E)'),
                     table.Column(name='ALIGN', dtype=np.int16, length=length,
-                                 description='Slit used for alignment, not target observations.')
+                                 description='Slit used for alignment (1-yes; 0-no), not target '
+                                             'observations.')
                            ])
 
     @staticmethod
@@ -483,8 +511,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Args:
             rows (:obj:`int`, optional):
-                Number of rows for each column. If None, the table
-                has empty columns.
+                Number of rows for each column, expected to be the
+                number of objects. If None, the table has empty
+                columns.
 
         Returns:
             `astropy.table.Table`_: Instance of the empty object
@@ -572,6 +601,36 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Execute a fixed series of methods to automatically identify
         and trace slit edges.
 
+        The current algorithm is:
+            - Detect and follow slit edges using :func:`initial_trace`.
+            - Refine the measured centroids of the edge locations
+              using :func:`centroid_refine`.
+            - Fit the measured centroids with a polynomial using
+              :func:`fit_refine`, which is basically a wrapper for
+              :func:`pypeit.core.trace.fit_trace`. If a PCA
+              decomposition of the traces is not possible because
+              there are too few traces, the next two steps are
+              skipped (skipping down to edge synchronization), and
+              *the final measured slit edge traces* are the result of
+              this step.
+            - Construct a PCA decomposition of the fitted forms for
+              the traces using :func:`pca_refine`. Traces are either
+              decomposed as a group or split into separate left and
+              right decompositions.
+            - Use the PCA decomposition to rectify the trace image
+              such that the slit edges should be aligned, collapse
+              the image to get a high-signal-to-noise detection of
+              each slit edge, and use these locations to predict,
+              remeasure, and refit the slit edges; see
+              :func:`peak_refine`. *The final measured slit edge
+              traces* are based on the result of :func:`peak_refine`.
+            - Synchronize the left and right traces into pairs that
+              define slit apertures using :func:`sync`.
+            - Use :func:`add_user_traces` and :func:`rm_user_traces`
+              to add and remove traces as defined by the
+              user-provided lists in the :attr:`par`.
+            - Use :func:`save` to save the results, if requested.
+
         Args:
             img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`):
                 2D image used to trace slit edges. If a
@@ -588,6 +647,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             det (:obj:`int`, optional):
                 The 1-indexed detector number that provided the trace
                 image; see :func:`initial_trace` for how this used.
+                Cannot be `None`.
             binning (:obj:`str`, optional):
                 On-detector binning of the data ordered spectral then
                 spatial with format, e.g., `2,1`. Ignored if `img` is
@@ -649,8 +709,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         elif self.par['sync_predict'] == 'pca':
             # TODO: This causes the code to fault. Maybe there's a way
             # to catch this earlier on?
-            msgs.error('Sync predict cannot use PCA because too few edges were found.  Either choose '+msgs.newline()+
-                       'better flats or edit your pypeit file to include:' + msgs.newline() +
+            msgs.error('Sync predict cannot use PCA because too few edges were found.  If you are '
+                       'reducing multislit or echelle data, you may need a better trace image or '
+                       'change the mode used to predict traces (see below).  If you are reducing '
+                       'longslit data, make sure to set the sync_predict parameter to nearest: '
+                       + msgs.newline() +
                        '    [calibrations]' + msgs.newline() +
                        '        [[slitedges]]' + msgs.newline() +
                        '            sync_predict = nearest')
@@ -748,6 +811,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 columns or along rows, as determined by
                 :attr:`spectrograph` and the result of a call to
                 :func:`pypeit.spectrograph.Spectrograph.raw_is_transposed`.
+                Cannot be `None`.
             binning (:obj:`str`, optional):
                 On-detector binning of the data ordered spectral then
                 spatial with format, e.g., `2,1`. Ignored if `img` is
@@ -781,6 +845,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.bpm = np.zeros((self.nspec, self.nspat), dtype=bool) if bpm is None else bpm
         if self.bpm.shape != self.img.shape:
             msgs.error('Mask is not the same shape as the trace image.')
+        if det is None or det < 1:
+            msgs.error('Detector must be an integer that is >=1.')
         self.det = det
 
         # Lightly smooth the image before using it to trace edges
@@ -1107,6 +1173,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 decompostion had been performed on the save object,
                 use the saved parameters to rebuild that PCA.
         """
+
+        # TODO: Consolidate this with items_from_master_file in
+        # masterframe.py?
+
         # Check the file exists
         if not os.path.isfile(filename):
             msgs.error('File does not exit: {0}'.format(filename))
@@ -1362,7 +1432,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Plot the trace fits
         show_fit = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                      exclude=self.bitmask.insert_flags))
+                                                      exclude=self.bitmask.exclude_flags))
         for i in range(self.ntrace):
             if not trace_indx[i]:
                 continue
@@ -2033,8 +2103,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             return False
+        # Do it
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                 exclude=self.bitmask.insert_flags))
+                                                 exclude=self.bitmask.exclude_flags))
         side = np.clip(self.traceid[gpm], -1, 1)
         return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
 
@@ -2836,7 +2907,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # performs better than use_mad, since larger coefficients
             # will always be considered inliers, if the coefficients
             # vary rapidly with order as they sometimes do.
-            ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
+            #ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
+            ivar = None
+
+            # TODO: Instead, weight by the mean/median value of
+            # sobel_sig along each trace.
 
             # Run the fit
             self.pca[i].build_interpolator(_order, ivar=ivar, function=function, lower=lower,
@@ -3452,7 +3527,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         if debug:
             msgs.info('Show instance includes inserted traces but before checking the sync.')
-            self.show(thin=10, include_img=True)
+            self.show(thin=10, include_img=True, idlabel=True, flag='any')
 
         # Check the full synchronized list and log completion of the
         # method
@@ -4035,7 +4110,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Find the traces that are *not* fully masked. This will catch
         # slits that are masked as too short but not clipped because of
         # par['sync_clip'] = False.
-        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
+        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                 exclude=self.bitmask.exclude_flags))
 
         tslits_dict['slit_left_orig'] = self.spat_fit[:,gpm & self.is_left]
         tslits_dict['slit_righ_orig'] = self.spat_fit[:,gpm & self.is_right]
@@ -4071,8 +4147,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Caveats:
         #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
         par = EdgeTracePar()
-        this = cls(load_spectrograph(tslits_dict['spectrograph'], par, master_key=master_key,
-                   master_dir=master_dir))
+        this = cls(load_spectrograph(tslits_dict['spectrograph']), par, master_key=master_key,
+                   master_dir=master_dir)
         #   - img and sobel_sig should not be None
         this.img = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
         this.sobel_sig = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
@@ -4087,7 +4163,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         nleft = tslits_dict['slit_left'].shape[1]
         nright = tslits_dict['slit_righ'].shape[1]
         this.traceid = np.append(-np.arange(nleft)-1, np.arange(nright)+1)
-        this.spat_cen = np.hstack(tslits_dict['slit_left'], tslits_dict['slit_righ'])
+        this.spat_cen = np.hstack((tslits_dict['slit_left'], tslits_dict['slit_righ']))
         this.spat_fit = this.spat_cen.copy()
         this.spat_fit_type = 'legendre'
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())

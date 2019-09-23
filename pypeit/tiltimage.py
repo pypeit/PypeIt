@@ -92,7 +92,7 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return
         #
         hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        pypeitimage.save_images(self.pypeitImage, _outfile, hdr=hdr, iext='TILT')
+        self.pypeitImage.write(_outfile, hdr=hdr, iext='TILT')
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
@@ -115,6 +115,6 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if master_file is None:
             return
         else:  # Load
-            self.pypeitImage = pypeitimage.load_images(master_file)
+            self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file)
             return self.pypeitImage
 

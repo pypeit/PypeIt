@@ -6,10 +6,10 @@ Subpackages
 
 .. toctree::
 
-    pypeit.core
-    pypeit.images
-    pypeit.par
-    pypeit.spectrographs
+   pypeit.core
+   pypeit.images
+   pypeit.par
+   pypeit.spectrographs
 
 Submodules
 ----------
@@ -51,6 +51,6 @@ Module contents
 ---------------
 
 .. automodule:: pypeit
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

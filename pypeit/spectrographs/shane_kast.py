@@ -39,7 +39,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Always flux calibrate, starting with default parameters
+        # Flux calibration parset
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'

@@ -196,6 +196,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.optical_model = None
         self.detector_map = None
 
+    # TODO: I think all of the default_pypeit_par methods should be
+    # static.  nonlinear_counts shouldn't need to be a parameter because
+    # it's held by the spectrograph class, right?
     def default_pypeit_par(self):
         """
         Set default parameters for Keck DEIMOS reductions.
@@ -212,7 +215,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
         # Slightly larger than that to catch hot columns
 #        par['calibrations']['slitedges']['minimum_slit_length'] = 0.5
-        par['calibrations']['slitedges']['minimum_slit_length'] = 5.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
         par['calibrations']['slitedges']['sync_clip'] = False
 
         # Overscan subtract the images
@@ -268,6 +271,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         headarr = self.get_headarr(scifile)
 
         # Turn PCA off for long slits
+        # TODO: I'm a bit worried that this won't catch all
+        # long-slits...
         if ('Long' in self.get_meta_value(headarr, 'decker')) or (
                 'LVMslit' in self.get_meta_value(headarr, 'decker')):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'

@@ -1,18 +1,20 @@
 """ Module for sky subtraction
 """
-import numpy as np
-import sys, os
+import sys
+import os
 
-from pypeit import msgs, utils, ginga
-from pypeit.core import pixels, extract, pydl
-from IPython import embed
-from pypeit.images import maskimage
+import numpy as np
+
+from scipy import ndimage
+from scipy.special import ndtr
 
 from matplotlib import pyplot as plt
 
-from scipy.special import ndtr
-import scipy
 from IPython import embed
+
+from pypeit import msgs, utils, ginga
+from pypeit.core import pixels, extract, pydl
+from pypeit.images import maskimage
 
 def skysub_npoly(thismask):
     """
@@ -388,11 +390,11 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
         dsamp_init = np.roll(samplmin, -1) - samplmax
         dsamp_init[nbkpt - 1] = dsamp_init[nbkpt - 2]
         kernel_size = int(np.fmax(np.ceil(dsamp_init.size*0.01)//2*2 + 1,15))  # This ensures kernel_size is odd
-        dsamp_med = scipy.ndimage.filters.median_filter(dsamp_init, size=kernel_size, mode='reflect')
+        dsamp_med = ndimage.filters.median_filter(dsamp_init, size=kernel_size, mode='reflect')
         boxcar_size = int(np.fmax(np.ceil(dsamp_med.size*0.005)//2*2 + 1,5))
         # Boxcar smooth median dsamp
         kernel = np.ones(boxcar_size)/ float(boxcar_size)
-        dsamp = scipy.ndimage.convolve(dsamp_med, kernel, mode='reflect')
+        dsamp = ndimage.convolve(dsamp_med, kernel, mode='reflect')
         # if more than samp_frac of the pixels have dsamp < bsp_min than just use a uniform breakpoint spacing
         if np.sum(dsamp <= bsp_min) > samp_frac*nbkpt:
             msgs.info('Sampling of wavelengths is nearly continuous.')
@@ -1051,10 +1053,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord)
-        try:  # MagE debuggin
-            fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)
-        except:
-            embed(header='1059 of skysub')
+        fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)
         # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
         # for future fits
         if np.abs(fwhm_here[iord] - sobjs[indx].FWHM) >= 0.01:

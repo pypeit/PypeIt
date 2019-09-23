@@ -46,7 +46,8 @@ def parser(options=None):
                         action = "store_true")
     parser.add_argument('--embed', default=False, help="Upong completetion embed in ipython shell",
                         action = "store_true")
-    parser.add_argument("--new", default=False, action="store_true", help="Uses new tracing")
+#    parser.add_argument("--new", default=False, action="store_true", help="Uses new tracing")
+    parser.add_argument("--old", default=False, action="store_true", help="Used old slit tracing")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -126,12 +127,12 @@ def main(args):
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
-#    tslits_dict = TraceSlits.load_from_file(trc_file)[0]
     # TODO -- Remove this once the move to Edges is complete
-    if args.new:
+    if args.old:
+        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
+    else:
         trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-
-    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
     slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'],
@@ -145,6 +146,7 @@ def main(args):
     if os.path.isfile(spec1d_file):
         specobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_file)
     else:
+        specobjs = None
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
@@ -177,7 +179,9 @@ def main(args):
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
                                   bitmask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
-    show_trace(specobjs, args.det, viewer, ch)
+
+    if specobjs is not None:
+        show_trace(specobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                     #, args.det)
 
@@ -186,7 +190,8 @@ def main(args):
     image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (mask == 0)  # sky residual map
     viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
                                   cuts=(-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
-    show_trace(specobjs, args.det, viewer, ch)
+    if specobjs is not None:
+        show_trace(specobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                     #, args.det)
 
@@ -196,7 +201,8 @@ def main(args):
     image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (mask == 0)
     viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
                                   cuts = (-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
-    show_trace(specobjs, args.det, viewer, ch)
+    if specobjs is not None:
+        show_trace(specobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                     #, args.det)
 
