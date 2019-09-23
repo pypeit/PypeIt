@@ -2908,13 +2908,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # will always be considered inliers, if the coefficients
             # vary rapidly with order as they sometimes do.
             #ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
-            ivar = None
+            #ivar = None
 
             # TODO: Instead, weight by the mean/median value of
             # sobel_sig along each trace.
 
             # Run the fit
-            self.pca[i].build_interpolator(_order, ivar=ivar, function=function, lower=lower,
+            self.pca[i].build_interpolator(_order, function=function, lower=lower,
                                            upper=upper, minx=0., maxx=self.nspat-1., maxrej=maxrej,
                                            maxiter=maxiter, debug=debug)
 
