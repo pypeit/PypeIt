@@ -138,35 +138,42 @@ def main(args):
 
         # Trace the slit edges
         if args.old:
-            try:
-                t = time.perf_counter()
-                traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
-                                                   master_dir=master_dir)
-                traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
-                               debug=args.debug)
-                print('Tracing for detector {0} finished in {1} s.'.format(det,
+            t = time.perf_counter()
+            traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
+                                               master_dir=master_dir)
+            traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
+                           debug=args.debug)
+            print('Tracing for detector {0} finished in {1} s.'.format(det,
                       time.perf_counter()-t))
-                traceSlits.save(traceImage=traceImage)
-            except Exception as e:
-                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
-                print('Continuing...')
+            traceSlits.save(traceImage=traceImage)
+#            try:
+#                t = time.perf_counter()
+#                traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
+#                                                   master_dir=master_dir)
+#                traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
+#                               debug=args.debug)
+#                print('Tracing for detector {0} finished in {1} s.'.format(det,
+#                      time.perf_counter()-t))
+#                traceSlits.save(traceImage=traceImage)
+#            except Exception as e:
+#                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
+#                print('Continuing...')
         else:
-#            trace_par.to_config('trace_edges.ini', section_name='slitedges', include_descr=False)
-#            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-#                                           master_dir=master_dir, img=traceImage, det=det,
-#                                           auto=True, debug=args.debug, show_stages=args.show)
-#            edges.save()
-            try:
-                t = time.perf_counter()
-                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                               master_dir=master_dir, img=traceImage, det=det,
-                                               auto=True, debug=args.debug, show_stages=args.show)
-                print('Tracing for detector {0} finished in {1} s.'.format(det,
-                                                                           time.perf_counter()-t))
-                edges.save()
-            except Exception as e:
-                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
-                print('Continuing...')
+            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                           master_dir=master_dir, img=traceImage, det=det,
+                                           auto=True, debug=args.debug, show_stages=args.show)
+            edges.save()
+#            try:
+#                t = time.perf_counter()
+#                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+#                                               master_dir=master_dir, img=traceImage, det=det,
+#                                               auto=True, debug=args.debug, show_stages=args.show)
+#                print('Tracing for detector {0} finished in {1} s.'.format(det,
+#                                                                           time.perf_counter()-t))
+#                edges.save()
+#            except Exception as e:
+#                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
+#                print('Continuing...')
 
     return 0
 
