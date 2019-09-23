@@ -2516,7 +2516,7 @@ class CalibrationsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['caldir'] = 'Masters'
+        defaults['caldir'] = 'default'
         dtypes['caldir'] = str
         descr['caldir'] = 'Directory relative to calling directory to write master files.'
 

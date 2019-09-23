@@ -65,9 +65,10 @@ def main(pargs):
     ps.fitstbl['setup'] = 'A'
 
     # Config the run
+    rdx_path = '{0}_A'.format(os.path.join(os.getcwd(),spec))
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
-    cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
+    cfg_lines += ['    redux_path = {0}'.format(rdx_path)]
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    [[scienceframe]]']
     cfg_lines += ['        [[process]]']

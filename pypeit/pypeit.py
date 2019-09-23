@@ -66,7 +66,7 @@ class PypeIt(object):
 #    __metaclass__ = ABCMeta
 
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
-                 show=False, redux_path=None):
+                 show=False):
 
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
