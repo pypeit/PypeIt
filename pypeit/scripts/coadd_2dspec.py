@@ -198,6 +198,7 @@ def main(args):
         # Instantiate Coadd2d
         coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det,
                                        offsets=parset['coadd2d']['offsets'],
+                                       weights=parset['coadd2d']['weights'],
                                        par=parset, ir_redux=ir_redux,
                                        debug_offsets=args.debug_offsets, debug=args.debug,
                                          samp_fact=args.samp_fact)

@@ -859,11 +859,21 @@ class Coadd2d(object):
         tslits_dict_list = []
         # TODO Sort this out with the correct detector extensions etc.
         # Read in the image stacks
+        waveimgfile, tiltfile, tracefile = None, None, None
         for ifile in range(nfiles):
-            #waveimg = WaveImage.load_from_file(waveimgfiles[ifile])  # JXP
-            waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
-            #tilts = WaveTilts.load_from_file(tiltfiles[ifile])
-            tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
+            # Load up the calibs, if needed
+            if waveimgfiles[ifile] == waveimgfile:
+                pass
+            else:
+                waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
+            if tiltfile == tiltfiles[ifile]:
+                pass
+            else:
+                tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
+            # Save
+            waveimgfile = waveimgfiles[ifile]
+            tiltfile = tiltfiles[ifile]
+            #
             hdu = fits.open(spec2d_files[ifile])
             # One detector, sky sub for now
             names = [hdu[i].name for i in range(len(hdu))]
@@ -905,8 +915,13 @@ class Coadd2d(object):
 
             # Slit Traces and slitmask
 #            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
-            tslits_dict \
+            if tracefile == tracefiles[ifile]:
+                pass
+            else:
+                tslits_dict \
                     = edgetrace.EdgeTraceSet.from_file(tracefiles[ifile]).convert_to_tslits_dict()
+            tracefile = tracefiles[ifile]
+            #
             tslits_dict_list.append(tslits_dict)
             slitmask = pixels.tslits2mask(tslits_dict)
             slitmask_stack[ifile, :, :] = slitmask
@@ -918,11 +933,11 @@ class Coadd2d(object):
             skymodel_stack[ifile, :, :] = skymodel
 
             # Specobjs
-            sobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
-            #load.load_specobjs(spec1d_files[ifile])
-            head1d_list.append(sobjs.header)
-            this_det = sobjs.DET == self.DET
-            specobjs_list.append(sobjs[this_det])
+            if os.path.isfile(spec1d_files[ifile]):
+                sobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
+                head1d_list.append(sobjs.header)
+                this_det = sobjs.DET == self.DET
+                specobjs_list.append(sobjs[this_det])
 
         # slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
 

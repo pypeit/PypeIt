@@ -662,7 +662,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None):
+    def __init__(self, offsets=None, weights=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -680,6 +680,11 @@ class Coadd2DPar(ParSet):
         dtypes['offsets'] = list
         descr['offsets'] = 'User-input list of offsets for the images being combined.'
 
+        # Weights
+        defaults['weights'] = 'auto'
+        dtypes['weights'] = [str, list]
+        descr['weights'] = 'Mode for the weights used to coadd images.  See coadd2d.py for all options.'
+
         # Instantiate the parameter set
         super(Coadd2DPar, self).__init__(list(pars.keys()),
                                                  values=list(pars.values()),
@@ -691,7 +696,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['offsets']
+        parkeys = ['offsets', 'weights']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
