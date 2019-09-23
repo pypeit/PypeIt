@@ -297,8 +297,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.9, 1.9],
                             ronoise         = [3.8, 3.8],
-                            datasec         = ['[:,40:102]', '[:,103:347]'],
-                            oscansec        = ['[:,425:522]', '[:,524:610]'],
                             suffix          = '_red'
                             )]
         self.numhead = 1
@@ -319,6 +317,56 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         return par
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+
+        # Parse from the header
+        nover = 100  # Number of pixels in the overscan.  Hard-coded to 100 pixels per amp
+        header = fits.open(scifile)[0].header
+        naxis1 = header['NAXIS1']
+        crval1u = header['CRVAL1U']
+
+        ndata = naxis1 - nover*2
+
+        x1_0 = 1             # Amp 1
+        x1_1 = 512 - crval1u
+        x2_0 = x1_1+1        # Amp
+        x2_1 = ndata
+
+        xo1_1 = x2_1+1
+        xo1_2 = x2_1+100
+        xo2_1 = xo1_2+1
+        xo2_2 = xo1_2+100
+
+        datasec = ['[:,{}:{}]'.format(x1_0, x1_1), '[:,{}:{}]'.format(x2_0,x2_1)]    # These are rows, columns on the raw frame, 1-indexed
+        oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
+
+        # Fill it up
+        self.detector[0]['datasec'] = datasec
+        self.detector[0]['oscansec'] = oscansec
+
+        return par
+
+
     def init_meta(self):
         """
         Meta data specific to shane_kast_red
@@ -335,44 +383,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
 
-    def get_image_section(self, inp=None, det=1, section='datasec'):
-        """
-        Over-ride parent method
-
-        Args:
-            inp (str):
-              Filename
-            det (int, optional):
-              Not used
-            section (str):
-              datasec or oscansec
-
-        Returns:
-            list, bool, bool:
-
-        """
-        # Inp better be a string here!  Could check
-        hdu = fits.open(inp)
-        head0 = hdu[0].header
-
-        # Get *FULL* datasec
-        datsec = head0['DATASEC']  # THIS MAY BE BINNED
-        xs_tot, xe_tot, y1, y2 = np.array(parse.load_sections(datsec, fmt_iraf=False)).flatten()
-        naxis1 = head0['NAXIS1']
-
-        # Assume Amp 2 is 283 pixels long, yup 283
-        x2_size = 283
-
-        if section == 'datasec':
-            section1 = '[:,{:d}:{:d}]'.format(xs_tot,xe_tot-x2_size)
-            section2 = '[:,{:d}:{:d}]'.format(xe_tot-x2_size+1, xe_tot)
-        elif section == 'oscansec':
-            noscan = (naxis1-xe_tot) // 2
-            section1 = '[:,{:d}:{:d}]'.format(xe_tot+3, xe_tot+noscan-3)
-            section2 = '[:,{:d}:{:d}]'.format(naxis1-noscan+3, naxis1-3)
-        sections = [section1, section2]
-        #
-        return sections, False, False
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     """
