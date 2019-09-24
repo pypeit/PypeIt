@@ -7,7 +7,7 @@
 Trace slit edges for a set of images.
 """
 
-def parser():
+def parser(options=None):
 
     import argparse
     from pypeit.spectrographs.util import valid_spectrographs
@@ -41,9 +41,9 @@ def parser():
 
     parser.add_argument('--debug', default=False, action='store_true', help='Run in debug mode.')
     parser.add_argument('--show', default=False, action='store_true',
-                        help='For the new tracing routine, show the stages of trace refinements.')
+                        help='Show the stages of trace refinements (only for the new code).')
 
-    return parser.parse_args()
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
@@ -83,13 +83,15 @@ def main(args):
         # Trace image processing parameters
         proc_par = rdx.caliBrate.par['traceframe']
         # Slit tracing parameters
-#        trace_par = rdx.caliBrate.par['slitedges'] if args.use_new else rdx.caliBrate.par['slits']
-        trace_par = rdx.caliBrate.par['slits'] if args.old else rdx.caliBrate.par['slitedges']
+        trace_par = rdx.caliBrate.par['slitedges']
 
         # Get the bias files, if requested
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
         bias_files = rdx.fitstbl.frame_paths(bias_rows)
         bias_par = rdx.caliBrate.par['biasframe']
+
+        # Set the QA path
+        qa_path = rdx.qa_path
     else:
         spec = load_spectrograph(args.spectrograph)
         master_key_base = 'A_1'
@@ -101,11 +103,12 @@ def main(args):
                                      if args.redux_path is None else args.redux_path)
         par = spec.default_pypeit_par()
         proc_par = par['calibrations']['traceframe']
-#        trace_par = par['calibrations']['slitedges'] if args.use_new \
-#                        else par['calibrations']['slits']
-        trace_par = par['calibrations']['slits'] if args.old else par['calibrations']['slitedges']
+        trace_par = par['calibrations']['slitedges']
         bias_files = None
         bias_par = None
+
+        # Set the QA path
+        qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0], 'QA'))
     
     detectors = np.arange(spec.ndet)+1 if args.detector is None else [args.detector]
     master_dir = os.path.join(redux_path, args.master_dir)
@@ -126,25 +129,14 @@ def main(args):
         traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
         traceImage.build_image(bias=msbias)
 
-        # Platescale
-        plate_scale = parse.parse_binning(binning)[1]*spec.detector[det-1]['platescale']
-
         # Trace the slit edges
-#        edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-#                                       master_dir=master_dir, img=traceImage, det=det,
-#                                       auto=True, debug=args.debug, show_stages=args.show)
-#        edges.save()
-        try:
-            t = time.perf_counter()
-            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                           master_dir=master_dir, img=traceImage, det=det,
-                                           auto=True, debug=args.debug, show_stages=args.show)
-            print('Tracing for detector {0} finished in {1} s.'.format(det,
-                                                                       time.perf_counter()-t))
-            edges.save()
-        except Exception as e:
-            print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
-            print('Continuing...')
+        t = time.perf_counter()
+        edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                       master_dir=master_dir, img=traceImage, det=det,
+                                       auto=True, debug=args.debug, show_stages=args.show,
+                                       qa_path=qa_path)
+        print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+        edges.save()
 
     return 0
 

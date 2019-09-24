@@ -210,7 +210,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
-        par['calibrations']['slitedges']['minimum_slit_length'] = 5.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
         par['calibrations']['slitedges']['sync_clip'] = False
 
         # 1D wavelength solution
