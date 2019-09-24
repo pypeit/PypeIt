@@ -353,9 +353,9 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         x2_1 = ndata
 
         xo1_1 = x2_1+1
-        xo1_2 = x2_1+100
+        xo1_2 = x2_1+nover
         xo2_1 = xo1_2+1
-        xo2_2 = xo1_2+100
+        xo2_2 = xo1_2+nover
 
         datasec = ['[:,{}:{}]'.format(x1_0, x1_1), '[:,{}:{}]'.format(x2_0,x2_1)]    # These are rows, columns on the raw frame, 1-indexed
         oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
