@@ -650,7 +650,8 @@ class Calibrations(object):
 #                                        include_descr=False)
         self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
                                             master_key=self.master_key_dict['trace'],
-                                            master_dir=self.master_dir, qa_path=self.qa_path)
+                                            master_dir=self.master_dir,
+                                            qa_path=self.qa_path if write_qa else None)
 
         if self.reuse_masters and self.edges.exists():
             self.edges.load()

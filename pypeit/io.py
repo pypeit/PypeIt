@@ -264,6 +264,10 @@ def header_version_check(hdr, warning_only=True):
             msg = '{0} version used to create the file ({1}) '.format(package, hdr_version) \
                         + 'does not match the current system version ({0})!'.format(sys_version)
             if warning_only:
+                # TODO: I had to change pypeit/__init__.py to get these
+                # to show up. We eventually need to make pypmsgs play
+                # nice with warnings and other logging, or just give up
+                # on pypmsgs...
                 warnings.warn(msg)
             else:
                 raise ValueError(msg)

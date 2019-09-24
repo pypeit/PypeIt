@@ -1129,11 +1129,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Load and reinitialize the trace data.
 
-        Data is read from :attr:`file_path` and used to overwrite any
-        internal data. Specific comparisons of the saved data are
-        performed to ensure the file is consistent with having been
-        written by a consistent version of the code; see
-        :func:`_reinit`.
+        Data is read from :attr:`master_file_path` and used to
+        overwrite any internal data. Specific comparisons of the
+        saved data are performed to ensure the file is consistent
+        with having been written by a consistent version of the code;
+        see :func:`_reinit`.
 
         To load a full :class:`EdgeTraceSet` directly from a file,
         use :func:`from_file`.
@@ -1162,8 +1162,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         # Check the file exists
         if not self.exists():
-            msgs.error('File does not exit: {0}'.format(self.file_path))
-        with fits.open(self.file_path) as hdu:
+            msgs.error('File does not exit: {0}'.format(self.master_file_path))
+        with fits.open(self.master_file_path) as hdu:
             # Re-initialize and validate
             self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
 
@@ -1171,7 +1171,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Check if the output file already exists.
         """
-        return os.path.isfile(self.file_path)
+        return os.path.isfile(self.master_file_path)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=True):
