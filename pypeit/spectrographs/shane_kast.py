@@ -340,10 +340,10 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         # Parse from the header
-        nover = 100  # Number of pixels in the overscan.  Hard-coded to 100 pixels per amp
         header = fits.open(scifile)[0].header
         naxis1 = header['NAXIS1']
         crval1u = header['CRVAL1U']
+        nover = header['COVER']
 
         ndata = naxis1 - nover*2
 
