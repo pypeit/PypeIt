@@ -186,3 +186,4 @@ def test_coadd2():
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
                 = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
 
+

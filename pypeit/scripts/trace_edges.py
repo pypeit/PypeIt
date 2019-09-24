@@ -96,6 +96,9 @@ def main(args):
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
         bias_files = rdx.fitstbl.frame_paths(bias_rows)
         bias_par = rdx.caliBrate.par['biasframe']
+
+        # Set the QA path
+        qa_path = rdx.qa_path
     else:
         spec = load_spectrograph(args.spectrograph)
         master_key_base = 'A_1'
@@ -112,6 +115,9 @@ def main(args):
         trace_par = par['calibrations']['slits'] if args.old else par['calibrations']['slitedges']
         bias_files = None
         bias_par = None
+
+        # Set the QA path
+        qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0], 'QA'))
     
     detectors = np.arange(spec.ndet)+1 if args.detector is None else [args.detector]
     master_dir = os.path.join(redux_path, args.master_dir)
@@ -161,7 +167,8 @@ def main(args):
         else:
             edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
                                            master_dir=master_dir, img=traceImage, det=det,
-                                           auto=True, debug=args.debug, show_stages=args.show)
+                                           auto=True, debug=args.debug, show_stages=args.show,
+                                           qa_path=qa_path)
             edges.save()
 #            try:
 #                t = time.perf_counter()

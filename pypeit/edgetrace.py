@@ -259,7 +259,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         master_dir (:obj:`str`, optional):
             Path to master frames.
         qa_path (:obj:`str`, optional):
-            Directory for QA output.
+            Directory for QA output. If None, no QA plots are
+            provided.
         img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`, optional):
             Two-dimensional image used to trace slit edges. If a
             :class:`pypeit.traceimage.TraceImage` is provided, the
@@ -373,7 +374,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             Collated object ID and coordinate information matched to
             the design table.
         qa_path (:obj:`str`):
-            Root path for QA output files.
+            Directory for QA output. If None, no QA plots are
+            provided.
         log (:obj:`list`):
             A list of strings indicating the main methods applied
             when tracing.
@@ -388,7 +390,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: It's possible for the master key and the detector
         # number to be inconsistent...
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key)
+                                         master_key=master_key, file_format='fits.gz')
 
         # TODO: Add type-checking for spectrograph and par
         self.spectrograph = spectrograph    # Spectrograph used to take the data
@@ -458,14 +460,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.pca_type = None
         self.design = None
         self.objects = None
-
-    @property
-    def file_path(self):
-        """
-        Overwrite MasterFrame default to force the file to be gzipped.
-        """
-        # TODO: Change the MasterFrame default to a compressed file?
-        return '{0}.gz'.format(os.path.join(self.master_dir, self.file_name))
 
     @property
     def ntrace(self):
@@ -648,6 +642,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             - Use :func:`add_user_traces` and :func:`rm_user_traces`
               to add and remove traces as defined by the
               user-provided lists in the :attr:`par`.
+            - If :attr:`qa_path` is not None, the QA plots are
+              constructed and written; see :func:`qa_plot`.
             - Use :func:`save` to save the results, if requested.
 
         Args:
@@ -771,6 +767,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
 #            self.show(thin=10, include_img=True, idlabel=True)
             
         # TODO: Add mask_refine() when it's ready
+
+        # Write the qa plots
+        # TODO: Should maybe have a keyword argument that will allow
+        # this to be skipped, even if the path is not None.
+        if self.qa_path is not None:
+            self.qa_plot(fileroot=self.file_name.split('.')[0])
 
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
@@ -1012,7 +1014,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Args:
             outfile (:obj:`str`, optional):
                 Name for the output file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
             checksum (:obj:`bool`, optional):
@@ -1022,7 +1024,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Convert floating-point data to this data type before
                 writing.  Default is 32-bit precision.
         """
-        _outfile = self.file_path if outfile is None else outfile
+        _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.error('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -1610,7 +1612,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     plt.show()
                 else:
                     page += 1
-                    ofile = os.path.join(self.qa_path,
+                    ofile = os.path.join(self.qa_path, 'PNGs',
                                          '{0}_{1}.png'.format(fileroot, str(page).zfill(ndig)))
                     fig.canvas.print_figure(ofile, bbox_inches='tight')
                     msgs.info('Finished page {0}/{1}'.format(page, npages))
