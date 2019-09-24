@@ -7,7 +7,7 @@
 Trace slit edges for a set of images.
 """
 
-def parser():
+def parser(options=None):
 
     import argparse
     from pypeit.spectrographs.util import valid_spectrographs
@@ -41,15 +41,15 @@ def parser():
 
     parser.add_argument('--debug', default=False, action='store_true', help='Run in debug mode.')
     parser.add_argument('--show', default=False, action='store_true',
-                        help='For the new tracing routine, show the stages of trace refinements.')
+                        help='Show the stages of trace refinements (only for the new code).')
 
 #    parser.add_argument('-n', '--use_new', default=False, action='store_true',
 #                        help='Use the new code.')
 
     parser.add_argument('--old', default=False, action='store_true',
-                        help='Use the new code.')
+                        help='Use the old code.')
 
-    return parser.parse_args()
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):

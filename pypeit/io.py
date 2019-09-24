@@ -5,8 +5,11 @@ Provides a set of I/O routines.
 """
 import os
 import sys
+import warnings
 import gzip
 import shutil
+from packaging import version
+
 import numpy
 
 from astropy.io import fits
@@ -219,4 +222,51 @@ def initialize_header(hdr=None):
 
     # Return
     return hdr
+
+def header_version_check(hdr, warning_only=True):
+    """
+    Check the package versions in the header match the system versions.
+
+    .. note::
+        The header must contain the keywords written by
+        :func:`initialize_header`.
+
+    Args:
+        hdr (`astropy.io.fits.Header`):
+            The header to check
+        warning_only (:obj:`bool`, optional):
+            If the versions are discrepant, only throw a warning
+            instead of raising an exception.
+
+    Returns:
+        :obj:`bool`: Returns True if the check was successful, False
+        otherwise. If `warning_only` is False, the method will either
+        raise an exception or return True.
+
+    Raises:
+        ValueError:
+            Raised if `warning_only` is False and the system versions
+            are different from those logged in the header.
+    """
+    # Compile the packages and versions to check
+    packages = ['python', 'numpy', 'scipy', 'astropy', 'sklearn', 'pypeit']
+    hdr_versions = [hdr['VERSPYT'], hdr['VERSNPY'], hdr['VERSSCI'], hdr['VERSAST'], hdr['VERSSKL'],
+                    hdr['VERSPYP']]
+    sys_versions = ['.'.join([ str(v) for v in sys.version_info[:3]]), numpy.__version__,
+                    scipy.__version__, astropy.__version__, sklearn.__version__,
+                    pypeit.__version__]
+
+    # Run the check and either issue warnings or exceptions
+    all_identical = True
+    for package, hdr_version, sys_version in zip(packages, hdr_versions, sys_versions):
+        if version.parse(hdr_version) != version.parse(sys_version):
+            all_identical = False
+            msg = '{0} version used to create the file ({1}) '.format(package, hdr_version) \
+                        + 'does not match the current system version ({0})!'.format(sys_version)
+            if warning_only:
+                warnings.warn(msg)
+            else:
+                raise ValueError(msg)
+    # Return if all versions are identical
+    return all_identical
 

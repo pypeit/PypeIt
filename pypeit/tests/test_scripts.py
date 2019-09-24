@@ -14,8 +14,9 @@ import matplotlib
 matplotlib.use('agg')  # For Travis
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import run_pypeit
+from pypeit.scripts import trace_edges, run_pypeit
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
+from pypeit import edgetrace
 from pypeit import ginga
 
 def data_path(filename):
@@ -80,6 +81,38 @@ def data_path(filename):
 #    shutil.rmtree(outdir)
 #    shutil.rmtree(testrawdir)
 
+@dev_suite_required
+def test_trace_edges():
+    # Define the output directories (HARDCODED!!)
+    setupdir = os.path.join(os.getcwd(), 'setup_files')
+    outdir = os.path.join(os.getcwd(), 'shane_kast_blue_A')
+    # Remove them if they already exist
+    if os.path.isdir(setupdir):
+        shutil.rmtree(setupdir)
+    if os.path.isdir(outdir):
+        shutil.rmtree(outdir)
+
+    # Perform the setup
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_blue/600_4310_d55')
+    droot += '/'
+    setup.main(setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all']))
+
+    # Define the pypeit file (HARDCODED!!)
+    pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')
+
+    # Run the tracing
+    trace_edges.main(trace_edges.parser(['-f', pypeit_file]))
+
+    # Define the edges master file (HARDCODED!!)
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+
+    # Check that the correct number of traces were found
+    edges = edgetrace.EdgeTraceSet.from_file(trace_file)
+    assert edges.ntrace == 2, 'Did not find the expected number of traces.'
+
+    # Clean up
+    shutil.rmtree(setupdir)
+    shutil.rmtree(outdir)
 
 @cooked_required
 def test_show_1dspec():
@@ -152,5 +185,4 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
                 = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
-
 
