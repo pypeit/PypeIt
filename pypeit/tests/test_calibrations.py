@@ -54,6 +54,7 @@ def multi_caliBrate(fitstbl):
     calib_par = par['calibrations']
     calib_par['badpix'] = False
     calib_par['biasframe']['useframe'] = 'none' # Only use overscan
+    calib_par['slitedges']['sync_predict'] = 'nearest'
 
     multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph)
     return reset_calib(multi_caliBrate)
@@ -272,3 +273,4 @@ def test_reuse(multi_caliBrate_reuse):
 
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)
+

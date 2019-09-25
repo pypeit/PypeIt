@@ -645,9 +645,6 @@ class DetectorMap:
                 Raised if the detector number is not valid or if the
                 input x and y arrays do not have the same shape.
         """
-        if numpy.any((detector > self.nccd) | (detector < 1)):
-            raise ValueError('Incorrect detector number')
-        
         # Reshape into vectors
         _x = numpy.atleast_1d(x_pix)
         _y = numpy.atleast_1d(y_pix)
@@ -656,9 +653,11 @@ class DetectorMap:
         
         # Allow the detector to be coordinate specific or one value for
         # all coordinates
-        _d = numpy.atleast_1d(detector-1)
+        _d = numpy.atleast_1d(detector)-1
         if _d.shape != _x.shape and len(_d) == 1:
             _d = numpy.full(_x.shape, detector-1, dtype=int)
+        if numpy.any((_d >= self.nccd) | (_d < 0)):
+            raise ValueError('Incorrect detector number')
 
         # Keep the input shape for the returned arrays
         inp_shape = None
@@ -684,7 +683,7 @@ class DetectorMap:
 
     def ccd_coordinates(self, x_img, y_img, in_mm=True):
         """
-        Convert the provided coordinates in the image plate to
+        Convert the provided coordinates in the image plane to
         (1-indexed) pixel coordinates on the relevant detector.
 
         Args:

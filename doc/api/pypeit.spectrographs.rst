@@ -31,6 +31,6 @@ Module contents
 ---------------
 
 .. automodule:: pypeit.spectrographs
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

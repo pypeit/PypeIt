@@ -6,28 +6,113 @@ import sys
 import glob
 import shutil
 
+from configobj import ConfigObj
+
 import pytest
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypeit import msgs
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
+from pypeit.scripts import trace_edges, run_pypeit
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
+from pypeit import edgetrace
 from pypeit import ginga
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+#def test_arcid_plot():
+#    json_file = data_path('LRISb_600_WaveCalib_01.json')
+#    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
+#    # Run
+#    arcid_plot.main(pargs)
 
-'''
-def test_view_fits():
-    """ Only test the list option
-    """
-    spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    pargs = view_fits.parser([spec_file, '--list'])
-'''
+# TODO: This was taken out at some point.  Was it just because it takes
+# a while to run and we always run on the dev-suite anyway?  I've
+# commented this out, but I actually like this test and suggest we leave
+# it in...
+#@dev_suite_required
+#def test_run_pypeit():
+#    # Get the directories
+#    rawdir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/')
+#    assert os.path.isdir(rawdir), 'Incorrect raw directory'
+#
+#    # Just get a few files
+#    testrawdir = os.path.join(rawdir, 'TEST')
+#    if os.path.isdir(testrawdir):
+#        shutil.rmtree(testrawdir)
+#    os.makedirs(testrawdir)
+#    files = [ 'b21.fits.gz', 'b22.fits.gz', 'b23.fits.gz', 'b27.fits.gz', 'b1.fits.gz',
+#              'b11.fits.gz', 'b12.fits.gz', 'b13.fits.gz' ]
+#    for f in files:
+#        shutil.copy(os.path.join(rawdir, f), os.path.join(testrawdir, f))
+#
+#    outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
+#
+#    # For previously failed tests
+#    if os.path.isdir(outdir):
+#        shutil.rmtree(outdir)
+#
+#    # Run the setup
+#    args = setup.parser(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
+#                                        '--output_path', outdir])
+#    setup.main(args)
+#
+#    # Change to the configuration directory and set the pypeit file
+#    configdir = os.path.join(outdir, 'shane_kast_blue_A')
+#    pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
+#    assert os.path.isfile(pyp_file), 'PypeIt file not written.'
+#
+#    # Perform the original reductions
+#    args = run_pypeit.parser([pyp_file, '-o'])
+#    run_pypeit.main(args)
+#
+#    # Now try to reuse the old masters
+#    args = run_pypeit.parser([pyp_file, '-o', '-m'])
+#    run_pypeit.main(args)
+#
+#    # Now try not overwriting and using the old masters
+#    args = run_pypeit.parser([pyp_file, '-m'])
+#    run_pypeit.main(args)
+#
+#    # Clean-up
+#    shutil.rmtree(outdir)
+#    shutil.rmtree(testrawdir)
+
+@dev_suite_required
+def test_trace_edges():
+    # Define the output directories (HARDCODED!!)
+    setupdir = os.path.join(os.getcwd(), 'setup_files')
+    outdir = os.path.join(os.getcwd(), 'shane_kast_blue_A')
+    # Remove them if they already exist
+    if os.path.isdir(setupdir):
+        shutil.rmtree(setupdir)
+    if os.path.isdir(outdir):
+        shutil.rmtree(outdir)
+
+    # Perform the setup
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_blue/600_4310_d55')
+    droot += '/'
+    setup.main(setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all']))
+
+    # Define the pypeit file (HARDCODED!!)
+    pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')
+
+    # Run the tracing
+    trace_edges.main(trace_edges.parser(['-f', pypeit_file]))
+
+    # Define the edges master file (HARDCODED!!)
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+
+    # Check that the correct number of traces were found
+    edges = edgetrace.EdgeTraceSet.from_file(trace_file)
+    assert edges.ntrace == 2, 'Did not find the expected number of traces.'
+
+    # Clean up
+    shutil.rmtree(setupdir)
+    shutil.rmtree(outdir)
 
 @cooked_required
 def test_show_1dspec():
@@ -41,12 +126,19 @@ def test_show_1dspec():
 @cooked_required
 def test_chk_edges():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
-                                'MasterTrace_KeckLRISr_400_8500_det1.fits')
+                                'MasterEdges_KeckLRISr_400_8500_det1.fits.gz')
     # Ginga needs to be open in RC mode
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
     #
     pargs = chk_edges.parser([mstrace_root])
     chk_edges.main(pargs)
+
+
+def test_view_fits():
+    """ Only test the list option
+    """
+    spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
 
 @cooked_required
 def test_chk_flat():
@@ -77,7 +169,6 @@ def test_coadd():
     assert 'scale_method' in list(gparam.keys())
 
 
-
 def test_coadd2():
     """ Test using a list of object names
     """
@@ -94,4 +185,5 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
                 = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+
 

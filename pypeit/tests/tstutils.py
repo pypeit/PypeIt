@@ -11,7 +11,8 @@ from IPython import embed
 from astropy import time
 
 from pypeit import arcimage
-from pypeit import traceslits
+#from pypeit import traceslits
+from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import flatfield
 from pypeit import wavetilts
@@ -115,17 +116,17 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.  We should remove the get_spectrograph option.
-def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False, pixflat=False):
+def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
     """
     Load up the set of shane_kast_blue master frames
 
-    Order is Arc, tslits_dict, tilts_dict, wv_calib, pixflat
+    Order is Arc, edges, tilts_dict, wv_calib, pixflat
 
     Args:
         get_spectrograph:
         aimg:
-        tslits (bool, optional):
-            Load the tslits_dict
+        edges (bool, optional):
+            Load the slit edges
         tilts:
         datasec:
         wvcalib:
@@ -156,11 +157,13 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False,
         msarc = AImg.load()
         ret.append(msarc)
 
-    if tslits:
-        trace_file = os.path.join(master_dir, MasterFrame.construct_file_name('Trace', master_key))
-        tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(trace_file)
-        ret.append(tslits_dict)
-        ret.append(mstrace)
+    if edges:
+        trace_file = '{0}.gz'.format(os.path.join(master_dir,
+                                        MasterFrame.construct_file_name('Edges', master_key)))
+#        tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(trace_file)
+#        ret.append(tslits_dict)
+#        ret.append(mstrace)
+        ret.append(edgetrace.EdgeTraceSet.from_file(trace_file))
 
     if tilts:
         tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))
@@ -187,29 +190,30 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False,
     # Return
     return ret
 
-def instant_traceslits(mstrace_file, det=None):
-    """
-    Instantiate a TraceSlits object from the master file
+#def instant_traceslits(mstrace_file, det=None):
+#    """
+#    Instantiate a TraceSlits object from the master file
+#
+#    The loaded tslits_dict is set as the atribute
+#
+#    Args:
+#        mstrace_file (str):
+#        det (int, optional):
+#
+#    Returns:
+#        Spectrograph, TraceSlits:
+#
+#    """
+#    # Load
+#    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(mstrace_file)
+#    # Instantiate
+#    spectrograph = load_spectrograph(tslits_dict['spectrograph'])
+#    par = spectrograph.default_pypeit_par()
+#    msbpm = spectrograph.bpm(None, det, shape=mstrace.shape)
+#    #binning = tslits_dict['binspectral'], tslits_dict['binspatial']
+#    traceSlits = traceslits.TraceSlits(spectrograph, par['calibrations']['slits'],
+#                                       msbpm=msbpm)
+#    traceSlits.mstrace = copy.deepcopy(mstrace)
+#    traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
+#    return spectrograph, traceSlits
 
-    The loaded tslits_dict is set as the atribute
-
-    Args:
-        mstrace_file (str):
-        det (int, optional):
-
-    Returns:
-        Spectrograph, TraceSlits:
-
-    """
-    # Load
-    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(mstrace_file)
-    # Instantiate
-    spectrograph = load_spectrograph(tslits_dict['spectrograph'])
-    par = spectrograph.default_pypeit_par()
-    msbpm = spectrograph.bpm(None, det, shape=mstrace.shape)
-    #binning = tslits_dict['binspectral'], tslits_dict['binspatial']
-    traceSlits = traceslits.TraceSlits(spectrograph, par['calibrations']['slits'],
-                                       msbpm=msbpm)
-    traceSlits.mstrace = copy.deepcopy(mstrace)
-    traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
-    return spectrograph, traceSlits

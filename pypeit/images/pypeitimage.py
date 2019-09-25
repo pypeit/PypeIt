@@ -96,6 +96,10 @@ class PypeItImage(maskimage.ImageMask):
         # Data model
         self.allowed_attributes = ('image', 'ivar', 'rn2img') + self.mask_attributes
 
+    @property
+    def shape(self):
+        return () if self.image is None else self.image.shape
+
     def write(self, outfile, hdr=None, iext=None):
         """
         Write the image(s) to a multi-extension FITS file
@@ -145,9 +149,10 @@ class PypeItImage(maskimage.ImageMask):
 
     def show(self):
         """
-        Simple show method
+        Show the image in a ginga viewer.
         """
         if self.image is None:
+            # TODO: This should fault.
             msgs.warn("No image to show!")
             return
         ginga.show_image(self.image, chname='image')
@@ -181,3 +186,4 @@ class PypeItImage(maskimage.ImageMask):
 
 def save_images():
     pass
+

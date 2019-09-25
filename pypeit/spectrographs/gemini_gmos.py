@@ -91,9 +91,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Keck LRISb reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 20.
         par['calibrations']['slits']['trace_npoly'] = 3
+        par['calibrations']['slitedges']['edge_thresh'] = 20.
+        par['calibrations']['slitedges']['fit_order'] = 3
         # TODO: No longer a parameter
 #        par['calibrations']['slits']['fracignore'] = 0.02
 #        par['calibrations']['slits']['pcapar'] = [3,2,1,0]
@@ -133,6 +134,35 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.__class__.default_pypeit_par() if inp_par is None else inp_par
+
+        headarr = self.get_headarr(scifile)
+
+        # Turn PCA off for long slits
+        if 'arcsec' in self.get_meta_value(headarr, 'decker'):
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        return par
 
     def configuration_keys(self):
         """
@@ -491,8 +521,9 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument wide
+        par = super(GeminiGMOSSHamSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
         #
@@ -591,8 +622,9 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument wide
+        par = super(GeminiGMOSNHamSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
         #
@@ -686,8 +718,9 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument wide
+        par = super(GeminiGMOSNE2VSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
         #

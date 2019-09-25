@@ -63,10 +63,7 @@ class CalibrationImage(object):
     @property
     def nfiles(self):
         """
-
-        Returns:
-            int: Number of files in the file_list
-
+        The number of calibration files
         """
         return len(self.file_list)
 

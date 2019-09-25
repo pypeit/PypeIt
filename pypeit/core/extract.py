@@ -24,6 +24,7 @@ from scipy import interpolate
 
 from sklearn.decomposition import PCA
 from pypeit import specobjs
+#from pypeit import tracepca
 from pypeit.core.pydl import spheregroup
 
 from IPython import embed
@@ -2560,6 +2561,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                                                  coeff_weights = np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
                                                  debug=show_pca)
         # Trial and error shows weighting by S/N instead of S/N^2 performs better
+
+        # TODO: Check transpose
+#        pca_fits[:, :, iobj] = tracepca.pca_trace_object(sobjs_final[indx_obj_id].trace_spat.T,
+#                                                         order=coeff_npoly, npca=npca,
+#                                                         pca_explained_var=pca_explained_var,
+#                                                         debug=debug)
 
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()
