@@ -225,7 +225,7 @@ class TracePCA:
             base += [('FITC{0}'.format(i+1), float, (self.fit_coeff[i].size,))]
         return base
 
-    def to_hdu(self, hdr=None):
+    def to_hdu(self, hdr=None, name='PCA'):
         """
         Write the object to a `astropy.io.fits.BinTableHDU`.
 
@@ -233,6 +233,8 @@ class TracePCA:
             hdr (`astropy.io.fits.Header`, optional):
                 Header to which to add PCA information. If None, an
                 empty header is used.
+            name (:obj:`str`, optional):
+                String name for the fits extension.
 
         Returns:
             `astropy.io.fits.BinTableHDU`_: Fits file component with
@@ -274,7 +276,7 @@ class TracePCA:
             for i in range(self.npca):
                 data['FITC{0}'.format(i+1)][0] = self.fit_coeff[i]
 
-        return rec_to_bintable(data, name='PCA', hdr=hdr)
+        return rec_to_bintable(data, name=name, hdr=hdr)
 
     @classmethod
     def from_file(cls, file):

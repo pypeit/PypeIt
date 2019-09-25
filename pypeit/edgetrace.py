@@ -1106,6 +1106,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')
                             ])
+        if self.pca is not None:
+            if self.par['left_right_pca']:
+                hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
+            else:
+                hdu += [self.pca.to_hdu()]
         if self.design is not None: 
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
@@ -1121,7 +1126,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.info('Compressing file to: {0}.gz'.format(_outfile))
             io.compress_file(_outfile, overwrite=overwrite)
 
-    def load(self, validate=True, rebuild_pca=True):
+    def load(self, validate=True, rebuild_pca=False):
         """
         Load and reinitialize the trace data.
 
@@ -1145,9 +1150,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 defined by the header is used instead of the existing
                 :attr:`bitmask`.
             rebuild_pca (:obj:`bool`, optional):
-                If the primary header indicates that the PCA
-                decompostion had been performed on the save object,
-                use the saved parameters to rebuild that PCA.
+                Rebuild the PCA decomposition of the traces based on
+                the loaded trace data, but only if the PCA had been
+                originally produced for the saved object (as
+                indicated by the fits header). Otherwise, any
+                existing saved PCA data will be used to construct the
+                PCA object(s). If the header indicates that the PCA
+                was not originally performed, this is ignored.
         Raises:
             FileNotFoundError:
                 Raised if no data has been written for this master
@@ -1170,7 +1179,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         return os.path.isfile(self.master_file_path)
 
     @classmethod
-    def from_file(cls, filename, rebuild_pca=True):
+    def from_file(cls, filename, rebuild_pca=False):
         """
         Instantiate using data from a file.
 
@@ -1181,9 +1190,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             filename (:obj:`str`):
                 Fits file produced by :func:`save`.
             rebuild_pca (:obj:`bool`, optional):
-                If the primary header indicates that the PCA
-                decompostion had been performed on the save object,
-                use the saved parameters to rebuild that PCA.
+                Rebuild the PCA decomposition of the traces based on
+                the loaded trace data, but only if the PCA had been
+                originally produced for the saved object (as
+                indicated by the fits header). Otherwise, any
+                existing saved PCA data will be used to construct the
+                PCA object(s). If the header indicates that the PCA
+                was not originally performed, this is ignored.
         """
 
         # TODO: Consolidate this with items_from_master_file in
@@ -1203,7 +1216,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             this._reinit(hdu, rebuild_pca=rebuild_pca)
         return this
 
-    def _reinit(self, hdu, validate=True, rebuild_pca=True):
+    def _reinit(self, hdu, validate=True, rebuild_pca=False):
         """
         Reinitialize the internals based on the provided fits HDU.
 
@@ -1221,9 +1234,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 defined by the header is used instead of the existing
                 :attr:`bitmask`.
             rebuild_pca (:obj:`bool`, optional):
-                If the primary header indicates that the PCA
-                decompostion had been performed on the save object,
-                use the saved parameters to rebuild that PCA.
+                Rebuild the PCA decomposition of the traces based on
+                the loaded trace data, but only if the PCA had been
+                originally produced for the saved object (as
+                indicated by the fits header). Otherwise, any
+                existing saved PCA data will be used to construct the
+                PCA object(s). If the header indicates that the PCA
+                was not originally performed, this is ignored.
         """
         # Read and assign data from the fits file
         self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
@@ -1258,9 +1275,19 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             else (np.round(self.spat_cen if self.spat_fit is None
                                     else self.spat_fit).astype(int))
 
-        # Rebuild the PCA if it existed previously and requested
+        # Read or rebuild the PCA if it existed previously
         self.pca_type = None if hdu[0].header['PCATYPE'] == 'None' else hdu[0].header['PCATYPE']
-        self._reset_pca(rebuild_pca and self.pca_type is not None and self.can_pca())
+        if self.pca_type is None:
+            self.pca = None
+        elif rebuild_pca:
+            if self.can_pca():
+                self._reset_pca(True)
+            else:
+                # TODO: Should this throw a warning instead?
+                msgs.error('Traces do not meet necessary criteria for the PCA decomposition.')
+        else:
+            self.pca = [ TracePCA.from_hdu(hdu[ext]) for ext in ['LPCA', 'RPCA']] \
+                            if self.par['left_right_pca'] else TracePCA.from_hdu(hdu['PCA'])
 
         self.log = io.parse_hdr_key_group(hdu[0].header, prefix='LOG')
 
