@@ -252,7 +252,8 @@ def gain_frame(amp_img, gain):
     Returns:
         `numpy.ndarray`: Image with the gain for each pixel.
     """
-    #msgs.warn("Should probably be measuring the gain across the amplifier boundary")
+    # TODO: Remove this or actually do it.
+    # msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Build the gain image
     gain_img = np.zeros_like(amp_img, dtype=float)
@@ -314,7 +315,7 @@ def rect_slice_with_mask(image, mask, mask_val=1):
     pix = np.where(mask == mask_val)
     slices = [slice(np.min(pix[0]), np.max(pix[0])+1),
               slice(np.min(pix[1]), np.max(pix[1])+1)]
-    sub_img = image[slices]
+    sub_img = image[tuple(slices)]
     #
     return sub_img, slices
 
@@ -381,7 +382,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
             raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
 
         # Subtract along the appropriate axis
-        no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
+        no_overscan[tuple(data_slice)] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
 
     return no_overscan
 
@@ -697,9 +698,7 @@ def init_process_steps(bias, proc_par):
     Could include dark subtraction someday
 
     Args:
-        #TODO JFH Other means nothing. These docs need to be more clear. Apparently this needs to be either None
-        # or a string indicating the bias mode so why not just state that?
-        bias (None or other):
+        bias (None or np.ndarray):
         proc_par (ProcessImagesPar):
 
     Returns:
@@ -725,7 +724,7 @@ def init_process_steps(bias, proc_par):
 
 
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
-                   exptime=None, skyframe=None, objframe=None, adderr=0.01):
+                   exptime=None, skyframe=None, objframe=None, adderr=0.01, rnoise=None):
     """
     Calculate the variance image including detector noise.
 
@@ -755,6 +754,9 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
         adderr: float, default = 0.01
             Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
             S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
+        rnoise (:obj:`numpy.ndarray`, optional):
+            Read noise image
+            If not provided, it will be generated
 
     objframe : ndarray, optional
       Model of object counts
@@ -765,7 +767,8 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
 
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
-    rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
+    if rnoise is None:
+        rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
 
     # No sky frame provided
     if skyframe is None:

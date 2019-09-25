@@ -11,7 +11,7 @@ import numpy as np
 from astropy.table import Table
 
 from pypeit import wavecalib
-from pypeit.metadata import PypeItMetaData
+from pypeit.core.wavecal import waveio
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.spectrographs import util
 
@@ -26,7 +26,7 @@ def test_user_redo():
     master_key = 'ShaneKastBlue_A'
     waveCalib = wavecalib.WaveCalib(None, None, spectrograph, par, master_dir=master_dir,
                                     master_key=master_key, reuse_masters=True)
-    assert os.path.isfile(waveCalib.file_path), 'Did not finde Cooked file.'
+    assert os.path.isfile(waveCalib.master_file_path), 'Did not find Cooked file.'
 
     wv_calib = waveCalib.load()
     # Setup
@@ -41,7 +41,8 @@ def test_user_redo():
     # Test
     assert new_wv_calib['0']['rms'] < 0.2
     # Now also test the utility script that reads in the wavecalib
-    wv_calib_load = wavecalib.WaveCalib.load_from_file(waveCalib.file_path)
+    #wv_calib_load = wavecalib.WaveCalib.load_from_file(waveCalib.master_file_path)
+    wv_calib_load = waveio.load_wavelength_calibration(waveCalib.master_file_path)
     assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
 
 

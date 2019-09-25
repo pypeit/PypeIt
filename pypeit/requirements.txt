@@ -4,6 +4,7 @@
 # added here, or add them as submodule dependencies in extern/ directory
 #
 # Users
+packaging>=19.0
 numpy>=1.15.4
 scipy>=1.1
 matplotlib>=3.0

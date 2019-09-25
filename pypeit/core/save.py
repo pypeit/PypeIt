@@ -556,3 +556,31 @@ def save_sens_dict(sens_dict, outfile, overwrite=True):
     msgs.info("Sucessfuly save sensitivity function to file {:s}".format(outfile))
 
 
+def write_fits(hdr, data, outfile, extnames=None, checksum=True):
+    """
+    Convenience method to write a set of data to a multi-extension FITS file
+
+    Args:
+        hdr (`astropy.io.fits.Header`):
+            Header to be written to the primary image
+        data (np.ndarray or list):
+            One or more images to be written
+        outfile (str):
+        extnames (list, optional):
+            Extension names to be used for each data item
+        checksum (bool, optional):
+            Add CHECKSUM to the header
+
+    Returns:
+
+    """
+    # Format the output
+    ext = extnames if isinstance(extnames, list) else [extnames]
+    if len(ext) > 1 and not isinstance(data, list):
+        msgs.error('Input data type should be list, one numpy.ndarray per extension.')
+    _data = data if isinstance(data, list) else [data]
+
+    # Write the fits file
+    fits.HDUList([fits.PrimaryHDU(header=hdr)]
+                 + [fits.ImageHDU(data=d, name=n) for d, n in zip(_data, ext)]
+                 ).writeto(outfile, overwrite=True, checksum=checksum)

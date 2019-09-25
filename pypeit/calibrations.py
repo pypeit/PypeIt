@@ -10,29 +10,27 @@ import numpy as np
 from abc import ABCMeta
 
 from astropy.io import fits
-from astropy.table import Table
 from IPython import embed
 
 from pypeit import msgs
-from pypeit import masterframe
 from pypeit import arcimage
 from pypeit import tiltimage
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
-from pypeit import traceslits
+#from pypeit import traceslits
+from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
 
 from pypeit.metadata import PypeItMetaData
 
-from pypeit.core import procimg
 from pypeit.core import parse
-from pypeit.core import trace_slits
 
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
+
 
 class Calibrations(object):
     """
@@ -574,12 +572,14 @@ class Calibrations(object):
                 # TODO: These should be saved separately
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
-                    # Add tweaked boundaries to the MasterTrace file
-                    self.traceSlits.tslits_dict = self.flatField.tslits_dict
-                    try:
-                        self.traceSlits.save(traceImage=self.traceImage)
-                    except:
-                        self.traceSlits.save(traceImage=self.mstrace)
+#                    # Add tweaked boundaries to the MasterTrace file
+#                    self.traceSlits.tslits_dict = self.flatField.tslits_dict
+#                    try:
+#                        self.traceSlits.save(traceImage=self.traceImage)
+#                    except:
+#                        self.traceSlits.save(traceImage=self.mstrace)
+                    self.edges.update_using_tslits_dict(self.flatField.tslits_dict)
+                    self.edges.save()
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.tilts_dict = self.flatField.tilts_dict
@@ -641,14 +641,27 @@ class Calibrations(object):
             return self.tslits_dict
 
         # Instantiate
-        self.traceSlits = traceslits.TraceSlits(self.spectrograph, self.par['slits'], det=self.det,
-                                                master_key=self.master_key_dict['trace'],
-                                                master_dir=self.master_dir, qa_path=self.qa_path,
-                                                reuse_masters=self.reuse_masters, msbpm=self.msbpm)
+        # TODO: Leave this for now for testing
+#        self.traceSlits = traceslits.TraceSlits(self.spectrograph, self.par['slits'], det=self.det,
+#                                                master_key=self.master_key_dict['trace'],
+#                                                master_dir=self.master_dir, qa_path=self.qa_path,
+#                                                reuse_masters=self.reuse_masters, msbpm=self.msbpm)
+#        self.par['slitedges'].to_config('in_calibrations.ini', section_name='slitedges',
+#                                        include_descr=False)
+        self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
+                                            master_key=self.master_key_dict['trace'],
+                                            master_dir=self.master_dir,
+                                            qa_path=self.qa_path if write_qa else None)
 
-        # Load the MasterFrame (if it exists and is desired)?
-        self.tslits_dict, _ = self.traceSlits.load()
-        if self.tslits_dict is None:
+        if self.reuse_masters and self.edges.exists():
+            self.edges.load()
+            self.tslits_dict = self.edges.convert_to_tslits_dict()
+        else:
+
+#        # Load the MasterFrame (if it exists and is desired)?
+#        self.tslits_dict, _ = self.traceSlits.load()
+#        if self.tslits_dict is None:
+
             # Build the trace image
             self.traceImage = traceimage.TraceImage(self.spectrograph,
                                                     files=self.trace_image_files, det=self.det,
@@ -657,42 +670,22 @@ class Calibrations(object):
 
             self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
-            # Compute the plate scale in arcsec which is needed to trim short slits
-            binspectral, binspatial = parse.parse_binning(self.binning)
-            plate_scale = binspatial*self.spectrograph.detector[self.det-1]['platescale']
-
-            # JFH Why is this stuff on user defined slits here and not
-            # in the class?  User-defined slits??
-            # TODO: this should be done inside TraceSlits so that the
-            # call to run() or whatever has the same format as what the
-            # user sees in TraceSlitsPar
-            add_user_slits = None if self.par['slits']['add_slits'] is None \
-                                else trace_slits.parse_user_slits(self.par['slits']['add_slits'],
-                                                                  self.det)
-            rm_user_slits = None if self.par['slits']['rm_slits'] is None \
-                                else trace_slits.parse_user_slits(self.par['slits']['rm_slits'],
-                                                                  self.det, rm=True)
-            # Now we go forth
             try:
-                self.tslits_dict = self.traceSlits.run(self.traceImage.image,
-                                                       self.binning,
-                                                       add_user_slits=add_user_slits,
-                                                       rm_user_slits=rm_user_slits,
-                                                       plate_scale=plate_scale,
-                                                       show=self.show,
-                                                       write_qa=write_qa)
+                self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
+                                      save=self.save_masters) #, debug=True, show_stages=True)
             except:
-                self.traceSlits.save(traceImage=self.traceImage)
+                self.edges.save()
                 msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
                            'but it needs fixing.')
+                return None
 
-            # No slits?
-            if self.tslits_dict is None:
-                return self.tslits_dict
+            # Show the result if requested
+            if self.show:
+                self.edges.show(thin=10, in_ginga=True)
 
-            # Save to disk
-            if self.save_masters:
-                self.traceSlits.save(traceImage=self.traceImage)
+            # TODO: Stop-gap until we can get rid of tslits_dict
+            self.tslits_dict = self.edges.convert_to_tslits_dict()
+
         # Save, initialize maskslits, and return
         # TODO: We're not caching self.mstrace.  And actually there is
         # no mstrace in Calibrations anymore; only in TraceSlits?

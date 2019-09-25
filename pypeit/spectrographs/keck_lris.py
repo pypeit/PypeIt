@@ -34,6 +34,15 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 30.
+        par['calibrations']['slitedges']['edge_thresh'] = 15.
+        par['calibrations']['slitedges']['fit_order'] = 3
+        par['calibrations']['slitedges']['sync_center'] = 'gap'
+        # TODO: I had to increase this from 1. to 2. to deal with
+        # Keck_LRIS_red/multi_1200_9000_d680_1x2/ . May need a
+        # different solution given that this is binned data and most of
+        # the data in the dev suite is unbinned.
+        # JXP -- Increased to 6 arcsec.  I don't know how 2 (or 1!) could have worked.
+        par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Always sky subtract, starting with default parameters
@@ -52,6 +61,38 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [29, None]
         return par
+
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+
+        # Ignore PCA if longslit
+        #  This is a little risk as a user could put long into their maskname
+        #  But they would then need to over-ride in their PypeIt file
+        if 'long' in self.get_meta_value(scifile, 'decker'):
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        return par
+
 
     def init_meta(self):
         """
@@ -364,6 +405,10 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         """
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_blue'
+
+        par['calibrations']['slitedges']['det_min_spec_length'] = 0.1
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
+
         # 1D wavelength solution -- Additional parameters are grism dependent
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -397,8 +442,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument wide
+        par = super(KeckLRISBSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
@@ -428,6 +473,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['slits']['mask_frac_thresh'] = 0.45
             par['calibrations']['slits']['smash_range'] = [0.5, 1.]
+#            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.45
+            par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
 
         # Return
         return par
@@ -524,6 +571,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['rdx']['spectrograph'] = 'keck_lris_red'
         #
         par['calibrations']['slits']['sigdetect'] = 50.
+        par['calibrations']['slitedges']['edge_thresh'] = 20.
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
@@ -571,8 +619,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+        # Start with instrument wide
+        par = super(KeckLRISRSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
 
         # Lacosmic CR settings
         #   Grab the defaults for LRISr
@@ -605,35 +653,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return par
 
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LRISr exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'LRIS',
-                               '1.NAXIS': 2,
-                               '2.NAXIS': 2,
-                               '3.NAXIS': 2,
-                               '4.NAXIS': 2,
-                             '1.CCDGEOM': 'LBNL Thick High-Resistivity',
-                             '1.CCDNAME': '19-3',
-                             '3.CCDNAME': '19-2' }
-        super(KeckLRISRSpectrograph, self).check_headers(headers, expected_values=expected_values)
-    '''
-
-    '''
-    def header_keys(self):
-        hdr_keys = super(KeckLRISRSpectrograph, self).header_keys()
-        hdr_keys[0]['filter1'] = 'REDFILT'
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """
@@ -689,7 +708,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             # Apply the mask
             xbin = int(binning.split(',')[0])
             badc = 16//xbin
-            bpm_img[:, 0:badc] = 1
+            bpm_img[:,:badc] = 1
+
+            # Mask the end too (this is risky as an edge may appear)
+            #  But there is often weird behavior at the ends of these detectors
+            bpm_img[:,-10:] = 1
 
         return bpm_img
 
@@ -714,7 +737,7 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
                             ysize           =1.,
                             platescale      =0.135,
                             darkcurr        =0.0,
-                            saturation      =65535.*1.255,  # Gain applied
+                            saturation      =65535.,  # Gain applied
                             nonlinear       =0.86,          # Modified by JXP to go higher
                             numamplifiers   =1,
                             gain            =[1.255],
@@ -733,7 +756,7 @@ class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
                             ysize           =1.,
                             platescale      =0.135,
                             darkcurr        =0.,
-                            saturation      =65535.*1.162,  # Gain applied
+                            saturation      =65535.,  # Gain applied
                             nonlinear       =0.86,
                             numamplifiers   =1,
                             gain            =[1.162],

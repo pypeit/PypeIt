@@ -22,12 +22,12 @@ def data_path(filename):
 def test_build_me():
     # Masters
     spectrograph = load_spectrograph('shane_kast_blue')
-    tslits_dict, mstrace, tilts_dict, wv_calib \
-            = load_kast_blue_masters(tslits=True, tilts=True, wvcalib=True)
+    edges, tilts_dict, wv_calib = load_kast_blue_masters(edges=True, tilts=True, wvcalib=True)
+    tslits_dict = edges.convert_to_tslits_dict()
     # Instantiate
     master_key = 'A_01_aa'
     master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
-    nslits = tslits_dict['slit_left'].shape[1]
+    nslits = tslits_dict['nslits']
     maskslits = np.zeros(nslits, dtype=bool)
     det = 1
     wvImg = waveimage.WaveImage(tslits_dict, tilts_dict['tilts'], wv_calib,

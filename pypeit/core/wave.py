@@ -496,7 +496,7 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     gdslits = np.where(~maskslits)[0]
     # Loop on slits to apply
     for slit in gdslits:
-        indx = (specObjs.slitid-1) == slit
+        indx = specObjs.slitid == slit
         this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:

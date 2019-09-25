@@ -11,7 +11,7 @@ import matplotlib
 import numpy as np
 
 from scipy.optimize import curve_fit
-from scipy import interpolate
+from scipy import interpolate, ndimage
 
 from astropy import units
 from astropy import stats
@@ -48,6 +48,174 @@ def nan_mad_std(data, axis=None, func=None):
         `~numpy.ndarray` will be returned.
     """
     return stats.mad_std(data, axis=axis, func=func, ignore_nan=True)
+
+
+def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
+    """
+    Calculate bounding limits for an array based on its growth.
+
+    Args:
+        a (array-like):
+            Array for which to determine limits.
+        lim (:obj:`float`):
+            Percentage of the array values to cover. Set to 1 if
+            provided value is greater than 1.
+        fac (:obj:`float`, optional):
+            Factor to increase the range based on the growth limits.
+            Default is no increase.
+        midpoint (:obj:`float`, optional):
+            Force the midpoint of the range to be centered on this
+            value. Default is the sample median.
+        default (:obj:`list`, optional):
+            Default limits to return if `a` has no data.
+
+    Returns:
+        :obj:`list`: Lower and upper boundaries for the data in `a`.
+    """
+    # Get the values to plot
+    _a = a.compressed() if isinstance(a, np.ma.MaskedArray) else np.asarray(a).ravel()
+    if len(_a) == 0:
+        # No data so return the default range
+        return default
+
+    # Set the starting and ending values based on a fraction of the
+    # growth
+    _lim = 1.0 if lim > 1.0 else lim
+    start, end = (len(_a)*(1.0+_lim*np.array([-1,1]))/2).astype(int)
+    if end == len(_a):
+        end -= 1
+
+    # Set the full range and multiply it by the provided factor
+    srt = np.ma.argsort(_a)
+    Da = (_a[srt[end]] - _a[srt[start]])*fac
+
+    # Set the midpoint
+    mid = _a[srt[len(_a)//2]] if midpoint is None else midpoint
+
+    # Return the range centered on the midpoint
+    return [ mid - Da/2, mid + Da/2 ]
+
+
+def nearest_unmasked(arr, use_indices=False):
+    """
+    Return the indices of the nearest unmasked element in a vector.
+
+    .. warning::
+        The function *uses the values of the masked data* for masked
+        elements. This means that if you want to know the nearest
+        unmasked element to one of the *masked* elements, the `data`
+        attribute of the provided array should have meaningful values
+        for these masked elements.
+
+    Args:
+        arr (`numpy.ma.MaskedArray`_):
+            Array to analyze. Must be 1D.
+        use_indices (:obj:`bool`, optional):
+            The proximity of each element in the array is based on
+            the difference in the array `data` values. Setting
+            `use_indices` to `True` instead bases the calculation on
+            the proximity of the element indices; i.e., find the
+            index of the nearest unmasked element.
+
+    Returns:
+        `numpy.ndarray`_: Integer array with the indices of the
+        nearest array elements, the definition of which depends on
+        `use_indices`.
+    """
+    # Check the input
+    if not isinstance(arr, np.ma.MaskedArray):
+        raise TypeError('Must provide a numpy masked array.')
+    if arr.ndim != 1:
+        raise ValueError('Must be a 1D array.')
+    if use_indices:
+        return nearest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
+
+    # Get the difference of each element with every other element
+    nearest = np.absolute(arr[None,:]-arr.data[:,None])
+    # Ignore the diagonal
+    nearest[np.diag_indices(arr.size)] = np.ma.masked
+    # Return the location of the minimum value ignoring the masked values
+    return np.ma.argmin(nearest, axis=1)
+
+
+def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
+    """
+    Boxcar smooth an image along their first axis (rows).
+
+    Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
+    smooth the image. Cannot accommodate masking.
+
+    .. note::
+        For images following the PypeIt convention, this smooths the
+        data spectrally for each spatial position.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image to convolve.
+        nave (:obj:`int`):
+            Number of pixels along rows for smoothing.
+        wgt (`numpy.ndarray`_, optional):
+            Image providing weights for each pixel in `img`.  Uniform
+            weights are used if none are provided.
+        mode (:obj:`str`, optional):
+            See `scipy.ndimage.convolve`_.
+
+    Returns:
+        `numpy.ndarray`_: The smoothed image
+    """
+    if wgt is not None and img.shape != wgt.shape:
+        raise ValueError('Input image to smooth and weights must have the same shape.')
+    if nave > img.shape[0]:
+        msgs.warn('Smoothing box is larger than the image size!')
+
+    # Construct the kernel for mean calculation
+    _nave = np.fmin(nave, img.shape[0])
+    kernel = np.ones((_nave, 1))/float(_nave)
+
+    if wgt is None:
+        # No weights so just smooth
+        return ndimage.convolve(img, kernel, mode='nearest')
+
+    # Weighted smoothing
+    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
+    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
+    smoothed_img = np.ma.divide(cimg, wimg)
+    smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
+    return smoothed_img.data
+
+
+def index_of_x_eq_y(x, y, strict=False):
+    """
+    Return an index array that maps the elements of `x` to those of
+    `y`.
+
+    This should return the index of the *first* element in array `x`
+    equal to the associated value in array `y`. Inspired by:
+    https://tinyurl.com/yyrx8acf
+
+    Args:
+        x (`numpy.array`_):
+            1D parent array
+        y (`numpy.array`_):
+            1D reference array
+        strict (:obj:`bool`, optional):
+            Raise an exception unless every element of y is found in
+            x. I.e., it must be true that::
+
+                np.array_equal(x[index_of_x_eq_y(x,y)], y)
+
+    Returns:
+        `numpy.ndarray`_: An array with index of `x` that is equal to
+        the given value of `y`.  Output shape is the same as `y`.
+    """
+    if y.ndim != 1 or y.ndim != 1:
+        raise ValueError('Arrays must be 1D.')
+    srt = np.argsort(x)
+    indx = np.searchsorted(x[srt], y)
+    x2y = np.take(srt, indx, mode='clip')
+    if strict and not np.array_equal(x[x2y], y):
+        raise ValueError('Not every element of y was found in x.')
+    return x2y
 
 
 def rebin(a, newshape):

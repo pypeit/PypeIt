@@ -76,6 +76,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['tracethresh'] = 10.
         # Slits
         par['calibrations']['slits']['sigdetect'] = 200.
+        par['calibrations']['slitedges']['edge_thresh'] = 200.
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1

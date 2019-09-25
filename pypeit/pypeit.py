@@ -542,22 +542,22 @@ class PypeIt(object):
         self.std_redux = 'standard' in self.objtype
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
-        # Instantiate ScienceImage for the files we will reduce
-        sci_files = self.fitstbl.frame_paths(frames)
 
         # Science image
-        self.sciImg = scienceimage.ScienceImage.from_file_list(
+        sci_files = self.fitstbl.frame_paths(frames)
+        #self.sciImg = scienceimage.ScienceImage.from_file_list(
+        self.sciImg = scienceimage.build_from_file_list(
             self.spectrograph, det, self.par['scienceframe']['process'],
             self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
-            self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
+            self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
 
         # Background subtract?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg - scienceimage.ScienceImage.from_file_list(
+            self.sciImg = self.sciImg - scienceimage.build_from_file_list(
                 self.spectrograph, det, self.par['scienceframe']['process'],
                 self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
-                self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
+                self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
 
         # Update mask for slitmask
         slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)

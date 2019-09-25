@@ -18,6 +18,8 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
+from pypeit.utils import index_of_x_eq_y
+
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 from IPython import embed
@@ -194,9 +196,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.optical_model = None
         self.detector_map = None
 
+    # TODO: I think all of the default_pypeit_par methods should be
+    # static.  nonlinear_counts shouldn't need to be a parameter because
+    # it's held by the spectrograph class, right?
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for Keck DEIMOS reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
@@ -204,6 +209,14 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Set wave tilts order
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['trace_npoly'] = 3
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 3
+        # Slightly larger than 2 pixels to catch cold columns
+        par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
+        # Slightly larger than that to catch hot columns
+#        par['calibrations']['slitedges']['minimum_slit_length'] = 0.5
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
+        par['calibrations']['slitedges']['sync_clip'] = False
 
         # Overscan subtract the images
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
@@ -254,9 +267,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
 
         headarr = self.get_headarr(scifile)
+
+        # Turn PCA off for long slits
+        # TODO: I'm a bit worried that this won't catch all
+        # long-slits...
+        if ('Long' in self.get_meta_value(headarr, 'decker')) or (
+                'LVMslit' in self.get_meta_value(headarr, 'decker')):
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -617,16 +636,52 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return bpm_img
 
     def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a DEIMOS file into a
+        :class:`pypeit.spectrographs.slitmask.SlitMask` object.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+        """
+        # Open the file
         hdu = fits.open(filename)
-        corners = np.array([hdu['BluSlits'].data['slitX1'],
-                            hdu['BluSlits'].data['slitY1'],
-                            hdu['BluSlits'].data['slitX2'],
-                            hdu['BluSlits'].data['slitY2'],
-                            hdu['BluSlits'].data['slitX3'],
-                            hdu['BluSlits'].data['slitY3'],
-                            hdu['BluSlits'].data['slitX4'],
-                            hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2)
-        self.slitmask = SlitMask(corners, slitid=hdu['BluSlits'].data['dSlitId'])
+
+        # Build the object data
+        #   - Find the index of the object IDs in the slit-object
+        #     mapping that match the object catalog
+        mapid = hdu['SlitObjMap'].data['ObjectID']
+        catid = hdu['ObjectCat'].data['ObjectID']
+        indx = index_of_x_eq_y(mapid, catid)
+        #   - Pull out the slit ID, object ID, and object coordinates
+        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(float),
+                            catid.astype(float), hdu['ObjectCat'].data['RA_OBJ'],
+                            hdu['ObjectCat'].data['DEC_OBJ']]).T
+        #   - Only keep the objects that are in the slit-object mapping
+        objects = objects[mapid[indx] == catid]
+
+        # Match the slit IDs in DesiSlits to those in BluSlits
+        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
+                               strict=True)
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
+                                           hdu['BluSlits'].data['slitY1'],
+                                           hdu['BluSlits'].data['slitX2'],
+                                           hdu['BluSlits'].data['slitY2'],
+                                           hdu['BluSlits'].data['slitX3'],
+                                           hdu['BluSlits'].data['slitY3'],
+                                           hdu['BluSlits'].data['slitX4'],
+                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
+                                 slitid=hdu['BluSlits'].data['dSlitId'],
+                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
+                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
+                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
+                                                 hdu['DesiSlits'].data['slitDec'][indx],
+                                                 hdu['DesiSlits'].data['slitLen'][indx],
+                                                 hdu['DesiSlits'].data['slitWid'][indx],
+                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
+                                 objects=objects)
         return self.slitmask
 
     def get_grating(self, filename):

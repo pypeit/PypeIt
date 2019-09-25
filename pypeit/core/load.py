@@ -564,3 +564,35 @@ def waveids(fname):
         pass
     return pixels
 
+
+def load_multiext_fits(filename, ext):
+    """
+    Load data and primary header from a multi-extension FITS file
+
+    Args:
+        filename (:obj:`str`):
+            Name of the file.
+        ext (:obj:`str`, :obj:`int`, :obj:`list`):
+            One or more file extensions with data to return.  The
+            extension can be designated by its 0-indexed integer
+            number or its name.
+
+    Returns:
+        tuple: Returns the image data from each provided extension.
+        If return_header is true, the primary header is also
+        returned.
+    """
+    # Format the input and set the tuple for an empty return
+    _ext = ext if isinstance(ext, list) else [ext]
+    n_ext = len(_ext)
+    # Open the file
+    hdu = fits.open(filename)
+    head0 = hdu[0].header
+    # Only one extension
+    if n_ext == 1:
+        data = hdu[_ext[0]].data.astype(np.float)
+        return data, head0
+    # Multiple extensions
+    data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext])
+    # Return
+    return data+(head0,)

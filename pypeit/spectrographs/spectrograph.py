@@ -48,29 +48,36 @@ from IPython import embed
 
 class Spectrograph(object):
     """
-    Abstract class whose derived classes dictate instrument-specific
-    behavior in PypeIt.
+    Abstract base class whose derived classes dictate
+    instrument-specific behavior in PypeIt.
 
     Attributes:
-        spectrograph (str):
-            The name of the spectrograph.  See
-            :func:`pypeit.spectrographs.util.valid_spectrographs` for the
-            currently supported spectrographs.
+        spectrograph (:obj:`str`):
+            The name of the spectrograph. See
+            :func:`pypeit.spectrographs.util.valid_spectrographs` for
+            the currently supported spectrographs.
         telescope (:class:`TelescopePar`):
             Parameters of the telescope that feeds this spectrograph.
-        detector (list):
+        detector (:obj:`list`):
             A list of instances of
-            :class:`pypeit.par.pypeitpar.DetectorPar` with the parameters
-            for each detector in the spectrograph
-        naxis (tuple):
+            :class:`pypeit.par.pypeitpar.DetectorPar` with the
+            parameters for each detector in the spectrograph
+        naxis (:obj:`tuple`):
             A tuple with the lengths of the two axes for current
             detector image; often trimmmed.
         raw_naxis (tuple):
-            A tuple with the lengths of the two axes for untrimmed detector image.
+            A tuple with the lengths of the two axes for untrimmed
+            detector image.
         rawdatasec_img (:obj:`numpy.ndarray`):
-            An image identifying the amplifier that reads each detector pixel.
+            An image identifying the amplifier that reads each detector
+            pixel.
         oscansec_img (:obj:`numpy.ndarray`):
-            An image identifying the amplifier that reads each detector pixel
+            An image identifying the amplifier that reads each detector
+            pixel
+        slitmask (:class:`pypeit.spectrographs.slitmask.SlitMask`):
+            Provides slit and object coordinate data for an
+            observation. Not necessarily populated for all
+            spectrograph instantiations.
     """
     __metaclass__ = ABCMeta
 
@@ -82,6 +89,7 @@ class Spectrograph(object):
 #        self.raw_naxis = None
         self.rawdatasec_img = None
         self.oscansec_img = None
+        self.slitmask = None
 
         # Default time unit
         self.timeunit = 'mjd'
@@ -105,10 +113,12 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def nonlinear_counts(self, det, datasec_img=None):
+    def nonlinear_counts(self, det, datasec_img=None, apply_gain=True):
         """
         Return the counts at which the detector response becomes
         non-linear.
+
+        Default is to apply the gain, i.e. return this is counts not ADU
 
         Args:
             det (:obj:`int`):
@@ -117,18 +127,28 @@ class Spectrograph(object):
                 If provided, nonlinear_counts is returned as an image
                 WARNING:  THIS IS NOT YET IMPLEMENTED DOWNSTREAM,
                   i.e. don't use this option
+            apply_gain (bool, optional):
+                Apply gain in the calculation, i.e. convert to counts
+                If only a float is returned, (i.e. no datasec_img is provided)
+                then the mean of the gains for all amplifiers is adopted
 
         Returns:
             float or np.ndarray:
                 Counts at which detector response becomes nonlinear.
                 If datasec_img is provided, an image with the same shape
-                is returned with the gain accounted for
+                is returned
         """
+        # Deal with gain
+        gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+        if not apply_gain:  # Set to 1 if gain is not to be applied
+            gain = [1. for item in gain]
+        # Calculation without gain
         nonlinear_counts = self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
-        # Generate an image, applying the gain?
-        if datasec_img is not None:
-            gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+        # Finish
+        if datasec_img is not None:  # 2D image
             nonlinear_counts = nonlinear_counts * procimg.gain_frame(datasec_img, gain)
+        else:  # float
+            nonlinear_counts = nonlinear_counts * np.mean(gain)
         # Return
         return nonlinear_counts
 
@@ -146,7 +166,7 @@ class Spectrograph(object):
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         return self.default_pypeit_par() if inp_par is None else inp_par
@@ -315,6 +335,12 @@ class Spectrograph(object):
         """
         return self.empty_bpm(filename, det, shape=shape)
 
+    def get_slitmask(self, filename):
+        """
+        Empty for base class.  See derived classes.
+        """
+        return None
+
     def configuration_keys(self):
         """
         Return the metadata keys that defines a unique instrument
@@ -395,6 +421,7 @@ class Spectrograph(object):
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
+                binning_raw (tuple)
 
         """
         # Raw image
@@ -657,23 +684,6 @@ class Spectrograph(object):
 
         return self.detector[det-1]['platescale']/tel_platescale
 
-    def slit_minmax(self, nslits, binspectral=1):
-        """
-        Generic routine to determine the minimum and maximum spectral pixel for slitmasks. This functionality
-        is most useful for echelle observations where the orders cutoff. This generic routine will be used for most
-        slit spectrographs and simply sets the minimum and maximum spectral pixel for the slit to be -+ infinity.
-
-        Args:
-            binspectral:
-
-        Returns:
-
-        """
-        spec_min = np.full(nslits, -np.inf)
-        spec_max = np.full(nslits, np.inf)
-        return spec_min, spec_max
-
-
     def order_platescale(self, order_vec, binning=None):
         """
         This routine is only for echelle spectrographs. It returns the plate scale order by order
@@ -761,6 +771,7 @@ class Spectrograph(object):
             return self.orders[iorder], indx[iorder]
 
 
+    # TODO : This code needs serious work.  e.g. eliminate the try/except
     def slit_minmax(self, slit_spat_pos, binspectral=1):
         """
 
@@ -773,7 +784,6 @@ class Spectrograph(object):
         Returns:
 
         """
-
         if self.spec_min_max is None:
             try:
                 nslit = len(slit_spat_pos)
