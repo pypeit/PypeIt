@@ -4,13 +4,16 @@ traces using principle-component analysis.
 
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
+import warnings
+from IPython import embed
 
 import numpy as np
 
-from IPython import embed
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit.io import init_record_array, rec_to_bintable
 from pypeit.core import trace
 from pypeit.core import pca
 
@@ -27,10 +30,10 @@ class TracePCA:
     :func:`pypeit.core.pca.pca_predict`.
 
     Args:
-        trace_cen (`numpy.ndarray`_):
+        trace_cen (`numpy.ndarray`_, optional):
             A floating-point array with the spatial location of each
             each trace. Shape is :math:`(N_{\rm spec}, N_{\rm
-            trace})`.
+            trace})`.  If None, the object is "empty."
         npca (:obj:`bool`, optional):
             The number of PCA components to keep. See
             :func:`pypeit.core.pca.pca_decomposition`.
@@ -54,12 +57,65 @@ class TracePCA:
     """
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
-    def __init__(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None, coo=None):
+    def __init__(self, trace_cen=None, npca=None, pca_explained_var=99.0, reference_row=None,
+                 coo=None):
+
+        # TODO: This is only here to allow for a class method that
+        # instantiates the object from a file. Is there a better way to
+        # do this?
+        if trace_cen is None:
+            self._reinit()
+        else:
+            self.decompose(trace_cen, npca=npca, pca_explained_var=pca_explained_var,
+                           reference_row=reference_row, coo=coo)
+
+    def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
+                  coo=None):
+        r"""
+        Construct the PCA from scratch.
+    
+        Args:
+            trace_cen (`numpy.ndarray`_):
+                A floating-point array with the spatial location of
+                each each trace. Shape is :math:`(N_{\rm spec},
+                N_{\rm trace})`.  Cannot be None.
+            npca (:obj:`bool`, optional):
+                The number of PCA components to keep. See
+                :func:`pypeit.core.pca.pca_decomposition`.
+            pca_explained_var (:obj:`float`, optional):
+                The percentage (i.e., not the fraction) of the
+                variance in the data accounted for by the PCA used to
+                truncate the number of PCA coefficients to keep (see
+                `npca`). Ignored if `npca` is provided directly. See
+                :func:`pypeit.core.pca.pca_decomposition`.
+            reference_row (:obj:`int`, optional):
+                The row (spectral position) in `trace_cen` to use as
+                the reference coordinate system for the PCA. If None,
+                set to the :math:`N_{\rm spec}/2`.
+            coo (`numpy.ndarray`_, optional):
+                Floating-point array with the reference coordinates
+                for each trace. If provided, the shape must be
+                :math:`(N_{\rm trace},)`. If None, the reference
+                coordinate system is defined by the value of
+                `trace_cen` at the spectral position defined by
+                `reference_row`. See the `mean` argument of
+                :func:`pypeit.core.pca.pca_decomposition`.
+        """
+        if trace_cen is None:
+            raise ValueError('Must provide traces to construct the PCA.')
+        self._reinit()
+        self.is_empty = False
 
         # Set the reference row to use for the coordinates of the trace
         self.reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
+        self.ntrace = trace_cen.shape[1]
+
+        print(trace_cen.shape)
+        print(self.ntrace)
+
         self.trace_coo = trace_cen[self.reference_row,:] if coo is None else np.atleast_1d(coo)
-        if self.trace_coo.size != trace_cen.shape[1]:
+        print(self.trace_coo.shape)
+        if self.trace_coo.size != self.ntrace:
             raise ValueError('Provided reference coordinates have incorrect shape.')
 
         # Save the input
@@ -67,14 +123,28 @@ class TracePCA:
         self.input_pcav = pca_explained_var
 
         # Perform the PCA decomposition of the traces
-        self.pca_coeffs, self.pca_components, self.pca_mean, self.trace_mean \
+        self.pca_coeffs, self.pca_components, self.pca_mean, _ \
                 = pca.pca_decomposition(trace_cen.T, npca=npca,
                                         pca_explained_var=pca_explained_var, mean=self.trace_coo)
         self.npca = self.pca_coeffs.shape[1]
         self.nspec = self.pca_components.shape[1]
 
-        # Instantiate the remaining attributes
-        self.pca_mask = np.zeros(self.pca_coeffs.shape, dtype=bool)
+    def _reinit(self):
+        """
+        Erase and/or define all the attributes of the class.
+        """
+        self._is_empty = True
+        self.reference_row = None
+        self.ntrace = None
+        self.trace_coo = None
+        self.input_npca = None
+        self.input_pcav = None
+        self.pca_coeffs = None
+        self.pca_components = None
+        self.pca_mean = None
+        self.npca = None
+        self.nspec = None
+        self.pca_bpm = None
         self.function = None
         self.fit_coeff = None
         self.minx = None
@@ -90,6 +160,8 @@ class TracePCA:
         Wrapper for :func:`fit_pca_coefficients` that uses class
         attributes and saves the input parameters.
         """
+        if self.is_empty:
+            raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
         # Save the input
         # TODO: Keep the ivar and weights?
         self.function = function
@@ -97,7 +169,7 @@ class TracePCA:
         self.upper = upper
         self.maxrej = maxrej
         self.maxiter = maxiter
-        self.pca_mask, self.fit_coeff, self.minx, self.maxx \
+        self.pca_bpm, self.fit_coeff, self.minx, self.maxx \
                 = pca.fit_pca_coefficients(self.pca_coeffs, order, ivar=ivar, weights=weights,
                                            function=self.function, lower=lower, upper=upper,
                                            minx=minx, maxx=maxx, maxrej=maxrej, maxiter=maxiter,
@@ -127,10 +199,121 @@ class TracePCA:
             pix},)`; otherwise it is :math:`(N_{\rm pix}, N_{\rm
             x})`.
         """
+        if self.is_empty:
+            raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
         if self.fit_coeff is None:
             msgs.error('PCA coefficients have not been modeled; run model_coeffs first.')
         return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
                                function=self.function).T
+
+    def _output_dtype(self):
+        """
+        Return the data type for a record array that holds the class
+        contents.
+        """
+        if self.is_empty:
+            raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
+        base = [('COO', float, (self.ntrace,)),
+                ('MEAN', float, (self.nspec,)),
+                ('COEFF', float, (self.ntrace, self.npca)),
+                ('COMP', float, (self.npca, self.nspec))]
+        if self.fit_coeff is None:
+            return base
+
+        base += [('BPM', bool, (self.ntrace, self.npca))]
+        for i in range(self.npca):
+            base += [('FITC{0}'.format(i+1), float, (self.fit_coeff[i].size,))]
+        return base
+
+    def to_hdu(self, hdr=None):
+        """
+        Write the object to a `astropy.io.fits.BinTableHDU`.
+
+        Args:
+            hdr (`astropy.io.fits.Header`, optional):
+                Header to which to add PCA information. If None, an
+                empty header is used.
+
+        Returns:
+            `astropy.io.fits.BinTableHDU`_: Fits file component with
+            the PCA data.
+        """
+        if self.is_empty:
+            raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
+        if hdr is None:
+            hdr = fits.Header()
+
+        # Write scalars and strings to header
+        hdr['PCAREFR'] = (self.reference_row, 'PCA reference row')
+        hdr['PCAINPCA'] = ('None' if self.input_npca is None else self.input_npca,
+                                'Input number of PCA components specified')
+        hdr['PCAIPCAV'] = ('None' if self.input_pcav is None else self.input_pcav,
+                                'Input explained variance of PCA specified')
+        hdr['PCAFUNC'] = ('None' if self.function is None else self.function,
+                                'Function used to fit the PCA coefficients')
+        hdr['PCAMINX'] = ('None' if self.minx is None else self.minx,
+                                'Minimum value for coordinate rescaling in coefficient fit')
+        hdr['PCAMAXX'] = ('None' if self.maxx is None else self.maxx,
+                                'Maximum value for coordinate rescaling in coefficient fit')
+        hdr['PCALOWR'] = ('None' if self.lower is None else self.lower,
+                                'Lower sigma rejection in coefficient fit')
+        hdr['PCAUPPR'] = ('None' if self.upper is None else self.upper,
+                                'Upper sigma rejection in coefficient fit')
+        hdr['PCAMAXR'] = ('None' if self.maxrej is None else self.maxrej,
+                                'Maximum number of rejected points in coefficient fit')
+        hdr['PCAMAXIT'] = ('None' if self.maxiter is None else self.maxiter,
+                                'Maximum number of rejection iterations in coefficient fit')
+
+        data = init_record_array(1, self._output_dtype())
+        data['COO'][0] = self.trace_coo
+        data['MEAN'][0] = self.pca_mean
+        data['COEFF'][0] = self.pca_coeffs
+        data['COMP'][0] = self.pca_components
+        if self.fit_coeff is not None:
+            data['BPM'][0] = self.pca_bpm
+            for i in range(self.npca):
+                data['FITC{0}'.format(i+1)][0] = self.fit_coeff[i]
+
+        return rec_to_bintable(data, name='PCA', hdr=hdr)
+
+    @classmethod
+    def from_file(cls, file):
+        with fits.open(file) as hdu:
+            return cls.from_hdu(hdu['PCA'])
+
+    @classmethod
+    def from_hdu(cls, hdu):
+        this = cls()
+        this.is_empty = False
+        
+        this.reference_row = hdu.header['PCAREFR']
+        this.input_npca = None if hdu.header['PCAINPCA'] == 'None' else hdu.header['PCAINPCA']
+        this.input_pcav = None if hdu.header['PCAIPCAV'] == 'None' else hdu.header['PCAIPCAV'] 
+        this.function = None if hdu.header['PCAFUNC'] == 'None' else hdu.header['PCAFUNC']
+        this.minx = None if hdu.header['PCAMINX'] == 'None' else hdu.header['PCAMINX']
+        this.maxx = None if hdu.header['PCAMAXX'] == 'None' else hdu.header['PCAMAXX']
+        this.lower = None if hdu.header['PCALOWR'] == 'None' else hdu.header['PCALOWR']
+        this.upper = None if hdu.header['PCAUPPR'] == 'None' else hdu.header['PCAUPPR']
+        this.maxrej = None if hdu.header['PCAMAXR'] == 'None' else hdu.header['PCAMAXR']
+        this.maxiter = None if hdu.header['PCAMAXIT'] == 'None' else hdu.header['PCAMAXIT']
+
+        this.trace_coo = hdu.data['COO'][0]
+        this.pca_mean = hdu.data['MEAN'][0]
+        this.pca_coeffs = hdu.data['COEFF'][0]
+        this.pca_components = hdu.data['COMP'][0]
+
+        this.npca = this.pca_coeffs.shape[1]
+        this.nspec = this.pca_components.shape[1]
+
+        if not any('FITC' in s for s in hdu.columns.names):
+            return this
+
+        this.pca_bpm = hdu.data['BPM'][0]
+        this.fit_coeff = [None]*this.npca
+        for i in range(this.npca):
+                this.fit_coeff[i] = hdu.data['FITC{0}'.format(i+1)][0]
+        return this
+
 
 # TODO: Like with the use of TracePCA in EdgeTraceSet, we should
 # integrate the elements of the function below into classes that trace

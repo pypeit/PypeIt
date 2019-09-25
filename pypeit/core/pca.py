@@ -265,7 +265,6 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
 
     inmask = np.ones_like(coo, dtype=bool)
     for i in range(npca):
-        # TODO I
         coeff_used[:,i], fit_coeff[i] \
                 = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], inmask=inmask,
                                            invvar=None if _ivar is None else _ivar[:,i],
@@ -319,9 +318,10 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
         pca_mean (`numpy.ndarray`_):
             The mean offset of the PCA decomposotion for each pixel.
             Shape is :math:`(N_{\rm pix},)`.
-        mean (`numpy.ndarray`_):
-            The mean offset applied to each vector before the PCA.
-            Shape is :math:`(N_{\rm vec},)`.
+        mean (:obj:`float`, `numpy.ndarray`_):
+            The mean offset of each trace coordinate to use for the
+            PCA prediction. This is typically identical to `x`, and
+            its shape must match `x`.
     
     Returns:
         `numpy.ndarray`_: PCA constructed vectors, one per position
@@ -329,15 +329,18 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
         x},N_{\rm pix})`, depending on the input shape/type of `x`.
     """
     _x = np.atleast_1d(x)
+    _mean = np.atleast_1d(mean)
     if _x.ndim != 1:
         raise ValueError('Coordinates for predicted vectors must be no more than 1D.')
+    if _mean.shape != _x.shape:
+        raise ValueError('Input mean must match the shape of the input prediction coordinates.')
     # Calculate the coefficients using the best fitting function
     npca = pca_components.shape[0]
     c = np.zeros((_x.size, npca), dtype=float)
     for i in range(npca):
         c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function)
     # Calculate the predicted vectors and return them
-    vectors = np.dot(c, pca_components) + pca_mean[None,:] + mean[:,None]
+    vectors = np.dot(c, pca_components) + pca_mean[None,:] + _mean[:,None]
     return vectors if isinstance(x, np.ndarray) else vectors[0,:]
 
 
