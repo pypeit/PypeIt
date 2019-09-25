@@ -1028,7 +1028,9 @@ def create_bal_mask(wave):
 
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, create_bal_mask=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
-                 tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True, debug=False, show=False):
+                 tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
+                 pca_upper=3100.0, polish=True, disp=True, debug=False,
+                 show=False):
 
 
     obj_params = dict(pca_file=pca_file, npca=npca, z_qso=z_qso, delta_zqso=delta_zqso, bounds_norm=bounds_norm,
@@ -1038,7 +1040,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
     header = fits.getheader(spec1dfile) # clean this up!
     # Mask the IGM and mask wavelengths that extend redward of our PCA
-    qsomask = (wave > (1.0 + z_qso)*1220.0) & (wave < 3100.0*(1.0 + z_qso))
+    qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +
+                                                                    z_qso))
     # TODO this 3100 is hard wired now, but make the QSO PCA a PypeIt product and determine it from the file
     if create_bal_mask is not None:
         bal_mask = create_bal_mask(wave)

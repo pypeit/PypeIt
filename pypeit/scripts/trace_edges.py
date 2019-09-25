@@ -7,7 +7,7 @@
 Trace slit edges for a set of images.
 """
 
-def parser():
+def parser(options=None):
 
     import argparse
     from pypeit.spectrographs.util import valid_spectrographs
@@ -41,15 +41,15 @@ def parser():
 
     parser.add_argument('--debug', default=False, action='store_true', help='Run in debug mode.')
     parser.add_argument('--show', default=False, action='store_true',
-                        help='For the new tracing routine, show the stages of trace refinements.')
+                        help='Show the stages of trace refinements (only for the new code).')
 
 #    parser.add_argument('-n', '--use_new', default=False, action='store_true',
 #                        help='Use the new code.')
 
     parser.add_argument('--old', default=False, action='store_true',
-                        help='Use the new code.')
+                        help='Use the old code.')
 
-    return parser.parse_args()
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
@@ -96,6 +96,9 @@ def main(args):
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
         bias_files = rdx.fitstbl.frame_paths(bias_rows)
         bias_par = rdx.caliBrate.par['biasframe']
+
+        # Set the QA path
+        qa_path = rdx.qa_path
     else:
         spec = load_spectrograph(args.spectrograph)
         master_key_base = 'A_1'
@@ -112,6 +115,9 @@ def main(args):
         trace_par = par['calibrations']['slits'] if args.old else par['calibrations']['slitedges']
         bias_files = None
         bias_par = None
+
+        # Set the QA path
+        qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0], 'QA'))
     
     detectors = np.arange(spec.ndet)+1 if args.detector is None else [args.detector]
     master_dir = os.path.join(redux_path, args.master_dir)
@@ -138,35 +144,43 @@ def main(args):
 
         # Trace the slit edges
         if args.old:
-            try:
-                t = time.perf_counter()
-                traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
-                                                   master_dir=master_dir)
-                traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
-                               debug=args.debug)
-                print('Tracing for detector {0} finished in {1} s.'.format(det,
+            t = time.perf_counter()
+            traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
+                                               master_dir=master_dir)
+            traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
+                           debug=args.debug)
+            print('Tracing for detector {0} finished in {1} s.'.format(det,
                       time.perf_counter()-t))
-                traceSlits.save(traceImage=traceImage)
-            except Exception as e:
-                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
-                print('Continuing...')
+            traceSlits.save(traceImage=traceImage)
+#            try:
+#                t = time.perf_counter()
+#                traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
+#                                                   master_dir=master_dir)
+#                traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
+#                               debug=args.debug)
+#                print('Tracing for detector {0} finished in {1} s.'.format(det,
+#                      time.perf_counter()-t))
+#                traceSlits.save(traceImage=traceImage)
+#            except Exception as e:
+#                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
+#                print('Continuing...')
         else:
-#            trace_par.to_config('trace_edges.ini', section_name='slitedges', include_descr=False)
-#            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-#                                           master_dir=master_dir, img=traceImage, det=det,
-#                                           auto=True, debug=args.debug, show_stages=args.show)
-#            edges.save()
-            try:
-                t = time.perf_counter()
-                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                               master_dir=master_dir, img=traceImage, det=det,
-                                               auto=True, debug=args.debug, show_stages=args.show)
-                print('Tracing for detector {0} finished in {1} s.'.format(det,
-                                                                           time.perf_counter()-t))
-                edges.save()
-            except Exception as e:
-                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
-                print('Continuing...')
+            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                           master_dir=master_dir, img=traceImage, det=det,
+                                           auto=True, debug=args.debug, show_stages=args.show,
+                                           qa_path=qa_path)
+            edges.save()
+#            try:
+#                t = time.perf_counter()
+#                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+#                                               master_dir=master_dir, img=traceImage, det=det,
+#                                               auto=True, debug=args.debug, show_stages=args.show)
+#                print('Tracing for detector {0} finished in {1} s.'.format(det,
+#                                                                           time.perf_counter()-t))
+#                edges.save()
+#            except Exception as e:
+#                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
+#                print('Continuing...')
 
     return 0
 

@@ -12,6 +12,7 @@ from sklearn.decomposition import PCA
 
 from pypeit import msgs
 from pypeit import utils
+from IPython import embed
 
 def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     r"""
@@ -212,8 +213,8 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         raise ValueError('Array with coefficiencts cannot be more than 2D')
     nvec, npca = _coeff.shape
     #   - Check the inverse variance
-    _ivar = np.ones(_coeff.shape, dtype=float) if ivar is None else np.atleast_2d(ivar)
-    if _ivar.shape != _coeff.shape:
+    _ivar = None if ivar is None else np.atleast_2d(ivar)
+    if _ivar is not None and _ivar.shape != _coeff.shape:
         raise ValueError('Inverse variance array does not match input coefficients.')
     #   - Check the weights
     _weights = np.ones(_coeff.shape, dtype=float) if weights is None else np.atleast_2d(weights)
@@ -248,19 +249,24 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     # Fit the coefficients of each PCA component so that they can be
     # interpolated to other coordinates.
 
+    inmask = np.ones_like(coo, dtype=bool)
     for i in range(npca):
+        # TODO I
         coeff_used[:,i], fit_coeff[i] \
-                = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], invvar=_ivar[:,i],
+                = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], inmask=inmask,
+                                           invvar=None if _ivar is None else _ivar[:,i],
                                            weights=_weights[:,i], function=function,
                                            maxiter=maxiter, lower=lower, upper=upper,
-                                           maxrej=maxrej, sticky=False, use_mad=False, minx=minx,
+                                           maxrej=maxrej, sticky=False, use_mad=_ivar is None, minx=minx,
                                            maxx=maxx)
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)
-            rejected = np.invert(coeff_used[:,i])
-            plt.scatter(coo, _coeff[:,i], marker='.', color='k', s=100, facecolor='none',
+            rejected = np.invert(coeff_used[:,i]) & inmask
+            plt.scatter(coo[inmask], _coeff[inmask,i], marker='.', color='k', s=100, facecolor='none',
                         label='pca coeff')
+            plt.scatter(coo[np.invert(inmask)], _coeff[np.invert(inmask),i], marker='.', color='orange', s=100, facecolor='none',
+                        label='pca coeff, masked from previous')
             if np.any(rejected):
                 plt.scatter(coo[rejected], _coeff[rejected,i], marker='x', color='C3', s=80, 
                             label='robust_polyfit_djs rejected')
@@ -273,6 +279,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             plt.legend()
             plt.show()
 
+        inmask=coeff_used[:,i]
     # Return arrays that match the shape of the input data
     if coeff.ndim == 1:
         return np.invert(coeff_used)[0], fit_coeff[0], minx, maxx
