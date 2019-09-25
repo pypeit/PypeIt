@@ -51,6 +51,7 @@
   `pypeit.core.trace_slits`, as well as some functions in
   `pypeit.core.extract` that were replaced by
   `pypeit.core.moment.moment1d` and functions in `pypeit.core.trace`.
+- PCA now saved to MasterEdges file; added I/O methods
 
 0.11.0 (22 Jun 2019)
 --------------------

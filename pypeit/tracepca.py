@@ -110,11 +110,7 @@ class TracePCA:
         self.reference_row = trace_cen.shape[0]//2 if reference_row is None else reference_row
         self.ntrace = trace_cen.shape[1]
 
-        print(trace_cen.shape)
-        print(self.ntrace)
-
         self.trace_coo = trace_cen[self.reference_row,:] if coo is None else np.atleast_1d(coo)
-        print(self.trace_coo.shape)
         if self.trace_coo.size != self.ntrace:
             raise ValueError('Provided reference coordinates have incorrect shape.')
 
