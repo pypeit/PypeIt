@@ -1,10 +1,29 @@
 """
-Implements edge tracing.
-
 The primary purpose of this module is to provide the classes/methods
 used to trace slit edges.
 
-If you have a :ref:`pypeit_file` and a path for the reductions
+For a command-line script that executes the automatic tracing, use
+`pypeit_trace_edges`. As always, for a list of the script options,
+run:
+
+.. code-block:: bash
+
+    $ pypeit_trace_edges -h
+
+With a `pypeit_file`_, a typical execution of the script would be:
+
+.. code-block:: bash
+
+    $ pypeit_trace_edges -f my_pypeit_file.pypeit
+
+To show the trace results after completing each stage and/or to run
+in debugging mode, use the `--show` and/or `--debug` options:
+
+.. code-block:: bash
+
+    $ pypeit_trace_edges -f my_pypeit_file.pypeit --debug --show
+
+Programmatically, if you have a :ref:`pypeit_file` and a path for the reductions
 (`redux_path`), an example of how to trace the slits in a single
 detector is as follows::
 
@@ -27,6 +46,11 @@ detector is as follows::
     # the defaults are below
     master_dir = rdx.par['calibrations']['caldir']
     master_key = rdx.fitstbl.master_key(tbl_rows[0], det=det)
+
+    # Skip the bias subtraction, if reasonable; see
+    # pypeit.biasframe.BiasFrame to construct a bias to subtract from
+    # the TraceImage
+    rdx.par['calibrations']['traceframe']['process']['bias'] = 'skip'
 
     # Construct the TraceImage
     traceImage = traceimage.TraceImage(rdx.spectrograph, files=files, det=det,
@@ -53,12 +77,11 @@ exposure in a fits file called `trace_file`::
     from pypeit.spectrographs.util import load_spectrograph
 
     spec = load_spectrograph('keck_deimos')
-    binning = '1,1'
-    redux_path = os.path.split(os.path.abspath(trace_file))[0]
     par = spec.default_pypeit_par()
+    par['calibrations']['traceframe']['process']['bias'] = 'skip'
     # Make any desired changes to the parameters here
     det = 3
-    master_dir = redux_path
+    master_dir = os.path.split(os.path.abspath(trace_file))[0]
     master_key = 'test_trace_{0}'.format(det)
 
     traceImage = traceimage.TraceImage(spec, files=[trace_file], det=det,
@@ -68,8 +91,6 @@ exposure in a fits file called `trace_file`::
     edges = edgetrace.EdgeTraceSet(spec, par['calibrations']['slitedges'], master_key=master_key,
                                    master_dir=master_dir, img=traceImage, det=det, auto=True)
     edges.save()
-
-For a command-line script that executes the automatic tracing, use `pypeit_trace_edges`.
 
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
@@ -122,7 +143,7 @@ class EdgeTraceBitMask(BitMask):
         # 3.7, we can remove this (and other) OrderedDict usage in
         # favor of just a normal dict.
         mask = OrderedDict([
-                       ('NOEDGE', 'No edge found/input for this trace in this column.'),
+                       ('NOEDGE', 'No edge found/input for this trace at this spatial column.'),
                     ('MATHERROR', 'A math error occurred during the calculation (e.g., div by 0)'),
                   ('MOMENTERROR', 'Recentering moment calculation had a large error'),
                    ('LARGESHIFT', 'Recentering resulted in a large shift'),
@@ -133,8 +154,8 @@ class EdgeTraceBitMask(BitMask):
                    ('SHORTRANGE', 'Trace does not meet the minimum spectral range criterion'),
 #                ('SHORTDETRANGE', 'Trace length does not meet trace detection threshold.'),
 #                ('SHORTFITRANGE', 'Trace length does not meet fitting/PCA threshold.'),
-                       ('HITMIN', 'Trace crosses the minimum allowed column'),
-                       ('HITMAX', 'Trace crosses the maximum allowed column'),
+                       ('HITMIN', 'Trace crosses the minimum allowed spatial column'),
+                       ('HITMAX', 'Trace crosses the maximum allowed spatial column'),
                   ('OFFDETECTOR', 'Trace lands off, or within `det_buffer` of, the detector edge'),
                    ('USERINSERT', 'Trace was inserted as requested by user'),
                    ('SYNCINSERT', 'Trace was inserted during left and right edge sync'),
@@ -238,7 +259,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         master_dir (:obj:`str`, optional):
             Path to master frames.
         qa_path (:obj:`str`, optional):
-            Directory for QA output.
+            Directory for QA output. If None, no QA plots are
+            provided.
         img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`, optional):
             Two-dimensional image used to trace slit edges. If a
             :class:`pypeit.traceimage.TraceImage` is provided, the
@@ -249,12 +271,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             be valid.
         det (:obj:`int`, optional):
             The 1-indexed detector number that provided the trace
-            image. This is *only* used to determine whether or not
-            bad columns in the image are actually along columns or
-            along rows, as determined by :attr:`spectrograph` and the
-            result of a call to
-            :func:`pypeit.spectrograph.Spectrograph.raw_is_transposed`.
-            Cannot be `None`.
+            image.  Cannot be `None`.
         binning (`str`, optional):
             Comma-separated binning along the spectral and spatial
             directions following the PypeIt convention (e.g., '2,1').
@@ -357,7 +374,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             Collated object ID and coordinate information matched to
             the design table.
         qa_path (:obj:`str`):
-            Root path for QA output files.
+            Directory for QA output. If None, no QA plots are
+            provided.
         log (:obj:`list`):
             A list of strings indicating the main methods applied
             when tracing.
@@ -372,7 +390,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: It's possible for the master key and the detector
         # number to be inconsistent...
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key)
+                                         master_key=master_key, file_format='fits.gz')
 
         # TODO: Add type-checking for spectrograph and par
         self.spectrograph = spectrograph    # Spectrograph used to take the data
@@ -444,14 +462,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects = None
 
     @property
-    def file_path(self):
-        """
-        Overwrite MasterFrame default to force the file to be gzipped.
-        """
-        # TODO: Change the MasterFrame default to a compressed file?
-        return '{0}.gz'.format(os.path.join(self.master_dir, self.file_name))
-
-    @property
     def ntrace(self):
         """
         The number of edges (left and right) traced.
@@ -465,9 +475,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Args:
             rows (:obj:`int`, optional):
-                Number of rows for each column, expected to be the
-                number of matched slits. If None, the table has empty
-                columns.
+                Number of table rows for each table column, expected
+                to be the number of matched slits. If None, the table
+                has empty columns.
 
         Returns:
             `astropy.table.Table`_: Instance of the empty design
@@ -511,9 +521,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         Args:
             rows (:obj:`int`, optional):
-                Number of rows for each column, expected to be the
-                number of objects. If None, the table has empty
-                columns.
+                Number of table rows for each table column, expected
+                to be the number of objects. If None, the table has
+                empty columns.
 
         Returns:
             `astropy.table.Table`_: Instance of the empty object
@@ -559,8 +569,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 The width of the extraction aperture to use for the
                 image rectification. When using extraction to rectify
                 the image, flux conservation is not as accurate. If
-                None, the image recification is performed using
-                :class:`pypeit.sampling.Resample` along each row.
+                None, the image rectification is performed using
+                :class:`pypeit.sampling.Resample` along each row
+                (spectral position).
             mask_threshold (:obj:`float`, optional):
                 Either due to `mask` or the bounds of the provided
                 `flux`, pixels in the rectified image may not be fully
@@ -582,9 +593,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
         pca = self.pca[0 if side == 'left' else 1] if self.par['left_right_pca'] else self.pca
 
-        # Get the traces that cross the reference row at the first and last pixels of the image
+        # Get the traces that cross the reference spatial position at
+        # the first and last pixels of the image
         first_last_trace = pca.predict(np.array([0,self.nspat-1]))
-        # Use these two traces to define the spatial pixel coordinates to sample
+        # Use these two traces to define the spatial pixel coordinates
+        # to sample
         start = np.ceil(np.amax(np.amin(first_last_trace, axis=1))).astype(int)
         buffer = self.nspat - np.floor(np.amin(np.amax(first_last_trace, axis=1))).astype(int) \
                     + start
@@ -629,6 +642,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             - Use :func:`add_user_traces` and :func:`rm_user_traces`
               to add and remove traces as defined by the
               user-provided lists in the :attr:`par`.
+            - If :attr:`qa_path` is not None, the QA plots are
+              constructed and written; see :func:`qa_plot`.
             - Use :func:`save` to save the results, if requested.
 
         Args:
@@ -646,8 +661,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 to be valid.
             det (:obj:`int`, optional):
                 The 1-indexed detector number that provided the trace
-                image; see :func:`initial_trace` for how this used.
-                Cannot be `None`.
+                image.  Cannot be `None`.
             binning (:obj:`str`, optional):
                 On-detector binning of the data ordered spectral then
                 spatial with format, e.g., `2,1`. Ignored if `img` is
@@ -754,6 +768,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
             
         # TODO: Add mask_refine() when it's ready
 
+        # Write the qa plots
+        # TODO: Should maybe have a keyword argument that will allow
+        # this to be skipped, even if the path is not None.
+        if self.qa_path is not None:
+            self.qa_plot(fileroot=self.file_name.split('.')[0])
+
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
         if save:
@@ -768,10 +788,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         first method called for tracing an image.  The algorithm:
             - Lightly boxcar smooths the trace image spectrally.
             - Replaces bad pixel columns, if a mask is provided.
-            - Applies a Sobel filter to the trace image along columns
-              to detect slit edges using steep positive gradients
-              (left edges) and steep negative gradients (right
-              edges). See
+            - Applies a Sobel filter to the trace image along the
+              spatial axis (columns) to detect slit edges using steep
+              positive gradients (left edges) and steep negative
+              gradients (right edges). See
               :func:`pypeit.core.trace.detect_slit_edges`.
             - Follows the detected left and right edges along
               spectrally adjacent pixels to identify coherent traces.
@@ -806,12 +826,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 to be valid.
             det (:obj:`int`, optional):
                 The 1-indexed detector number that provided the trace
-                image. This is *only* used to determine whether or
-                not bad columns in the image are actually along
-                columns or along rows, as determined by
-                :attr:`spectrograph` and the result of a call to
-                :func:`pypeit.spectrograph.Spectrograph.raw_is_transposed`.
-                Cannot be `None`.
+                image.  Cannot be `None`.
             binning (:obj:`str`, optional):
                 On-detector binning of the data ordered spectral then
                 spatial with format, e.g., `2,1`. Ignored if `img` is
@@ -860,10 +875,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # NOTE: This was previously done at the beginning of
         # edgearr_from_binarr
         if np.any(self.bpm):
-            # For tracing, we really only care about bad spec lines, i.e.
-            #  columns in the PypeIt frame.  And this is how BPM is oriented.
-            #  I am now setting it to deal with both options
-            # Do we need to replace bad *rows* instead of bad columns?
+
+            # TODO: For tracing, we really only care about bad spec
+            # lines, i.e. columns in the PypeIt frame. And this is how
+            # BPM is oriented. I am now setting it to deal with both
+            # options. Do we need to replace bad *rows* instead of bad
+            # columns?
 
             #flip = self.spectrograph.raw_is_transposed(det=self.det)
             #axis = 1 if flip else 0
@@ -966,7 +983,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             if len(row) > 0:
                 self.spat_msk[row,i] = self.bitmask.turn_on(self.spat_msk[row,i], 'ORPHANINSERT')
 
-
         # Instantiate objects to store the floating-point trace
         # centroids and errors.
         self.spat_cen = self.spat_img.astype(float)   # This makes a copy
@@ -998,7 +1014,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Args:
             outfile (:obj:`str`, optional):
                 Name for the output file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
             checksum (:obj:`bool`, optional):
@@ -1008,7 +1024,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Convert floating-point data to this data type before
                 writing.  Default is 32-bit precision.
         """
-        _outfile = self.file_path if outfile is None else outfile
+        _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.error('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -1113,11 +1129,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Load and reinitialize the trace data.
 
-        Data is read from :attr:`file_path` and used to overwrite any
-        internal data. Specific comparisons of the saved data are
-        performed to ensure the file is consistent with having been
-        written by a consistent version of the code; see
-        :func:`_reinit`.
+        Data is read from :attr:`master_file_path` and used to
+        overwrite any internal data. Specific comparisons of the
+        saved data are performed to ensure the file is consistent
+        with having been written by a consistent version of the code;
+        see :func:`_reinit`.
 
         To load a full :class:`EdgeTraceSet` directly from a file,
         use :func:`from_file`.
@@ -1146,8 +1162,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         # Check the file exists
         if not self.exists():
-            msgs.error('File does not exit: {0}'.format(self.file_path))
-        with fits.open(self.file_path) as hdu:
+            msgs.error('File does not exit: {0}'.format(self.master_file_path))
+        with fits.open(self.master_file_path) as hdu:
             # Re-initialize and validate
             self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
 
@@ -1155,7 +1171,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Check if the output file already exists.
         """
-        return os.path.isfile(self.file_path)
+        return os.path.isfile(self.master_file_path)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=True):
@@ -1258,6 +1274,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Finished, if not validating
         if not validate:
             return
+
+        # Check the package versions used to create the file
+        if not io.header_version_check(hdu['PRIMARY'].header):
+            msgs.warn('This file was written with different package versions.  You may need to '
+                      'redo the reductions to use the file within the current environment!')
 
         # Test the bitmask has the same keys and key values
         hdr_bitmask = BitMask.from_header(hdu['CENTER_MASK'].header)
@@ -1591,7 +1612,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     plt.show()
                 else:
                     page += 1
-                    ofile = os.path.join(self.qa_path,
+                    ofile = os.path.join(self.qa_path, 'PNGs',
                                          '{0}_{1}.png'.format(fileroot, str(page).zfill(ndig)))
                     fig.canvas.print_figure(ofile, bbox_inches='tight')
                     msgs.info('Finished page {0}/{1}'.format(page, npages))
@@ -1632,7 +1653,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             return self.sobel_sig_right
         msgs.error('Side must be left or right.')
 
-    def centroid_refine(self, follow=True, start_row=None, continuous=False, check=True,
+    def centroid_refine(self, follow=True, start_indx=None, continuous=False, check=True,
                         use_fit=False):
         """
         Refine the edge positions using a moment analysis and assess
@@ -1644,25 +1665,27 @@ class EdgeTraceSet(masterframe.MasterFrame):
         When `follow=False`, the function simply executes
         :func:`pypeit.core.trace.masked_centroid` to recenter
         *all* the locations for the left and right edges at each
-        spectral row independently. The maximum shift between any
-        input and output centroid is `max_shift_abs` from
+        spectral position (row) independently. The maximum shift
+        between any input and output centroid is `max_shift_abs` from
         :attr:`par`.
 
         When `follow=True`, the method uses
         :func:`pypeit.core.trace.follow_centroid` to recenter each
-        edge starting from `start_row` and then moving to higher and
-        lower spectral rows. In this case, the center of the aperture
-        used for each row is the centroid of the trace measured for
-        the preceding row. The maximum shift between the input and
-        output center for the first row analyzed is set by
-        `max_shift_abs`. For each subsequent row, the maximum shift
-        is set by the `max_shift_adj` value in :attr:`par`. In this
-        approach, it's typically best to let the method determine the
-        starting row instead of providing it directly. If left to its
-        own devices, it will iterate through all the traces
-        collecting those that all cross a specific row into groups
-        that it can follow simultaneously. If a starting row is
-        provided directly, all traces must cross that row.
+        edge starting from the `start_indx` spectral index position
+        (row) and then moving to higher and lower spectral rows. In
+        this case, the center of the aperture used for each spectral
+        row is the centroid of the trace measured for the preceding
+        spectral row. The maximum shift between the input and output
+        center for the first position analyzed is set by
+        `max_shift_abs` and the maximum shift for each subsequent
+        spectral row is set by `max_shift_adj`; both parameters are
+        provided in :attr:`par`. In this approach, it's typically
+        best to let the method determine the starting spectral row
+        instead of providing it directly. If left to its own devices,
+        it will iterate through all the traces collecting those that
+        all cross a specific spectral row into groups that it can
+        follow simultaneously. If a starting specral row is provided
+        directly, all traces must cross that row.
 
         Regardless of the value of `follow`,
         :func:`pypeit.core.trace.masked_centroid` is run with uniform
@@ -1684,19 +1707,20 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Args:
             follow (:obj:`bool`, optional):
                 Perform the centroiding first at a single row (see
-                `start_row`) and then move to higher and lower
+                `start_indx`) and then move to higher and lower
                 spectral rows in series. See
                 :func:`pypeit.core.trace.follow_centroid`.
-            start_row (:obj:`int`, optional):
-                The starting row when following the trace between
-                adjacent rows; see `follow`. If None, the starting
-                row is set by the finding the row that crosses the
-                most unmasked trace positions; see
+            start_indx (:obj:`int`, optional):
+                The index of the starting spectral row when following
+                the trace between adjacent rows; see `follow`. If
+                None, the starting spectral row is set by finding the
+                spectral row that crosses the most unmasked trace
+                positions; see
                 :func:`pypeit.core.trace.most_common_trace_row`.
                 Value is ignored if `follow=False`.
             continuous (:obj:`bool`, optional):
                 Keep only the continuous part of the traces from the
-                starting row.
+                starting spectral row.
             check (:obj:`bool`, optional):
                 Run :func:`check_traces` to flag bad traces.
             use_fit (:obj:`bool`, optional):
@@ -1772,22 +1796,22 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 untraced = indx.copy()
                 while np.any(untraced):
                     # Get the starting row
-                    _start_row = trace.most_common_trace_row(bpm[:,untraced], valid_frac=1.) \
-                                        if start_row is None else start_row
+                    _start_indx = trace.most_common_trace_row(bpm[:,untraced], valid_frac=1.) \
+                                        if start_indx is None else start_indx
                     # Select the edges to follow
-                    to_trace = untraced & np.invert(bpm[_start_row,:])
+                    to_trace = untraced & np.invert(bpm[_start_indx,:])
                     if not np.any(to_trace):
                         # Something has gone wrong
                         # TODO: Get rid of this when convinced it won't
                         # get tripped...
-                        msgs.error('Traces remain but could not select good starting row.')
+                        msgs.error('Traces remain but could not select good starting position.')
                     msgs.info('Following {0} {1} edge(s) '.format(np.sum(to_trace), side)
-                              + 'from row {0}; '.format(_start_row)
+                              + 'from row {0}; '.format(_start_indx)
                               + '{0} trace(s) remain.'.format(np.sum(untraced)-np.sum(to_trace)))
                     # Follow the centroid of the Sobel-filtered image
                     cen[:,to_trace], err[:,to_trace], msk[:,to_trace] \
-                            = trace.follow_centroid(_sobel_sig, _start_row,
-                                                    spat[_start_row,to_trace],
+                            = trace.follow_centroid(_sobel_sig, _start_indx,
+                                                    spat[_start_indx,to_trace],
                                                     ivar=ivar, bpm=_bpm, fwgt=fwgt, width=width,
                                                     maxshift_start=maxshift_start,
                                                     maxshift_follow=maxshift_follow,
@@ -1809,10 +1833,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msk[:,indx] |= self.spat_msk[:,indx]
 
             # Check the traces
-            mincol = None if side == 'left' else 0
-            maxcol = _sobel_sig.shape[1]-1 if side == 'left' else None
-            good, bad = self.check_traces(cen=cen, msk=msk, subset=indx, mincol=mincol,
-                                          maxcol=maxcol, minimum_spec_length=minimum_spec_length)
+            min_spatial = None if side == 'left' else 0
+            max_spatial = _sobel_sig.shape[1]-1 if side == 'left' else None
+            good, bad = self.check_traces(cen=cen, msk=msk, subset=indx, min_spatial=min_spatial,
+                                          max_spatial=max_spatial,
+                                          minimum_spec_length=minimum_spec_length)
 
             # Save the results: only keep the good centroids, but merge all the masks
             self.spat_cen[:,good] = cen[:,good]
@@ -1840,7 +1865,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Add to the log
         self.log += [inspect.stack()[0][3]]
 
-    def check_traces(self, cen=None, msk=None, subset=None, mincol=None, maxcol=None,
+    def check_traces(self, cen=None, msk=None, subset=None, min_spatial=None, max_spatial=None,
                      minimum_spec_length=None):
         r"""
         Validate new trace data to be added.
@@ -1851,9 +1876,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
               this should be done by providing `cen` directly.
             - Remove traces that do not cover at least some fraction
               of the detector (see `minimum_spec_length`).
-            - Remove traces that are at a minimum or maximum column
-              (typically the edge of the detector; see `mincol` and
-              `maxcol`).
+            - Remove traces that are at a minimum or maximum spatial
+              position (column) (typically the edge of the detector;
+              see `min_spatial` and `max_spatial`).
 
         The only used parameter from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is `match_tol`.
@@ -1878,15 +1903,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 traces selected by a subset must be from the same
                 slit side (left or right). If None, no repeat traces
                 can be identified. 
-            mincol (:obj:`int`, optional):
-                Clip traces that hit this minimum column value at the
-                center row (`self.nspec//2`). If None, no traces
-                clipped.
-            maxcol (:obj:`int`, optional):
-                Clip traces that hit this maximum column value at the
-                center row (`self.nspec//2`). If None, no traces
-                clipped.
-            minimum_spec_length (:obj:`int`, optional):
+            min_spatial (:obj:`int`, optional):
+                Clip traces that hit this minimum spatial index
+                (column) at the center spectral row
+                (`self.nspec//2`). If None, no traces clipped.
+            max_spatial (:obj:`int`, optional):
+                Clip traces that hit this maximum spatial index
+                (column) at the center spectral row
+                (`self.nspec//2`). If None, no traces clipped.
+            minimum_spec_length (:obj:`float`, optional):
                 The minimum number of spectral rows in an edge trace.
 
         Returns:
@@ -1927,31 +1952,34 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     _msk[:,repeat] = self.bitmask.turn_on(_msk[:,repeat], 'DUPLICATE')
                     msgs.info('Found {0} repeat trace(s).'.format(np.sum(repeat)))
 
-        # Find short traces
+        # Find spectrally short traces
         short = np.zeros_like(indx, dtype=bool)
         if minimum_spec_length is not None:
-            msgs.info('Minimum trace length (pixels): {0:.2f}'.format(minimum_spec_length))
+            msgs.info('Minimum spectral length of any trace (pixels): {0:.2f}'.format(
+                      minimum_spec_length))
             short[indx] = np.sum(np.invert(_bpm[:,indx]), axis=0) < minimum_spec_length
             if np.any(short):
                 _msk[:,short] = self.bitmask.turn_on(_msk[:,short], 'SHORTRANGE')
                 msgs.info('Found {0} short trace(s).'.format(np.sum(short)))
 
-        # Find traces that are at the minimum column at the center row
+        # Find traces that are at the minimum column at the center
+        # spectral row
         # TODO: Why only the center row?
         col = np.round(_cen).astype(int)
         hit_min = np.zeros_like(indx, dtype=bool)
-        if mincol is not None:
-            hit_min[indx] = (col[self.nspec//2,indx] <= mincol) \
+        if min_spatial is not None:
+            hit_min[indx] = (col[self.nspec//2,indx] <= min_spatial) \
                                 & np.invert(_bpm[self.nspec//2,indx])
             if np.any(hit_min):
                 _msk[:,hit_min] = self.bitmask.turn_on(_msk[:,hit_min], 'HITMIN')
                 msgs.info('{0} trace(s) hit the minimum centroid value.'.format(np.sum(hit_min)))
-            
-        # Find traces that are at the maximum column at the center row
+         
+        # Find traces that are at the maximum column at the center
+        # spectral row
         # TODO: Why only the center row?
         hit_max = np.zeros_like(indx, dtype=bool)
-        if maxcol is not None:
-            hit_max[indx] = (col[self.nspec//2,indx] >= maxcol) \
+        if max_spatial is not None:
+            hit_max[indx] = (col[self.nspec//2,indx] >= max_spatial) \
                                 & np.invert(_bpm[self.nspec//2,indx])
             if np.any(hit_max):
                 _msk[:,hit_max] = self.bitmask.turn_on(_msk[:,hit_max], 'HITMAX')
@@ -2452,8 +2480,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         centroids or the fitted parameterization (see `use_fit`). The
         fiducial coordinates that are sorted are either the mean of
         the unmasked coordinates over all spectral rows or the
-        unmasked coordinates at a specified reference row (see
-        `use_mean`).
+        unmasked coordinates at a specified reference spectral row
+        (see `use_mean`).
 
         The trace IDs are also reassigned to be sorted spatially;
         i.e., the trace IDs for three synced slits would be `[-1, 1,
@@ -2465,9 +2493,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             use_mean (:obj:`bool`, optional):
                 Sort according to the mean of the masked spatial
                 positions. If False, the spatial position at a
-                reference row is used, where the reference row is
-                either the same as used by the PCA (if available) or
-                the result of
+                reference spectral row is used, where the reference
+                spectral row is either the same as used by the PCA
+                (if available) or the result of
                 :func:`pypeit.core.trace.most_common_trace_row` using
                 the current trace mask.
             use_fit (:obj:`bool`, optional):
@@ -2719,7 +2747,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         return np.sum(good[self.is_left]) > 4 and np.sum(good[self.is_right]) > 4 \
                     if self.par['left_right_pca'] else np.sum(good) > 4
 
-    def predict_traces(self, col, side=None):
+    def predict_traces(self, spat_cen, side=None):
         """
         Use the PCA decomposition to predict traces.
 
@@ -2729,31 +2757,32 @@ class EdgeTraceSet(masterframe.MasterFrame):
         decomposed separately or simultaneously.
 
         Args:
-            col (:obj:`float`, `numpy.ndarray`):
+            spat_cen (:obj:`float`, `numpy.ndarray`):
                 A single value or 1D array with the spatial location
-                (column) in pixel coordinates for 1 or more traces to
-                predict. The predicted traces will pass through these
-                columns and the reference row set for the PCA
-                decomposition; see :func:`build_pca`.
+                (column) for 1 or more traces to predict. The
+                predicted traces will pass through these spatial
+                positions (columns) and the reference spectral row
+                set for the PCA decomposition; see :func:`build_pca`.
             side (:obj:`float`, `numpy.ndarray`, optional):
                 A single value or 1D integer array indicating the
                 edge side to be predicted; -1 for left and 1 for
-                right. Must be the same length as `col`. This is only
-                used if the PCA is side-dependent, and *must* be
+                right. Must be the same length as `spat_cen`. This is
+                only used if the PCA is side-dependent, and *must* be
                 provided in the case that it is (see `left_right_pca`
                 in :attr:`par`).
 
         Returns:
             `numpy.ndarray`: A 1D or 2D array of size :attr:`nspec`
-            by the length of the column array provided. If a single
-            column is provided, a single trace vector is returned.
+            by the length of the position array provided. If a single
+            coordinate is provided, a single trace vector is
+            returned.
         """
         if self.pca is None:
             msgs.error('Must first run the PCA analysis fo the traces; run build_pca.')
 
-        _col = np.atleast_1d(col)
+        _spat_cen = np.atleast_1d(spat_cen)
         _side = np.atleast_1d(side)
-        if _col.size != _side.size:
+        if _spat_cen.size != _side.size:
             msgs.error('Spatial locations and side integers must have the same shape.')
 
         if self.par['left_right_pca']:
@@ -2762,11 +2791,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 indx = _side == s
                 if not np.any(indx):
                     continue
-                trace_add = np.hstack((trace_add, p.predict(np.atleast_1d(_col[indx]))))
+                trace_add = np.hstack((trace_add, p.predict(np.atleast_1d(_spat_cen[indx]))))
         else:
-            trace_add = self.pca.predict(_col)
+            trace_add = self.pca.predict(_spat_cen)
 
-        return trace_add if isinstance(col, np.ndarray) else trace_add.ravel()
+        return trace_add if isinstance(spat_cen, np.ndarray) else trace_add.ravel()
 
     def build_pca(self, use_center=False, debug=False):
         """
@@ -2791,11 +2820,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         othwerwise, the PCA uses the parametrized trace fits
         (:attr:`spat_fit`).
 
-        The reference row used for the decomposition (see
+        The reference spectral row used for the decomposition (see
         :class:`pypeit.tracepca.TracePCA`) is set by
         :func:`pypeit.core.trace.most_common_trace_row` using the
         existing mask. If treating left and right traces separately,
-        the reference row is the same for both PCA decompositions.
+        the reference spectral row is the same for both PCA
+        decompositions.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
@@ -2908,13 +2938,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # will always be considered inliers, if the coefficients
             # vary rapidly with order as they sometimes do.
             #ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
-            ivar = None
+            #ivar = None
 
             # TODO: Instead, weight by the mean/median value of
             # sobel_sig along each trace.
 
             # Run the fit
-            self.pca[i].build_interpolator(_order, ivar=ivar, function=function, lower=lower,
+            self.pca[i].build_interpolator(_order, function=function, lower=lower,
                                            upper=upper, minx=0., maxx=self.nspat-1., maxrej=maxrej,
                                            maxiter=maxiter, debug=debug)
 
@@ -3231,13 +3261,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             else (self.pca[0].reference_row if self.par['left_right_pca']
                                     else self.pca.reference_row)
 
-        # Check that the trace data are sorted at this row
+        # Check that the trace data are sorted at this spectral row
         if not np.array_equal(np.arange(trace_cen.shape[1]),
                               np.argsort(trace_cen[reference_row,:])):
             msgs.error('Trace data must be spatially sorted.')
 
-        # Build a masked array with the trace positions at that row,
-        # masked where new traces are supposed to go.
+        # Build a masked array with the trace positions at that
+        # spectral row, masked where new traces are supposed to go.
         trace_ref = np.ma.masked_all(add_edge.size)
         trace_ref[np.invert(add_edge)] = trace_cen[reference_row,:]
         trace_ref = trace_ref.reshape(-1,2)
@@ -3499,7 +3529,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             indx = np.zeros(len(add_edge), dtype=int)
             indx[np.invert(add_edge)] = np.arange(self.ntrace)
             # Offset the original traces by a constant based on the
-            # reference row to construct the new traces.
+            # reference trace position to construct the new traces.
             trace_add = trace_cen[:,indx[nearest[add_edge]]] + trace_ref[add_edge] \
                             - trace_ref[nearest[add_edge]]
 

@@ -61,7 +61,8 @@ def test_chk_kast_slits():
         edges = edgetrace.EdgeTraceSet.from_file(trace_file)
         assert edges.is_synced, 'Error in constructed Cooked trace file: not synced.'
         nslits = edges.ntrace//2
-        # Rerun
+        # Rerun (but don't write QA plots)
+        edges.qa_path = None
         edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
         assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
@@ -75,7 +76,8 @@ def test_chk_lris_blue_slits():
         edges = edgetrace.EdgeTraceSet.from_file(trace_file)
         assert edges.is_synced, 'Error in constructed Cooked trace file: not synced.'
         nslits = edges.ntrace//2
-        # Rerun
+        # Rerun (but don't write QA plots)
+        edges.qa_path = None
         edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
         assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
@@ -90,7 +92,8 @@ def test_chk_lris_red_slits():
         edges = edgetrace.EdgeTraceSet.from_file(trace_file)
         assert edges.is_synced, 'Error in constructed Cooked trace file: not synced.'
         nslits = edges.ntrace//2
-        # Rerun
+        # Rerun (but don't write QA plots)
+        edges.qa_path = None
         edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
         assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
@@ -103,7 +106,9 @@ def test_chk_deimos_slits():
     edges = edgetrace.EdgeTraceSet.from_file(trace_file)
     assert edges.is_synced, 'Error in constructed Cooked trace file: not synced.'
     nslits = edges.ntrace//2
-    # Rerun
+    # Rerun (but don't write QA plots)
+    edges.qa_path = None
     edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
     assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
+
 

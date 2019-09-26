@@ -1850,7 +1850,9 @@ class EdgeTracePar(ParSet):
         descr['length_range'] = 'Allowed range in slit length compared to the median slit ' \
                                 'length.  For example, a value of 0.3 means that slit lengths ' \
                                 'should not vary more than 30%.  Relatively shorter or longer ' \
-                                'slits are masked or clipped.'
+                                'slits are masked or clipped.  Most useful for echelle or ' \
+                                'multi-slit data where the slits should have similar or ' \
+                                'identical lengths.'
 
         # TODO: Define this in pixels instead of arcsec?
         dtypes['minimum_slit_gap'] = [int, float]
