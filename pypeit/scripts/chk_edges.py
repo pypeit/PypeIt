@@ -26,7 +26,7 @@ def parser(options=None):
 def main(pargs):
     from pypeit import edgetrace
 
-    edges = edgetrace.EdgeTraceSet.from_file(pargs.root)
+    edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file)
     if pargs.mpl:
         edges.show(thin=10, include_img=True, idlabel=True)
     else:
