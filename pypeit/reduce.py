@@ -5,13 +5,10 @@ import numpy as np
 from astropy import stats
 from abc import ABCMeta
 
-from pypeit import ginga, utils, msgs
 from pypeit import newspecobjs
+from pypeit import ginga, msgs, edgetrace
 from pypeit.core import skysub, extract, pixels, wave
-from pypeit import ginga, utils, msgs, specobjs, edgetrace
-from pypeit.core import skysub, extract, pixels, wave
-from pypeit.core import procimg
-from pypeit.images import scienceimage
+
 from IPython import embed
 
 class Reduce(object):

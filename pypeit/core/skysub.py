@@ -691,18 +691,18 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     msgs.info("At x = {:5.2f}".format(sobjs[iobj].SPAT_PIXPOS) + " on slit # {:}".format(sobjs[iobj].slit_order))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
-                    flux = moment1d(img_minsky * outmask, sobjs[iobj].trace_spat, 2*box_rad,
+                    flux = moment1d(img_minsky * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                     row=sobjs[iobj].trace_spec)[0]
                     mvarimg = 1.0 / (modelivar + (modelivar == 0))
-                    mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].trace_spat, 2*box_rad,
+                    mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                         row=sobjs[iobj].trace_spec)[0]
-                    pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, 2*box_rad,
+                    pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                       row=sobjs[iobj].trace_spec)[0]
-                    mask_box = moment1d(np.invert(outmask), sobjs[iobj].trace_spat, 2*box_rad,
+                    mask_box = moment1d(np.invert(outmask), sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                         row=sobjs[iobj].trace_spec)[0] != pixtot
-                    box_denom = moment1d(waveimg > 0.0, sobjs[iobj].trace_spat, 2*box_rad,
+                    box_denom = moment1d(waveimg > 0.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                          row=sobjs[iobj].trace_spec)[0]
-                    wave = moment1d(waveimg, sobjs[iobj].trace_spat, 2*box_rad,
+                    wave = moment1d(waveimg, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                     row=sobjs[iobj].trace_spec)[0] \
                                 / (box_denom + (box_denom == 0.0))
                     fluxivar = mask_box / (mvar_box + (mvar_box == 0.0))
