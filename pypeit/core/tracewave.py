@@ -14,17 +14,13 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit import ginga
 from pypeit import tracepca
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import trace
 from pypeit.core.moment import moment1d
 
-# TODO: Why is this try statement needed?
-try:
-    from pypeit import ginga
-except ImportError:
-    pass
 
 def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=2.0,
                     only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0,
