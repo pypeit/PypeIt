@@ -40,6 +40,9 @@ https://github.com/pypeit/PypeIt/issues/676)
 * future
 * PyYAML
 * linetools
+* IPython
+* scikit-learn
+* configobj
 
 # License
 This program is free software: you can redistribute it and/or modify
