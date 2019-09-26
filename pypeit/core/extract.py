@@ -1,22 +1,18 @@
 """ Module for PypeIt extraction code
 """
-import time
-import copy
-import inspect
-
 import numpy as np
 import scipy
-from matplotlib import pyplot as plt
-
-from IPython import embed
-
-from sklearn.decomposition import PCA
 
 from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
+from pypeit import tracepca
+from pypeit.core import pydl
+from pypeit.core import pixels
+from pypeit.core.trace import fit_trace
+from pypeit.core.moment import moment1d
 from pypeit import specobjs
 from pypeit import tracepca
 from pypeit.core import pydl
@@ -25,15 +21,11 @@ from pypeit.core import arc
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 from matplotlib import pyplot as plt
-from pypeit.core import trace_slits
 from pypeit.core import arc
 from scipy import interpolate
 
-from sklearn.decomposition import PCA
 from pypeit import newspecobj
 from pypeit import newspecobjs
-#from pypeit import tracepca
-from pypeit.core.pydl import spheregroup
 
 from IPython import embed
 
@@ -429,75 +421,23 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     specobj.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
     # Fill in the boxcar extraction tags
-    flux_box  = extract_boxcar(imgminsky*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
-    # Denom is computed in case the trace goes off the edge of the image
-    box_denom = extract_boxcar(waveimg*mask > 0.0, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
-    wave_box  = extract_boxcar(waveimg*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)/(box_denom + (box_denom == 0.0))
-    varimg = 1.0/(ivar + (ivar == 0.0))
-    var_box  = extract_boxcar(varimg*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
-    nvar_box  = extract_boxcar(var_no*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
-    sky_box  = extract_boxcar(skyimg*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
-    rn2_box  = extract_boxcar(rn2_img*mask, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
-    rn_posind = (rn2_box > 0.0)
-    rn_box = np.zeros(rn2_box.shape,dtype=float)
-    rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
-    pixtot  = extract_boxcar(ivar*0 + 1.0, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec)
-    # If every pixel is masked then mask the boxcar extraction
-    mask_box = (extract_boxcar(ivar*mask == 0.0, specobj.TRACE_SPAT,box_radius, ycen = specobj.trace_spec) != pixtot) & \
-               np.isfinite(wave_box) & (wave_box > 0.0)
-
-    bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
-    # interpolate bad wavelengths over masked pixels
-    if bad_box.any():
-        f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
-        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.TRACE_SPAT[bad_box],grid=False)
-
-    ivar_box = 1.0/(var_box + (var_box == 0.0))
-    nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
-
-    specobj.BOX_WAVE = wave_box
-    specobj.BOX_COUNTS = flux_box*mask_box
-    specobj.BOX_COUNTS_IVAR = ivar_box*mask_box
-    specobj.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
-    specobj.BOX_COUNTS_NIVAR = nivar_box*mask_box
-    specobj.BOX_MASK = mask_box
-    specobj.BOX_COUNTS_SKY = sky_box
-    specobj.BOX_COUNTS_RN = rn_box
-    specobj.BOX_RADIUS = box_radius
-
-    return None
-
-
-def extract_specobj_boxcar(sciimg,ivar, mask, waveimg, skyimg, rn2_img, box_radius, specobj):
-    # Setup
-    imgminsky = sciimg - skyimg
-    nspat = imgminsky.shape[1]
-    nspec = imgminsky.shape[0]
-
-    spec_vec = np.arange(nspec)
-    spat_vec = np.arange(nspat)
-    # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
-    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
-
-
-    # Fill in the boxcar extraction tags
-    flux_box = moment1d(imgminsky*mask, specobj.trace_spat, 2*box_radius,
+    flux_box = moment1d(imgminsky*mask, specobj.TRACE_SPAT, 2*box_radius,
                         row=specobj.trace_spec)[0]
     # Denom is computed in case the trace goes off the edge of the image
-    box_denom = moment1d(waveimg*mask > 0.0, specobj.trace_spat, 2*box_radius,
+    box_denom = moment1d(waveimg*mask > 0.0, specobj.TRACE_SPAT, 2*box_radius,
                          row=specobj.trace_spec)[0]
-    wave_box = moment1d(waveimg*mask, specobj.trace_spat, 2*box_radius,
+    wave_box = moment1d(waveimg*mask, specobj.TRACE_SPAT, 2*box_radius,
                         row=specobj.trace_spec)[0] / (box_denom + (box_denom == 0.0))
     varimg = 1.0/(ivar + (ivar == 0.0))
-    var_box = moment1d(varimg*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
-    nvar_box = moment1d(var_no*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
-    sky_box = moment1d(skyimg*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
-    rn2_box = moment1d(rn2_img*mask, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
+    var_box = moment1d(varimg*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
+    nvar_box = moment1d(var_no*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
+    sky_box = moment1d(skyimg*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
+    rn2_box = moment1d(rn2_img*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
     rn_posind = (rn2_box > 0.0)
     rn_box = np.zeros(rn2_box.shape,dtype=float)
     rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
-    pixtot = moment1d(ivar*0 + 1.0, specobj.trace_spat, 2*box_radius, row=specobj.trace_spec)[0]
-    pixmsk = moment1d(ivar*mask == 0.0, specobj.trace_spat, 2*box_radius,
+    pixtot = moment1d(ivar*0 + 1.0, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
+    pixmsk = moment1d(ivar*mask == 0.0, specobj.TRACE_SPAT, 2*box_radius,
                       row=specobj.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
     mask_box = (pixmsk != pixtot) & np.isfinite(wave_box) & (wave_box > 0.0)
@@ -505,7 +445,7 @@ def extract_specobj_boxcar(sciimg,ivar, mask, waveimg, skyimg, rn2_img, box_radi
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
         f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
-        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.trace_spat[bad_box],
+        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.TRACE_SPAT[bad_box],
                                    grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
@@ -1699,11 +1639,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 idx=sobjs.idx, debug=show_fits)[0]
+                                 idx=sobjs.objid, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
         xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.idx, debug=show_fits)[0]
+                                 weighting='gaussian', idx=sobjs.objid, debug=show_fits)[0]
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -1755,7 +1695,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             thisobj.TRACE_SPAT = trace_model + shift
             thisobj.trace_spec = spec_vec
             thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
-            thisobj.set_idx()
+            thisobj.set_name()
             if hand_extract_fwhm[iobj] is not None: # If a hand_extract_fwhm was input use that for the fwhm
                 thisobj.FWHM = hand_extract_fwhm[iobj]
             elif nobj_reg > 0: # Otherwise is None was input, then use the median of objects on this slit if they are present
@@ -2217,17 +2157,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
-            #flux_tmp  = extract_boxcar(image*inmask_iord, spec.TRACE_SPAT,box_rad_pix, ycen = spec.trace_spec)
-            #var_tmp  = extract_boxcar(varimg*inmask_iord, spec.TRACE_SPAT,box_rad_pix, ycen = spec.trace_spec)
 
-            flux_tmp  = moment1d(image*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+            flux_tmp  = moment1d(image*inmask_iord, spec.TRACE_SPAT, 2*box_rad_pix,
                                  row=spec.trace_spec, mesh=False)[0]
-            var_tmp  = moment1d(varimg*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+            var_tmp  = moment1d(varimg*inmask_iord, spec.TRACE_SPAT, 2*box_rad_pix,
                                 row=spec.trace_spec, mesh=False)[0]
             ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = moment1d(ivar*0 + 1.0, spec.trace_spat, 2*box_rad_pix,
+            pixtot  = moment1d(ivar*0 + 1.0, spec.TRACE_SPAT, 2*box_rad_pix,
                                row=spec.trace_spec, mesh=False)[0]
-            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.trace_spat, 2*box_rad_pix,
+            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.TRACE_SPAT, 2*box_rad_pix,
                                 row=spec.trace_spec, mesh=False)[0] != pixtot
 
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
@@ -2285,7 +2223,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:,:,iobj] \
-                = tracepca.pca_trace_object(sobjs_final[indx_obj_id].trace_spat.T,
+                = tracepca.pca_trace_object(sobjs_final[indx_obj_id].TRACE_SPAT.T,
                                             order=coeff_npoly, npca=npca,
                                             pca_explained_var=pca_explained_var,
                                         trace_wgt=np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
@@ -2313,7 +2251,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             # TODO is this robust against half the order being masked?
             if spec.ech_frac_was_fit & (spec.ech_snr > 1.0):
                     spec.TRACE_SPAT = xfit_gweight[:,iord]
-                    spec.SPAT_PIXPOS = spec.trace_spat[specmid]
+                    spec.SPAT_PIXPOS = spec.TRACE_SPAT[specmid]
 
     #TODO Put in some criterion here that does not let the fractional position change too much during the iterative
     # tracefitting. The problem is spurious apertures identified on one slit can be pulled over to the center of flux

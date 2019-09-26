@@ -12,6 +12,9 @@ from pypeit import newspecobjs
 from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.core import procimg
 from pypeit.images import scienceimage
+from pypeit import ginga, msgs, edgetrace
+from pypeit.core import skysub, extract, pixels, wave
+
 from IPython import embed
 
 class Reduce(object):

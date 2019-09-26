@@ -52,6 +52,7 @@ def parser(options=None):
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
+
 def show_trace(specobjs, det, viewer, ch):
 
     in_det = np.where(specobjs.DET == det)[0]
