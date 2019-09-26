@@ -13,13 +13,6 @@ from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
-from pypeit import specobjs
-from pypeit import tracepca
-from pypeit.core import pydl
-from pypeit.core import pixels
-from pypeit.core import arc
-from pypeit.core.trace import fit_trace
-from pypeit.core.moment import moment1d
 from matplotlib import pyplot as plt
 from pypeit.core import arc
 from scipy import interpolate
@@ -451,15 +444,13 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
-    specobj.boxcar['WAVE'] = wave_box
-    specobj.boxcar['COUNTS'] = flux_box*mask_box
-    specobj.boxcar['COUNTS_IVAR'] = ivar_box*mask_box
-    specobj.boxcar['COUNTS_SIG'] = np.sqrt(utils.calc_ivar(ivar_box*mask_box))
-    specobj.boxcar['COUNTS_NIVAR'] = nivar_box*mask_box
-    specobj.boxcar['MASK'] = mask_box
-    specobj.boxcar['COUNTS_SKY'] = sky_box
-
-
+    specobj['BOX_WAVE'] = wave_box
+    specobj['BOX_COUNTS'] = flux_box*mask_box
+    specobj['BOX_COUNTS_IVAR'] = ivar_box*mask_box
+    specobj['BOX_COUNTS_SIG'] = np.sqrt(utils.calc_ivar(ivar_box*mask_box))
+    specobj['BOX_COUNTS_NIVAR'] = nivar_box*mask_box
+    specobj['BOX_MASK'] = mask_box
+    specobj['BOX_COUNTS_SKY'] = sky_box
 
 
 def findfwhm(model, sig_x):
