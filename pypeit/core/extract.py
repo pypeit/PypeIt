@@ -1,20 +1,13 @@
 """ Module for PypeIt extraction code
 """
-import time
-import copy
-import inspect
-
 import numpy as np
 import scipy
-
-from sklearn.decomposition import PCA
 
 from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
-from pypeit import specobjs
 from pypeit import tracepca
 from pypeit.core import pydl
 from pypeit.core import pixels
