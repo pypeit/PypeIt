@@ -1,3 +1,4 @@
 -r pypeit/requirements.txt
 Sphinx>=1.6.5
+sphinx-automodapi>=0.12
 

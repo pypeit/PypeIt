@@ -76,8 +76,6 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[wavelengths]]``: `WavelengthSolutionPar Keywords`_
 
-        ``[[slits]]``: `TraceSlitsPar Keywords`_
-
         ``[[slitedges]]``: `EdgeTracePar Keywords`_
 
         ``[[tilts]]``: `WaveTiltsPar Keywords`_
@@ -157,7 +155,6 @@ Key                 Type                                                 Options
 ``standardframe``   :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                        
 ``flatfield``       :class:`pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
 ``wavelengths``     :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
-``slits``           :class:`pypeit.par.pypeitpar.TraceSlitsPar`          ..       `TraceSlitsPar Keywords`_          Define how the slits should be traced using the trace frames                                                                                                                             
 ``slitedges``       :class:`pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                             
 ``tilts``           :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
@@ -232,37 +229,6 @@ Key                   Type                       Options                        
 
 ----
 
-TraceSlitsPar Keywords
-----------------------
-
-Class Instantiation: :class:`pypeit.par.pypeitpar.TraceSlitsPar`
-
-====================  ==========  ===========================================  ============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                   Type        Options                                      Default       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-====================  ==========  ===========================================  ============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``function``          str         ``polynomial``, ``legendre``, ``chebyshev``  ``legendre``  Function use to trace the slit center.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                                                       
-``medrep``            int         ..                                           0             Median-smoothing iterations to perform on sqrt(trace) image before applying to Sobel filter, which detects slit/order edges.                                                                                                                                                                                                                                                                                                                                               
-``number``            int         ..                                           -1            Manually set the number of slits to identify (>=1). 'auto' or -1 will automatically identify the number of slits.                                                                                                                                                                                                                                                                                                                                                          
-``trim``              tuple       ..                                           0, 0          How much to trim off each edge of each slit.  Each number should be 0 or positive                                                                                                                                                                                                                                                                                                                                                                                          
-``maxgap``            int         ..                                           ..            Maximum number of pixels to allow for the gap between slits.  Use None if the neighbouring slits are far apart or of similar illumination.                                                                                                                                                                                                                                                                                                                                 
-``maxshift``          int, float  ..                                           0.15          Maximum shift in trace crude. Use a larger number for more curved slits/orders.                                                                                                                                                                                                                                                                                                                                                                                            
-``pad``               int         ..                                           0             Integer number of pixels to consider beyond the slit edges.                                                                                                                                                                                                                                                                                                                                                                                                                
-``sigdetect``         int, float  ..                                           20.0          Sigma detection threshold for edge detection                                                                                                                                                                                                                                                                                                                                                                                                                               
-``min_slit_width``    float       ..                                           6.0           If a slit spans less than this number of arcseconds over the spatial direction of the detector, it will be ignored.  Use this option to prevent the alignment (box) slits from multislit reductions, which typically cannot be reduced without a significant struggle.                                                                                                                                                                                                     
-``add_slits``         str, list   ..                                           ..            Add one or more user-defined slits.  The syntax to define a slit to add is: 'det:spec:spat_left:spat_right' where det=detector, spec=spectral pixel, spat_left=spatial pixel of left slit boundary, and spat_righ=spatial pixel of right slit boundary.  For example, '2:2000:2121:2322,3:2000:1201:1500' will add a slit to detector 2 passing through spec=2000 extending spatially from 2121 to 2322 and another on detector 3 at spec=2000 extending from 1201 to 1500.
-``rm_slits``          str, list   ..                                           ..            Remove one or more user-specified slits.  The syntax used to define a slit to remove is: 'det:spec:spat' where det=detector, spec=spectral pixel, spat=spatial pixel.  For example, '2:2000:2121,3:2000:1500' will remove the slit on detector 2 that contains pixel (spat,spec)=(2000,2121) and on detector 3 that contains pixel (2000,2121).                                                                                                                            
-``diffpolyorder``     int         ..                                           2             Order of the 2D function used to fit the 2d solution for the spatial size of all orders.                                                                                                                                                                                                                                                                                                                                                                                   
-``single``            list        ..                                           []            Add a single, user-defined slit based on its location on each detector.  Syntax is a list of values, 2 per detector, that define the slit according to column values.  The second value (for the right edge) must be greater than 0 to be applied.  LRISr example: setting single = -1, -1, 7, 295 means the code will skip the user-definition for the first detector but adds one for the second.  None means no user-level slits defined.                               
-``sobel_mode``        str         ``nearest``, ``constant``                    ``nearest``   Mode for Sobel filtering.  Default is 'nearest' but the developers find 'constant' works best for DEIMOS.                                                                                                                                                                                                                                                                                                                                                                  
-``pcaextrap``         list        ..                                           0, 0          The number of extra orders to predict in the negative (first number) and positive (second number) direction.  Must be two numbers in the list and they must be integers.                                                                                                                                                                                                                                                                                                   
-``smash_range``       list        ..                                           0.0, 1.0      Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges.  If the spectrum covers only a portion of the image, use that range.                                                                                                                                                                                                                                                                                             
-``trace_npoly``       int         ..                                           5             Order of legendre polynomial fits to slit/order boundary traces.                                                                                                                                                                                                                                                                                                                                                                                                           
-``mask_frac_thresh``  float       ..                                           0.6           Minimum fraction of the slit edge that was *not* masked to use in initial PCA.                                                                                                                                                                                                                                                                                                                                                                                             
-====================  ==========  ===========================================  ============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-
-
-----
-
 EdgeTracePar Keywords
 ---------------------
 
@@ -310,7 +276,7 @@ Key                      Type              Options                              
 ``gap_offset``           int, float        ..                                           5.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                   
 ``sync_to_edge``         bool              ..                                           True            If adding a first left edge or a last right edge, ignore `center_mode` for these edges and place them at the edge of the detector (with the relevant shape).                                                                                                                                                                                                                                                                                                               
 ``minimum_slit_length``  int, float        ..                                           ..              Minimum slit length in arcsec.  Slit lengths are determined by the median difference between the left and right edge locations for the unmasked trace locations.  Short slits are masked or clipped.  If None, no minimum slit length applied.                                                                                                                                                                                                                             
-``length_range``         int, float        ..                                           ..              Allowed range in slit length compared to the median slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.                                                                                                                                                                                                                                                            
+``length_range``         int, float        ..                                           ..              Allowed range in slit length compared to the median slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.  Most useful for echelle or multi-slit data where the slits should have similar or identical lengths.                                                                                                                                                      
 ``minimum_slit_gap``     int, float        ..                                           ..              Minimum slit gap in arcsec.  Gaps between slits are determined by the median difference between the right and left edge locations of adjacent slits.  Slits with small gaps are merged by removing the intervening traces.If None, no minimum slit gap is applied.  This should be smaller than `gap_offset` when converted to pixels.                                                                                                                                     
 ``clip``                 bool              ..                                           True            Instead of just masking bad slit trace edges, remove them.                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``sync_clip``            bool              ..                                           True            For synchronized edges specifically, remove both edge traces, even if only one is selected for removal.                                                                                                                                                                                                                                                                                                                                                                    
@@ -358,7 +324,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``pinhole``, ``bias``, ``tilt``, ``dark``, ``standard``, ``pixelflat``, ``science``, ``trace``, ``arc``  ``science``                   Frame type.  Options are: pinhole, bias, tilt, dark, standard, pixelflat, science, trace, arc                                                                                                                                                                  
+``frametype``  str                                             ``trace``, ``pixelflat``, ``standard``, ``bias``, ``arc``, ``tilt``, ``dark``, ``pinhole``, ``science``  ``science``                   Frame type.  Options are: trace, pixelflat, standard, bias, arc, tilt, dark, pinhole, science                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -523,13 +489,10 @@ Alterations to the default parameters are::
           nonlinear_counts = 62258.25
           match_toler = 2.5
           n_first = 3
-      [[slits]]
-          sigdetect = 50.0
-          trace_npoly = 3
       [[slitedges]]
           edge_thresh = 50.0
           fit_order = 3
-          minimum_slit_length = 5.0
+          minimum_slit_length = 4.0
           minimum_slit_gap = 0.25
           sync_clip = False
   [scienceframe]
@@ -580,8 +543,6 @@ Alterations to the default parameters are::
           rms_threshold = 0.2
           match_toler = 2.5
           n_first = 3
-      [[slits]]
-          sigdetect = 30.0
       [[slitedges]]
           edge_thresh = 15.0
           det_min_spec_length = 0.1
@@ -631,8 +592,6 @@ Alterations to the default parameters are::
           nonlinear_counts = 49806.6
           sigdetect = 10.0
           rms_threshold = 0.2
-      [[slits]]
-          sigdetect = 50.0
       [[slitedges]]
           fit_order = 3
           sync_center = gap
@@ -691,8 +650,6 @@ Alterations to the default parameters are::
           nonlinear_counts = 56360.1
           sigdetect = 10.0
           rms_threshold = 0.2
-      [[slits]]
-          sigdetect = 50.0
       [[slitedges]]
           fit_order = 3
           sync_center = gap
@@ -805,8 +762,6 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = OH_R24000
           rms_threshold = 0.2
-      [[slits]]
-          sigdetect = 200.0
       [[slitedges]]
           edge_thresh = 200.0
       [[tilts]]
@@ -1064,9 +1019,6 @@ Alterations to the default parameters are::
           nonlinear_counts = 55900.0
           reid_arxiv = vlt_xshooter_uvb1x1_iraf.json
           rms_threshold = 0.5
-      [[slits]]
-          maxshift = 0.5
-          sigdetect = 8.0
       [[slitedges]]
           edge_thresh = 8.0
           max_shift_adj = 0.5
@@ -1120,10 +1072,6 @@ Alterations to the default parameters are::
           cc_local_thresh = 0.5
           rms_threshold = 0.5
           n_final = 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3
-      [[slits]]
-          maxshift = 0.5
-          sigdetect = 8.0
-          trace_npoly = 8
       [[slitedges]]
           edge_thresh = 8.0
           max_shift_adj = 0.5
@@ -1193,10 +1141,6 @@ Alterations to the default parameters are::
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_threshold = 0.25
-      [[slits]]
-          maxshift = 0.5
-          sigdetect = 100.0
-          trace_npoly = 8
       [[slitedges]]
           edge_thresh = 50.0
           max_shift_adj = 0.5
@@ -1280,9 +1224,6 @@ Alterations to the default parameters are::
           cc_thresh = 0.6
           rms_threshold = 1.0
           n_final = 1, 3, 3, 3, 3, 3
-      [[slits]]
-          maxshift = 0.5
-          sigdetect = 50.0
       [[slitedges]]
           max_shift_adj = 0.5
           fit_min_spec_length = 0.5
@@ -1335,8 +1276,6 @@ Alterations to the default parameters are::
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
           nsnippet = 1
-      [[slits]]
-          trace_npoly = 3
       [[slitedges]]
           fit_order = 3
       [[tilts]]
@@ -1374,8 +1313,6 @@ Alterations to the default parameters are::
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
           nsnippet = 1
-      [[slits]]
-          trace_npoly = 3
       [[slitedges]]
           fit_order = 3
       [[tilts]]
@@ -1413,8 +1350,6 @@ Alterations to the default parameters are::
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
           nsnippet = 1
-      [[slits]]
-          trace_npoly = 3
       [[slitedges]]
           fit_order = 3
       [[tilts]]
@@ -1457,9 +1392,6 @@ Alterations to the default parameters are::
           lamps = OH_XSHOOTER
           nonlinear_counts = 20000.0
           rms_threshold = 0.2
-      [[slits]]
-          maxshift = 0.5
-          sigdetect = 50
       [[slitedges]]
           edge_thresh = 50
           max_shift_adj = 0.5
@@ -1511,9 +1443,6 @@ Alterations to the default parameters are::
           cc_thresh = 0.5
           cc_local_thresh = 0.5
           rms_threshold = 0.2
-      [[slits]]
-          maxshift = 3.0
-          sigdetect = 10.0
       [[slitedges]]
           edge_thresh = 10.0
           max_shift_adj = 3.0
@@ -1561,9 +1490,6 @@ Alterations to the default parameters are::
           lamps = ThAr
           nonlinear_counts = 56360.1
           rms_threshold = 0.25
-      [[slits]]
-          maxshift = 0.5
-          sigdetect = 600.0
       [[slitedges]]
           edge_thresh = 600.0
           max_shift_adj = 0.5
@@ -1614,8 +1540,6 @@ Alterations to the default parameters are::
           fwhm = 10.0
           rms_threshold = 1.0
           n_first = 1
-      [[slits]]
-          sigdetect = 300
       [[slitedges]]
           edge_thresh = 300
       [[tilts]]
@@ -1665,8 +1589,6 @@ Alterations to the default parameters are::
           nonlinear_counts = 64879.65
           rms_threshold = 0.2
           n_first = 1
-      [[slits]]
-          sigdetect = 300
       [[slitedges]]
           edge_thresh = 300
       [[tilts]]
@@ -1716,8 +1638,6 @@ Alterations to the default parameters are::
           fwhm = 10.0
           rms_threshold = 1.0
           n_first = 1
-      [[slits]]
-          sigdetect = 300
       [[slitedges]]
           edge_thresh = 300
       [[tilts]]
@@ -1766,8 +1686,6 @@ Alterations to the default parameters are::
           nonlinear_counts = 64879.65
           rms_threshold = 0.2
           n_first = 1
-      [[slits]]
-          sigdetect = 300
       [[slitedges]]
           edge_thresh = 300
       [[tilts]]
@@ -1824,10 +1742,6 @@ Alterations to the default parameters are::
           lamps = HeI, ArI
           sigdetect = 10.0
           rms_threshold = 0.25
-      [[slits]]
-          maxshift = 0.5
-          sigdetect = 50.0
-          trace_npoly = 3
       [[slitedges]]
           edge_thresh = 50.0
           max_shift_adj = 0.5

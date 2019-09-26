@@ -18,38 +18,40 @@ from pypeit.masterframe import MasterFrame
 from pypeit import edgetrace
 from pypeit import newspecobjs
 import os
-import numpy as np
-import IPython
 
+import numpy as np
+
+from IPython import embed
+
+from astropy.table import Table
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
+from pypeit import ginga
+from pypeit import edgetrace
+from pypeit.core import pixels
 from pypeit.core.parse import get_dnum
-from pypeit.core import trace_slits
+from pypeit.images.maskimage import ImageBitMask
+from pypeit.masterframe import MasterFrame
+
 
 def parser(options=None):
-
     parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in a '
                                                  'Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
-    parser.add_argument("--list", default=False, help="List the extensions only?",
-                        action="store_true")
-    parser.add_argument('--det', default=1, type=int, help="Detector")
-#    parser.add_argument('--resid', default=False, help="Set to show model residuals map: chi = (image - sky - obj)/noise",
-#                        action = "store_true",)
-#    parser.add_argument('--sky_resid', default=False, help="Set to show sky subtraction residuals map : chi = (image - sky)/noise",
-#                        action = "store_true")
-    parser.add_argument('--showmask', default=False, help="Overplot masked pixels",
-                        action = "store_true")
-    parser.add_argument('--embed', default=False, help="Upong completetion embed in ipython shell",
-                        action = "store_true")
-#    parser.add_argument("--new", default=False, action="store_true", help="Uses new tracing")
-    parser.add_argument("--old", default=False, action="store_true", help="Used old slit tracing")
+    parser.add_argument('--list', default=False, help='List the extensions only?',
+                        action='store_true')
+    parser.add_argument('--det', default=1, type=int, help='Detector number')
+    parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
+                        action='store_true')
+    parser.add_argument('--embed', default=False, help='Upon completion embed in ipython shell',
+                        action='store_true')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
+
 
 def show_trace(specobjs, det, viewer, ch):
 
@@ -73,6 +75,7 @@ def main(args):
     msgs.reset(verbosity=2)
 
     # Init
+    # TODO: get_dnum needs to be deprecated...
     sdet = get_dnum(args.det, prefix=False)
 
     # One detector, sky sub for now
@@ -122,21 +125,17 @@ def main(args):
         mdir=mdir_base
 
     trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
+    trc_file = '{0}.gz'.format(os.path.join(mdir,
+                                            MasterFrame.construct_file_name('Edges', trace_key)))
 
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
-    # TODO -- Remove this once the move to Edges is complete
-    if args.old:
-        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
-    else:
-        trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
     slitmask = pixels.tslits2mask(tslits_dict)
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
-    slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'],
-                                       ii)[0] for ii in range(tslits_dict['slit_left'].shape[1])]
+    slit_ids = [edgetrace.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'],
+                                     ii)[0] for ii in range(tslits_dict['slit_left'].shape[1])]
     # Show the bitmask?
     mask_in = mask if args.showmask else None
 
@@ -213,7 +212,8 @@ def main(args):
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
 
     if args.embed:
-        IPython.embed()
+        embed()
+
         # Playing with some mask stuff
         #out = shell.start_operation('TVMask')
         #maskfile = '/Users/joe/python/PypeIt-development-suite/REDUX_OUT/Shane_Kast_blue/600_4310_d55/shane_kast_blue_setup_A/crmask.fits'
