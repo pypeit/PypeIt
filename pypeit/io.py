@@ -86,7 +86,7 @@ def rec_to_fits_col_dim(rec_element):
     return None if len(rec_element[0].shape) == 1 else str(rec_element[0].shape[::-1])
 
 
-def rec_to_bintable(arr, name=None):
+def rec_to_bintable(arr, name=None, hdr=None):
     """
     Construct an `astropy.io.fits.BinTableHDU` from a record array.
 
@@ -95,6 +95,8 @@ def rec_to_bintable(arr, name=None):
             The data array to write to a binary table.
         name (:obj:`str`, optional):
             The name for the binary table extension.
+        hdr (`astropy.io.fits.Header`, optional):
+            Header for the BinTableHDU extension.
     
     Returns:
         `astropy.io.fits.BinTableHDU`: The binary fits table that can be
@@ -104,7 +106,7 @@ def rec_to_bintable(arr, name=None):
                                                       format=rec_to_fits_type(arr[n]),
                                                       dim=rec_to_fits_col_dim(arr[n]),
                                                       array=arr[n])
-                                            for n in arr.dtype.names], name=name)
+                                            for n in arr.dtype.names], name=name, header=hdr)
 
 
 def compress_file(ifile, overwrite=False, rm_original=True):

@@ -43,12 +43,6 @@ def parser(options=None):
     parser.add_argument('--show', default=False, action='store_true',
                         help='Show the stages of trace refinements (only for the new code).')
 
-#    parser.add_argument('-n', '--use_new', default=False, action='store_true',
-#                        help='Use the new code.')
-
-    parser.add_argument('--old', default=False, action='store_true',
-                        help='Use the old code.')
-
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
@@ -58,7 +52,7 @@ def main(args):
     import os
     import numpy as np
     from pypeit.spectrographs.util import load_spectrograph
-    from pypeit import traceslits, traceimage, edgetrace, biasframe
+    from pypeit import traceimage, edgetrace, biasframe
     from pypeit.pypeit import PypeIt
     from pypeit.core import parse
 
@@ -89,8 +83,7 @@ def main(args):
         # Trace image processing parameters
         proc_par = rdx.caliBrate.par['traceframe']
         # Slit tracing parameters
-#        trace_par = rdx.caliBrate.par['slitedges'] if args.use_new else rdx.caliBrate.par['slits']
-        trace_par = rdx.caliBrate.par['slits'] if args.old else rdx.caliBrate.par['slitedges']
+        trace_par = rdx.caliBrate.par['slitedges']
 
         # Get the bias files, if requested
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
@@ -110,9 +103,7 @@ def main(args):
                                      if args.redux_path is None else args.redux_path)
         par = spec.default_pypeit_par()
         proc_par = par['calibrations']['traceframe']
-#        trace_par = par['calibrations']['slitedges'] if args.use_new \
-#                        else par['calibrations']['slits']
-        trace_par = par['calibrations']['slits'] if args.old else par['calibrations']['slitedges']
+        trace_par = par['calibrations']['slitedges']
         bias_files = None
         bias_par = None
 
@@ -135,52 +126,17 @@ def main(args):
             msbias = biasFrame.build_image()
 
         # Build the trace image
-
         traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
         traceImage.build_image(bias=msbias)
 
-        # Platescale
-        plate_scale = parse.parse_binning(binning)[1]*spec.detector[det-1]['platescale']
-
         # Trace the slit edges
-        if args.old:
-            t = time.perf_counter()
-            traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
-                                               master_dir=master_dir)
-            traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
-                           debug=args.debug)
-            print('Tracing for detector {0} finished in {1} s.'.format(det,
-                      time.perf_counter()-t))
-            traceSlits.save(traceImage=traceImage)
-#            try:
-#                t = time.perf_counter()
-#                traceSlits = traceslits.TraceSlits(spec, trace_par, det=det, master_key=master_key,
-#                                                   master_dir=master_dir)
-#                traceSlits.run(traceImage.image, binning, plate_scale=plate_scale, write_qa=False,
-#                               debug=args.debug)
-#                print('Tracing for detector {0} finished in {1} s.'.format(det,
-#                      time.perf_counter()-t))
-#                traceSlits.save(traceImage=traceImage)
-#            except Exception as e:
-#                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
-#                print('Continuing...')
-        else:
-            edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                           master_dir=master_dir, img=traceImage, det=det,
-                                           auto=True, debug=args.debug, show_stages=args.show,
-                                           qa_path=qa_path)
-            edges.save()
-#            try:
-#                t = time.perf_counter()
-#                edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-#                                               master_dir=master_dir, img=traceImage, det=det,
-#                                               auto=True, debug=args.debug, show_stages=args.show)
-#                print('Tracing for detector {0} finished in {1} s.'.format(det,
-#                                                                           time.perf_counter()-t))
-#                edges.save()
-#            except Exception as e:
-#                print('Encountered {0} during tracing: {1}'.format(e.__class__.__name__, e))
-#                print('Continuing...')
+        t = time.perf_counter()
+        edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
+                                       master_dir=master_dir, img=traceImage, det=det,
+                                       auto=True, debug=args.debug, show_stages=args.show,
+                                       qa_path=qa_path)
+        print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+        edges.save()
 
     return 0
 
