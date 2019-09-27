@@ -598,8 +598,8 @@ class PypeIt(object):
         # Finish up
         if self.sobjs_obj.nobj == 0:
             # Print status message
-            msgs_string = 'No objects to extract for target {:s}'.format(
-                frames[0]) + msgs.newline()
+            msgs_string = 'No objects to extract for file {:s}'.format(
+                self.fitstbl['target'][frames[0]]) + msgs.newline()
             msgs_string += 'On frames:' + msgs.newline()
             for iframe in frames:
                 msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
