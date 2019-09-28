@@ -7,38 +7,38 @@ import numpy as np
 import pytest
 
 from pypeit import msgs
-from pypeit import newspecobjs
-from pypeit import newspecobj
+from pypeit import specobjs
+from pypeit import specobj
 msgs.reset(verbosity=2)
 
 #def data_path(filename):
 #    data_dir = os.path.join(os.path.dirname(__file__), 'files')
 #    return os.path.join(data_dir, filename)
 
-sobj1 = newspecobj.SpecObj('MultiSlit', 1, slitid=0)
-sobj2 = newspecobj.SpecObj('MultiSlit', 1, slitid=1)
-sobj3 = newspecobj.SpecObj('MultiSlit', 1, slitid=2)
+sobj1 = specobj.SpecObj('MultiSlit', 1, slitid=0)
+sobj2 = specobj.SpecObj('MultiSlit', 1, slitid=1)
+sobj3 = specobj.SpecObj('MultiSlit', 1, slitid=2)
 
 
 def test_init():
     """ Run the parameter setup script
     """
     # Null
-    sobjs1 = newspecobjs.SpecObjs()
+    sobjs1 = specobjs.SpecObjs()
 
     # With a few objs
-    sobjs2 = newspecobjs.SpecObjs([sobj1,sobj2])
+    sobjs2 = specobjs.SpecObjs([sobj1,sobj2])
     assert sobjs2.nobj == 2
 
 
 def test_access():
-    sobjs = newspecobjs.SpecObjs([sobj1,sobj2])
+    sobjs = specobjs.SpecObjs([sobj1,sobj2])
     #
     assert sobjs[0]['PYPELINE'] == 'MultiSlit'
     assert len(sobjs['PYPELINE']) == 2
 
 def test_add_rm():
-    sobjs = newspecobjs.SpecObjs([sobj1,sobj2])
+    sobjs = specobjs.SpecObjs([sobj1,sobj2])
     sobjs.add_sobj(sobj3)
     assert sobjs.nobj == 3
     # Remove
@@ -46,7 +46,7 @@ def test_add_rm():
     assert len(sobjs.specobjs) == 2
 
 def test_set():
-    sobjs = newspecobjs.SpecObjs([sobj1,sobj2,sobj3])
+    sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
     # All
     sobjs.DET = 3
     assert np.all(sobjs[:].DET == np.array([3,3,3]))

@@ -17,8 +17,8 @@ from matplotlib import pyplot as plt
 from pypeit.core import arc
 from scipy import interpolate
 
-from pypeit import newspecobj
-from pypeit import newspecobjs
+from pypeit import specobj
+from pypeit import specobjs
 
 from IPython import embed
 
@@ -1486,7 +1486,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     npeak = len(xcen)
     # Instantiate a null specobj
-    sobjs = newspecobjs.SpecObjs()
+    sobjs = specobjs.SpecObjs()
     # Choose which ones to keep and discard based on threshold params. Create SpecObj objects
 
     # Possible thresholds    [significance,  fraction of brightest, absolute]
@@ -1512,11 +1512,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         for iobj in range(nobj_reg):
             # ToDo Label with objid and objind here?
             if specobj_dict['pypeline'] == 'MultiSlit':
-                thisobj = newspecobj.SpecObj('MultiSlit', specobj_dict['det'],
+                thisobj = specobj.SpecObj('MultiSlit', specobj_dict['det'],
                                              slitid=specobj_dict['slitid'],
                                              objtype=specobj_dict['objtype'])
             elif specobj_dict['pypeline'] == 'Echelle':
-                thisobj = newspecobj.SpecObj('Echelle', specobj_dict['det'],
+                thisobj = specobj.SpecObj('Echelle', specobj_dict['det'],
                                              orderindx=specobj_dict['orderindx'],
                                              ech_order=specobj_dict['order'],
                                              objtype=specobj_dict['objtype'])
@@ -1623,7 +1623,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')
         skymask = create_skymask_fwhm(sobjs,thismask)
-        return newspecobjs.SpecObjs(), skymask[thismask]
+        return specobjs.SpecObjs(), skymask[thismask]
 
 
     msgs.info('Fitting the object traces')
@@ -1672,7 +1672,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            thisobj = newspecobj.SpecObj(frameshape,
+            thisobj = specobj.SpecObj(frameshape,
                                        det=specobj_dict['det'],
                                        setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
                                        orderindx = specobj_dict['orderindx'],
@@ -1951,7 +1951,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # create the ouptut images skymask and objmask
     skymask_objfind = np.copy(allmask)
     # Loop over orders and find objects
-    sobjs = newspecobjs.SpecObjs()
+    sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
     for iord in range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
@@ -2109,7 +2109,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
-                thisobj = newspecobj.SpecObj('Echelle', sobjs_align[0].DET,
+                thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              objtype=sobjs_align[0].OBJTYPE,
                                              orderindx=iord,
                                              ech_order=order_vec[iord])
@@ -2177,7 +2177,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
     keep_obj = np.zeros(nobj,dtype=bool)
-    sobjs_trim = newspecobjs.SpecObjs()
+    sobjs_trim = specobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
     for iobj in range(nobj):
@@ -2197,7 +2197,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     nobj_trim = np.sum(keep_obj)
 
     if nobj_trim == 0:
-        sobjs_final = newspecobjs.SpecObjs()
+        sobjs_final = specobjs.SpecObjs()
         skymask = create_skymask_fwhm(sobjs_final, allmask)
         return sobjs_final, skymask[allmask]
 

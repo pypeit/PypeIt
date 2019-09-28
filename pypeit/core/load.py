@@ -16,7 +16,6 @@ import linetools.utils
 import IPython
 
 from pypeit import msgs
-from pypeit import newspecobjs
 from pypeit import debugger
 from pypeit.core import parse
 

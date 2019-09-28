@@ -10,7 +10,7 @@ import pytest
 
 from astropy.table import Table
 
-from pypeit import newspecobj
+from pypeit import specobj
 from pypeit import msgs
 
 def data_path(filename):
@@ -19,7 +19,7 @@ def data_path(filename):
 
 
 def test_init():
-    sobj = newspecobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
     # Test
     assert sobj.PYPELINE == 'MultiSlit'
     assert sobj['PYPELINE'] == 'MultiSlit'
@@ -28,7 +28,7 @@ def test_init():
 
 
 def test_assignment():
-    sobj = newspecobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
     #
     sobj.PYPELINE = 'Blah'
     #
@@ -41,7 +41,7 @@ def test_assignment():
 
 
 def test_data():
-    sobj = newspecobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
@@ -52,7 +52,7 @@ def test_data():
     assert 'SLITID' in sobj._data.meta.keys()
 
 def test_io():
-    sobj = newspecobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
@@ -61,6 +61,6 @@ def test_io():
     # Write table
     sobj._data.write(data_path('tmp.fits'), overwrite=True)
     tbl = Table.read(data_path('tmp.fits'))
-    sobj2 = newspecobj.SpecObj.from_table(tbl)
+    sobj2 = specobj.SpecObj.from_table(tbl)
     #
-    assert isinstance(sobj2, newspecobj.SpecObj)
+    assert isinstance(sobj2, specobj.SpecObj)

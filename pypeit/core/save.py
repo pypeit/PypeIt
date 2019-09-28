@@ -14,18 +14,19 @@ from IPython import embed
 
 
 import linetools.utils
+
 from pypeit import msgs
-#from pypeit import specobjs
-from pypeit import newspecobjs
-from pypeit import newspecobj
+from pypeit import specobjs
+from pypeit import specobj
 from pypeit import utils
 from pypeit.core import parse
 
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
-             update_det=None, binning='None'):
+             update_det=None):
     """
     Routine to save PypeIt 1d and 2d outputs
+
     Args:
         sci_dict: dict
             Dictionary containing extraction outputs
@@ -48,8 +49,6 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         update_det : int or list, default=None
             If provided, do not clobber the existing file but only update
             the indicated detectors.  Useful for re-running on a subset of detectors
-        binning: str, default = None
-          String indicating the binning of the data
 
     Returns:
 
@@ -61,14 +60,13 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     # Filenames to write out
     # TODO: These should be centrally defined so that they don't become
     # out of sync with what's in pypeit.PypeIt
-    objinfofile = os.path.join(scipath, 'objinfo_{:s}.txt'.format(basename))
     outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
 
     # TODO: Need some checks here that the exposure has been reduced
 
     # Build the final list of specobjs and vel_corr
-    all_specobjs = newspecobjs.SpecObjs()
+    all_specobjs = specobjs.SpecObjs()
 
     for key in sci_dict:
         try:
@@ -83,15 +81,13 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         all_specobjs.write_to_fits(outfile1d, header=head1d,
                                    spectrograph=spectrograph,
                                    update_det=update_det)
-        #save_1d_spectra_fits(all_specobjs, head1d, spectrograph, outfile1d,helio_dict=helio_dict, update_det=update_det)
-        #save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)
 
     # Write 2D images for the Science Frame
     save_2d_images(sci_dict, head2d, spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
 
     return
 
-
+'''
 def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=None, overwrite=True, update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
@@ -214,6 +210,7 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
     hdulist.writeto(outfile, overwrite=overwrite)
     msgs.info("Wrote 1D spectra to {:s}".format(outfile))
     return outfile
+'''
 
 
 def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
@@ -529,7 +526,7 @@ def init_hdus(update_det, outfile):
     for ss,hdu_name in enumerate(hdu_names):
         for det in update_det:
             sdet = parse.get_dnum(det, prefix=False)
-            idx = '{:s}{:s}'.format(newspecobj.naming_model['det'], sdet)
+            idx = '{:s}{:s}'.format(specobj.naming_model['det'], sdet)
             if idx in hdu_name:
                 popme.append(ss)
     # Remove em (and the bit in the Header too)

@@ -5,7 +5,7 @@ import numpy as np
 from astropy import stats
 from abc import ABCMeta
 
-from pypeit import newspecobjs
+from pypeit import specobjs
 from pypeit import ginga, msgs, edgetrace
 from pypeit.core import skysub, extract, pixels, wave
 
@@ -599,7 +599,7 @@ class MultiSlit(Reduce):
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
         # Instantiate the specobjs container
-        sobjs = newspecobjs.SpecObjs()
+        sobjs = specobjs.SpecObjs()
 
         # Loop on slits
         for slit in gdslits:
