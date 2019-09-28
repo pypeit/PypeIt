@@ -466,6 +466,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         return 0 if self.traceid is None else self.traceid.size
 
+    @property
+    def nslits(self):
+        if self.is_synced:
+            return self.ntrace//2
+        # TODO: Maybe this should only throw a warning
+        msgs.error('Number of slits undefined because edges are not left-right synchronized.')
+
     @staticmethod
     def empty_design_table(rows=None):
         """
@@ -4234,6 +4241,58 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit[:, gpm & self.is_right] = tslits_dict['slit_righ']
         self.spat_fit_type = 'tweaked'
         # TODO: Resort?
+
+    def slit_img(self, use_center=False):
+        r"""
+        Construct an image identifying each pixel with a slit.
+
+        Each pixel in an image with the same shape as the original
+        trace image is filled with the index of its associated slit
+        (i.e, the pixel value is :math:`0..N_{\rm slit}-1`). If the
+        slit positions have been modeled, either by a polynomial or a
+        PCA, these data are used to define the slit edges, unless
+        `use_center` is True. The slit edges must have been sorted
+        and synchronized into left-right pairs. Pixels not associated
+        with any slit are given values of -1.
+
+        The width of the slit is extended at either edge by a
+        fixed number of pixels using the `pad` parameter in
+        :attr:`par`.
+
+        A warning is raised if multiple pixels are associated with
+        the same slit. In this case, the pixel is ultimately
+        assocated with the slit with the highest index number.
+
+        Args:
+            use_center (:obj:`bool`, optional):
+                Use the measured centroids to define the slit edges
+                even if the slit edges have been otherwise modeled.
+
+        Returns:
+            `numpy.ndarray`_: The image with the slit index
+            identified for each pixel.
+        """
+        # Check that the slits are synchronized
+        if not self.is_synced:
+            msgs.error('Slit edges must be synced to produce slit image.')
+
+        # Find the pixels in each slit
+        coo = np.arange(self.nspat)
+        trace_cen = self.spat_cen if self.spat_fit is None or use_center else self.spat_fit
+        # TODO: The approach below could be a bit of a memory hog
+        # depending on the size of the images
+        in_slit = (coo[None,None,:] > trace_cen[:,self.is_left,None] - self.par['pad']) \
+                        & (coo[None,None,:] < trace_cen[:,self.is_right,None] + self.par['pad'])
+
+        # Warn the user that the slits overlap
+        # TODO: Need to think about what the best approach is here;
+        # current behavior is described in the docstring.
+        if np.any(np.sum(in_slit, axis=1) > 1):
+            msgs.warn('Slits overlap!')
+
+        # Isolate and return a single slit to identify with each pixel
+        return np.amax(in_slit.astype(int) * np.arange(1,self.nslits+1)[None,:,None] - 1, axis=1)
+
 
 # TODO: This needs to be integrated into EdgeTraceSet, or just use
 # EdgeTraceSet.traceid
