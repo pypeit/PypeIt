@@ -150,50 +150,40 @@ def extract_asymbox2(image,left_in,right_in, ycen=None, weight_image=None):
     return fextract.T
 
 
-def extract_boxcar(image,trace_in, radius_in, ycen = None):
+def extract_boxcar(image,trace_in, radius_in, ycen=None):
     """ Extract the total flux within a boxcar window at many positions. The ycen position is optional. If it is not provied, it is assumed to be integers
      in the spectral direction (as is typical for traces). Traces are expected to run vertically to be consistent with other
      extract_  routines. Based on idlspec2d/spec2d/extract_boxcar.pro
 
-     Parameters
-     ----------
-     image :  float ndarray
-         Image to extract from. It is a 2-d array with shape (nspec, nspat)
+     Revision History:
 
-     trace_in :  float ndarray
-         Trace for the region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
-         (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+     24-Mar-1999  Written by David Schlegel, Princeton.
+     22-Apr-2018  Ported to python by Joe Hennawi
 
-     radius :  float or ndarray
-         boxcar radius in floating point pixels. This can be either be in put as a scalar or as an array to perform
-         boxcar extraction a varaible radius. If an array is input it must have the same size and shape as trace_in, i.e.
-         a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+     Args:
+         image (np.ndarray):
+            Image to extract from. It is a 2-d array with shape (nspec, nspat)
+         trace_in (np.ndarray):
+            Trace for the region to be extracted (given as floating pt pixels). This can either be an 2-d  array with shape
+            (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
+         radius (float or ndarray):
+             boxcar radius in floating point pixels. This can be either be in put as a scalar or as an array to perform
+             boxcar extraction a varaible radius. If an array is input it must have the same size and shape as trace_in, i.e.
+             a 2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) for the case of a single trace.
+         ycen (np.ndarray, optional):
+             Y positions corresponding to trace_in (expected as integers). Will be rounded to the nearest integer if floats
+             are provided. This needs to have the same shape as trace_in  provided above. In other words,
+             either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
 
-
-     Optional Parameters
-     -------------------
-     ycen :  float ndarray
-         Y positions corresponding to trace_in (expected as integers). Will be rounded to the nearest integer if floats
-         are provided. This needs to have the same shape as trace_in  provided above. In other words,
-         either a  2-d  array with shape (nspec, nTrace) array, or a 1-d array with shape (nspec) forthe case of a single trace.
-
-
-     Returns
-     -------
-     fextract:   ndarray
+     Returns:
+        np.ndarray:
          Extracted flux at positions specified by (left<-->right, ycen). The output will have the same shape as
          Left and Right, i.e.  an 2-d  array with shape (nspec, nTrace) array if multiple traces were input, or a 1-d array with shape (nspec) for
          the case of a single trace.
 
-     Revision History
-     ----------------
-     24-Mar-1999  Written by David Schlegel, Princeton.
-     22-Apr-2018  Ported to python by Joe Hennawi
      """
-
-
     # Checks on radius
-    if (isinstance(radius_in,int) or isinstance(radius_in,float)):
+    if isinstance(radius_in,(int,float)):
         radius = radius_in
     elif ((np.size(radius_in)==np.size(trace_in)) & (np.shape(radius_in) == np.shape(trace_in))):
         radius = radius_in.T
@@ -295,6 +285,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         msgs.warn('Object profile is zero everywhere. This aperture is junk.')
         junk = np.zeros(nspec)
         # Fill in the optimally extraction tags
+        '''
         specobj.optimal['WAVE'] = junk
         specobj.optimal['COUNTS'] = junk
         specobj.optimal['COUNTS_IVAR'] = junk
@@ -315,7 +306,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         specobj.boxcar['COUNTS_SKY'] = junk
         specobj.boxcar['COUNTS_RN'] = junk
         specobj.boxcar['BOX_RADIUS'] = 0.0
-
+        '''
         return None
 
     mincol = np.min(ispat)
@@ -389,18 +380,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     chi2 = chi2_num/chi2_denom
 
     # Fill in the optimally extraction tags
-    '''
-    specobj.optimal['WAVE'] = wave_opt    # Optimally extracted wavelengths
-    specobj.optimal['COUNTS'] = flux_opt    # Optimally extracted flux
-    specobj.optimal['COUNTS_IVAR'] = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    specobj.optimal['COUNTS_SIG'] = np.sqrt(utils.inverse(mivar_opt))
-    specobj.optimal['COUNTS_NIVAR'] = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-    specobj.optimal['MASK'] = mask_opt    # Mask for optimally extracted flux
-    specobj.optimal['COUNTS_SKY'] = sky_opt      # Optimally extracted sky
-    specobj.optimal['COUNTS_RN'] = rn_opt        # Square root of optimally extracted read noise squared
-    specobj.optimal['FRAC_USE'] = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
-    specobj.optimal['CHI2'] = chi2            # Reduced chi2 of the model fit for this spectral pixel
-    '''
     specobj.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
     specobj.OPT_COUNTS = flux_opt    # Optimally extracted flux
     specobj.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
@@ -1635,11 +1614,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 idx=sobjs.objid, debug=show_fits)[0]
+                                 idx=sobjs.name, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
         xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.objid, debug=show_fits)[0]
+                                 weighting='gaussian', idx=sobjs.name, debug=show_fits)[0]
 
         # assign the final trace
         for iobj in range(nobj_reg):

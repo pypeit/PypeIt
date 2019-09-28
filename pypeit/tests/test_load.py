@@ -3,7 +3,7 @@ Module to run tests loading
 """
 import os
 import pytest
-from pypeit import newspecobjs
+from pypeit import specobjs
 
 from pypeit.core import load
 
@@ -26,10 +26,10 @@ def data_path(filename):
 
 def test_load_specobjs():
     spec_file = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
-    specobjs = newspecobjs.SpecObjs.from_fitsfile(spec_file)
+    sobjs = specobjs.SpecObjs.from_fitsfile(spec_file)
     #specobjs, head0 = load.load_specobjs(spec_file)
     # Test
-    assert isinstance(specobjs, newspecobjs.SpecObjs)
+    assert isinstance(sobjs, specobjs.SpecObjs)
     assert len(specobjs[0].BOX_COUNTS) == 1200
 
 

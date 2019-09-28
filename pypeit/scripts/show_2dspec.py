@@ -16,7 +16,7 @@ from pypeit.images.maskimage import ImageBitMask
 from pypeit.core import pixels
 from pypeit.masterframe import MasterFrame
 from pypeit import edgetrace
-from pypeit import newspecobjs
+from pypeit import specobjs
 import os
 
 import numpy as np
@@ -143,7 +143,7 @@ def main(args):
     spec1d_file = args.file.replace('spec2d', 'spec1d')
 
     if os.path.isfile(spec1d_file):
-        specobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_file)
+        specobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     else:
         specobjs = None
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +

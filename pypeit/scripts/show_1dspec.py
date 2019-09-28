@@ -32,10 +32,10 @@ def main(args, unit_test=False):
 
     from linetools.guis.xspecgui import XSpecGui
 
-    from pypeit import newspecobjs
+    from pypeit import specobjs
     from pypeit import msgs
 
-    sobjs = newspecobjs.SpecObjs.from_fitsfile(args.file)
+    sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
 
     # List only?
     if args.list:

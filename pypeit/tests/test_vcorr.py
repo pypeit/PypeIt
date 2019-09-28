@@ -11,8 +11,8 @@ from astropy import units
 from linetools import utils as ltu
 
 from pypeit.core import wave
-from pypeit import newspecobj
-from pypeit import newspecobjs
+from pypeit import specobj
+from pypeit import specobjs
 from pypeit.tests.tstutils import dummy_fitstbl
 
 mjd = 57783.269661
@@ -53,13 +53,13 @@ def test_geocorrect(fitstbl):
 
     # Specobj (wrap in a list to mimic a slit)
     npix = 1000
-    specobj = newspecobj.SpecObj('MultiSlit', 1, slitid=0)
-    specobj.BOX_WAVE = np.linspace(4000., 6000., npix)
-    specobj.BOX_COUNTS = 50.*(specobj.BOX_WAVE/5000.)**-1.
-    specobj.BOX_COUNTS_IVAR = 1./specobj.BOX_COUNTS.copy()
+    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj.BOX_WAVE = np.linspace(4000., 6000., npix)
+    sobj.BOX_COUNTS = 50.*(sobj.BOX_WAVE/5000.)**-1.
+    sobj.BOX_COUNTS_IVAR = 1./sobj.BOX_COUNTS.copy()
     # SpecObjs
-    specObjs = newspecobjs.SpecObjs()
-    specObjs.add_sobj(specobj)
+    specObjs = specobjs.SpecObjs()
+    specObjs.add_sobj(sobj)
     scidx = 5
     obstime = Time(fitstbl['mjd'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
     maskslits = np.array([False]*specObjs.nobj)
