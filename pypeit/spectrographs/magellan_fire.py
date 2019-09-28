@@ -102,16 +102,11 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
 
         # Set slits and tilts parameters
-#        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10]
-        par['calibrations']['slits']['trace_npoly'] = 5
-        par['calibrations']['slits']['sigdetect'] = 50
-        par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['edge_thresh'] = 50
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
-#        par['calibrations']['slits']['pcatype'] = 'pixel'
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters

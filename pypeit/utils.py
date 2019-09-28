@@ -163,6 +163,8 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     Returns:
         `numpy.ndarray`_: The smoothed image
     """
+    if nave == 1:
+        return img
     if wgt is not None and img.shape != wgt.shape:
         raise ValueError('Input image to smooth and weights must have the same shape.')
     if nave > img.shape[0]:
