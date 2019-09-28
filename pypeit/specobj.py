@@ -21,6 +21,8 @@ naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[skey.lower()] = skey
 
+# TODO -- The following needs to be parsed into our docs so that the user
+#  can view it all.  A solution like the ParSets would be ideal.
 # Data model -- Put here to be able to reach it without instantiating the class
 #  These are outward facing items, i.e. items that the user will receive and use.
 #  These are upper case to distinguish them from internal attributes
