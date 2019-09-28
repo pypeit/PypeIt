@@ -440,6 +440,19 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     weights = np.ones(np.sum(use_trace), dtype=float) \
                 if trace_wgt is None else trace_wgt[use_trace]
 
+    # TODO: This combination of ivar and weights is as it has been
+    # previously. However, we recently changed the slit-edge tracing
+    # code to fit the PCA coefficients with unity weights (the default
+    # when passing weights=None to build_interpolator) and ivar=None.
+    # The means the PCA coefficients are fit with uniform weighting and
+    # the rejection is based on the median absolute deviation of the
+    # data with respect to the fitted model.
+    # 
+    # This current call below to build_interpolator will instead weight
+    # the fit according to the weights set above, and it will reject
+    # points based on the inverse variance set above. We need to check
+    # that this makes sense!
+
     # Build the interpolator that allows prediction of new traces
     cenpca.build_interpolator(_order, ivar=ivar, weights=weights, function=function,
                               lower=lower, upper=upper, maxrej=maxrej, maxiter=maxiter,
