@@ -6,10 +6,9 @@ build:
 
 python:
    version: 3.6
-   install: true
-
-requirements_file: requirements_doc.txt
-
+   install:
+      - requirements: requirements_doc.txt
+      
 # Don't build any extra formats
 formats: all
 
