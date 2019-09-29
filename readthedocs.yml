@@ -1,4 +1,3 @@
-version: 2
 build:
    image: latest
 
@@ -9,6 +8,5 @@ python:
 requirements_file: requirements_doc.txt
 
 # Don't build any extra formats
-formats:
-    - all
+formats: all
 
