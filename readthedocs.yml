@@ -9,5 +9,5 @@ requirements_file: requirements_doc.txt
 
 # Don't build any extra formats
 formats:
-    - none
+    - all
 
