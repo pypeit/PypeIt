@@ -33,6 +33,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 30.
         par['calibrations']['slitedges']['edge_thresh'] = 15.
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['sync_center'] = 'gap'
@@ -470,6 +471,9 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Reduce the slit parameters because the flux does not span the full detector
         #   It is primarily on the upper half of the detector (usually)
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
+            par['calibrations']['slits']['mask_frac_thresh'] = 0.45
+            par['calibrations']['slits']['smash_range'] = [0.5, 1.]
+#            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.45
             par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
 
         # Return
@@ -566,6 +570,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par = KeckLRISSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_red'
         #
+        par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slitedges']['edge_thresh'] = 20.
 
         # 1D wavelength solution

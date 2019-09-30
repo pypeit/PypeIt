@@ -207,11 +207,19 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'keck_deimos'
         par['flexure']['method'] = 'boxcar'
         # Set wave tilts order
+        par['calibrations']['slits']['sigdetect'] = 50.
+        par['calibrations']['slits']['trace_npoly'] = 3
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
+        # Slightly larger than 2 pixels to catch cold columns
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
+        # Slightly larger than that to catch hot columns
+#        par['calibrations']['slitedges']['minimum_slit_length'] = 0.5
         par['calibrations']['slitedges']['minimum_slit_length'] = 4.
         par['calibrations']['slitedges']['sync_clip'] = False
+
+        # Overscan subtract the images
+        #par['calibrations']['biasframe']['useframe'] = 'overscan'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']

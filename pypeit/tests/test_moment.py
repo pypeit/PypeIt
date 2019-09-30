@@ -26,17 +26,17 @@ def test_basics():
                                  [ 4.97367636,  5.00545947,  4.97367636]]))
     
     # Calculate zeroth moments in all rows centered at column 50
-    assert np.allclose(moment.moment1d(img, 50, 40., order=0)[0],
+    assert np.allclose(moment.moment1d(img, 50, 40., order=0, mesh=False)[0],
                        np.array([0.99858297, 0.99993125, 0.99858297]))
 
     # Calculate zeroth moments in all rows for three column positions
-    assert np.allclose(moment.moment1d(img, [45,50,55], 40., order=0, mesh=True)[0],
+    assert np.allclose(moment.moment1d(img, [45,50,55], 40., order=0)[0],
                        np.array([[0.99993125, 0.99858297, 0.97670951],
                                  [0.99858297, 0.99993125, 0.99858297],
                                  [0.97670951, 0.99858297, 0.99993125]]))
 
     # Calculate zeroth moments in each row with one column center per row
-    assert np.allclose(moment.moment1d(img, [45,50,55], 40., row=[0,1,2], order=0)[0],
+    assert np.allclose(moment.moment1d(img, [45,50,55], 40., row=[0,1,2], order=0, mesh=False)[0],
                        np.array([0.99993125, 0.99993125, 0.99993125]))
 
     # Calculate the first moment in a column for all rows
@@ -44,7 +44,7 @@ def test_basics():
                        np.array([45.02314924, 50.        , 54.97685076]))
 
     # Or pick a column unique to each row
-    assert np.allclose(moment.moment1d(img, [43,52,57], 40., row=[0,1,2], order=1)[0],
+    assert np.allclose(moment.moment1d(img, [43,52,57], 40., row=[0,1,2], order=1, mesh=False)[0],
                        np.array([44.99688181, 50.00311819, 55.00311819]))
 
 

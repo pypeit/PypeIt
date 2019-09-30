@@ -13,9 +13,8 @@ from matplotlib import pyplot as plt
 from IPython import embed
 
 from pypeit import msgs, utils, ginga
-from pypeit.images import maskimage
 from pypeit.core import pixels, extract, pydl
-from pypeit.core.moment import moment1d
+from pypeit.images import maskimage
 
 def skysub_npoly(thismask):
     """
@@ -42,6 +41,7 @@ def skysub_npoly(thismask):
         npoly = 1
 
     return npoly
+
 
 
 def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3.0, maxiter=35,
@@ -690,21 +690,19 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].objid) + " of {:}".format(nobj))
                     msgs.info("At x = {:5.2f}".format(sobjs[iobj].spat_pixpos) + " on slit # {:}".format(sobjs[iobj].slitid))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
-
-                    flux = moment1d(img_minsky * outmask, sobjs[iobj].trace_spat, 2*box_rad,
-                                    row=sobjs[iobj].trace_spec)[0]
+                    flux = extract.extract_boxcar(img_minsky * outmask, sobjs[iobj].trace_spat, box_rad,
+                                          ycen=sobjs[iobj].trace_spec)
                     mvarimg = 1.0 / (modelivar + (modelivar == 0))
-                    mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].trace_spat, 2*box_rad,
-                                        row=sobjs[iobj].trace_spec)[0]
-                    pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, 2*box_rad,
-                                      row=sobjs[iobj].trace_spec)[0]
-                    mask_box = moment1d(np.invert(outmask), sobjs[iobj].trace_spat, 2*box_rad,
-                                        row=sobjs[iobj].trace_spec)[0] != pixtot
-                    box_denom = moment1d(waveimg > 0.0, sobjs[iobj].trace_spat, 2*box_rad,
-                                         row=sobjs[iobj].trace_spec)[0]
-                    wave = moment1d(waveimg, sobjs[iobj].trace_spat, 2*box_rad,
-                                    row=sobjs[iobj].trace_spec)[0] \
-                                / (box_denom + (box_denom == 0.0))
+                    mvar_box = extract.extract_boxcar(mvarimg * outmask, sobjs[iobj].trace_spat, box_rad,
+                                              ycen=sobjs[iobj].trace_spec)
+                    pixtot = extract.extract_boxcar(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, box_rad,
+                                            ycen=sobjs[iobj].trace_spec)
+                    mask_box = (extract.extract_boxcar(np.invert(outmask), sobjs[iobj].trace_spat, box_rad,
+                                               ycen=sobjs[iobj].trace_spec) != pixtot)
+                    box_denom = extract.extract_boxcar(waveimg > 0.0, sobjs[iobj].trace_spat, box_rad,
+                                               ycen=sobjs[iobj].trace_spec)
+                    wave = extract.extract_boxcar(waveimg, sobjs[iobj].trace_spat, box_rad, ycen=sobjs[iobj].trace_spec) / (
+                                box_denom + (box_denom == 0.0))
                     fluxivar = mask_box / (mvar_box + (mvar_box == 0.0))
                 else:
                     # For later iterations, profile fitting is based on an optimal extraction
