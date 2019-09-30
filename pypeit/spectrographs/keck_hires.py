@@ -271,11 +271,14 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         par['rdx']['spectrograph'] = 'keck_hires_red'
 
         # Adjustments to slit and tilts for NIR
+        par['calibrations']['slits']['sigdetect'] = 600.
+        par['calibrations']['slits']['trace_npoly'] = 5
+        par['calibrations']['slits']['maxshift'] = 0.5
         par['calibrations']['slitedges']['edge_thresh'] = 600.
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['left_right_pca'] = True
-
+#        par['calibrations']['slits']['pcatype'] = 'pixel'
         par['calibrations']['tilts']['tracethresh'] = 20
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'bias'

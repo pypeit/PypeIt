@@ -5,8 +5,8 @@ import numpy as np
 from astropy import stats
 from abc import ABCMeta
 
-from pypeit import ginga, utils, msgs, specobjs, edgetrace
-from pypeit.core import skysub, extract, pixels, wave
+from pypeit import ginga, utils, msgs, specobjs
+from pypeit.core import skysub, extract, trace_slits, pixels, wave
 from pypeit.core import procimg
 from pypeit.images import scienceimage
 from IPython import embed
@@ -499,12 +499,12 @@ class Reduce(object):
 
         if slits:
             if self.tslits_dict is not None:
-                slit_ids = [edgetrace.get_slitid(self.sciImg.mask.shape,
-                                                 self.tslits_dict['slit_left'],
-                                                 self.tslits_dict['slit_righ'], ii)[0]
-                                    for ii in range(self.tslits_dict['slit_left'].shape[1])]
-                ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'],
-                                 self.tslits_dict['slit_righ'], slit_ids)
+                slit_ids = [trace_slits.get_slitid(
+                    self.sciImg.mask.shape, self.tslits_dict['slit_left'],
+                    self.tslits_dict['slit_righ'], ii)[0] for ii in range(self.tslits_dict['slit_left'].shape[1])]
+
+                ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
+                                 slit_ids)  # , args.det)
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
@@ -710,7 +710,7 @@ class Echelle(Reduce):
                               show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
                               manual_extract_dict=None):
         # For echelle orders
-        slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
+        slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -771,7 +771,7 @@ class Echelle(Reduce):
         self.global_sky = global_sky
 
         # For echelle orders
-        slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
+        slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
         order_vec = self.spectrograph.order_vec(slit_spat_pos)
         #
         plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)

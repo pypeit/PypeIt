@@ -45,8 +45,8 @@ def test_reduce():
 def test_wavelengthsolution():
     pypeitpar.WavelengthSolutionPar()
 
-def test_edgetrace():
-    pypeitpar.EdgeTracePar()
+def test_traceslits():
+    pypeitpar.TraceSlitsPar()
 
 def test_wavetilts():
     pypeitpar.WaveTiltsPar()

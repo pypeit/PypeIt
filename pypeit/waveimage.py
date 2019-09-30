@@ -12,8 +12,8 @@ import os
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
-from pypeit import edgetrace
 from pypeit.core import pixels
+from pypeit.core import trace_slits
 from pypeit.core import save
 from pypeit.core import load
 from IPython import embed
@@ -92,7 +92,7 @@ class WaveImage(masterframe.MasterFrame):
         self.wv_calib = wv_calib
         if tslits_dict is not None:
             self.slitmask = pixels.tslits2mask(self.tslits_dict)
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
+            self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
         else:
             self.slitmask = None
             self.slit_spat_pos = None

@@ -8,7 +8,7 @@ import numpy as np
 from scipy import special
 
 def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighting='uniform',
-             order=0, bounds=None, fill_error=-1., mesh=False):
+             order=0, bounds=None, fill_error=-1., mesh=True):
     r"""
     Compute one-dimensional moments of the provided image within an
     aperture along its second axis (axis=1).
@@ -241,7 +241,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
 
         First setup an image with some Gaussians:
 
-        >>> from pypeit.core.moment import moment1d
+        >>> from pypeit.moment import moment1d
         >>> import numpy as np
         >>> from scipy.special import erf
         >>> def gauss_comb():
@@ -271,19 +271,19 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     
         Calculate zeroth moments in all rows centered at column 50
         
-        >>> moment1d(img, 50, 40., order=0)[0]
+        >>> moment1d(img, 50, 40., order=0, mesh=False)[0]
         array([0.99858297, 0.99993125, 0.99858297])
 
         Calculate zeroth moments in all rows for three column positions
         
-        >>> moment1d(img, [45,50,55], 40., order=0, mesh=True)[0]
+        >>> moment1d(img, [45,50,55], 40., order=0)[0]
         array([[0.99993125, 0.99858297, 0.97670951],
                [0.99858297, 0.99993125, 0.99858297],
                [0.97670951, 0.99858297, 0.99993125]])
 
         Calculate first moments in all rows for the three column positions
         
-        >>> moment1d(img, [45,50,55], 40., order=1, mesh=True)[0]
+        >>> moment1d(img, [45,50,55], 40., order=1)[0]
         array([[45.        , 45.02314924, 45.2814655 ],
                [49.97685076, 50.        , 50.02314924],
                [54.7185345 , 54.97685076, 55.        ]])
@@ -295,7 +295,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
 
         Or pick a column unique to each row
         
-        >>> moment1d(img, [43,52,57], 40., row=[0,1,2], order=1)[0]
+        >>> moment1d(img, [43,52,57], 40., row=[0,1,2], order=1, mesh=False)[0]
         array([44.99688181, 50.00311819, 55.00311819])
     """
 
@@ -317,11 +317,14 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     if flux.ndim != 2:
         raise ValueError('Input image must be 2D.')
     nrow, ncol = flux.shape
-    if ivar is not None and ivar.shape != flux.shape:
+    _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
+    if _ivar.shape != flux.shape:
         raise ValueError('Inverse variance must have the same shape as the input image.')
-    if bpm is not None and bpm.shape != flux.shape:
+    _bpm = np.zeros_like(flux, dtype=bool) if bpm is None else bpm
+    if _bpm.shape != flux.shape:
         raise ValueError('Pixel bad-pixel mask must have the same shape as the input image.')
-    if fwgt is not None and fwgt.shape != flux.shape:
+    _fwgt = np.ones_like(flux, dtype=float) if fwgt is None else fwgt
+    if _fwgt.shape != flux.shape:
         raise ValueError('Pixel weights must have the same shape as the input image.')
 
     # Check moment order
@@ -443,12 +446,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     ih = np.clip(c,0,ncol-1)
 
     # Set the weight over the window; masked pixels have 0 weight
-    good = (c >= 0) & (c < ncol)
-    if bpm is not None:
-        # NOTE: `&=` doesn't work here because of the np.newaxis usage
-        good = good & np.invert(bpm[_row[:,None],ih])
-    if ivar is not None:
-        good = good & (ivar[_row[:,None],ih] > 0)
+    good = (c >= 0) & (c < ncol) & np.invert(_bpm[_row[:,None],ih]) & (_ivar[_row[:,None],ih] > 0)
     if _weighting == 'uniform':
         # Weight according to the fraction of each pixel within in the
         # integration window
@@ -461,16 +459,13 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
 
     # Construct the moment-independent component of the integrand and
     # the zeroth moment; the zeroth moment is always needed
-    integ = flux[_row[:,None],ih] * wt
-    if fwgt is not None:
-        integ *= fwgt[_row[:,None],ih]
+    integ = _fwgt[_row[:,None],ih] * flux[_row[:,None],ih] * wt
     mu = np.array([np.ma.sum(integ, axis=1), None, None], dtype=object)
     mue = np.array([None, None, None], dtype=object)
     mum = np.array([np.ma.getmaskarray(mu[0]).copy(), None, None], dtype=object)
-    _var0 = np.square(wt) if ivar is None else np.ma.divide(np.square(wt), ivar[_row[:,None],ih])
     if 0 in _order:
         # Only calculate the error if the moment was requested
-        mue[0] = np.ma.sqrt(np.ma.sum(_var0, axis=1))
+        mue[0] = np.ma.sqrt(np.ma.sum(np.ma.divide(np.square(wt), _ivar[_row[:,None],ih]), axis=1))
         # Impose the boundary
         if lower[0] is not None:
             mum[0] |= mu[0] < lower[0]
@@ -483,10 +478,10 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
         mum[1] = np.ma.getmaskarray(mu[1]).copy()
         if 1 in _order:
             # Only calculate the error if the moment was requested
-            _var1 = np.square(wt * (c - mu[1][:,None]))
-            if ivar is not None:
-                _var1 = np.ma.divide(_var1, ivar[_row[:,None],ih])
-            mue[1] = np.ma.divide(np.ma.sqrt(np.ma.sum(_var1, axis=1)), np.absolute(mu[0]))
+            mue[1] = np.ma.divide(np.ma.sqrt(np.ma.sum(
+                                    np.ma.divide(np.square(wt*(c-mu[1][:,None])),
+                                                 _ivar[_row[:,None],ih]), axis=1)),
+                                    np.absolute(mu[0]))
             # Impose the boundary
             if lower[1] is not None:
                 mum[1] |= mu[1] < _col - lower[1]
@@ -496,9 +491,10 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     # Calculate the second moment if necessary
     if 2 in _order:
         mu[2] = np.ma.divide(np.sum(integ*np.square(c), axis=1), mu[0]) - np.square(mu[1])
-        mue[2] = np.ma.divide(np.ma.sqrt(
-                        np.ma.sum(_var0 * np.square(np.square(c - mu[1][:,None]) + mu[2][:,None]),
-                                  axis=1)), np.absolute(mu[0]))
+        mue[2] = np.ma.divide(np.ma.sqrt(np.ma.sum(
+                                    np.ma.divide(np.square(wt), _ivar[_row[:,None],ih])
+                                        * np.square(np.square(c - mu[1][:,None]) + mu[2][:,None]),
+                                                   axis=1)), np.absolute(mu[0]))
         mu[2] = np.ma.sqrt(mu[2])
         mue[2] = np.ma.divide(mue[2], 2*mu[2])
         mum[2] = np.ma.getmaskarray(mu[2]).copy()

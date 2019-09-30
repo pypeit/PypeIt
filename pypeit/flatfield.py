@@ -3,24 +3,26 @@ Implements the flat-field class.
 
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
-import os
 import inspect
 import numpy as np
+import os
 
-from IPython import embed
 
 from pypeit import msgs
-from pypeit import ginga
-from pypeit import masterframe
 
-from pypeit.par import pypeitpar
-from pypeit.images import calibrationimage
-from pypeit.images import pypeitimage
+from pypeit import masterframe
 from pypeit.core import flat
 from pypeit.core import save
 from pypeit.core import load
+from pypeit import ginga
+from pypeit.par import pypeitpar
 from pypeit.core import pixels
 from pypeit.core import procimg
+from pypeit.core import trace_slits
+from pypeit.images import calibrationimage
+from pypeit.images import pypeitimage
+
+from IPython import embed
 
 
 class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
@@ -53,7 +55,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             corrections.  If None, the default parameters are used.
         tslits_dict (:obj:`dict`):
             The current slit traces; see
-            :class:`pypeit.edgetrace.EdgeTraceSet`.
+            :class:`pypeit.traceslits.TraceSlits`.
         tilts_dict (:obj:`dict`, optional):
             The current wavelength tilt traces; see
             :class:`pypeit.wavetilts.WaveTilts`.
@@ -317,9 +319,9 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         if slits:
             if self.tslits_dict is not None:
-                slit_ids = [edgetrace.get_slitid(self.rawflatimg.shape,
-                                                 self.tslits_dict['slit_left'],
-                                                 self.tslits_dict['slit_righ'], ii)[0]
+                slit_ids = [trace_slits.get_slitid(self.rawflatimg.shape,
+                                                   self.tslits_dict['slit_left'],
+                                                   self.tslits_dict['slit_righ'], ii)[0]
                                 for ii in range(self.tslits_dict['slit_left'].shape[1])]
                 ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'],
                                  self.tslits_dict['slit_righ'], slit_ids)

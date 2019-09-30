@@ -487,7 +487,7 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     # TODO: This 0.1 is drawn out of the ether and different from what is done in peak_trace
     img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, 0.1)
     # Returned the smoothed image
-    return utils.boxcar_smooth_rows(img, boxcar)
+    return utils.boxcar_smooth_rows(img, boxcar) if boxcar > 1 else img
 
 
 def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, width=6.0,
@@ -568,9 +568,9 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             uses the DISCONTINUOUS flag.
 
     Returns:
-        Three numpy arrays are returned: the optimized center, an
-        estimate of the error, and a bad-pixel mask (masked values
-        are True).
+        Two numpy arrays are returned, the optimized center and an
+        estimate of the error; the arrays are masked arrays if
+        `start_cen` is provided as a masked array.
     """
     if flux.ndim != 2:
         raise ValueError('Input image must be 2D.')
@@ -1087,7 +1087,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
 
     # Returns the fit, the actual weighted traces and errors, and
     # measurement flags for the last iteration
-    return trace_fit, cen, err, msk, traceset
+    return trace_fit, cen, err, msk #, traceset
 
 
 def build_trace_bpm(flux, trace_cen, bpm=None, boxcar=None, thresh=None, median_kernel=None):
@@ -1435,7 +1435,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
                                                  thresh=trace_thresh, median_kernel=median_kernel)
 
         # Remeasure and fit the trace using uniform weighting
-        trace_peak, _cen, _err, _msk, _ \
+        trace_peak, _cen, _err, _msk \
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm,
                             trace_bpm=trace_peak_bpm, fwhm=fwhm_uniform, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,
@@ -1449,7 +1449,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
 
         # Redo the measurements and trace fitting with Gaussian
         # weighting
-        trace_peak, _cen, _err, _msk, _ \
+        trace_peak, _cen, _err, _msk \
                 = fit_trace(_flux, trace_peak, order, ivar=ivar, bpm=bpm, trace_bpm=trace_peak_bpm,
                             weighting='gaussian', fwhm=fwhm_gaussian, maxshift=maxshift,
                             maxerror=maxerror, function=function, maxdev=maxdev, maxiter=maxiter,
