@@ -215,7 +215,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         return np.full(order_vec.size, 0.15)
 
-
     @property
     def norders(self):
         return 6
@@ -228,7 +227,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     @property
     def orders(self):
         return np.arange(8,2,-1, dtype=int)
-
 
     @property
     def spec_min_max(self):

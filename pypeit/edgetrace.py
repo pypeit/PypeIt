@@ -4242,7 +4242,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit_type = 'tweaked'
         # TODO: Resort?
 
-    def slit_img(self, use_center=False):
+    def slit_img(self, pad=None, use_center=False):
         r"""
         Construct an image identifying each pixel with a slit.
 
@@ -4255,15 +4255,19 @@ class EdgeTraceSet(masterframe.MasterFrame):
         and synchronized into left-right pairs. Pixels not associated
         with any slit are given values of -1.
 
-        The width of the slit is extended at either edge by a
-        fixed number of pixels using the `pad` parameter in
-        :attr:`par`.
+        The width of the slit is extended at either edge by a fixed
+        number of pixels using the `pad` parameter in :attr:`par`.
+        This value can be overridden using the method keyword
+        argument.
 
-        A warning is raised if multiple pixels are associated with
-        the same slit. In this case, the pixel is ultimately
+        A warning is raised if individual pixels are associated with
+        multiple slits. In this case, the pixel is ultimately
         assocated with the slit with the highest index number.
 
         Args:
+            pad (:obj:`float`, :obj:`int`, optional):
+                Override the value of `pad` in :attr:`par` and use
+                this value instead.
             use_center (:obj:`bool`, optional):
                 Use the measured centroids to define the slit edges
                 even if the slit edges have been otherwise modeled.
@@ -4277,12 +4281,23 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.error('Slit edges must be synced to produce slit image.')
 
         # Find the pixels in each slit
-        coo = np.arange(self.nspat)
+        if pad is None:
+            pad = self.par['pad']
+
+        # Spatial column coordinate
+        spat = np.arange(self.nspat)
+        # Trace spatial centers
         trace_cen = self.spat_cen if self.spat_fit is None or use_center else self.spat_fit
-        # TODO: The approach below could be a bit of a memory hog
-        # depending on the size of the images
-        in_slit = (coo[None,None,:] > trace_cen[:,self.is_left,None] - self.par['pad']) \
-                        & (coo[None,None,:] < trace_cen[:,self.is_right,None] + self.par['pad'])
+        # TODO: The approach below could be a memory hog if there are
+        # lots of slits and the images are large.
+        in_slit = (spat[None,None,:] > trace_cen[:,self.is_left,None] - pad) \
+                        & (spat[None,None,:] < trace_cen[:,self.is_right,None] + pad)
+        if self.spectrograph.spec_min_max is not None:
+            # Get the (unbinned or) normalized slit position
+            # Match slit to order
+            # Get spectral range in binned pixel coordinates
+            # Limit what's "in" the slit
+            pass
 
         # Warn the user that the slits overlap
         # TODO: Need to think about what the best approach is here;
