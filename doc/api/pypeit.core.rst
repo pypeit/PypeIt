@@ -34,7 +34,6 @@ Submodules
    pypeit.core.skysub
    pypeit.core.telluric
    pypeit.core.trace
-   pypeit.core.trace_slits
    pypeit.core.tracewave
    pypeit.core.wave
 
