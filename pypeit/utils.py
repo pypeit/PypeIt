@@ -759,21 +759,21 @@ def clip_ivar(flux, ivar, sn_clip, mask=None):
         msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
         return ivar_out
 
+
 def inverse(array):
-    """ Calculate and return the inverse of the input array, enforcing positivity and setting values <= 0 to zero.
+    """
+    Calculate and return the inverse of the input array, enforcing positivity and setting values <= 0 to zero.
     The input array should be a quantity expected to always be positive, like a variance or an inverse variance. The quantity
     out = (array > 0.0)/(np.abs(array) + (array == 0.0)) is returned.
 
     Args:
         a (np.ndarray):
-        positive (bool, optional):
 
     Returns:
         np.ndarray:
 
     """
     return (array > 0.0)/(np.abs(array) + (array == 0.0))
-#    return np.ma.power(np.ma.MaskedArray(a, mask=a<0 if positive else None), -1).filled(0.0)
 
 
 def calc_ivar(varframe):

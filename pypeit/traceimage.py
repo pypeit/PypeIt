@@ -38,4 +38,5 @@ class TraceImage(calibrationimage.CalibrationImage):
         self.process_steps += ['trim']
         self.process_steps += ['apply_gain']
         self.process_steps += ['orient']
+        self.process_steps += ['crmask']
 

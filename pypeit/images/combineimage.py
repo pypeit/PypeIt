@@ -83,7 +83,7 @@ class CombineImage(object):
         return processedImage
 
     def run(self, process_steps, bias, pixel_flat=None, illum_flat=None,
-            ignore_saturation=False, sigma_clip=False, bpm=None, sigrej=None, maxiters=5):
+            ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5):
         """
         Generate a PypeItImage from a list of images
 
@@ -120,7 +120,8 @@ class CombineImage(object):
         nimages = len(self.files)
         for kk, ifile in enumerate(self.files):
             # Process a single image
-            pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat=pixel_flat, illum_flat=illum_flat, bpm=bpm)
+            pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat=pixel_flat,
+                                           illum_flat=illum_flat, bpm=bpm)
             # Are we all done?
             if len(self.files) == 1:
                 return pypeitImage
