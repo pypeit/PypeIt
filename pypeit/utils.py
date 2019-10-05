@@ -143,7 +143,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     Boxcar smooth an image along their first axis (rows).
 
     Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
-    smooth the image. Cannot accommodate masking.
+    smooth the image.  Smoothing does not account for any masking.
 
     .. note::
         For images following the PypeIt convention, this smooths the
@@ -165,6 +165,8 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     """
     if nave == 1:
         return img
+    if img.ndim != 2:
+        raise ValueError('Input image must be 2D.')
     if wgt is not None and img.shape != wgt.shape:
         raise ValueError('Input image to smooth and weights must have the same shape.')
     if nave > img.shape[0]:
@@ -940,7 +942,7 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
-def func_val(c, x, func, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None):
+def func_val(c, x, func, x2=None, minx=None, maxx=None, minx2=None, maxx2=None):
     """ Generic routine to return an evaluated function
     Functional forms include:
       polynomial, legendre, chebyshev, bspline, gauss

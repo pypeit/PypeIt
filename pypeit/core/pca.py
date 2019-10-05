@@ -270,15 +270,16 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
                                            invvar=None if _ivar is None else _ivar[:,i],
                                            weights=_weights[:,i], function=function,
                                            maxiter=maxiter, lower=lower, upper=upper,
-                                           maxrej=maxrej, sticky=False, use_mad=_ivar is None, minx=minx,
-                                           maxx=maxx)
+                                           maxrej=maxrej, sticky=False, use_mad=_ivar is None,
+                                           minx=minx, maxx=maxx)
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)
             rejected = np.invert(coeff_used[:,i]) & inmask
-            plt.scatter(coo[inmask], _coeff[inmask,i], marker='.', color='k', s=100, facecolor='none',
-                        label='pca coeff')
-            plt.scatter(coo[np.invert(inmask)], _coeff[np.invert(inmask),i], marker='.', color='orange', s=100, facecolor='none',
+            plt.scatter(coo[inmask], _coeff[inmask,i], marker='.', color='k', s=100,
+                        facecolor='none', label='pca coeff')
+            plt.scatter(coo[np.invert(inmask)], _coeff[np.invert(inmask),i], marker='.',
+                        color='orange', s=100, facecolor='none',
                         label='pca coeff, masked from previous')
             if np.any(rejected):
                 plt.scatter(coo[rejected], _coeff[rejected,i], marker='x', color='C3', s=80, 
