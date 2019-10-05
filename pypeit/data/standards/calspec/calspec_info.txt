@@ -1,4 +1,5 @@
 #Incomplete list of the calspec standards
+#  https://archive.stsci.edu/hlsps/reference-atlases/cdbs/current_calspec/
   File                       Name        RA_2000    DEC_2000
 gd50_004.fits                GD50       03:48:50.10 -00:58:30.0
 hz4_stis_001.fits            HZ4        03:55:21.77 +09:47:18.4
