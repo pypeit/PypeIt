@@ -244,11 +244,6 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         if do_crude:
             # First time tracing, do a trace crude
 
-            # TODO: Worried that using a starting row that is blindly
-            # set as half of sub_img is unstable to very curved slit
-            # traces. Should instead start at the center of the slit as
-            # defined by the slit trace?
-
             # NOTE: follow_centroid behaves differently from the old
             # trace_crude_init within 2-4 pixels at the trace edge
 
