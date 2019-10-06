@@ -27,14 +27,13 @@ from pypeit import debugger
 #        return super(KeckLRISSpectrograph, self).metadata_keys() \
 #                    + ['binning', 'dichroic', 'dispangle']
 
-# TODO: Change this to WHTISISBlueSpectrograph
-class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
+class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle WHT/ISIS blue specific code
     """
     def __init__(self):
         # Get it started
-        super(WhtIsisBlueSpectrograph, self).__init__()
+        super(WHTISISBlueSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis_blue'
         self.telescope = telescopes.WHTTelescopePar()
         self.camera = 'ISISb'
@@ -55,9 +54,7 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
                             gain            = 1.2,
                             ronoise         = 5.0,
                             datasec         = '[:,2:4030]',
-                            # TODO: What happens when the overscan is
-                            # not defined?!
-                            oscansec        = '[:,:]',
+                            oscansec        = None,
                             suffix          = '_blue'
                             )]
         self.numhead = 2
@@ -65,18 +62,30 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    @staticmethod
-    def default_pypeit_par():
+    def default_pypeit_par(self):
         """
         Set default parameters for Keck LRISb reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'wht_isis_blue'
+        # Turn off the overscan
+        for ftype in par['calibrations'].keys():
+            try:
+                par['calibrations'][ftype]['process']['overscan'] = 'none'
+            except (TypeError, KeyError):
+                pass
+        # Single slit
+        par['calibrations']['slits']['single'] = [0,-1]
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'simple'
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['sigdetect'] = 10.0
+        par['calibrations']['wavelengths']['wv_cen'] = 4859.0
+        par['calibrations']['wavelengths']['disp'] = 0.2
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
@@ -116,7 +125,7 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card='ISIGRAT')
         meta['dichroic'] = dict(ext=0, card='ISIDICHR')
-        meta['dispangle'] = dict(ext=0, card='CENWAVE', rtol=1e-4)
+        meta['dispangle'] = dict(ext=0, card='CENWAVE', rtol=1e-3)
         meta['slitwid'] = dict(ext=0, card='ISISLITW')
         meta['idname'] = dict(ext=0, card='IMAGETYP')
         # Lamps
@@ -148,7 +157,7 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         return ['dispname', 'decker', 'binning', 'dispangle', 'dichroic']
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(WhtIsisBlueSpectrograph, self).pypeit_file_keys()
+        pypeit_keys = super(WHTISISBlueSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['slitwid']
         return pypeit_keys
 
@@ -171,3 +180,31 @@ class WhtIsisBlueSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def bpm(self, shape=None, filename=None, det=None, msbias=None, **null_kwargs):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        shape : tuple, REQUIRED
+        filename : str, REQUIRED for binning
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        self.empty_bpm(shape=shape, filename=filename, det=det)
+
+        # Only defined for det=2
+        if msbias is not None:
+            msgs.info("Generating a BPM for det={0:d} on ISISb".format(det))
+            medval = np.median(msbias)
+            madval = 1.4824 * np.median(np.abs(medval - msbias))
+            ww = np.where(np.abs(msbias-medval) > 10.0*madval)
+            self.bpm_img[ww] = 1
+
+        return self.bpm_img
