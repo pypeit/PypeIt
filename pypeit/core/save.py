@@ -507,9 +507,6 @@ def init_hdus(update_det, outfile):
         fits.HDUList, fits.PrimaryHDU
 
     """
-    # Error check
-    if (update_det is not None) and os.path.isfile(outfile):
-        msgs.error("Should not be here")
     #
     hdus = fits.open(outfile)
     msgs.info("Using existing output file, including the Header")
