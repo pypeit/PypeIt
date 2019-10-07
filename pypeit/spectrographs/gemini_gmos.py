@@ -427,6 +427,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         #
         return par
 
@@ -528,6 +530,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         #
         return par
 
@@ -626,81 +630,6 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
         #
         return par
-
-'''
-def gmos_image_sections(inp, det):
-    if isinstance(inp, str):
-        hdu = fits.open(inp)
-    else:
-        hdu = inp
-    head0 = hdu[0].header
-    head1 = hdu[1].header
-
-    # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-    numamp = (len(hdu)-1)//3
-
-    # Setup for datasec, oscansec
-    dsec = []
-    osec = []
-
-    # get the x and y binning factors...
-    binning = head1['CCDSUM']
-    xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
-
-    # First read over the header info to determine the size of the output array...
-    datasec = head1['DATASEC']
-    x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
-    biassec = head1['BIASSEC']
-    b1, b2, b3, b4 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
-    nxb = b2-b1 + 1
-
-    # determine the output array size...
-    nx = (x2-x1+1)*numamp + nxb*numamp
-    ny = y2-y1+1
-
-    if numamp == 2:   # E2V
-        if det == 1: # BLUEST DETECTOR
-            order = range(6,4,-1)
-        elif det == 2: # NEXT
-            order = range(3,5)
-        elif det == 3: # REDDEST DETECTOR
-            order = range(1,3)
-    elif numamp == 4:  # Hamamatsu
-        if det == 1: # BLUEST DETECTOR
-            order = range(12,8,-1)
-        elif det == 2: # BLUEST DETECTOR
-            order = range(8,4,-1)
-        elif det == 3: # BLUEST DETECTOR
-            order = range(4,0,-1)
-    else:
-        embed()
-
-    # Do it
-    shape = (nx, ny)
-    for kk, jj in enumerate(order):
-        header = hdu[jj].header
-        # datasec
-        datasec = header['DATASEC']
-        xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
-        inx = xdata2-xdata1+1
-        xs = inx*kk
-        xe = xs + inx
-        section = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)
-        dsec.append(section)
-        # oscansec
-        xs = nx - numamp*nxb + kk*nxb
-        xe = xs + nxb
-        osection = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)
-        osec.append(osection)
-
-    # Pack up extras
-    ext_items = hdu, order, xbin, numamp, nxb, nx
-
-    # Return
-    return shape, dsec, osec, ext_items
-'''
-
-
 
 def gemini_read_amp(inp, ext):
     """

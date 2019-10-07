@@ -541,6 +541,13 @@ def main(flg):
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
                        normalize=True)
 
+    if flg & (2**21):  # GMOS 600/
+        binspec = 4
+        slits = [0]
+        xidl_file = os.path.join(template_path, 'GMOS', 'B600', 'GMOS_CuAr_B600_blue.sav')
+        outroot='gemini_gmos_b600_ham.fits'
+        build_template(xidl_file, slits, None, binspec, outroot, lowredux=True, chk=True)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -584,8 +591,9 @@ if __name__ == '__main__':
     #flg += 2**18  # Convert JSON to FITS
 
     # Gemini/GMOS
-    flg += 2**19  # Hamamatsu Convert JSON to FITS
+    #flg += 2**19  # Hamamatsu R400 Convert JSON to FITS
     #flg += 2**20  # E2V Convert JSON to FITS
+    flg += 2**21  # Hamamatsu B600 XIDL
 
     main(flg)
 
