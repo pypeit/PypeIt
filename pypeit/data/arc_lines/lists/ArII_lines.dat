@@ -4,6 +4,7 @@
 # Creation Date: 2018-Oct-04
 |  ion |       wave | NIST | Instr | amplitude |                     Source |
 | ArII |  3767.18827|    1 |    64 |        44 |  GMOS_B600 |
+| ArII |  4054.06540|    1 |    64 |        44 |  GMOS_B600 |
 | ArII |  4073.15410|    1 |    64 |        44 |  GMOS_B600 |
 | ArII |  4132.8886 |    1 |    64 |        44 |  GMOS_R400_blue_1_fit.json |
 | ArII |  4201.0720 |    1 |    64 |       142 |  GMOS_R400_blue_1_fit.json |

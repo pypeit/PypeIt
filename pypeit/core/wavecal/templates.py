@@ -541,12 +541,23 @@ def main(flg):
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
                        normalize=True)
 
-    if flg & (2**21):  # GMOS 600/
-        binspec = 4
-        slits = [0]
-        xidl_file = os.path.join(template_path, 'GMOS', 'B600', 'GMOS_CuAr_B600_blue.sav')
+
+    # ##############################
+    if flg & (2**21):  # GMOS R400 Hamamatsu
+        binspec = 2
         outroot='gemini_gmos_b600_ham.fits'
-        build_template(xidl_file, slits, None, binspec, outroot, lowredux=True, chk=True)
+        #
+        ifiles = [0, 1, 2]
+        slits = [0, 0, 0]
+        lcut = [4445., 5520.]
+        wfile1 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_01.json')
+        wfile2 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_02.json')
+        wfile3 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_03.json')
+        #
+        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
+                       outroot, lowredux=False, ifiles=ifiles, chk=True,
+                       normalize=True, subtract_conti=True)
+
 
 # Command line execution
 if __name__ == '__main__':
