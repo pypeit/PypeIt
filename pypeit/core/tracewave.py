@@ -498,7 +498,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     bpm[:,iuse] = False
     msgs.info('PCA modeling {:d} good tilts'.format(nuse))
     pca_fit = tracepca.pca_trace_object(trace_dict0['tilts_sub_fit'], order=coeff_npoly_pca,
-                                        trace_bpm=bpm, npca=npca, coo=lines_spec, lower=sigrej_pca,
+                                        trace_bpm=bpm, npca=npca, coo=lines_spec, minx=0.0,
+                                        maxx=float(trace_dict0['nsub'] - 1), lower=sigrej_pca,
                                         upper=sigrej_pca, debug=debug_pca)
 
     # Now trace again with the PCA predictions as the starting crutches
