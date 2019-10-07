@@ -249,7 +249,8 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
             # Smooth the image
             tilts_guess_now, err_now, _ \
-                    = trace.follow_centroid(utils.boxcar_smooth_rows(sub_img, tcrude_nave),
+                    = trace.follow_centroid(utils.boxcar_smooth_rows(sub_img, tcrude_nave,
+                                                                     wgt=sub_inmask),
                                             (sub_img.shape[0]-1)//2,
                                             np.array([lines_spec[iline]]), ivar=sub_inmask,
                                             width=2*fwhm, maxshift_start=tcrude_maxshift0,
