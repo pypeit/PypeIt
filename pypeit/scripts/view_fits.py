@@ -61,7 +61,8 @@ def main(args):
     elif 'gemini_gmos' in args.spectrograph:
         # TODO this routine should show the whole mosaic if no detector number is passed in!
         # Need to figure out the number of amps
-        img, _, _ = gemini_gmos.read_gmos(args.file, det=args.det)
+        gen_gmos = gemini_gmos.GeminiGMOSSpectrograph()
+        img, _, _, _, _ = gen_gmos.get_rawimage(args.file, args.det)
     else:
         hdu = fits.open(args.file)
         img = hdu[args.exten].data

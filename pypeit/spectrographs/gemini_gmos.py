@@ -454,7 +454,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         super(GeminiGMOSNHamSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos_north_ham'
 
-        self.detector = [  #  Hamamatsu (since 2011)
+        self.detector = [  #  Hamamatsu
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
                         specaxis        = 1,
