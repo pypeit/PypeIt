@@ -170,6 +170,7 @@ class WaveCalib(masterframe.MasterFrame):
 
             final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask,
                                                     n_final=self.par['n_final'],
+                                                    sigdetect=self.par['sigdetect'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':

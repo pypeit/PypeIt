@@ -1010,12 +1010,13 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 
 
 def simple_calib_driver(llist, censpec, ok_mask, n_final=5, get_poly=False,
+                        sigdetect=10.,
                         IDpixels=None, IDwaves=None, nonlinear_counts=1e10):
     wv_calib = {}
     for slit in ok_mask:
         iwv_calib = simple_calib(llist, censpec[:, slit], n_final=n_final,
                                  get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
-                                 nonlinear_counts=nonlinear_counts)
+                                 nonlinear_counts=nonlinear_counts, sigdetect=sigdetect)
         wv_calib[str(slit)] = iwv_calib.copy()
     return wv_calib
 
@@ -1054,7 +1055,7 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     # IDs were input by hand
     # Check that there are at least 5 values
     pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
-    if np.sum(pixels > 0.) < 5:
+    if np.sum(pixels > 0.) < 4:
         msgs.error("Need to give at least 5 pixel values!")
     #
     msgs.info("Using input lines to seed the wavelength solution")
@@ -1073,7 +1074,7 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     for jj,pix in enumerate(pixels):
         diff = np.abs(tcent-pix-med_poff)
         if np.min(diff) > 2.:
-            debugger.set_trace()
+            embed(header='1076 of arc.py')
             msgs.error("No match with input pixel {:g}!".format(pix))
         else:
             imn = np.argmin(diff)
@@ -1093,6 +1094,7 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
 
     # Debug
     disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
+    embed(header='1097 of arc.py')
     final_fit = fitting.iterative_fitting(censpec, tcent, idx_str, ids,
                                           llist, disp, verbose=False, n_final=n_final)
     # Return
