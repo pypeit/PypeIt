@@ -1094,7 +1094,6 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
 
     # Debug
     disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
-    embed(header='1097 of arc.py')
     final_fit = fitting.iterative_fitting(censpec, tcent, idx_str, ids,
                                           llist, disp, verbose=False, n_final=n_final)
     # Return
