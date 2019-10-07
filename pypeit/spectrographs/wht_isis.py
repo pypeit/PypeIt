@@ -74,6 +74,7 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
                 par['calibrations'][ftype]['process']['overscan'] = 'none'
             except (TypeError, KeyError):
                 pass
+        par['scienceframe']['process']['overscan'] = 'none'
         # Single slit
         par['calibrations']['slits']['single'] = [0,-1]
         # Set pixel flat combination method
