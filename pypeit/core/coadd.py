@@ -1319,10 +1319,10 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
 def order_median_scale(wave, wave_mask, fluxes_in, ivar_in, sigrej=3.0, nsig=3.0, niter=5, num_min_pixels=21, min_overlap_pix=21, overlapfrac=0.03, min_overlap_frac=0.03, max_rescale_percent=50.0, sn_min=1.0, SN_MIN_MEDSCALE=1.0, debug=False):
 
     #### HOTFIX
-    sigrej=nsig
-    min_overlap_frac = overlapfrac
-    min_overlap_pix = num_min_pixels
-    sn_min = SN_MIN_MEDSCALE
+    sigrej=nsig ####
+    min_overlap_frac = overlapfrac ####
+    min_overlap_pix = num_min_pixels ####
+    sn_min = SN_MIN_MEDSCALE ####
     '''
     Scale different orders using the median of overlap regions. It starts from the reddest order, i.e. scale H to K,
       and then scale J to H+K, etc.
@@ -1449,7 +1449,6 @@ def merge_order(spectra, wave_grid, spectrograph, files, extract='OPT', ordersca
     """
 
     ## Scaling different orders
-    orderscale = 'None' #### BECAUSE IT'S CURRENTLY BROKEN
     if orderscale == 'photometry':
         # Only tested on NIRES.
         if phot_scale_dicts is not None:
@@ -1590,12 +1589,12 @@ def ech_coadd(files,spectrograph,objids=None,extract='OPT',flux=True,giantcoadd=
         msgs.info('Coadding {:} spectra.'.format(nfile))
         fname = files[0]
         ext_final = fits.getheader(fname, -1)
-        nam = spectrograph.spectrograph
-        if (nam=='vlt_xshooter_vis'):
-            norder = ext_final['ECHORDER'] - 1 ### HOTFIX FOR XSHOOTER-VIS
+        nam = spectrograph.spectrograph     ### HOTFIX FOR XSHOOTER
+        if (nam=='vlt_xshooter_vis'): 
+            norder = ext_final['ECHORDER'] - 1
         elif (nam=='vlt_xshooter_nir'):
             norder = 16
-        else:
+        else: 
             norder = ext_final['ECHORDER'] + 1 
         msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
         if norder <= 1:
