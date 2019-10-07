@@ -150,7 +150,7 @@ def load_specobjs(fname,order=None):
     # Return
     return sobjs, head0
 
-def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
+def load_spec_order(fname,spectrograph,objid=None,order=None,extract='OPT',flux=True):
     """Loading single order spectrum from a PypeIt 1D specctrum fits file.
         it will be called by ech_load_spec
     Parameters:
@@ -166,6 +166,7 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
         objid = 0
     if order is None:
         msgs.error('Please specify which order you want to load')
+    msgs.info("Info received: objid {:s}, order {:f}".format(objid, order))
 
     # read extension name into a list
     primary_header = fits.getheader(fname, 0)
@@ -179,12 +180,19 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
     ordername = '{0:04}'.format(order)
     extname = extnameroot.replace('OBJ0001', objid)
     extname = extname.replace('ORDER0000', 'ORDER' + ordername)
-    try:
-        exten = extnames.index(extname) + 1
-        msgs.info("Loading extension {:s} of spectrum {:s}".format(extname, fname))
-    except:
-        msgs.error("Spectrum {:s} does not contain {:s} extension".format(fname, extname))
 
+    nam = spectrograph.spectrograph  
+    if (nam=='vlt_xshooter_vis'):
+        exten = order + 1 ### HOTFIX FOR XSHOOTER
+    if (nam=='vlt_xshooter_nir'):
+        exten = order + 1 
+    else:
+        try:
+            exten = extnames.index(extname) + 1
+            msgs.info("Loading extension {:s} of spectrum {:s}".format(extname, fname))
+        except:
+            msgs.error("Spectrum {:s} does not contain {:s} extension".format(fname, extname))
+    msgs.info("Loading extension number {:f}".format(exten))
     spectrum = load_1dspec(fname, exten=exten, extract=extract, flux=flux)
     # Polish a bit -- Deal with NAN, inf, and *very* large values that will exceed
     #   the floating point precision of float32 for var which is sig**2 (i.e. 1e38)
@@ -205,7 +213,7 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
 
     return spectrum_out
 
-def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
+def ech_load_spec(files, spectrograph,objid=None,order=None,extract='OPT',flux=True):
     """Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
     Parameters:
         files (str) : The list of file names of your spec1d file
@@ -227,7 +235,17 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
 
     fname = files[0]
     ext_final = fits.getheader(fname, -1)
-    norder = ext_final['ECHORDER'] + 1
+    #norder = ext_final['ECHORDER'] + 1  
+    #msgs.info('spectrograph is {:s}, {:s}'.format(spectrograph.telescope['name'], spectrograph.spectrograph))
+
+    nam = spectrograph.spectrograph  
+    if (nam=='vlt_xshooter_vis'):
+        norder = ext_final['ECHORDER'] - 1 ### HOTFIX FOR XSHOOTER
+    elif (nam=='vlt_xshooter_nir'):
+        norder = 16
+    else:
+        norder = ext_final['ECHORDER'] + 1  
+
     msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
     if norder <= 1:
         msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')
@@ -245,7 +263,7 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
         elif order >= norder:
             msgs.error('order number cannot greater than the total number of orders')
         else:
-            spectrum = load_spec_order(fname, objid=objid[ii], order=order, extract=extract, flux=flux)
+            spectrum = load_spec_order(fname, spectrograph, objid=objid[ii], order=order, extract=extract, flux=flux)
             # Append
             spectra_list.append(spectrum)
     # Join into one XSpectrum1D object
