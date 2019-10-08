@@ -15,7 +15,7 @@ from pypeit import msgs
 from pypeit.core import flux_calib
 from pypeit.core import load
 from pypeit.core import save
-from pypeit import newspecobjs
+from pypeit import specobjs
 from pypeit import debugger
 
 from IPython import embed
@@ -117,24 +117,24 @@ class FluxSpec(object):
             Loads up self.std_specobjs or self.sci_specobjs
 
         """
-        specobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_file)
+        sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
         header = fits.open(spec1d_file)[0].header
         #
         if std:
-            self.std_specobjs, self.std_header = specobjs, header
+            self.std_specobjs, self.std_header = sobjs, header
             msgs.info('Loaded {0} spectra from the spec1d standard star file: {1}'.format(
                 len(self.std_specobjs), spec1d_file))
             self.std_ra = self.std_header['RA']
             self.std_dec = self.std_header['DEC']
             self.std_file = self.std_header['FILENAME']
         else:
-            self.sci_specobjs, self.sci_header = specobjs, header
+            self.sci_specobjs, self.sci_header = sobjs, header
             msgs.info('Loaded {0} spectra from the spec1d science file: {1}'.format(
                 len(self.sci_specobjs), spec1d_file))
         # Check instrument
         spectro = header['PYP_SPEC']
         assert spectro == self.spectrograph.spectrograph
-        return specobjs, header
+        return sobjs, header
 
     def find_standard(self):
         """
@@ -289,7 +289,7 @@ class FluxSpec(object):
                                 self.sens_dict[sord]['sensfunc'],
                                 xlbl='Wavelength', ylbl='Sensitivity Function')
         else:
-            debugger.plot1d(self.sens_dict['wave'], self.sens_dict['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
+            debugger.plot1d(self.sens_dict['0']['wave'], self.sens_dict['0']['sensfunc'], xlbl='Wavelength', ylbl='Sensitivity Function')
 
     def write_science(self, outfile):
         """

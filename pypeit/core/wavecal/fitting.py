@@ -194,7 +194,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         # Keep unique ones
         ifit = np.unique(np.array(ifit, dtype=int))
         # Increment order
-        if n_order < (n_final+2):
+        if n_order < n_final:
             n_order += 1
         else:
             # This does 2 iterations at the final order

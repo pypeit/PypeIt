@@ -22,7 +22,7 @@ from pypeit import specobjs
 from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
-from pypeit import newspecobjs
+from pypeit import specobjs
 from pypeit import edgetrace
 from pypeit import reduce
 from pypeit.core import extract
@@ -929,7 +929,7 @@ class Coadd2d(object):
 
             # Specobjs
             if os.path.isfile(spec1d_files[ifile]):
-                sobjs = newspecobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
+                sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
                 head1d_list.append(sobjs.header)
                 this_det = sobjs.DET == self.DET
                 specobjs_list.append(sobjs[this_det])

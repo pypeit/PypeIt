@@ -507,27 +507,25 @@ def apply_sensfunc_specobjs(specobjs, sens_meta, sens_table, airmass, exptime, e
         plt.ylabel('Flux')
         plt.show()
 
-'''
-def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, debug=False, show=False):
-
-    sens_meta = Table.read(sensfile, 1)
-    sens_table = Table.read(sensfile, 2)
-
-    nexp = np.size(fnames)
-    for iexp in range(nexp):
-        spec1dfile = fnames[iexp]
-        outfile = spec1dfile[:-5] + '_flux.fits'
-        sobjs, head = load.load_specobjs(spec1dfile)
-        instrument = head['INSTRUME']
-        spectrograph = load_spectrograph(instrument)
-        airmass, exptime = head['AIRMASS'], head['EXPTIME']
-        longitude, latitude = head['LON-OBS'], head['LAT-OBS']
-
-        apply_sensfunc_specobjs(sobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=extinct_correct,
-                                tell_correct=tell_correct, longitude=longitude, latitude=latitude,
-                                debug=debug, show=show)
-        save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
-'''
+#def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, debug=False, show=False):
+#
+#    sens_meta = Table.read(sensfile, 1)
+#    sens_table = Table.read(sensfile, 2)
+#
+#    nexp = np.size(fnames)
+#    for iexp in range(nexp):
+#        spec1dfile = fnames[iexp]
+#        outfile = spec1dfile[:-5] + '_flux.fits'
+#        sobjs, head = load.load_specobjs(spec1dfile)
+#        instrument = head['INSTRUME']
+#        spectrograph = load_spectrograph(instrument)
+#        airmass, exptime = head['AIRMASS'], head['EXPTIME']
+#        longitude, latitude = head['LON-OBS'], head['LAT-OBS']
+#
+#        apply_sensfunc_specobjs(sobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=extinct_correct,
+#                                tell_correct=tell_correct, longitude=longitude, latitude=latitude,
+#                                debug=debug, show=show)
+#        save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
 
 ### Routines for standard sensfunc started from here
 def find_standard(specobj_list):

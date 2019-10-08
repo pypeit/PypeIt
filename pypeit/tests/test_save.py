@@ -9,7 +9,6 @@ import pytest
 from astropy import units
 from astropy.io import fits
 
-from pypeit import specobjs
 from pypeit.core import save
 
 from pypeit.tests.tstutils import dummy_fitstbl
@@ -23,7 +22,7 @@ def data_path(filename):
 def mk_specobj(flux=5, objid=500):
     # specobj
     npix = 100
-    specobj = specobjs.SpecObj((100,100), 0, (0.4,0.6), objtype='science',
+    specobj = specobj.SpecObj((100,100), 0, (0.4,0.6), objtype='science',
                                spat_pixpos=300)
     specobj.boxcar = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux)
     specobj.optimal = dict(wave=np.arange(npix)*units.AA, counts=np.ones(npix)*flux-0.5)
@@ -73,32 +72,4 @@ def test_save2d_fits():
     assert head0['BPMMKEY'] == 'bpm'            # See save_2d_images; removes last 3 characters
     assert 'PYPEIT' in head0['PIPELINE']
 
-
-def test_save1d_fits():
-    """ save1d to FITS and HDF5
-    """
-    # Init
-    fitstbl = dummy_fitstbl(spectro_name='shane_kast_blue', directory=data_path(''))
-    sobj = mk_specobj()
-    specObjs = specobjs.SpecObjs([sobj])
-    spectrograph = util.load_spectrograph('shane_kast_blue')
-    # Write to FITS
-    basename = 'test'
-    outfile = data_path('') + 'spec1d_{:s}.fits'.format(basename)
-    save.save_1d_spectra_fits(specObjs, fitstbl[5], spectrograph, outfile)
-
-
-# NEEDS REFACTORING
-#def test_save1d_hdf5():
-#    """ save1d to FITS and HDF5
-#    """
-#    # Dummy self
-#    fitstbl = arsort.dummy_fitstbl(spectrograph='shane_kast_blue', directory=data_path(''))
-#    slf = arsciexp.dummy_self(fitstbl=fitstbl)
-#    # specobj
-#    slf._specobjs = []
-#    slf._specobjs.append([])
-#    slf._specobjs[0].append([mk_specobj(objid=455), mk_specobj(flux=3., objid=555)])
-#    # Write to HDF5
-#    arsave.save_1d_spectra_hdf5(slf, fitstbl)
 

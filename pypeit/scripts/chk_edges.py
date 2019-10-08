@@ -10,11 +10,11 @@ in an RC Ginga window (must be previously launched)
 import argparse
 
 def parser(options=None):
-    parser = argparse.ArgumentParser(description='Display MasterTrace image and trace data',
+    parser = argparse.ArgumentParser(description='Display MasterEdges image and trace data',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('trace_file', type=str, default = None,
-                        help='PYPIT Master Trace file [e.g. MasterTrace_A_01_aa.fits.gz]')
+                        help='PypeIt Master Trace file [e.g. MasterEdges_A_01_aa.fits.gz]')
     parser.add_argument('--chname', default='MTrace', type=str,
                         help='Channel name for image in Ginga')
     parser.add_argument('--mpl', default=False, action='store_true',
