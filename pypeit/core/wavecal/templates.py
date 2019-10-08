@@ -517,16 +517,17 @@ def main(flg):
         binspec = 2
         outroot='gemini_gmos_r400_ham.fits'
         #
-        ifiles = [0, 1, 2, 3]
-        slits = [0, 2, 3, 0]  # Be careful with the order..
-        lcut = [5400., 6620., 8100.]
+        ifiles = [0, 1, 2, 3, 4]
+        slits = [0, 2, 3, 0, 0]  # Be careful with the order..
+        lcut = [5400., 6620., 8100., 9000.]
         wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_01_aa.json')
         wfile5 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_05_aa.json') # 5190 -- 6679
         #wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_02_aa.json')
         wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_04_aa.json')
         wfile4 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
+        wfile6 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_06_aa.json')
         #
-        build_template([wfile1,wfile5,wfile3,wfile4], slits, lcut, binspec,
+        build_template([wfile1,wfile5,wfile3,wfile4, wfile6], slits, lcut, binspec,
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
                        normalize=True, subtract_conti=True)
 
@@ -610,9 +611,9 @@ if __name__ == '__main__':
     #flg += 2**18  # Convert JSON to FITS
 
     # Gemini/GMOS
-    #flg += 2**19  # Hamamatsu R400 Convert JSON to FITS
+    flg += 2**19  # Hamamatsu R400 Convert JSON to FITS
     #flg += 2**20  # E2V Convert JSON to FITS
-    flg += 2**21  # Hamamatsu B600 XIDL
+    #flg += 2**21  # Hamamatsu B600 XIDL
 
     main(flg)
 

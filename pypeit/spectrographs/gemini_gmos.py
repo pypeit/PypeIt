@@ -50,6 +50,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(ext=0, card='CENTWAVE', rtol=1e-5)
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
 
+        self.meta['datasec'] = dict(ext=1, card='DATASEC')
+
+    def configuration_keys(self):
+        """
+        Extra keys for defining the configuration
+
+        Returns:
+
+        """
+        return ['datasec']
+
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -596,12 +607,12 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         ]
         self.numhead = 7
 
-    def init_meta(self):
-        """
-        Generate the meta data dictionary.
-        """
-        super(GeminiGMOSNE2VSpectrograph, self).init_meta()
-        self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
+    #def init_meta(self):
+    #    """
+    #    Generate the meta data dictionary.
+    #    """
+    #    super(GeminiGMOSNE2VSpectrograph, self).init_meta()
+    #    self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
 
     def config_specific_par(self, scifile, inp_par=None):
         """
