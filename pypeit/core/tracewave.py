@@ -248,7 +248,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             # trace_crude_init within 2-4 pixels at the trace edge
 
             # Smooth the image
-            tilts_guess_now, err_now, _ \
+            tilts_guess_now, _, _ \
                     = trace.follow_centroid(utils.boxcar_smooth_rows(sub_img, tcrude_nave,
                                                                      wgt=sub_inmask),
                                             (sub_img.shape[0]-1)//2,
@@ -410,7 +410,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
 
 def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False, fwhm=4.0,spat_order=5, maxdev_tracefit=0.2,
-                sigrej_trace=3.0, max_badpix_frac=0.20, tcrude_nave = 5,
+                sigrej_trace=3.0, max_badpix_frac=0.70, tcrude_nave = 5,
                 npca = 2, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = False, show_tracefits=False):
 
     """
@@ -446,7 +446,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
        From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
        analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
        from that distribution.
-    max_badpix_frac: float, default = 0.20
+    max_badpix_frac: float, default = 0.70
        Maximum fraction of total pixels that can be masked by the trace_gweight algorithm
        (because the residuals are too large) to still be usable for tilt fitting.
     tcrude_nave: int, default = 5
