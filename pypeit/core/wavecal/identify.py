@@ -6,8 +6,9 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.colors import LinearSegmentedColormap, Normalize
 import matplotlib.transforms as mtransforms
-from matplotlib.widgets import TextBox
+from matplotlib.widgets import Button, Slider
 
 matplotlib.use('Qt5Agg')
 
@@ -22,7 +23,7 @@ class Identify(object):
 
     """
 
-    def __init__(self, canvas, ax, axr, axi, spec, detns, lines):
+    def __init__(self, canvas, ax, axr, axi, spec, specres, detns, lines):
         """
         Description to go here
         """
@@ -31,6 +32,7 @@ class Identify(object):
         self.axi = axi
         # Initialise the spectrum properties
         self.spec = spec
+        self.specres = specres   # Residual information
         self.specdata = spec.get_ydata()
         self.specx = np.arange(self.specdata.size)
         # Detections, linelist, and line IDs
@@ -38,7 +40,7 @@ class Identify(object):
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
         self._lines = lines
         self._lineids = np.zeros(self._detns.size, dtype=np.float)
-        self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID
+        self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         # Fitting properties
         self._fitdict = dict(polyorder=1,
                              scale=self.specdata.size-1,
@@ -68,9 +70,9 @@ class Identify(object):
         canvas.mpl_connect('button_release_event', self.button_release_callback)
         self.canvas = canvas
 
-        axbox = plt.axes([0.4, 0.87, 0.2, 0.04])
-        self._id_entry = TextBox(axbox, 'Wavelength', initial="Select a line")
-        self._id_entry.on_submit(self.update_line_id)
+        # Setup slider for the linelist
+        self._slideval = 0  # Default starting point for the linelist slider
+        self.linelist_init()
 
         # Interaction variables
         self._detns_idx = -1
@@ -84,6 +86,36 @@ class Identify(object):
 
         # Draw the spectrum
         self.canvas.draw()
+
+    def linelist_update(self, val):
+        val = int(round(val))
+        self._slidell.label.set_text("{0:.4f}".format(self._lines[val]))
+        self._slideval = val
+
+    def linelist_select(self, event):
+        if event.button == 1:
+            self.update_line_id()
+            self._detns_idx = -1
+            # Try to perform a fit
+            self.fitsol_fit()
+            # Now replot everything
+            self.canvas.restore_region(self.background)
+            self.draw_lines()
+            self.draw_residuals()
+            self.canvas.draw()
+
+    def linelist_init(self):
+        axcolor = 'lightgoldenrodyellow'
+        # Slider
+        self.axl = plt.axes([0.15, 0.87, 0.7, 0.04], facecolor=axcolor)
+        self._slidell = Slider(self.axl, "{0:.4f}".format(self._lines[self._slideval]), self._slideval,
+                               self._lines.size-1, valinit=0, valstep=1)
+        self._slidell.valtext.set_visible(False)
+        self._slidell.on_changed(self.linelist_update)
+        # Select button
+        selax = plt.axes([0.86, 0.87, 0.1, 0.04])
+        self._select = Button(selax, 'Select Line', color=axcolor, hovercolor='y')
+        self._select.on_clicked(self.linelist_select)
 
     def draw_lines(self):
         """ Draw the lines and annotate with their IDs
@@ -114,6 +146,25 @@ class Identify(object):
                 self.ax.annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
                                  color='b', ha='center', va='bottom'))
         return
+
+    def draw_residuals(self):
+        if self._fitdict["coeff"] is None:
+            nid = np.where(self._lineflg==1)[0].size
+            msg = "Cannot plot residuals until more lines have been identified\n" +\
+                  "Polynomial order = {0:d}, Number of line IDs = {1:d}".format(self._fitdict["polyorder"], nid)
+            self.update_infobox(message=msg, yesno=False)
+        else:
+            # NOTE: self.specres = [respts, resfit, resres]
+
+            # Pixel vs wavelength
+            wavevals = self.fitsol_value()
+            wid = self._lineids != 0.0
+            wavevals[wid] = self._lineids[wid]
+            self._lineflg[self._lineids == 0.0] = 2
+            self.specres[0].set_offsets(np.vstack((self._detns, self._lineids)).T)
+            self.specres[0].set_color(self._lineflg)
+
+            # Pixel residuals
 
     def draw_callback(self, event):
         """ Draw the lines and annotate with their IDs
@@ -235,10 +286,10 @@ class Identify(object):
                     # The mouse button was pressed (not dragged)
                     self._detns_idx = self.get_detns()
                     if self._fitdict['coeff'] is not None:
-                        txtval = "{0:.5f}".format(self.fitsol_value())
-                    else:
-                        txtval = ""
-                    self._id_entry.set_val(txtval)
+                        # Find closest line
+                        waveest = self.fitsol_value(idx=self._detns_idx)
+                        widx = np.argmin(np.abs(waveest-self._lines))
+                        self.linelist_update(widx)
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
@@ -274,10 +325,30 @@ class Identify(object):
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
+                msgs.bug("Need to change this to kill and return the results to PypeIt")
                 sys.exit()
         elif self._qconf:
             self.update_infobox(default=True)
             self._qconf = False
+
+        # Manage responses from questions posed to the user.
+        if self._respreq[0]:
+            if key != "y" and key != "n":
+                return
+            else:
+                # Switch off the required response
+                self._respreq[0] = False
+                # Deal with the response
+                if self._respreq[1] == "write":
+                    # First remove the old file, and save the new one
+                    msgs.work("Not implemented yet!")
+                    self.write()
+                else:
+                    return
+            # Reset the info box
+            self.update_infobox(default=True)
+            return
+
         if key == '?':
             print("===============================================================")
             print("       MAIN OPERATIONS")
@@ -295,6 +366,7 @@ class Identify(object):
             print("f       : Fit the wavelength solution")
             print("r       : Refit a line")
             print("z       : Delete a single line identification")
+            print("+/-     : Raise/Lower the order of the fitting polynomial")
             print("---------------------------------------------------------------")
         elif key == 'a':
             msgs.work("Feature not yet implemented")
@@ -304,7 +376,13 @@ class Identify(object):
             msgs.work("Feature not yet implemented")
             self._fitdict['coeff'] = None
         elif key == 'f':
-            msgs.work("Feature not yet implemented")
+            self.fitsol_fit()
+        elif key == 'q':
+            if self._changes:
+                self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
+                self._qconf = True
+            else:
+                sys.exit()
         elif key == 'r':
             if self._detns_idx == -1:
                 msgs.info("You must select a line first")
@@ -316,17 +394,41 @@ class Identify(object):
             self.write()
         elif key == 'z':
             msgs.work("Feature not yet implemented")
+        elif key == '+':
+            if self._fitdict["polyorder"] < 10:
+                self._fitdict["polyorder"] += 1
+                self.update_infobox(message="Polynomial order = {0:d}".format(self._fitdict["polyorder"]), yesno=False)
+            else:
+                self.update_infobox(message="Polynomial order must be <= 10", yesno=False)
+        elif key == '-':
+            if self._fitdict["polyorder"] > 0:
+                self._fitdict["polyorder"] -= 1
+                self.update_infobox(message="Polynomial order = {0:d}".format(self._fitdict["polyorder"]), yesno=False)
+            else:
+                self.update_infobox(message="Polynomial order must be >= 0", yesno=False)
         self.canvas.draw()
 
-    def fitsol_value(self):
-        return np.polyval(self._fitdict["coeff"], self._detns[self._detns_idx]/self._fitdict["scale"])
+    def fitsol_value(self, idx=None):
+        if self._fitdict['coeff'] is not None:
+            if idx is None:
+                return np.polyval(self._fitdict["coeff"], self._detns / self._fitdict["scale"])
+            else:
+                return np.polyval(self._fitdict["coeff"], self._detns[idx] / self._fitdict["scale"])
+        else:
+            msgs.bug("Cannot predict wavelength value - no fit has been performed")
+            return None
 
     def fitsol_fit(self):
         ord = self._fitdict["polyorder"]
-        wfit = np.where(self._lineflg == 1)  # User IDs only!
-        xpix = self._detns[wfit]/self._fitdict["scale"]
-        ylam = self._lineids[wfit]
-        self._fitdict["coeff"] = np.polyfit(xpix, ylam, ord)
+        wfit = np.where(self._lineflg == 1)  # Use the user IDs only!
+        if ord+1 <= wfit[0].size:
+            xpix = self._detns[wfit]/self._fitdict["scale"]
+            ylam = self._lineids[wfit]
+            self._fitdict["coeff"] = np.polyfit(xpix, ylam, ord)
+        else:
+            msg = "Polynomial order must be >= number of line IDs\n" +\
+                  "Polynomial order = {0:d}, Number of line IDs = {1:d}".format(ord, wfit[0].size)
+            self.update_infobox(message=msg, yesno=False)
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
@@ -350,15 +452,11 @@ class Identify(object):
         self.axi.set_ylim((0, 1))
         self.canvas.draw()
 
-    def update_line_id(self, text):
-        try:
-            wdata = float(text)
-            # Find the nearest wavelength in the linelist
-            idx = np.argmin(np.abs(self._lines - wdata))
-            self._lineids[idx] = self._lines[idx]
-            self._lineflg[idx] = 1
-        except ValueError:
-            msgs.info("Invalid entry in Line ID box")
+    def update_line_id(self):
+        # Find the nearest wavelength in the linelist
+        if self._detns_idx != -1:
+            self._lineids[self._detns_idx] = self._lines[self._slideval]
+            self._lineflg[self._detns_idx] = 1
 
     def update_regions(self):
         self._fitregions[self._start:self._end] = self._addsub
@@ -381,9 +479,20 @@ def initialise(arcspec, detns, lines):
     axr = [fig.add_axes([0.7, .1, .28, 0.35]),
            fig.add_axes([0.7, .5, .28, 0.35])]
     # Residuals
+    residcmap = LinearSegmentedColormap.from_list("my_list", ['grey', 'blue', 'orange', 'red'], N=4)
+    resres = axr[0].scatter(detns, np.zeros(detns.size), marker='x',
+                            c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
+    axr[0].axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
+    axr[0].axhline(0.0, color='r', linestyle='-')  # Zero level
+    #axr[0].add_line(resres)
     axr[0].set_xlim((0, arcspec.size-1))
     axr[0].set_ylim((-0.3, 0.3))
+
     # pixel vs wavelength
+    respts = axr[1].scatter(detns, np.zeros(detns.size), marker='x',
+                            c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
+    resfit = Line2D(np.arange(arcspec.size), np.zeros(arcspec.size), linewidth=1, linestyle='-', color='r')
+    axr[1].add_line(resfit)
     axr[1].set_xlim((0, arcspec.size-1))
     axr[1].set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
 
@@ -395,8 +504,9 @@ def initialise(arcspec, detns, lines):
              horizontalalignment='center', verticalalignment='center')
     axi.set_xlim((0, 1))
     axi.set_ylim((0, 1))
+    specres = [respts, resfit, resres]
 
-    reg = Identify(fig.canvas, ax, axr, axi, spec, detns, lines)
+    reg = Identify(fig.canvas, ax, axr, axi, spec, specres, detns, lines)
 
     plt.show()
 
