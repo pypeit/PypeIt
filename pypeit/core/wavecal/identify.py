@@ -87,6 +87,12 @@ class Identify(object):
         # Draw the spectrum
         self.canvas.draw()
 
+    def replot(self):
+        self.canvas.restore_region(self.background)
+        self.draw_lines()
+        self.draw_residuals()
+        self.canvas.draw()
+
     def linelist_update(self, val):
         val = int(round(val))
         self._slidell.label.set_text("{0:.4f}".format(self._lines[val]))
@@ -99,10 +105,7 @@ class Identify(object):
             # Try to perform a fit
             self.fitsol_fit()
             # Now replot everything
-            self.canvas.restore_region(self.background)
-            self.draw_lines()
-            self.draw_residuals()
-            self.canvas.draw()
+            self.replot()
 
     def linelist_init(self):
         axcolor = 'lightgoldenrodyellow'
@@ -144,7 +147,7 @@ class Identify(object):
             txt = "{0:.2f}".format(self._lineids[w[i]])
             self.anntexts.append(
                 self.ax.annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
-                                 color='b', ha='center', va='bottom'))
+                                 color='b', ha='right', va='bottom'))
         return
 
     def draw_residuals(self):
@@ -157,12 +160,15 @@ class Identify(object):
             # NOTE: self.specres = [respts, resfit, resres]
 
             # Pixel vs wavelength
+            wavefit = self.fitsol_value(xfit=self.specx)
             wavevals = self.fitsol_value()
             wid = self._lineids != 0.0
             wavevals[wid] = self._lineids[wid]
             self._lineflg[self._lineids == 0.0] = 2
             self.specres[0].set_offsets(np.vstack((self._detns, self._lineids)).T)
-            self.specres[0].set_color(self._lineflg)
+            self.specres[1].set_ydata(wavefit)
+            self.axr[1].set_ylim((np.min(wavevals), np.max(wavevals)))
+            #self.specres[0].set_color(self._lineflg)
 
             # Pixel residuals
 
@@ -398,22 +404,28 @@ class Identify(object):
             if self._fitdict["polyorder"] < 10:
                 self._fitdict["polyorder"] += 1
                 self.update_infobox(message="Polynomial order = {0:d}".format(self._fitdict["polyorder"]), yesno=False)
+                self.fitsol_fit()
+                self.replot()
             else:
                 self.update_infobox(message="Polynomial order must be <= 10", yesno=False)
         elif key == '-':
             if self._fitdict["polyorder"] > 0:
                 self._fitdict["polyorder"] -= 1
                 self.update_infobox(message="Polynomial order = {0:d}".format(self._fitdict["polyorder"]), yesno=False)
+                self.fitsol_fit()
+                self.replot()
             else:
                 self.update_infobox(message="Polynomial order must be >= 0", yesno=False)
         self.canvas.draw()
 
-    def fitsol_value(self, idx=None):
+    def fitsol_value(self, xfit=None, idx=None):
+        if xfit is None:
+            xfit = self._detns
         if self._fitdict['coeff'] is not None:
             if idx is None:
-                return np.polyval(self._fitdict["coeff"], self._detns / self._fitdict["scale"])
+                return np.polyval(self._fitdict["coeff"], xfit / self._fitdict["scale"])
             else:
-                return np.polyval(self._fitdict["coeff"], self._detns[idx] / self._fitdict["scale"])
+                return np.polyval(self._fitdict["coeff"], xfit[idx] / self._fitdict["scale"])
         else:
             msgs.bug("Cannot predict wavelength value - no fit has been performed")
             return None
