@@ -7,6 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
 
@@ -45,6 +46,9 @@ class Identify(object):
         self._fitdict = dict(polyorder=1,
                              scale=self.specdata.size-1,
                              coeff=None)
+        # Initialise the residuals colormap
+        residcmap = LinearSegmentedColormap.from_list("my_list", ['grey', 'blue', 'orange', 'red'], N=4)
+        self.residmap = ScalarMappable(norm=Normalize(vmin=0, vmax=3), cmap=residcmap)
         # Initialise the annotations
         self.annlines = []
         self.anntexts = []
@@ -159,18 +163,25 @@ class Identify(object):
         else:
             # NOTE: self.specres = [respts, resfit, resres]
 
-            # Pixel vs wavelength
+            # Perform model fits
             wavefit = self.fitsol_value(xfit=self.specx)
             wavevals = self.fitsol_value()
+            resvals = (self._lineids - wavevals.copy()) / self.fitsol_deriv()
+
+            # Set identified line wavelengths
             wid = self._lineids != 0.0
             wavevals[wid] = self._lineids[wid]
-            self._lineflg[self._lineids == 0.0] = 2
+
+            # Pixel vs wavelength
             self.specres[0].set_offsets(np.vstack((self._detns, self._lineids)).T)
             self.specres[1].set_ydata(wavefit)
             self.axr[1].set_ylim((np.min(wavevals), np.max(wavevals)))
-            #self.specres[0].set_color(self._lineflg)
+            self.specres[0].set_color(self.residmap.to_rgba(self._lineflg))
 
             # Pixel residuals
+            self.specres[2].set_offsets(np.vstack((self._detns, resvals)).T)
+            self.axr[0].set_ylim((np.min(resvals), np.max(resvals)))
+            self.specres[2].set_color(self.residmap.to_rgba(self._lineflg))
 
     def draw_callback(self, event):
         """ Draw the lines and annotate with their IDs
@@ -409,13 +420,13 @@ class Identify(object):
             else:
                 self.update_infobox(message="Polynomial order must be <= 10", yesno=False)
         elif key == '-':
-            if self._fitdict["polyorder"] > 0:
+            if self._fitdict["polyorder"] > 1:
                 self._fitdict["polyorder"] -= 1
                 self.update_infobox(message="Polynomial order = {0:d}".format(self._fitdict["polyorder"]), yesno=False)
                 self.fitsol_fit()
                 self.replot()
             else:
-                self.update_infobox(message="Polynomial order must be >= 0", yesno=False)
+                self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
         self.canvas.draw()
 
     def fitsol_value(self, xfit=None, idx=None):
@@ -426,6 +437,19 @@ class Identify(object):
                 return np.polyval(self._fitdict["coeff"], xfit / self._fitdict["scale"])
             else:
                 return np.polyval(self._fitdict["coeff"], xfit[idx] / self._fitdict["scale"])
+        else:
+            msgs.bug("Cannot predict wavelength value - no fit has been performed")
+            return None
+
+    def fitsol_deriv(self, xfit=None, idx=None):
+        if xfit is None:
+            xfit = self._detns
+        if self._fitdict['coeff'] is not None:
+            cder = np.polyder(self._fitdict["coeff"])
+            if idx is None:
+                return np.polyval(cder, xfit / self._fitdict["scale"]) / self._fitdict["scale"]
+            else:
+                return np.polyval(cder, xfit[idx] / self._fitdict["scale"]) / self._fitdict["scale"]
         else:
             msgs.bug("Cannot predict wavelength value - no fit has been performed")
             return None
