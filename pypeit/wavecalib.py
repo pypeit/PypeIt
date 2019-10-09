@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
-from pypeit.core.wavecal import autoid, waveio
+from pypeit.core.wavecal import autoid, waveio, identify
 from pypeit.core import trace_slits
 
 from pypeit import debugger
@@ -192,6 +192,12 @@ class WaveCalib(masterframe.MasterFrame):
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
+            patt_dict, final_fit = arcfitter.get_results()
+        elif method == 'identify':
+            # Now preferred
+            # Slit positions
+            arcfitter = identify.initialise(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
+                                           slit_spat_pos=self.slit_spat_pos)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
