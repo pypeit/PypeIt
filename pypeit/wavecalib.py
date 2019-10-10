@@ -195,8 +195,7 @@ class WaveCalib(masterframe.MasterFrame):
             arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
-            # Now preferred
-            # Slit positions
+            # Manually identify lines
             arcfitter = identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
         elif method == 'reidentify':
