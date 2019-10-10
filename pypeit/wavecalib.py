@@ -143,6 +143,7 @@ class WaveCalib(masterframe.MasterFrame):
               'arclines' -- arc.calib_with_arclines
               'holy-grail' -- wavecal.autoid.HolyGrail
               'reidentify' -- wavecal.auotid.ArchiveReid
+              'identify' -- wavecal.identify.Identify
               'full_template' -- wavecal.auotid.full_template
             skip_QA (bool, optional)
 
@@ -196,9 +197,8 @@ class WaveCalib(masterframe.MasterFrame):
         elif method == 'identify':
             # Now preferred
             # Slit positions
-            arcfitter = identify.initialise(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
-                                           slit_spat_pos=self.slit_spat_pos)
-            patt_dict, final_fit = arcfitter.get_results()
+            arcfitter = identify.initialise(arccen, par=self.par)
+            final_fit = arcfitter.get_results()
         elif method == 'reidentify':
             # Now preferred
             # Slit positions

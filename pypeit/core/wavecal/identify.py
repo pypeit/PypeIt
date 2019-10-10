@@ -1,7 +1,7 @@
 """ Module for finding patterns in arc line spectra
 """
 import os
-import sys
+import copy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -13,8 +13,8 @@ from matplotlib.widgets import Button, Slider
 
 matplotlib.use('Qt5Agg')
 
-#from pypeit import utils
-#from pypeit.core.wavecal import autoid
+from pypeit.par import pypeitpar
+from pypeit.core.wavecal import fitting, waveio, wvutils
 from pypeit import msgs
 
 
@@ -24,10 +24,11 @@ class Identify(object):
 
     """
 
-    def __init__(self, canvas, ax, axr, axi, spec, specres, detns, lines):
+    def __init__(self, canvas, ax, axr, axi, spec, specres, detns, line_lists, par):
         """
         Description to go here
         """
+        # Store the axes
         self.ax = ax
         self.axr = axr
         self.axi = axi
@@ -36,12 +37,14 @@ class Identify(object):
         self.specres = specres   # Residual information
         self.specdata = spec.get_ydata()
         self.specx = np.arange(self.specdata.size)
-        # Detections, linelist, and line IDs
+        # Detections, linelist, line IDs, and fitting params
         self._detns = detns
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
-        self._lines = lines
+        self._line_lists = line_lists
+        self._lines = np.sort(line_lists['wave'].data)  # Remove mask (if any) and then sort
         self._lineids = np.zeros(self._detns.size, dtype=np.float)
         self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
+        self.par = par
         # Fitting properties
         self._fitdict = dict(polyorder=1,
                              scale=self.specdata.size-1,
@@ -168,19 +171,20 @@ class Identify(object):
             wavevals = self.fitsol_value()
             resvals = (self._lineids - wavevals.copy()) / self.fitsol_deriv()
 
-            # Set identified line wavelengths
+            # Set identified/predicted  line wavelengths
             wid = self._lineids != 0.0
             wavevals[wid] = self._lineids[wid]
+            self._lineflg[self._lineids == 0.0] = 2
 
             # Pixel vs wavelength
-            self.specres[0].set_offsets(np.vstack((self._detns, self._lineids)).T)
+            self.specres[0].set_offsets(np.vstack((self._detns, wavevals)).T)
             self.specres[1].set_ydata(wavefit)
             self.axr[1].set_ylim((np.min(wavevals), np.max(wavevals)))
             self.specres[0].set_color(self.residmap.to_rgba(self._lineflg))
 
             # Pixel residuals
-            self.specres[2].set_offsets(np.vstack((self._detns, resvals)).T)
-            self.axr[0].set_ylim((np.min(resvals), np.max(resvals)))
+            self.specres[2].set_offsets(np.vstack((self._detns[wid], resvals[wid])).T)
+            self.axr[0].set_ylim((np.min(resvals[wid]), np.max(resvals[wid])))
             self.specres[2].set_color(self.residmap.to_rgba(self._lineflg))
 
     def draw_callback(self, event):
@@ -258,6 +262,33 @@ class Identify(object):
             return 3
         return None
 
+    def get_results(self):
+        wvcalib = {}
+        slit = 0   # ToDo :: Make this multi-slit compatible
+        # Check that a result exists:
+        if self._fitdict['coeff'] is None:
+            wvcalib[str(slit)] = None
+        else:
+            # Perform an initial fit to the user IDs
+            self.fitsol_fit()
+            # Now perform a detailed fit
+            gd_det = np.where(self._lineflg == 1)[0]
+            bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
+            try:
+                final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det,
+                                                      self._lineids[gd_det], self._line_lists, bdisp,
+                                                      verbose=False, n_first=self.par['n_first'],
+                                                      match_toler=self.par['match_toler'],
+                                                      func=self.par['func'],
+                                                      n_final=self.par['n_final'],
+                                                      sigrej_first=self.par['sigrej_first'],
+                                                      sigrej_final=self.par['sigrej_final'])
+            except TypeError:
+                wvcalib[str(slit)] = None
+            else:
+                wvcalib[str(slit)] = copy.deepcopy(final_fit)
+        return wvcalib
+
     def button_press_callback(self, event):
         """
         whenever a mouse button is pressed
@@ -286,7 +317,7 @@ class Identify(object):
                 answer = "n"
             else:
                 return
-            self.operations(answer, -1, -1)
+            self.operations(answer, -1)
             self.update_infobox(default=True)
             return
         elif self._respreq[0]:
@@ -502,8 +533,27 @@ class Identify(object):
         return
 
 
-def initialise(arcspec, detns, lines):
-    spec = Line2D(np.arange(arcspec.size), arcspec, linewidth=1, linestyle='solid', color='k', drawstyle='steps', animated=True)
+def initialise(arccen, par=None):
+
+    # Double check that a WavelengthSolutionPar was input
+    pypeitpar.WavelengthSolutionPar() if par is None else par
+
+    # Extract the lines that are detected in arccen
+    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(arccen.copy(), sigdetect=par['sigdetect'],
+                                                        nonlinear_counts=['nonlinear_counts'])
+    detns = tdetns[icut]
+
+    # Load line lists
+    if 'ThAr' in par['lamps']:
+        line_lists_all = waveio.load_line_lists(par['lamps'])
+        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
+    else:
+        line_lists = waveio.load_line_lists(par['lamps'])
+
+    # Create a Line2D instance for the arc spectrum
+    spec = Line2D(np.arange(arccen.size), arccen,
+                  linewidth=1, linestyle='solid', color='k',
+                  drawstyle='steps', animated=True)
 
     # Add the main figure axis
     fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
@@ -521,15 +571,15 @@ def initialise(arcspec, detns, lines):
     axr[0].axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
     axr[0].axhline(0.0, color='r', linestyle='-')  # Zero level
     #axr[0].add_line(resres)
-    axr[0].set_xlim((0, arcspec.size-1))
+    axr[0].set_xlim((0, arccen.size - 1))
     axr[0].set_ylim((-0.3, 0.3))
 
     # pixel vs wavelength
     respts = axr[1].scatter(detns, np.zeros(detns.size), marker='x',
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    resfit = Line2D(np.arange(arcspec.size), np.zeros(arcspec.size), linewidth=1, linestyle='-', color='r')
+    resfit = Line2D(np.arange(arccen.size), np.zeros(arccen.size), linewidth=1, linestyle='-', color='r')
     axr[1].add_line(resfit)
-    axr[1].set_xlim((0, arcspec.size-1))
+    axr[1].set_xlim((0, arccen.size - 1))
     axr[1].set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
 
     # Add an information GUI axis
@@ -543,19 +593,18 @@ def initialise(arcspec, detns, lines):
     specres = [respts, resfit, resres]
 
     # Initialise the identify window and display to screen
-    reg = Identify(fig.canvas, ax, axr, axi, spec, specres, detns, lines)
+    reg = Identify(fig.canvas, ax, axr, axi, spec, specres, detns, line_lists, par)
     plt.show()
 
     # Now return the results
-    if reg is None:
-        return
-    return reg.get_results()
+    return reg
 
 
-if __name__ == '__main__':
-    # Start with a linelist and detections
-    dir = "/Users/rcooke/Work/Research/vmp_DLAs/observing/WHT_ISIS_2019B/N1/wht_isis_blue_U/"
-    spec = np.loadtxt(dir+"spec.dat")
-    detns = np.loadtxt(dir+"detns.dat")
-    lines = np.loadtxt(dir+"lines.dat")
-    initialise(spec, detns, lines)
+# if __name__ == '__main__':
+#     # Start with a linelist and detections
+#     dir = "/Users/rcooke/Work/Research/vmp_DLAs/observing/WHT_ISIS_2019B/N1/wht_isis_blue_U/"
+#     spec = np.loadtxt(dir+"spec.dat")
+#     detns = np.loadtxt(dir+"detns.dat")
+#     lines = np.loadtxt(dir+"lines.dat")
+#     initialise(spec, detns, lines)
+#
