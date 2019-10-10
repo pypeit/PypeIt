@@ -534,13 +534,15 @@ class Identify(object):
 
 
 def initialise(arccen, par=None):
+    # TODO :: implement multislit functionality
+    slit=0
 
     # Double check that a WavelengthSolutionPar was input
-    pypeitpar.WavelengthSolutionPar() if par is None else par
+    par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
     # Extract the lines that are detected in arccen
-    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(arccen.copy(), sigdetect=par['sigdetect'],
-                                                        nonlinear_counts=['nonlinear_counts'])
+    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(arccen[:, slit].copy(), sigdetect=par['sigdetect'],
+                                                        nonlinear_counts=par['nonlinear_counts'])
     detns = tdetns[icut]
 
     # Load line lists
