@@ -428,6 +428,7 @@ class Identify(object):
             self._fitdict['coeff'] = None
         elif key == 'f':
             self.fitsol_fit()
+            self.replot()
         elif key == 'q':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
