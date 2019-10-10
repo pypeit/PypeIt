@@ -343,7 +343,7 @@ class Identify(object):
                 self._qconf = True
             else:
                 msgs.bug("Need to change this to kill and return the results to PypeIt")
-                sys.exit()
+                plt.close()
         elif self._qconf:
             self.update_infobox(default=True)
             self._qconf = False
@@ -399,7 +399,7 @@ class Identify(object):
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
-                sys.exit()
+                plt.close()
         elif key == 'r':
             if self._detns_idx == -1:
                 msgs.info("You must select a line first")
@@ -542,9 +542,14 @@ def initialise(arcspec, detns, lines):
     axi.set_ylim((0, 1))
     specres = [respts, resfit, resres]
 
+    # Initialise the identify window and display to screen
     reg = Identify(fig.canvas, ax, axr, axi, spec, specres, detns, lines)
-
     plt.show()
+
+    # Now return the results
+    if reg is None:
+        return
+    return reg.get_results()
 
 
 if __name__ == '__main__':
