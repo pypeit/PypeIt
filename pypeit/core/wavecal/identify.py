@@ -417,7 +417,10 @@ class Identify(object):
             print("+/-     : Raise/Lower the order of the fitting polynomial")
             print("---------------------------------------------------------------")
         elif key == 'a':
-            msgs.work("Feature not yet implemented")
+            if self._fitdict['coeff'] is not None:
+                self.auto_id()
+            else:
+                msgs.info("You must identify a few lines first")
         elif key == 'c':
             msgs.work("Feature not yet implemented")
         elif key == 'd':
@@ -441,7 +444,7 @@ class Identify(object):
         elif key == 'w':
             self.write()
         elif key == 'z':
-            msgs.work("Feature not yet implemented")
+            self.delete_line_id()
         elif key == '+':
             if self._fitdict["polyorder"] < 10:
                 self._fitdict["polyorder"] += 1
@@ -459,6 +462,34 @@ class Identify(object):
             else:
                 self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
         self.canvas.draw()
+
+    def auto_id(self):
+        self.fitsol_fit()
+        wave_est = self.fitsol_value()
+        disp_est = self.fitsol_deriv()
+        for wav in range(wave_est.size):
+            if self._lineflg[wav] == 1:
+                # User has manually identified this line already
+                continue
+            pixdiff = np.abs(wave_est[wav]-self._lines)
+            amin = np.argmin(pixdiff)
+            pxtst = pixdiff[amin]/disp_est[wav]
+            self._lineids[wav] = self._lines[amin]
+            if pxtst < self.par['match_toler']:
+                # Acceptable
+                self._lineflg[wav] = 1
+            else:
+                # Unacceptable
+                self._lineflg[wav] = 3
+        # Now that we've automatically identified lines, update the canvas
+        self.replot()
+        return
+
+    def delete_line_id(self):
+        rmid = self.get_detns()
+        self._lineids[rmid] = 0.0
+        self._lineflg[rmid] = 0
+        return
 
     def fitsol_value(self, xfit=None, idx=None):
         if xfit is None:
