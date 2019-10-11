@@ -1,7 +1,5 @@
 """ Output for PYPEIT
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import os
 import datetime
 
@@ -10,381 +8,135 @@ import numpy as np
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
+import copy
+
+from IPython import embed
 
 
+import linetools.utils
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit.core import parse
-from pypeit import debugger
 
 
-'''
-def save_arcids(fname, pixels):
-    # Setup the HDU
-    hdu = fits.PrimaryHDU()
-    hdulist = fits.HDUList([hdu]) # Insert the primary HDU (input model)
-    for o in range(len(pixels)):
-        hdulist.append(fits.ImageHDU(pixels[o])) # Add a new Image HDU
-    ans = 'y'
-    if os.path.exists(fname):
-        if settings.argflag['output']['overwrite']:
-            os.remove(fname)
-        else:
-            ans = ''
-            while ans != 'y' and ans != 'n' and ans != 'r':
-                msgs.warn("File %s exists!" % (fname), verbose=settings.argflag['output']['verbosity'])
-                ans = input(msgs.input()+"Overwrite? (y/n)")
-            if ans == 'y': os.remove(fname)
-    if ans == 'y':
-        msgs.info("Arc IDs saved successfully to file:"+msgs.newline()+fname)
-        hdulist.writeto(fname)
-    return
-'''
+def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
+             refframe='heliocentric', update_det=None, binning='None'):
+    """
+    Routine to save PypeIt 1d and 2d outputs
+    Args:
+        sci_dict: dict
+            Dictionary containing extraction outputs
+        master_key_dict: dict
+            Dictionary with master key information for this reduction
+        master_dir: str
+            Directory where the master files live
+        spectrograph: object, spectrograph
+            Spectrograph object for the spectorgraph that was used
+        head1d: dict
+            fitstbl meta data dictionary that will become the header for the spec1d files
+        head2d: dict
+            rawfile header that will become the header for the spec2d files
+        scipath: str
+            path to which the outputs should be written
+        basename: str
+            the object basename
+        refframe: str, default = 'heliocentric'
+            Reference frame for the wavelengths
+        update_det : int or list, default=None
+            If provided, do not clobber the existing file but only update
+            the indicated detectors.  Useful for re-running on a subset of detectors
+        binning: str, default = None
+          String indicating the binning of the data
 
-'''
-def save_extraction(slf, sciext, scidx, scierr=None, filename="temp.fits", frametype='Extraction', wave=None, sky=None, skyerr=None, extprops=None):
-    msgs.info("Saving {0:s} frame as:".format(frametype)+msgs.newline()+filename)
-    # Setup the HDU
-    if sky is None:
-        savdat = sciext
-    else:
-        if sciext.ndim != 2 or sciext.shape != sky.shape:
-            msgs.error("Could not save extraction"+msgs.newline() +
-                       "science and sky frames have different dimensions or shape")
-        tsavdat = sciext[:, :, np.newaxis]
-        tsavdat = np.append(tsavdat, sky[:, :, np.newaxis], axis=2)
-        if scierr is not None:
-            if skyerr is None:
-                msgs.error("An error frame is missing for the sky")
-            savdat = tsavdat[:, :, :, np.newaxis]
-            tsaverr = scierr[:, :, np.newaxis]
-            tsaverr = np.append(tsaverr, skyerr[:, :, np.newaxis], axis=2)
-            savdat = np.append(savdat, tsaverr[:, :, :, np.newaxis], axis=3)
-        else:
-            savdat = tsavdat
-
-    hdu = fits.PrimaryHDU(savdat)
-    hdulist = fits.HDUList([hdu])
-    # Write some information to the header
-    msgs.info("Writing header information")
-    hdrname = "FRAMEEXT"
-    hdulist[0].header[hdrname] = (slf._fitsdict['filename'][scidx[0]], 'ARMED: Name of file that was extracted'.format(frametype))
-    hdulist[0].header["FRAMETYP"] = (frametype, 'ARMED: extraction frame')
-    hdulist[0].header["NUMORDS"] = (sciext.shape[1], 'ARMED: Number of orders extracted')
-    hdulist[0].header["PIXSIZE"] = (settings.argflag['reduce']['pixelsize'], 'ARMED: The size of each sampled pixel (km/s)')
-    # Loop through all orders and write the wavelength into the header
-    if wave is not None:
-        for i in range(sciext.shape[1]):
-            hdrname = "CDELT{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.log10(1.0 + settings.argflag['reduce']['pixelsize']/299792.458), 'ARMED: log10(1+pixsize/c)'.format(frametype))
-            hdrname = "CRVAL{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.log10(wave[0, i]), 'ARMED: log10(lambda_0)'.format(frametype))
-            hdrname = "CLINV{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (wave[0, i], 'ARMED: lambda_0'.format(frametype))
-            hdrname = "CRPIX{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (0.0, 'ARMED: Offset=0.0'.format(frametype))
-            hdrname = "CNPIX{0:03d}".format(i+1)
-            hdulist[0].header[hdrname] = (np.size(np.where(wave[:, i] != -999999.9)[0]), 'ARMED: Offset=0.0'.format(frametype))
-    if extprops is not None:
-        kys = extprops.keys()
-        for j in range(len(kys)):
-            hkey = kys[j][:5].upper()
-            if np.ndim(extprops[kys[j]]) == 1 and np.size(extprops[kys[j]] == sciext.shape[1]):
-                for i in range(sciext.shape[1]):
-                    hdrname = "{0:s}{1:03d}".format(hkey, i+1)
-                    hdulist[0].header[hdrname] = (extprops[kys[j]][i], 'ARMED: {0:s} for order {1:d}'.format(kys[j], i+1))
-    # Write the file to disk
-    if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] == True:
-            msgs.warn("Overwriting file:"+msgs.newline()+filename)
-            os.remove(filename)
-            hdulist.writeto(filename)
-            msgs.info("{0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-        else:
-            msgs.warn("This file already exists")
-            rmfil=''
-            while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
-            if rmfil == 'n':
-                msgs.warn("Not saving {0:s} frame:".format(frametype)+msgs.newline()+filename)
-            else:
-                os.remove(filename)
-                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
-                hdulist.writeto(filename)
-                msgs.info("{0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-    else:
-        hdulist.writeto(filename)
-        msgs.info("{0:s} frame saved successfully:".format(frametype)+msgs.newline()+filename)
-    return
-'''
-
-
-
-'''
-def save_ordloc(slf, fname):
-    # Derive a suitable name
-    mstrace_bname, mstrace_bext = os.path.splitext(fname)
-    # Save the left order locations
-    hdu = fits.PrimaryHDU(slf._lordloc)
-    hdulist = fits.HDUList([hdu])
-    # Write the file to disk
-    filename = mstrace_bname+"_ltrace"+mstrace_bext
-    if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] is True:
-            msgs.warn("Overwriting file:"+msgs.newline()+filename)
-            os.remove(filename)
-            hdulist.writeto(filename)
-            msgs.info("Saved left order locations for frame:"+msgs.newline()+fname)
-        else:
-            msgs.warn("This file already exists:"+msgs.newline()+filename)
-            rmfil=''
-            while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
-            if rmfil == 'n':
-                msgs.warn("Not saving left order traces for file:"+msgs.newline()+fname)
-            else:
-                os.remove(filename)
-                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
-                hdulist.writeto(filename)
-                msgs.info("Saved left order locations for frame:"+msgs.newline()+fname)
-    else:
-        hdulist.writeto(filename)
-        msgs.info("Saved left order locations for frame:"+msgs.newline()+fname)
-    # Save the right order locations
-    hdu = fits.PrimaryHDU(slf._rordloc)
-    hdulist = fits.HDUList([hdu])
-    filename = mstrace_bname+"_rtrace"+mstrace_bext
-    if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] is True:
-            msgs.warn("Overwriting file:"+msgs.newline()+filename)
-            os.remove(filename)
-            hdulist.writeto(filename)
-            msgs.info("Saved right order locations for frame:"+msgs.newline()+fname)
-        else:
-            msgs.warn("This file already exists:"+msgs.newline()+filename)
-            rmfil=''
-            while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
-            if rmfil == 'n':
-                msgs.warn("Not saving right order traces for file:"+msgs.newline()+fname)
-            else:
-                os.remove(filename)
-                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
-                hdulist.writeto(filename)
-                msgs.info("Saved right order locations for frame:"+msgs.newline()+fname)
-    else:
-        hdulist.writeto(filename)
-        msgs.info("Saved right order locations for frame:"+msgs.newline()+fname)
-    return
-
-
-def save_tilts(slf, fname):
-    # Derive a suitable name
-    msarc_bname, msarc_bext = os.path.splitext(fname)
-    # Save the tilts
-    hdu = fits.PrimaryHDU(slf._tilts)
-    hdulist = fits.HDUList([hdu])
-    # Write the file to disk
-    filename = msarc_bname+"_tilts"+msarc_bext
-    if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] == True:
-            msgs.warn("Overwriting file:"+msgs.newline()+filename)
-            os.remove(filename)
-            hdulist.writeto(filename)
-            msgs.info("Saved order tilts for frame:"+msgs.newline()+fname)
-        else:
-            msgs.warn("This file already exists:"+msgs.newline()+filename)
-            rmfil=''
-            while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
-            if rmfil == 'n':
-                msgs.warn("Not saving order tilts for file:"+msgs.newline()+fname)
-            else:
-                os.remove(filename)
-                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
-                hdulist.writeto(filename)
-                msgs.info("Saved order tilts for frame:"+msgs.newline()+fname)
-    else:
-        hdulist.writeto(filename)
-        msgs.info("Saved order tilts for frame:"+msgs.newline()+fname)
-    # Save the saturation mask
-    hdu = fits.PrimaryHDU(slf._satmask)
-    hdulist = fits.HDUList([hdu])
-    filename = msarc_bname+"_satmask"+msarc_bext
-    if os.path.exists(filename):
-        if settings.argflag['output']['overwrite'] == True:
-            msgs.warn("Overwriting file:"+msgs.newline()+filename)
-            os.remove(filename)
-            hdulist.writeto(filename)
-            msgs.info("Saved saturation mask for frame:"+msgs.newline()+fname)
-        else:
-            msgs.warn("This file already exists:"+msgs.newline()+filename)
-            rmfil=''
-            while rmfil != 'n' and rmfil != 'y' and rmfil != 'a':
-                rmfil=input(msgs.input()+"Remove this file? ([y]es, [n]o, or [a]lways) - ")
-            if rmfil == 'n':
-                msgs.warn("Not saving saturation mask for file:"+msgs.newline()+fname)
-            else:
-                os.remove(filename)
-                if rmfil == 'a': settings.argflag['output']['overwrite'] = True
-                hdulist.writeto(filename)
-                msgs.info("Saved saturation mask for frame:"+msgs.newline()+fname)
-    else:
-        hdulist.writeto(filename)
-        msgs.info("Saved saturation mask for frame:"+msgs.newline()+fname)
-
-    return
-'''
-
-
-'''
-def save_1d_spectra_hdf5(slf, fitsdict, clobber=True):
-    """ Write 1D spectra to an HDF5 file
-
-    Parameters
-    ----------
-    slf
-    clobber
-
-    Returns
-    -------
+    Returns:
 
     """
-    debugger.set_trace()  # NEEDS REFACTORING
-    if clobber is False:
-        msgs.error("NOT IMPLEMENTED")
-    # Open file
-    outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.hdf5'.format(slf._basename)
-    hdf = h5py.File(outfile, 'w')
+    # Check for the directory
+    if not os.path.isdir(scipath):
+        os.makedirs(scipath)
 
-    # Meta Table
-    idict = dict(RA=0., DEC=0.,  # J2000
-                 objid=0, slitid=0, det=0, scidx=0,  # specobj IDs
-                 FWHM=0.,  # Spatial resolution in arcsec
-                 R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
-                 xslit=(0.,0.), nslit=0)
-    tkeys = idict.keys()
-    lst = [[idict[tkey]] for tkey in tkeys]
-    meta = Table(lst, names=tkeys)
+    # Filenames to write out
+    # TODO: These should be centrally defined so that they don't become
+    # out of sync with what's in pypeit.PypeIt
+    objinfofile = os.path.join(scipath, 'objinfo_{:s}.txt'.format(basename))
+    outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
+    outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
 
-    # Calculate number of objects and totalpix
-    nspec, totpix = 0, 0
-    detref = None
-    for kk in range(settings.spect['mosaic']['ndet']):
-        det = kk+1
-        if slf._specobjs[det-1] is None:
+    # TODO: Need some checks here that the exposure has been reduced
+
+    # Build the final list of specobjs and vel_corr
+    all_specobjs = specobjs.SpecObjs()
+
+    vel_corr = 0.  # This will not be set for Standard stars, which is fine
+    for key in sci_dict:
+        if key in ['meta']:
+            vel_corr = sci_dict['meta']['vel_corr']
             continue
-        if detref is None:
-            detref = det-1
-        # Loop on slits
-        for sl in range(len(slf._specobjs[det-1])):
-            nspec += len(slf._specobjs[det-1][sl])
-            # Loop on objects
-            for specobj in slf._specobjs[det-1][sl]:
-                # Calculate max pixels
-                totpix = max(totpix, specobj.trace.size)
-                # Update meta
-                tdict = dict(RA=0., DEC=0.,  # J2000
-                             objid=specobj.objid, slitid=specobj.slitid, det=det, scidx=specobj.scidx,  # specobj IDs
-                             FWHM=0.,  # Spatial resolution in arcsec
-                             R=0.,     # Spectral resolution (FWHM) in lambda/Dlambda
-                             xslit=specobj.xslit, nslit=sl+1)  # Slit position and number
-                meta.add_row(tdict)
-    # Remove dummy row and write
-    meta = meta[1:]
-    hdf['meta'] = meta
-
-    # Make a Header from fitsdict
-    hdict = {}
-    for key in fitsdict.keys():
-        hdict[key] = fitsdict[key][slf._specobjs[detref][0][0].scidx]  # Hopefully this is the right index
-    d = linetools.utils.jsonify(hdict)
-    hdf['header'] = json.dumps(d)
-
-    # Loop on extraction methods
-    for ex_method in ['boxcar', 'optimal']:
-        # Check for extraction type
-        if not hasattr(slf._specobjs[detref][0][0], ex_method):
+        #
+        try:
+            all_specobjs.add_sobj(sci_dict[key]['specobjs'])
+        except KeyError:  # No object extracted
             continue
-        method_grp = hdf.create_group(ex_method)
 
-        # Data arrays are always MaskedArray
-        dtypes = []
-        for key in getattr(slf._specobjs[detref][0][0], ex_method).keys():
-            dtype = 'float64' if key == 'wave' else 'float32'
-            dtypes.append((str(key), dtype, (totpix)))
-        dtypes.append((str('obj_trace'), 'float32', (totpix)))
-        data = np.ma.empty((1,), dtype=dtypes)
-        # Setup in hdf5
-        spec_set = hdf[str(ex_method)].create_dataset('spec', data=data, chunks=True,
-                                                      maxshape=(None,), compression='gzip')
-        spec_set.resize((nspec,))
-        # Fill (and make meta)
-        count = 0
-        for kk in range(settings.spect['mosaic']['ndet']):
-            det = kk+1
-            if slf._specobjs[det - 1] is None:
-                continue
-            # Loop on slits
-            for sl in range(len(slf._specobjs[det - 1])):
-                nspec += len(slf._specobjs[det - 1][sl])
-                # Loop on spectra
-                for specobj in slf._specobjs[det-1][sl]:
-                    # Check meta
-                    assert meta['objid'][count] == specobj.objid
-                    # Trace
-                    data['obj_trace'][0][:len(specobj.trace)] = specobj.trace
-                    # Rest
-                    sdict = getattr(specobj, ex_method)
-                    for key in sdict.keys():
-                        npix = len(sdict[key])
-                        try:
-                            data[key][0][:npix] = sdict[key].value
-                        except AttributeError:
-                            data[key][0][:npix] = sdict[key]
-                    # Write
-                    spec_set[count] = data
-                    count += 1
-    #
-    hdf.close()
+    if len(all_specobjs) == 0:
+        msgs.warn('No objects to save. Only writing spec2d files!')
+    else:
+        # Create the helio_dict
+        helio_dict = dict(refframe=refframe, vel_correction=vel_corr)
+        save_1d_spectra_fits(all_specobjs, head1d, spectrograph, outfile1d,helio_dict=helio_dict, update_det=update_det)
+        save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)
 
-    # Dump into a linetools.spectra.xspectrum1d.XSpectrum1D
-'''
+    # Write 2D images for the Science Frame
+    save_2d_images(sci_dict, head2d, spectrograph.spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
 
-def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=None, overwrite=True,
-                         update_det=None):
+    return
+
+
+def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=None, overwrite=True, update_det=None):
     """ Write 1D spectra to a multi-extension FITS file
 
-    Parameters
-    ----------
-    specobjs : SpecObjs object
-    header : dict or Row (dict-like)
-    outfile : str
-    overwrite : bool, optional
-    update_det : int or list, optional
-      If provided, do not clobber the existing file but only update
-      the indicated detectors.  Useful for re-running on a subset of detectors
+    Args:
+        specobjs : SpecObjs object
+        header (dict or Row; dict-like):  Typically a Row from the fitstbl
+        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+          Name of PypeIt pipeline (e.g. 'MultiSlit')
+        outfile (str):
+        helio_dict (dict, optional):
+        overwrite : bool, optional
+        update_det : int or list, optional
+          If provided, do not clobber the existing file but only update
+          the indicated detectors.  Useful for re-running on a subset of detectors
 
-    Returns
-    -------
-    outfile : str
+    Returns:
+        str: outfile
+
     """
+
+    pypeline = spectrograph.pypeline
+    instrume = spectrograph.spectrograph
+    telescope = spectrograph.telescope
     hdus, prihdu = init_hdus(update_det, outfile)
+    sobjs_key = specobjs.SpecObj.sobjs_key()
     # Init for spec1d as need be
     if hdus is None:
         prihdu = fits.PrimaryHDU()
         hdus = [prihdu]
         # Add critical data to header
-        for key in ['ra', 'dec', 'exptime', 'target', 'airmass', 'instrume','filename']:
+        core_keys = spectrograph.header_cards_for_spec()
+        for key in core_keys: #['ra', 'dec', 'exptime', 'target', 'airmass', 'filename']:
             # Allow for fitstbl vs. header
             try:
                 prihdu.header[key.upper()] = header[key.upper()]
             except KeyError:
                 prihdu.header[key.upper()] = header[key]
         try:
-            prihdu.header['MJD-OBS'] = header['MJD-OBS']
+            prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
         except KeyError:
-            prihdu.header['MJD-OBS'] = header['time']  # recorded as 'time' in fitstbl
+            prihdu.header['MJD-OBS'] = header['MJD-OBS']
+        prihdu.header['INSTRUME'] = instrume
+
+        # Specify which pipeline created this file
+        prihdu.header['PYPELINE'] = pypeline
 
         # Observatory
         if telescope is not None:
@@ -396,7 +148,6 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
             prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
             prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
 
-    npix = 0
     ext = len(hdus)-1
     # Loop on specobjs
     for sobj in specObjs.specobjs:
@@ -407,6 +158,10 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = sobj.idx
 
+        # Flexure shift
+        keywd = 'FLX{:04d}'.format(ext)
+        prihdu.header[keywd] = sobj.flex_shift
+
         # Add Spectrum Table
         cols = []
         # Trace
@@ -415,12 +170,6 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         # FWHM fit from extraction
         if sobj.fwhmfit is not None:
             cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
-        if ext == 1:
-            # TODO -- FIX THIS KLUDGE
-            try:
-                npix = len(sobj['trace'])
-            except:  # THIS IS A DUMB KLUDGE
-                npix = len(sobj['trace_spat'])
         # Boxcar
         for key in sobj.boxcar.keys():
             # Skip some
@@ -448,10 +197,16 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
         coldefs = fits.ColDefs(cols)
         tbhdu = fits.BinTableHDU.from_columns(coldefs)
         tbhdu.name = sobj.idx
+        for attr, hdrcard in sobjs_key.items():
+            tbhdu.header[hdrcard] = getattr(sobj,attr)
         hdus += [tbhdu]
+
     # A few more for the header
     prihdu.header['NSPEC'] = len(hdus) - 1
-    prihdu.header['NPIX'] = npix
+    prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
+    # If this is echelle write the objid and the orderindx to the header as well
+
+
     # Finish
     hdulist = fits.HDUList(hdus)
     #if outfile is None:
@@ -461,17 +216,10 @@ def save_1d_spectra_fits(specObjs, header, outfile, helio_dict=None, telescope=N
     return outfile
 
 
-#def write_sensitivity():
-    #sensfunc_name = "{0:s}/{1:s}/{2:s}_{3:03d}_{4:s}.yaml".format(os.getcwd(), settings.argflag['run']['directory']['master'], slf._fitsdict['target'][scidx[0]], 0, "sensfunc")
-    #msgs.info("Writing sensfunc: {:s}".format(sensfunc_name))
-    #with open(sensfunc_name, 'w') as yamlf:
-    #    yamlf.write( yaml.dump(slf._sensfunc))
-    #with io.open(sensfunc_name, 'w', encoding='utf-8') as f:
-    #    f.write(unicode(json.dumps(slf._sensfunc, sort_keys=True, indent=4, separators=(',', ': '))))
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
-def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
+def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
     """
 
     Parameters
@@ -483,17 +231,8 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
     -------
 
     """
-    # Lists for a Table
-    slits, names, spat_pixpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], []
-    # Loop on detectors
-    #for kk in range(settings.spect['mosaic']['ndet']):
-    #    det = kk+1
-    #    if all_specobjs is None:
-    #        continue
-    #    dnum = settings.get_dnum(det)
-    #    # Loop on slits
-    #    for sl in range(len(all_specobjs)):
-    #        # Loop on spectra
+    slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
+    binspectral, binspatial = parse.parse_binning(binning)
     for specobj in all_specobjs:
         if specobj is None:
             continue
@@ -501,21 +240,21 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         names.append(specobj.idx)
         slits.append(specobj.slitid)
         spat_pixpos.append(specobj.spat_pixpos)
-
+        if spectrograph.pypeline == 'MultiSlit':
+            spat_fracpos.append(specobj.spat_fracpos)
+        elif spectrograph.pypeline == 'Echelle':
+            spat_fracpos.append(specobj.ech_fracpos)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.boxcar.keys():
             slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
             # Convert to arcsec
-            binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
+            binspectral, binspatial = parse.parse_binning(binning)
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         else:
             boxsize.append(0.)
 
         # Optimal profile (FWHM)
-        binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
-        ## Old code binspatial, binspectral = parse.parse_binning(fitstbl['binning'][specobj.scidx])
-        opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial
-                                * spectrograph.detector[specobj.det-1]['platescale'])
+        opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial*spectrograph.detector[specobj.det-1]['platescale'])
         # S2N -- default to boxcar
         #sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
         ivar = specobj.optimal['COUNTS_IVAR']
@@ -525,11 +264,17 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
     # Generate the table, if we have at least one source
     if len(names) > 0:
         obj_tbl = Table()
-        obj_tbl['slit'] = slits
-        obj_tbl['slit'].format = 'd'
+        if spectrograph.pypeline == 'MultiSlit':
+            obj_tbl['slit'] = slits
+            obj_tbl['slit'].format = 'd'
+        elif spectrograph.pypeline == 'Echelle':
+            obj_tbl['order'] = slits
+            obj_tbl['order'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'
+        obj_tbl['spat_fracpos'] = spat_fracpos
+        obj_tbl['spat_fracpos'].format = '.3f'
         obj_tbl['box_width'] = boxsize
         obj_tbl['box_width'].format = '.2f'
         obj_tbl['box_width'].unit = units.arcsec
@@ -539,61 +284,67 @@ def save_obj_info(all_specobjs, fitstbl, spectrograph, basename, science_dir):
         obj_tbl['s2n'] = s2n
         obj_tbl['s2n'].format = '.2f'
         # Write
-        obj_tbl.write(science_dir+'/objinfo_{:s}.txt'.format(basename),
-                      format='ascii.fixed_width', overwrite=True)
+        obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
 
-def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
-                   outdir, basename, clobber=True, update_det=None):
+#TODO 2d data model should be expanded to include:
+# waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
+#                every exposure (i.e. it depneds on obstime, RA, DEC and the flexure incurred) it should be written out for
+#                each science frame.
+# tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
+#                 write these for each file as well. Alternatively we could just write the offsets to the header.
+def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir, outfile, clobber=True, update_det=None):
     """ Write 2D images to the hard drive
 
     Args:
-        sci_output: OrderedDict
-        fitstbl: Table
-        scidx: int
-        ext0: int
-        setup: str
-        mfdir: str
-        outdir: str
-        basename: str
+        sci_output (OrderedDict):
+        raw_header (astropy.fits.Header or dict):
+        master_key_dict (str):
+        mfdir (str):
+        outfile (str):
         clobber: bool, optional
 
     Returns:
 
     """
-    outfile = outdir+'/spec2d_{:s}.fits'.format(basename)
     hdus, prihdu = init_hdus(update_det, outfile)
     if hdus is None:
-        # Original header
-        path = fitstbl['directory'][scidx]
-        ifile = fitstbl['filename'][scidx]
-        head0 = fits.getheader(os.path.join(path, ifile), ext=ext0)
-
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()
         # Update with original header, skipping a few keywords
         hdus = [prihdu]
         hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
                    'HISTORY', 'EXTEND', 'DATASEC']
-        for key in head0.keys():
+        for key in raw_header.keys():
             # Use new ones
             if key in hdukeys:
                 continue
             # Update unused ones
-            prihdu.header[key] = head0[key]
+            prihdu.header[key] = raw_header[key]
         # History
-        if 'HISTORY' in head0.keys():
+        if 'HISTORY' in raw_header.keys():
             # Strip \n
-            tmp = str(head0['HISTORY']).replace('\n', ' ')
+            tmp = str(raw_header['HISTORY']).replace('\n', ' ')
             prihdu.header.add_history(str(tmp))
 
         # PYPEIT
+        # TODO Should the spectrograph be written to the header?
         prihdu.header['PIPELINE'] = str('PYPEIT')
+        prihdu.header['SPECTROG'] = spectrograph
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
-        ssetup = setup.split('_') #settings.argflag['reduce']['masters']['setup'].split('_')
-        prihdu.header['PYPCNFIG'] = str(ssetup[0])
-        prihdu.header['PYPCALIB'] = str(ssetup[2])
+        prihdu.header['FRAMMKEY'] = master_key_dict['frame'][:-3]
+        prihdu.header['BPMMKEY'] = master_key_dict['bpm'][:-3]
+        prihdu.header['BIASMKEY']  = master_key_dict['bias'][:-3]
+        prihdu.header['ARCMKEY']  = master_key_dict['arc'][:-3]
+        prihdu.header['TRACMKEY']  = master_key_dict['trace'][:-3]
+        prihdu.header['FLATMKEY']  = master_key_dict['flat'][:-3]
         prihdu.header['PYPMFDIR'] = str(mfdir)
+        if sci_output['meta']['ir_redux']:
+            prihdu.header['SKYSUB'] ='DIFF'
+        else:
+            prihdu.header['SKYSUB'] ='MODEL'
+
+
 
     # Fill in the images
     ext = len(hdus) - 1
@@ -652,7 +403,7 @@ def save_2d_images(sci_output, fitstbl, scidx, ext0, setup, mfdir,
         hdu.name = prihdu.header[keywd]
         hdus.append(hdu)
 
-        # Inverse Variance model
+        # Final mask
         ext += 1
         keywd = 'EXT{:04d}'.format(ext)
         prihdu.header[keywd] = '{:s}-MASK'.format(sdet)
@@ -695,3 +446,35 @@ def init_hdus(update_det, outfile):
             prihdu.header.remove(keywd)
     # Return
     return hdus, prihdu
+
+
+
+
+def save_sens_dict(sens_dict, outfile, overwrite=True):
+    """
+    Over-load the save_master() method in MasterFrame to write a FITS file
+
+    Parameters
+    ----------
+    outfile : str, optional
+      Use this input instead of the 'proper' (or unattainable) MasterFrame name
+
+    Returns
+    -------
+
+    """
+
+    if os.path.exists(outfile)and (not overwrite):
+        msgs.warn("This file already exists.  Use overwrite=True to overwrite it")
+        return
+    #
+
+    # jsonify has the annoying property that it modifies the objects when it jsonifies them so make a copy,
+    # which converts lists to arrays, so we make a copy
+    data_for_json = copy.deepcopy(sens_dict)
+    gddict = linetools.utils.jsonify(data_for_json)
+    linetools.utils.savejson(outfile, gddict, easy_to_read=True, overwrite=True)
+    # Finish
+    msgs.info("Sucessfuly save sensitivity function to file {:s}".format(outfile))
+
+

@@ -8,8 +8,8 @@
 This script pushes a FITS file to ginga
 """
 
-import pypeit.scripts.show_twod as show_twod
+import pypeit.scripts.show_2dspec as show_2dspec
 
 if __name__ == '__main__':
-    args = show_twod.parser()
-    show_twod.main(args)
+    args = show_2dspec.parser()
+    show_2dspec.main(args)

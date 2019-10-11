@@ -1,0 +1,12 @@
+#!/bin/bash
+
+tag=$(git describe --tags --abbrev=0)
+echo "Checkout out tag ${tag}"
+git checkout ${tag}
+echo "To reset:"
+echo ""
+echo "  git checkout master"
+echo ""
+
+exit 0
+

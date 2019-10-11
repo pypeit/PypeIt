@@ -1,8 +1,6 @@
 """
 Module to setup the PypeIt debugger
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -12,9 +10,7 @@ try:
 except ImportError:  # Ginga is not yet required
     pass
 else:
-    from pypeit.ginga import chk_arc_tilts, clear_canvas
-# Moved to the top and changed to only import set_trace
-from pdb import set_trace
+    from pypeit.ginga import clear_canvas
 
 # ADD-ONs from xastropy
 def plot1d(*args, **kwargs):

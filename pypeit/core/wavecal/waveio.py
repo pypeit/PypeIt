@@ -1,26 +1,159 @@
 """ Module for I/O in arclines
 """
-from __future__ import (print_function, absolute_import, division, unicode_literals)
-
-import numpy as np
 import os
 import datetime
-
+import copy
 from pkg_resources import resource_filename
+from collections import OrderedDict
+
+import numpy as np
 
 from astropy.table import Table, Column, vstack
 from astropy.io import fits
 
-from linetools import utils as ltu
-
-from pypeit import msgs
+import linetools.utils
 
 import pypeit  # For path
+from pypeit import msgs
 from pypeit.core.wavecal import defs
 
+from pypeit import debugger
+from IPython import embed
+
+# TODO: These should not be declared here
 line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
 nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
+reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
+def save_wavelength_calibration(outfile, wv_calib, overwrite=True):
+    """
+    Save a wavelength solution to a file.
+
+    Args:
+        outfile (:obj:`str`):
+            Name for the output file.
+        wv_calib (:obj:`dict`):
+            Dictionary with the wavelength solution.  TODO: Document
+            the format of this dictionary!
+        overwrite (:obj:`bool`, optional):
+            Overwrite any existing file.
+    """
+    # Check if it exists
+    if os.path.exists(outfile) and not overwrite:
+        # TODO: Should this throw an error instead?
+        msgs.warn('File exists: {0}'.format(outfile) + msgs.newline()
+                  + 'Set overwrite=True to overwrite it.')
+        return
+
+    # jsonify has the annoying property that it modifies the objects
+    # when it jsonifies them so make a copy, which converts lists to
+    # arrays, so we make a copy
+    data_for_json = copy.deepcopy(wv_calib)
+    gddict = linetools.utils.jsonify(data_for_json)
+    linetools.utils.savejson(outfile, gddict, easy_to_read=True, overwrite=True)
+
+
+def load_wavelength_calibration(filename):
+    """
+    Load the wavelength calibration data from a file.
+
+    Args:
+        filename (:obj:`str`):
+            Name of the json file.
+
+    Returns:
+        :obj:`dict`: Returns the wavelength calibration dictionary.
+        Lists read from the json file are returnes as numpy arrays.
+    """
+    if not os.path.isfile(filename):
+        msgs.error('File does not exist: {0}'.format(filename))
+
+    wv_calib = linetools.utils.loadjson(filename)
+
+    # Recast a few items as arrays
+    for key in wv_calib.keys():
+        if key in ['steps', 'par']:  # This isn't really necessary
+            continue
+        for tkey in wv_calib[key].keys():
+            if isinstance(wv_calib[key][tkey], list):
+                wv_calib[key][tkey] = np.array(wv_calib[key][tkey])
+
+    return wv_calib
+
+
+def load_template(arxiv_file, det):
+    """
+    Load a full template file from disk
+
+    Args:
+        arxiv_file: str
+        det: int
+
+    Returns:
+        wave: ndarray
+        flux: ndarray
+        binning: int
+          Of the template arc spectrum
+
+    """
+    # Path already included?
+    if os.path.basename(arxiv_file) == arxiv_file:
+        calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+    else:
+        calibfile = arxiv_file
+    # Read me
+    tbl = Table.read(calibfile)
+    # Parse on detector?
+    if 'det' in tbl.keys():
+        idx = np.where(tbl['det'].data & 2**det)[0]
+    else:
+        idx = np.arange(len(tbl)).astype(int)
+    # Return
+    return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
+
+
+def load_reid_arxiv(arxiv_file):
+    """
+    Load a REID arxiv file
+    Now there are 2 possible formats.  We need to consolidate
+
+    Args:
+        arxiv_file (str):
+
+    Returns:
+        dict, dict-like:
+
+    """
+    # ToDO put in some code to allow user specified files rather than everything in the main directory
+    calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+    # This is a hack as it will fail if we change the data model yet again for wavelength solutions
+    if calibfile[-4:] == 'json':
+        wv_calib_arxiv = load_wavelength_calibration(calibfile)
+        par = wv_calib_arxiv['par'].copy()
+        # Pop out par and steps if they were inserted in this calibration dictionary
+        try:
+            wv_calib_arxiv.pop('steps')
+        except KeyError:
+            pass
+        try:
+            wv_calib_arxiv.pop('par')
+        except KeyError:
+            pass
+    elif calibfile[-4:] == 'fits':
+        # The following is a bit of a hack too
+        par = None
+        wv_tbl = Table.read(calibfile)
+        wv_calib_arxiv = OrderedDict()
+        nrow = wv_tbl['wave'].shape[0]
+        for irow in np.arange(nrow):
+            wv_calib_arxiv[str(irow)] = {}
+            wv_calib_arxiv[str(irow)]['spec'] = wv_tbl['flux'][irow,:]
+            wv_calib_arxiv[str(irow)]['wave_soln'] = wv_tbl['wave'][irow,:]
+            wv_calib_arxiv[str(irow)]['order'] = wv_tbl['order'][irow]
+    else:
+        msgs.error("Not ready for this extension!")
+
+    return wv_calib_arxiv, par
 
 def load_by_hand():
     """ By-hand line list
@@ -351,7 +484,7 @@ def load_spectrum(spec_file, index=0):
         else:
             raise IOError("Not ready for this hdf5 file")
     elif 'json' in spec_file[iext:]:
-        jdict = ltu.loadjson(spec_file)
+        jdict = linetools.utils.loadjson(spec_file)
         try:
             spec = np.array(jdict['spec'])
         except KeyError:

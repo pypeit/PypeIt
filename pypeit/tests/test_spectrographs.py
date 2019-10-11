@@ -1,16 +1,15 @@
-# Module to test spectrograph read functions
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to test spectrograph read functions
+"""
 import os
 
 import pytest
 import glob
 
-from pypeit.par.util import pypeit_root_directory
+from pkg_resources import resource_filename
+
 from pypeit import spectrographs
+from pypeit.core import procimg
 
 from pypeit.tests.tstutils import dev_suite_required
 
@@ -22,9 +21,16 @@ def test_keckdeimos():
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS',
                                 '830G_L_8400', 'd0914_0002.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck DEIMOS read.'
-    data, _ = s.load_raw_frame(example_file)
-    bpm = s.bpm(filename=example_file)
-    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
+    det = 2
+    data, _ = s.load_raw_frame(example_file, det=det)
+    #
+    rdsec_img = s.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = s.orient_image(trim, det)
+    shape = orient.shape
+    bpm = s.bpm(shape=shape) # filename=example_file)
+    assert data.shape == (4096,2128)
+    assert bpm.shape == (4096,2048)
 
 
 @dev_suite_required
@@ -33,9 +39,16 @@ def test_kecklrisblue():
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_blue',
                                 'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS blue read.'
-    data, _ = s.load_raw_frame(example_file)
-    bpm = s.bpm(filename=example_file)
-    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
+    det = 2
+    data, _ = s.load_raw_frame(example_file, det=det)
+    #
+    rdsec_img = s.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = s.orient_image(trim, det)
+    shape = orient.shape
+    bpm = s.bpm(shape=shape)
+    assert data.shape == (2048,1154)
+    assert bpm.shape == (2048,1024)
 
 
 @dev_suite_required
@@ -44,9 +57,16 @@ def test_kecklrisred():
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS red read.'
-    data, _ = s.load_raw_frame(example_file)
-    bpm = s.bpm(filename=example_file)
-    assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
+    det = 1
+    data, _ = s.load_raw_frame(example_file, det=det)
+    #
+    rdsec_img = s.get_rawdatasec_img(example_file, det=det)
+    trim = procimg.trim_frame(rdsec_img, rdsec_img < 1)
+    orient = s.orient_image(trim, det)
+    shape = orient.shape
+    bpm = s.bpm(shape=shape)
+    assert data.shape == (2068,1110)
+    assert bpm.shape == (2048,1024)
 
 
 @dev_suite_required
@@ -59,7 +79,7 @@ def test_kecknires():
 def test_kecknirspec():
     s = spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_NIRSPEC',
-                                'NIRSPEC-1', 'NS.20160414.02171.fits.gz')
+                                'NIRSPEC-1', 'NS.20160414.02637.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck NIRSPEC read.'
     data, _ = s.load_raw_frame(example_file)
     bpm = s.bpm(shape=data.shape)
@@ -68,7 +88,7 @@ def test_kecknirspec():
 
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
-    example_file = os.path.join(pypeit_root_directory(), 'pypeit', 'tests', 'files',
+    example_file = os.path.join(resource_filename('pypeit', 'tests'), 'files',
                                 'b1.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast blue read.'
     data, _ = s.load_raw_frame(example_file)
@@ -130,6 +150,7 @@ def test_vltxshooternir():
     assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
 
+'''
 @dev_suite_required
 def test_whtisisblue():
     s = spectrographs.wht_isis.WHTISISBlueSpectrograph()
@@ -139,5 +160,4 @@ def test_whtisisblue():
     data, _ = s.load_raw_frame(example_file)
     bpm = s.bpm(shape=data.shape)
     assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
-
-
+'''

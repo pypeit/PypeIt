@@ -1,102 +1,107 @@
-# Module for generating the Arc image
-from __future__ import absolute_import, division, print_function, unicode_literals
+"""
+Module for generating the Arc image.
 
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
+"""
 import os
 import inspect
 import numpy as np
 
 from pypeit import msgs
-from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
+from pypeit.images import calibrationimage
+from pypeit.core import procimg
 
-from pypeit import debugger
+from IPython import embed
 
-class ArcImage(processimages.ProcessImages, masterframe.MasterFrame):
+
+class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
-    Generate an Arc Image from one or more arc frames.
+    Generate an Arc Image by processing and combining one or more arc frames.
 
     Args:
-        spectrograph (:obj:`str`,
-            :class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The string or `Spectrograph` instance that sets the
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        file_list (:obj:`list`, optional):
+        files (:obj:`list`, optional):
             The list of files to process.  Can be an empty list.
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the arc frames.
-        setup (:obj:`str`, optional):
+        master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
+        master_dir (str, optional): Path to master frames
+        reuse_masters (bool, optional): Load from disk if possible
+        msbias (ndarray or str, optional): Guides bias subtraction
 
-        root_path (:obj:`str`, optional):
-            
-    sci_ID : int (optional)
-      Science ID value
-      used to match bias frames to the current science exposure
-    msbias : ndarray or str
-      Guides bias subtraction
-    fitstbl : PypeItMetaData (optional)
-      FITS info (mainly for filenames)
-    redux_path : str (optional)
-      Path for reduction
-
-    Attributes
-    ----------
-    frametype : str
-      Set to 'arc'
-
-    Inherited Attributes
-    --------------------
-    stack : ndarray
-      Final output image
+    Attributes:
+        msbias (ndarray):
+            Bias image or bias-subtraction method; see
+            :func:`pypeit.processimages.ProcessImages.process`.
     """
 
     # Frametype is a class attribute
     frametype = 'arc'
+    master_type = 'Arc'
 
-    def __init__(self, spectrograph, file_list=[], det=1, par=None, setup=None,
-                 master_dir=None, mode=None, fitstbl=None, sci_ID=None, msbias=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
+                 master_dir=None, reuse_masters=False, msbias=None):
     
         # Parameters unique to this Object
-        self.fitstbl = fitstbl
-        self.sci_ID = sci_ID
         self.msbias = msbias
 
         # Parameters
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, file_list=file_list, det=det,
-                                             par=self.par['process'])
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.frametype, setup,
-                                         mode=mode, master_dir=master_dir)
+        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+                                         master_key=master_key, reuse_masters=reuse_masters)
 
+        # Process steps
+        self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
+        self.process_steps += ['trim']
+        self.process_steps += ['orient']
+        # NOT applying gain to deal 'properly' with saturation
 
-    def build_image(self, overwrite=False, trim=True):
+    def save(self, outfile=None, overwrite=True):
         """
-        Build the arc image from one or more arc files
+        Save the arc master data.
 
-        Returns
-        -------
-
+        Args:
+            outfile (:obj:`str`, optional):
+                Name for the output file.  Defaults to
+                :attr:`file_path`.
+            overwrite (:obj:`bool`, optional):
+                Overwrite any existing file.
         """
-        # Get list of arc frames for this science frame
-        #  unless one was input already
-        if self.nfiles == 0:
-            self.file_list = self.fitstbl.find_frame_files(self.frametype, sci_ID=self.sci_ID)
-        # Combine
-        self.stack = self.process(bias_subtract=self.msbias, overwrite=overwrite, trim=True)
-        #
-        return self.stack
+        super(ArcImage, self).save(self.image, 'ARC', outfile=outfile, overwrite=overwrite,
+                                   raw_files=self.file_list, steps=self.process_steps)
 
-    # TODO: There is no master() method.  Does this mean useframe is
-    # always 'arc'?
+    # TODO: it would be better to have this instantiate the full class
+    # as a classmethod.
+    def load(self, ifile=None, return_header=False):
+        """
+        Load the arc frame data from a saved master frame.
 
+        Args:
+            ifile (:obj:`str`, optional):
+                Name of the master frame file.  Defaults to
+                :attr:`file_path`.
+            return_header (:obj:`bool`, optional):
+                Return the header
+
+        Returns:
+            Returns a `numpy.ndarray`_ with the arc master frame image.
+            Also returns the primary header, if requested.
+        """
+        return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header)
 

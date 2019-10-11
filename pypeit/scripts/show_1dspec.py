@@ -1,13 +1,7 @@
 #!/usr/bin/env python
-
 """
 Wrapper to the linetools XSpecGUI
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import argparse
 
 def parser(options=None):
@@ -47,12 +41,11 @@ def main(args, unit_test=False):
         for ii in range(1,len(hdu)):
             name = hdu[ii].name
             print("EXT{:07d} = {}".format(ii, name))
-        sys.exit()
+        return
 
     # Load spectrum
     spec = load.load_1dspec(args.file, exten=args.exten, extract=args.extract,
                               objname=args.obj, flux=args.flux)
-
     if unit_test is False:
         app = QApplication(sys.argv)
         # Screen dimensions

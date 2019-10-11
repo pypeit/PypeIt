@@ -3,15 +3,9 @@
 # See top-level LICENSE file for Copyright information
 #
 # -*- coding: utf-8 -*-
-
 """
 This script converts a LowRedux pixel flat into a PYPIT ready one
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import argparse
 
 def parser(options=None):

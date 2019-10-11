@@ -1,12 +1,7 @@
-# Module to run tests on WaveCalib class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on WaveCalib class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest
@@ -16,29 +11,51 @@ import numpy as np
 from astropy.table import Table
 
 from pypeit import wavecalib
-from pypeit import bpmimage
-from pypeit import traceslits
-from pypeit import arcimage
 from pypeit.metadata import PypeItMetaData
-from pypeit.core import framematch
-from pypeit.core.wavecal import autoid
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import dev_suite_required, cooked_required
+from pypeit.spectrographs import util
 
-import json
-import h5py
+@cooked_required
+def test_user_redo():
+    # Check for files
+    spectrograph = util.load_spectrograph('shane_kast_blue')
+
+    # Instantiate
+    par = spectrograph.default_pypeit_par()['calibrations']['wavelengths']
+    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib')
+    master_key = 'ShaneKastBlue_A'
+    waveCalib = wavecalib.WaveCalib(None, None, spectrograph, par, master_dir=master_dir,
+                                    master_key=master_key, reuse_masters=True)
+    assert os.path.isfile(waveCalib.file_path), 'Did not finde Cooked file.'
+
+    wv_calib = waveCalib.load()
+    # Setup
+    waveCalib.par['sigdetect'] = 5.
+    nslit = 1
+    waveCalib.make_maskslits(nslit)
+    npix = len(waveCalib.wv_calib['0']['spec'])
+    waveCalib.arccen = np.zeros((npix,nslit))
+    waveCalib.arccen[:,0] = waveCalib.wv_calib['0']['spec']
+    # Do it
+    new_wv_calib = waveCalib.build_wv_calib(waveCalib.arccen, 'holy-grail', skip_QA=True)
+    # Test
+    assert new_wv_calib['0']['rms'] < 0.2
+    # Now also test the utility script that reads in the wavecalib
+    wv_calib_load = wavecalib.WaveCalib.load_from_file(waveCalib.file_path)
+    assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
 
 
+# TODO: Bring back some of these tests...
+
+'''
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files/wavecalib')
     return os.path.join(data_dir, filename)
 
 
 @pytest.fixture
-@dev_suite_required
+@cooked_required
 def master_dir():
-    # Any test that uses this directory also requires the DevSuite!
-#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
     return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
 
 
@@ -51,34 +68,6 @@ def read_old_fitstbl(spectrograph, f):
     return fitstbl
 
 
-@dev_suite_required
-def test_user_redo():
-    # Check for files
-    wvcalib_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib',
-                                'MasterWaveCalib_ShaneKastBlue_A.json')
-    assert os.path.isfile(wvcalib_file)
-    # Instantiate
-    waveCalib = wavecalib.WaveCalib(None, spectrograph='shane_kast_blue')
-    # TODO: wvcalib file needs to be updated - for now, delete waveCalib.wv_calib['arcparam']
-    waveCalib.load_wv_calib(wvcalib_file)
-    import pdb
-    pdb.set_trace()
-    del waveCalib.wv_calib['arcparam']
-    # Setup
-    waveCalib.par['min_nsig'] = 5.
-    waveCalib.par['lowest_nsig'] = 5.
-    nslit = 1
-    _ = waveCalib._make_maskslits(nslit)
-    npix = len(waveCalib.wv_calib['0']['spec'])
-    waveCalib.arccen = np.zeros((npix, nslit))
-    waveCalib.arccen[:, 0] = waveCalib.wv_calib['0']['spec']
-    # Do it
-    new_wv_calib = waveCalib._build_wv_calib('arclines', skip_QA=True)
-    #new_wv_calib = waveCalib.calibrate_spec(0)
-    # Test
-    assert new_wv_calib['0']['rms'] < 0.1
-
-'''
 @dev_suite_required
 def test_step_by_step(master_dir):
     root_path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF')

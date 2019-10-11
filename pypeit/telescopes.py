@@ -2,12 +2,6 @@
 """
 Define the telescopes parameters used by Pypit.
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from pypeit.par.pypeitpar import TelescopePar
 
 #TODO: Remove 'Par' from class name?
@@ -27,6 +21,14 @@ class KeckTelescopePar(TelescopePar):
                                                elevation=4160.0,
                                                fratio=15,
                                                diameter=10)
+
+class MagellanTelescopePar(TelescopePar):
+    def __init__(self):
+        super(MagellanTelescopePar, self).__init__(name='MAGELLAN',
+                                               longitude=70.6858,
+                                               latitude=-29.0283,
+                                               elevation=2516.0,
+                                               diameter=6.5)
 
 class ShaneTelescopePar(TelescopePar):
     def __init__(self):
@@ -68,3 +70,10 @@ class GeminiSTelescopePar(TelescopePar):
                                               longitude=70.8062,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
                                               latitude=-30.1691,              # Latitude of the telescope
                                               elevation=2200.0)               # Elevation of the telescope (in m)
+
+class LBTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(LBTTelescopePar, self).__init__(name='LBT',
+                                               longitude=109.889064,
+                                               latitude=32.701308,
+                                               elevation=3221.0)

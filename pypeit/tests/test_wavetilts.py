@@ -1,23 +1,18 @@
-# Module to run tests on WaveTilts class
-#   Requires files in Development suite and an Environmental variable
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# TEST_UNICODE_LITERALS
-
+"""
+Module to run tests on WaveTilts class
+Requires files in Development suite and an Environmental variable
+"""
 import os
 
 import pytest
-import glob
 import numpy as np
 
-from astropy.table import Table
 
-from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters
+from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import wavetilts
+from pypeit.core import tracewave, pixels
 from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
 
 
 def data_path(filename):
@@ -26,59 +21,57 @@ def data_path(filename):
 
 
 @pytest.fixture
-@dev_suite_required
+@cooked_required
 def master_dir():
-    # Any test that uses this directory also requires the DevSuite!
-#    return data_path('MF_shane_kast_blue') if os.getenv('PYPEIT_DEV') is None \
-#            else os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
-    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'MF_shane_kast_blue')
+    return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
 
 
-@dev_suite_required
+@cooked_required
 def test_step_by_step(master_dir):
     # Masters
-    spectrograph, msarc, TSlits = load_kast_blue_masters(get_spectrograph=True, aimg=True,
-                                                         tslits=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
     # Instantiate
-    setup = 'A_01_aa'
-    spectrograph.detector[0]['saturation'] = 60000.
-    spectrograph.detector[0]['nonlinear'] = 0.9
-    par = pypeitpar.WaveTiltsPar()
-    waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    master_dir=master_dir,mode='reuse',
-                                    tslits_dict=TSlits.tslits_dict)
+    master_key = 'A_1_01'
+    parset = spectrograph.default_pypeit_par()
+    par = parset['calibrations']['tilts']
+    wavepar = parset['calibrations']['wavelengths']
+    waveTilts = wavetilts.WaveTilts(msarc, tslits_dict, spectrograph, par, wavepar,
+                                    det=1, master_key=master_key,
+                                    master_dir=master_dir,reuse_masters=True)
     # Extract arcs
-    arccen, maskslits = waveTilts._extract_arcs()
+    arccen, maskslits = waveTilts.extract_arcs(waveTilts.slitcen, waveTilts.slitmask, msarc, waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0
-    waveTilts.par['tracethresh'] = 500.   # Lowers the thershold amplitude of the arc lines used
-    trcdict = waveTilts._trace_tilts(slit)
+    waveTilts.slitmask = pixels.tslits2mask(waveTilts.tslits_dict)
+    thismask = waveTilts.slitmask == slit
+    waveTilts.lines_spec, waveTilts.lines_spat = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
+
+    trcdict = waveTilts.trace_tilts(waveTilts.msarc, waveTilts.lines_spec, waveTilts.lines_spat, thismask, slit)
     assert isinstance(trcdict, dict)
-    # Analyze
-    waveTilts.par['order'] = 3
-    badrows = waveTilts._analyze_lines(slit)
-    assert badrows == 0
     # 2D Fit
-    waveTilts.par['yorder'] = 4
-    waveTilts.par['func2D'] = 'legendre'
-    tilts, coeffs = waveTilts._fit_tilts(slit, doqa=False)
-    assert np.max(tilts) < 1.0001
+    spat_order = waveTilts._parse_param(waveTilts.par, 'spat_order', slit)
+    spec_order = waveTilts._parse_param(waveTilts.par, 'spec_order', slit)
+    coeffs = waveTilts.fit_tilts(trcdict, thismask, waveTilts.slitcen[:, slit], spat_order, spec_order,slit, doqa=False)
+    tilts = tracewave.fit2tilts(waveTilts.slitmask_science.shape, coeffs, waveTilts.par['func2d'])
+    assert np.max(tilts) < 1.01
 
 
-@dev_suite_required
+@cooked_required
 def test_run(master_dir):
     # Masters
-    spectrograph, msarc, TSlits = load_kast_blue_masters(get_spectrograph=True, aimg=True,
-                                                         tslits=True)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    msarc, tslits_dict, mstrace = load_kast_blue_masters(aimg=True, tslits=True)
     # Instantiate
-    setup = 'A_01_aa'
+    master_key = 'A_1_01'
     spectrograph.detector[0]['saturation'] = 60000.
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
-    waveTilts = wavetilts.WaveTilts(msarc, spectrograph=spectrograph, par=par, det=1, setup=setup,
-                                    master_dir=master_dir, mode='reuse',
-                                    tslits_dict=TSlits.tslits_dict)
+    wavepar = pypeitpar.WavelengthSolutionPar()
+    waveTilts = wavetilts.WaveTilts(msarc, tslits_dict, spectrograph, par, wavepar,
+                                    det=1, master_key=master_key,
+                                    master_dir=master_dir, reuse_masters=True)
     # Run
     tilts_dict, mask = waveTilts.run(doqa=False)
     assert isinstance(tilts_dict['tilts'], np.ndarray)

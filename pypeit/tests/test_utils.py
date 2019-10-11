@@ -1,9 +1,6 @@
-# Module to run tests on ararclines
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""
+Module to run tests on ararclines
+"""
 import os
 
 import numpy as np
@@ -40,6 +37,6 @@ def test_calc_ivar():
     """ Run the parameter setup script
     """
     x = np.array([-1.0, -0.1, 0.0, 0.1, 1.0])
-    res = utils.calc_ivar(x)
+    res = utils.inverse(x, positive=True)
     assert np.array_equal(res, np.array([0.0, 0.0, 0.0, 10.0, 1.0]))
     assert np.array_equal(utils.calc_ivar(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))

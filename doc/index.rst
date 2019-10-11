@@ -12,11 +12,6 @@ oringinally for echelle spectroscopy and since expanded
 to low-resolution spectrometers.  This documentation details
 the code, how to run it, and what it produces.
 
-Philosophy
-++++++++++
-
-[Your thoughts here]
-
 Getting Started
 +++++++++++++++
 
@@ -29,6 +24,8 @@ Getting Started
 Running PypeIt
 ++++++++++++++
 
+`PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
+
 .. toctree::
    :maxdepth: 2
 
@@ -38,6 +35,7 @@ Running PypeIt
    pypeit_file
    calcheck
    running
+
 
 Data Products
 +++++++++++++
@@ -71,6 +69,7 @@ Instruments
    instruments
    deimos
    lris
+   mage
 
 
 Object Algorithms
@@ -94,15 +93,16 @@ Documentation
    inst_settings
    internals
 
-Other
-+++++
+For Developers
+++++++++++++++
 
 .. toctree::
    :maxdepth: 1
 
    scripts
    flow
-   api
+   new_spectrograph
+   PypeIt API <api/pypeit>
 
 Contents
 ++++++++

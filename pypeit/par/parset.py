@@ -40,12 +40,6 @@ Define a utility base class used to hold parameters.
 .. _isinstance: https://docs.python.org/2/library/functions.html#isinstance
 
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import os
 import warnings
 import textwrap
@@ -53,12 +47,9 @@ import sys
 if sys.version > '3':
     long = int
 
-try:
-    basestring
-except NameError:
-    basestring = str
-
 import numpy
+
+from pypeit.par import util
 
 class ParSet(object):
     """
@@ -129,14 +120,22 @@ class ParSet(object):
         cfg_comment (str): 
             Comment to be placed at the top-level of the configuration
             section written based on the contents of this parameter set.
+        prefix (str):
+            Class Prefix for header keywords when writing the parset to an
+            `astropy.io.fits.Header` object.
+
     """
+    # Set prefix for writing parameters to a fits header to a class
+    # attribute.
+    prefix = 'PAR'
+
     def __init__(self, pars, values=None, defaults=None, options=None, dtypes=None, can_call=None,
                  descr=None, cfg_section=None, cfg_comment=None):
         # Check that the list of input parameters is a list of strings
         if not isinstance(pars, list):
             raise TypeError('Input parameter keys must be provided as a list.')
         for key in pars:
-            if not isinstance(key, basestring):
+            if not isinstance(key, str):
                 raise TypeError('Input parameter keys must be strings.')
 
         # Get the length of the parameter list and make sure the list
@@ -197,7 +196,6 @@ class ParSet(object):
         # Save the configuration file section details
         self.cfg_section = cfg_section
         self.cfg_comment = cfg_comment
-
 
     def __getitem__(self, key):
         """
@@ -267,33 +265,47 @@ class ParSet(object):
         return self._output_string(header=self.cfg_section)
 
     
-    def _output_string(self, header=None):
+    def _output_string(self, header=None, value_only=False):
         """
-        Constructs the short-format table strings for the :func:`__repr__`
-        method.
+        Constructs the short-format table strings for the
+        :func:`__repr__` method.
+        
 
         Args:
             header (:obj:`str`, optional):
                 String header to provide for the table.  This is
                 typically the name of the configuration section.
+            value_only (:obj:`bool`, optional):
+                By default, the table includes the parameter key, its
+                current value, the default value, its data type, and if
+                the value can be a callable function.  If
+                `value_only=True`, only the paramter key and current
+                value are returned.
 
         Returns:
             str: Single long string with the parameter table for the
             :func:`__repr__` method.
         """
         additional_par_strings = []
-        data_table = numpy.empty((self.npar+1, 5), dtype=object)
-        data_table[0,:] = ['Parameter', 'Value', 'Default', 'Type', 'Callable']
+        ncol = 2 if value_only else 5
+        data_table = numpy.empty((self.npar+1, ncol), dtype=object)
+        data_table[0,:] = ['Parameter', 'Value'] if value_only \
+                            else ['Parameter', 'Value', 'Default', 'Type', 'Callable']
         for i, k in enumerate(self.keys()):
             data_table[i+1,0] = k
             if isinstance(self.data[k], ParSet):
                 _header = k if header is None else '{0}:{1}'.format(header, k)
-                additional_par_strings += [ self.data[k]._output_string(header=_header) ]
+                additional_par_strings += [ self.data[k]._output_string(header=_header,
+                                                                        value_only=value_only) ]
                 data_table[i+1,1] = 'see below'
-                data_table[i+1,2] = 'see below'
+                if not value_only:
+                    data_table[i+1,2] = 'see below'
             else:
                 data_table[i+1,1] = ParSet._data_string(self.data[k])
-                data_table[i+1,2] = ParSet._data_string(self.default[k])
+                if not value_only:
+                    data_table[i+1,2] = ParSet._data_string(self.default[k])
+            if value_only:
+                continue
             data_table[i+1,3] = ', '.join([t.__name__ for t in self.dtype[k]])
             data_table[i+1,4] = self.can_call[k].__repr__()
 
@@ -353,7 +365,7 @@ class ParSet(object):
             data (object):
                 The object to stringify.
         """
-        if isinstance(data, basestring):
+        if isinstance(data, str):
             return data if not verbatum else '``' + data + '``'
         if hasattr(data, '__len__'):
             return '[]' if isinstance(data, list) and len(data) == 0 \
@@ -395,7 +407,8 @@ class ParSet(object):
 
 
     @staticmethod
-    def config_lines(par, section_name=None, section_comment=None, section_level=0):
+    def config_lines(par, section_name=None, section_comment=None, section_level=0,
+                     exclude_defaults=False, include_descr=True):
         """
         Recursively generate the lines of a configuration file based on
         the provided ParSet or dict (par).
@@ -411,6 +424,11 @@ class ParSet(object):
                 The level for the configuration output.  Sets the
                 indentation level and the number of square brackets
                 assigned to the section name.
+            exclude_defaults (:obj:`bool`, optional):
+                Do not include any parameters that are identical to the
+                defaults.
+            include_descr (:obj:`bool`, optional):
+                Include the descriptions of each parameter as comments.
 
         Returns:
             list: The list of the lines to write to a configuration
@@ -428,6 +446,8 @@ class ParSet(object):
         lines += [ section_indent + '['*(section_level+1) + section_name
                    + ']'*(section_level+1) ]
 
+        min_lines = len(lines)
+
         # Add all the parameters that are not ParSets
         for k in par.keys():
             # Skip it if this element is a ParSet
@@ -443,33 +463,42 @@ class ParSet(object):
                     for i, v in enumerate(par[k]):
                         indx = str(i+1).zfill(ndig)
                         # Try to add the section comment
-                        try:
-                            section_comment = par.descr[k] + ': ' + indx
-                        except:
-                            section_comment = None
+                        section_comment = None
+                        if include_descr:
+                            try:
+                                section_comment = par.descr[k] + ': ' + indx
+                            except:
+                                pass
                         lines += ParSet.config_lines(v, section_name=k+indx,
                                                      section_comment=section_comment,
-                                                     section_level=section_level+1)
+                                                     section_level=section_level+1,
+                                                     exclude_defaults=exclude_defaults,
+                                                     include_descr=include_descr)
                     continue
 
             # Working with a single element
             # Try to add the description for this parameter
             try:
-                if par.descr[k] is not None:
+                if par.descr[k] is not None and include_descr:
                     lines += ParSet._config_comment(par.descr[k], component_indent)
             except:
                 pass
-            lines += [ component_indent + k + ' = ' + ParSet._data_string(par[k]) ]
+            if not exclude_defaults or par[k] != par.default[k]:
+                lines += [ component_indent + k + ' = ' + ParSet._data_string(par[k]) ]
 
         # Then add the items that are ParSets as subsections
         for k in parset_keys:
-            try:
-                section_comment = par.descr[k]
-            except:
-                section_comment = None
+            section_comment = None
+            if include_descr:
+                try:
+                    section_comment = par.descr[k]
+                except:
+                    pass
             lines += ParSet.config_lines(par[k], section_name=k, section_comment=section_comment,
-                                         section_level=section_level+1)
-        return lines
+                                         section_level=section_level+1,
+                                         exclude_defaults=exclude_defaults,
+                                         include_descr=include_descr)
+        return lines if len(lines) > min_lines else []
 
 
     @staticmethod
@@ -579,7 +608,7 @@ class ParSet(object):
             raise
 
     def to_config(self, cfg_file=None, section_name=None, section_comment=None, section_level=0,
-                  append=False, quiet=False):
+                  append=False, quiet=False, exclude_defaults=False, include_descr=True):
         """
         Write/Append the parameter set to a configuration file.
 
@@ -606,6 +635,11 @@ class ParSet(object):
                 exists, the file is automatically overwritten.
             quiet (:obj:`bool`, optional):
                 Suppress all standard output from the function.
+            exclude_defaults (:obj:`bool`, optional):
+                Do not include any parameters that are identical to the
+                defaults.
+            include_descr (:obj:`bool`, optional):
+                Include the descriptions of each parameter as comments.
 
         Raises:
             ValueError:
@@ -623,10 +657,13 @@ class ParSet(object):
             for k in self.keys():
                 if self.data[k] is None:
                     continue
+                section_comment = self.descr[k] if include_descr else None
                 config_output += ParSet.config_lines(self.data[k], section_name=k,
-                                                     section_comment=self.descr[k],
-                                                     section_level=section_level)
-                config_output += ['']
+                                                     section_comment=section_comment,
+                                                     section_level=section_level,
+                                                     exclude_defaults=exclude_defaults,
+                                                     include_descr=include_descr)
+#                config_output += ['']
         else:
             # Cannot write the parameters as a configuration file
             # without a top-level configuration section
@@ -637,7 +674,9 @@ class ParSet(object):
             _section_comment = self.cfg_comment if section_comment is None else section_comment
             config_output += ParSet.config_lines(self, section_name=_section_name,
                                                  section_comment=_section_comment,
-                                                 section_level=section_level)
+                                                 section_level=section_level,
+                                                 exclude_defaults=exclude_defaults,
+                                                 include_descr=include_descr)
 
         if cfg_file is None:
             # Only return the list of lines for the output file.  Useful
@@ -708,6 +747,91 @@ class ParSet(object):
             if numpy.any(should_not_be_None):
                 raise ValueError('These keys should not be None: {0}'.format(
                                     numpy.asarray(self.keys())[should_not_be_None].tolist()))
+
+    def to_header(self, hdr, prefix=None, quiet=False):
+        """
+        Write the parameters to a fits header.
+
+        Any element that has a value of None or is a ParSet itself is
+        *not* written to the header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object for the parameters. Modified in-place.
+            prefix (:obj:`str`, optional):
+                Prefix to use for the header keywords, which
+                overwrites the string defined for the class. If None,
+                uses the default for the class.
+            quiet (:obj:`bool`, optional):
+                Suppress print statements.
+        """
+        if prefix is None:
+            prefix = self.prefix
+        ndig = int(numpy.log10(self.npar))+1 
+        for i, (key, value) in enumerate(self.data.items()):
+            if value is None:
+                # Don't write Nones
+                continue
+            if isinstance(value, ParSet):
+                if verbose:
+                    warnings.warn('ParSets within ParSets are not written to headers!  '
+                                  'Skipping {0}.'.format(key))
+                continue
+            _value = str(value) if isinstance(value, (list, tuple)) else value
+            hdr['{0}{1}'.format(prefix, str(i+1).zfill(ndig))] \
+                    = (_value, '{0}: {1}'.format(self.__class__.__name__, key))
+
+    @classmethod
+    def from_header(cls, hdr, prefix=None):
+        """
+        Instantiate the ParSet using data parsed from a fits header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object with the parameters.
+            prefix (:obj:`str`, optional):
+                Prefix of the relevant header keywords, which
+                overwrites the string defined for the class. If None,
+                uses the default for the class.
+        """
+        if prefix is None:
+            prefix = cls.prefix
+        return cls.from_dict(util.recursive_dict_evaluate(ParSet.parse_par_from_hdr(hdr, prefix)))
+
+    @staticmethod
+    def parse_par_from_hdr(hdr, prefix):
+        """
+        Parse the dictionary of parameters written to a header
+
+        Args:
+            hdr (`astropy.io.fits.Header`):
+                Header object to parse.
+            prefix (:obj:`str`):
+                The prefix used for the header keywords.
+        
+        Returns:
+            dict: A dictionary with the parameter keywords and
+            values.
+        """
+        par = {}
+        for k, v in hdr.items():
+            # Check if this header keyword starts with the required
+            # prefix
+            if k[:len(prefix)] == prefix:
+                try:
+                    # Try to convert the keyword without the prefix into
+                    # an integer.
+                    i = int(k[len(prefix):])-1
+                except ValueError:
+                    # Assume the value is some other random keyword that
+                    # starts with the prefix but isn't a parameter
+                    continue
+                # Assume we've found a parameter. Parse the parameter
+                # name from the header comment and add it to the
+                # dictionary.
+                par_key = hdr.comments[k].split(':')[-1].strip()
+                par[par_key] = v
+        return par
 
 
 class ParDatabase(object):
@@ -801,7 +925,7 @@ class ParDatabase(object):
                     or inp[i].dtype[k] == numpy.ndarray:
                 _inp = numpy.asarray(inp[i][k])
                 dtypes += [(k,_inp.dtype,_inp.shape)]
-            elif isinstance(inp[i][k], basestring):
+            elif isinstance(inp[i][k], str):
                 if any([ _inp[k] is None for _inp in inp]):
                     dtypes += [(k, object)]
                 else:
