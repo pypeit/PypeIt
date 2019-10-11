@@ -199,6 +199,7 @@ class WaveCalib(masterframe.MasterFrame):
             msgs.info("Initializing the wavelength calibration tool")
             arcfitter = identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
+            # TODO :: If successful, maybe we should automatically generate and store the files for reidentify?
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
