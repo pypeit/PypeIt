@@ -183,7 +183,7 @@ class Identify(object):
         ymn, ymx = self.ax.get_ylim()
         w = np.where((self._detns > xmn) & (self._detns < xmx))[0]
         for i in range(w.size):
-            if self._lineids[w[i]] == 0.0:
+            if self._lineflg[w[i]] != 1:
                 if w[i] == self._detns_idx:
                     self.annlines.append(self.ax.axvline(self._detns[w[i]], color='r'))
                 else:
@@ -194,10 +194,10 @@ class Identify(object):
                     self.annlines.append(self.ax.axvline(self._detns[w[i]], color='r'))
                 else:
                     self.annlines.append(self.ax.axvline(self._detns[w[i]], color='b'))
-            txt = "{0:.2f}".format(self._lineids[w[i]])
-            self.anntexts.append(
-                self.ax.annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
-                                 color='b', ha='right', va='bottom'))
+                txt = "{0:.2f}".format(self._lineids[w[i]])
+                self.anntexts.append(
+                    self.ax.annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
+                                     color='b', ha='right', va='bottom'))
 
     def draw_residuals(self):
         """ Update the subplots that show the residuals
@@ -227,8 +227,9 @@ class Identify(object):
             self.specres[0].set_color(self.residmap.to_rgba(self._lineflg))
 
             # Pixel residuals
+            wfl = self._lineflg == 1
             self.specres[2].set_offsets(np.vstack((self._detns[wid], resvals[wid])).T)
-            self.axr[0].set_ylim((np.min(resvals[wid]), np.max(resvals[wid])))
+            self.axr[0].set_ylim((np.min(resvals[wfl]), np.max(resvals[wfl])))
             self.specres[2].set_color(self.residmap.to_rgba(self._lineflg))
 
     def draw_callback(self, event):
