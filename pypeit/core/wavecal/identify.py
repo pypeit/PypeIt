@@ -25,8 +25,31 @@ class Identify(object):
     """
 
     def __init__(self, canvas, ax, axr, axi, spec, specres, detns, line_lists, par, slit=0):
-        """
-        Description to go here
+        """ Controls for the Identify task in PypeIt. The main goal of this routine is to
+        manually identify arc lines to be used for wavelength calibration.
+
+        Parameters
+        ----------
+        canvas : Matploltib figure canvas
+          The canvas on which all axes are contained
+        ax : Matplotlib axes instance
+          Main spectrum panel
+        axr : list
+          two element list of Matplotlib axes, used for residuals plotting
+        axi : Matplotlib axes instance
+          Information panel
+        spec : Matplotlib Line2D instance
+          contains plotting information of the plotted arc spectrum
+        specres : list
+          three element list of Matplotlib Line2D/path instances, used for residuals plotting
+        detns : ndarray
+          detections
+        line_lists : Table
+          contains information about the line list to be used for wavelength calibration
+        par : WavelengthSolutionPar ParSet
+          Calibration parameters
+        slit : int
+          The slit to be used for wavelength calibration
         """
         # Store the axes
         self.ax = ax
@@ -89,24 +112,42 @@ class Identify(object):
         self._addsub = 0   # Adding a region (1) or removing (0)
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
         self._qconf = False  # Confirm quit message
-        # TODO :: This should be deleted
         self._changes = False
 
         # Draw the spectrum
         self.canvas.draw()
 
     def replot(self):
+        """ Redraw the entire canvas
+        """
         self.canvas.restore_region(self.background)
         self.draw_lines()
         self.draw_residuals()
         self.canvas.draw()
 
     def linelist_update(self, val):
-        val = int(round(val))
+        """ When a user selects a detection, reset the current value of the linelist
+        to reflect the best candidate wavelength for that detection (given the current
+        wavelength solution)
+
+        Parameters
+        ----------
+        val : int
+          the index corresponding to the closest match
+        """
+        val = int(val)
         self._slidell.label.set_text("{0:.4f}".format(self._lines[val]))
         self._slideval = val
+        self.canvas.draw()
 
     def linelist_select(self, event):
+        """ Assign a wavelength to a detection (only LMB works)
+
+        Parameters
+        ----------
+        event : mpl event
+          A matplotlib event instance
+        """
         if event.button == 1:
             self.update_line_id()
             self._detns_idx = -1
@@ -116,6 +157,8 @@ class Identify(object):
             self.replot()
 
     def linelist_init(self):
+        """ Initialise the linelist Slider (used to assign a line to a detection)
+        """
         axcolor = 'lightgoldenrodyellow'
         # Slider
         self.axl = plt.axes([0.15, 0.87, 0.7, 0.04], facecolor=axcolor)
@@ -125,7 +168,7 @@ class Identify(object):
         self._slidell.on_changed(self.linelist_update)
         # Select button
         selax = plt.axes([0.86, 0.87, 0.1, 0.04])
-        self._select = Button(selax, 'Select Line', color=axcolor, hovercolor='y')
+        self._select = Button(selax, 'Assign Line', color=axcolor, hovercolor='y')
         self._select.on_clicked(self.linelist_select)
 
     def draw_lines(self):
@@ -156,9 +199,10 @@ class Identify(object):
             self.anntexts.append(
                 self.ax.annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
                                  color='b', ha='right', va='bottom'))
-        return
 
     def draw_residuals(self):
+        """ Update the subplots that show the residuals
+        """
         if self._fitdict["coeff"] is None:
             nid = np.where(self._lineflg==1)[0].size
             msg = "Cannot plot residuals until more lines have been identified\n" +\
