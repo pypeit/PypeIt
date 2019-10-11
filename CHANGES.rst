@@ -1,7 +1,8 @@
 
 0.11.1dev
 ---------
-
+- Added 'Identify' tool to allow manual identification and calibration of an arc spectrum
+- Added support for WHT/ISIS
 
 0.11.0 (22 Jun 2019)
 --------------------
