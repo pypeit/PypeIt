@@ -456,7 +456,6 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
-
     if flg & (2**18):  # Gemini/GNIRS
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'gemini_gnirs.json'
@@ -485,6 +484,16 @@ def main(flg):
         outfile = os.path.join(reid_path, iout)
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
+
+    if flg & (2**19):  # WHT/ISIS
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'wht_isis_blue_1200_4800.json'
+        iout = 'wht_isis_blue_1200_4800.fits'
+        wfile = os.path.join(reid_path, iroot)
+        binspec = 2
+        slits = [0]
+        lcut = [3200.]
+        build_template(wfile, slits, lcut, binspec, iout, lowredux=False)
 
 
 # Command line execution
@@ -527,7 +536,10 @@ if __name__ == '__main__':
     #flg += 2**17  # Convert JSON to FITS
 
     # Gemini/GNIRS
-    flg += 2**18  # Convert JSON to FITS
+    #flg += 2**18  # Convert JSON to FITS
+
+    # WHT/ISIS
+    flg += 2**19  # Convert JSON to FITS
 
     main(flg)
 
