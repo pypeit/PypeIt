@@ -138,7 +138,6 @@ class Identify(object):
         val = int(val)
         self._slidell.label.set_text("{0:.4f}".format(self._lines[val]))
         self._slideval = val
-        self.canvas.draw()
 
     def linelist_select(self, event):
         """ Assign a wavelength to a detection (only LMB works)
@@ -408,6 +407,7 @@ class Identify(object):
                         waveest = self.fitsol_value(idx=self._detns_idx)
                         widx = np.argmin(np.abs(waveest-self._lines))
                         self.linelist_update(widx)
+                        self._slidell.set_val(self._slideval)
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
