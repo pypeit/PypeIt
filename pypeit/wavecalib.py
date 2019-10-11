@@ -196,6 +196,7 @@ class WaveCalib(masterframe.MasterFrame):
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
             # Manually identify lines
+            msgs.info("Initializing the wavelength calibration tool")
             arcfitter = identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
         elif method == 'reidentify':
