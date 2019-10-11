@@ -456,6 +456,7 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
+
     if flg & (2**18):  # Gemini/GNIRS
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'gemini_gnirs.json'

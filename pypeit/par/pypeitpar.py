@@ -1480,7 +1480,7 @@ class TraceSlitsPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = ['function', 'medrep', 'number', 'trim', 'maxgap', 'maxshift', 'pad',
-                   'sigdetect', 'min_slit_width', 'diffpolyorder', 'sobel_mode', 
+                   'sigdetect', 'min_slit_width', 'diffpolyorder', 'sobel_mode',
                    'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly',
                    'mask_frac_thresh']
         kwargs = {}
