@@ -24,7 +24,7 @@ class Identify(object):
 
     """
 
-    def __init__(self, canvas, ax, axr, axi, spec, specres, detns, line_lists, par):
+    def __init__(self, canvas, ax, axr, axi, spec, specres, detns, line_lists, par, slit=0):
         """
         Description to go here
         """
@@ -38,6 +38,7 @@ class Identify(object):
         self.specdata = spec.get_ydata()
         self.specx = np.arange(self.specdata.size)
         # Detections, linelist, line IDs, and fitting params
+        self._slit = slit
         self._detns = detns
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
         self._line_lists = line_lists
@@ -245,13 +246,24 @@ class Identify(object):
         return np.argmin(np.abs(self._detns-self.specx[self._end]))
 
     def get_ind_under_point(self, event):
-        """
-        Get the index of the line closest to the cursor
+        """ Get the index of the line closest to the cursor
+
+        Parameters
+        ----------
+        event : Event instance
+          matplotlib event instance containing information about the event
         """
         ind = np.argmin(np.abs(self.specx - event.xdata))
         return ind
 
     def get_axisID(self, event):
+        """ Get the ID of the axis where an event has occurred
+
+        Parameters
+        ----------
+        event : Event instance
+          matplotlib event instance containing information about the event
+        """
         if event.inaxes == self.ax:
             return 0
         elif event.inaxes == self.axr[0]:
@@ -263,11 +275,17 @@ class Identify(object):
         return None
 
     def get_results(self):
+        """ Using the line IDs perform the final fit according to the wavelength calibration parameters
+
+        Returns
+        -------
+        wvcalib : dict
+          Dict of wavelength calibration solutions
+        """
         wvcalib = {}
-        slit = 0   # ToDo :: Make this multi-slit compatible
         # Check that a result exists:
         if self._fitdict['coeff'] is None:
-            wvcalib[str(slit)] = None
+            wvcalib[str(self._slit)] = None
         else:
             # Perform an initial fit to the user IDs
             self.fitsol_fit()
@@ -284,14 +302,18 @@ class Identify(object):
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])
             except TypeError:
-                wvcalib[str(slit)] = None
+                wvcalib[str(self._slit)] = None
             else:
-                wvcalib[str(slit)] = copy.deepcopy(final_fit)
+                wvcalib[str(self._slit)] = copy.deepcopy(final_fit)
         return wvcalib
 
     def button_press_callback(self, event):
-        """
-        whenever a mouse button is pressed
+        """ What to do when the mouse button is pressed
+
+        Parameters
+        ----------
+        event : Event instance
+          matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -305,8 +327,12 @@ class Identify(object):
         self._start = self.get_ind_under_point(event)
 
     def button_release_callback(self, event):
-        """
-        whenever a mouse button is released
+        """ What to do when the mouse button is released
+
+        Parameters
+        ----------
+        event : Event instance
+          matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -354,8 +380,12 @@ class Identify(object):
         self.canvas.draw()
 
     def key_press_callback(self, event):
-        """
-        whenever a key is pressed
+        """ What to do when a key is pressed
+
+        Parameters
+        ----------
+        event : Event instance
+          matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -367,6 +397,15 @@ class Identify(object):
         self.operations(event.key, axisID)
 
     def operations(self, key, axisID):
+        """ Canvas operations
+
+        Parameters
+        ----------
+        key : str
+          Which key has been pressed
+        axisID : int
+          The index of the axis where the key has been pressed (see get_axisID)
+        """
         # Check if the user really wants to quit
         if key == 'q' and self._qconf:
             if self._changes:
@@ -404,8 +443,7 @@ class Identify(object):
             print("          Select regions (LMB drag = add, RMB drag = remove)")
             print("          Navigate (LMB drag = pan, RMB drag = zoom)")
             print("p       : toggle pan/zoom with the cursor")
-            print("w       : write the line IDs and spectrum")
-            print("q       : continue PypeIt reduction")
+            print("q       : close Identify window and continue PypeIt reduction")
             print("---------------------------------------------------------------")
             print("       ARC LINE OPERATIONS")
             print("a       : Automatically identify lines using current solution")
@@ -465,6 +503,9 @@ class Identify(object):
         self.canvas.draw()
 
     def auto_id(self):
+        """ Using the current line IDs and approximate wavelength solution,
+        automatically assign a wavelength to all line detections.
+        """
         self.fitsol_fit()
         wave_est = self.fitsol_value()
         disp_est = self.fitsol_deriv()
@@ -484,15 +525,29 @@ class Identify(object):
                 self._lineflg[wav] = 3
         # Now that we've automatically identified lines, update the canvas
         self.replot()
-        return
 
     def delete_line_id(self):
+        """ Remove an incorrect line ID
+        """
         rmid = self.get_detns()
         self._lineids[rmid] = 0.0
         self._lineflg[rmid] = 0
-        return
 
     def fitsol_value(self, xfit=None, idx=None):
+        """ Calculate the wavelength at a pixel
+
+        Parameters
+        ----------
+        xfit : ndarray, float
+          pixel values that the user wishes to evaluate the wavelength
+        idx : int
+          Index of the arc line detections that the user wishes to evaluate the wavelength
+
+        Returns
+        -------
+        disp : ndarray, float, None
+          The wavelength (Angstroms) of the requested pixels
+        """
         if xfit is None:
             xfit = self._detns
         if self._fitdict['coeff'] is not None:
@@ -505,6 +560,20 @@ class Identify(object):
             return None
 
     def fitsol_deriv(self, xfit=None, idx=None):
+        """ Calculate the dispersion as a function of wavelength
+
+        Parameters
+        ----------
+        xfit : ndarray, float
+          pixel values that the user wishes to evaluate the dispersion
+        idx : int
+          Index of the arc line detections that the user wishes to evaluate the dispersion
+
+        Returns
+        -------
+        disp : ndarray, float, None
+          The dispersion (Angstroms/pixel) as a function of wavelength
+        """
         if xfit is None:
             xfit = self._detns
         if self._fitdict['coeff'] is not None:
@@ -518,6 +587,8 @@ class Identify(object):
             return None
 
     def fitsol_fit(self):
+        """ Perform a fit to the line identifications
+        """
         ord = self._fitdict["polyorder"]
         wfit = np.where(self._lineflg == 1)  # Use the user IDs only!
         if ord+1 <= wfit[0].size:
@@ -531,6 +602,13 @@ class Identify(object):
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
+        """ Send a new message to the information window at the top of the canvas
+
+        Parameters
+        ----------
+        message : str
+          Message to be displayed
+        """
         self.axi.clear()
         if default:
             self.axi.text(0.5, 0.5, "Press '?' to list the available options", transform=self.axi.transAxes,
@@ -552,22 +630,35 @@ class Identify(object):
         self.canvas.draw()
 
     def update_line_id(self):
-        # Find the nearest wavelength in the linelist
+        """ Find the nearest wavelength in the linelist
+        """
         if self._detns_idx != -1:
             self._lineids[self._detns_idx] = self._lines[self._slideval]
             self._lineflg[self._detns_idx] = 1
 
     def update_regions(self):
+        """ Update the regions used to fit Gaussian
+        """
         self._fitregions[self._start:self._end] = self._addsub
 
-    def write(self):
-        # TODO :: Write this to the master calibrations
-        return
 
+def initialise(arccen, slit=0, par=None):
+    """ Initialise the 'Identify' window for real-time wavelength calibration
 
-def initialise(arccen, par=None):
-    # TODO :: implement multislit functionality
-    slit=0
+        Parameters
+        ----------
+        arccen : ndarray
+          Arc spectrum
+        slit : int
+          The slit to be used for wavelength calibration
+
+        Returns
+        -------
+        ident : Identify instance
+          returns an instance of the Identify class, which contains the results of the fit
+
+        TODO :: implement multislit functionality
+    """
 
     # Double check that a WavelengthSolutionPar was input
     par = pypeitpar.WavelengthSolutionPar() if par is None else par
@@ -604,7 +695,6 @@ def initialise(arccen, par=None):
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
     axr[0].axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
     axr[0].axhline(0.0, color='r', linestyle='-')  # Zero level
-    #axr[0].add_line(resres)
     axr[0].set_xlim((0, arccen.size - 1))
     axr[0].set_ylim((-0.3, 0.3))
 
@@ -627,18 +717,9 @@ def initialise(arccen, par=None):
     specres = [respts, resfit, resres]
 
     # Initialise the identify window and display to screen
-    reg = Identify(fig.canvas, ax, axr, axi, spec, specres, detns, line_lists, par)
+    fig.canvas.set_window_title('PypeIt - Identify')
+    ident = Identify(fig.canvas, ax, axr, axi, spec, specres, detns, line_lists, par, slit=slit)
     plt.show()
 
     # Now return the results
-    return reg
-
-
-# if __name__ == '__main__':
-#     # Start with a linelist and detections
-#     dir = "/Users/rcooke/Work/Research/vmp_DLAs/observing/WHT_ISIS_2019B/N1/wht_isis_blue_U/"
-#     spec = np.loadtxt(dir+"spec.dat")
-#     detns = np.loadtxt(dir+"detns.dat")
-#     lines = np.loadtxt(dir+"lines.dat")
-#     initialise(spec, detns, lines)
-#
+    return ident
