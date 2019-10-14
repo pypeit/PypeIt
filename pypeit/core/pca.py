@@ -124,7 +124,7 @@ def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
 
 
 def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legendre', lower=3.0,
-                         upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25, coo=None,
+                         upper=3.0, maxrej=1, maxiter=25, coo=None, minx=None, maxx=None, 
                          debug=False):
     r"""
     Fit a parameterized function to a set of PCA coefficients,
@@ -184,11 +184,6 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             **above** the mean residual. If None, no rejection is
             *performed. See
             :func:`utils.robust_polyfit_djs`.
-        minx, maxx (:obj:`float`, optional):
-            Minimum and maximum values used to rescale the
-            independent axis data. If None, the minimum and maximum
-            values of `coo` are used. See
-            :func:`utils.robust_polyfit_djs`.
         maxrej (:obj:`int`, optional):
             Maximum number of points to reject during fit iterations.
             See :func:`utils.robust_polyfit_djs`.
@@ -200,6 +195,11 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             use when fitting the PCA coefficients. If None, simply
             uses a running number. Shape must be :math:`(N_{\rm
             vec},)`.
+        minx, maxx (:obj:`float`, optional):
+            Minimum and maximum values used to rescale the
+            independent axis data. If None, the minimum and maximum
+            values of `coo` are used. See
+            :func:`utils.robust_polyfit_djs`.
         debug (:obj:`bool`, optional):
             Show plots useful for debugging.
 
@@ -270,15 +270,16 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
                                            invvar=None if _ivar is None else _ivar[:,i],
                                            weights=_weights[:,i], function=function,
                                            maxiter=maxiter, lower=lower, upper=upper,
-                                           maxrej=maxrej, sticky=False, use_mad=_ivar is None, minx=minx,
-                                           maxx=maxx)
+                                           maxrej=maxrej, sticky=False, use_mad=_ivar is None,
+                                           minx=minx, maxx=maxx)
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)
             rejected = np.invert(coeff_used[:,i]) & inmask
-            plt.scatter(coo[inmask], _coeff[inmask,i], marker='.', color='k', s=100, facecolor='none',
-                        label='pca coeff')
-            plt.scatter(coo[np.invert(inmask)], _coeff[np.invert(inmask),i], marker='.', color='orange', s=100, facecolor='none',
+            plt.scatter(coo[inmask], _coeff[inmask,i], marker='.', color='k', s=100,
+                        facecolor='none', label='pca coeff')
+            plt.scatter(coo[np.invert(inmask)], _coeff[np.invert(inmask),i], marker='.',
+                        color='orange', s=100, facecolor='none',
                         label='pca coeff, masked from previous')
             if np.any(rejected):
                 plt.scatter(coo[rejected], _coeff[rejected,i], marker='x', color='C3', s=80, 
@@ -299,7 +300,8 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     return np.invert(coeff_used), fit_coeff, minx, maxx
 
 
-def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='legendre'):
+def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, maxx=None,
+                function='legendre'):
     r"""
     Use a model of the PCA coefficients to predict vectors at the
     specified coordinates.
@@ -322,6 +324,12 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
             The mean offset of each trace coordinate to use for the
             PCA prediction. This is typically identical to `x`, and
             its shape must match `x`.
+        minx, maxx (:obj:`float`, optional):
+            Minimum and maximum values used to rescale the
+            independent axis data. See
+            :func:`utils.robust_polyfit_djs`.
+        function (:obj:`str`, optional):
+            The functional used to fit the PCA coefficients.
     
     Returns:
         `numpy.ndarray`_: PCA constructed vectors, one per position
@@ -338,7 +346,7 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, function='leg
     npca = pca_components.shape[0]
     c = np.zeros((_x.size, npca), dtype=float)
     for i in range(npca):
-        c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function)
+        c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function, minx=minx, maxx=maxx)
     # Calculate the predicted vectors and return them
     vectors = np.dot(c, pca_components) + pca_mean[None,:] + _mean[:,None]
     return vectors if isinstance(x, np.ndarray) else vectors[0,:]
