@@ -52,6 +52,10 @@
   `pypeit.core.extract` that were replaced by
   `pypeit.core.moment.moment1d` and functions in `pypeit.core.trace`.
 - PCA now saved to MasterEdges file; added I/O methods
+- Improved CuAr linelists and archives for Gemini wavelength solutions
+- New data model for specobj and specobsj objects (spec1d)
+- Started some improvements to Coadd2D, TBC
+
 
 0.11.0 (22 Jun 2019)
 --------------------
