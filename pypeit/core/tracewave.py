@@ -244,17 +244,13 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         if do_crude:
             # First time tracing, do a trace crude
 
-            # TODO: Worried that using a starting row that is blindly
-            # set as half of sub_img is unstable to very curved slit
-            # traces. Should instead start at the center of the slit as
-            # defined by the slit trace?
-
             # NOTE: follow_centroid behaves differently from the old
             # trace_crude_init within 2-4 pixels at the trace edge
 
             # Smooth the image
-            tilts_guess_now, err_now, _ \
-                    = trace.follow_centroid(utils.boxcar_smooth_rows(sub_img, tcrude_nave),
+            tilts_guess_now, _, _ \
+                    = trace.follow_centroid(utils.boxcar_smooth_rows(sub_img, tcrude_nave,
+                                                                     wgt=sub_inmask),
                                             (sub_img.shape[0]-1)//2,
                                             np.array([lines_spec[iline]]), ivar=sub_inmask,
                                             width=2*fwhm, maxshift_start=tcrude_maxshift0,
@@ -414,7 +410,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
 
 def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False, fwhm=4.0,spat_order=5, maxdev_tracefit=0.2,
-                sigrej_trace=3.0, max_badpix_frac=0.20, tcrude_nave = 5,
+                sigrej_trace=3.0, max_badpix_frac=0.70, tcrude_nave = 5,
                 npca = 2, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = False, show_tracefits=False):
 
     """
@@ -450,7 +446,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
        From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
        analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
        from that distribution.
-    max_badpix_frac: float, default = 0.20
+    max_badpix_frac: float, default = 0.70
        Maximum fraction of total pixels that can be masked by the trace_gweight algorithm
        (because the residuals are too large) to still be usable for tilt fitting.
     tcrude_nave: int, default = 5
@@ -502,7 +498,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     bpm[:,iuse] = False
     msgs.info('PCA modeling {:d} good tilts'.format(nuse))
     pca_fit = tracepca.pca_trace_object(trace_dict0['tilts_sub_fit'], order=coeff_npoly_pca,
-                                        trace_bpm=bpm, npca=npca, coo=lines_spec, lower=sigrej_pca,
+                                        trace_bpm=bpm, npca=npca, coo=lines_spec, minx=0.0,
+                                        maxx=float(trace_dict0['nsub'] - 1), lower=sigrej_pca,
                                         upper=sigrej_pca, debug=debug_pca)
 
     # Now trace again with the PCA predictions as the starting crutches

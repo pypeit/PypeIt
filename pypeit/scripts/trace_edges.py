@@ -108,7 +108,7 @@ def main(args):
         bias_par = None
 
         # Set the QA path
-        qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0], 'QA'))
+        qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0]), 'QA')
     
     detectors = np.arange(spec.ndet)+1 if args.detector is None else [args.detector]
     master_dir = os.path.join(redux_path, args.master_dir)
