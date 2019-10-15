@@ -16,6 +16,7 @@ from IPython import embed
 import linetools.utils
 from pypeit import msgs
 from pypeit import specobjs
+from pypeit import utils
 from pypeit.core import parse
 
 
@@ -87,7 +88,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         save_obj_info(all_specobjs, spectrograph, objinfofile, binning=binning)
 
     # Write 2D images for the Science Frame
-    save_2d_images(sci_dict, head2d, spectrograph.spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
+    save_2d_images(sci_dict, head2d, spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
 
     return
 
@@ -216,6 +217,82 @@ def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=Non
     return outfile
 
 
+def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
+                         header=None, ex_value='OPT', overwrite=True):
+    '''
+    Args:
+        outfile (str): name of fitsfile you want to save to
+        waves (ndarray): one-D or two-D (nspec by nexp/norder) wavelength array
+        fluxes (ndarray): flux array
+        ivars (ndarray): ivar array
+        masks (ndarray): mask array
+        header (dict): primary fits header
+        ext_value (str): 'OPT' for optimal, and 'BOX' for boxcar
+        overwrite (bool): if True, overwrite the old one, otherwise append it to the exist fits file.
+    Returns:
+        None
+    '''
+
+    # Estimate sigma from ivar
+    sigs = np.sqrt(utils.inverse(ivars))
+
+    if (os.path.exists(outfile)) and (np.invert(overwrite)):
+        hdulist = fits.open(outfile)
+        msgs.info("Reading primary HDU from existing file: {:s}".format(outfile))
+    else:
+        msgs.info("Creating an new primary HDU.")
+        prihdu = fits.PrimaryHDU()
+        if header is None:
+            msgs.warn('The primary header is none')
+        else:
+            prihdu.header = header
+        hdulist = fits.HDUList([prihdu])
+
+    if waves.ndim == 1:
+        wave_mask = waves > 1.0
+        # Add Spectrum Table
+        cols = []
+        cols += [fits.Column(array=waves[wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
+        cols += [fits.Column(array=fluxes[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
+        cols += [fits.Column(array=ivars[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
+        cols += [fits.Column(array=sigs[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
+        cols += [fits.Column(array=masks[wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
+        if telluric is not None:
+            cols += [fits.Column(array=telluric[wave_mask], name='TELLURIC', format='D')]
+        if obj_model is not None:
+            cols += [fits.Column(array=obj_model[wave_mask], name='OBJ_MODEL', format='D')]
+
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
+        hdulist.append(tbhdu)
+    else:
+        nspec = waves.shape[1]
+
+        for ispec in range(nspec):
+            wave_mask = waves[:,ispec] > 1.0
+            # Add Spectrum Table
+            cols = []
+            cols += [fits.Column(array=waves[:,ispec][wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
+            cols += [fits.Column(array=fluxes[:,ispec][wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
+            cols += [fits.Column(array=ivars[:,ispec][wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
+            cols += [fits.Column(array=sigs[:,ispec][wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
+            cols += [fits.Column(array=masks[:,ispec][wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
+
+            coldefs = fits.ColDefs(cols)
+            tbhdu = fits.BinTableHDU.from_columns(coldefs)
+            tbhdu.name = 'OBJ0001-SPEC{:04d}-{:}'.format(ispec+1, ex_value.capitalize())
+            hdulist.append(tbhdu)
+
+    if (os.path.exists(outfile)) and (np.invert(overwrite)):
+        hdulist.writeto(outfile, overwrite=True)
+        msgs.info("Appending 1D spectra to existing file {:s}".format(outfile))
+    else:
+        hdulist.writeto(outfile, overwrite=overwrite)
+        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
+
+    return None
+
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
@@ -330,7 +407,8 @@ def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir,
         # PYPEIT
         # TODO Should the spectrograph be written to the header?
         prihdu.header['PIPELINE'] = str('PYPEIT')
-        prihdu.header['SPECTROG'] = spectrograph
+        prihdu.header['PYPELINE'] = spectrograph.pypeline
+        prihdu.header['SPECTROG'] = spectrograph.spectrograph
         prihdu.header['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
         prihdu.header['FRAMMKEY'] = master_key_dict['frame'][:-3]
         prihdu.header['BPMMKEY'] = master_key_dict['bpm'][:-3]
@@ -478,3 +556,31 @@ def save_sens_dict(sens_dict, outfile, overwrite=True):
     msgs.info("Sucessfuly save sensitivity function to file {:s}".format(outfile))
 
 
+def write_fits(hdr, data, outfile, extnames=None, checksum=True):
+    """
+    Convenience method to write a set of data to a multi-extension FITS file
+
+    Args:
+        hdr (`astropy.io.fits.Header`):
+            Header to be written to the primary image
+        data (np.ndarray or list):
+            One or more images to be written
+        outfile (str):
+        extnames (list, optional):
+            Extension names to be used for each data item
+        checksum (bool, optional):
+            Add CHECKSUM to the header
+
+    Returns:
+
+    """
+    # Format the output
+    ext = extnames if isinstance(extnames, list) else [extnames]
+    if len(ext) > 1 and not isinstance(data, list):
+        msgs.error('Input data type should be list, one numpy.ndarray per extension.')
+    _data = data if isinstance(data, list) else [data]
+
+    # Write the fits file
+    fits.HDUList([fits.PrimaryHDU(header=hdr)]
+                 + [fits.ImageHDU(data=d, name=n) for d, n in zip(_data, ext)]
+                 ).writeto(outfile, overwrite=True, checksum=checksum)

@@ -16,14 +16,13 @@ from astropy import table, coordinates, time
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import framematch
-from pypeit.core import flux
+from pypeit.core import flux_calib
 from pypeit.core import parse
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
-
-from pypeit import debugger
+from IPython import embed
 
 # Initially tried to subclass this from astropy.table.Table, but that
 # proved too difficult.
@@ -292,13 +291,12 @@ class PypeItMetaData:
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
-                                                         required=strict, usr_row=usr_row,
+                value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 data[meta_key].append(value)
             msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
-        # JFH Changed the below to now crash if some files have None in their MJD. This is the desired behavior
+        # JFH Changed the below to not crash if some files have None in their MJD. This is the desired behavior
         # since if there are empty or corrupt files we still want this to run.
 
         # Validate, print out a warning if there is problem
@@ -700,9 +698,11 @@ class PypeItMetaData:
                 Return row indices with the first occurence of these
                 configurations.
             configs (:obj:`list`, optional):
-                Only pass back those matching this set of input configs
-                if ['all'], pass back all
-                Otherwise, a list like ['A','C'] is expected
+                A list of strings used to select the configurations
+                to include in the returned objects. If ['all'], pass
+                back all configurations. Otherwise, only return the
+                configurations matched to this provided list (e.g.,
+                ['A','C']).
 
         Returns:
             numpy.array: The list of unique setup names.  A second
@@ -726,6 +726,9 @@ class PypeItMetaData:
             indx = indx[rm]
 
         # Restrict
+        # TODO: Why do we need to specify 'all' here? Can't `configs is
+        # None` mean that you want all the configurations? Or can we
+        # make the default 'all'?
         if configs is not None:
             if configs[0] == 'all':
                 pass
@@ -1311,7 +1314,7 @@ class PypeItMetaData:
     
                 # If an object exists within 20 arcmins of a listed standard,
                 # then it is probably a standard star
-                foundstd = flux.find_standard_file(ra, dec, check=True)
+                foundstd = flux_calib.find_standard_file(ra, dec, check=True)
                 b = self.type_bitmask.turn_off(b, flag='science' if foundstd else 'standard')
     
         # Find the files without any types
@@ -1588,7 +1591,11 @@ class PypeItMetaData:
                       are all originally set to -1.  **This is
                       currently the only option.**
             configs (str, optional):
-                Configs to
+                A list of strings used to select the configurations
+                to include in the returned objects. If ['all'], pass
+                back all configurations. Otherwise, only return the
+                configurations matched to this provided list (e.g.,
+                ['A','C']).  See :func:`get_configuration_names`.
 
         Raises:
             PypeItError:
@@ -1598,7 +1605,11 @@ class PypeItMetaData:
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
 
         # Unique configurations
-        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True, configs=configs)
+        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True,
+                                                    configs=configs)
+
+        # TODO: The output directory and file name are too obscure here
+        # given the input arguments.
 
         for setup,i in zip(setups, indx):
             # Create the output directory

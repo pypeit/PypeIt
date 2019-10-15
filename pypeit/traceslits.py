@@ -7,7 +7,7 @@ Module for guiding Slit/Order tracing
 import os
 import inspect
 import copy
-import IPython
+from IPython import embed
 
 import numpy as np
 
@@ -33,7 +33,7 @@ class TraceSlits(masterframe.MasterFrame):
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the instrument used to
             take the observations.  Used to set :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.TraceSlitsPar`):
+        par (:class:`pypeit.par.pypeitpar.TraceSlitsPar` or None):
             The parameters used to guide slit tracing
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
@@ -320,8 +320,12 @@ class TraceSlits(masterframe.MasterFrame):
         self.tslits_dict['binspectral'] = binspectral
         self.tslits_dict['binspatial'] = binspatial
         self.tslits_dict['spectrograph'] = self.spectrograph.spectrograph
-        self.tslits_dict['spec_min'], self.tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(self.tslits_dict['nslits'], binspectral = binspectral)
+        slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+        spec_min_max = self.spectrograph.slit_minmax(slit_spat_pos, binspectral = binspectral)
+        self.tslits_dict['spec_min'], self.tslits_dict['spec_max'] = spec_min_max[0, :], spec_min_max[1, :]
+        # Now extrapolate the traces JFH turning this off for now.
+        #self.tslits_dict['slit_left'] = trace_slits.extrapolate_trace(self.tslits_dict['slit_left'], spec_min_max)
+        #self.tslits_dict['slit_righ'] = trace_slits.extrapolate_trace(self.tslits_dict['slit_righ'], spec_min_max)
 
         return self.tslits_dict
 
@@ -905,6 +909,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Adjust slit edges
         self.slit_left += self.par['trim'][0]
         self.slit_righ -= self.par['trim'][1]
+        # Extrapolate traces
 
         # These need to be done last!
         # Add user input slits
@@ -926,6 +931,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Make the QA
         if write_qa:
             self._qa()
+
 
         # Return it
         return self.tslits_dict
@@ -969,7 +975,7 @@ class TraceSlits(masterframe.MasterFrame):
         Args:
             outfile (:obj:`str`, optional):
                 Name for the output file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
             traceImage (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`, optional):
@@ -977,7 +983,7 @@ class TraceSlits(masterframe.MasterFrame):
                 :class:`pypeit.traceimage.TraceImage` instance with the
                 data used to construct the slit traces.
         """
-        _outfile = self.file_path if outfile is None else outfile
+        _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -990,22 +996,10 @@ class TraceSlits(masterframe.MasterFrame):
         msgs.info('Saving master frame to {0}'.format(_outfile))
 
         # Build the header
-        hdr = fits.Header()
-        #   - Set the master frame type
-        hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
-        #   - List the completed steps
-        hdr['STEPS'] = (','.join(self.steps), 'Completed reduction steps')
-        #   - Provide the file names
-        if traceImage is not None:
-            try:
-                nfiles = len(traceImage.file_list)
-                ndig = int(np.log10(nfiles))+1
-                for i in range(nfiles):
-                    hdr['F{0}'.format(i+1).zfill(ndig)] \
-                            = (traceImage.file_list[i], 'PypeIt: Processed raw file')
-            except:
-                msgs.warn('Master trace frame does not include list of source files.')
+        hdr = self.build_master_header(steps=self.steps)#, raw_files=self.file_list)
+
         #   - Slit metadata
+        hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
         # TODO: Provide header comments
         hdr['DET'] = self.det
         hdr['NSPEC'] = _tslits_dict['nspec']
@@ -1056,7 +1050,7 @@ class TraceSlits(masterframe.MasterFrame):
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
             return_header (:obj:`bool`, optional):
                 Return the header, which will include the TraceImage
                 metadata if available.
@@ -1070,7 +1064,7 @@ class TraceSlits(masterframe.MasterFrame):
             object).
         """
         # Format the input and set the tuple for an empty return
-        _ifile = self.file_path if ifile is None else ifile
+        _ifile = self.master_file_path if ifile is None else ifile
         empty_return = (None, None, None) if return_header else (None, None)
 
         if not self.reuse_masters:
@@ -1080,7 +1074,7 @@ class TraceSlits(masterframe.MasterFrame):
 
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
+            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
             return empty_return
 
         # Read and return

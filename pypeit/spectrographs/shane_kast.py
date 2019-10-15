@@ -32,13 +32,9 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Shane Kast reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 5
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 1
 
+        # Ignore PCA
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()

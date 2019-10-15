@@ -4,9 +4,9 @@
 
 .. _pypeitpar:
 
-================
+=================
 PypeIt Parameters
-================
+=================
 
 PypeIt allows you to customize its execution without having to change the
 code directly.
@@ -78,6 +78,8 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[slits]]``: `TraceSlitsPar Keywords`_
 
+        ``[[slitedges]]``: `EdgeTracePar Keywords`_
+
         ``[[tilts]]``: `WaveTiltsPar Keywords`_
 
     ``[scienceframe]``: `FrameGroupPar Keywords`_
@@ -117,18 +119,18 @@ ReducePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReducePar`
 
-======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``spectrograph``        str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_longonly``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``vlt_fors2``  ..                                            Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_longonly, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, vlt_fors2
-``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                             
-``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                         
-``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ===========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             Default      Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ===========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``spectrograph``        str         ``gemini_gnirs``, ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_longonly``, ``keck_nires``, ``keck_hires_red``, ``keck_hires_blue``, ``mmt_binospec``, ``keck_nirspec_low``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``magellan_fire``, ``magellan_mage``, ``vlt_xshooter_nir``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``vlt_fors2``  ..           Spectrograph that provided the data to be reduced.  Options are: gemini_gnirs, keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_longonly, keck_nires, keck_hires_red, keck_hires_blue, mmt_binospec, keck_nirspec_low, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, magellan_fire, magellan_mage, vlt_xshooter_nir, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, vlt_fors2
+``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..           Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..           A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                             
+``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  0            The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``Science``  Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ``QA``       Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ..           Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                               
+``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  False        Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+======================  ==========  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ===========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -155,8 +157,9 @@ Key                 Type                                                 Options
 ``standardframe``   :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                        
 ``flatfield``       :class:`pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
 ``wavelengths``     :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
-``slits``           :class:`pypeit.par.pypeitpar.TraceSlitsPar`          ..       `TraceSlitsPar Keywords`_          Define how the slits should be traced using the trace ?PINHOLE? frames                                                                                                                   
-``tilts``           :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to tract the slit tilts using the trace frames                                                                                                                                
+``slits``           :class:`pypeit.par.pypeitpar.TraceSlitsPar`          ..       `TraceSlitsPar Keywords`_          Define how the slits should be traced using the trace frames                                                                                                                             
+``slitedges``       :class:`pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                             
+``tilts``           :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
 
 
@@ -260,6 +263,69 @@ Key                   Type        Options                                      D
 
 ----
 
+EdgeTracePar Keywords
+---------------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.EdgeTracePar`
+
+=======================  ================  ===========================================  ==============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                      Type              Options                                      Default         Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+=======================  ================  ===========================================  ==============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``filt_iter``            int               ..                                           0               Number of median-filtering iterations to perform on sqrt(trace) image before applying to Sobel filter to detect slit/order edges.                                                                                                                                                                                                                                                                                                                                          
+``sobel_mode``           str               ``nearest``, ``constant``                    ``nearest``     Mode for Sobel filtering.  Default is 'nearest'; note we find'constant' works best for DEIMOS.                                                                                                                                                                                                                                                                                                                                                                             
+``edge_thresh``          int, float        ..                                           20.0            Threshold for finding edges in the Sobel-filtered significance image.                                                                                                                                                                                                                                                                                                                                                                                                      
+``follow_span``          int               ..                                           20              In the initial connection of spectrally adjacent edge detections, this sets the number of previous spectral rows to consider when following slits forward.                                                                                                                                                                                                                                                                                                                 
+``det_min_spec_length``  int, float        ..                                           0.33            The minimum spectral length (as a fraction of the detector size) of a trace determined by direct measurements of the detector data (as opposed to what should be included in any modeling approach; see fit_min_spec_length).                                                                                                                                                                                                                                              
+``valid_flux_thresh``    int, float        ..                                           500.0           The flux in the image used to construct the edge traces is valid if its median value is above this threshold.  Any edge tracing issues are then assumed not to be an issue with the trace image itself.                                                                                                                                                                                                                                                                    
+``max_shift_abs``        int, float        ..                                           0.5             Maximum spatial shift in pixels between an input edge location and the recentroided value.                                                                                                                                                                                                                                                                                                                                                                                 
+``max_shift_adj``        int, float        ..                                           0.15            Maximum spatial shift in pixels between the edges in adjacent spectral positions.                                                                                                                                                                                                                                                                                                                                                                                          
+``max_spat_error``       int, float        ..                                           ..              Maximum error in the spatial position of edges in pixels.                                                                                                                                                                                                                                                                                                                                                                                                                  
+``match_tol``            int, float        ..                                           3.0             Same-side slit edges below this separation in pixels are considered part of the same edge.                                                                                                                                                                                                                                                                                                                                                                                 
+``fit_function``         str               ``polynomial``, ``legendre``, ``chebyshev``  ``legendre``    Function fit to edge measurements.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                                                           
+``fit_order``            int               ..                                           5               Order of the function fit to edge measurements.                                                                                                                                                                                                                                                                                                                                                                                                                            
+``fit_maxdev``           int, float        ..                                           5.0             Maximum deviation between the fitted and measured edge position for rejection in spatial pixels.                                                                                                                                                                                                                                                                                                                                                                           
+``fit_maxiter``          int               ..                                           25              Maximum number of rejection iterations during edge fitting.                                                                                                                                                                                                                                                                                                                                                                                                                
+``fit_niter``            int               ..                                           1               Number of iterations of re-measuring and re-fitting the edge data; see :func:`pypeit.core.trace.fit_trace`.                                                                                                                                                                                                                                                                                                                                                                
+``fit_min_spec_length``  float             ..                                           0.6             Minimum unmasked spectral length of a traced slit edge to use in any modeling procedure (polynomial fitting or PCA decomposition).                                                                                                                                                                                                                                                                                                                                         
+``left_right_pca``       bool              ..                                           False           Construct a PCA decomposition for the left and right traces separately.  This can be important for cross-dispersed echelle spectrographs (e.g., Keck-NIRES)                                                                                                                                                                                                                                                                                                                
+``pca_n``                int               ..                                           ..              The number of PCA components to keep, which must be less than the number of detected traces.  If not provided, determined by calculating the minimum number of components required to explain a given percentage of variance in the edge data; see `pca_var_percent`.                                                                                                                                                                                                      
+``pca_var_percent``      int, float        ..                                           99.8            The percentage (i.e., not the fraction) of the variance in the edge data accounted for by the PCA used to truncate the number of PCA coefficients to keep (see `pca_n`).  Ignored if `pca_n` is provided directly.                                                                                                                                                                                                                                                         
+``pca_function``         str               ``polynomial``, ``legendre``, ``chebyshev``  ``polynomial``  Type of function fit to the PCA coefficients for each component.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                             
+``pca_order``            int               ..                                           2               Order of the function fit to the PCA coefficients.                                                                                                                                                                                                                                                                                                                                                                                                                         
+``pca_sigrej``           int, float, list  ..                                           2.0, 2.0        Sigma rejection threshold for fitting PCA components. Individual numbers are used for both lower and upper rejection. A list of two numbers sets these explicitly (e.g., [2., 3.]).                                                                                                                                                                                                                                                                                        
+``pca_maxrej``           int               ..                                           1               Maximum number of PCA coefficients rejected during a given fit iteration.                                                                                                                                                                                                                                                                                                                                                                                                  
+``pca_maxiter``          int               ..                                           25              Maximum number of rejection iterations when fitting the PCA coefficients.                                                                                                                                                                                                                                                                                                                                                                                                  
+``smash_range``          list              ..                                           0.0, 1.0        Range of the slit in the spectral direction (in fractional units) to smash when searching for slit edges.  If the spectrum covers only a portion of the image, use that range.                                                                                                                                                                                                                                                                                             
+``edge_detect_clip``     int, float        ..                                           ..              Sigma clipping level for peaks detected in the collapsed, Sobel-filtered significance image.                                                                                                                                                                                                                                                                                                                                                                               
+``trace_median_frac``    int, float        ..                                           ..              After detection of peaks in the rectified Sobel-filtered image and before refitting the edge traces, the rectified image is median filtered with a kernel width of `trace_median_frac*nspec` along the spectral dimension.                                                                                                                                                                                                                                                 
+``trace_thresh``         int, float        ..                                           ..              After rectification and median filtering of the Sobel-filtered image (see `trace_median_frac`), values in the median-filtered image *below* this threshold are masked in the refitting of the edge trace data.  If None, no masking applied.                                                                                                                                                                                                                               
+``fwhm_uniform``         int, float        ..                                           3.0             The `fwhm` parameter to use when using uniform weighting in :func:`pypeit.core.trace.fit_trace` when refining the PCA predictions of edges.  See description of :func:`pypeit.core.trace.peak_trace`.                                                                                                                                                                                                                                                                      
+``niter_uniform``        int               ..                                           9               The number of iterations of :func:`pypeit.core.trace.fit_trace` to use when using uniform weighting.                                                                                                                                                                                                                                                                                                                                                                       
+``fwhm_gaussian``        int, float        ..                                           3.0             The `fwhm` parameter to use when using Gaussian weighting in :func:`pypeit.core.trace.fit_trace` when refining the PCA predictions of edges.  See description :func:`pypeit.core.trace.peak_trace`.                                                                                                                                                                                                                                                                        
+``niter_gaussian``       int               ..                                           6               The number of iterations of :func:`pypeit.core.trace.fit_trace` to use when using Gaussian weighting.                                                                                                                                                                                                                                                                                                                                                                      
+``det_buffer``           int               ..                                           5               The minimum separation between the detector edges and a slit edge for any added edge traces.  Must be positive.                                                                                                                                                                                                                                                                                                                                                            
+``max_nudge``            int               ..                                           ..              If parts of any (predicted) trace fall off the detector edge, allow them to be nudged away from the detector edge up to and including this maximum number of pixels.  If None, no limit is set; otherwise should be 0 or larger.                                                                                                                                                                                                                                           
+``sync_predict``         str               ``pca``, ``nearest``                         ``pca``         Mode to use when predicting the form of the trace to insert.  Use `pca` to use the PCA decomposition or `nearest` to reproduce the shape of the nearest trace.                                                                                                                                                                                                                                                                                                             
+``sync_center``          str               ``median``, ``nearest``, ``gap``             ``median``      Mode to use for determining the location of traces to insert.  Use `median` to use the median of the matched left and right edge pairs, `nearest` to use the length of the nearest slit, or `gap` to offset by a fixed gap width from the next slit edge.                                                                                                                                                                                                                  
+``gap_offset``           int, float        ..                                           5.0             Offset (pixels) used for the slit edge gap width when inserting slit edges (see `sync_center`) or when nudging predicted slit edges to avoid slit overlaps.  This should be larger than `minimum_slit_gap` when converted to arcseconds.                                                                                                                                                                                                                                   
+``sync_to_edge``         bool              ..                                           True            If adding a first left edge or a last right edge, ignore `center_mode` for these edges and place them at the edge of the detector (with the relevant shape).                                                                                                                                                                                                                                                                                                               
+``minimum_slit_length``  int, float        ..                                           ..              Minimum slit length in arcsec.  Slit lengths are determined by the median difference between the left and right edge locations for the unmasked trace locations.  Short slits are masked or clipped.  If None, no minimum slit length applied.                                                                                                                                                                                                                             
+``length_range``         int, float        ..                                           ..              Allowed range in slit length compared to the median slit length.  For example, a value of 0.3 means that slit lengths should not vary more than 30%.  Relatively shorter or longer slits are masked or clipped.                                                                                                                                                                                                                                                            
+``minimum_slit_gap``     int, float        ..                                           ..              Minimum slit gap in arcsec.  Gaps between slits are determined by the median difference between the right and left edge locations of adjacent slits.  Slits with small gaps are merged by removing the intervening traces.If None, no minimum slit gap is applied.  This should be smaller than `gap_offset` when converted to pixels.                                                                                                                                     
+``clip``                 bool              ..                                           True            Instead of just masking bad slit trace edges, remove them.                                                                                                                                                                                                                                                                                                                                                                                                                 
+``sync_clip``            bool              ..                                           True            For synchronized edges specifically, remove both edge traces, even if only one is selected for removal.                                                                                                                                                                                                                                                                                                                                                                    
+``mask_reg_maxiter``     int               ..                                           ..              Maximum number of fit iterations to perform for registering slit-mask design and trace locations. If None, rejection iterations are performed until no points are rejected. If 1, only a single fit is performed without any rejection.                                                                                                                                                                                                                                    
+``mask_reg_maxsep``      int, float        ..                                           ..              Maximum allowed separation between the calibrated coordinates of the designed slit position in pixels and the matched trace. If None, rejection is done iteratively using sigma clipping.  See mask_reg_sigrej.                                                                                                                                                                                                                                                            
+``mask_reg_sigrej``      int, float        ..                                           5               Number of sigma for sigma-clipping during rejection iterations during the slit-mask design registration. If None, uses default set by `astropy.stats.sigma_clipped_stats`.                                                                                                                                                                                                                                                                                                 
+``ignore_alignment``     bool              ..                                           False           Ignore any slit-mask designs identified as alignment slits.                                                                                                                                                                                                                                                                                                                                                                                                                
+``pad``                  int               ..                                           0               Integer number of pixels to consider beyond the slit edges.                                                                                                                                                                                                                                                                                                                                                                                                                
+``add_slits``            str, list         ..                                           ..              Add one or more user-defined slits.  The syntax to define a slit to add is: 'det:spec:spat_left:spat_right' where det=detector, spec=spectral pixel, spat_left=spatial pixel of left slit boundary, and spat_righ=spatial pixel of right slit boundary.  For example, '2:2000:2121:2322,3:2000:1201:1500' will add a slit to detector 2 passing through spec=2000 extending spatially from 2121 to 2322 and another on detector 3 at spec=2000 extending from 1201 to 1500.
+``rm_slits``             str, list         ..                                           ..              Remove one or more user-specified slits.  The syntax used to define a slit to remove is: 'det:spec:spat' where det=detector, spec=spectral pixel, spat=spatial pixel.  For example, '2:2000:2121,3:2000:1500' will remove the slit on detector 2 that contains pixel (spat,spec)=(2000,2121) and on detector 3 that contains pixel (2000,2121).                                                                                                                            
+=======================  ================  ===========================================  ==============  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+
+
+----
+
 WaveTiltsPar Keywords
 ---------------------
 
@@ -292,7 +358,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``pinhole``, ``arc``, ``dark``, ``pixelflat``, ``standard``, ``tilt``, ``bias``, ``trace``, ``science``  ``science``                   Frame type.  Options are: pinhole, arc, dark, pixelflat, standard, tilt, bias, trace, science                                                                                                                                                                  
+``frametype``  str                                             ``pinhole``, ``bias``, ``tilt``, ``dark``, ``standard``, ``pixelflat``, ``science``, ``trace``, ``arc``  ``science``                   Frame type.  Options are: pinhole, bias, tilt, dark, standard, pixelflat, science, trace, arc                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -307,26 +373,30 @@ ProcessImagesPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
 
-================  ==========  =====================================================================  ================  ===========================================================================================================================================================================================================================================
-Key               Type        Options                                                                Default           Description                                                                                                                                                                                                                                
-================  ==========  =====================================================================  ================  ===========================================================================================================================================================================================================================================
-``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan.  Options are: polynomial, savgol, median, none                                                                                                                                                            
-``overscan_par``  int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.
-``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                    
-``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                      
-``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                         
-``sigrej``        int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                             
-``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                           
-``sig_lohi``      list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                     
-``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                    
-``lamaxiter``     int         ..                                                                     1                 Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                       
-``grow``          int, float  ..                                                                     1.5               Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                     
-``rmcompact``     bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                            
-``sigclip``       int, float  ..                                                                     4.5               Sigma level for rejection in LA cosmics routine                                                                                                                                                                                            
-``sigfrac``       int, float  ..                                                                     0.3               Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                           
-``objlim``        int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                               
-``bias``          str         ``as_available``, ``force``, ``skip``                                  ``as_available``  Parameter for bias subtraction. as_available: Bias subtract if bias frames were providedforce: Require bias subtraction, i.e., break if bias frames were not providedskip: Skip bias subtraction even if bias frames were provided         
-================  ==========  =====================================================================  ================  ===========================================================================================================================================================================================================================================
+================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
+Key               Type        Options                                                                Default           Description                                                                                                                                                                                                                                                    
+================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
+``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan.  Options are: polynomial, savgol, median, none                                                                                                                                                                                
+``overscan_par``  int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                    
+``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                                        
+``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                                          
+``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                             
+``cr_reject``     bool        ..                                                                     False             Perform cosmic ray rejection                                                                                                                                                                                                                                   
+``sigrej``        int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                                                 
+``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                               
+``sig_lohi``      list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                                         
+``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                                        
+``lamaxiter``     int         ..                                                                     1                 Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                                           
+``grow``          int, float  ..                                                                     1.5               Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                                         
+``rmcompact``     bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                                                
+``sigclip``       int, float  ..                                                                     4.5               Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                
+``sigfrac``       int, float  ..                                                                     0.3               Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                                               
+``objlim``        int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                                                   
+``bias``          str         ``as_available``, ``force``, ``skip``                                  ``as_available``  Parameter for bias subtraction. Options are:
+    `as_available`: Bias subtract if bias frames were provided
+    `force`: Require bias subtraction; exception raised if no biases available.
+    `skip`: Skip bias subtraction even if bias frames were provided
+================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
 
 
 ----
@@ -336,23 +406,31 @@ ScienceImagePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ScienceImagePar`
 
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                             
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                               
-``boxcar_radius``    int, float  ..       1.5      Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                                                                  
-``trace_npoly``      int         ..       5        Order of legendre polynomial fits to object traces.                                                                                                                                                                                                                                                                                     
-``global_sky_std``   bool        ..       ..       Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
-``sig_thresh``       int, float  ..       10.0     Significance threshold for object finding.                                                                                                                                                                                                                                                                                              
-``maxnumber``        int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit.                                                                                                                                                                                                                                                        
-``sn_gauss``         int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                                                                        
-``find_trim_edge``   list        ..       5, 5     Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                                                                                
-``std_prof_nsigma``  float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                                                                      
-``model_full_slit``  bool        ..       False    If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits                                           
-``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                          
-``manual``           list        ..       ..       List of manual extraction parameter sets                                                                                                                                                                                                                                                                                                
-``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                           
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+===========================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+Key                          Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                             
+===========================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+``bspline_spacing``          int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                               
+``boxcar_radius``            int, float  ..       1.5      Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                                                                  
+``trace_npoly``              int         ..       5        Order of legendre polynomial fits to object traces.                                                                                                                                                                                                                                                                                     
+``global_sky_std``           bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
+``sig_thresh``               int, float  ..       10.0     Significance threshold for object finding.                                                                                                                                                                                                                                                                                              
+``maxnumber``                int         ..       10       Maximum number of objects to extract in a science frame.  Use None for no limit.                                                                                                                                                                                                                                                        
+``sn_gauss``                 int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                                                                        
+``find_trim_edge``           list        ..       5, 5     Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                                                                                
+``find_cont_fit``            bool        ..       True     Fit a continuum to the illumination pattern across the trace rectified image (masking objects) when searching for peaks to initially identify objects                                                                                                                                                                                   
+``find_npoly_cont``          int         ..       1        Polynomial order for fitting continuum to the illumination pattern across the trace rectified image (masking objects) when searching for peaks to initially identify objects                                                                                                                                                            
+``find_fwhm``                int, float  ..       5.0      Indicates roughly the fwhm of objects in pixels for object finding                                                                                                                                                                                                                                                                      
+``find_maxdev``              int, float  ..       2.0      Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.                                                                                                                                                                                                                                    
+``find_extrap_npoly``        int         ..       3        Polynomial order used for trace extrapolation                                                                                                                                                                                                                                                                                           
+``ech_find_max_snr``         int, float  ..       1.0      Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value or satisfy the min_snr criteria described by the min_snr parameters                                                                                                                                             
+``ech_find_min_snr``         int, float  ..       0.3      Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders                                                                                                                     
+``ech_find_nabove_min_snr``  int         ..       2        Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders                                                                                                                     
+``std_prof_nsigma``          float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                                                                      
+``model_full_slit``          bool        ..       False    If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits                                           
+``no_poly``                  bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                          
+``manual``                   list        ..       ..       List of manual extraction parameter sets                                                                                                                                                                                                                                                                                                
+``sky_sigrej``               float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                           
+===========================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -431,6 +509,7 @@ Alterations to the default parameters are::
           exprng = None, 30
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
@@ -441,12 +520,18 @@ Alterations to the default parameters are::
           number = 1
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
-          nonlinear_counts = 56360.1
+          nonlinear_counts = 62258.25
           match_toler = 2.5
           n_first = 3
       [[slits]]
           sigdetect = 50.0
           trace_npoly = 3
+      [[slitedges]]
+          edge_thresh = 50.0
+          fit_order = 3
+          minimum_slit_length = 5.0
+          minimum_slit_gap = 0.25
+          sync_clip = False
   [scienceframe]
       exprng = 30, None
       [[process]]
@@ -478,6 +563,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -495,6 +582,13 @@ Alterations to the default parameters are::
           n_first = 3
       [[slits]]
           sigdetect = 30.0
+      [[slitedges]]
+          edge_thresh = 15.0
+          det_min_spec_length = 0.1
+          fit_order = 3
+          fit_min_spec_length = 0.2
+          sync_center = gap
+          minimum_slit_length = 6
   [scienceframe]
       exprng = 29, None
   [flexure]
@@ -523,6 +617,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -537,6 +633,10 @@ Alterations to the default parameters are::
           rms_threshold = 0.2
       [[slits]]
           sigdetect = 50.0
+      [[slitedges]]
+          fit_order = 3
+          sync_center = gap
+          minimum_slit_length = 6
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -577,6 +677,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = None, 30
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -586,11 +688,15 @@ Alterations to the default parameters are::
           number = 1
       [[wavelengths]]
           lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
-          nonlinear_counts = 70731.92549999998
+          nonlinear_counts = 56360.1
           sigdetect = 10.0
           rms_threshold = 0.2
       [[slits]]
           sigdetect = 50.0
+      [[slitedges]]
+          fit_order = 3
+          sync_center = gap
+          minimum_slit_length = 6
       [[tilts]]
           tracethresh = 25
           maxdev_tracefit = 1.0
@@ -617,6 +723,7 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
+          number = 5
       [[darkframe]]
           exprng = 20, None
       [[arcframe]]
@@ -630,8 +737,10 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
-          number = 5
+          number = 3
       [[standardframe]]
           number = 1
           exprng = None, 20
@@ -648,6 +757,10 @@ Alterations to the default parameters are::
           reid_arxiv = keck_nires.fits
           rms_threshold = 0.2
           n_final = 3, 4, 4, 4, 4
+      [[slitedges]]
+          fit_min_spec_length = 0.4
+          left_right_pca = True
+          trace_thresh = 10.0
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
@@ -679,6 +792,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -692,6 +807,8 @@ Alterations to the default parameters are::
           rms_threshold = 0.2
       [[slits]]
           sigdetect = 200.0
+      [[slitedges]]
+          edge_thresh = 200.0
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
@@ -721,10 +838,12 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
-          number = 5
+          number = 3
           exprng = 0, None
       [[standardframe]]
           number = 1
@@ -736,6 +855,8 @@ Alterations to the default parameters are::
           rms_threshold = 0.2
           match_toler = 2.5
           n_first = 3
+      [[slitedges]]
+          sync_predict = nearest
       [[tilts]]
           maxdev_tracefit = 0.02
           spec_order = 5
@@ -770,10 +891,12 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
-          number = 5
+          number = 3
           exprng = 0, None
       [[standardframe]]
           number = 1
@@ -781,6 +904,8 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
           nonlinear_counts = 49806.6
+      [[slitedges]]
+          sync_predict = nearest
   [scienceframe]
       exprng = 61, None
   [flexure]
@@ -810,6 +935,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 3
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -821,6 +948,8 @@ Alterations to the default parameters are::
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
           nonlinear_counts = 91200.0
+      [[slitedges]]
+          sync_predict = nearest
   [scienceframe]
       exprng = 61, None
   [flexure]
@@ -846,6 +975,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -880,6 +1011,7 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
@@ -907,12 +1039,16 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = median
               sigrej = -1
+              bias = skip
       [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
           [[[process]]]
@@ -931,6 +1067,12 @@ Alterations to the default parameters are::
       [[slits]]
           maxshift = 0.5
           sigdetect = 8.0
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          left_right_pca = True
+          trace_thresh = 10.0
+          length_range = 0.3
   [scienceframe]
       useframe = overscan
 
@@ -948,12 +1090,16 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = median
               sigrej = -1
+              bias = skip
       [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
           [[[process]]]
@@ -978,6 +1124,13 @@ Alterations to the default parameters are::
           maxshift = 0.5
           sigdetect = 8.0
           trace_npoly = 8
+      [[slitedges]]
+          edge_thresh = 8.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          left_right_pca = True
+          trace_thresh = 10.0
+          length_range = 0.3
       [[tilts]]
           tracethresh = 15
           spec_order = 5
@@ -985,6 +1138,10 @@ Alterations to the default parameters are::
       useframe = overscan
   [scienceimage]
       bspline_spacing = 0.5
+      global_sky_std = False
+      find_trim_edge = 3, 3
+      find_cont_fit = False
+      find_npoly_cont = 0
       model_full_slit = True
 
 VLT XShooter_NIR
@@ -995,22 +1152,30 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_nir
   [calibrations]
       [[biasframe]]
-          useframe = none
           number = 5
       [[arcframe]]
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[tiltframe]]
           number = 1
           [[[process]]]
               sigrej = -1
+              bias = skip
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
+              bias = force
       [[traceframe]]
           number = 3
+          [[[process]]]
+              bias = force
       [[standardframe]]
           number = 1
+          [[[process]]]
+              bias = skip
       [[flatfield]]
           illumflatten = False
           tweak_slits_thresh = 0.9
@@ -1030,21 +1195,31 @@ Alterations to the default parameters are::
           rms_threshold = 0.25
       [[slits]]
           maxshift = 0.5
-          sigdetect = 120.0
+          sigdetect = 100.0
           trace_npoly = 8
+      [[slitedges]]
+          edge_thresh = 50.0
+          max_shift_adj = 0.5
+          fit_order = 8
+          fit_min_spec_length = 0.5
+          left_right_pca = True
+          trace_thresh = 10.0
+          length_range = 0.3
       [[tilts]]
           tracethresh = 25.0
           maxdev_tracefit = 0.04
           maxdev2d = 0.04
   [scienceframe]
-      useframe = none
       [[process]]
           satpix = nothing
           sigclip = 20.0
+          bias = skip
   [scienceimage]
       bspline_spacing = 0.8
       trace_npoly = 8
       global_sky_std = False
+      find_cont_fit = False
+      find_npoly_cont = 0
       model_full_slit = True
 
 GEMINI-N GNIRS
@@ -1076,6 +1251,7 @@ Alterations to the default parameters are::
           exprng = None, 30
           [[[process]]]
               overscan = none
+              satpix = nothing
       [[pinholeframe]]
           [[[process]]]
               overscan = none
@@ -1107,6 +1283,12 @@ Alterations to the default parameters are::
       [[slits]]
           maxshift = 0.5
           sigdetect = 50.0
+      [[slitedges]]
+          max_shift_adj = 0.5
+          fit_min_spec_length = 0.5
+          left_right_pca = True
+          pca_order = 3
+          trace_thresh = 10.0
       [[tilts]]
           tracethresh = 5.0, 10, 10, 10, 10, 10
           sig_neigh = 5.0
@@ -1117,6 +1299,9 @@ Alterations to the default parameters are::
       bspline_spacing = 0.8
       global_sky_std = False
       sig_thresh = 5.0
+      find_trim_edge = 2, 2
+      find_cont_fit = False
+      find_npoly_cont = 0
       model_full_slit = True
       no_poly = True
 
@@ -1139,16 +1324,25 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[traceframe]]
           number = 3
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          method = full_template
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
+          nsnippet = 1
       [[slits]]
           trace_npoly = 3
+      [[slitedges]]
+          fit_order = 3
+      [[tilts]]
+          tracethresh = 10.0
+  [flexure]
+      method = boxcar
 
 GEMINI-N GMOS-N
 ---------------
@@ -1169,16 +1363,25 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[traceframe]]
           number = 3
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          method = full_template
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
+          nsnippet = 1
       [[slits]]
           trace_npoly = 3
+      [[slitedges]]
+          fit_order = 3
+      [[tilts]]
+          tracethresh = 10.0
+  [flexure]
+      method = boxcar
 
 GEMINI-N GMOS-N
 ---------------
@@ -1199,16 +1402,25 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               combine = median
+              satpix = nothing
               sig_lohi = 10.0, 10.0
       [[traceframe]]
           number = 3
       [[standardframe]]
           number = 1
       [[wavelengths]]
+          method = full_template
           lamps = CuI, ArI, ArII
           rms_threshold = 0.4
+          nsnippet = 1
       [[slits]]
           trace_npoly = 3
+      [[slitedges]]
+          fit_order = 3
+      [[tilts]]
+          tracethresh = 10.0
+  [flexure]
+      method = boxcar
 
 MAGELLAN FIRE
 -------------
@@ -1232,6 +1444,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 5
       [[standardframe]]
@@ -1246,6 +1460,10 @@ Alterations to the default parameters are::
       [[slits]]
           maxshift = 0.5
           sigdetect = 50
+      [[slitedges]]
+          edge_thresh = 50
+          max_shift_adj = 0.5
+          left_right_pca = True
       [[tilts]]
           tracethresh = 10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10
   [scienceframe]
@@ -1276,6 +1494,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
       [[standardframe]]
@@ -1294,6 +1514,11 @@ Alterations to the default parameters are::
       [[slits]]
           maxshift = 3.0
           sigdetect = 10.0
+      [[slitedges]]
+          edge_thresh = 10.0
+          max_shift_adj = 3.0
+          fit_min_spec_length = 0.3
+          left_right_pca = True
       [[tilts]]
           tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
   [scienceframe]
@@ -1323,6 +1548,8 @@ Alterations to the default parameters are::
               sigrej = -1
       [[pixelflatframe]]
           number = 5
+          [[[process]]]
+              satpix = nothing
       [[traceframe]]
           number = 3
       [[standardframe]]
@@ -1337,6 +1564,10 @@ Alterations to the default parameters are::
       [[slits]]
           maxshift = 0.5
           sigdetect = 600.0
+      [[slitedges]]
+          edge_thresh = 600.0
+          max_shift_adj = 0.5
+          left_right_pca = True
   [scienceframe]
       exprng = 600, None
       [[process]]
@@ -1367,6 +1598,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1383,6 +1616,8 @@ Alterations to the default parameters are::
           n_first = 1
       [[slits]]
           sigdetect = 300
+      [[slitedges]]
+          edge_thresh = 300
       [[tilts]]
           maxdev_tracefit = 0.02
           spat_order = 5
@@ -1415,6 +1650,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1430,6 +1667,8 @@ Alterations to the default parameters are::
           n_first = 1
       [[slits]]
           sigdetect = 300
+      [[slitedges]]
+          edge_thresh = 300
       [[tilts]]
           maxdev_tracefit = 0.02
           spec_order = 5
@@ -1461,6 +1700,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1477,6 +1718,8 @@ Alterations to the default parameters are::
           n_first = 1
       [[slits]]
           sigdetect = 300
+      [[slitedges]]
+          edge_thresh = 300
       [[tilts]]
           maxdev_tracefit = 0.02
           spec_order = 5
@@ -1508,6 +1751,8 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           number = 5
           exprng = 0, None
+          [[[process]]]
+              satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
       [[traceframe]]
@@ -1523,6 +1768,8 @@ Alterations to the default parameters are::
           n_first = 1
       [[slits]]
           sigdetect = 300
+      [[slitedges]]
+          edge_thresh = 300
       [[tilts]]
           maxdev_tracefit = 0.02
           spec_order = 5
@@ -1558,6 +1805,7 @@ Alterations to the default parameters are::
           number = 5
           [[[process]]]
               overscan = median
+              satpix = nothing
       [[pinholeframe]]
           [[[process]]]
               overscan = median
@@ -1580,6 +1828,10 @@ Alterations to the default parameters are::
           maxshift = 0.5
           sigdetect = 50.0
           trace_npoly = 3
+      [[slitedges]]
+          edge_thresh = 50.0
+          max_shift_adj = 0.5
+          fit_order = 3
       [[tilts]]
           tracethresh = 25.0
   [flexure]

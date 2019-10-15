@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+
+"""
+Use PypeIt to trace slit edges.
+"""
+
+from pypeit.scripts import trace_edges
+import sys
+
+if __name__ == '__main__':
+    sys.exit(trace_edges.main(trace_edges.parser()))
+

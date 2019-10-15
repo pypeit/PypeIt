@@ -12,6 +12,7 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
+from pypeit.images import pypeitimage
 from pypeit.core import procimg
 
 from IPython import embed
@@ -27,7 +28,8 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
         files (:obj:`list`, optional):
-            The list of files to process.  Can be an empty list.
+            The list of files to process.
+            Can be an empty list or None
         det (:obj:`int`, optional):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
@@ -35,9 +37,12 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (str, optional): Path to master frames
-        reuse_masters (bool, optional): Load from disk if possible
-        msbias (ndarray or str, optional): Guides bias subtraction
+        master_dir (str, optional):
+            Path to master frames
+        reuse_masters (bool, optional):
+            Load from disk if possible
+        msbias (ndarray or str, optional):
+            Guides bias subtraction
 
     Attributes:
         msbias (ndarray):
@@ -65,12 +70,11 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
-
         # Process steps
         self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
         self.process_steps += ['trim']
         self.process_steps += ['orient']
-        # NOT applying gain to deal 'properly' with saturation
+        self.process_steps += ['apply_gain']
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -83,12 +87,18 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        super(ArcImage, self).save(self.image, 'ARC', outfile=outfile, overwrite=overwrite,
-                                   raw_files=self.file_list, steps=self.process_steps)
+        _outfile = self.master_file_path if outfile is None else outfile
+        # Check if it exists
+        if os.path.exists(_outfile) and not overwrite:
+            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+                      + 'Set overwrite=True to overwrite it.')
+            return
+        #
+        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
+        self.pypeitImage.write(_outfile, hdr=hdr, iext='ARC')
+        msgs.info('Master frame written to {0}'.format(_outfile))
 
-    # TODO: it would be better to have this instantiate the full class
-    # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load(self, ifile=None):
         """
         Load the arc frame data from a saved master frame.
 
@@ -103,5 +113,11 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Returns a `numpy.ndarray`_ with the arc master frame image.
             Also returns the primary header, if requested.
         """
-        return super(ArcImage, self).load('ARC', ifile=ifile, return_header=return_header)
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return
+        # Load it up
+        self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file)
+        return self.pypeitImage
 

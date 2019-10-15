@@ -4,9 +4,9 @@
 
 .. _pypeitpar:
 
-================
+=================
 PypeIt Parameters
-================
+=================
 
 PypeIt allows you to customize its execution without having to change the
 code directly.

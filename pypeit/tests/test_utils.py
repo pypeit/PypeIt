@@ -37,6 +37,20 @@ def test_calc_ivar():
     """ Run the parameter setup script
     """
     x = np.array([-1.0, -0.1, 0.0, 0.1, 1.0])
-    res = utils.inverse(x, positive=True)
+    res = utils.inverse(x)
     assert np.array_equal(res, np.array([0.0, 0.0, 0.0, 10.0, 1.0]))
     assert np.array_equal(utils.calc_ivar(res), np.array([0.0, 0.0, 0.0, 0.1, 1.0]))
+
+
+def test_nearest_unmasked():
+    arr = np.ma.MaskedArray(np.arange(10))
+    arr[3] = np.ma.masked
+    arr[8] = np.ma.masked
+    nearest = utils.nearest_unmasked(arr)
+    assert np.array_equal(nearest, np.array([1, 0, 1, 2, 5, 4, 5, 6, 7, 7])), \
+            'Closest indices did not match expected result'
+    assert np.array_equal(nearest, utils.nearest_unmasked(arr, use_indices=True)), \
+            'Result should be independent of use_indices for this array' 
+
+
+

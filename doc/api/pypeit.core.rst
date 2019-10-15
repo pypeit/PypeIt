@@ -6,7 +6,7 @@ Subpackages
 
 .. toctree::
 
-    pypeit.core.wavecal
+   pypeit.core.wavecal
 
 Submodules
 ----------
@@ -14,14 +14,15 @@ Submodules
 .. toctree::
 
    pypeit.core.arc
-   pypeit.core.coadd
+   pypeit.core.coadd1d
    pypeit.core.coadd2d
    pypeit.core.combine
    pypeit.core.extract
    pypeit.core.flat
-   pypeit.core.flux
+   pypeit.core.flux_calib
    pypeit.core.framematch
    pypeit.core.load
+   pypeit.core.moment
    pypeit.core.parse
    pypeit.core.pca
    pypeit.core.pixels
@@ -31,6 +32,8 @@ Submodules
    pypeit.core.qa
    pypeit.core.save
    pypeit.core.skysub
+   pypeit.core.telluric
+   pypeit.core.trace
    pypeit.core.trace_slits
    pypeit.core.tracewave
    pypeit.core.wave
@@ -39,6 +42,6 @@ Module contents
 ---------------
 
 .. automodule:: pypeit.core
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

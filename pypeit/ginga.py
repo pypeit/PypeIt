@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import time
+from IPython import embed
 
 import subprocess
 
@@ -258,6 +259,7 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids=None, rotate=False, pstep=
         lordloc = lord_in.reshape(lord_in.size,1)
         rordloc = rord_in.reshape(rord_in.size,1)
 
+    slitcen = lordloc + 0.45*(rordloc - lordloc)
     if slit_ids is None:
         slit_ids = [str(slit) for slit in np.arange(nslit)]
 
@@ -272,7 +274,8 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids=None, rotate=False, pstep=
     # y-axis
     y = (np.arange(lordloc.shape[0])).tolist()
     #ohf = lordloc.shape[0] // 2
-    tthrd = int(2*lordloc.shape[0]/3.)
+    top = int(2*lordloc.shape[0]/3.)
+    bot = int(0.2*lordloc.shape[0])
     # Loop on slits
     for slit in range(lordloc.shape[1]):
         # Edges
@@ -288,11 +291,16 @@ def show_slits(viewer, ch, lord_in, rord_in, slit_ids=None, rotate=False, pstep=
             canvas.add(str('path'), points, color=clr)
         # Text -- Should use the 'real' name
         if rotate:
-            xt, yt = float(y[tthrd]), float(lordloc[tthrd,slit])
+            xt, yt = float(y[top]), float(slitcen[top,slit])
+            xb, yb = float(y[bot]), float(slitcen[bot,slit])
         else:
-            xt, yt = float(lordloc[tthrd,slit]), float(y[tthrd])
-        canvas.add(str('text'), xt, yt, str('S{:}'.format(slit_ids[slit])), color=str('red'),
+            xt, yt = float(slitcen[top,slit]), float(y[top])
+            xb, yb = float(slitcen[bot,slit]), float(y[bot])
+        canvas.add(str('text'), xb, yb, str('S{:d}'.format(slit_ids[slit])), color=str('green'),
                    fontsize=20.)
+        canvas.add(str('text'), xt, yt, str('{:d}'.format(slit)), color=str('red'),
+                   fontsize=20.)
+
 
 
 def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
@@ -329,14 +337,15 @@ def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
         y = (np.arange(trace.size)[::pstep]).tolist()
     else:
         y = yval[::pstep].tolist()
-    xy = [trace[::pstep].tolist(), y]
+    trace_list = trace[::pstep].tolist()
+    xy = [trace_list, y]
     if rotate:
         xy[0], xy[1] = xy[1], xy[0]
     points = list(zip(xy[0], xy[1]))
     canvas.add(str('path'), points, color=str(color))
     # Text
-    ohf = trace.size // (2*pstep)
-    xyt = [float(trace[ohf]), float(y[ohf])]
+    ohf = len(trace_list)//2
+    xyt = [float(trace_list[ohf]), float(y[ohf])]
     if rotate:
         xyt[0], xyt[1] = xyt[1], xyt[0]
     # Do it

@@ -10,6 +10,7 @@ import numpy as np
 from scipy import ndimage
 from scipy.special import erf
 from scipy import signal
+from scipy import interpolate
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, font_manager
@@ -27,6 +28,8 @@ from pypeit.core import extract
 from pypeit.core import arc
 from pypeit.core import pydl
 from astropy.stats import sigma_clipped_stats
+from IPython import embed
+import copy
 
 try:
     from pypeit import ginga
@@ -35,6 +38,117 @@ except ImportError:
 
 # Testing
 import time
+
+
+def shift_slits(tslits_dict, tilts_dict, waveimg, shift):
+    """
+    Routine to shift slits in a tslits_dict. This routine is used to compensate for flexure.
+
+    Args:
+        tslits_dict (dict):
+           Dictionary containing slit boundaries and other info
+
+        shift (float):
+           Shift to be added to the slit boundaries.
+
+    Returns:
+        tslits_shift (dict):
+           A copy of the original tslits_dict but with the slit boundaries and the slitcen shifted.
+
+    """
+
+    tslits_shift = copy.deepcopy(tslits_dict)
+    nspec, nslits = tslits_shift['nspec'], tslits_shift['nslits']
+
+    for islit in range(nslits):
+        tslits_shift['slit_left'][:,islit] += shift
+        tslits_shift['slit_righ'][:,islit] += shift
+        tslits_shift['slitcen'][:,islit] += shift
+
+    # Not shifting the orignal slit_left_orig or slit_righ_orig
+    return tslits_shift
+
+
+def extrapolate_trace(traces_in, spec_min_max_in, fit_frac=0.2, npoly=1, method='poly'):
+    """
+    Extrapolates trace to fill in pixels that lie outside of the range spec_min, spec_max). This
+    routine is useful for echelle spectrographs where the orders are shorter than the image by a signfiicant
+    amount, since the polynomial trace fits often go wild.
+
+    Args:
+        traces (np.ndarray): shape = (nspec,) or (nspec, ntrace)
+            Array containing object or slit boundary traces
+        spec_min_max (np.ndarray):  shape = (2, ntrace)
+            Array contaning the minimum  and maximum spectral region covered by each trace. If this is an array with
+            ndim=1 array, the same numbers will be used for all traces in traces_in.  If a 2d array, then this must be
+            an ndarray of shape (2, ntrace,) where the spec_min_max[0,:] are the minimua and spec_min_max[1,:] are the maxima.
+        fit_frac (float):
+            fraction of the good pixels to be used to fit when extrapolating traces. The upper fit_frac
+            pixels are used to extrapolate to larger spectral position, and vice versa for lower spectral
+            positions.
+        npoly (int):
+            Order of polynomial fit used for extrapolation
+        method (str):
+            Method used for extrapolation. Options are 'poly' or 'edge'. If 'poly' the code does a polynomial fit. If
+            'edge' it just attaches the last good pixel everywhere. 'edge' is not currently used.
+    Returns:
+        trace_extrap (np.ndarray):
+            Array with same size as trace containing the linearly extrapolated values for the bad spectral pixels.
+    """
+
+    #embed()
+    # This little bit of code allows the input traces to either be (nspec, nslit) arrays or a single
+    # vectors of size (nspec)
+    spec_min_max_tmp = np.array(spec_min_max_in)
+    if traces_in.ndim == 2:
+        traces = traces_in
+        nslits = traces.shape[1]
+        if np.array(spec_min_max_in).ndim == 1:
+            spec_min_max = np.outer(spec_min_max_tmp, np.ones(nslits))
+        elif spec_min_max_tmp.ndim == 2:
+            if (spec_min_max_tmp.shape[1] != nslits):
+                msgs.error('If input as any arrays, spec_min_max needs to have dimensions (2,nslits)')
+            spec_min_max = spec_min_max_tmp
+        else:
+            msgs.error('Invalid shapes for traces_min and traces_max')
+    else:
+        nslits = 1
+        traces = traces_in.reshape(traces_in.size, 1)
+        spec_min_max = spec_min_max_tmp
+
+    nspec = traces.shape[0]
+    spec_vec = np.arange(nspec,dtype=float)
+    xnspecmin1 = spec_vec[-1]
+    traces_extrap = traces.copy()
+
+    # TODO should we be doing a more careful extrapolation here rather than just linearly using the nearest pixel
+    # values??
+    for islit in range(nslits):
+        ibad_max = spec_vec > spec_min_max[1,islit]
+        ibad_min = spec_vec < spec_min_max[0,islit]
+        igood = (spec_vec >= spec_min_max[0,islit]) & (spec_vec <= spec_min_max[1,islit])
+        nfit = int(np.round(fit_frac*np.sum(igood)))
+        good_ind = np.where(igood)[0]
+        igood_min = good_ind[0:nfit]
+        igood_max = good_ind[-nfit:]
+        if np.any(ibad_min):
+            if 'poly' in method:
+                coeff_min = utils.func_fit(spec_vec[igood_min], traces[igood_min, islit], 'legendre', npoly, minx=0.0, maxx=xnspecmin1)
+                traces_extrap[ibad_min, islit] = utils.func_val(coeff_min, spec_vec[ibad_min], 'legendre', minx=0.0, maxx=xnspecmin1)
+            elif 'edge' in method:
+                traces_extrap[ibad_min, islit] = traces[good_ind[0], islit]
+        if np.any(ibad_max):
+            if 'poly' in method:
+                coeff_max = utils.func_fit(spec_vec[igood_max], traces[igood_max, islit], 'legendre', npoly, minx=0.0,maxx=xnspecmin1)
+                traces_extrap[ibad_max, islit] = utils.func_val(coeff_max, spec_vec[ibad_max], 'legendre', minx=0.0,maxx=xnspecmin1)
+            elif 'edge' in method:
+                traces_extrap[ibad_max, islit] = traces[good_ind[-1], islit]
+
+        #ibad = np.invert(igood)
+        #traces_extrap[ibad, islit] = interpolate.interp1d(spec_vec[igood], traces[igood, islit], kind='linear',
+        #bounds_error=False, fill_value='extrapolate')(spec_vec[ibad])
+
+    return traces_extrap
 
 
 def add_user_edges(lcen, rcen, add_slits):
@@ -1913,6 +2027,7 @@ def find_peak_limits(hist, pks):
     return edges
 
 
+# TODO -- REMOVE AS THIS IS NOW IN trace.py
 def parse_user_slits(add_slits, this_det, rm=False):
     """
     Parse the parset syntax for adding slits
@@ -1952,213 +2067,213 @@ def parse_user_slits(add_slits, this_det, rm=False):
         return user_slits
 
 
-def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, plxbin, slitcen,
-                         pixlocn, function='lengendre', polyorder=3, diffpolyorder=2,
-                         ofit=[3,2,1,0,0,0], extrapolate=[0,0], doqa=True):
-    """ Perform a PCA analyis on the order edges
-    Primarily for extrapolation
-
-    KBW: extrapolate neg was never used
-
-    Parameters
-    ----------
-    binarr : ndarray
-    edgearr : ndarray
-    lcent : ndarray
-      Left edges
-    rcent : ndarray
-      Right edges
-    gord : ndarray
-      Orders detected on both the left and right edge
-    lcoeff : ndarray
-      Fit coefficients for left edges
-    rcoeff : ndarray
-      Fit coefficients for right edges
-    plxbin
-    slitcen : ndarray
-    pixlocn
-
-    Returns
-    -------
-
-    """
-    # Init
-    wl = np.where(edgearr < 0)
-    wr = np.where(edgearr > 0)
-
-    ##############
-    xv = plxbin[:, 0]
-    minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
-
-    # min and max switched because left edges have negative values
-    almin, almax = -np.max(edgearr[wl]), -np.min(edgearr[wl])
-    armin, armax = np.min(edgearr[wr]), np.max(edgearr[wr])
-
-    # maskord = np.where((np.all(lcoeff[:,lg],axis=0)==False) 
-    #                         | (np.all(rcoeff[:,rg],axis=0)==False))[0]
-    maskord = np.where((np.all(lcoeff, axis=0) == False) | (np.all(rcoeff, axis=0) == False))[0]
-    ordsnd = np.arange(min(almin, armin), max(almax, armax) + 1)
-    totord = ordsnd[-1] + extrapolate[1]
-
-    # Identify the orders to be extrapolated during reconstruction
-    extrapord = (1.0 - np.in1d(np.linspace(1.0, totord, totord), gord).astype(np.int)).astype(np.bool)
-    msgs.info("Performing a PCA on the order edges")
-    lnpc = len(ofit) - 1
-    msgs.work("May need to do a check here to make sure ofit is reasonable")
-    coeffs = utils.func_fit(xv, slitcen, function, polyorder, minx=minvf, maxx=maxvf)
-    for i in range(ordsnd.size):
-        if i in maskord:
-            if (i>=ordsnd[0]) and (i<ordsnd[-1]-1):  # JXP: Don't add orders that are already in there
-                continue
-            coeffs = np.insert(coeffs, i, 0.0, axis=1)
-            slitcen = np.insert(slitcen, i, 0.0, axis=1)
-            lcent = np.insert(lcent, i, 0.0, axis=0)
-            rcent = np.insert(rcent, i, 0.0, axis=0)
-    xcen = xv[:, np.newaxis].repeat(ordsnd.size, axis=1)
-    fitted, outpar = pca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
-                                 skipx0=False, function=function)
-#    if doqa:
-#        debugger.set_trace()  # NEED TO REMOVE slf
-#        # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
-
-    # Extrapolate the remaining orders requested
-    orders = 1 + np.arange(totord)
-    extrap_cent, outpar = pca.extrapolate(outpar, orders, function=function)
-
-    # Fit a function for the difference between left and right edges.
-    diff_coeff, diff_fit = utils.polyfitter2d(rcent - lcent, mask=maskord, order=diffpolyorder)
-
-    # Now extrapolate the order difference
-    ydet = np.linspace(0.0, 1.0, lcent.shape[0])
-    ydetd = ydet[1] - ydet[0]
-    lnum = ordsnd[0] - 1.0
-    ydet = np.append(-ydetd * np.arange(1.0, 1.0 + lnum)[::-1], ydet)
-    ydet = np.append(ydet, 1.0 + ydetd * np.arange(1.0, 1.0 + extrapolate[1]))
-    xde, yde = np.meshgrid(np.linspace(0.0, 1.0, lcent.shape[1]), ydet)
-    extrap_diff = utils.polyval2d(xde, yde, diff_coeff).T
-    msgs.info("Refining the trace for reconstructed and predicted orders")
-
-    # NOTE::  MIGHT NEED TO APPLY THE BAD PIXEL MASK HERE TO BINARR
-    msgs.work("Should the bad pixel mask be applied to the frame here?")
-    refine_cent, outpar = refine_traces(binarr, outpar, extrap_cent, extrap_diff,
-                                        [gord[0] - orders[0], orders[-1] - gord[-1]], orders,
-                                        ofit[0], pixlocn, function=function)
-
-    # Generate the left and right edges
-    lcen = refine_cent - 0.5 * extrap_diff
-    rcen = refine_cent + 0.5 * extrap_diff
-
-    # Return
-    return lcen, rcen, extrapord
-
-
-def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
-                         lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin,
-                         function='lengendre', polyorder=3, ofit=[3,2,1,0,0,0], doqa=True):
-    """ PCA analysis for slit edges
-
-    Parameters
-    ----------
-    binarr : ndarray
-    edgearr : ndarray
-    lcoeff : ndarray
-      Fit coefficients for left edges
-    rcoeff : ndarray
-      Fit coefficients for right edges
-    ldiffarr : ndarray
-    rdiffarr : ndarray
-    lnmbrarr : ndarray
-    rnmbrarr : ndarray
-    lwghtarr : ndarray
-    rwghtarr : ndarray
-    lcent : ndarray
-    rcent : ndarray
-    plxbin
-    settings : dict-like object
-
-    Returns
-    -------
-    lcen : ndarray
-      Left edges
-    rcen : ndarray
-      Right edges
-    extrapord
-
-    """
-
-    minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
-    maskord = np.where((np.all(lcoeff, axis=0) == False) | (np.all(rcoeff, axis=0) == False))[0]
-    allord = np.arange(ldiffarr.shape[0])
-    ww = np.where(np.in1d(allord, maskord) == False)[0]
-
-    # Unmask where an order edge is located
-    maskrows = np.ones(binarr.shape[1], dtype=np.int)
-    # ldiffarr = np.round(ldiffarr[ww]).astype(np.int)
-    # rdiffarr = np.round(rdiffarr[ww]).astype(np.int)
-    ldiffarr = np.fmax(np.fmin(np.round(ldiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
-    rdiffarr = np.fmax(np.fmin(np.round(rdiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
-    maskrows[ldiffarr] = 0
-    maskrows[rdiffarr] = 0
-
-    # Extract the slit edge ID numbers associated with the acceptable traces
-    lnmbrarr = lnmbrarr[ww]
-    rnmbrarr = rnmbrarr[ww]
-
-    # Fill in left/right coefficients
-    tcoeff = np.ones((polyorder + 1, binarr.shape[1]))
-    tcoeff[:, ldiffarr] = lcoeff[:, ww]
-    tcoeff[:, rdiffarr] = rcoeff[:, ww]
-
-    # Weight the PCA fit by the number of detections in each slit edge
-    pxwght = np.zeros(binarr.shape[1])
-    pxwght[ldiffarr] = lwghtarr[ww]
-    pxwght[rdiffarr] = rwghtarr[ww]
-    maskrw = np.where(maskrows == 1)[0]
-    maskrw.sort()
-    extrap_row = maskrows.copy()
-    xv = np.arange(binarr.shape[0])
-
-    # trace values
-    trcval = utils.func_val(tcoeff, xv, function, minx=minvf, maxx=maxvf).T
-    msgs.work("May need to do a check here to make sure ofit is reasonable")
-    lnpc = len(ofit) - 1
-
-    # Only do a PCA if there are enough good slits
-    if np.sum(1.0 - extrap_row) > ofit[0] + 1:
-        # Perform a PCA on the locations of the slits
-        msgs.info("Performing a PCA on the slit traces")
-        ordsnd = np.arange(binarr.shape[1])
-        xcen = xv[:, np.newaxis].repeat(binarr.shape[1], axis=1)
-        fitted, outpar = pca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght, x0in=ordsnd, mask=maskrw, skipx0=False, function=function)
-#        if doqa:
-#            # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
-#            msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
-#            # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
-        # Now extrapolate to the whole detector
-        pixpos = np.arange(binarr.shape[1])
-        extrap_trc, outpar = pca.extrapolate(outpar, pixpos, function=function)
-        # Extract the resulting edge traces
-        lcen = extrap_trc[:, ldiffarr]
-        rcen = extrap_trc[:, rdiffarr]
-        # Perform a final shift fit to ensure the traces closely follow the edge detections
-        for ii in range(lnmbrarr.size):
-            wedx, wedy = np.where(edgearr == lnmbrarr[ii])
-            shft = np.mean(lcen[wedx, ii] - wedy)
-            lcen[:, ii] -= shft
-        for ii in range(rnmbrarr.size):
-            wedx, wedy = np.where(edgearr == rnmbrarr[ii])
-            shft = np.mean(rcen[wedx, ii] - wedy)
-            rcen[:, ii] -= shft
-    else:
-        allord = np.arange(lcent.shape[0])
-        maskord = np.where((np.all(lcent, axis=1) == False) | (np.all(rcent, axis=1) == False))[0]
-        ww = np.where(np.in1d(allord, maskord) == False)[0]
-        lcen = lcent[ww, :].T.copy()
-        rcen = rcent[ww, :].T.copy()
-    extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
-
-    # Return
-    return lcen, rcen, extrapord
+#def pca_order_slit_edges(binarr, edgearr, lcent, rcent, gord, lcoeff, rcoeff, plxbin, slitcen,
+#                         pixlocn, function='lengendre', polyorder=3, diffpolyorder=2,
+#                         ofit=[3,2,1,0,0,0], extrapolate=[0,0], doqa=True):
+#    """ Perform a PCA analyis on the order edges
+#    Primarily for extrapolation
+#
+#    KBW: extrapolate neg was never used
+#
+#    Parameters
+#    ----------
+#    binarr : ndarray
+#    edgearr : ndarray
+#    lcent : ndarray
+#      Left edges
+#    rcent : ndarray
+#      Right edges
+#    gord : ndarray
+#      Orders detected on both the left and right edge
+#    lcoeff : ndarray
+#      Fit coefficients for left edges
+#    rcoeff : ndarray
+#      Fit coefficients for right edges
+#    plxbin
+#    slitcen : ndarray
+#    pixlocn
+#
+#    Returns
+#    -------
+#
+#    """
+#    # Init
+#    wl = np.where(edgearr < 0)
+#    wr = np.where(edgearr > 0)
+#
+#    ##############
+#    xv = plxbin[:, 0]
+#    minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+#
+#    # min and max switched because left edges have negative values
+#    almin, almax = -np.max(edgearr[wl]), -np.min(edgearr[wl])
+#    armin, armax = np.min(edgearr[wr]), np.max(edgearr[wr])
+#
+#    # maskord = np.where((np.all(lcoeff[:,lg],axis=0)==False) 
+#    #                         | (np.all(rcoeff[:,rg],axis=0)==False))[0]
+#    maskord = np.where((np.all(lcoeff, axis=0) == False) | (np.all(rcoeff, axis=0) == False))[0]
+#    ordsnd = np.arange(min(almin, armin), max(almax, armax) + 1)
+#    totord = ordsnd[-1] + extrapolate[1]
+#
+#    # Identify the orders to be extrapolated during reconstruction
+#    extrapord = (1.0 - np.in1d(np.linspace(1.0, totord, totord), gord).astype(np.int)).astype(np.bool)
+#    msgs.info("Performing a PCA on the order edges")
+#    lnpc = len(ofit) - 1
+#    msgs.work("May need to do a check here to make sure ofit is reasonable")
+#    coeffs = utils.func_fit(xv, slitcen, function, polyorder, minx=minvf, maxx=maxvf)
+#    for i in range(ordsnd.size):
+#        if i in maskord:
+#            if (i>=ordsnd[0]) and (i<ordsnd[-1]-1):  # JXP: Don't add orders that are already in there
+#                continue
+#            coeffs = np.insert(coeffs, i, 0.0, axis=1)
+#            slitcen = np.insert(slitcen, i, 0.0, axis=1)
+#            lcent = np.insert(lcent, i, 0.0, axis=0)
+#            rcent = np.insert(rcent, i, 0.0, axis=0)
+#    xcen = xv[:, np.newaxis].repeat(ordsnd.size, axis=1)
+#    fitted, outpar = pca.basis(xcen, slitcen, coeffs, lnpc, ofit, x0in=ordsnd, mask=maskord,
+#                                 skipx0=False, function=function)
+##    if doqa:
+##        debugger.set_trace()  # NEED TO REMOVE slf
+##        # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc)
+#
+#    # Extrapolate the remaining orders requested
+#    orders = 1 + np.arange(totord)
+#    extrap_cent, outpar = pca.extrapolate(outpar, orders, function=function)
+#
+#    # Fit a function for the difference between left and right edges.
+#    diff_coeff, diff_fit = utils.polyfitter2d(rcent - lcent, mask=maskord, order=diffpolyorder)
+#
+#    # Now extrapolate the order difference
+#    ydet = np.linspace(0.0, 1.0, lcent.shape[0])
+#    ydetd = ydet[1] - ydet[0]
+#    lnum = ordsnd[0] - 1.0
+#    ydet = np.append(-ydetd * np.arange(1.0, 1.0 + lnum)[::-1], ydet)
+#    ydet = np.append(ydet, 1.0 + ydetd * np.arange(1.0, 1.0 + extrapolate[1]))
+#    xde, yde = np.meshgrid(np.linspace(0.0, 1.0, lcent.shape[1]), ydet)
+#    extrap_diff = utils.polyval2d(xde, yde, diff_coeff).T
+#    msgs.info("Refining the trace for reconstructed and predicted orders")
+#
+#    # NOTE::  MIGHT NEED TO APPLY THE BAD PIXEL MASK HERE TO BINARR
+#    msgs.work("Should the bad pixel mask be applied to the frame here?")
+#    refine_cent, outpar = refine_traces(binarr, outpar, extrap_cent, extrap_diff,
+#                                        [gord[0] - orders[0], orders[-1] - gord[-1]], orders,
+#                                        ofit[0], pixlocn, function=function)
+#
+#    # Generate the left and right edges
+#    lcen = refine_cent - 0.5 * extrap_diff
+#    rcen = refine_cent + 0.5 * extrap_diff
+#
+#    # Return
+#    return lcen, rcen, extrapord
+#
+#
+#def pca_pixel_slit_edges(binarr, edgearr, lcoeff, rcoeff, ldiffarr, rdiffarr,
+#                         lnmbrarr, rnmbrarr, lwghtarr, rwghtarr, lcent, rcent, plxbin,
+#                         function='lengendre', polyorder=3, ofit=[3,2,1,0,0,0], doqa=True):
+#    """ PCA analysis for slit edges
+#
+#    Parameters
+#    ----------
+#    binarr : ndarray
+#    edgearr : ndarray
+#    lcoeff : ndarray
+#      Fit coefficients for left edges
+#    rcoeff : ndarray
+#      Fit coefficients for right edges
+#    ldiffarr : ndarray
+#    rdiffarr : ndarray
+#    lnmbrarr : ndarray
+#    rnmbrarr : ndarray
+#    lwghtarr : ndarray
+#    rwghtarr : ndarray
+#    lcent : ndarray
+#    rcent : ndarray
+#    plxbin
+#    settings : dict-like object
+#
+#    Returns
+#    -------
+#    lcen : ndarray
+#      Left edges
+#    rcen : ndarray
+#      Right edges
+#    extrapord
+#
+#    """
+#
+#    minvf, maxvf = plxbin[0, 0], plxbin[-1, 0]
+#    maskord = np.where((np.all(lcoeff, axis=0) == False) | (np.all(rcoeff, axis=0) == False))[0]
+#    allord = np.arange(ldiffarr.shape[0])
+#    ww = np.where(np.in1d(allord, maskord) == False)[0]
+#
+#    # Unmask where an order edge is located
+#    maskrows = np.ones(binarr.shape[1], dtype=np.int)
+#    # ldiffarr = np.round(ldiffarr[ww]).astype(np.int)
+#    # rdiffarr = np.round(rdiffarr[ww]).astype(np.int)
+#    ldiffarr = np.fmax(np.fmin(np.round(ldiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
+#    rdiffarr = np.fmax(np.fmin(np.round(rdiffarr[ww]).astype(np.int), binarr.shape[1] - 1), 0)
+#    maskrows[ldiffarr] = 0
+#    maskrows[rdiffarr] = 0
+#
+#    # Extract the slit edge ID numbers associated with the acceptable traces
+#    lnmbrarr = lnmbrarr[ww]
+#    rnmbrarr = rnmbrarr[ww]
+#
+#    # Fill in left/right coefficients
+#    tcoeff = np.ones((polyorder + 1, binarr.shape[1]))
+#    tcoeff[:, ldiffarr] = lcoeff[:, ww]
+#    tcoeff[:, rdiffarr] = rcoeff[:, ww]
+#
+#    # Weight the PCA fit by the number of detections in each slit edge
+#    pxwght = np.zeros(binarr.shape[1])
+#    pxwght[ldiffarr] = lwghtarr[ww]
+#    pxwght[rdiffarr] = rwghtarr[ww]
+#    maskrw = np.where(maskrows == 1)[0]
+#    maskrw.sort()
+#    extrap_row = maskrows.copy()
+#    xv = np.arange(binarr.shape[0])
+#
+#    # trace values
+#    trcval = utils.func_val(tcoeff, xv, function, minx=minvf, maxx=maxvf).T
+#    msgs.work("May need to do a check here to make sure ofit is reasonable")
+#    lnpc = len(ofit) - 1
+#
+#    # Only do a PCA if there are enough good slits
+#    if np.sum(1.0 - extrap_row) > ofit[0] + 1:
+#        # Perform a PCA on the locations of the slits
+#        msgs.info("Performing a PCA on the slit traces")
+#        ordsnd = np.arange(binarr.shape[1])
+#        xcen = xv[:, np.newaxis].repeat(binarr.shape[1], axis=1)
+#        fitted, outpar = pca.basis(xcen, trcval, tcoeff, lnpc, ofit, weights=pxwght, x0in=ordsnd, mask=maskrw, skipx0=False, function=function)
+##        if doqa:
+##            # JXP -- NEED TO REMOVE SLF FROM THE NEXT BIT
+##            msgs.warn("NEED TO REMOVE SLF FROM THE NEXT BIT")
+##            # pca.pca_plot(slf, outpar, ofit, "Slit_Trace", pcadesc=pcadesc, addOne=False)
+#        # Now extrapolate to the whole detector
+#        pixpos = np.arange(binarr.shape[1])
+#        extrap_trc, outpar = pca.extrapolate(outpar, pixpos, function=function)
+#        # Extract the resulting edge traces
+#        lcen = extrap_trc[:, ldiffarr]
+#        rcen = extrap_trc[:, rdiffarr]
+#        # Perform a final shift fit to ensure the traces closely follow the edge detections
+#        for ii in range(lnmbrarr.size):
+#            wedx, wedy = np.where(edgearr == lnmbrarr[ii])
+#            shft = np.mean(lcen[wedx, ii] - wedy)
+#            lcen[:, ii] -= shft
+#        for ii in range(rnmbrarr.size):
+#            wedx, wedy = np.where(edgearr == rnmbrarr[ii])
+#            shft = np.mean(rcen[wedx, ii] - wedy)
+#            rcen[:, ii] -= shft
+#    else:
+#        allord = np.arange(lcent.shape[0])
+#        maskord = np.where((np.all(lcent, axis=1) == False) | (np.all(rcent, axis=1) == False))[0]
+#        ww = np.where(np.in1d(allord, maskord) == False)[0]
+#        lcen = lcent[ww, :].T.copy()
+#        rcen = rcent[ww, :].T.copy()
+#    extrapord = np.zeros(lcen.shape[1], dtype=np.bool)
+#
+#    # Return
+#    return lcen, rcen, extrapord
 
 
 
@@ -2228,93 +2343,93 @@ def prune_peaks(hist, pks, pkidx, debug=False):
     return msk
 
 
-def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
-                  fitord, locations, function='polynomial'):
-    """
-    Parameters
-    ----------
-    binarr
-    outpar
-    extrap_cent
-    extrap_diff
-    extord
-    orders
-    fitord
-    locations
-    function : str, optional
-
-    Returns
-    -------
-
-    """
-    # Refine the orders in the positive direction
-    i = extord[1]
-    hiord = pixels.phys_to_pix(extrap_cent[:, -i-2], locations, 1)
-    nxord = pixels.phys_to_pix(extrap_cent[:, -i-1], locations, 1)
-    mask = np.ones(orders.size)
-    mask[0:extord[0]] = 0.0
-    mask[-extord[1]:] = 0.0
-    extfit = extrap_cent.copy()
-    outparcopy = copy.deepcopy(outpar)
-    while i > 0:
-        loord = hiord
-        hiord = nxord
-        nxord = pixels.phys_to_pix(extrap_cent[:,-i], locations, 1)
-
-        # Minimum counts between loord and hiord
-        minarrL = minbetween(binarr, loord, hiord)
-        minarrR = minbetween(binarr, hiord, nxord)
-
-        minarr = 0.5*(minarrL+minarrR)
-        srchz = np.abs(extfit[:,-i]-extfit[:,-i-1])/3.0
-        lopos = pixels.phys_to_pix(extfit[:,-i]-srchz, locations, 1)  # The pixel indices for the bottom of the search window
-        numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,-i])))
-        diffarr = np.round(extrap_diff[:,-i]).astype(np.int)
-        shift = find_shift(binarr, minarr, lopos, diffarr, numsrch)
-
-        relshift = np.mean(shift+extrap_diff[:,-i]/2-srchz)
-        if shift == -1:
-            msgs.info("  Refining order {0:d}: NO relative shift applied".format(int(orders[-i])))
-            relshift = 0.0
-        else:
-            msgs.info("  Refining order {0:d}: relative shift = {1:+f}".format(int(orders[-i]), relshift))
-        # Renew guess for the next order
-        mask[-i] = 1.0
-        extfit, outpar, fail = pca.refine_iter(outpar, orders, mask, -i, relshift, fitord, function=function)
-        if fail:
-            msgs.warn("Order refinement has large residuals -- check order traces")
-            return extrap_cent, outparcopy
-        i -= 1
-    # Refine the orders in the negative direction
-    i = extord[0]
-    loord = pixels.phys_to_pix(extrap_cent[:,i+1], locations, 1)
-    extrap_cent = extfit.copy()
-    outparcopy = copy.deepcopy(outpar)
-    while i > 0:
-        hiord = loord
-        loord = pixels.phys_to_pix(extfit[:,i], locations, 1)
-
-        minarr = minbetween(binarr,loord, hiord)
-        srchz = np.abs(extfit[:,i]-extfit[:,i-1])/3.0
-        lopos = pixels.phys_to_pix(extfit[:,i-1]-srchz, locations, 1)
-        numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,i-1])))
-        diffarr = np.round(extrap_diff[:,i-1]).astype(np.int)
-        shift = find_shift(binarr, minarr, lopos, diffarr, numsrch)
-
-        relshift = np.mean(shift+extrap_diff[:,i-1]/2-srchz)
-        if shift == -1:
-            msgs.info("  Refining order {0:d}: NO relative shift applied".format(int(orders[i-1])))
-            relshift = 0.0
-        else:
-            msgs.info("  Refining order {0:d}: relative shift = {1:+f}".format(int(orders[i-1]),relshift))
-        # Renew guess for the next order
-        mask[i-1] = 1.0
-        extfit, outpar, fail = pca.refine_iter(outpar, orders, mask, i-1, relshift, fitord, function=function)
-        if fail:
-            msgs.warn("Order refinement has large residuals -- check order traces")
-            return extrap_cent, outparcopy
-        i -= 1
-    return extfit, outpar
+#def refine_traces(binarr, outpar, extrap_cent, extrap_diff, extord, orders,
+#                  fitord, locations, function='polynomial'):
+#    """
+#    Parameters
+#    ----------
+#    binarr
+#    outpar
+#    extrap_cent
+#    extrap_diff
+#    extord
+#    orders
+#    fitord
+#    locations
+#    function : str, optional
+#
+#    Returns
+#    -------
+#
+#    """
+#    # Refine the orders in the positive direction
+#    i = extord[1]
+#    hiord = pixels.phys_to_pix(extrap_cent[:, -i-2], locations, 1)
+#    nxord = pixels.phys_to_pix(extrap_cent[:, -i-1], locations, 1)
+#    mask = np.ones(orders.size)
+#    mask[0:extord[0]] = 0.0
+#    mask[-extord[1]:] = 0.0
+#    extfit = extrap_cent.copy()
+#    outparcopy = copy.deepcopy(outpar)
+#    while i > 0:
+#        loord = hiord
+#        hiord = nxord
+#        nxord = pixels.phys_to_pix(extrap_cent[:,-i], locations, 1)
+#
+#        # Minimum counts between loord and hiord
+#        minarrL = minbetween(binarr, loord, hiord)
+#        minarrR = minbetween(binarr, hiord, nxord)
+#
+#        minarr = 0.5*(minarrL+minarrR)
+#        srchz = np.abs(extfit[:,-i]-extfit[:,-i-1])/3.0
+#        lopos = pixels.phys_to_pix(extfit[:,-i]-srchz, locations, 1)  # The pixel indices for the bottom of the search window
+#        numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,-i])))
+#        diffarr = np.round(extrap_diff[:,-i]).astype(np.int)
+#        shift = find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#
+#        relshift = np.mean(shift+extrap_diff[:,-i]/2-srchz)
+#        if shift == -1:
+#            msgs.info("  Refining order {0:d}: NO relative shift applied".format(int(orders[-i])))
+#            relshift = 0.0
+#        else:
+#            msgs.info("  Refining order {0:d}: relative shift = {1:+f}".format(int(orders[-i]), relshift))
+#        # Renew guess for the next order
+#        mask[-i] = 1.0
+#        extfit, outpar, fail = pca.refine_iter(outpar, orders, mask, -i, relshift, fitord, function=function)
+#        if fail:
+#            msgs.warn("Order refinement has large residuals -- check order traces")
+#            return extrap_cent, outparcopy
+#        i -= 1
+#    # Refine the orders in the negative direction
+#    i = extord[0]
+#    loord = pixels.phys_to_pix(extrap_cent[:,i+1], locations, 1)
+#    extrap_cent = extfit.copy()
+#    outparcopy = copy.deepcopy(outpar)
+#    while i > 0:
+#        hiord = loord
+#        loord = pixels.phys_to_pix(extfit[:,i], locations, 1)
+#
+#        minarr = minbetween(binarr,loord, hiord)
+#        srchz = np.abs(extfit[:,i]-extfit[:,i-1])/3.0
+#        lopos = pixels.phys_to_pix(extfit[:,i-1]-srchz, locations, 1)
+#        numsrch = np.int(np.max(np.round(2.0*srchz-extrap_diff[:,i-1])))
+#        diffarr = np.round(extrap_diff[:,i-1]).astype(np.int)
+#        shift = find_shift(binarr, minarr, lopos, diffarr, numsrch)
+#
+#        relshift = np.mean(shift+extrap_diff[:,i-1]/2-srchz)
+#        if shift == -1:
+#            msgs.info("  Refining order {0:d}: NO relative shift applied".format(int(orders[i-1])))
+#            relshift = 0.0
+#        else:
+#            msgs.info("  Refining order {0:d}: relative shift = {1:+f}".format(int(orders[i-1]),relshift))
+#        # Renew guess for the next order
+#        mask[i-1] = 1.0
+#        extfit, outpar, fail = pca.refine_iter(outpar, orders, mask, i-1, relshift, fitord, function=function)
+#        if fail:
+#            msgs.warn("Order refinement has large residuals -- check order traces")
+#            return extrap_cent, outparcopy
+#        i -= 1
+#    return extfit, outpar
 
 
 def remove_slit(edgearr, lcen, rcen, tc_dict, rm_slits, TOL=3.):
@@ -2936,7 +3051,7 @@ def trace_gweight(fimage, xinit_in, sigma = 1.0, ycen = None, invvar=None, maskv
     if invvar is None:
         invvar = np.zeros_like(fimage) + 1.
 
-    var = utils.inverse(invvar, positive=True)
+    var = utils.inverse(invvar)
     # More setting up
     x_int = np.rint(xinit).astype(int)
     nstep = 2*int(3.0*np.max(sigma_out)) - 1
@@ -3081,7 +3196,7 @@ def trace_refine(filt_image, edges, edges_mask, ncoeff=5, npca = None, pca_expla
     pca_fit, poly_fit_dict, pca_mean, pca_vectors = extract.pca_trace(
         edges_fit, npca=npca, pca_explained_var = pca_explained_var,coeff_npoly=coeff_npoly_pca, order_vec=edges_ref,
         xinit_mean=edges_ref, upper = upper, lower = lower, minv = 0.0, maxv = float(nspat-1), debug= debug,
-    maxrej=maxrej)
+        maxrej=maxrej)
 
     # pca_poly_fit is list
     npca_out = len(poly_fit_dict)

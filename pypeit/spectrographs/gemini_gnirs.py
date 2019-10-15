@@ -51,9 +51,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'Echelle'
 
-    @property
-    def norders(self):
-        return 6
 
     def default_pypeit_par(self):
         """
@@ -76,6 +73,13 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slits']['sigdetect'] = 50.
         par['calibrations']['slits']['trace_npoly'] = 5
         par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slitedges']['edge_thresh'] = 20.
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['fit_order'] = 5
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['pca_order'] = 3
 
         # Wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
@@ -110,6 +114,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Extraction
         par['scienceimage']['sig_thresh'] = 5.0
         par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
+        par['scienceimage']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
+        par['scienceimage']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
+
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['scienceimage']['no_poly']  = True         # Do not use polynomial degree of freedom for global skysub
@@ -211,87 +219,25 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return np.full(order_vec.size, 0.15)
 
 
+    @property
+    def norders(self):
+        return 6
 
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
+        return ord_spat_pos
 
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
-
-        Returns:
-            int: order number
-
-        """
-        order_spat_pos = np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
-
-        orders = np.arange(8,2,-1, dtype=int)
-        # Find closest
-        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
-
-        # Check
-        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.warn("Bad echelle format for GNIRS or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return orders[iorder]
-        else:
-            return orders[iorder]
+    @property
+    def orders(self):
+        return np.arange(8,2,-1, dtype=int)
 
 
-    def slit_minmax(self, nslits, binspectral=1):
-
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
+    @property
+    def spec_min_max(self):
         spec_max = np.asarray([1022,1022,1022,1022,1022,1022])
         spec_min = np.asarray([512,280, 0, 0, 0, 0])
-
-        return spec_min, spec_max
-
-    def slitmask(self, tslits_dict, pad=None, binning=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        nslits = tslits_dict['lcen'].shape[1]
-        if nslits != self.norders:
-            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas GNIRS has norders={:d}'.format(nslits,self.norders))
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        order_max = [1022,1022,1022,1022,1022,1022]
-        order_min = [512,280, 0, 0, 0, 0]
-        # TODO add binning adjustments to these
-        for islit in range(nslits):
-            orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
-            slitmask[orderbad] = -1
-        return slitmask
-
-
+        return np.vstack((spec_min, spec_max))
 
     @property
     def dloglam(self):
@@ -312,7 +258,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         return np.power(10.0,loglam_grid)
 
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -332,12 +278,12 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         """
         msgs.info("Custom bad pixel mask for GNIRS")
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
-            self.bpm_img[:, :20] = 1.
-            self.bpm_img[:, 1000:] = 1.
+            bpm_img[:, :20] = 1.
+            bpm_img[:, 1000:] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
 
 

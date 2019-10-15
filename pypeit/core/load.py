@@ -12,7 +12,7 @@ from astropy.table import Table
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
 import linetools.utils
-
+import IPython
 
 from pypeit import msgs
 from pypeit import specobjs
@@ -75,7 +75,7 @@ def load_ordloc(fname):
     return ltrace, rtrace
 
 
-def load_specobjs(fname,order=None):
+def load_specobjs(fname,order=None, verbose=False):
     """ Load a spec1d file into a list of SpecObjExp objects
     Parameters
     ----------
@@ -108,8 +108,11 @@ def load_specobjs(fname,order=None):
         objp = idx.split('-')
         if objp[-2][:5] == 'ORDER':
             iord = int(objp[-2][5:])
+            if verbose:
+                msgs.info('Loading Echelle data.')
         else:
-            msgs.warn('Loading longslit data ?')
+            if verbose:
+                msgs.info('Loading longslit data.')
             iord = int(-1)
         if (order is not None) and (iord !=order):
             continue
@@ -125,7 +128,10 @@ def load_specobjs(fname,order=None):
         spec = Table(hdu.data)
         shape = (len(spec), 1024)  # 2nd number is dummy
         specobj.shape = shape
-        specobj.trace_spat = spec['TRACE']
+        try:
+            specobj.trace_spat = spec['TRACE']
+        except KeyError:
+            pass
         # Add spectrum
         if 'BOX_COUNTS' in spec.keys():
             for skey in speckeys:
@@ -150,7 +156,193 @@ def load_specobjs(fname,order=None):
     # Return
     return sobjs, head0
 
-def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
+# TODO I don't think we need this routine
+def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True, nmaskedge=None):
+    '''
+    It will be called by load_1dspec_to_array.
+    Load one-d spectra from ext_id in the hdulist
+    Args:
+        hdulist: FITS HDU list
+        ext_id: extension name, i.e., 'SPAT1073-SLIT0001-DET03', 'OBJID0001-ORDER0003', 'OBJID0001-ORDER0002-DET01'
+        ex_value: 'OPT' or 'BOX'
+        flux_value: if True load fluxed data, else load unfluxed data
+    Returns:
+         wave, flux, ivar, mask
+    '''
+
+    if (ex_value != 'OPT') and (ex_value != 'BOX'):
+        msgs.error('{:} is not recognized. Please change to either BOX or OPT.'.format(ex_value))
+
+    # get the order/slit information
+    ntrace0 = np.size(hdulist)-1
+    idx_names = []
+    for ii in range(ntrace0):
+        idx_names.append(hdulist[ii+1].name) # idx name
+
+    # Initialize ext
+    ext = None
+    for indx in (idx_names):
+        if ext_id in indx:
+            ext = indx
+    if ext is None:
+        msgs.error('Can not find extension {:}.'.format(ext_id))
+    else:
+        hdu_iexp = hdulist[ext]
+
+    wave = hdu_iexp.data['{:}_WAVE'.format(ex_value)]
+    mask = hdu_iexp.data['{:}_MASK'.format(ex_value)]
+
+    # Mask Edges
+    if nmaskedge is not None:
+        mask[:int(nmaskedge)] = False
+        mask[-int(nmaskedge):] = False
+
+    if flux_value:
+        flux = hdu_iexp.data['{:}_FLAM'.format(ex_value)]
+        ivar = hdu_iexp.data['{:}_FLAM_IVAR'.format(ex_value)]
+    else:
+        msgs.warn('Loading unfluxed spectra')
+        flux = hdu_iexp.data['{:}_COUNTS'.format(ex_value)]
+        ivar = hdu_iexp.data['{:}_COUNTS_IVAR'.format(ex_value)]
+
+    return wave, flux, ivar, mask
+
+# TODO merge this with unpack orders
+def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_value=True, nmaskedge=None):
+    '''
+    Load the spectra from the 1d fits file into arrays.
+    If Echelle, you need to specify which order you want to load.
+    It can NOT load all orders for Echelle data.
+    Args:
+        fnames (list): 1D spectra fits file(s)
+        gdobj (list): extension name (longslit/multislit) or objID (Echelle)
+        order (None or int): order number
+        ex_value (str): 'OPT' or 'BOX'
+        flux_value (bool): if True it will load fluxed spectra, otherwise load counts
+    Returns:
+        waves (ndarray): wavelength array of your spectra, see below for the shape information of this array.
+        fluxes (ndarray): flux array of your spectra
+        ivars (ndarray): ivars of your spectra
+        masks (ndarray, bool): mask array of your spectra
+        The shapes of all returns are exactly the same.
+        Case 1: np.size(fnames)=np.size(gdobj)=1, order=None for Longslit or order=N (an int number) for Echelle
+            Longslit/single order for a single fits file, they are 1D arrays with the size equal to Nspec
+        Case 2: np.size(fnames)=np.size(gdobj)>1, order=None for Longslit or order=N (an int number) for Echelle
+            Longslit/single order for a list of fits files, 2D array, the shapes are Nspec by Nexp
+        Case 3: np.size(fnames)=np.size(gdobj)=1, order=None
+            All Echelle orders for a single fits file, 2D array, the shapes are Nspec by Norders
+        Case 4: np.size(fnames)=np.size(gdobj)>1, order=None
+            All Echelle orders for a list of fits files, 3D array, the shapres are Nspec by Norders by Nexp
+    '''
+
+    # read in the first fits file
+    if isinstance(fnames, (list, np.ndarray)):
+        nexp = np.size(fnames)
+        fname0 = fnames[0]
+    elif isinstance(fnames, str):
+        nexp = 1
+        fname0 = fnames
+
+    hdulist = fits.open(fname0)
+    header = hdulist[0].header
+    npix = header['NPIX']
+    pypeline = header['PYPELINE']
+
+    # get the order/slit information
+    ntrace0 = np.size(hdulist)-1
+    idx_orders = []
+    for ii in range(ntrace0):
+        idx_orders.append(int(hdulist[ii+1].name.split('-')[1][5:])) # slit ID or order ID
+
+
+    if pypeline == "Echelle":
+        ## np.unique automatically sort the returned array which is not what I want!!!
+        ## order_vec = np.unique(idx_orders)
+        dum, order_vec_idx = np.unique(idx_orders, return_index=True)
+        order_vec = np.array(idx_orders)[np.sort(order_vec_idx)]
+        norder = np.size(order_vec)
+    else:
+        norder = 1
+
+    #TODO This is unneccessarily complicated. The nexp=1 case does the same operations as the nexp > 1 case. Refactor
+    # this so that it just does the same set of operations once and then reshapes the array at the end to give you what
+    # you want. Let's merge this with unpack orders
+
+    ## Loading data from a single fits file
+    if nexp == 1:
+        # initialize arrays
+        if (order is None) and (pypeline == "Echelle"):
+            waves = np.zeros((npix, norder,nexp))
+            fluxes = np.zeros_like(waves)
+            ivars = np.zeros_like(waves)
+            masks = np.zeros_like(waves, dtype=bool)
+
+            for ii, iord in enumerate(order_vec):
+                ext_id = gdobj[0]+'-ORDER{:04d}'.format(iord)
+                wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist, ext_id, ex_value=ex_value,
+                                                                               flux_value=flux_value, nmaskedge=nmaskedge)
+                waves[:,ii,0] = wave_iord
+                fluxes[:,ii,0] = flux_iord
+                ivars[:,ii,0] = ivar_iord
+                masks[:,ii,0] = mask_iord
+        else:
+            if pypeline == "Echelle":
+                ext_id = gdobj[0]+'-ORDER{:04d}'.format(order)
+            else:
+                ext_id = gdobj[0]
+            waves, fluxes, ivars, masks = load_ext_to_array(hdulist, ext_id, ex_value=ex_value, flux_value=flux_value,
+                                                            nmaskedge=nmaskedge)
+
+    ## Loading data from a list of fits files
+    else:
+        # initialize arrays
+        if (order is None) and (pypeline == "Echelle"):
+            # store all orders into one single array
+            waves = np.zeros((npix, norder, nexp))
+        else:
+            # store a specific order or longslit
+            waves = np.zeros((npix, nexp))
+        fluxes = np.zeros_like(waves)
+        ivars = np.zeros_like(waves)
+        masks = np.zeros_like(waves,dtype=bool)
+
+        for iexp in range(nexp):
+            hdulist_iexp = fits.open(fnames[iexp])
+
+            # ToDo: The following part can be removed if all data are reduced using the leatest pipeline
+            if pypeline == "Echelle":
+                ntrace = np.size(hdulist_iexp) - 1
+                idx_orders = []
+                for ii in range(ntrace):
+                    idx_orders.append(int(hdulist_iexp[ii + 1].name.split('-')[1][5:]))  # slit ID or order ID
+                    dum, order_vec_idx = np.unique(idx_orders, return_index=True)
+                    order_vec = np.array(idx_orders)[np.sort(order_vec_idx)]
+            # ToDo: The above part can be removed if all data are reduced using the leatest pipeline
+
+            if (order is None) and (pypeline == "Echelle"):
+                for ii, iord in enumerate(order_vec):
+                    ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(iord)
+                    wave_iord, flux_iord, ivar_iord, mask_iord = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value,
+                                                                                   nmaskedge = nmaskedge, flux_value=flux_value)
+                    waves[:,ii,iexp] = wave_iord
+                    fluxes[:,ii,iexp] = flux_iord
+                    ivars[:,ii,iexp] = ivar_iord
+                    masks[:,ii,iexp] = mask_iord
+            else:
+                if pypeline == "Echelle":
+                    ext_id = gdobj[iexp]+'-ORDER{:04d}'.format(order)
+                else:
+                    ext_id = gdobj[iexp]
+                wave, flux, ivar, mask = load_ext_to_array(hdulist_iexp, ext_id, ex_value=ex_value, flux_value=flux_value,
+                                                           nmaskedge=nmaskedge)
+                waves[:, iexp] = wave
+                fluxes[:, iexp] = flux
+                ivars[:, iexp] = ivar
+                masks[:, iexp] = mask
+
+    return waves, fluxes, ivars, masks, header
+
+def load_spec_order(fname,norder, objid=None, order=None, extract='OPT', flux=True):
     """Loading single order spectrum from a PypeIt 1D specctrum fits file.
         it will be called by ech_load_spec
     Parameters:
@@ -173,12 +365,12 @@ def load_spec_order(fname,objid=None,order=None,extract='OPT',flux=True):
     extnames = [primary_header['EXT0001']] * nspec
     for kk in range(nspec):
         extnames[kk] = primary_header['EXT' + '{0:04}'.format(kk + 1)]
-    extnameroot = extnames[0]
 
     # Figure out which extension is the required data
-    ordername = '{0:04}'.format(order)
-    extname = extnameroot.replace('OBJ0001', objid)
-    extname = extname.replace('ORDER0000', 'ORDER' + ordername)
+    extnames_array = np.reshape(np.array(extnames),(norder,int(nspec/norder)))
+    extnames_good = extnames_array[:,int(objid[3:])-1]
+    extname = extnames_good[order]
+
     try:
         exten = extnames.index(extname) + 1
         msgs.info("Loading extension {:s} of spectrum {:s}".format(extname, fname))
@@ -226,8 +418,9 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
         msgs.error('The length of objid should be either 1 or equal to the number of spectra files.')
 
     fname = files[0]
+    ext_first = fits.getheader(fname, 1)
     ext_final = fits.getheader(fname, -1)
-    norder = ext_final['ECHORDER'] + 1
+    norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER']) + 1
     msgs.info('spectrum {:s} has {:d} orders'.format(fname, norder))
     if norder <= 1:
         msgs.error('The number of orders have to be greater than one for echelle. Longslit data?')
@@ -239,13 +432,13 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
         if order is None:
             msgs.info('Loading all orders into a gaint spectra')
             for iord in range(norder):
-                spectrum = load_spec_order(fname,objid=objid[ii],order=iord,extract=extract,flux=flux)
+                spectrum = load_spec_order(fname, norder, objid=objid[ii],order=iord,extract=extract,flux=flux)
                 # Append
                 spectra_list.append(spectrum)
         elif order >= norder:
             msgs.error('order number cannot greater than the total number of orders')
         else:
-            spectrum = load_spec_order(fname, objid=objid[ii], order=order, extract=extract, flux=flux)
+            spectrum = load_spec_order(fname,norder, objid=objid[ii], order=order, extract=extract, flux=flux)
             # Append
             spectra_list.append(spectrum)
     # Join into one XSpectrum1D object
@@ -371,3 +564,35 @@ def waveids(fname):
         pass
     return pixels
 
+
+def load_multiext_fits(filename, ext):
+    """
+    Load data and primary header from a multi-extension FITS file
+
+    Args:
+        filename (:obj:`str`):
+            Name of the file.
+        ext (:obj:`str`, :obj:`int`, :obj:`list`):
+            One or more file extensions with data to return.  The
+            extension can be designated by its 0-indexed integer
+            number or its name.
+
+    Returns:
+        tuple: Returns the image data from each provided extension.
+        If return_header is true, the primary header is also
+        returned.
+    """
+    # Format the input and set the tuple for an empty return
+    _ext = ext if isinstance(ext, list) else [ext]
+    n_ext = len(_ext)
+    # Open the file
+    hdu = fits.open(filename)
+    head0 = hdu[0].header
+    # Only one extension
+    if n_ext == 1:
+        data = hdu[_ext[0]].data.astype(np.float)
+        return data, head0
+    # Multiple extensions
+    data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext])
+    # Return
+    return data+(head0,)

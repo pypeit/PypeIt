@@ -9,10 +9,57 @@ from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
 from pypeit import msgs
-
+from IPython import embed
 
 from pypeit.core import arc
-from pypeit import debugger
+
+
+
+def get_sampling(waves, pix_per_R=3.0):
+    """
+    Computes the median wavelength sampling of wavelength vector(s)
+
+    Args:
+        waves (float ndarray): shape = (nspec,) or (nspec, nimgs)
+           Array of wavelengths. Can be one or two dimensional where the nimgs dimension
+            can represent the orders, exposures, or slits
+        pix_per_R (float):  default=3.0
+           Number of pixels per resolution element used for the resolution guess. The default of 3.0 assumes
+           roughly Nyquist smampling
+    Returns:
+        dlam, dloglam, resln_guess, pix_per_sigma
+
+
+        Computes the median wavelength sampling of the wavelength vector(s)
+
+    """
+
+    if waves.ndim == 1:
+        norders = 1
+        nspec = waves.shape[0]
+        waves_stack = waves.reshape((nspec, norders))
+    elif waves.ndim == 2:
+        waves_stack = waves
+    elif waves.ndim == 3:
+        nspec, norder, nexp = waves.shape
+        waves_stack = np.reshape(waves, (nspec, norder * nexp), order='F')
+    else:
+        msgs.error('The shape of your wavelength array does not make sense.')
+
+    wave_mask = waves_stack > 1.0
+    waves_ma = np.ma.array(waves_stack, mask=np.invert(wave_mask))
+    loglam = np.ma.log10(waves_ma)
+    wave_diff = np.diff(waves_ma, axis=0)
+    loglam_diff = np.diff(loglam, axis=0)
+    dwave = np.ma.median(wave_diff)
+    dloglam = np.ma.median(loglam_diff)
+    #dloglam_ord = np.ma.median(loglam_roll, axis=0)
+    #dloglam = np.median(dloglam_ord)
+    resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
+    pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
+
+    return dwave, dloglam, resln_guess, pix_per_sigma
+
 
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
@@ -136,7 +183,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
         ampl = tampl1_cont
         use_arc = arc1
 
-    if percent_ceil is not None:
+    if percent_ceil is not None and (ampl.size > 0):
         # If this is set, set a ceiling on the greater > 10sigma peaks
         ceil1 = np.percentile(ampl, percent_ceil)
         spec1 = np.fmin(use_arc, ceil1)
@@ -154,22 +201,18 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=80.0, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0, debug=False):
+def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=False, sigdetect=10.0, fwhm=4.0, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
     (higher pixel values) relative to inspec1.
 
-    Parameters
-    ----------
+    Args:
     inspec1 : ndarray
       Reference spectrum
     inspec2 : ndarray
       Spectrum for which the shift and stretch are computed such that it will match inspec1
-
-    Optional Parameters
-    -------------------
-    smooth: float, default
+    smooth: float, default=1.0
       Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
     percent_ceil: float, default=90.0
       Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
@@ -179,8 +222,8 @@ def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=80.0, use_raw_arc=False,
       If this parameter is True the raw arc will be used rather than the continuum subtracted arc
     debug: boolean, default = False
 
-    Returns
-    -------
+    Returns:
+       shift, corr_max
     shift: float
       the shift which was determined
     cross_corr: float
@@ -222,15 +265,11 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     positive shift means inspec2 is shifted to the right (higher pixel values) relative to inspec1. The convention for the stretch is
     that it is float near unity that increases the size of the inspec2 relative to the original size (which is the size of inspec1)
 
-    Parameters
-    ----------
+    Args:
     inspec1 : ndarray
-      Reference spectrum
+       Reference spectrum
     inspec2 : ndarray
-      Spectrum for which the shift and stretch are computed such that it will match inspec1
-
-    Optional Parameters
-    -------------------
+       Spectrum for which the shift and stretch are computed such that it will match inspec1
     cc_thresh: float, default = -1.0
       A number in the range [-1.0,1.0] which is the threshold on the initial cross-correlation coefficient for the shift/stretch.
       If the value of the initial cross-correlation is < cc_thresh the code will just exit and return this value and the best shift.
@@ -257,8 +296,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     debug = False
        Show plots to the screen useful for debugging.
 
-    Returns
-    -------
+    Returns:
     success: int
       A flag indicating the exist status.
           success  = 1, shift and stretch performed via sucessful optimization
@@ -323,8 +361,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
             x1 = np.arange(nspec)
             y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
             plt.figure(figsize=(14, 6))
-            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1')
-            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, shift & stretch')
+            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1, input spectrum')
+            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
             plt.title('shift= {:5.3f}'.format(shift_out) +
                       ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
             plt.legend()
@@ -418,26 +456,32 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Fal
     return hist_wd, cent_w, cent_d
 
 
-def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0):
+def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
     """
     Utility routine to generate a uniform grid of wavelengths
     Args:
         wave_min: float
-           Mininum wavelength. Can be in linear or log.
+           Mininum wavelength. Must be linear even if log10 is requested
         wave_max: float
-           Maximum wavelength. Can be in linear or log.
+           Maximum wavelength. Must be linear even if log10 is requested.
         dwave: float
-           Delta wavelength interval
+           Delta wavelength interval. Must be linear if log10=False, or log10 if log10=True
         samp_fact: float
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
            samp_fact < 1.0 undersamples (coarser)
 
     Returns:
         wave_grid: float ndarray
-           Wavelength grid
+           Wavelength grid in Angstroms (i.e. log10 even if log10 is requested)
     """
 
     dwave_eff = dwave/samp_fact
-    ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
-    wave_grid = wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
+    if log10:
+        ngrid = int(np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff))
+        loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(int(np.ceil(ngrid)))
+        return np.power(10.0,loglam_grid)
+    else:
+        ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
+        return wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
+
     return wave_grid

@@ -9,6 +9,8 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
+import linetools.utils
+
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
@@ -16,14 +18,16 @@ from pypeit.core.wavecal import autoid, waveio, identify
 from pypeit.core import trace_slits
 
 from pypeit import debugger
-from IPython import embed
+import IPython
+
 
 class WaveCalib(masterframe.MasterFrame):
     """
     Class to guide wavelength calibration
 
     Args:
-        msarc (np.ndarray or None): Arc image, created by the ArcImage class
+        msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
+            Arc image, created by the ArcImage class
         tslits_dict (dict or None):  TraceSlits dict
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the
@@ -49,11 +53,16 @@ class WaveCalib(masterframe.MasterFrame):
           Keys
             0, 1, 2, 3 -- Solution for individual slit
             steps
-        arccen (ndarray): (nwave, nslit) Extracted arc(s) down the center of the slit(s)
+        arccen (ndarray):
+            (nwave, nslit) Extracted arc(s) down the center of the slit(s)
         maskslits : ndarray (nslit); bool
           Slits to ignore because they were not extracted
           WARNING: Outside of this Class, it is best to regenerate
           the mask using  make_maskslits()
+        gpm (np.ndarray):
+            Good pixel mask
+            Eventually, we might attach this to self.msarc although that would then
+            require that we write it to disk with self.msarc.image
     """
 
     # Frametype is a class attribute
@@ -83,17 +92,17 @@ class WaveCalib(masterframe.MasterFrame):
         self.master_key = master_key
 
         # Attributes
-        self.steps = []    # steps executed
-        self.wv_calib = {} # main output
-        self.arccen = None # central arc spectrum
+        self.steps = []     # steps executed
+        self.wv_calib = {}  # main output
+        self.arccen = None  # central arc spectrum
+
+        # Get the non-linear count level
+        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+            else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
         # WaveTilts and WaveCalib?
-
-        # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-                                    else self.spectrograph.nonlinear_counts(det=self.det)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that
@@ -101,23 +110,25 @@ class WaveCalib(masterframe.MasterFrame):
         # the slits
         if self.tslits_dict is not None and self.msarc is not None:
             self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
-            inmask = self.bpm == 0 if self.bpm is not None \
+            gpm = self.bpm == 0 if self.bpm is not None \
                                     else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
-            self.shape_arc = self.msarc.shape
+            self.shape_arc = self.msarc.image.shape
             self.nslits = self.tslits_dict['slit_left'].shape[1]
             self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
                                                   self.tslits_dict['slit_left'])
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
                                                   self.tslits_dict['slit_righ'])
-            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science,
                                                   self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.inmask = arc.resize_mask2arc(self.shape_arc, inmask)
-            # TODO: Remove the following two lines if deemed ok
+            self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
+            # We want even the saturated lines in full_template for the cross-correlation
+            #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
-                self.inmask &= self.msarc < self.nonlinear_counts
+                self.gpm &= self.msarc.image < self.nonlinear_counts
             self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -127,8 +138,8 @@ class WaveCalib(masterframe.MasterFrame):
             self.slit_righ = None
             self.slitcen = None
             self.slitmask = None
-            self.inmask = None
-        # --------------------------------------------------------------
+            self.gpm = None
+            self.nonlinear_counts = None
 
     def build_wv_calib(self, arccen, method, skip_QA=False):
         """
@@ -158,8 +169,8 @@ class WaveCalib(masterframe.MasterFrame):
             lines = self.par['lamps']
             line_lists = waveio.load_line_lists(lines)
 
-            self.wv_calib = arc.simple_calib_driver(self.msarc, line_lists, arccen, ok_mask,
-                                                    nfitpix=self.par['nfitpix'],
+            final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask,
+                                                    n_final=self.par['n_final'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
@@ -210,7 +221,8 @@ class WaveCalib(masterframe.MasterFrame):
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det, self.binspectral,
+            final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det,
+                                             self.binspectral,
                                              nsnippet=self.par['nsnippet'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
@@ -253,11 +265,11 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Obtain a list of good slits
         ok_mask = np.where(~self.maskslits)[0]
-        nspec = self.msarc.shape[0]
+        nspec = self.msarc.image.shape[0]
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
                 continue
-            iorder = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
+            iorder, iindx = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
             mask_now = wv_calib[islit]['mask']
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
@@ -285,31 +297,26 @@ class WaveCalib(masterframe.MasterFrame):
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
-    def extract_arcs(self, slitcen, slitmask, msarc, inmask):
+    def extract_arcs(self):
         """
         Extract the arcs down each slit/order
 
         Wrapper to arc.get_censpec()
 
-        Returns
-        -------
-        (self.arccen, self.arc_maskslit_
+        Args:
+
+        Returns:
+            (self.arccen, self.arc_maskslit_
            self.arccen: ndarray, (nspec, nslit)
               arc spectrum for all slits
             self.arc_maskslit: ndarray, bool (nsit)
               boolean array containing a mask indicating which slits are good
 
         """
-        # Full template kludge
-        if self.par['method'] == 'full_template':
-            nonlinear = 1e10
-        else:
-            nonlinear = self.nonlinear_counts
         # Do it
-        # TODO: Consider *not* passing in nonlinear_counts;  Probably
-        # should not mask saturated lines at this stage
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask=inmask,
-                                               nonlinear_counts=nonlinear)
+        arccen, arc_maskslit = arc.get_censpec(
+            self.slitcen, self.slitmask, self.msarc.image,
+            gpm=self.gpm)  #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
         # Step
         self.steps.append(inspect.stack()[0][3])
         return arccen, arc_maskslit
@@ -328,7 +335,7 @@ class WaveCalib(masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _outfile = self.file_path if outfile is None else outfile
+        _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -336,7 +343,13 @@ class WaveCalib(masterframe.MasterFrame):
             return
 
         # Report and save
-        waveio.save_wavelength_calibration(_outfile, self.wv_calib, overwrite=overwrite)
+
+        # jsonify has the annoying property that it modifies the objects
+        # when it jsonifies them so make a copy, which converts lists to
+        # arrays, so we make a copy
+        data_for_json = copy.deepcopy(self.wv_calib)
+        gddict = linetools.utils.jsonify(data_for_json)
+        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
@@ -349,46 +362,19 @@ class WaveCalib(masterframe.MasterFrame):
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+                :attr:`master_file_path`.
 
         Returns:
             dict or None: self.wv_calib
         """
-        if not self.reuse_masters:
-            # User does not want to load masters
-            msgs.warn('PypeIt will not reuse masters!')
-            return None
-
-        # Check the input path
-        _ifile = self.file_path if ifile is None else ifile
-
-        if not os.path.isfile(_ifile):
-            # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
-            return None
-
+        # Check on whether to reuse and whether the file exists
+        master_file = self.chk_load_master(ifile)
+        if master_file is None:
+            return
         # Read, save it to self, return
-        # TODO: Need to save it to self?
-        msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        self.wv_calib = waveio.load_wavelength_calibration(_ifile)
+        msgs.info('Loading Master frame: {0}'.format(master_file))
+        self.wv_calib = waveio.load_wavelength_calibration(master_file)
         return self.wv_calib
-
-    @staticmethod
-    def load_from_file(filename):
-        """
-        Load a full (all slit) wavelength calibration.
-
-        This simply executes
-        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
-
-        Args:
-            filename (:obj:`str`):
-                Name of the master frame file.
-
-        Returns:
-            dict: The wavelength calibration data.
-        """
-        return waveio.load_wavelength_calibration(filename)
 
     def make_maskslits(self, nslit):
         """
@@ -431,8 +417,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         ###############
         # Extract an arc down each slit
-        self.arccen, self.maskslits = self.extract_arcs(self.slitcen, self.slitmask, self.msarc,
-                                                        self.inmask)
+        self.arccen, self.maskslits = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)

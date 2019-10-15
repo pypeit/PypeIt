@@ -7,7 +7,7 @@ from pypeit import msgs
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
 from pypeit.core import procimg
-
+from IPython import embed
 
 class TraceImage(calibrationimage.CalibrationImage):
     """
@@ -31,7 +31,8 @@ class TraceImage(calibrationimage.CalibrationImage):
     def __init__(self, spectrograph, files=None, det=1, par=None, bias=None):
         self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
         # Start us up
-        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
+                                                   files=files)
         # Processing steps
         self.process_steps = procimg.init_process_steps(bias, self.par['process'])
         self.process_steps += ['trim']

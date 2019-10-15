@@ -5,8 +5,6 @@ import time
 import os
 import numpy as np
 from collections import OrderedDict
-from IPython import embed
-
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
@@ -20,7 +18,7 @@ from pypeit.core import load
 from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 from linetools import utils as ltu
-
+from IPython import embed
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -107,7 +105,6 @@ class PypeIt(object):
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
         # --------------------------------------------------------------
-
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
         self.fitstbl.write_calib(calib_file)
@@ -545,22 +542,22 @@ class PypeIt(object):
         self.std_redux = 'standard' in self.objtype
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
-        # Instantiate ScienceImage for the files we will reduce
-        sci_files = self.fitstbl.frame_paths(frames)
 
         # Science image
-        self.sciImg = scienceimage.ScienceImage.from_file_list(
+        sci_files = self.fitstbl.frame_paths(frames)
+        #self.sciImg = scienceimage.ScienceImage.from_file_list(
+        self.sciImg = scienceimage.build_from_file_list(
             self.spectrograph, det, self.par['scienceframe']['process'],
             self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
-            self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
+            self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
 
         # Background subtract?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg - scienceimage.ScienceImage.from_file_list(
+            self.sciImg = self.sciImg - scienceimage.build_from_file_list(
                 self.spectrograph, det, self.par['scienceframe']['process'],
                 self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
-                self.caliBrate.mspixelflat.copy(), illum_flat=self.caliBrate.msillumflat)
+                self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
 
         # Update mask for slitmask
         slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
@@ -580,6 +577,9 @@ class PypeIt(object):
                                            objtype=self.objtype, setup=self.setup,
                                            det=det, binning=self.binning)
 
+        if self.show:
+            self.redux.show('image', image=self.sciImg.image, chname='processed', slits=True,clear=True)
+
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
@@ -594,7 +594,6 @@ class PypeIt(object):
         self.initial_sky = \
             self.redux.global_skysub(skymask=skymask_init,
                                     std=self.std_redux, maskslits=self.maskslits, show=self.show)
-
         if not self.std_redux:
             # Object finding, second pass on frame *with* sky subtraction. Show here if requested
             self.sobjs_obj, self.nobj, self.skymask = \
