@@ -1,5 +1,3 @@
-""" Module for finding patterns in arc line spectra
-"""
 import os
 import copy
 import numpy as np
@@ -20,11 +18,13 @@ from pypeit import msgs
 
 class Identify(object):
     """
-    Manually identify arc lines.
-
+    GUI to interactively identify arc lines. The GUI can be run within
+    PypeIt during data reduction, or as a standalone script outside of
+    PypeIt. To initialise the GUI, call the initialise() function in this
+    file.
     """
 
-    def __init__(self, canvas, ax, axr, axi, spec, specres, detns, line_lists, par, slit=0):
+    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, slit=0):
         """ Controls for the Identify task in PypeIt. The main goal of this routine is to
         manually identify arc lines to be used for wavelength calibration.
 
@@ -32,12 +32,8 @@ class Identify(object):
         ----------
         canvas : Matploltib figure canvas
           The canvas on which all axes are contained
-        ax : Matplotlib axes instance
-          Main spectrum panel
-        axr : list
-          two element list of Matplotlib axes, used for residuals plotting
-        axi : Matplotlib axes instance
-          Information panel
+        axes : dictionary of four Matplotlib axes instances
+          Main spectrum panel, two for residuals, one for information
         spec : Matplotlib Line2D instance
           contains plotting information of the plotted arc spectrum
         specres : list
@@ -52,9 +48,7 @@ class Identify(object):
           The slit to be used for wavelength calibration
         """
         # Store the axes
-        self.ax = ax
-        self.axr = axr
-        self.axi = axi
+        self.axes = axes
         # Initialise the spectrum properties
         self.spec = spec
         self.specres = specres   # Residual information
@@ -173,30 +167,30 @@ class Identify(object):
     def draw_lines(self):
         """ Draw the lines and annotate with their IDs
         """
-        # annotations = [child for child in self.ax.get_children() if isinstance(child, matplotlib.text.Annotation)]
+        # annotations = [child for child in self.axes['main'].get_children() if isinstance(child, matplotlib.text.Annotation)]
         for i in self.annlines: i.remove()
         for i in self.anntexts: i.remove()
         self.annlines = []
         self.anntexts = []
         # Plot the lines
-        xmn, xmx = self.ax.get_xlim()
-        ymn, ymx = self.ax.get_ylim()
+        xmn, xmx = self.axes['main'].get_xlim()
+        ymn, ymx = self.axes['main'].get_ylim()
         w = np.where((self._detns > xmn) & (self._detns < xmx))[0]
         for i in range(w.size):
             if self._lineflg[w[i]] != 1:
                 if w[i] == self._detns_idx:
-                    self.annlines.append(self.ax.axvline(self._detns[w[i]], color='r'))
+                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
                 else:
-                    self.annlines.append(self.ax.axvline(self._detns[w[i]], color='grey', alpha=0.5))
+                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='grey', alpha=0.5))
                 continue
             else:
                 if w[i] == self._detns_idx:
-                    self.annlines.append(self.ax.axvline(self._detns[w[i]], color='r'))
+                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
                 else:
-                    self.annlines.append(self.ax.axvline(self._detns[w[i]], color='b'))
+                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='b'))
                 txt = "{0:.2f}".format(self._lineids[w[i]])
                 self.anntexts.append(
-                    self.ax.annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
+                    self.axes['main'].annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
                                      color='b', ha='right', va='bottom'))
 
     def draw_residuals(self):
@@ -223,13 +217,13 @@ class Identify(object):
             # Pixel vs wavelength
             self.specres[0].set_offsets(np.vstack((self._detns, wavevals)).T)
             self.specres[1].set_ydata(wavefit)
-            self.axr[1].set_ylim((np.min(wavevals), np.max(wavevals)))
+            self.axes['fit'].set_ylim((np.min(wavevals), np.max(wavevals)))
             self.specres[0].set_color(self.residmap.to_rgba(self._lineflg))
 
             # Pixel residuals
             wfl = self._lineflg == 1
             self.specres[2].set_offsets(np.vstack((self._detns[wid], resvals[wid])).T)
-            self.axr[0].set_ylim((np.min(resvals[wfl]), np.max(resvals[wfl])))
+            self.axes['resid'].set_ylim((np.min(resvals[wfl]), np.max(resvals[wfl])))
             self.specres[2].set_color(self.residmap.to_rgba(self._lineflg))
 
     def draw_callback(self, event):
@@ -241,11 +235,11 @@ class Identify(object):
           A matplotlib event instance
         """
         # Get the background
-        self.background = self.canvas.copy_from_bbox(self.ax.bbox)
+        self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
         # Set the axis transform
-        trans = mtransforms.blended_transform_factory(self.ax.transData, self.ax.transAxes)
+        trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
         self.draw_fitregions(trans)
-        self.ax.draw_artist(self.spec)
+        self.axes['main'].draw_artist(self.spec)
         self.draw_lines()
 
     def draw_fitregions(self, trans):
@@ -262,7 +256,7 @@ class Identify(object):
         regwhr = np.copy(self._fitregions == 1)
         # Fudge to get the leftmost pixel shaded in too
         regwhr[np.where((self._fitregions[:-1] == 0) & (self._fitregions[1:] == 1))] = True
-        self._fitr = self.ax.fill_between(self.specx, 0, 1, where=regwhr, facecolor='green',
+        self._fitr = self.axes['main'].fill_between(self.specx, 0, 1, where=regwhr, facecolor='green',
                                           alpha=0.5, transform=trans)
 
     def get_ann_ypos(self, scale=1.02):
@@ -308,13 +302,13 @@ class Identify(object):
         event : Event instance
           matplotlib event instance containing information about the event
         """
-        if event.inaxes == self.ax:
+        if event.inaxes == self.axes['main']:
             return 0
-        elif event.inaxes == self.axr[0]:
+        elif event.inaxes == self.axes['resid']:
             return 1
-        elif event.inaxes == self.axr[1]:
+        elif event.inaxes == self.axes['fit']:
             return 2
-        elif event.inaxes == self.axi:
+        elif event.inaxes == self.axes['info']:
             return 3
         return None
 
@@ -380,7 +374,7 @@ class Identify(object):
         """
         if event.inaxes is None:
             return
-        if event.inaxes == self.axi:
+        if event.inaxes == self.axes['info']:
             if (event.xdata > 0.8) and (event.xdata < 0.9):
                 answer = "y"
             elif event.xdata >= 0.9:
@@ -418,7 +412,7 @@ class Identify(object):
                             self._end = tmp
                         self.update_regions()
         # Now plot
-        trans = mtransforms.blended_transform_factory(self.ax.transData, self.ax.transAxes)
+        trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
         self.canvas.restore_region(self.background)
         self.draw_fitregions(trans)
         self.draw_lines()
@@ -436,7 +430,7 @@ class Identify(object):
         if not event.inaxes:
             return
         # ... but not the information box!
-        if event.inaxes == self.axi:
+        if event.inaxes == self.axes['info']:
             return
         axisID = self.get_axisID(event)
         self.operations(event.key, axisID)
@@ -654,24 +648,24 @@ class Identify(object):
         message : str
           Message to be displayed
         """
-        self.axi.clear()
+        self.axes['info'].clear()
         if default:
-            self.axi.text(0.5, 0.5, "Press '?' to list the available options", transform=self.axi.transAxes,
+            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes,
                           horizontalalignment='center', verticalalignment='center')
             self.canvas.draw()
             return
         # Display the message
-        self.axi.text(0.5, 0.5, message, transform=self.axi.transAxes,
+        self.axes['info'].text(0.5, 0.5, message, transform=self.axes['info'].transAxes,
                       horizontalalignment='center', verticalalignment='center')
         if yesno:
-            self.axi.fill_between([0.8, 0.9], 0, 1, facecolor='green', alpha=0.5, transform=self.axi.transAxes)
-            self.axi.fill_between([0.9, 1.0], 0, 1, facecolor='red', alpha=0.5, transform=self.axi.transAxes)
-            self.axi.text(0.85, 0.5, "YES", transform=self.axi.transAxes,
+            self.axes['info'].fill_between([0.8, 0.9], 0, 1, facecolor='green', alpha=0.5, transform=self.axes['info'].transAxes)
+            self.axes['info'].fill_between([0.9, 1.0], 0, 1, facecolor='red', alpha=0.5, transform=self.axes['info'].transAxes)
+            self.axes['info'].text(0.85, 0.5, "YES", transform=self.axes['info'].transAxes,
                           horizontalalignment='center', verticalalignment='center')
-            self.axi.text(0.95, 0.5, "NO", transform=self.axi.transAxes,
+            self.axes['info'].text(0.95, 0.5, "NO", transform=self.axes['info'].transAxes,
                           horizontalalignment='center', verticalalignment='center')
-        self.axi.set_xlim((0, 1))
-        self.axi.set_ylim((0, 1))
+        self.axes['info'].set_xlim((0, 1))
+        self.axes['info'].set_ylim((0, 1))
         self.canvas.draw()
 
     def update_line_id(self):
@@ -732,38 +726,39 @@ def initialise(arccen, slit=0, par=None):
     ax.set_ylim((0.0, 1.1*spec.get_ydata().max()))
 
     # Add two residual fitting axes
-    axr = [fig.add_axes([0.7, .1, .28, 0.35]),
-           fig.add_axes([0.7, .5, .28, 0.35])]
+    axfit = fig.add_axes([0.7, .5, .28, 0.35])
+    axres = fig.add_axes([0.7, .1, .28, 0.35])
     # Residuals
     residcmap = LinearSegmentedColormap.from_list("my_list", ['grey', 'blue', 'orange', 'red'], N=4)
-    resres = axr[0].scatter(detns, np.zeros(detns.size), marker='x',
+    resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    axr[0].axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
-    axr[0].axhline(0.0, color='r', linestyle='-')  # Zero level
-    axr[0].set_xlim((0, arccen.size - 1))
-    axr[0].set_ylim((-0.3, 0.3))
+    axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
+    axres.axhline(0.0, color='r', linestyle='-')  # Zero level
+    axres.set_xlim((0, arccen.size - 1))
+    axres.set_ylim((-0.3, 0.3))
 
     # pixel vs wavelength
-    respts = axr[1].scatter(detns, np.zeros(detns.size), marker='x',
+    respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
     resfit = Line2D(np.arange(arccen.size), np.zeros(arccen.size), linewidth=1, linestyle='-', color='r')
-    axr[1].add_line(resfit)
-    axr[1].set_xlim((0, arccen.size - 1))
-    axr[1].set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
+    axfit.add_line(resfit)
+    axfit.set_xlim((0, arccen.size - 1))
+    axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
 
     # Add an information GUI axis
-    axi = fig.add_axes([0.15, .92, .7, 0.07])
-    axi.get_xaxis().set_visible(False)
-    axi.get_yaxis().set_visible(False)
-    axi.text(0.5, 0.5, "Press '?' to list the available options", transform=axi.transAxes,
+    axinfo = fig.add_axes([0.15, .92, .7, 0.07])
+    axinfo.get_xaxis().set_visible(False)
+    axinfo.get_yaxis().set_visible(False)
+    axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
              horizontalalignment='center', verticalalignment='center')
-    axi.set_xlim((0, 1))
-    axi.set_ylim((0, 1))
+    axinfo.set_xlim((0, 1))
+    axinfo.set_ylim((0, 1))
     specres = [respts, resfit, resres]
 
+    axes = dict(spec=ax, fit=axfit, resid=axres, info=axinfo)
     # Initialise the identify window and display to screen
     fig.canvas.set_window_title('PypeIt - Identify')
-    ident = Identify(fig.canvas, ax, axr, axi, spec, specres, detns, line_lists, par, slit=slit)
+    ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, slit=slit)
     plt.show()
 
     # Now return the results
