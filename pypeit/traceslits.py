@@ -157,12 +157,6 @@ class TraceSlits(masterframe.MasterFrame):
         """
         return 0 if self.slit_left is None else self.slit_left.shape[1]
 
-    def _edgearr_single_slit(self):
-        """
-        If it's a single slit, add a left/right slit
-        """
-        self._add_left_right()
-
     def _edgearr_from_binarr(self):
         """
         Generate the first edgearr from the Sobolev produced siglev image
