@@ -579,7 +579,8 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
 
     # Instantiate theses supplementary arrays here to speed things up
     # in iterative calling of moment1d. moment1d will check the array
-    # sizes.
+    # sizes. TODO: moment1d no longer instantiates these if they're not
+    # provided, so this likely isn't necessary; testing required.
     _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
     _bpm = np.zeros_like(flux, dtype=bool) if bpm is None else bpm
     _fwgt = np.ones_like(flux, dtype=float) if fwgt is None else fwgt

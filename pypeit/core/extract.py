@@ -1383,9 +1383,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
     # TODO Should we be passing the mask here with extract_asymbox or not?
     flux_spec = moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
-                         fwgt=totmask.astype(float), mesh=False)[0]
+                         fwgt=totmask.astype(float))[0]
     mask_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym),
-                         fwgt=totmask.astype(float), mesh=False)[0] < 0.3
+                         fwgt=totmask.astype(float))[0] < 0.3
     flux_mean, flux_median, flux_sig \
             = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma = 3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
@@ -1416,6 +1416,40 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
     # JFH TODO Do we need a running median as was done in the OLD code? Maybe needed for long slits. We could use
     #  use the cont_mask to isolate continuum pixels, and then interpolate the unmasked pixels.
+    ##   New CODE
+
+# TODO: Leave this in!
+##   OLD CODE
+#    smash_mask = np.isfinite(flux_mean)
+#    flux_mean_med = np.median(flux_mean[smash_mask])
+#    flux_mean[np.invert(smash_mask)] = 0.0
+#    if (nsamp < 3.0*bg_smth*fwhm):
+#        # This may lead to many negative fluxsub values..
+#        # TODO: Calculate flux_mean_med by avoiding the peak
+#        fluxsub = flux_mean - flux_mean_med
+#    else:
+#        kernel_size= int(np.ceil(bg_smth*fwhm) // 2 * 2 + 1) # This ensure kernel_size is odd
+#        # TODO should we be using  scipy.ndimage.filters.median_filter to better control the boundaries?
+#        fluxsub = flux_mean - scipy.signal.medfilt(flux_mean, kernel_size=kernel_size)
+#        # This little bit below deals with degenerate cases for which the slit gets brighter toward the edge, i.e. when
+#        # alignment stars saturate and bleed over into other slits. In this case the median smoothed profile is the nearly
+#        # everywhere the same as the profile itself, and fluxsub is full of zeros (bad!). If 90% or more of fluxsub is zero,
+#        # default to use the unfiltered case
+#        isub_bad = (fluxsub == 0.0)
+#        frac_bad = np.sum(isub_bad)/nsamp
+#        if frac_bad > 0.9:
+#            fluxsub = flux_mean - flux_mean_med
+#
+#    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
+#
+#    cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
+#    cont, cont_mask = arc.iter_continuum(fluxconv, inmask=smash_mask, fwhm=fwhm,
+#                                         cont_frac_fwhm=2.0, sigthresh=2.0,
+#                                         sigrej=2.0, cont_samp=cont_samp,
+#                                         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont),
+#                                         cont_mask_neg=ir_redux, debug=debug_all)
+#    fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
+## OLD CODE
 
     if not np.any(cont_mask):
         cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
@@ -2134,15 +2168,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
 
-            flux_tmp  = moment1d(image*inmask_iord, spec.TRACE_SPAT, 2*box_rad_pix,
-                                 row=spec.trace_spec, mesh=False)[0]
-            var_tmp  = moment1d(varimg*inmask_iord, spec.TRACE_SPAT, 2*box_rad_pix,
-                                row=spec.trace_spec, mesh=False)[0]
+            flux_tmp  = moment1d(image*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+                                 row=spec.trace_spec)[0]
+            var_tmp  = moment1d(varimg*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+                                row=spec.trace_spec)[0]
             ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = moment1d(ivar*0 + 1.0, spec.TRACE_SPAT, 2*box_rad_pix,
-                               row=spec.trace_spec, mesh=False)[0]
-            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.TRACE_SPAT, 2*box_rad_pix,
-                                row=spec.trace_spec, mesh=False)[0] != pixtot
+            pixtot  = moment1d(ivar*0 + 1.0, spec.trace_spat, 2*box_rad_pix,
+                               row=spec.trace_spec)[0]
+            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.trace_spat, 2*box_rad_pix,
+                                row=spec.trace_spec)[0] != pixtot
 
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
