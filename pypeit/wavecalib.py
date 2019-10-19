@@ -14,7 +14,7 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
-from pypeit.core.wavecal import autoid, waveio, identify
+from pypeit.core.wavecal import autoid, waveio, identify, templates
 from pypeit.core import trace_slits
 
 from pypeit import debugger
@@ -210,7 +210,16 @@ class WaveCalib(masterframe.MasterFrame):
             msgs.info("Initializing the wavelength calibration tool")
             arcfitter = identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
-            # TODO :: If successful, maybe we should automatically generate and store the files for reidentify?
+            # Todo : Generalise to multislit case
+            slit = 0
+            if final_fit[str(slit)] is not None:
+                # Store the results in the user reid arxiv
+                import pdb
+                pdb.set_trace()
+                specname = self.spectrograph.spectrograph
+                gratname = "UNKNOWN" #self.spectrograph.get_meta_value(sciframe, 'dispname')
+                dispangl = "UNKNOWN" #"{0:d}".format(int(self.spectrograph.get_meta_value(sciframe, 'dispangle')))
+                templates.pypeit_identify_record(final_fit[str(slit)], self.binspectral, specname, gratname, dispangl)
         elif method == 'reidentify':
             # Now preferred
             # Slit positions

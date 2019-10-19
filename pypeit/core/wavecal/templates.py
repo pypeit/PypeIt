@@ -138,7 +138,7 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
     extstr = ""
     while True:
         outroot = '{0:s}_{1:s}_{2:s}{3:s}.fits'.format(specname, gratname, dispangl, extstr)
-        if os.path.exists(outpath+outroot):
+        if os.path.exists(os.path.join(outpath, outroot)):
             extstr = "_{0:02d}".format(cntr)
         else:
             break
