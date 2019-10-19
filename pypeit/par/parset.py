@@ -187,8 +187,13 @@ class ParSet(object):
         # Set the data dictionary using the overloaded
         # __setitem__function so that value checking is performed
         self.data = {}
-        for p, d, v in zip(pars, _defaults, _values):
-            if v is None:
+        for p, d, v, t in zip(pars, _defaults, _values, _dtypes):
+            # Check if 'None' is an allowed option
+            none_allowed = False
+            if type(t) is list:
+                if type(None) in t:
+                    none_allowed = True
+            if v is None and not none_allowed:
                 self.__setitem__(p, d)
                 continue
             self.__setitem__(p, v)

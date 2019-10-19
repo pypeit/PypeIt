@@ -2942,7 +2942,7 @@ class DetectorPar(ParSet):
         # TODO: Allow for None, such that there is no overscan region
         defaults['oscansec'] = 'BIASSEC' if pars['numamplifiers'] is None \
                                         else ['BIASSEC']*pars['numamplifiers']
-        dtypes['oscansec'] = [str, list]
+        dtypes['oscansec'] = [str, list, type(None)]
         descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
                             'data sections can be obtained, one per amplifier. If defined ' \
                             'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'
@@ -2959,6 +2959,8 @@ class DetectorPar(ParSet):
                                           options=list(options.values()),
                                           dtypes=list(dtypes.values()),
                                           descr=list(descr.values()))
+        import pdb
+        pdb.set_trace()
         self.validate()
 
     @classmethod
@@ -2978,7 +2980,7 @@ class DetectorPar(ParSet):
         """
         if self.data['numamplifiers'] > 1:
             keys = [ 'gain', 'ronoise', 'datasec', 'oscansec' ]
-            dtype = [ (int, float), (int, float), str, str ]
+            dtype = [ (int, float), (int, float), str, (str, None) ]
             for i in range(len(keys)):
                 if self.data[keys[i]] is None:
                     continue
