@@ -82,7 +82,7 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['method'] = 'identify'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -212,7 +212,7 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def bpm(self, shape=None, filename=None, det=None, msbias=None, **null_kwargs):
+    def bpm(self, filename=None, det=None, shape=None, msbias=None, **null_kwargs):
         """ Generate a BPM
 
         Parameters
@@ -229,14 +229,16 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
 
         """
         # Get the empty bpm: force is always True
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        #import pdb
+        #pdb.set_trace()
+        self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
 
         # Only defined for det=2
         if msbias is not None:
             msgs.info("Generating a BPM for det={0:d} on ISISb".format(det))
-            medval = np.median(msbias)
-            madval = 1.4826 * np.median(np.abs(medval - msbias))
-            ww = np.where(np.abs(msbias-medval) > 10.0*madval)
+            medval = np.median(msbias.image)
+            madval = 1.4826 * np.median(np.abs(medval - msbias.image))
+            ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
             self.bpm_img[ww] = 1
 
         return self.bpm_img
