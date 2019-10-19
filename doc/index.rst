@@ -45,6 +45,7 @@ Data Products
 
    outputs
    qa
+   specobj
 
 Calibrations
 ++++++++++++

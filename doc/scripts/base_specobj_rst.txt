@@ -1,0 +1,10 @@
+.. highlight:: rest
+
+.. _specobj:
+
+==================
+SpecObj Data model
+==================
+
+This file describes the data model for the SpecObj class which is
+written to disk as a `spec1d` file.
