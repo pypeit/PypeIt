@@ -25,27 +25,20 @@ class Identify(object):
     """
 
     def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, slit=0):
-        """ Controls for the Identify task in PypeIt. The main goal of this routine is to
-        manually identify arc lines to be used for wavelength calibration.
+        """Controls for the Identify task in PypeIt.
 
-        Parameters
-        ----------
-        canvas : Matploltib figure canvas
-          The canvas on which all axes are contained
-        axes : dictionary of four Matplotlib axes instances
-          Main spectrum panel, two for residuals, one for information
-        spec : Matplotlib Line2D instance
-          contains plotting information of the plotted arc spectrum
-        specres : list
-          three element list of Matplotlib Line2D/path instances, used for residuals plotting
-        detns : ndarray
-          detections
-        line_lists : Table
-          contains information about the line list to be used for wavelength calibration
-        par : WavelengthSolutionPar ParSet
-          Calibration parameters
-        slit : int
-          The slit to be used for wavelength calibration
+        The main goal of this routine is to interactively identify arc lines
+        to be used for wavelength calibration.
+
+        Args:
+            canvas (Matploltib figure canvas): The canvas on which all axes are contained
+            axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
+            spec (Line2D): Matplotlib Line2D instance which contains plotting information of the plotted arc spectrum
+            specres (list): Three element list of Matplotlib Line2D/path instances, used for residuals plotting
+            detns (ndarray): Detections from the arc spectrum
+            line_lists (Table): Contains information about the line list to be used for wavelength calibration
+            par (WavelengthSolutionPar): Calibration parameters
+            slit (int): The slit to be used for wavelength calibration
         """
         # Store the axes
         self.axes = axes
@@ -112,7 +105,7 @@ class Identify(object):
         self.canvas.draw()
 
     def replot(self):
-        """ Redraw the entire canvas
+        """Redraw the entire canvas
         """
         self.canvas.restore_region(self.background)
         self.draw_lines()
@@ -120,26 +113,26 @@ class Identify(object):
         self.canvas.draw()
 
     def linelist_update(self, val):
-        """ When a user selects a detection, reset the current value of the linelist
+        """For a given detection, set the linelist value to be the best guess based on the wavelength solution
+
+        When a user selects a detection, reset the current value of the linelist
         to reflect the best candidate wavelength for that detection (given the current
         wavelength solution)
 
-        Parameters
-        ----------
-        val : int
-          the index corresponding to the closest match
+        Args:
+            val (int): The index corresponding to the closest match
         """
         val = int(val)
         self._slidell.label.set_text("{0:.4f}".format(self._lines[val]))
         self._slideval = val
 
     def linelist_select(self, event):
-        """ Assign a wavelength to a detection (only LMB works)
+        """Assign a wavelength to a detection
 
-        Parameters
-        ----------
-        event : mpl event
-          A matplotlib event instance
+        Note, only the LMB works.
+
+        Args:
+            event (Event): A matplotlib event instance
         """
         if event.button == 1:
             self.update_line_id()
@@ -150,7 +143,7 @@ class Identify(object):
             self.replot()
 
     def linelist_init(self):
-        """ Initialise the linelist Slider (used to assign a line to a detection)
+        """Initialise the linelist Slider (used to assign a line to a detection)
         """
         axcolor = 'lightgoldenrodyellow'
         # Slider
@@ -165,9 +158,8 @@ class Identify(object):
         self._select.on_clicked(self.linelist_select)
 
     def draw_lines(self):
-        """ Draw the lines and annotate with their IDs
+        """Draw the lines and annotate with their IDs
         """
-        # annotations = [child for child in self.axes['main'].get_children() if isinstance(child, matplotlib.text.Annotation)]
         for i in self.annlines: i.remove()
         for i in self.anntexts: i.remove()
         self.annlines = []
@@ -194,7 +186,7 @@ class Identify(object):
                                      color='b', ha='right', va='bottom'))
 
     def draw_residuals(self):
-        """ Update the subplots that show the residuals
+        """Update the subplots that show the residuals
         """
         if self._fitdict["coeff"] is None:
             nid = np.where(self._lineflg==1)[0].size
@@ -227,12 +219,10 @@ class Identify(object):
             self.specres[2].set_color(self.residmap.to_rgba(self._lineflg))
 
     def draw_callback(self, event):
-        """ Draw the lines and annotate with their IDs
+        """Draw the lines and annotate with their IDs
 
-        Parameters
-        ----------
-        event : mpl event
-          A matplotlib event instance
+        Args:
+            event (Event): A matplotlib event instance
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
@@ -243,12 +233,10 @@ class Identify(object):
         self.draw_lines()
 
     def draw_fitregions(self, trans):
-        """ Refresh the fit regions
+        """Refresh the fit regions
 
-        Parameters
-        ----------
-        trans : axis transform
-          A matplotlib axis transform from data to axes coordinates
+        Args:
+            trans (AxisTransform): A matplotlib axis transform from data to axes coordinates
         """
         if self._fitr is not None:
             self._fitr.remove()
@@ -260,17 +248,13 @@ class Identify(object):
                                           alpha=0.5, transform=trans)
 
     def get_ann_ypos(self, scale=1.02):
-        """ Calculate the y locations of the annotated IDs
+        """Calculate the y locations of the annotated IDs
 
-        Parameters
-        ----------
-        scale : float
-          scale the location relative to the maximum value of the spectrum
+        Args:
+            scale (float): Scale the location relative to the maximum value of the spectrum
 
-        Returns
-        -------
-        ypos : ndarray
-          y locations of the annotations
+        Returns:
+            ypos (ndarray): y locations of the annotations
         """
         ypos = np.zeros(self._detns.size)
         for xx in range(self._detns.size):
@@ -279,28 +263,30 @@ class Identify(object):
         return ypos
 
     def get_detns(self):
-        """ Get the index of the detection closest to the cursor
+        """Get the index of the detection closest to the cursor
         """
         return np.argmin(np.abs(self._detns-self.specx[self._end]))
 
     def get_ind_under_point(self, event):
-        """ Get the index of the line closest to the cursor
+        """Get the index of the line closest to the cursor
 
-        Parameters
-        ----------
-        event : Event instance
-          matplotlib event instance containing information about the event
+        Args:
+            event (Event): Matplotlib event instance containing information about the event
+
+        Returns:
+            ind (int): Index of the spectrum where the event occurred
         """
         ind = np.argmin(np.abs(self.specx - event.xdata))
         return ind
 
     def get_axisID(self, event):
-        """ Get the ID of the axis where an event has occurred
+        """Get the ID of the axis where an event has occurred
 
-        Parameters
-        ----------
-        event : Event instance
-          matplotlib event instance containing information about the event
+        Args:
+            event (Event): Matplotlib event instance containing information about the event
+
+        Returns:
+            axisID (int, None): Axis where the event has occurred
         """
         if event.inaxes == self.axes['main']:
             return 0
@@ -313,12 +299,15 @@ class Identify(object):
         return None
 
     def get_results(self):
-        """ Using the line IDs perform the final fit according to the wavelength calibration parameters
+        """Perform the final wavelength calibration
 
-        Returns
-        -------
-        wvcalib : dict
-          Dict of wavelength calibration solutions
+        Using the line IDs perform the final fit according
+        to the wavelength calibration parameters set by the
+        user. This routine must be called after the user has
+        manually identified all lines.
+
+        Returns:
+            wvcalib (dict): Dict of wavelength calibration solutions
         """
         wvcalib = {}
         # Check that a result exists:
@@ -346,12 +335,10 @@ class Identify(object):
         return wvcalib
 
     def button_press_callback(self, event):
-        """ What to do when the mouse button is pressed
+        """What to do when the mouse button is pressed
 
-        Parameters
-        ----------
-        event : Event instance
-          matplotlib event instance containing information about the event
+        Args:
+            event (Event): Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -365,12 +352,13 @@ class Identify(object):
         self._start = self.get_ind_under_point(event)
 
     def button_release_callback(self, event):
-        """ What to do when the mouse button is released
+        """What to do when the mouse button is released
 
-        Parameters
-        ----------
-        event : Event instance
-          matplotlib event instance containing information about the event
+        Args:
+            event (Event): Matplotlib event instance containing information about the event
+
+        Returns:
+            None
         """
         if event.inaxes is None:
             return
@@ -419,12 +407,13 @@ class Identify(object):
         self.canvas.draw()
 
     def key_press_callback(self, event):
-        """ What to do when a key is pressed
+        """What to do when a key is pressed
 
-        Parameters
-        ----------
-        event : Event instance
-          matplotlib event instance containing information about the event
+        Args:
+            event (Event): Matplotlib event instance containing information about the event
+
+        Returns:
+            None
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -436,14 +425,11 @@ class Identify(object):
         self.operations(event.key, axisID)
 
     def operations(self, key, axisID):
-        """ Canvas operations
+        """Canvas operations
 
-        Parameters
-        ----------
-        key : str
-          Which key has been pressed
-        axisID : int
-          The index of the axis where the key has been pressed (see get_axisID)
+        Args:
+            key (str): Which key has been pressed
+            axisID (int): The index of the axis where the key has been pressed (see get_axisID)
         """
         # Check if the user really wants to quit
         if key == 'q' and self._qconf:
@@ -476,6 +462,7 @@ class Identify(object):
             return
 
         if key == '?':
+            self.print_help()
             print("===============================================================")
             print("       MAIN OPERATIONS")
             print("cursor  : Select lines (LMB click)")
@@ -542,7 +529,9 @@ class Identify(object):
         self.canvas.draw()
 
     def auto_id(self):
-        """ Using the current line IDs and approximate wavelength solution,
+        """Automatically assign lines based on a few lines identified by the user
+
+        Using the current line IDs and approximate wavelength solution,
         automatically assign a wavelength to all line detections.
         """
         self.fitsol_fit()
@@ -566,26 +555,21 @@ class Identify(object):
         self.replot()
 
     def delete_line_id(self):
-        """ Remove an incorrect line ID
+        """Remove an incorrect line ID
         """
         rmid = self.get_detns()
         self._lineids[rmid] = 0.0
         self._lineflg[rmid] = 0
 
     def fitsol_value(self, xfit=None, idx=None):
-        """ Calculate the wavelength at a pixel
+        """Calculate the wavelength at a pixel
 
-        Parameters
-        ----------
-        xfit : ndarray, float
-          pixel values that the user wishes to evaluate the wavelength
-        idx : int
-          Index of the arc line detections that the user wishes to evaluate the wavelength
+        Args:
+            xfit (ndarray, float): Pixel values that the user wishes to evaluate the wavelength
+            idx (int): Index of the arc line detections that the user wishes to evaluate the wavelength
 
-        Returns
-        -------
-        disp : ndarray, float, None
-          The wavelength (Angstroms) of the requested pixels
+        Returns:
+            disp (ndarray, float, None): The wavelength (Angstroms) of the requested pixels
         """
         if xfit is None:
             xfit = self._detns
@@ -599,19 +583,14 @@ class Identify(object):
             return None
 
     def fitsol_deriv(self, xfit=None, idx=None):
-        """ Calculate the dispersion as a function of wavelength
+        """Calculate the dispersion as a function of wavelength
 
-        Parameters
-        ----------
-        xfit : ndarray, float
-          pixel values that the user wishes to evaluate the dispersion
-        idx : int
-          Index of the arc line detections that the user wishes to evaluate the dispersion
+        Args:
+            xfit (ndarray, float): Pixel values that the user wishes to evaluate the wavelength
+            idx (int): Index of the arc line detections that the user wishes to evaluate the wavelength
 
-        Returns
-        -------
-        disp : ndarray, float, None
-          The dispersion (Angstroms/pixel) as a function of wavelength
+        Returns:
+            disp (ndarray, float, None): The dispersion (Angstroms/pixel) as a function of wavelength
         """
         if xfit is None:
             xfit = self._detns
@@ -626,7 +605,7 @@ class Identify(object):
             return None
 
     def fitsol_fit(self):
-        """ Perform a fit to the line identifications
+        """Perform a fit to the line identifications
         """
         ord = self._fitdict["polyorder"]
         wfit = np.where(self._lineflg == 1)  # Use the user IDs only!
@@ -641,12 +620,10 @@ class Identify(object):
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
-        """ Send a new message to the information window at the top of the canvas
+        """Send a new message to the information window at the top of the canvas
 
-        Parameters
-        ----------
-        message : str
-          Message to be displayed
+        Args:
+            message (str): Message to be displayed
         """
         self.axes['info'].clear()
         if default:
@@ -669,34 +646,30 @@ class Identify(object):
         self.canvas.draw()
 
     def update_line_id(self):
-        """ Find the nearest wavelength in the linelist
+        """Find the nearest wavelength in the linelist
         """
         if self._detns_idx != -1:
             self._lineids[self._detns_idx] = self._lines[self._slideval]
             self._lineflg[self._detns_idx] = 1
 
     def update_regions(self):
-        """ Update the regions used to fit Gaussian
+        """Update the regions used to fit Gaussian
         """
         self._fitregions[self._start:self._end] = self._addsub
 
 
 def initialise(arccen, slit=0, par=None):
-    """ Initialise the 'Identify' window for real-time wavelength calibration
+    """Initialise the 'Identify' window for real-time wavelength calibration
 
-        Parameters
-        ----------
-        arccen : ndarray
-          Arc spectrum
-        slit : int
-          The slit to be used for wavelength calibration
+        Args:
+            arccen (ndarray): Arc spectrum
+        slit (int): The slit to be used for wavelength calibration
 
-        Returns
-        -------
-        ident : Identify instance
-          returns an instance of the Identify class, which contains the results of the fit
+        Returns:
+            ident (Identify): Returns an instance of the Identify class, which contains the results of the fit
 
-        TODO :: implement multislit functionality
+        Todo:
+            * Implement multislit functionality
     """
 
     # Double check that a WavelengthSolutionPar was input
