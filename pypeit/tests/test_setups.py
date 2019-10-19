@@ -126,7 +126,7 @@ def test_setup_shane_kast_blue():
 
 @dev_suite_required
 def test_setup_shane_kast_red():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_red/600_7500_d55')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_red/600_7500_d55_ret')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'shane_kast_red'])
     setup.main(pargs)
