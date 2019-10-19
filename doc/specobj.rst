@@ -2,12 +2,20 @@
 
 .. _specobj:
 
-==================
-SpecObj Data model
-==================
+===============================
+SpecObj Data model (1D spectra)
+===============================
 
 This file describes the data model for the SpecObj class which is
-written to disk as a `spec1d` file.
+written to disk as a multi-extension FITS file prefixed by `spec1d`
+in the Science/ folder.
+
+For each object detected in each slit in each detector, there is
+on Table written to this FITS file.  The objects are named by the
+spatial position (pixel number) on the reduced image, the slit number, and
+the detector number, e.g. SPAT0176-SLIT0000-DET01.
+
+
 
 Current SpecObj Data Model
 ++++++++++++++++++++++++++
