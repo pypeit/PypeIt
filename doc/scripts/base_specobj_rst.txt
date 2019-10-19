@@ -7,4 +7,8 @@ SpecObj Data model
 ==================
 
 This file describes the data model for the SpecObj class which is
-written to disk as a `spec1d` file.
+written to disk as a multi-extension FITS file prefixed by `spec1d`
+in the Science/ folder.
+
+For each object detected in each slit in each detector, there is
+on Table written to this FITS file.
