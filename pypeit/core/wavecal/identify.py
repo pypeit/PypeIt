@@ -15,6 +15,20 @@ from pypeit.par import pypeitpar
 from pypeit.core.wavecal import fitting, waveio, wvutils
 from pypeit import msgs
 
+operations = dict({'cursor': "Select lines (LMB click)" +
+                    "         Select regions (LMB drag = add, RMB drag = remove)" +
+                    "         Navigate (LMB drag = pan, RMB drag = zoom)",
+                   'p' : "Toggle pan/zoom with the cursor",
+                   'q' : "Close Identify window and continue PypeIt reduction",
+                   'a' : "Automatically identify lines using current solution",
+                   'c' : "Clear automatically identified lines",
+                   'd' : "Delete all line identifications (start from scratch)",
+                   'f' : "Fit the wavelength solution",
+                   'r' : "Refit a line",
+                   'z' : "Delete a single line identification",
+                   '+/-' : "Raise/Lower the order of the fitting polynomial"
+                   })
+
 
 class Identify(object):
     """
@@ -103,6 +117,16 @@ class Identify(object):
 
         # Draw the spectrum
         self.canvas.draw()
+
+    def print_help(self):
+        """Print the keys and descriptions that can be used for Identification
+        """
+        keys = operations.keys()
+        print("===============================================================")
+        print("       IDENTIFY OPERATIONS")
+        for key in keys:
+            print("{0:6s} : {1:s}".format(key, operations[key]))
+        print("---------------------------------------------------------------")
 
     def replot(self):
         """Redraw the entire canvas
@@ -463,23 +487,6 @@ class Identify(object):
 
         if key == '?':
             self.print_help()
-            print("===============================================================")
-            print("       MAIN OPERATIONS")
-            print("cursor  : Select lines (LMB click)")
-            print("          Select regions (LMB drag = add, RMB drag = remove)")
-            print("          Navigate (LMB drag = pan, RMB drag = zoom)")
-            print("p       : toggle pan/zoom with the cursor")
-            print("q       : close Identify window and continue PypeIt reduction")
-            print("---------------------------------------------------------------")
-            print("       ARC LINE OPERATIONS")
-            print("a       : Automatically identify lines using current solution")
-            print("c       : Clear automatically identified lines")
-            print("d       : Delete all line identifications (start from scratch)")
-            print("f       : Fit the wavelength solution")
-            print("r       : Refit a line")
-            print("z       : Delete a single line identification")
-            print("+/-     : Raise/Lower the order of the fitting polynomial")
-            print("---------------------------------------------------------------")
         elif key == 'a':
             if self._fitdict['coeff'] is not None:
                 self.auto_id()
