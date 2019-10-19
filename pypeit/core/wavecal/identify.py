@@ -15,8 +15,8 @@ from pypeit.par import pypeitpar
 from pypeit.core.wavecal import fitting, waveio, wvutils
 from pypeit import msgs
 
-operations = dict({'cursor': "Select lines (LMB click)" +
-                    "         Select regions (LMB drag = add, RMB drag = remove)" +
+operations = dict({'cursor': "Select lines (LMB click)\n" +
+                    "         Select regions (LMB drag = add, RMB drag = remove)\n" +
                     "         Navigate (LMB drag = pan, RMB drag = zoom)",
                    'p' : "Toggle pan/zoom with the cursor",
                    'q' : "Close Identify window and continue PypeIt reduction",
@@ -735,7 +735,7 @@ def initialise(arccen, slit=0, par=None):
     axinfo.set_ylim((0, 1))
     specres = [respts, resfit, resres]
 
-    axes = dict(spec=ax, fit=axfit, resid=axres, info=axinfo)
+    axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
     # Initialise the identify window and display to screen
     fig.canvas.set_window_title('PypeIt - Identify')
     ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, slit=slit)
