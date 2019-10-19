@@ -69,6 +69,10 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'wht_isis_blue'
+
+        # Ignore PCA
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
         # Turn off the overscan
         for ftype in par['calibrations'].keys():
             try:
