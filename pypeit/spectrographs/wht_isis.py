@@ -235,7 +235,7 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
         if msbias is not None:
             msgs.info("Generating a BPM for det={0:d} on ISISb".format(det))
             medval = np.median(msbias)
-            madval = 1.4824 * np.median(np.abs(medval - msbias))
+            madval = 1.4826 * np.median(np.abs(medval - msbias))
             ww = np.where(np.abs(msbias-medval) > 10.0*madval)
             self.bpm_img[ww] = 1
 
