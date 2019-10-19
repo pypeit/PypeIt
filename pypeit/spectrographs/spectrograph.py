@@ -460,12 +460,14 @@ class Spectrograph(object):
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
             for i in range(self.detector[det-1]['numamplifiers']):
-                # Convert the data section from a string to a slice
-                datasec = parse.sec2slice(image_sections[i], one_indexed=one_indexed,
-                                          include_end=include_last, require_dim=2,
-                                          binning=binning_raw)
-                # Assign the amplifier
-                pix_img[datasec] = i+1
+
+                if image_sections[i] is not None:
+                    # Convert the data section from a string to a slice
+                    datasec = parse.sec2slice(image_sections[i], one_indexed=one_indexed,
+                                              include_end=include_last, require_dim=2,
+                                              binning=binning_raw)
+                    # Assign the amplifier
+                    pix_img[datasec] = i+1
             # Finish
             if section == 'datasec':
                 rawdatasec_img = pix_img.copy()

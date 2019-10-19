@@ -30,8 +30,9 @@ template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelength
 
 outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
+
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
-                   normalize=False,
+                   normalize=False, wvspec=None,
                    lowredux=True, ifiles=None, det_cut=None, chk=False):
     """
     Generate a full_template for a given instrument
@@ -62,11 +63,14 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         in_files = [in_files]
         ifiles = [0]*len(slits)
     for kk, slit in enumerate(slits):
-        in_file = in_files[ifiles[kk]]
-        if lowredux:
-            wv_vac, spec = xidl_arcspec(in_file, slit)
+        if wvspec is None:
+            in_file = in_files[ifiles[kk]]
+            if lowredux:
+                wv_vac, spec = xidl_arcspec(in_file, slit)
+            else:
+                wv_vac, spec = pypeit_arcspec(in_file, slit)
         else:
-            wv_vac, spec = pypeit_arcspec(in_file, slit)
+            wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
         # Cut
         if len(slits) > 1:
             if kk == 0:
@@ -113,6 +117,37 @@ def pypeit_arcspec(in_file, slit):
                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
     # Return
     return wv_vac, np.array(iwv_calib['spec'])
+
+
+def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
+    """From within PypeIt, generate a template file if the user manually identifies an arc spectrum
+
+    Args:
+        iwv_calib (dict): Wavelength calibration returned by final_fit
+        binspec (int): Spectral binning
+        specname (str): Name of instrument
+        gratname (str): Name of grating
+        dispangl (str): Dispersion angle
+    """
+    x = np.arange(len(iwv_calib['spec']))
+    wv_vac = utils.func_val(iwv_calib['fitc'], x / iwv_calib['xnorm'], iwv_calib['function'],
+                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+    wvspec = dict(wv_vac=wv_vac, spec=np.array(iwv_calib['spec']))
+    # Derive an output file
+    cntr = 1
+    extstr = ""
+    while True:
+        outroot = '{0:s}_{1:s}_{2:s}{3:s}.fits'.format(specname, gratname, dispangl, extstr)
+        if os.path.exists(outpath+outroot):
+            extstr = "_{0:02d}".format(cntr)
+        else:
+            break
+        cntr += 1
+    slits = [0]
+    lcut = [3200.]
+    build_template("", slits, lcut, binspec, outroot, wvspec=wvspec, lowredux=False)
+    # Return
+    return
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):

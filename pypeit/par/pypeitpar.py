@@ -2959,8 +2959,6 @@ class DetectorPar(ParSet):
                                           options=list(options.values()),
                                           dtypes=list(dtypes.values()),
                                           descr=list(descr.values()))
-        import pdb
-        pdb.set_trace()
         self.validate()
 
     @classmethod
