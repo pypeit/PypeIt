@@ -28,7 +28,7 @@ from pypeit import debugger
 # Meta must include BINNING of the template with 1=native
 template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
 
-outpath=resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
+outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
                    normalize=False,
@@ -535,14 +535,13 @@ def main(flg):
                        normalize=True)
 
     if flg & (2**21):  # WHT/ISIS
-        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'wht_isis_blue_1200_4800.json'
-        iout = 'wht_isis_blue_1200_4800.fits'
-        wfile = os.path.join(reid_path, iroot)
+        outroot = 'wht_isis_blue_1200_4800.fits'
+        wfile = os.path.join(template_path, 'WHT_ISIS', '1200B', iroot)
         binspec = 2
         slits = [0]
         lcut = [3200.]
-        build_template(wfile, slits, lcut, binspec, iout, lowredux=False)
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
 
 # Command line execution
