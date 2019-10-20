@@ -14,11 +14,11 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
-from pypeit.core.wavecal import autoid, waveio, identify, templates
+from pypeit.core.wavecal import autoid, waveio, templates
+from pypeit.core.gui import identify as gui_identify
 from pypeit.core import trace_slits
 
 from pypeit import debugger
-import IPython
 
 
 class WaveCalib(masterframe.MasterFrame):
@@ -208,7 +208,7 @@ class WaveCalib(masterframe.MasterFrame):
         elif method == 'identify':
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            arcfitter = identify.initialise(arccen, par=self.par)
+            arcfitter = gui_identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
             # Todo : Generalise to multislit case
             slit = 0
