@@ -89,6 +89,8 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 4859.0
         par['calibrations']['wavelengths']['disp'] = 0.2
