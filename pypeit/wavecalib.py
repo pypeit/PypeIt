@@ -208,16 +208,23 @@ class WaveCalib(masterframe.MasterFrame):
         elif method == 'identify':
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
+            # Todo : Generalise to multislit case
             arcfitter = identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
-            # Todo : Generalise to multislit case
             slit = 0
             if final_fit[str(slit)] is not None:
-                # Store the results in the user reid arxiv
-                specname = self.spectrograph.spectrograph
-                gratname = "UNKNOWN" #self.spectrograph.get_meta_value(sciframe, 'dispname')
-                dispangl = "UNKNOWN" #"{0:d}".format(int(self.spectrograph.get_meta_value(sciframe, 'dispangle')))
-                templates.pypeit_identify_record(final_fit[str(slit)], self.binspectral, specname, gratname, dispangl)
+                ans = 'y'
+                # ans = ''
+                # while ans != 'y' and ans != 'n':
+                #     ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
+                if ans == 'y' and final_fit[str(slit)]['rms'] < 0.1:
+                    # Store the results in the user reid arxiv
+                    specname = self.spectrograph.spectrograph
+                    gratname = "UNKNOWN"  # input("Please input the grating name: ")
+                    dispangl = "UNKNOWN"  # input("Please input the dispersion angle: ")
+                    templates.pypeit_identify_record(final_fit[str(slit)], self.binspectral, specname, gratname, dispangl)
+                    msgs.info("Your wavelength solution has been stored")
+                    msgs.info("Please consider sending your solution to the PYPEIT team!")
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
