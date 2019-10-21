@@ -214,8 +214,6 @@ class WaveCalib(masterframe.MasterFrame):
             slit = 0
             if final_fit[str(slit)] is not None:
                 # Store the results in the user reid arxiv
-                import pdb
-                pdb.set_trace()
                 specname = self.spectrograph.spectrograph
                 gratname = "UNKNOWN" #self.spectrograph.get_meta_value(sciframe, 'dispname')
                 dispangl = "UNKNOWN" #"{0:d}".format(int(self.spectrograph.get_meta_value(sciframe, 'dispangle')))
