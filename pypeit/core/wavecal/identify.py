@@ -260,10 +260,10 @@ class Identify(object):
             disptxt = r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix)
             rmstxt = 'RMS={:.3f} (pixels)'.format(self._fitdict['rms'])
             self._fitdict["res_stats"].append(self.axes['fit'].text(0.1 * self.specdata.size,
-                                                                    0.90 * ymin + (ymax - ymin),
+                                                                    ymin + 0.90 * (ymax - ymin),
                                                                     disptxt, size='small'))
             self._fitdict["res_stats"].append(self.axes['fit'].text(0.1 * self.specdata.size,
-                                                                    0.80 * ymin + (ymax - ymin),
+                                                                    ymin + 0.80 * (ymax - ymin),
                                                                     rmstxt, size='small'))
 
     def draw_callback(self, event):
