@@ -163,6 +163,18 @@ class ObjFindGUI(object):
             return 1
         return None
 
+    def mouse_move_callback(self, event):
+        """
+        Get the index of the spectrum closest to the cursor
+        """
+        if event.inaxes is None:
+            return
+        axisID = self.get_axisID(event)
+        if axisID is not None:
+            if axisID == 0 and event.button == 3:
+                self.mmx, self.mmy = event.xdata, event.ydata
+                self.mouseidx = self.get_ind_under_point(event)
+
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
 
