@@ -120,12 +120,12 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
 
     return lines_spec, lines_spat
 
-
-def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False, tilts_guess=None, fwhm=4.0,
-                     spat_order=3, maxdev_tracefit=0.02,sigrej_trace=3.0, max_badpix_frac=0.30,
-                     tcrude_maxerr=1.0, tcrude_maxshift=3.0, tcrude_maxshift0=3.0,tcrude_nave=5, show_tracefits=False):
-
-
+# TODO: Change "mask" to "gpm"...
+def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False,
+                     tilts_guess=None, fwhm=4.0, spat_order=3, maxdev_tracefit=0.02,
+                     sigrej_trace=3.0, max_badpix_frac=0.30, tcrude_maxerr=1.0,
+                     tcrude_maxshift=3.0, tcrude_maxshift0=3.0, tcrude_nave=5,
+                     show_tracefits=False):
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
 
@@ -180,8 +180,6 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     show_tracefits: bool, default = False
        If true the fits will be shown to each arc line trace by iterative_fitting
     """
-
-
     nspec, nspat = arcimg.shape
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
@@ -203,6 +201,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     if inmask is None:
         inmask = thismask
 
+    # TODO: Clean up all the commented code here and below.
     # The sub arrays hold the sub-imaged tilts
     #tilts_sub = np.zeros((nsub, nlines))       # Thee trace_fweight (or gweighed) tilts
 
@@ -217,15 +216,20 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     tilts_sub_fit = np.zeros((nsub, nlines))   # legendre polynomial fits to the tilt traces
     tilts_sub_spat = np.outer(np.arange(nsub), np.ones(nlines)) # spatial coordinate along each tilt
 
-    tilts = np.zeros((nspat, nlines))      # The trace_fweight (or gweighed) tilts
-    tilts_fit = np.zeros((nspat, nlines))  # legendre polynomial fits to the tilt traces
-    tilts_err = np.zeros((nspat, nlines))   # errors on the tilts (only used for masking but not weighted fitting)
-    tilts_mask = np.zeros((nspat, nlines), dtype=bool)  # This is true if the pixel was in a region traced
-    tilts_spec = np.zeros((nspat, nlines)) # spectral position determined by evaluating the tilt fit at the center of the slit
-    tilts_spat = np.outer(np.arange(nspat), np.ones(nlines))  # spatial coordinate along each tilt
-    tilts_dspat= np.zeros_like(tilts_spat)  # delta position of the tilt in pixels, i.e. difference between slitcen and the spatial coordinate above
+    # Line centers (spectrally) as a function of spatial position in
+    # each slit/order
+    tilts = np.zeros((nspat, nlines))                   # Measured positions
+    tilts_err = np.zeros((nspat, nlines))               # Centroid measurement error
+    tilts_bpm = np.zeros((nspat, nlines), dtype=bool)   # Centroid measurement mask
+    tilts_fit = np.zeros((nspat, nlines))               # Polynomial fit positions
+    tilts_mask = np.zeros((nspat, nlines), dtype=bool)  # True if the centroid is traced
+    tilts_spec = np.zeros((nspat, nlines))              # Spectral position at the slit center
+                                                        #   determined by the model
+    tilts_spat = np.tile(np.arange(nspat, dtype=float), (nlines,1)).T   # Line spatial coordinate
+    tilts_dspat= np.zeros_like(tilts_spat)              # Change in spatial position for the line
+                                                        #   in pixels along the slit/order
 
-    # Transposed image and masks for traceing
+    # Transposed image and masks for tracing
     arcimg_trans = (arcimg * thismask).T
     inmask_trans = (inmask * thismask).T.astype(float)
     thismask_trans = thismask.T
@@ -242,18 +246,21 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         sub_inmask = inmask_trans[min_spat:max_spat,:]
         sub_thismask = thismask_trans[min_spat:max_spat,:]
         if do_crude:
-            # First time tracing, do a trace crude
-
             # NOTE: follow_centroid behaves differently from the old
             # trace_crude_init within 2-4 pixels at the trace edge
 
-            # Smooth the image
-            tilts_guess_now, _, _ \
-                    = trace.follow_centroid(utils.boxcar_smooth_rows(sub_img, tcrude_nave,
-                                                                     wgt=sub_inmask),
-                                            (sub_img.shape[0]-1)//2,
-                                            np.array([lines_spec[iline]]), ivar=sub_inmask,
-                                            width=2*fwhm, maxshift_start=tcrude_maxshift0,
+            # Constuct the line trace by following the line centroid as
+            # a function of spatial position along the slit.
+            # TODO: This also returns error estimates and a mask, but
+            # those weren't used in the previous version of the code.
+            smsub_img = utils.boxcar_smooth_rows(sub_img, tcrude_nave, wgt=sub_inmask)
+#            ivar = np.sqrt(smsub_img)
+            ivar = None
+            tilts_guess_now, tge, tgm \
+                    = trace.follow_centroid(smsub_img,
+                                            (sub_img.shape[0]-1)//2, lines_spec[iline], ivar=ivar,
+                                            bpm=np.invert(sub_inmask.astype(bool)), width=3*fwhm,
+                                            maxshift_start=tcrude_maxshift0,
                                             maxshift_follow=tcrude_maxshift,
                                             maxerror=tcrude_maxerr, continuous=False)
             tilts_guess_now = tilts_guess_now.flatten()
@@ -272,26 +279,42 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                 else:
                     tilts_guess_now = tilts_guess[:, iline]
 
-        # Boxcar extract the thismask to have a mask indicating whether a tilt is defined along the spatial direction
+        # Checks that virtually all the pixels in the window about the
+        # line to fit are *unmasked* for each spatial position. Note
+        # that sub_thismask is True for valid pixels.
         tilts_sub_mask_box = moment1d(sub_thismask, tilts_guess_now, fwhm)[0] > 0.99*fwhm
-        # If more than 80% of the pixels are masked, then don't mask at all. This happens when the traces leave the good
-        # part of the slit. If we proceed with everything masked the iter_tracefit fitting will crash.
+
+        # If more than 80% of the spatial pixels are masked, then don't
+        # mask at all. This happens when the traces leave the good part
+        # of the slit. If we proceed with everything masked the
+        # iter_tracefit fitting will crash. TODO: Check this is true
+        # with new trace.fit_trace function...
         if (np.sum(tilts_sub_mask_box) < 0.8*nsub):
             tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
-        # Do iterative flux weighted tracing and polynomial fitting to refine these traces. This must also be done in a loop
-        # since the sub image is different for every aperture, i.e. each aperature has its own image
-        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, _, tset_out \
+
+        # Do iterative flux-weighted tracing and polynomial fitting to
+        # refine these traces. This must also be done in a loop since
+        # the sub image is different for every aperture, i.e. each
+        # aperature has its own image.
+        tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, tset_out \
                 = trace.fit_trace(sub_img, tilts_guess_now, spat_order,
                                   bpm=np.invert(sub_inmask.astype(bool)),
                                   trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm,
                                   maxdev=maxdev, niter=6, idx=str(iline), debug=show_tracefits,
                                   xmin=0.0, xmax=float(nsub-1))
 
+        # Update the spatial positions to include based on the fitted
+        # line trace positions
         tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
-        if gauss: # If gauss is set, do a Gaussian refinement to the flux weighted tracing
+
+        # If gauss is set, do a Gaussian refinement to the
+        # flux-weighted tracing
+        if gauss:
+            # Re-check if spatial pixels should be unmasked.
             if (np.sum(tilts_sub_mask_box) < 0.8 * nsub):
                 tilts_sub_mask_box = np.ones_like(tilts_sub_mask_box)
-            tilts_sub_fit_gw, tilts_sub_gw, tilts_sub_err_gw, _, _ \
+            # Re-measure using Gaussian weighting and refit
+            tilts_sub_fit_out, tilts_sub_out, tilts_sub_err_out, tilts_sub_bpm_out, _ \
                     = trace.fit_trace(sub_img, tilts_sub_fit_out, spat_order,
                                       bpm=np.invert(sub_inmask.astype(bool)),
                                       trace_bpm=np.invert(tilts_sub_mask_box), 
@@ -299,19 +322,22 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                                       idx=str(iline), debug=show_tracefits, xmin=0.0,
                                       xmax=float(nsub-1))
 
-            tilts_sub_fit_out = tilts_sub_fit_gw
-            tilts_sub_out = tilts_sub_gw
-            tilts_sub_err_out = tilts_sub_err_gw
+        # TODO: Why is this done outside of the 'if gauss' block?
         tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
 
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip
 
         # This is the same for all cases since it is the evaluation of a fit
+        # TODO: Why is the TraceSet from the first fit used, even when
+        # `gauss=True`? I guess in the current usage `gauss` is always
+        # False...
         tilts_sub_fit[:, iline] = tset_out.xy(tilts_sub_spat[:, iline].reshape(1, nsub))[1]
 
         # We use the tset_out.xy to evaluate the trace across the whole sub-image even for pixels off the slit. This
         # guarantees that the fits are always evaluated across the whole sub-image which is required for the PCA step.
+
+        # TODO: Clean this up.
         if spat_min[iline] < 0:
             #tilts_sub[      -spat_min[iline]:,iline] = tilts_sub_out.flatten()
             #tilts_sub_err[  -spat_min[iline]:,iline] = tilts_sub_err_out.flatten()
@@ -320,6 +346,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts[     min_spat:max_spat,iline] = tilts_sub_out.flatten() # tilts_sub[     -spat_min[iline]:,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ -spat_min[iline]:,iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err_out.flatten() # tilts_sub_err[ -spat_min[iline]:,iline]
+            tilts_bpm[ min_spat:max_spat,iline] = tilts_sub_bpm_out.flatten()
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask_box.flatten() #tilts_sub_mask[-spat_min[iline]:,iline]
         elif spat_max[iline] > (nspat - 1):
             #tilts_sub[      :-(spat_max[iline] - nspat + 1),iline] = tilts_sub_out.flatten()
@@ -329,6 +356,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts[     min_spat:max_spat,iline] = tilts_sub_out.flatten() # tilts_sub[     :-(spat_max[iline] - nspat + 1),iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ :-(spat_max[iline] - nspat + 1),iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err_out.flatten() # tilts_sub_err[ :-(spat_max[iline] - nspat + 1),iline]
+            tilts_bpm[ min_spat:max_spat,iline] = tilts_sub_bpm_out.flatten() # tilts_sub_err[ :-(spat_max[iline] - nspat + 1),iline]
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask_box.flatten()  #tilts_sub_mask[:-(spat_max[iline] - nspat + 1),iline]
         else:
             #tilts_sub[      :,iline] = tilts_sub_out.flatten()
@@ -338,6 +366,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts[     min_spat:max_spat,iline] = tilts_sub_out.flatten() #tilts_sub[     :,iline]
             tilts_fit[ min_spat:max_spat,iline] = tilts_sub_fit[ :,iline]
             tilts_err[ min_spat:max_spat,iline] = tilts_sub_err_out.flatten() # tilts_sub_err[ :,iline]
+            tilts_bpm[ min_spat:max_spat,iline] = tilts_sub_bpm_out.flatten() # tilts_sub_err[ :,iline]
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask_box.flatten() #tilts_sub_mask[:,iline]
 
         # Now use these fits to the traces to get a more robust value of the tilt spectral position and spatial
@@ -369,13 +398,15 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
 
     # Create the mask for the bad lines. Define the error on the bad tilt as being the
-    bad_mask = (tilts_err > 900) | (tilts_mask == False)
-    on_slit = np.sum(tilts_mask,0)
-    on_slit_bad = np.sum((tilts_mask & (tilts_err > 900)),0)
+#    bad_mask = (tilts_err > 900) | (tilts_mask == False)
+    bad_mask = tilts_bpm | np.invert(tilts_mask)
+    on_slit = np.sum(tilts_mask, axis=0)
+    on_slit_bad = np.sum(tilts_mask & tilts_bpm, axis=0)
     bad_frac = on_slit_bad/on_slit
 
-    dev_mean, dev_median, dev_sig = sigma_clipped_stats(np.abs(tilts - tilts_fit), mask=bad_mask, sigma=4.0,axis=0)
-    good_line = np.any(bad_mask == False,axis=0) # Is it masked everywhere?
+    dev_mean, dev_median, dev_sig = sigma_clipped_stats(np.abs(tilts - tilts_fit), mask=bad_mask,
+                                                        sigma=4.0, axis=0)
+    good_line = np.any(np.invert(bad_mask), axis=0) # Is it masked everywhere?
     # Median absolute deviation for each line quantifies the goodnes of tracing
     dev_mad = 1.4826*dev_median
     # Now reject outliers from this distribution
@@ -400,19 +431,20 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         nuse = nlines
 
     # Tighten it up with Gaussian weighted centroiding
-    trc_tilt_dict = dict(nspec = nspec, nspat = nspat, nsub = nsub, nlines = nlines, nuse = nuse,
-                         spat_min=spat_min, spat_max=spat_max, do_crude=do_crude, fwhm = fwhm, use_tilt=use_tilt,
-                         tilts_sub_spat=tilts_sub_spat, tilts_sub_fit=tilts_sub_fit,
-                         tilts_mad = tilts_mad,tilts_spec=tilts_spec, tilts_spat=tilts_spat, tilts_dspat=tilts_dspat,
-                         tilts=tilts, tilts_fit=tilts_fit, tilts_err=tilts_err, tilts_mask=tilts_mask)
+    # TODO: Is the above comment a TODO?
+    # TODO: Create a class for this stuff
+    return dict(nspec=nspec, nspat=nspat, nsub=nsub, nlines=nlines, nuse=nuse, spat_min=spat_min, 
+                spat_max=spat_max, do_crude=do_crude, fwhm=fwhm, use_tilt=use_tilt,
+                tilts_sub_spat=tilts_sub_spat, tilts_sub_fit=tilts_sub_fit, tilts_mad=tilts_mad,
+                tilts_spec=tilts_spec, tilts_spat=tilts_spat, tilts_dspat=tilts_dspat, tilts=tilts,
+                tilts_fit=tilts_fit, tilts_err=tilts_err, tilts_bpm=tilts_bpm,
+                tilts_mask=tilts_mask)
 
-    return trc_tilt_dict
 
-
-def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False, fwhm=4.0,spat_order=5, maxdev_tracefit=0.2,
-                sigrej_trace=3.0, max_badpix_frac=0.70, tcrude_nave = 5,
-                npca = 2, coeff_npoly_pca = 2, sigrej_pca = 2.0,debug_pca = False, show_tracefits=False):
-
+def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False,
+                fwhm=4.0, spat_order=5, maxdev_tracefit=0.2, sigrej_trace=3.0,
+                max_badpix_frac=0.30, tcrude_nave=5, npca=2, coeff_npoly_pca=2, sigrej_pca=2.0,
+                debug_pca=False, show_tracefits=False):
     """
     Use a PCA model to determine the best object (or slit edge) traces for echelle spectrographs.
 
@@ -469,27 +501,30 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     Returns:
     --------
     """
-
     tcrude_maxerr = fwhm/4.0
     tcrude_maxshift = 3.0*fwhm/4.0
     tcrude_maxshift0 = fwhm
 
-    trace_dict0 = trace_tilts_work(
-        arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=inmask, gauss=gauss, tilts_guess=None, fwhm=fwhm, spat_order=spat_order,
-        maxdev_tracefit=maxdev_tracefit,sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
-        tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,tcrude_maxshift0=tcrude_maxshift0,
-        tcrude_nave=tcrude_nave, show_tracefits=show_tracefits)
+    trace_dict0 = trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen,
+                                   inmask=inmask, gauss=gauss, tilts_guess=None, fwhm=fwhm,
+                                   spat_order=spat_order, maxdev_tracefit=maxdev_tracefit,
+                                   sigrej_trace=sigrej_trace, max_badpix_frac=max_badpix_frac,
+                                   tcrude_maxerr=tcrude_maxerr, tcrude_maxshift=tcrude_maxshift,
+                                   tcrude_maxshift0=tcrude_maxshift0, tcrude_nave=tcrude_nave,
+                                   show_tracefits=show_tracefits)
 
-    # TODO THE PCA may not be necessary. It appears to improve the results though for some instruments where the
-    # tracing is problematic. We could consider making this optional to speed things up.
+    # TODO: The PCA may not be necessary. It appears to improve the
+    # results though for some instruments where the tracing is
+    # problematic. We could consider making this optional to speed
+    # things up.
     debug_pca_fit = False
     if debug_pca_fit:
         # !!!! FOR TESTING ONLY!!!!  Evaluate the model fit to the tilts for all of our lines
         msgs.info('TESTING: Performing an initial fit before PCA.')
         # JFH Note spec_order is hard wired here as we don't pass it in
         tilt_fit_dict0 = fit_tilts(trace_dict0, spat_order=spat_order, spec_order=6, debug=True,
-                                   maxdev=0.2, sigrej=3.0,doqa=True, setup='test', slit=0, show_QA=True)
-
+                                   maxdev=0.2, sigrej=3.0, doqa=True, setup='test', slit=0,
+                                   show_QA=True)
 
     # Do a PCA fit, which rejects some outliers
     iuse = trace_dict0['use_tilt']
@@ -503,20 +538,16 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
                                         upper=sigrej_pca, debug=debug_pca)
 
     # Now trace again with the PCA predictions as the starting crutches
-    trace_dict1 = trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=inmask, gauss=gauss, tilts_guess=pca_fit,
-                                      fwhm=fwhm, spat_order=spat_order, maxdev_tracefit=maxdev_tracefit,sigrej_trace=sigrej_trace,
-                                      max_badpix_frac=max_badpix_frac,show_tracefits=show_tracefits)
+    return trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=inmask,
+                            gauss=gauss, tilts_guess=pca_fit, fwhm=fwhm, spat_order=spat_order,
+                            maxdev_tracefit=maxdev_tracefit, sigrej_trace=sigrej_trace,
+                            max_badpix_frac=max_badpix_frac, show_tracefits=show_tracefits)
 
-    return trace_dict1
 
-
-def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev = 0.2,
-              maxrej = None,
-              maxiter = 100, sigrej = 3.0, pad_spec = 30, pad_spat =5,
-              func2d='legendre2d', doqa=True, master_key='test',
-              slit = 0, show_QA=False, out_dir=None, debug=False):
+def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
+              maxrej=None, maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
+              doqa=True, master_key='test', slit=0, show_QA=False, out_dir=None, debug=False):
     """
-
     Parameters
     ----------
     trc_tilt_dict: dict
@@ -551,6 +582,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     tilts = trc_tilt_dict['tilts']   # legendre polynomial fit
     #JFH Before we were fitting the fits. Now we fit the actual flux weighted centroided tilts.
     tilts_err = trc_tilt_dict['tilts_err']   # flux weighted centroidding error
+    tilts_bpm = trc_tilt_dict['tilts_bpm']   # centroid bad-pixel mask
     tilts_dspat = trc_tilt_dict['tilts_dspat'] # spatial offset from the central trace
     #tilts_spat = trc_tilt_dict['tilts_dspat'][:,use_tilt] # spatial offset from the central trace
     tilts_spec = trc_tilt_dict['tilts_spec'] # line spectral pixel position from legendre fit evaluated at slit center
@@ -558,7 +590,8 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     tilts_mad = trc_tilt_dict['tilts_mad']   # quantitfies aggregate error of this tilt
 
     use_mask = np.outer(np.ones(nspat,dtype=bool),use_tilt)
-    tot_mask = tilts_mask & (tilts_err < 900) & use_mask
+#    tot_mask = tilts_mask & (tilts_err < 900) & use_mask
+    tot_mask = tilts_mask & np.invert(tilts_bpm) & use_mask
     fitxy = [spec_order, spat_order]
 
     # Fit the inverted model with a 2D polynomial
@@ -587,6 +620,9 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Add the 2d fit to the tracetilt dictionary
     trc_tilt_dict_out = copy.deepcopy(trc_tilt_dict)
     trc_tilt_dict_out['tilt_2dfit'] = tilts_2dfit
+    # TODO: Temporarily adding tot_mask and fit_mask
+    trc_tilt_dict_out['tot_mask'] = tot_mask
+    trc_tilt_dict_out['fit_mask'] = fitmask
 
     # Report the residuals in pixels
     res_fit = tilts[fitmask] - tilts_2dfit[fitmask]

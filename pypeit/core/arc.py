@@ -433,6 +433,67 @@ def resize_spec(spec_from, nspec_to):
     return spec_to
 
 
+#def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
+#                nonlinear_counts=1e10):
+#    """
+#    Extract a boxcar spectrum down the center of the slit
+#
+#    Args:
+#        slit_cen (np.ndarray):
+#            Trace down the center of the slit
+#        slitmask (np.ndarray):
+#        arcimg (np.ndarray):
+#            Image to extract the arc from. This should be an arcimage or perhaps a frame with night sky lines.
+#        gpm (np.ndarray, optional):
+#            Input mask image with same shape as arcimg. Convention True = good and False = bad. The default is None.
+#        box_rad (float, optional):
+#            Size of boxcar window in pixels (as a floating point number) in the spatial direction used to extract the arc.
+#        nonlinear_counts (float, optional):
+#            Values exceeding this input value are masked as bad
+#
+#    Returns:
+#        tuple:
+#            A tuple containing the (arc_spec, maskslit)
+#
+#            arc_spec: float ndarray with shape (nspec, nslits)
+#                Array containing the extracted arc spectrum for each slit.
+#
+#            maskslit: int ndarray with shape (nslits)
+#               output mask indicating whether a slit is good or bad. 0 = good, 1 = bad.
+#
+#    """
+#    if gpm is None:
+#        gpm = slitmask > -1
+#
+#    # Mask saturated parts of the arc image for the extraction
+#    gpm = gpm & (arcimg < nonlinear_counts)
+#
+#    nslits = slit_cen.shape[1]
+#    (nspec, nspat) = arcimg.shape
+#
+#    maskslit = np.zeros(nslits, dtype=np.int)
+#    arc_spec = np.zeros((nspec, nslits))
+#    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
+#
+#    for islit in range(nslits):
+#        msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
+#        # Create a mask for the pixels that will contribue to the arc
+#        slit_img = np.outer(slit_cen[:,islit], np.ones(nspat))  # central trace replicated spatially
+#        arcmask = (slitmask > -1) & gpm & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
+#        # Trimming the image makes this much faster
+#        left = np.fmax(spat_img[arcmask].min() - 4,0)
+#        righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
+#        # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix. 
+#        this_mean, this_med, this_sig = stats.sigma_clipped_stats(
+#            arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ]), sigma=3.0, axis=1)
+#        imask = np.isnan(this_med)
+#        this_med[imask]=0.0
+#        arc_spec[:,islit] = this_med
+#        if not np.any(arc_spec[:,islit]):
+#            maskslit[islit] = 1
+#
+#    return arc_spec, maskslit
+#
 def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
                 nonlinear_counts=1e10):
     """
@@ -462,39 +523,34 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
                output mask indicating whether a slit is good or bad. 0 = good, 1 = bad.
 
     """
-    if gpm is None:
-        gpm = slitmask > -1
-
+    # Initialize the good pixel mask
+    _gpm = slitmask > -1 if gpm is None else gpm & (slitmask > -1)
     # Mask saturated parts of the arc image for the extraction
-    gpm = gpm & (arcimg < nonlinear_counts)
+    _gpm = _gpm & (arcimg < nonlinear_counts)
 
+    # Inialize output
+    arc_spec = np.zeros(slit_cen.shape, dtype=float)
+
+    # Iterate over slits
     nslits = slit_cen.shape[1]
-    (nspec, nspat) = arcimg.shape
-
-    maskslit = np.zeros(nslits, dtype=np.int)
-    arc_spec = np.zeros((nspec, nslits))
-    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
-
+    nspat = arcimg.shape[1]
+    spat = np.arange(nspat)
     for islit in range(nslits):
         msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
         # Create a mask for the pixels that will contribue to the arc
-        slit_img = np.outer(slit_cen[:,islit], np.ones(nspat))  # central trace replicated spatially
-        arcmask = (slitmask > -1) & gpm & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
+        arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
-        left = np.fmax(spat_img[arcmask].min() - 4,0)
-        righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
+        indx = np.nonzero(np.any(arcmask, axis=0))[0]
+        left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix. 
-        this_mean, this_med, this_sig = stats.sigma_clipped_stats(
-            arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ]), sigma=3.0, axis=1)
-        imask = np.isnan(this_med)
-        this_med[imask]=0.0
-        arc_spec[:,islit] = this_med
-        if not np.any(arc_spec[:,islit]):
-            maskslit[islit] = 1
+        arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
+                                                      mask=np.invert(arcmask[:,left:right]),
+                                                      sigma=3.0, axis=1)[1]
 
-    return arc_spec, maskslit
-
-
+    # Get the mask, set the masked values to 0, and return
+    arc_spec_bpm = np.isnan(arc_spec)
+    arc_spec[arc_spec_bpm] = 0.0
+    return arc_spec, arc_spec_bpm, np.all(arc_spec_bpm, axis=0)
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):

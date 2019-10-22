@@ -307,7 +307,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Do it
-        arccen, arc_maskslit = arc.get_censpec(
+        arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
             self.slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm)  #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
         # Step
