@@ -13,7 +13,7 @@ matplotlib.use('Qt5Agg')
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import fitting, waveio, wvutils
-from pypeit import msgs
+from pypeit import utils, msgs
 
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
@@ -38,7 +38,7 @@ class Identify(object):
     file.
     """
 
-    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, slit=0):
+    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=0):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -48,10 +48,11 @@ class Identify(object):
             canvas (Matploltib figure canvas): The canvas on which all axes are contained
             axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
             spec (Line2D): Matplotlib Line2D instance which contains plotting information of the plotted arc spectrum
-            specres (list): Three element list of Matplotlib Line2D/path instances, used for residuals plotting
+            specres (dict): Three element list of Matplotlib Line2D/path instances, used for residuals plotting
             detns (ndarray): Detections from the arc spectrum
             line_lists (Table): Contains information about the line list to be used for wavelength calibration
             par (WavelengthSolutionPar): Calibration parameters
+            lflag_color (list): List of colors used for plotting
             slit (int): The slit to be used for wavelength calibration
         """
         # Store the axes
@@ -69,11 +70,15 @@ class Identify(object):
         self._lines = np.sort(line_lists['wave'].data)  # Remove mask (if any) and then sort
         self._lineids = np.zeros(self._detns.size, dtype=np.float)
         self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
+        self._lflag_color = lflag_color
         self.par = par
         # Fitting properties
         self._fitdict = dict(polyorder=1,
                              scale=self.specdata.size-1,
-                             coeff=None)
+                             coeff=None,
+                             fitc=None,
+                             res_stats=[]
+                             )
         # Initialise the residuals colormap
         residcmap = LinearSegmentedColormap.from_list("my_list", ['grey', 'blue', 'orange', 'red'], N=4)
         self.residmap = ScalarMappable(norm=Normalize(vmin=0, vmax=3), cmap=residcmap)
@@ -193,7 +198,7 @@ class Identify(object):
         ymn, ymx = self.axes['main'].get_ylim()
         w = np.where((self._detns > xmn) & (self._detns < xmx))[0]
         for i in range(w.size):
-            if self._lineflg[w[i]] != 1:
+            if self._lineflg[w[i]] in [0, 3]:
                 if w[i] == self._detns_idx:
                     self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
                 else:
@@ -203,7 +208,8 @@ class Identify(object):
                 if w[i] == self._detns_idx:
                     self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
                 else:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='b'))
+                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]],
+                                                                   color=self._lflag_color[self._lineflg[w[i]]]))
                 txt = "{0:.2f}".format(self._lineids[w[i]])
                 self.anntexts.append(
                     self.axes['main'].annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
@@ -213,34 +219,52 @@ class Identify(object):
         """Update the subplots that show the residuals
         """
         if self._fitdict["coeff"] is None:
-            nid = np.where(self._lineflg==1)[0].size
+            nid = np.where((self._lineflg == 1) | (self._lineflg == 2))[0].size
             msg = "Cannot plot residuals until more lines have been identified\n" +\
                   "Polynomial order = {0:d}, Number of line IDs = {1:d}".format(self._fitdict["polyorder"], nid)
             self.update_infobox(message=msg, yesno=False)
         else:
-            # NOTE: self.specres = [respts, resfit, resres]
+            # Remove the annotated residual statistics
+            for i in self._fitdict["res_stats"]:
+                i.remove()
+            self._fitdict["res_stats"] = []
 
-            # Perform model fits
-            wavefit = self.fitsol_value(xfit=self.specx)
-            wavevals = self.fitsol_value()
-            resvals = (self._lineids - wavevals.copy()) / self.fitsol_deriv()
+            # Extract the fitting info
+            wave_soln = self._fitdict['wave_soln']
+            pixel_fit = self._detns
+            wave_fit = self._lineids
+            xnorm = self._fitdict['xnorm']
+            ymin, ymax = np.min(wave_soln[wave_soln != 0.0]) * .95, np.max(wave_soln) * 1.05
 
-            # Set identified/predicted  line wavelengths
-            wid = self._lineids != 0.0
-            wavevals[wid] = self._lineids[wid]
-            self._lineflg[self._lineids == 0.0] = 2
+            # Calculate some stats
+            wave_soln_fit = utils.func_val(self._fitdict['fitc'],
+                                           pixel_fit / xnorm,
+                                           self._fitdict["function"],
+                                           minx=self._fitdict['fmin'],
+                                           maxx=self._fitdict['fmax'])
+            dwv_pix = np.median(np.abs(wave_soln - np.roll(wave_soln, 1)))
+            resvals = (wave_fit - wave_soln_fit) / dwv_pix
 
             # Pixel vs wavelength
-            self.specres[0].set_offsets(np.vstack((self._detns, wavevals)).T)
-            self.specres[1].set_ydata(wavefit)
-            self.axes['fit'].set_ylim((np.min(wavevals), np.max(wavevals)))
-            self.specres[0].set_color(self.residmap.to_rgba(self._lineflg))
+            self.specres['pixels'].set_offsets(np.c_[pixel_fit, wave_fit])
+            self.specres['model'].set_ydata(wave_soln)
+            self.axes['fit'].set_ylim((ymin, ymax))
+            self.specres['pixels'].set_color(self.residmap.to_rgba(self._lineflg))
 
             # Pixel residuals
-            wfl = self._lineflg == 1
-            self.specres[2].set_offsets(np.vstack((self._detns[wid], resvals[wid])).T)
-            self.axes['resid'].set_ylim((np.min(resvals[wfl]), np.max(resvals[wfl])))
-            self.specres[2].set_color(self.residmap.to_rgba(self._lineflg))
+            self.specres['resid'].set_offsets(np.c_[pixel_fit, resvals])
+            self.axes['resid'].set_ylim((-1.0, 1.0))
+            self.specres['resid'].set_color(self.residmap.to_rgba(self._lineflg))
+
+            # Write some statistics on the plot
+            disptxt = r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix)
+            rmstxt = 'RMS={:.3f} (pixels)'.format(self._fitdict['rms'])
+            self._fitdict["res_stats"].append(self.axes['fit'].text(0.1 * self.specdata.size,
+                                                                    ymin + 0.90 * (ymax - ymin),
+                                                                    disptxt, size='small'))
+            self._fitdict["res_stats"].append(self.axes['fit'].text(0.1 * self.specdata.size,
+                                                                    ymin + 0.80 * (ymax - ymin),
+                                                                    rmstxt, size='small'))
 
     def draw_callback(self, event):
         """Draw the lines and annotate with their IDs
@@ -341,7 +365,7 @@ class Identify(object):
             # Perform an initial fit to the user IDs
             self.fitsol_fit()
             # Now perform a detailed fit
-            gd_det = np.where(self._lineflg == 1)[0]
+            gd_det = np.where((self._lineflg == 1) | (self._lineflg == 2))[0]
             bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
             try:
                 final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det,
@@ -514,7 +538,7 @@ class Identify(object):
             else:
                 msgs.work("Feature not yet implemented")
         elif key == 'w':
-            self.write()
+            msgs.work("Feature not yet implemented")
         elif key == 'z':
             self.delete_line_id()
         elif key == '+':
@@ -541,20 +565,24 @@ class Identify(object):
         Using the current line IDs and approximate wavelength solution,
         automatically assign a wavelength to all line detections.
         """
-        self.fitsol_fit()
-        wave_est = self.fitsol_value()
-        disp_est = self.fitsol_deriv()
+
+        # If the IDs are within an acceptable tolerance, flag them as such
+        wave_est = utils.func_val(self._fitdict['fitc'],
+                                  self._detns / self._fitdict['xnorm'],
+                                  self._fitdict["function"],
+                                  minx=self._fitdict['fmin'],
+                                  maxx=self._fitdict['fmax'])
         for wav in range(wave_est.size):
             if self._lineflg[wav] == 1:
                 # User has manually identified this line already
                 continue
             pixdiff = np.abs(wave_est[wav]-self._lines)
             amin = np.argmin(pixdiff)
-            pxtst = pixdiff[amin]/disp_est[wav]
+            pxtst = pixdiff[amin]/self._fitdict['cen_disp']
             self._lineids[wav] = self._lines[amin]
-            if pxtst < self.par['match_toler']:
+            if pxtst < 0.1:
                 # Acceptable
-                self._lineflg[wav] = 1
+                self._lineflg[wav] = 2
             else:
                 # Unacceptable
                 self._lineflg[wav] = 3
@@ -614,16 +642,41 @@ class Identify(object):
     def fitsol_fit(self):
         """Perform a fit to the line identifications
         """
+        # Calculate the dispersion
+        # disp = (ids[-1] - ids[0]) / (tcent[idx_str[-1]] - tcent[idx_str[0]])
+        # final_fit = fitting.iterative_fitting(censpec, tcent, idx_str, ids,
+        #                                       llist, disp, verbose=False,
+        #                                       n_first=2, n_final=self._fitdict["polyorder"])
         ord = self._fitdict["polyorder"]
-        wfit = np.where(self._lineflg == 1)  # Use the user IDs only!
-        if ord+1 <= wfit[0].size:
-            xpix = self._detns[wfit]/self._fitdict["scale"]
-            ylam = self._lineids[wfit]
-            self._fitdict["coeff"] = np.polyfit(xpix, ylam, ord)
-        else:
+        gd_det = np.where((self._lineflg == 1) | (self._lineflg == 2))  # Use the user IDs or acceptable auto IDs only!
+        # Check if there are enough points to perform a fit
+        if gd_det[0].size < ord+1:
             msg = "Polynomial order must be >= number of line IDs\n" +\
-                  "Polynomial order = {0:d}, Number of line IDs = {1:d}".format(ord, wfit[0].size)
+                  "Polynomial order = {0:d}, Number of line IDs = {1:d}".format(ord, gd_det[0].size)
             self.update_infobox(message=msg, yesno=False)
+        else:
+            # Start by performing a basic fit
+            xpix = self._detns[gd_det] / self._fitdict["scale"]
+            ylam = self._lineids[gd_det]
+            self._fitdict["coeff"] = np.polyfit(xpix, ylam, ord)
+            bdisp = self.fitsol_deriv(self.specdata.size / 2)  # Angstroms/pixel at the centre of the spectrum
+            # Then try a detailed fit
+            try:
+                final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det[0],
+                                                      self._lineids[gd_det[0]], self._line_lists, bdisp,
+                                                      verbose=False, n_first=min(2, self._fitdict["polyorder"]),
+                                                      match_toler=self.par['match_toler'],
+                                                      func=self.par['func'],
+                                                      n_final=self._fitdict["polyorder"],
+                                                      sigrej_first=self.par['sigrej_first'],
+                                                      sigrej_final=self.par['sigrej_final'])
+                # Update the fitdict
+                for key in final_fit:
+                    self._fitdict[key] = final_fit[key]
+
+            except TypeError:
+                # Just stick use the basic fit
+                self._fitdict["fitc"] = None
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
@@ -709,13 +762,16 @@ def initialise(arccen, slit=0, par=None):
     axfit = fig.add_axes([0.7, .5, .28, 0.35])
     axres = fig.add_axes([0.7, .1, .28, 0.35])
     # Residuals
-    residcmap = LinearSegmentedColormap.from_list("my_list", ['grey', 'blue', 'orange', 'red'], N=4)
+    lflag_color = ['grey', 'blue', 'yellow', 'red']
+    residcmap = LinearSegmentedColormap.from_list("my_list", lflag_color, N=len(lflag_color))
     resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
     axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
     axres.axhline(0.0, color='r', linestyle='-')  # Zero level
     axres.set_xlim((0, arccen.size - 1))
     axres.set_ylim((-0.3, 0.3))
+    axres.set_xlabel('Pixel')
+    axres.set_ylabel('Residuals (Pix)')
 
     # pixel vs wavelength
     respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
@@ -724,6 +780,8 @@ def initialise(arccen, slit=0, par=None):
     axfit.add_line(resfit)
     axfit.set_xlim((0, arccen.size - 1))
     axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
+    axfit.set_xlabel('Pixel')
+    axfit.set_ylabel('Wavelength')
 
     # Add an information GUI axis
     axinfo = fig.add_axes([0.15, .92, .7, 0.07])
@@ -733,12 +791,12 @@ def initialise(arccen, slit=0, par=None):
              horizontalalignment='center', verticalalignment='center')
     axinfo.set_xlim((0, 1))
     axinfo.set_ylim((0, 1))
-    specres = [respts, resfit, resres]
+    specres = dict(pixels=respts, model=resfit, resid=resres)
 
     axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
     # Initialise the identify window and display to screen
     fig.canvas.set_window_title('PypeIt - Identify')
-    ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, slit=slit)
+    ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit)
     plt.show()
 
     # Now return the results

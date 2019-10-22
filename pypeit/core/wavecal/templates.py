@@ -26,7 +26,11 @@ from pypeit import debugger
 #  flux -- Arc spectrum flux values
 #
 # Meta must include BINNING of the template with 1=native
-template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
+if os.getenv('PYPEIT_DEV') is not None:
+    template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
+else:
+    # print("You may wish to set the PYPEIT_DEV environment variable")
+    pass
 
 outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
