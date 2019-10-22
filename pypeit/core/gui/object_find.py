@@ -32,7 +32,7 @@ class ObjFindGUI(object):
     file.
     """
 
-    def __init__(self, canvas, axes, frame, sobjs):
+    def __init__(self, canvas, image, axes):
         """Controls for the interactive Object ID tasks in PypeIt.
 
         The main goal of this routine is to interactively add/delete
@@ -43,6 +43,7 @@ class ObjFindGUI(object):
             axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
         """
         # Store the axes
+        self.image = image
         self.axes = axes
         # Initialise the residuals colormap
         residcmap = LinearSegmentedColormap.from_list("my_list", ['grey', 'blue', 'orange', 'red'], N=4)
@@ -227,6 +228,8 @@ class ObjFindGUI(object):
         self.draw_objtraces()
         self.canvas.draw()
 
+#self.image.set_clim(vmin=10, vmax=100)
+
     def key_press_callback(self, event):
         """What to do when a key is pressed
 
@@ -318,7 +321,7 @@ class ObjFindGUI(object):
         self.axes['info'].set_ylim((0, 1))
         self.canvas.draw()
 
-def initialise(frame, sobjs):
+def initialise(frame, slit_left, slit_righ, sobjs, slit_ids=None):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
 
         Args:
@@ -328,11 +331,30 @@ def initialise(frame, sobjs):
         Returns:
             ofgui (ObjFindGUI): Returns an instance of the ObjFindGUI class
     """
+    # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
+    # vectors of size (nspec)
+    if slit_left.ndim == 2:
+        nslit = slit_left.shape[1]
+        lordloc = slit_left
+        rordloc = slit_righ
+    else:
+        nslit = 1
+        lordloc = slit_left.reshape(slit_left.size,1)
+        rordloc = slit_righ.reshape(slit_righ.size,1)
+
+    if slit_ids is None:
+        slit_ids = [str(slit) for slit in np.arange(nslit)]
+
+    # Determine the scale of the image
+    med = np.median(frame)
+    mad = np.median(np.abs(frame-med))
+    vmin = med-3*mad
+    vmax = med+3*mad
 
     # Add the main figure axis
     fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
     plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.85)
-    ax.imshow(frame)
+    image = ax.imshow(frame, aspect=frame.shape[1]/frame.shape[0], cmap = 'Greys', vmin=vmin, vmax=vmax)
 
     # Add an information GUI axis
     axinfo = fig.add_axes([0.15, .92, .7, 0.07])
@@ -346,7 +368,15 @@ def initialise(frame, sobjs):
     axes = dict(main=ax, info=axinfo)
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Object Tracing')
-    ofgui = ObjFindGUI(fig.canvas, axes, frame, sobjs)
+    ofgui = ObjFindGUI(fig.canvas, image, axes)
     plt.show()
 
     return ofgui
+
+
+if __name__ == '__main__':
+    dirname = "/Users/rcooke/Work/Research/vmp_DLAs/observing/WHT_ISIS_2019B/N1/wht_isis_blue_U/"
+    frame = np.load(dirname+"frame.npy")
+    slit_left = np.load(dirname + "slitleft.npy")
+    slit_righ = np.load(dirname + "slitrigh.npy")
+    initialise(frame, slit_left, slit_righ, None)
