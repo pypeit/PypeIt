@@ -175,7 +175,7 @@ def add_user_edges(lcen, rcen, add_slits):
 
     # Loop me
     for new_slit in add_slits:
-        msgs.info("Adding a user-defined slit [x0, x1, yrow]:  {}".format(new_slit))
+        msgs.info("Adding a user-defined slit [yrow, x0, x1]:  {}".format(new_slit))
         # Parse
         y_spec, x_spat0, x_spat1 = new_slit
 

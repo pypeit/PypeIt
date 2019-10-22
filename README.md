@@ -25,6 +25,7 @@ https://github.com/pypeit/PypeIt/issues/676)
 * Keck/NIRSPEC (low-dispersion)
 * VLT/X-Shooter
 * VLT/FORS2
+* WHT/ISIS
 
 # Requirements
 
