@@ -47,6 +47,8 @@
 - Added several from_master_file() instantiation methods
 - Use coadd2d.weighted_combine() to stack calibration images
 - Major refactor of slit edge tracing
+- Added 'Identify' tool to allow manual identification and calibration of an arc spectrum
+- Added support for WHT/ISIS
 
 0.11.0 (22 Jun 2019)
 --------------------

@@ -14,7 +14,7 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa, pixels
-from pypeit.core.wavecal import autoid, waveio
+from pypeit.core.wavecal import autoid, waveio, identify, templates
 from pypeit.core import trace_slits
 
 from pypeit import debugger
@@ -154,6 +154,7 @@ class WaveCalib(masterframe.MasterFrame):
               'arclines' -- arc.calib_with_arclines
               'holy-grail' -- wavecal.autoid.HolyGrail
               'reidentify' -- wavecal.auotid.ArchiveReid
+              'identify' -- wavecal.identify.Identify
               'full_template' -- wavecal.auotid.full_template
             skip_QA (bool, optional)
 
@@ -204,6 +205,26 @@ class WaveCalib(masterframe.MasterFrame):
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
+        elif method == 'identify':
+            # Manually identify lines
+            msgs.info("Initializing the wavelength calibration tool")
+            # Todo : Generalise to multislit case
+            arcfitter = identify.initialise(arccen, par=self.par)
+            final_fit = arcfitter.get_results()
+            slit = 0
+            if final_fit[str(slit)] is not None:
+                ans = 'y'
+                # ans = ''
+                # while ans != 'y' and ans != 'n':
+                #     ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
+                if ans == 'y' and final_fit[str(slit)]['rms'] < 0.1:
+                    # Store the results in the user reid arxiv
+                    specname = self.spectrograph.spectrograph
+                    gratname = "UNKNOWN"  # input("Please input the grating name: ")
+                    dispangl = "UNKNOWN"  # input("Please input the dispersion angle: ")
+                    templates.pypeit_identify_record(final_fit[str(slit)], self.binspectral, specname, gratname, dispangl)
+                    msgs.info("Your wavelength solution has been stored")
+                    msgs.info("Please consider sending your solution to the PYPEIT team!")
         elif method == 'reidentify':
             # Now preferred
             # Slit positions

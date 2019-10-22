@@ -413,6 +413,18 @@ class Calibrations(object):
 
         # Save & return
         self._update_cache('bias', 'bias', self.msbias)
+
+        # If we need to make a bad pixel mask using the bias frames, do it now
+        if self.par['badpix']:
+            # Instantiate the shape here, based on the shape of the bias image
+            self.shape = self.msbias.shape
+
+            # Build it
+            self.msbpm = self.spectrograph.bpm(shape=self.shape, det=self.det, msbias=self.msbias)
+
+            # Record it
+            self._update_cache('bpm', 'bpm', self.msbpm)
+
         return self.msbias
 
     def get_bpm(self):
