@@ -333,27 +333,30 @@ class ObjFindGUI(object):
         self.axes['info'].set_ylim((0, 1))
         self.canvas.draw()
 
-def initialise(frame, slit_left, slit_righ, sobjs, slit_ids=None):
+def initialise(frame, trace_dict, sobjs, slit_ids=None):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
 
         Args:
             frame (ndarray): Sky subtracted science image
+            trace_dict (dict): Dictionary containing slit and object trace information
             sobjs (SpecObjs): SpecObjs Class
+            slit_ids (list): List of slit ID numbers
 
         Returns:
             ofgui (ObjFindGUI): Returns an instance of the ObjFindGUI class
     """
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
-    if slit_left.ndim == 2:
-        nslit = slit_left.shape[1]
-        lordloc = slit_left
-        rordloc = slit_righ
+    if trace_dict['edges_l'].ndim == 2:
+        nslit = trace_dict['edges_l'].shape[1]
+        lordloc = trace_dict['edges_l']
+        rordloc = trace_dict['edges_r']
     else:
         nslit = 1
-        lordloc = slit_left.reshape(slit_left.size,1)
-        rordloc = slit_righ.reshape(slit_righ.size,1)
+        lordloc = trace_dict['edges_l'].reshape((trace_dict['edges_l'].size, 1))
+        rordloc = trace_dict['edges_r'].reshape((trace_dict['edges_r'].size, 1))
 
+    # Assign the slit IDs if none were provided
     if slit_ids is None:
         slit_ids = [str(slit) for slit in np.arange(nslit)]
 
@@ -367,6 +370,12 @@ def initialise(frame, slit_left, slit_righ, sobjs, slit_ids=None):
     fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
     plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.85)
     image = ax.imshow(frame, aspect=frame.shape[1]/frame.shape[0], cmap = 'Greys', vmin=vmin, vmax=vmax)
+
+    # Overplot the slit traces
+    specarr = np.arange(lordloc.shape[0])
+    for sl in range(nslit):
+        ax.plot(lordloc[:, sl], specarr, 'g-')
+        ax.plot(rordloc[:, sl], specarr, 'r-')
 
     # Add an information GUI axis
     axinfo = fig.add_axes([0.15, .92, .7, 0.07])
@@ -391,4 +400,5 @@ if __name__ == '__main__':
     frame = np.load(dirname+"frame.npy")
     slit_left = np.load(dirname + "slitleft.npy")
     slit_righ = np.load(dirname + "slitrigh.npy")
-    initialise(frame, slit_left, slit_righ, None)
+    trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, trace_model=slit_left)
+    initialise(frame, trace_dict, None, slit_ids=None)

@@ -1875,15 +1875,23 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     nobj = len(sobjs)
     # If there are no regular aps and no hand aps, open a GUI to interactively select apertures
-    import pdb
-    pdb.set_trace()
-    if nobj == 0:
+    interactive_tracing = True
+    if nobj == 0 or interactive_tracing:
+        import pdb
+        pdb.set_trace()
+        # Decide how to assign a trace to the manual objects
+        if nobj_reg > 0:  # Use brightest object on slit?
+            smash_peakflux = sobjs.smash_peakflux
+            ibri = smash_peakflux.argmax()
+            trace_model = sobjs[ibri].trace_spat
+        elif std_trace is not None:   # If no objects found, use the standard?
+            trace_model = std_trace
+        else:  # If no objects or standard use the slit boundary
+            trace_model = slit_left
         msgs.warn("No objects were found!")
         msgs.info("Initializing the object tracing tool")
-        np.save("frame", image*(thismask*inmask))
-        np.save("slitleft", slit_left.T)
-        np.save("slitrigh", slit_righ.T)
-        gui_object_find.initialise(image*(thismask*inmask), slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
+        trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, trace_model=trace_model)
+        gui_object_find.initialise(image*(thismask*inmask), trace_dict, sobjs=sobjs, slit_ids=sobjs[0].slitid)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     if nobj_reg > 0 and hand_extract_dict is not None:
