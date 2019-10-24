@@ -1901,6 +1901,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # Generate a dictionary containing all of the information needed for interactive tracing
         trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, trace_model=trace_model_dict, sobj_par=sobj_par)
         # Initialise GUI
+        # import pickle
+        # with open('sobjs.pkl', 'wb') as f: pickle.dump(sobjs, f, pickle.HIGHEST_PROTOCOL)
+        # with open('trace_dict.pkl', 'wb') as f: pickle.dump(trace_dict, f, pickle.HIGHEST_PROTOCOL)
         gui_object_find.initialise(image*(thismask*inmask), trace_dict, sobjs=sobjs, slit_ids=sobjs[0].slitid)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES

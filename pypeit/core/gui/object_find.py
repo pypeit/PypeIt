@@ -104,10 +104,14 @@ class ObjFindGUI(object):
         self.objtraces = []
         # Plot the object traces
         for iobj in range(self.specobjs.nobj):
+            if iobj == 0:
+                spectrc = np.arange(self.specobjs[0].trace_spat.size)
             if iobj == self._obj_idx:
-                self.objtraces.append(self.axes['main'].plot(, sobjs[iobj].trace_spat, color='r--', alpha=0.5))
+                self.objtraces.append(self.axes['main'].plot(spectrc, self.specobjs[iobj].trace_spat,
+                                                             color='r--', alpha=0.5))
             else:
-                self.objtraces.append(self.axes['main'].plot(, sobjs[iobj].trace_spat, color='b--', alpha=0.5))
+                self.objtraces.append(self.axes['main'].plot(spectrc, self.specobjs[iobj].trace_spat,
+                                                             color='b--', alpha=0.5))
 
     def draw_callback(self, event):
         """Draw the lines and annotate with their IDs
@@ -390,7 +394,7 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
     specarr = np.arange(lordloc.shape[0])
     for sl in range(nslit):
         ax.plot(lordloc[:, sl], specarr, 'g-')
-        ax.plot(rordloc[:, sl], specarr, 'r-')
+        ax.plot(rordloc[:, sl], specarr, 'b-')
 
     # Add an information GUI axis
     axinfo = fig.add_axes([0.15, .92, .7, 0.07])
