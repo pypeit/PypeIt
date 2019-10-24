@@ -1875,22 +1875,32 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     nobj = len(sobjs)
     # If there are no regular aps and no hand aps, open a GUI to interactively select apertures
-    interactive_tracing = True
+    interactive_tracing = False
+    import pdb
+    pdb.set_trace()
+    trace_model_dict = dict()
     if nobj == 0 or interactive_tracing:
-        import pdb
-        pdb.set_trace()
-        # Decide how to assign a trace to the manual objects
-        if nobj_reg > 0:  # Use brightest object on slit?
-            smash_peakflux = sobjs.smash_peakflux
-            ibri = smash_peakflux.argmax()
-            trace_model = sobjs[ibri].trace_spat
-        elif std_trace is not None:   # If no objects found, use the standard?
-            trace_model = std_trace
-        else:  # If no objects or standard use the slit boundary
-            trace_model = slit_left
         msgs.warn("No objects were found!")
         msgs.info("Initializing the object tracing tool")
-        trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, trace_model=trace_model)
+        # Brightest object on slit
+        trace_model_obj = None
+        if nobj_reg > 0:
+            smash_peakflux = sobjs.smash_peakflux
+            ibri = smash_peakflux.argmax()
+            trace_model_obj = sobjs[ibri].trace_spat
+        trace_model_dict['object'] = dict(trace_model=trace_model_obj, fwhm=np.median(sobjs.fwhm))
+        # Standard star trace
+        trace_model_dict['std'] = dict(trace_model=std_trace, fwhm=fwhm)
+        # Trace of the slit edge
+        trace_model_dict['slit'] = dict(trace_model=slit_left.copy(), fwhm=fwhm)
+        # Now setup the parameters needed to generate new specobjs
+        sobj_par = dict(frameshape=frameshape, slit_spat_pos=slit_spat_pos, slit_spec_pos=slit_spec_pos,
+                        det=specobj_dict['det'], setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
+                        orderindx=specobj_dict['orderindx'], objtype=specobj_dict['objtype']
+                        )
+        # Generate a dictionary containing all of the information needed for interactive tracing
+        trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, trace_model=trace_model_dict, sobj_par=sobj_par)
+        # Initialise GUI
         gui_object_find.initialise(image*(thismask*inmask), trace_dict, sobjs=sobjs, slit_ids=sobjs[0].slitid)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES

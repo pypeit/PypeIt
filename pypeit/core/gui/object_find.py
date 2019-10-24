@@ -8,9 +8,11 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
+from scipy.interpolate import RectBivariateSpline
 
 matplotlib.use('Qt5Agg')
 
+from pypeit import specobjs
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import fitting, waveio, wvutils
 from pypeit import msgs
@@ -32,7 +34,7 @@ class ObjFindGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, axes):
+    def __init__(self, canvas, image, axes, sobjs):
         """Controls for the interactive Object ID tasks in PypeIt.
 
         The main goal of this routine is to interactively add/delete
@@ -45,12 +47,9 @@ class ObjFindGUI(object):
         # Store the axes
         self.image = image
         self.axes = axes
-        # Initialise the residuals colormap
-        residcmap = LinearSegmentedColormap.from_list("my_list", ['grey', 'blue', 'orange', 'red'], N=4)
-        self.residmap = ScalarMappable(norm=Normalize(vmin=0, vmax=3), cmap=residcmap)
-        # Initialise the annotations
-        self.annlines = []
-        self.anntexts = []
+        self.specobjs = sobjs
+        self.objtraces = []
+        self._obj_idx = -1
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
@@ -101,30 +100,14 @@ class ObjFindGUI(object):
     def draw_objtraces(self):
         """Draw the lines and annotate with their IDs
         """
-        for i in self.annlines: i.remove()
-        for i in self.anntexts: i.remove()
-        self.annlines = []
-        self.anntexts = []
-        # Plot the lines
-        xmn, xmx = self.axes['main'].get_xlim()
-        ymn, ymx = self.axes['main'].get_ylim()
-        w = np.where((self._detns > xmn) & (self._detns < xmx))[0]
-        for i in range(w.size):
-            if self._lineflg[w[i]] != 1:
-                if w[i] == self._detns_idx:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
-                else:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='grey', alpha=0.5))
-                continue
+        for i in self.objtraces: i.remove()
+        self.objtraces = []
+        # Plot the object traces
+        for iobj in range(self.specobjs.nobj):
+            if iobj == self._obj_idx:
+                self.objtraces.append(self.axes['main'].plot(, sobjs[iobj].trace_spat, color='r--', alpha=0.5))
             else:
-                if w[i] == self._detns_idx:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
-                else:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='b'))
-                txt = "{0:.2f}".format(self._lineids[w[i]])
-                self.anntexts.append(
-                    self.axes['main'].annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
-                                     color='b', ha='right', va='bottom'))
+                self.objtraces.append(self.axes['main'].plot(, sobjs[iobj].trace_spat, color='b--', alpha=0.5))
 
     def draw_callback(self, event):
         """Draw the lines and annotate with their IDs
@@ -305,6 +288,38 @@ class ObjFindGUI(object):
             else:
                 plt.close()
         self.canvas.draw()
+
+    def add_object(self):
+        thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
+                                   det=specobj_dict['det'],
+                                   setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
+                                   orderindx=specobj_dict['orderindx'],
+                                   objtype=specobj_dict['objtype'])
+        thisobj.hand_extract_spec = hand_extract_spec[iobj]
+        thisobj.hand_extract_spat = hand_extract_spat[iobj]
+        thisobj.hand_extract_det = hand_extract_det[iobj]
+        thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
+        thisobj.hand_extract_flag = True
+        f_ximg = RectBivariateSpline(spec_vec, spat_vec, ximg)
+        thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat,
+                                      grid=False)  # interpolate from ximg
+        thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos * nsamp, np.arange(nsamp),
+                                           fluxconv_cont)  # interpolate from fluxconv
+        # assign the trace
+        spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
+        shift = thisobj.hand_extract_spat - spat_0
+        thisobj.trace_spat = trace_model + shift
+        thisobj.trace_spec = spec_vec
+        thisobj.spat_pixpos = thisobj.trace_spat[specmid]
+        thisobj.set_idx()
+        if hand_extract_fwhm[iobj] is not None:  # If a hand_extract_fwhm was input use that for the fwhm
+            thisobj.fwhm = hand_extract_fwhm[iobj]
+        elif nobj_reg > 0:  # Otherwise is None was input, then use the median of objects on this slit if they are present
+            thisobj.fwhm = med_fwhm_reg
+        else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
+            thisobj.fwhm = fwhm
+        # Finish
+        sobjs.add_sobj(thisobj)
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
