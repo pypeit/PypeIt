@@ -42,7 +42,9 @@ class ObjFindGUI(object):
 
         Args:
             canvas (Matploltib figure canvas): The canvas on which all axes are contained
+            image (ndarray): The image plotted to screen
             axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
+            sobjs (SpecObjs): An instance of the SpecObjs class
         """
         # Store the axes
         self.image = image
@@ -100,18 +102,18 @@ class ObjFindGUI(object):
     def draw_objtraces(self):
         """Draw the lines and annotate with their IDs
         """
-        for i in self.objtraces: i.remove()
+        for i in self.objtraces: i.pop(0).remove()
         self.objtraces = []
         # Plot the object traces
         for iobj in range(self.specobjs.nobj):
             if iobj == 0:
                 spectrc = np.arange(self.specobjs[0].trace_spat.size)
             if iobj == self._obj_idx:
-                self.objtraces.append(self.axes['main'].plot(spectrc, self.specobjs[iobj].trace_spat,
-                                                             color='r--', alpha=0.5))
+                self.objtraces.append(self.axes['main'].plot(self.specobjs[iobj].trace_spat, spectrc,
+                                                             'r-', linewidth=2, alpha=0.5))
             else:
-                self.objtraces.append(self.axes['main'].plot(spectrc, self.specobjs[iobj].trace_spat,
-                                                             color='b--', alpha=0.5))
+                self.objtraces.append(self.axes['main'].plot(self.specobjs[iobj].trace_spat, spectrc,
+                                                             'r--', linewidth=1, alpha=0.5))
 
     def draw_callback(self, event):
         """Draw the lines and annotate with their IDs
@@ -359,7 +361,7 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
             frame (ndarray): Sky subtracted science image
             trace_dict (dict): Dictionary containing slit and object trace information
             sobjs (SpecObjs): SpecObjs Class
-            slit_ids (list): List of slit ID numbers
+            slit_ids (list, None): List of slit ID numbers
 
         Returns:
             ofgui (ObjFindGUI): Returns an instance of the ObjFindGUI class
@@ -408,16 +410,20 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
     axes = dict(main=ax, info=axinfo)
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Object Tracing')
-    ofgui = ObjFindGUI(fig.canvas, image, axes)
+    ofgui = ObjFindGUI(fig.canvas, image, axes, sobjs)
     plt.show()
 
     return ofgui
 
 
+def temp_load(fname):
+    import pickle
+    with open(fname, 'rb') as f:
+        return pickle.load(f)
+
 if __name__ == '__main__':
     dirname = "/Users/rcooke/Work/Research/vmp_DLAs/observing/WHT_ISIS_2019B/N1/wht_isis_blue_U/"
     frame = np.load(dirname+"frame.npy")
-    slit_left = np.load(dirname + "slitleft.npy")
-    slit_righ = np.load(dirname + "slitrigh.npy")
-    trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, trace_model=slit_left)
-    initialise(frame, trace_dict, None, slit_ids=None)
+    sobjs = temp_load(dirname+"sobjs.pkl")
+    trace_dict = temp_load(dirname+"trace_dict.pkl")
+    initialise(frame, trace_dict, sobjs, slit_ids=None)
