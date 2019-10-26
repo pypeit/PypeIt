@@ -9,6 +9,7 @@ from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
 from scipy.interpolate import RectBivariateSpline
+from sklearn.neighbors import KernelDensity
 
 matplotlib.use('Qt5Agg')
 
@@ -34,7 +35,7 @@ class ObjFindGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, axes, sobjs):
+    def __init__(self, canvas, image, frame, sobjs, axes, profdict):
         """Controls for the interactive Object ID tasks in PypeIt.
 
         The main goal of this routine is to interactively add/delete
@@ -42,16 +43,20 @@ class ObjFindGUI(object):
 
         Args:
             canvas (Matploltib figure canvas): The canvas on which all axes are contained
-            image (ndarray): The image plotted to screen
+            image (AxesImage): The image plotted to screen
+            frame (ndarray): The image data
             axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
             sobjs (SpecObjs): An instance of the SpecObjs class
         """
         # Store the axes
         self.image = image
+        self.frame = frame
+        self.profile = profdict
         self.axes = axes
         self.specobjs = sobjs
         self.objtraces = []
         self._obj_idx = -1
+        self._spatpos = np.arange(frame.shape[1])[np.newaxis, :].repeat(frame.shape[0], axis=0)  # Spatial coordinate (as the frame shape)
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
@@ -106,14 +111,27 @@ class ObjFindGUI(object):
         self.objtraces = []
         # Plot the object traces
         for iobj in range(self.specobjs.nobj):
-            if iobj == 0:
-                spectrc = np.arange(self.specobjs[0].trace_spat.size)
             if iobj == self._obj_idx:
-                self.objtraces.append(self.axes['main'].plot(self.specobjs[iobj].trace_spat, spectrc,
-                                                             'r-', linewidth=2, alpha=0.5))
+                self.objtraces.append(self.axes['main'].plot(self.specobjs[iobj].trace_spat,
+                                                             self.specobjs[iobj].trace_spec,
+                                                             'r-', linewidth=4, alpha=0.5))
             else:
-                self.objtraces.append(self.axes['main'].plot(self.specobjs[iobj].trace_spat, spectrc,
-                                                             'r--', linewidth=1, alpha=0.5))
+                self.objtraces.append(self.axes['main'].plot(self.specobjs[iobj].trace_spat,
+                                                             self.specobjs[iobj].trace_spec,
+                                                             'r--', linewidth=2, alpha=0.5))
+
+    def draw_profile(self):
+        """Draw the lines and annotate with their IDs
+        """
+        # Plot the extent of the FWHM
+        self.profile['fwhm'][0].set_xdata(-self.specobjs[self._obj_idx].fwhm/2.0)
+        self.profile['fwhm'][1].set_xdata(+self.specobjs[self._obj_idx].fwhm/2.0)
+        # Update the data shown
+        objprof = self.make_objprofile()
+        self.profile['profile'].set_ydata(objprof)
+        self.axes['profile'].set_xlim([-self.specobjs[self._obj_idx].fwhm, +self.specobjs[self._obj_idx].fwhm])
+        omin, omax = objprof.min(), objprof.max()
+        self.axes['profile'].set_ylim([omin-0.1*(omax-omin), omax+0.1*(omax-omin)])
 
     def draw_callback(self, event):
         """Draw the lines and annotate with their IDs
@@ -134,8 +152,16 @@ class ObjFindGUI(object):
         Returns:
             ind (int): Index of the spectrum where the event occurred
         """
-        ind = np.argmin(np.abs(self.specx - event.xdata))
-        return ind
+        mindist = self._spatpos.shape[0]**2
+        self._obj_idx = -1
+        for iobj in range(self.specobjs.nobj):
+            dist = (event.xdata-self.specobjs[iobj].trace_spat)**2 + (event.ydata-self.specobjs[iobj].trace_spec)**2
+            if np.min(dist) < mindist:
+                mindist = np.min(dist)
+                self._obj_idx = iobj
+        if self._obj_idx != -1:
+            self.draw_profile()
+        return
 
     def get_axisID(self, event):
         """Get the ID of the axis where an event has occurred
@@ -178,8 +204,8 @@ class ObjFindGUI(object):
             self._addsub = 1
         elif event.button == 3:
             self._addsub = 0
-        axisID = self.get_axisID(event)
-        self._start = self.get_ind_under_point(event)
+        if event.inaxes == self.axes['main']:
+            self._start = [event.x, event.y]
 
     def button_release_callback(self, event):
         """What to do when the mouse button is released
@@ -211,9 +237,10 @@ class ObjFindGUI(object):
         axisID = self.get_axisID(event)
         if axisID is not None:
             if axisID <= 2:
-                self._end = self.get_ind_under_point(event)
-                if self._end == self._start:
+                self._end = [event.x, event.y]
+                if (self._end[0] == self._start[0]) and (self._end[1] == self._start[1]):
                     # The mouse button was pressed (not dragged)
+                    self.get_ind_under_point(event)
                     pass
                 elif self._end != self._start:
                     # The mouse button was dragged
@@ -228,8 +255,6 @@ class ObjFindGUI(object):
         self.canvas.restore_region(self.background)
         self.draw_objtraces()
         self.canvas.draw()
-
-#self.image.set_clim(vmin=10, vmax=100)
 
     def key_press_callback(self, event):
         """What to do when a key is pressed
@@ -287,13 +312,16 @@ class ObjFindGUI(object):
 
         if key == '?':
             self.print_help()
+        elif key == 'd':
+            if self._obj_idx != -1:
+                self.delete_object()
         elif key == 'q':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
                 plt.close()
-        self.canvas.draw()
+        self.replot()
 
     def add_object(self):
         thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
@@ -327,6 +355,19 @@ class ObjFindGUI(object):
         # Finish
         sobjs.add_sobj(thisobj)
 
+    def delete_object(self):
+        self.specobjs.remove_sobj(self._obj_idx)
+        self.replot()
+
+    def make_objprofile(self):
+        coords = self._spatpos - self.specobjs[self._obj_idx].trace_spat[:, np.newaxis]
+        ww = np.where(np.abs(coords) < 4*self.specobjs[self._obj_idx].fwhm)
+        bincent = self.profile['profile'].get_xdata()
+        offs = 0.5*(bincent[1]-bincent[0])
+        edges = np.append(bincent[0]-offs, bincent+offs)
+        prof, _ = np.histogram(coords[ww], bins=edges, weights=self.frame[ww])
+        return prof/ww[0].size
+
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
         """Send a new message to the information window at the top of the canvas
@@ -353,6 +394,7 @@ class ObjFindGUI(object):
         self.axes['info'].set_xlim((0, 1))
         self.axes['info'].set_ylim((0, 1))
         self.canvas.draw()
+
 
 def initialise(frame, trace_dict, sobjs, slit_ids=None):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
@@ -389,14 +431,25 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
 
     # Add the main figure axis
     fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
-    plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.85)
-    image = ax.imshow(frame, aspect=frame.shape[1]/frame.shape[0], cmap = 'Greys', vmin=vmin, vmax=vmax)
+    plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.8)
+    image = ax.imshow(frame, aspect='auto', cmap = 'Greys', vmin=vmin, vmax=vmax)
 
     # Overplot the slit traces
     specarr = np.arange(lordloc.shape[0])
     for sl in range(nslit):
         ax.plot(lordloc[:, sl], specarr, 'g-')
         ax.plot(rordloc[:, sl], specarr, 'b-')
+
+    # Add an object profile axis
+    axprof = fig.add_axes([0.82, 0.05, .15, 0.30])
+    profx = np.arange(-10, 10.1, 0.1)
+    profy = np.zeros(profx.size)
+    profile = axprof.plot(profx, profy, 'k-')
+    vlinel = axprof.axvline(-1, color='r')
+    vliner = axprof.axvline(+1, color='r')
+    axprof.set_title("Object profile")
+    axprof.set_xlim((-3, 3))
+    axprof.set_ylim((0, 1))
 
     # Add an information GUI axis
     axinfo = fig.add_axes([0.15, .92, .7, 0.07])
@@ -407,10 +460,11 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
     axinfo.set_xlim((0, 1))
     axinfo.set_ylim((0, 1))
 
-    axes = dict(main=ax, info=axinfo)
+    axes = dict(main=ax, profile=axprof, info=axinfo)
+    profdict = dict(profile=profile[0], fwhm=[vlinel, vliner])
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Object Tracing')
-    ofgui = ObjFindGUI(fig.canvas, image, axes, sobjs)
+    ofgui = ObjFindGUI(fig.canvas, image, frame, sobjs, axes, profdict)
     plt.show()
 
     return ofgui
