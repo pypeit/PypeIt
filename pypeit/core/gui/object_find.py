@@ -3,24 +3,18 @@ import copy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.colors import LinearSegmentedColormap, Normalize
-from matplotlib.cm import ScalarMappable
-import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
 from scipy.interpolate import RectBivariateSpline
-from sklearn.neighbors import KernelDensity
 
 matplotlib.use('Qt5Agg')
 
 from pypeit import specobjs
-from pypeit.par import pypeitpar
-from pypeit.core.wavecal import fitting, waveio, wvutils
 from pypeit import msgs
 
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
                     "         Navigate (LMB drag = pan, RMB drag = zoom)",
+                   'd' : "Delete selected object trace",
                    'p' : "Toggle pan/zoom with the cursor",
                    '?' : "Display the available options",
                    'q' : "Close Object ID window and continue PypeIt reduction",
@@ -301,9 +295,8 @@ class ObjFindGUI(object):
                 # Switch off the required response
                 self._respreq[0] = False
                 # Deal with the response
-                if self._respreq[1] == "write":
-                    # First remove the old file, and save the new one
-                    msgs.work("Not implemented yet!")
+                if self._respreq[1] == "delete_object" and key == "y":
+                    self.delete_object()
                 else:
                     return
             # Reset the info box
@@ -314,7 +307,8 @@ class ObjFindGUI(object):
             self.print_help()
         elif key == 'd':
             if self._obj_idx != -1:
-                self.delete_object()
+                self._respreq = [True, "delete_object"]
+                self.update_infobox(message="Are you sure you want to delete this object trace", yesno=True)
         elif key == 'q':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
@@ -356,10 +350,14 @@ class ObjFindGUI(object):
         sobjs.add_sobj(thisobj)
 
     def delete_object(self):
+        """Delete a specobj
+        """
         self.specobjs.remove_sobj(self._obj_idx)
         self.replot()
 
     def make_objprofile(self):
+        """Generate an object profile from the traces
+        """
         coords = self._spatpos - self.specobjs[self._obj_idx].trace_spat[:, np.newaxis]
         ww = np.where(np.abs(coords) < 4*self.specobjs[self._obj_idx].fwhm)
         bincent = self.profile['profile'].get_xdata()
@@ -367,6 +365,14 @@ class ObjFindGUI(object):
         edges = np.append(bincent[0]-offs, bincent+offs)
         prof, _ = np.histogram(coords[ww], bins=edges, weights=self.frame[ww])
         return prof/ww[0].size
+
+    def get_specobjs(self):
+        """Get the updated version of SpecObjs
+
+        Returns:
+            sobjs (SpecObjs): SpecObjs Class
+        """
+        return self.specobjs
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
@@ -450,6 +456,7 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
     axprof.set_title("Object profile")
     axprof.set_xlim((-3, 3))
     axprof.set_ylim((0, 1))
+    axprof.set_yticks([])
 
     # Add an information GUI axis
     axinfo = fig.add_axes([0.15, .92, .7, 0.07])
