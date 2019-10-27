@@ -17,7 +17,8 @@ operations = dict({'cursor': "Select object trace (LMB click)\n" +
                    'c': "Clear the anchor points and start again",
                    'd': "Delete selected object trace",
                    'h/r': "Return zoom to the original plotting limits",
-                   'm': "Insert a fitting anchor when doing manual object tracing",
+                   'm': "Insert a fitting anchor for manual object tracing",
+                   'n': "Delete the fitting anchor nearest to the cursor",
                    'p': "Toggle pan/zoom with the cursor",
                    '?': "Display the available options",
                    'q': "Close Object ID window and continue PypeIt reduction",
@@ -398,6 +399,8 @@ class ObjFindGUI(object):
                 self.update_infobox(message="To add an anchor point, set the 'manual' trace method", yesno=False)
             else:
                 self.add_anchor()
+        elif key == 'n':
+            self.remove_anchor()
         elif key == 'q' or key == 'qq':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
@@ -426,6 +429,20 @@ class ObjFindGUI(object):
         self._mantrace['spec_a'].append(self.mmy)
         self.fit_anchors()
 
+    def remove_anchor(self):
+        # Find the anchor closest to the mouse position
+        if len(self._mantrace['spat_a']) != 0:
+            mindist = (self._mantrace['spat_a'][0]-self.mmx)**2 + (self._mantrace['spec_a'][0]-self.mmy)**2
+            minidx = 0
+            for ianc in range(1, len(self._mantrace['spat_a'])):
+                dist = (self._mantrace['spat_a'][ianc] - self.mmx) ** 2 + (self._mantrace['spec_a'][ianc] - self.mmy) ** 2
+                if dist < mindist:
+                    mindist = dist
+                    minidx = ianc
+            del self._mantrace['spat_a'][minidx]
+            del self._mantrace['spec_a'][minidx]
+        self.fit_anchors()
+
     def fit_anchors(self):
         if len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
             self.update_infobox(message="You need to select more trace points before manually adding\n" +
@@ -434,7 +451,7 @@ class ObjFindGUI(object):
             # Fit a polynomial to the anchor points
             coeff = np.polyfit(self._mantrace['spec_a'], self._mantrace['spat_a'], self._mantrace['polyorder'])
             self._mantrace['spat_trc'] = np.polyval(coeff, self._mantrace['spec_trc'])
-        # Replot, regardless of whether a fit is done (a point might have been added)
+        # Replot, regardless of whether a fit is done (a point might have been added/removed)
         self.replot()
 
     def add_object(self, event):
