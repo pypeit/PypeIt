@@ -52,7 +52,7 @@ class ObjFindGUI(object):
         # Store the axes
         self.image = image
         self.frame = frame
-        self.nspec = frame.shape[0]
+        self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self.profile = profdict
         self._trcdict = trace_dict
         self.axes = axes
@@ -455,43 +455,47 @@ class ObjFindGUI(object):
         self.replot()
 
     def add_object(self, event):
-        if self._trcmthd == 'manual':
-            if len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
-                self.update_infobox(message="You need to select more trace points before manually adding\n" +
+        if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
+            self.update_infobox(message="You need to select more trace points before manually adding\n" +
                                             "a manual object trace. To do this, use the 'm' key", yesno=False)
-            else:
-                # Add a manual trace
-                pass
+        # Add an object trace
+        spec_vec = self._mantrace['spec_trc']
+        if self._trcmthd == 'manual':
+            trace_model = self._mantrace['spat_trc']
         else:
-            par = self._trcdict['sobj_par']
-            thisobj = specobjs.SpecObj(par['frameshape'], slit_spat_pos, slit_spec_pos,
-                                       det=par['det'], setup=par['setup'], slitid=par['slitid'],
-                                       orderindx=par['orderindx'], objtype=par['objtype'])
-            thisobj.hand_extract_spec = hand_extract_spec[iobj]
-            thisobj.hand_extract_spat = hand_extract_spat[iobj]
-            thisobj.hand_extract_det = hand_extract_det[iobj]
-            thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
-            thisobj.hand_extract_flag = True
-            f_ximg = RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat,
-                                          grid=False)  # interpolate from ximg
-            thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos * nsamp, np.arange(nsamp),
-                                               fluxconv_cont)  # interpolate from fluxconv
-            # assign the trace
-            spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
-            shift = thisobj.hand_extract_spat - spat_0
-            thisobj.trace_spat = trace_model + shift
-            thisobj.trace_spec = spec_vec
-            thisobj.spat_pixpos = thisobj.trace_spat[specmid]
-            thisobj.set_idx()
-            if hand_extract_fwhm[iobj] is not None:  # If a hand_extract_fwhm was input use that for the fwhm
-                thisobj.fwhm = hand_extract_fwhm[iobj]
-            elif nobj_reg > 0:  # Otherwise is None was input, then use the median of objects on this slit if they are present
-                thisobj.fwhm = med_fwhm_reg
-            else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
-                thisobj.fwhm = 2
-            # Finish
-            sobjs.add_sobj(thisobj)
+            trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"]
+            spat_0 = np.interp(self.mmy, spec_vec, trace_model)
+            shift = self.mmx - spat_0
+            trace_model += shift
+        xsize = self._trcdict["edges_r"] - self._trcdict["edges_l"]
+        nsamp = np.ceil(xsize.max())
+        # Extract the SpecObj parameters
+        par = self._trcdict['sobj_par']
+        # Create a SpecObj
+        thisobj = specobjs.SpecObj(par['frameshape'], par['slit_spat_pos'], par['slit_spec_pos'],
+                                   det=par['det'], setup=par['setup'], slitid=par['slitid'],
+                                   orderindx=par['orderindx'], objtype=par['objtype'])
+        thisobj.hand_extract_spat = self.mmx
+        thisobj.hand_extract_spec = self.mmy
+        thisobj.hand_extract_det = par['det']
+        thisobj.hand_extract_fwhm = None
+        thisobj.hand_extract_flag = True
+        f_ximg = RectBivariateSpline(spec_vec, np.arange(self.nspat), par["ximg"])
+        thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat,
+                                      grid=False)  # interpolate from ximg
+        thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos * nsamp, np.arange(nsamp),
+                                           self._trcdict['profile'])  # interpolate from fluxconv
+        # assign the trace
+        thisobj.trace_spat = trace_model
+        thisobj.trace_spec = spec_vec
+        thisobj.spat_pixpos = thisobj.trace_spat[self.nspec//2]
+        thisobj.set_idx()
+        if len(self.specobjs) != 0:
+            thisobj.fwhm = self.specobjs[0].fwhm
+        else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
+            thisobj.fwhm = 2
+        # Finally, add new object
+        self.specobjs.add_sobj(thisobj)
 
     def delete_object(self):
         """Delete a specobj
@@ -563,6 +567,7 @@ class ObjFindGUI(object):
         """Generate an empty dictionary for the manual tracing"""
         mantrc = dict(spat_a=[], spec_a=[], spat_trc=None, spec_trc=np.arange(self.nspec), polyorder=0)
         return mantrc
+
 
 def initialise(frame, trace_dict, sobjs, slit_ids=None):
     """Initialise the 'ObjFindGUI' window for interactive object tracing

@@ -1894,10 +1894,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # Now setup the parameters needed to generate new specobjs
         sobj_par = dict(frameshape=frameshape, slit_spat_pos=slit_spat_pos, slit_spec_pos=slit_spec_pos,
                         det=specobj_dict['det'], setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
-                        orderindx=specobj_dict['orderindx'], objtype=specobj_dict['objtype']
+                        orderindx=specobj_dict['orderindx'], objtype=specobj_dict['objtype'], ximg=ximg,
                         )
         # Generate a dictionary containing all of the information needed for interactive tracing
-        trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, trace_model=trace_model_dict, sobj_par=sobj_par)
+        trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, profile=fluxconv_cont,
+                          trace_model=trace_model_dict, sobj_par=sobj_par)
         # Initialise GUI
         # import pickle
         # with open('sobjs.pkl', 'wb') as f: pickle.dump(sobjs, f, pickle.HIGHEST_PROTOCOL)
