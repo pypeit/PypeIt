@@ -454,7 +454,7 @@ class ObjFindGUI(object):
         # Replot, regardless of whether a fit is done (a point might have been added/removed)
         self.replot()
 
-    def add_object(self, event):
+    def add_object(self):
         if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
             self.update_infobox(message="You need to select more trace points before manually adding\n" +
                                             "a manual object trace. To do this, use the 'm' key", yesno=False)
