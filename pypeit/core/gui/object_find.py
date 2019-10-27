@@ -117,15 +117,19 @@ class ObjFindGUI(object):
     def draw_profile(self):
         """Draw the lines and annotate with their IDs
         """
-        # Plot the extent of the FWHM
-        self.profile['fwhm'][0].set_xdata(-self.specobjs[self._obj_idx].fwhm/2.0)
-        self.profile['fwhm'][1].set_xdata(+self.specobjs[self._obj_idx].fwhm/2.0)
-        # Update the data shown
-        objprof = self.make_objprofile()
-        self.profile['profile'].set_ydata(objprof)
-        self.axes['profile'].set_xlim([-self.specobjs[self._obj_idx].fwhm, +self.specobjs[self._obj_idx].fwhm])
-        omin, omax = objprof.min(), objprof.max()
-        self.axes['profile'].set_ylim([omin-0.1*(omax-omin), omax+0.1*(omax-omin)])
+        if self._obj_idx == -1:
+            sz = self.profile['profile'].get_xdata.size
+            self.profile['profile'].set_ydata(np.zeros(sz))
+        else:
+            # Plot the extent of the FWHM
+            self.profile['fwhm'][0].set_xdata(-self.specobjs[self._obj_idx].fwhm/2.0)
+            self.profile['fwhm'][1].set_xdata(+self.specobjs[self._obj_idx].fwhm/2.0)
+            # Update the data shown
+            objprof = self.make_objprofile()
+            self.profile['profile'].set_ydata(objprof)
+            self.axes['profile'].set_xlim([-self.specobjs[self._obj_idx].fwhm, +self.specobjs[self._obj_idx].fwhm])
+            omin, omax = objprof.min(), objprof.max()
+            self.axes['profile'].set_ylim([omin-0.1*(omax-omin), omax+0.1*(omax-omin)])
 
     def draw_callback(self, event):
         """Draw the lines and annotate with their IDs
@@ -200,6 +204,8 @@ class ObjFindGUI(object):
             self._addsub = 0
         if event.inaxes == self.axes['main']:
             self._start = [event.x, event.y]
+        elif event.inaxes == self.axes['profile']:
+            self._start = [event.x, event.y]
 
     def button_release_callback(self, event):
         """What to do when the mouse button is released
@@ -221,6 +227,10 @@ class ObjFindGUI(object):
                 return
             self.operations(answer, -1)
             self.update_infobox(default=True)
+            return
+        elif event.inaxes == self.axes['profile']:
+            if (event.x == self._start[0]) and (event.y == self._start[1]):
+                self.set_fwhm(event.xdata)
             return
         elif self._respreq[0]:
             # The user is trying to do something before they have responded to a question
@@ -365,6 +375,17 @@ class ObjFindGUI(object):
         edges = np.append(bincent[0]-offs, bincent+offs)
         prof, _ = np.histogram(coords[ww], bins=edges, weights=self.frame[ww])
         return prof/ww[0].size
+
+    def set_fwhm(self, xdata):
+        """Set the FWHM using the available panel
+
+        Args:
+            xdata (float): The x coordinate selected by the user
+        """
+        self.specobjs[self._obj_idx].fwhm = 2.0*np.abs(xdata)
+        self.draw_profile()
+        self.replot()
+        return
 
     def get_specobjs(self):
         """Get the updated version of SpecObjs
