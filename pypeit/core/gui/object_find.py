@@ -11,14 +11,17 @@ matplotlib.use('Qt5Agg')
 from pypeit import specobjs
 from pypeit import msgs
 
-operations = dict({'cursor': "Select lines (LMB click)\n" +
-                    "         Select regions (LMB drag = add, RMB drag = remove)\n" +
+operations = dict({'cursor': "Select object trace (LMB click)\n" +
                     "         Navigate (LMB drag = pan, RMB drag = zoom)",
                    'a': "Add a new object trace using the selected method",
+                   'c': "Clear the anchor points and start again",
                    'd': "Delete selected object trace",
+                   'h/r': "Return zoom to the original plotting limits",
+                   'm': "Insert a fitting anchor when doing manual object tracing",
                    'p': "Toggle pan/zoom with the cursor",
                    '?': "Display the available options",
                    'q': "Close Object ID window and continue PypeIt reduction",
+                   '+/-': "Raise/Lower the order of the fitting polynomial"
                    })
 
 
@@ -48,18 +51,20 @@ class ObjFindGUI(object):
         # Store the axes
         self.image = image
         self.frame = frame
+        self.nspec = frame.shape[0]
         self.profile = profdict
         self._trcdict = trace_dict
         self.axes = axes
         self.specobjs = sobjs
         self.objtraces = []
+        self.anchors = []
         self._obj_idx = -1
         self._spatpos = np.arange(frame.shape[1])[np.newaxis, :].repeat(frame.shape[0], axis=0)  # Spatial coordinate (as the frame shape)
         self._mantrace = self.empty_mantrace()
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
-        matplotlib.pyplot.rcParams['keymap.home'] = ''              # home or reset mnemonic (Default: h, r, home)
+        #matplotlib.pyplot.rcParams['keymap.home'] = ''              # home or reset mnemonic (Default: h, r, home)
         matplotlib.pyplot.rcParams['keymap.back'] = ''              # forward / backward keys to enable (Default: left, c, backspace)
         matplotlib.pyplot.rcParams['keymap.forward'] = ''           # left handed quick navigation (Default: right, v)
         #matplotlib.pyplot.rcParams['keymap.pan'] = ''              # pan mnemonic (Default: p)
@@ -76,6 +81,7 @@ class ObjFindGUI(object):
         canvas.mpl_connect('button_press_event', self.button_press_callback)
         canvas.mpl_connect('key_press_event', self.key_press_callback)
         canvas.mpl_connect('button_release_event', self.button_release_callback)
+        canvas.mpl_connect('motion_notify_event',  self.mouse_move_callback)
         self.canvas = canvas
 
         # Interaction variables
@@ -84,6 +90,7 @@ class ObjFindGUI(object):
         self._changes = False
         self._use_updates = True
         self._trcmthd = 'object'
+        self.mmx, self.mmy = 0, 0
 
         # Draw the spectrum
         self.canvas.draw()
@@ -136,6 +143,7 @@ class ObjFindGUI(object):
         """
         self.canvas.restore_region(self.background)
         self.draw_objtraces()
+        self.draw_anchors()
         self.canvas.draw()
 
     def draw_objtraces(self):
@@ -153,6 +161,18 @@ class ObjFindGUI(object):
                 self.objtraces.append(self.axes['main'].plot(self.specobjs[iobj].trace_spat,
                                                              self.specobjs[iobj].trace_spec,
                                                              'r--', linewidth=2, alpha=0.5))
+
+    def draw_anchors(self):
+        """Draw the lines and annotate with their IDs
+        """
+        for i in self.anchors: i.pop(0).remove()
+        self.anchors = []
+        # Plot the best fitting trace, if it exists
+        if self._mantrace["spat_trc"] is not None:
+            self.anchors.append(self.axes['main'].plot(self._mantrace["spat_trc"], self._mantrace["spec_trc"],
+                                                       'g-', linewidth=3, alpha=0.5))
+        # Plot the anchor points on top
+        self.anchors.append(self.axes['main'].plot(self._mantrace["spat_a"], self._mantrace["spec_a"], 'ro', alpha=0.5))
 
     def draw_profile(self):
         """Draw the lines and annotate with their IDs
@@ -214,6 +234,8 @@ class ObjFindGUI(object):
             return 0
         elif event.inaxes == self.axes['info']:
             return 1
+        elif event.inaxes == self.axes['profile']:
+            return 2
         return None
 
     def mouse_move_callback(self, event):
@@ -223,10 +245,8 @@ class ObjFindGUI(object):
         if event.inaxes is None:
             return
         axisID = self.get_axisID(event)
-        if axisID is not None:
-            if axisID == 0 and event.button == 3:
-                self.mmx, self.mmy = event.xdata, event.ydata
-                self.mouseidx = self.get_ind_under_point(event)
+        if event.inaxes == self.axes['main']:
+            self.mmx, self.mmy = event.xdata, event.ydata
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -347,6 +367,9 @@ class ObjFindGUI(object):
                 # Deal with the response
                 if self._respreq[1] == "delete_object" and key == "y":
                     self.delete_object()
+                elif self._respreq[1] == "clear_anchors" and key == "y":
+                    self._mantrace = self.empty_mantrace()
+                    self.replot()
                 elif self._respreq[1] == "exit_update" and key == "y":
                     self._use_updates = True
                     self.operations("q", None)
@@ -363,29 +386,70 @@ class ObjFindGUI(object):
             self.print_help()
         elif key == 'a':
             self.add_object()
+        elif key == 'c':
+            self._respreq = [True, "clear_anchors"]
+            self.update_infobox(message="Are you sure you want to clear the anchors", yesno=True)
         elif key == 'd':
             if self._obj_idx != -1:
                 self._respreq = [True, "delete_object"]
                 self.update_infobox(message="Are you sure you want to delete this object trace", yesno=True)
+        elif key == 'm':
+            if self._trcmthd != 'manual':
+                self.update_infobox(message="To add an anchor point, set the 'manual' trace method", yesno=False)
+            else:
+                self.add_anchor()
         elif key == 'q' or key == 'qq':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
                 plt.close()
+        elif key == '+':
+            if self._mantrace["polyorder"] < 10:
+                self._mantrace["polyorder"] += 1
+                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
+                self.fit_anchors()
+            else:
+                self.update_infobox(message="Polynomial order must be <= 10", yesno=False)
+        elif key == '-':
+            if self._mantrace["polyorder"] > 1:
+                self._mantrace["polyorder"] -= 1
+                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
+                self.fit_anchors()
+            else:
+                self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
+        self.replot()
+
+    def add_anchor(self):
+        # Add a manual anchor point
+        self._mantrace['spat_a'].append(self.mmx)
+        self._mantrace['spec_a'].append(self.mmy)
+        self.fit_anchors()
+
+    def fit_anchors(self):
+        if len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
+            self.update_infobox(message="You need to select more trace points before manually adding\n" +
+                                        "a manual object trace. To do this, use the 'm' key", yesno=False)
+        else:
+            # Fit a polynomial to the anchor points
+            coeff = np.polyfit(self._mantrace['spec_a'], self._mantrace['spat_a'], self._mantrace['polyorder'])
+            self._mantrace['spat_trc'] = np.polyval(coeff, self._mantrace['spec_trc'])
+        # Replot, regardless of whether a fit is done (a point might have been added)
         self.replot()
 
     def add_object(self, event):
         if self._trcmthd == 'manual':
-            self._mantrace['x'].append()
-            self._mantrace['y'].append()
+            if len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
+                self.update_infobox(message="You need to select more trace points before manually adding\n" +
+                                            "a manual object trace. To do this, use the 'm' key", yesno=False)
+            else:
+                # Add a manual trace
+                pass
         else:
             par = self._trcdict['sobj_par']
             thisobj = specobjs.SpecObj(par['frameshape'], slit_spat_pos, slit_spec_pos,
-                                       det=specobj_dict['det'],
-                                       setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
-                                       orderindx=specobj_dict['orderindx'],
-                                       objtype=specobj_dict['objtype'])
+                                       det=par['det'], setup=par['setup'], slitid=par['slitid'],
+                                       orderindx=par['orderindx'], objtype=par['objtype'])
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]
@@ -480,7 +544,7 @@ class ObjFindGUI(object):
 
     def empty_mantrace(self):
         """Generate an empty dictionary for the manual tracing"""
-        mantrc = dict(xtrc=[], ytrc=[], poly=0)
+        mantrc = dict(spat_a=[], spec_a=[], spat_trc=None, spec_trc=np.arange(self.nspec), polyorder=0)
         return mantrc
 
 def initialise(frame, trace_dict, sobjs, slit_ids=None):
