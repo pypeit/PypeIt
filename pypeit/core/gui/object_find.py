@@ -103,7 +103,7 @@ class ObjFindGUI(object):
         self._ax_cont.on_clicked(self.button_cont)
         # Continue with reduction (using original specobjs)
         ax_exit = plt.axes([0.82, 0.80, .15, 0.05])
-        self._ax_exit = Button(ax_cont, "Continue (don't save changes)", color=axcolor, hovercolor='y')
+        self._ax_exit = Button(ax_exit, "Continue (don't save changes)", color=axcolor, hovercolor='y')
         self._ax_exit.on_clicked(self.button_exit)
 
     def button_cont(self, event):
