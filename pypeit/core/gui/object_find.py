@@ -3,7 +3,7 @@ import copy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button, Slider
+from matplotlib.widgets import Button, RadioButtons
 from scipy.interpolate import RectBivariateSpline
 
 matplotlib.use('Qt5Agg')
@@ -14,10 +14,11 @@ from pypeit import msgs
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
                     "         Navigate (LMB drag = pan, RMB drag = zoom)",
-                   'd' : "Delete selected object trace",
-                   'p' : "Toggle pan/zoom with the cursor",
-                   '?' : "Display the available options",
-                   'q' : "Close Object ID window and continue PypeIt reduction",
+                   'a': "Add a new object trace using the selected method",
+                   'd': "Delete selected object trace",
+                   'p': "Toggle pan/zoom with the cursor",
+                   '?': "Display the available options",
+                   'q': "Close Object ID window and continue PypeIt reduction",
                    })
 
 
@@ -78,6 +79,7 @@ class ObjFindGUI(object):
         self._qconf = False  # Confirm quit message
         self._changes = False
         self._use_updates = True
+        self._trcmthd = 'object'
 
         # Draw the spectrum
         self.canvas.draw()
@@ -98,13 +100,24 @@ class ObjFindGUI(object):
     def initialise_menu(self):
         axcolor = 'lightgoldenrodyellow'
         # Continue with reduction (using updated specobjs)
-        ax_cont = plt.axes([0.82, 0.85, .15, 0.05])
+        ax_cont = plt.axes([0.82, 0.85, 0.15, 0.05])
         self._ax_cont = Button(ax_cont, "Continue (and save changes)", color=axcolor, hovercolor='y')
         self._ax_cont.on_clicked(self.button_cont)
         # Continue with reduction (using original specobjs)
-        ax_exit = plt.axes([0.82, 0.80, .15, 0.05])
+        ax_exit = plt.axes([0.82, 0.79, 0.15, 0.05])
         self._ax_exit = Button(ax_exit, "Continue (don't save changes)", color=axcolor, hovercolor='y')
         self._ax_exit.on_clicked(self.button_exit)
+        # Button to select trace method
+        rax = plt.axes([0.82, 0.59, 0.15, 0.15], facecolor=axcolor)
+        rax.set_title("Select trace method:")
+        self._ax_meth = RadioButtons(rax, ('Object', 'Standard Star', 'Slit Edges', 'Manual'))
+        self._ax_meth.on_clicked(self.radio_meth)
+        self._ax_meth.set_active(0)
+
+    def radio_meth(self, label):
+        methdict = dict({'Object': 'object', 'Standard Star': 'std', 'Slit Edges': 'slit', 'Manual': 'manual'})
+        if methdict[label]:
+            self._trcmthd = methdict[label]
 
     def button_cont(self, event):
         self._respreq = [True, "exit_update"]
@@ -344,6 +357,8 @@ class ObjFindGUI(object):
 
         if key == '?':
             self.print_help()
+        elif key == 'a':
+            self.add_object()
         elif key == 'd':
             if self._obj_idx != -1:
                 self._respreq = [True, "delete_object"]
