@@ -30,7 +30,7 @@ class ObjFindGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, sobjs, axes, profdict):
+    def __init__(self, canvas, image, frame, sobjs, trace_dict, axes, profdict):
         """Controls for the interactive Object ID tasks in PypeIt.
 
         The main goal of this routine is to interactively add/delete
@@ -40,18 +40,22 @@ class ObjFindGUI(object):
             canvas (Matploltib figure canvas): The canvas on which all axes are contained
             image (AxesImage): The image plotted to screen
             frame (ndarray): The image data
-            axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
             sobjs (SpecObjs): An instance of the SpecObjs class
+            trace_dict (dict): A dictionary containing information about the object traces
+            axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
+            profdict (dict): Dictionary containing profile information (profile data, and the left/right lines displayinf the FWHM)
         """
         # Store the axes
         self.image = image
         self.frame = frame
         self.profile = profdict
+        self._trcdict = trace_dict
         self.axes = axes
         self.specobjs = sobjs
         self.objtraces = []
         self._obj_idx = -1
         self._spatpos = np.arange(frame.shape[1])[np.newaxis, :].repeat(frame.shape[0], axis=0)  # Spatial coordinate (as the frame shape)
+        self._mantrace = self.empty_mantrace()
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
@@ -371,37 +375,42 @@ class ObjFindGUI(object):
                 plt.close()
         self.replot()
 
-    def add_object(self):
-        thisobj = specobjs.SpecObj(frameshape, slit_spat_pos, slit_spec_pos,
-                                   det=specobj_dict['det'],
-                                   setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
-                                   orderindx=specobj_dict['orderindx'],
-                                   objtype=specobj_dict['objtype'])
-        thisobj.hand_extract_spec = hand_extract_spec[iobj]
-        thisobj.hand_extract_spat = hand_extract_spat[iobj]
-        thisobj.hand_extract_det = hand_extract_det[iobj]
-        thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
-        thisobj.hand_extract_flag = True
-        f_ximg = RectBivariateSpline(spec_vec, spat_vec, ximg)
-        thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat,
-                                      grid=False)  # interpolate from ximg
-        thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos * nsamp, np.arange(nsamp),
-                                           fluxconv_cont)  # interpolate from fluxconv
-        # assign the trace
-        spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
-        shift = thisobj.hand_extract_spat - spat_0
-        thisobj.trace_spat = trace_model + shift
-        thisobj.trace_spec = spec_vec
-        thisobj.spat_pixpos = thisobj.trace_spat[specmid]
-        thisobj.set_idx()
-        if hand_extract_fwhm[iobj] is not None:  # If a hand_extract_fwhm was input use that for the fwhm
-            thisobj.fwhm = hand_extract_fwhm[iobj]
-        elif nobj_reg > 0:  # Otherwise is None was input, then use the median of objects on this slit if they are present
-            thisobj.fwhm = med_fwhm_reg
-        else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
-            thisobj.fwhm = fwhm
-        # Finish
-        sobjs.add_sobj(thisobj)
+    def add_object(self, event):
+        if self._trcmthd == 'manual':
+            self._mantrace['x'].append()
+            self._mantrace['y'].append()
+        else:
+            par = self._trcdict['sobj_par']
+            thisobj = specobjs.SpecObj(par['frameshape'], slit_spat_pos, slit_spec_pos,
+                                       det=specobj_dict['det'],
+                                       setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
+                                       orderindx=specobj_dict['orderindx'],
+                                       objtype=specobj_dict['objtype'])
+            thisobj.hand_extract_spec = hand_extract_spec[iobj]
+            thisobj.hand_extract_spat = hand_extract_spat[iobj]
+            thisobj.hand_extract_det = hand_extract_det[iobj]
+            thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
+            thisobj.hand_extract_flag = True
+            f_ximg = RectBivariateSpline(spec_vec, spat_vec, ximg)
+            thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat,
+                                          grid=False)  # interpolate from ximg
+            thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos * nsamp, np.arange(nsamp),
+                                               fluxconv_cont)  # interpolate from fluxconv
+            # assign the trace
+            spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
+            shift = thisobj.hand_extract_spat - spat_0
+            thisobj.trace_spat = trace_model + shift
+            thisobj.trace_spec = spec_vec
+            thisobj.spat_pixpos = thisobj.trace_spat[specmid]
+            thisobj.set_idx()
+            if hand_extract_fwhm[iobj] is not None:  # If a hand_extract_fwhm was input use that for the fwhm
+                thisobj.fwhm = hand_extract_fwhm[iobj]
+            elif nobj_reg > 0:  # Otherwise is None was input, then use the median of objects on this slit if they are present
+                thisobj.fwhm = med_fwhm_reg
+            else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
+                thisobj.fwhm = 2
+            # Finish
+            sobjs.add_sobj(thisobj)
 
     def delete_object(self):
         """Delete a specobj
@@ -469,6 +478,10 @@ class ObjFindGUI(object):
         self.axes['info'].set_ylim((0, 1))
         self.canvas.draw()
 
+    def empty_mantrace(self):
+        """Generate an empty dictionary for the manual tracing"""
+        mantrc = dict(xtrc=[], ytrc=[], poly=0)
+        return mantrc
 
 def initialise(frame, trace_dict, sobjs, slit_ids=None):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
@@ -539,7 +552,7 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
     profdict = dict(profile=profile[0], fwhm=[vlinel, vliner])
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Object Tracing')
-    ofgui = ObjFindGUI(fig.canvas, image, frame, sobjs, axes, profdict)
+    ofgui = ObjFindGUI(fig.canvas, image, frame, sobjs, trace_dict, axes, profdict)
     plt.show()
 
     return ofgui
