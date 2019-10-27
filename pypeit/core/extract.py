@@ -1903,8 +1903,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # with open('sobjs.pkl', 'wb') as f: pickle.dump(sobjs, f, pickle.HIGHEST_PROTOCOL)
         # with open('trace_dict.pkl', 'wb') as f: pickle.dump(trace_dict, f, pickle.HIGHEST_PROTOCOL)
         objsgui = gui_object_find.initialise(image*(thismask*inmask), trace_dict, sobjs=sobjs, slit_ids=sobjs[0].slitid)
-        # Get the updated version of the specobjs
-        sobjs = objsgui.get_specobjs()
+        # Get the updated version of the specobjs (if requested)
+        newsobjs = objsgui.get_specobjs()
+        if newsobjs is not None:
+            sobjs = newsobjs
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     if nobj_reg > 0 and hand_extract_dict is not None:

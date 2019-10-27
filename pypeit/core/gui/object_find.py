@@ -77,9 +77,13 @@ class ObjFindGUI(object):
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
         self._qconf = False  # Confirm quit message
         self._changes = False
+        self._use_updates = True
 
         # Draw the spectrum
         self.canvas.draw()
+
+        # Initialise buttons and menu options
+        self.initialise_menu()
 
     def print_help(self):
         """Print the keys and descriptions that can be used for Identification
@@ -90,6 +94,25 @@ class ObjFindGUI(object):
         for key in keys:
             print("{0:6s} : {1:s}".format(key, operations[key]))
         print("---------------------------------------------------------------")
+
+    def initialise_menu(self):
+        axcolor = 'lightgoldenrodyellow'
+        # Continue with reduction (using updated specobjs)
+        ax_cont = plt.axes([0.82, 0.85, .15, 0.05])
+        self._ax_cont = Button(ax_cont, "Continue (and save changes)", color=axcolor, hovercolor='y')
+        self._ax_cont.on_clicked(self.button_cont)
+        # Continue with reduction (using original specobjs)
+        ax_exit = plt.axes([0.82, 0.80, .15, 0.05])
+        self._ax_exit = Button(ax_cont, "Continue (don't save changes)", color=axcolor, hovercolor='y')
+        self._ax_exit.on_clicked(self.button_exit)
+
+    def button_cont(self, event):
+        self._respreq = [True, "exit_update"]
+        self.update_infobox(message="Are you sure you want to exit and use the updated object traces?", yesno=True)
+
+    def button_exit(self, event):
+        self._respreq = [True, "exit_restore"]
+        self.update_infobox(message="Are you sure you want to exit and use the original object traces?", yesno=True)
 
     def replot(self):
         """Redraw the entire canvas
@@ -307,6 +330,12 @@ class ObjFindGUI(object):
                 # Deal with the response
                 if self._respreq[1] == "delete_object" and key == "y":
                     self.delete_object()
+                elif self._respreq[1] == "exit_update" and key == "y":
+                    self._use_updates = True
+                    self.operations("q", None)
+                elif self._respreq[1] == "exit_restore" and key == "y":
+                    self._use_updates = False
+                    self.operations("qq", None)
                 else:
                     return
             # Reset the info box
@@ -319,7 +348,7 @@ class ObjFindGUI(object):
             if self._obj_idx != -1:
                 self._respreq = [True, "delete_object"]
                 self.update_infobox(message="Are you sure you want to delete this object trace", yesno=True)
-        elif key == 'q':
+        elif key == 'q' or key == 'qq':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
@@ -393,7 +422,10 @@ class ObjFindGUI(object):
         Returns:
             sobjs (SpecObjs): SpecObjs Class
         """
-        return self.specobjs
+        if self._use_updates:
+            return self.specobjs
+        else:
+            return None
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
