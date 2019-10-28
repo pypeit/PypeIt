@@ -501,6 +501,7 @@ class ObjFindGUI(object):
         """Delete a specobj
         """
         self.specobjs.remove_sobj(self._obj_idx)
+        self._obj_idx = -1
         self.replot()
 
     def make_objprofile(self):
