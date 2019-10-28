@@ -1877,8 +1877,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # If there are no regular aps and no hand aps, open a GUI to interactively select apertures
     interactive_tracing = False
     trace_model_dict = dict()
-    if nobj == 0 or nobj==2 or interactive_tracing:
-        msgs.warn("No objects were found!")
+    if nobj == 0 or interactive_tracing:
+        if nobj == 0:
+            msgs.warn("No objects were found!")
         msgs.info("Initializing the object tracing tool")
         # Brightest object on slit
         trace_model_obj = None

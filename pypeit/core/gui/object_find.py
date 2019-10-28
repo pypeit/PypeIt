@@ -395,10 +395,10 @@ class ObjFindGUI(object):
                     self.replot()
                 elif self._respreq[1] == "exit_update" and key == "y":
                     self._use_updates = True
-                    self.operations("q", None)
+                    self.operations("qu", None)
                 elif self._respreq[1] == "exit_restore" and key == "y":
                     self._use_updates = False
-                    self.operations("qq", None)
+                    self.operations("qr", None)
                 else:
                     return
             # Reset the info box
@@ -423,7 +423,7 @@ class ObjFindGUI(object):
                 self.add_anchor()
         elif key == 'n':
             self.remove_anchor()
-        elif key == 'q' or key == 'qq':
+        elif key == 'qu' or key == 'qr':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
