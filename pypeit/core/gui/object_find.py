@@ -61,7 +61,7 @@ class ObjFindGUI(object):
         self.anchors = []
         self._obj_idx = -1
         self._spatpos = np.arange(frame.shape[1])[np.newaxis, :].repeat(frame.shape[0], axis=0)  # Spatial coordinate (as the frame shape)
-        self._mantrace = self.empty_mantrace()
+        self.empty_mantrace()
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
@@ -97,6 +97,11 @@ class ObjFindGUI(object):
         self.canvas.draw()
 
         # Initialise buttons and menu options
+        self._ax_meth_default = 'Object'
+        self._methdict = dict({'Object': [0, 'object'],
+                               'Standard Star': [1, 'std'],
+                               'Slit Edges': [2, 'slit'],
+                               'Manual': [3, 'manual']})
         self.initialise_menu()
 
     def print_help(self):
@@ -124,12 +129,28 @@ class ObjFindGUI(object):
         rax.set_title("Select trace method:")
         self._ax_meth = RadioButtons(rax, ('Object', 'Standard Star', 'Slit Edges', 'Manual'))
         self._ax_meth.on_clicked(self.radio_meth)
-        self._ax_meth.set_active(0)
+        # Determine the best default to use:
+        if self._trcdict["trace_model"]["object"]["trace_model"] is not None:
+            self._ax_meth_default = 'Object'
+        elif self._trcdict["trace_model"]["std"]["trace_model"] is not None:
+            self._ax_meth_default = 'Standard Star'
+        elif self._trcdict["trace_model"]["slit"]["trace_model"] is not None:
+            self._ax_meth_default = 'Slit Edges'
+        elif self._trcdict["trace_model"]["manual"]["trace_model"] is not None:
+            self._ax_meth_default = 'Manual'
+        # Set the active method
+        self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
 
     def radio_meth(self, label):
-        methdict = dict({'Object': 'object', 'Standard Star': 'std', 'Slit Edges': 'slit', 'Manual': 'manual'})
-        if methdict[label]:
-            self._trcmthd = methdict[label]
+        # Update the radio button
+        if self._methdict[label][1]:
+            self._trcmthd = self._methdict[label][1]
+        # Check if the method is available, if not, change to the default
+        if self._trcdict["trace_model"][self._trcmthd]["trace_model"] is None:
+            self.update_infobox(message="That option is not available - changing to default", yesno=False)
+            self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
+            self._trcmthd = self._methdict[self._ax_meth_default][1]
+
 
     def button_cont(self, event):
         self._respreq = [True, "exit_update"]
@@ -369,7 +390,7 @@ class ObjFindGUI(object):
                 if self._respreq[1] == "delete_object" and key == "y":
                     self.delete_object()
                 elif self._respreq[1] == "clear_anchors" and key == "y":
-                    self._mantrace = self.empty_mantrace()
+                    self.empty_mantrace()
                     self.replot()
                 elif self._respreq[1] == "exit_update" and key == "y":
                     self._use_updates = True
@@ -461,9 +482,11 @@ class ObjFindGUI(object):
         # Add an object trace
         spec_vec = self._mantrace['spec_trc']
         if self._trcmthd == 'manual':
-            trace_model = self._mantrace['spat_trc']
+            trace_model = self._mantrace['spat_trc'].copy()
+            # Now empty the manual tracing
+            self.empty_mantrace()
         else:
-            trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"]
+            trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"].copy()
             spat_0 = np.interp(self.mmy, spec_vec, trace_model)
             shift = self.mmx - spat_0
             trace_model += shift
@@ -566,8 +589,8 @@ class ObjFindGUI(object):
 
     def empty_mantrace(self):
         """Generate an empty dictionary for the manual tracing"""
-        mantrc = dict(spat_a=[], spec_a=[], spat_trc=None, spec_trc=np.arange(self.nspec), polyorder=0)
-        return mantrc
+        self._mantrace = dict(spat_a=[], spec_a=[], spat_trc=None, spec_trc=np.arange(self.nspec), polyorder=0)
+        return
 
 
 def initialise(frame, trace_dict, sobjs, slit_ids=None):
