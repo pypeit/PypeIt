@@ -145,11 +145,12 @@ class ObjFindGUI(object):
         # Update the radio button
         if self._methdict[label][1]:
             self._trcmthd = self._methdict[label][1]
-        # Check if the method is available, if not, change to the default
-        if self._trcdict["trace_model"][self._trcmthd]["trace_model"] is None:
-            self.update_infobox(message="That option is not available - changing to default", yesno=False)
-            self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
-            self._trcmthd = self._methdict[self._ax_meth_default][1]
+        # Check if the method is available, if not, change to the default (manual is always allowed)
+        if self._trcmthd != "manual":
+            if self._trcdict["trace_model"][self._trcmthd]["trace_model"] is None:
+                self.update_infobox(message="That option is not available - changing to default", yesno=False)
+                self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
+                self._trcmthd = self._methdict[self._ax_meth_default][1]
 
 
     def button_cont(self, event):
@@ -478,7 +479,8 @@ class ObjFindGUI(object):
     def add_object(self):
         if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
             self.update_infobox(message="You need to select more trace points before manually adding\n" +
-                                            "a manual object trace. To do this, use the 'm' key", yesno=False)
+                                        "a manual object trace. To do this, use the 'm' key", yesno=False)
+            return
         # Add an object trace
         spec_vec = self._mantrace['spec_trc']
         if self._trcmthd == 'manual':
