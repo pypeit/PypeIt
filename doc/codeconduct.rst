@@ -34,7 +34,7 @@ As members of the community,
      will be treated with the strictest confidence)
      or talking privately with the person.
 
-This code of conduct applies to all community situations online and offline, including
+This code of conduct applies to all PypeIt community situations online and offline, including
 mailing lists, forums, social media, conferences, meetings, associated social events,
 and one-to-one interactions.
 
@@ -43,4 +43,4 @@ community, including affiliated packages, are welcome to have their own codes
 of conduct, but agree to also abide by the present code of conduct.
 
 Parts of this code of conduct have been adapted from
-the PSF code of conduct.
+the `PSF code of conduct <https://www.python.org/psf/conduct/>`_.
