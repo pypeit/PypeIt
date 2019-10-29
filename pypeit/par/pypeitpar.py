@@ -2670,7 +2670,7 @@ class PypeItPar(ParSet):
         """
         # Get the base parameters in a ConfigObj instance
         cfg = ConfigObj(PypeItPar().to_config() if cfg_lines is None else cfg_lines)
-        
+
         # Merge in additional parameters
         if merge_with is not None:
             cfg.merge(ConfigObj(merge_with))
