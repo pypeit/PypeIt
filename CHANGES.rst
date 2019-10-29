@@ -49,6 +49,7 @@
 - Major refactor of slit edge tracing
 - Added 'Identify' tool to allow manual identification and calibration of an arc spectrum
 - Added support for WHT/ISIS
+- Added code of conduct
 
 0.11.0 (22 Jun 2019)
 --------------------
