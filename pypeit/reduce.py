@@ -601,6 +601,7 @@ class MultiSlit(Reduce):
                                 npoly_cont=self.redux_par['find_npoly_cont'],
                                 fwhm=self.redux_par['find_fwhm'],
                                 maxdev=self.redux_par['find_maxdev'],
+                                interative=self.redux_par['interactive_objfind'],
                                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'], debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
 

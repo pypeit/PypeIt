@@ -1414,7 +1414,7 @@ def create_skymask_fwhm(sobjs, thismask):
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
+            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, interactive=False,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False, qa_title='objfind'):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -1875,9 +1875,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     nobj = len(sobjs)
     # If there are no regular aps and no hand aps, open a GUI to interactively select apertures
-    interactive_tracing = False
     trace_model_dict = dict()
-    if nobj == 0 or interactive_tracing:
+    interactive_updates = False
+    if nobj == 0 or interactive:
         if nobj == 0:
             msgs.warn("No objects were found!")
         msgs.info("Initializing the object tracing tool")
@@ -1908,10 +1908,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # Get the updated version of the specobjs (if requested)
         newsobjs = objsgui.get_specobjs()
         if newsobjs is not None:
+            interactive_updates = True
             sobjs = newsobjs
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
-    if nobj_reg > 0 and hand_extract_dict is not None:
+    if nobj_reg > 0 and (hand_extract_dict is not None or interactive_updates):
         spat_pixpos = sobjs.spat_pixpos
         hand_flag = sobjs.hand_extract_flag
         spec_fwhm = sobjs.fwhm

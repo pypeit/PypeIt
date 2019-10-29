@@ -2102,7 +2102,7 @@ class ScienceImagePar(ParSet):
                  find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
                  find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, ech_find_max_snr=None,
                  ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 std_prof_nsigma=None,
+                 std_prof_nsigma=None, interactive_objfind=None,
                  model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
@@ -2230,6 +2230,12 @@ class ScienceImagePar(ParSet):
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
+        defaults['interactive_objfind'] = False
+        dtypes['interactive_objfind'] = bool
+        descr['interactive_objfind'] = 'If True, the interactive object tracing tool will be launched to allow the user' \
+                                       'to add/delete/modify the object traces. If False, the GUI will only be launched' \
+                                       'when no objects are found'
+
         # Instantiate the parameter set
         super(ScienceImagePar, self).__init__(list(pars.keys()),
                                               values=list(pars.values()),
@@ -2243,7 +2249,7 @@ class ScienceImagePar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         #ToDO change to updated param list
-        parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
+        parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std', 'interactive_tracing',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
                    'find_trim_edge', 'find_cont_fit', 'find_npoly_cont', 'find_fwhm', 'find_maxdev', 'find_extrap_npoly',
                    'ech_find_max_snr', 'ech_find_min_snr', 'ech_find_nabove_min_snr', 'std_prof_nsigma', 'sky_sigrej']
