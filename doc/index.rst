@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to PypeIt's documentation!
-=================================
+==================================
 
 
 PypeIt is a Python based data reduction pipeline (DRP) written
@@ -20,6 +20,7 @@ Getting Started
 
    installing
    code_flow
+   codeconduct
 
 Running PypeIt
 ++++++++++++++
