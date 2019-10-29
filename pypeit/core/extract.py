@@ -1484,6 +1484,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         Fit a continuum to the illumination pattern across the slit when peak finding
     npoly_cont (int): default=1
         Order of polynomial fit to the illumination pattern across the slit when peak finding
+    interactive (bool): default=False
+        If True, an interactive GUI will be opened for the user to add/delete/modify object traces
     specobj_dict: dict, default = None
          Dictionary containing meta-data for the objects that will be propgated into the SpecObj objects, i.e. setup,
          slitid, detector, object type, and pipeline. The default is None, in which case the following dictionary will be used.
@@ -2203,7 +2205,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 fof_link=1.5, order_vec=None, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None, interactive=False,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False, debug_all=False):
     """
@@ -2245,6 +2247,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         Friends-of-friends linking length in arcseconds used to link together traces across orders. The routine links
         together at the same fractional slit position and links them together with a friends-of-friends algorithm using
         this linking length.
+    interactive (bool): default=False
+        If True, an interactive GUI will be opened for the user to add/delete/modify object traces
     plate_scale: float or ndarray, if an ndarray shape is (norders,) default = 0.2
        plate scale of your detector, in unit of arcsec/pix. This can either be a single float for every order, or an array
        with size norders indicating the plate scale of each order.

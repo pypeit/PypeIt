@@ -601,7 +601,7 @@ class MultiSlit(Reduce):
                                 npoly_cont=self.redux_par['find_npoly_cont'],
                                 fwhm=self.redux_par['find_fwhm'],
                                 maxdev=self.redux_par['find_maxdev'],
-                                interative=self.redux_par['interactive_objfind'],
+                                interactive=self.redux_par['interactive_objfind'],
                                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'], debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
 
@@ -733,7 +733,7 @@ class Echelle(Reduce):
             npoly_cont=self.redux_par['find_npoly_cont'], fwhm=self.redux_par['find_fwhm'],
             maxdev=self.redux_par['find_maxdev'], max_snr=self.redux_par['ech_find_max_snr'],
             min_snr=self.redux_par['ech_find_min_snr'], nabove_min_snr=self.redux_par['ech_find_nabove_min_snr'],
-            show_trace=show_trace, debug=debug)
+            show_trace=show_trace, interactive=self.redux_par['interactive_objfind'], debug=debug)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
