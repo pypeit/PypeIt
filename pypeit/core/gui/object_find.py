@@ -37,7 +37,7 @@ class ObjFindGUI(object):
     def __init__(self, canvas, image, frame, sobjs, trace_dict, axes, profdict):
         """Controls for the interactive Object ID tasks in PypeIt.
 
-        The main goal of this routine is to interactively add/delete
+        The main goal of this routine is to interactively add/delete/modify
         object apertures.
 
         Args:
@@ -115,6 +115,8 @@ class ObjFindGUI(object):
         print("---------------------------------------------------------------")
 
     def initialise_menu(self):
+        """Initialise the menu buttons
+        """
         axcolor = 'lightgoldenrodyellow'
         # Continue with reduction (using updated specobjs)
         ax_cont = plt.axes([0.82, 0.85, 0.15, 0.05])
@@ -142,6 +144,11 @@ class ObjFindGUI(object):
         self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
 
     def radio_meth(self, label):
+        """Tell the code what to do when a different trace method is selected
+
+        Args:
+            label (str): The label of the radio button that was clicked
+        """
         # Update the radio button
         if self._methdict[label][1]:
             self._trcmthd = self._methdict[label][1]
@@ -152,12 +159,15 @@ class ObjFindGUI(object):
                 self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
                 self._trcmthd = self._methdict[self._ax_meth_default][1]
 
-
     def button_cont(self, event):
+        """What to do when the 'exit and save' button is clicked
+        """
         self._respreq = [True, "exit_update"]
         self.update_infobox(message="Are you sure you want to exit and use the updated object traces?", yesno=True)
 
     def button_exit(self, event):
+        """What to do when the 'exit and do not save changes' button is clicked
+        """
         self._respreq = [True, "exit_restore"]
         self.update_infobox(message="Are you sure you want to exit and use the original object traces?", yesno=True)
 
@@ -170,7 +180,7 @@ class ObjFindGUI(object):
         self.canvas.draw()
 
     def draw_objtraces(self):
-        """Draw the lines and annotate with their IDs
+        """Draw the object traces
         """
         for i in self.objtraces: i.pop(0).remove()
         self.objtraces = []
@@ -186,7 +196,7 @@ class ObjFindGUI(object):
                                                              'r--', linewidth=2, alpha=0.5))
 
     def draw_anchors(self):
-        """Draw the lines and annotate with their IDs
+        """Draw the anchors for manual tracing
         """
         for i in self.anchors: i.pop(0).remove()
         self.anchors = []
@@ -198,7 +208,7 @@ class ObjFindGUI(object):
         self.anchors.append(self.axes['main'].plot(self._mantrace["spat_a"], self._mantrace["spec_a"], 'ro', alpha=0.5))
 
     def draw_profile(self):
-        """Draw the lines and annotate with their IDs
+        """Draw the object profile
         """
         if self._obj_idx == -1:
             sz = self.profile['profile'].get_xdata.size
@@ -215,7 +225,7 @@ class ObjFindGUI(object):
             self.axes['profile'].set_ylim([omin-0.1*(omax-omin), omax+0.1*(omax-omin)])
 
     def draw_callback(self, event):
-        """Draw the lines and annotate with their IDs
+        """Draw callback (i.e. everytime the canvas is being drawn/updated)
 
         Args:
             event (Event): A matplotlib event instance
@@ -225,13 +235,10 @@ class ObjFindGUI(object):
         self.draw_objtraces()
 
     def get_ind_under_point(self, event):
-        """Get the index of the line closest to the cursor
+        """Get the index of the object trace closest to the cursor
 
         Args:
             event (Event): Matplotlib event instance containing information about the event
-
-        Returns:
-            ind (int): Index of the spectrum where the event occurred
         """
         mindist = self._spatpos.shape[0]**2
         self._obj_idx = -1
@@ -262,8 +269,7 @@ class ObjFindGUI(object):
         return None
 
     def mouse_move_callback(self, event):
-        """
-        Get the index of the spectrum closest to the cursor
+        """Store the locations of mouse as it moves across the canvas
         """
         if event.inaxes is None:
             return
@@ -446,12 +452,15 @@ class ObjFindGUI(object):
         self.replot()
 
     def add_anchor(self):
-        # Add a manual anchor point
+        """Add a manual anchor point
+        """
         self._mantrace['spat_a'].append(self.mmx)
         self._mantrace['spec_a'].append(self.mmy)
         self.fit_anchors()
 
     def remove_anchor(self):
+        """Remove a manual anchor point
+        """
         # Find the anchor closest to the mouse position
         if len(self._mantrace['spat_a']) != 0:
             mindist = (self._mantrace['spat_a'][0]-self.mmx)**2 + (self._mantrace['spec_a'][0]-self.mmy)**2
@@ -466,6 +475,8 @@ class ObjFindGUI(object):
         self.fit_anchors()
 
     def fit_anchors(self):
+        """Fit the manual anchor points
+        """
         if len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
             self.update_infobox(message="You need to select more trace points before manually adding\n" +
                                         "a manual object trace. To do this, use the 'm' key", yesno=False)
@@ -477,6 +488,8 @@ class ObjFindGUI(object):
         self.replot()
 
     def add_object(self):
+        """Add an object to specobjs
+        """
         if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
             self.update_infobox(message="You need to select more trace points before manually adding\n" +
                                         "a manual object trace. To do this, use the 'm' key", yesno=False)
@@ -590,7 +603,8 @@ class ObjFindGUI(object):
         self.canvas.draw()
 
     def empty_mantrace(self):
-        """Generate an empty dictionary for the manual tracing"""
+        """Generate an empty dictionary for the manual tracing
+        """
         self._mantrace = dict(spat_a=[], spec_a=[], spat_trc=None, spec_trc=np.arange(self.nspec), polyorder=0)
         return
 
@@ -668,16 +682,3 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
     plt.show()
 
     return ofgui
-
-
-def temp_load(fname):
-    import pickle
-    with open(fname, 'rb') as f:
-        return pickle.load(f)
-
-if __name__ == '__main__':
-    dirname = "/Users/rcooke/Work/Research/vmp_DLAs/observing/WHT_ISIS_2019B/N1/wht_isis_blue_U/"
-    frame = np.load(dirname+"frame.npy")
-    sobjs = temp_load(dirname+"sobjs.pkl")
-    trace_dict = temp_load(dirname+"trace_dict.pkl")
-    initialise(frame, trace_dict, sobjs, slit_ids=None)

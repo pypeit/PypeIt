@@ -1903,9 +1903,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, profile=fluxconv_cont,
                           trace_model=trace_model_dict, sobj_par=sobj_par)
         # Initialise GUI
-        # import pickle
-        # with open('sobjs.pkl', 'wb') as f: pickle.dump(sobjs, f, pickle.HIGHEST_PROTOCOL)
-        # with open('trace_dict.pkl', 'wb') as f: pickle.dump(trace_dict, f, pickle.HIGHEST_PROTOCOL)
         objsgui = gui_object_find.initialise(image*(thismask*inmask), trace_dict, sobjs=sobjs, slit_ids=sobjs[0].slitid)
         # Get the updated version of the specobjs (if requested)
         newsobjs = objsgui.get_specobjs()
@@ -1914,8 +1911,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs = newsobjs
         nobj = len(sobjs)
 
-    ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
-    if nobj_reg > 0 and hand_extract_dict is not None and not interactive_updates:
+    # Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
+    # We're going to assume that if interactive updates were made that the user has manually assigned the traces.
+    if (nobj_reg > 0) and (hand_extract_dict is not None) and (not interactive_updates):
         spat_pixpos = sobjs.spat_pixpos
         hand_flag = sobjs.hand_extract_flag
         spec_fwhm = sobjs.fwhm
