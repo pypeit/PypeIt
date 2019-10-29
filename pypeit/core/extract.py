@@ -1912,6 +1912,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         if newsobjs is not None:
             interactive_updates = True
             sobjs = newsobjs
+        nobj = len(sobjs)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     if nobj_reg > 0 and (hand_extract_dict is not None or interactive_updates):
@@ -1925,7 +1926,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         hand_ind, = np.where(hand_flag)
         #med_fwhm = np.median(spec_fwhm[~hand_flag])
         #spat_pixpos_hand = spat_pixpos[hand_ind]
-        keep = np.ones(nobj,dtype=bool)
+        keep = np.ones(nobj, dtype=bool)
         for ihand in hand_ind:
             close = np.abs(sobjs[reg_ind].spat_pixpos - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
