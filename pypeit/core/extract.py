@@ -1915,7 +1915,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nobj = len(sobjs)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
-    if nobj_reg > 0 and (hand_extract_dict is not None or interactive_updates):
+    if nobj_reg > 0 and hand_extract_dict is not None and not interactive_updates:
         spat_pixpos = sobjs.spat_pixpos
         hand_flag = sobjs.hand_extract_flag
         spec_fwhm = sobjs.fwhm
