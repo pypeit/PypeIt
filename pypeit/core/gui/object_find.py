@@ -1,3 +1,12 @@
+"""
+This script allows the user to add/delete/modify object traces
+
+.. todo::
+
+    Implement color scaling with RMB click+drag
+
+"""
+
 import os
 import copy
 import numpy as np
@@ -21,7 +30,6 @@ operations = dict({'cursor': "Select object trace (LMB click)\n" +
                    'n': "Delete the fitting anchor nearest to the cursor",
                    'p': "Toggle pan/zoom with the cursor",
                    '?': "Display the available options",
-                   'q': "Close Object ID window and continue PypeIt reduction",
                    '+/-': "Raise/Lower the order of the fitting polynomial"
                    })
 
@@ -258,7 +266,7 @@ class ObjFindGUI(object):
             event (Event): Matplotlib event instance containing information about the event
 
         Returns:
-            axisID (int, None): Axis where the event has occurred
+            int, None: Axis where the event has occurred
         """
         if event.inaxes == self.axes['main']:
             return 0
@@ -301,9 +309,6 @@ class ObjFindGUI(object):
 
         Args:
             event (Event): Matplotlib event instance containing information about the event
-
-        Returns:
-            None
         """
         if event.inaxes is None:
             return
@@ -354,9 +359,6 @@ class ObjFindGUI(object):
 
         Args:
             event (Event): Matplotlib event instance containing information about the event
-
-        Returns:
-            None
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -568,7 +570,7 @@ class ObjFindGUI(object):
         """Get the updated version of SpecObjs
 
         Returns:
-            sobjs (SpecObjs): SpecObjs Class
+            SpecObjs: SpecObjs Class
         """
         if self._use_updates:
             return self.specobjs
@@ -619,7 +621,7 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
             slit_ids (list, None): List of slit ID numbers
 
         Returns:
-            ofgui (ObjFindGUI): Returns an instance of the ObjFindGUI class
+            ObjFindGUI: Returns an instance of the ObjFindGUI class
     """
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
