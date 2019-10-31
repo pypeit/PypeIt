@@ -37,6 +37,7 @@ As members of the community,
 This code of conduct applies to all PypeIt community situations online and offline, including
 mailing lists, forums, social media, conferences, meetings, associated social events,
 and one-to-one interactions.
+By using this software, we politely request that you abide by our code of conduct.
 
 Any related activity or project organized by members of the PypeIt
 community, including affiliated packages, are welcome to have their own codes
