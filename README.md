@@ -12,6 +12,13 @@ and/or join our PypeIt Users Slack
 (the invite is recorded in this Issue:
 https://github.com/pypeit/PypeIt/issues/676)
 
+# Please cite:
+
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3506873.svg)](https://doi.org/10.5281/zenodo.3506873)
+
+
+
 # Instruments Served
 * Gemini/GNIRS
 * Gemini/GMOS (soon)
