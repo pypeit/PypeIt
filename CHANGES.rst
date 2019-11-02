@@ -47,6 +47,9 @@
 - Added several from_master_file() instantiation methods
 - Use coadd2d.weighted_combine() to stack calibration images
 - Major refactor of slit edge tracing
+- Added 'Identify' tool to allow manual identification and calibration of an arc spectrum
+- Added support for WHT/ISIS
+- Added code of conduct
 - Deprecated previous tracing code: `pypeit.traceslits` and
   `pypeit.core.trace_slits`, as well as some functions in
   `pypeit.core.extract` that were replaced by

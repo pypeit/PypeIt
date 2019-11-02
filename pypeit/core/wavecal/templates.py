@@ -27,12 +27,17 @@ from pypeit import debugger
 #  flux -- Arc spectrum flux values
 #
 # Meta must include BINNING of the template with 1=native
-template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
+if os.getenv('PYPEIT_DEV') is not None:
+    template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
+else:
+    # print("You may wish to set the PYPEIT_DEV environment variable")
+    pass
 
-outpath=resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
+outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
+
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
-                   normalize=False, subtract_conti=False,
+                   normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=True, ifiles=None, det_cut=None, chk=False,
                    miny=None):
     """
@@ -66,11 +71,14 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         in_files = [in_files]
         ifiles = [0]*len(slits)
     for kk, slit in enumerate(slits):
-        in_file = in_files[ifiles[kk]]
-        if lowredux:
-            wv_vac, spec = xidl_arcspec(in_file, slit)
+        if wvspec is None:
+            in_file = in_files[ifiles[kk]]
+            if lowredux:
+                wv_vac, spec = xidl_arcspec(in_file, slit)
+            else:
+                wv_vac, spec = pypeit_arcspec(in_file, slit)
         else:
-            wv_vac, spec = pypeit_arcspec(in_file, slit)
+            wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
         # Cut
         if len(slits) > 1:
             if kk == 0:
@@ -125,6 +133,37 @@ def pypeit_arcspec(in_file, slit):
                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
     # Return
     return wv_vac, np.array(iwv_calib['spec'])
+
+
+def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
+    """From within PypeIt, generate a template file if the user manually identifies an arc spectrum
+
+    Args:
+        iwv_calib (dict): Wavelength calibration returned by final_fit
+        binspec (int): Spectral binning
+        specname (str): Name of instrument
+        gratname (str): Name of grating
+        dispangl (str): Dispersion angle
+    """
+    x = np.arange(len(iwv_calib['spec']))
+    wv_vac = utils.func_val(iwv_calib['fitc'], x / iwv_calib['xnorm'], iwv_calib['function'],
+                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+    wvspec = dict(wv_vac=wv_vac, spec=np.array(iwv_calib['spec']))
+    # Derive an output file
+    cntr = 1
+    extstr = ""
+    while True:
+        outroot = '{0:s}_{1:s}_{2:s}{3:s}.fits'.format(specname, gratname, dispangl, extstr)
+        if os.path.exists(os.path.join(outpath, outroot)):
+            extstr = "_{0:02d}".format(cntr)
+        else:
+            break
+        cntr += 1
+    slits = [0]
+    lcut = [3200.]
+    build_template("", slits, lcut, binspec, outroot, wvspec=wvspec, lowredux=False)
+    # Return
+    return
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
@@ -548,9 +587,8 @@ def main(flg):
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
                        normalize=True)
 
-
     # ##############################
-    if flg & (2**21):  # GMOS R400 Hamamatsu
+    if flg & (2**22):  # GMOS R400 Hamamatsu
         binspec = 2
         outroot='gemini_gmos_b600_ham.fits'
         #
@@ -566,6 +604,15 @@ def main(flg):
         build_template([wfile1,wfile5,wfile2,wfile4,wfile3], slits, lcut, binspec,
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
                        normalize=True, subtract_conti=True, miny=-100.)
+
+    if flg & (2**22):  # WHT/ISIS
+        iroot = 'wht_isis_blue_1200_4800.json'
+        outroot = 'wht_isis_blue_1200_4800.fits'
+        wfile = os.path.join(template_path, 'WHT_ISIS', '1200B', iroot)
+        binspec = 2
+        slits = [0]
+        lcut = [3200.]
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
 
 # Command line execution
@@ -611,9 +658,12 @@ if __name__ == '__main__':
     #flg += 2**18  # Convert JSON to FITS
 
     # Gemini/GMOS
-    flg += 2**19  # Hamamatsu R400 Convert JSON to FITS
+    #flg += 2**19  # Hamamatsu R400 Convert JSON to FITS
     #flg += 2**20  # E2V Convert JSON to FITS
     #flg += 2**21  # Hamamatsu B600 XIDL
+
+    # WHT/ISIS
+    flg += 2**22  # Convert JSON to FITS
 
     main(flg)
 
