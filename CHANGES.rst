@@ -50,6 +50,7 @@
 - Added 'Identify' tool to allow manual identification and calibration of an arc spectrum
 - Added support for WHT/ISIS
 - Added 'Object Tracing' tool to allow interactive object tracing
+- Added code of conduct
 
 0.11.0 (22 Jun 2019)
 --------------------
