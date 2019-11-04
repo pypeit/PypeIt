@@ -12,7 +12,9 @@ import os
 import argparse
 import numpy as np
 
+from astropy.table import Table
 from astropy.io import fits
+
 from pypeit.core.gui import object_find as gui_object_find
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
@@ -31,6 +33,19 @@ def parser(options=None):
     parser.add_argument('--det', default=1, type=int, help="Detector")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
+
+
+def parse_traces(hdulist_1d, det_nm):
+    """Extract the relevant trace information
+    """
+    traces = []
+    for hdu in hdulist_1d:
+        if det_nm in hdu.name:
+            tbl = Table(hdu.data)
+            trace = tbl['TRACE']
+            obj_id = hdu.name.split('-')[0]
+            traces.append(trace.copy())
+    return traces
 
 
 def main(args):
@@ -70,9 +85,6 @@ def main(args):
                    'Set with --det= or check file contents with --list'.format(sdet))
     mask = hdu[exten].data
 
-    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
-
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
 
@@ -85,5 +97,5 @@ def main(args):
                   '                          No objects were extracted.')
 
     frame = (sciimg - skymodel) * (mask == 0)
-
-    gui_object_find.initialise(frame, trace_dict, sobjs, printout=True)
+    traces = parse_traces(hdulist_1d, det_nm)
+    gui_object_find.initialise(frame, None, None, traces=traces, printout=True)

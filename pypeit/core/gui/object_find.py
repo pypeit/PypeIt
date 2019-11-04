@@ -7,7 +7,7 @@ This script allows the user to add/delete/modify object traces
 
 """
 
-import os
+import os, sys
 import copy
 import numpy as np
 import matplotlib
@@ -552,7 +552,6 @@ class ObjFindGUI(object):
         """
         print("TO BE IMPLEMENTED!")
 
-
     def make_objprofile(self):
         """Generate an object profile from the traces
         """
@@ -620,19 +619,25 @@ class ObjFindGUI(object):
         return
 
 
-def initialise(frame, trace_dict, sobjs, slit_ids=None, printout=False):
+def initialise(frame, trace_dict, sobjs, traces=None, slit_ids=None, printout=False):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
 
         Args:
             frame (ndarray): Sky subtracted science image
-            trace_dict (dict): Dictionary containing slit and object trace information
-            sobjs (SpecObjs): SpecObjs Class
+            trace_dict (dict, None): Dictionary containing slit and object trace information
+            sobjs (SpecObjs, None): SpecObjs Class
+            traces (list): Object trace locations
             slit_ids (list, None): List of slit ID numbers
             printout (bool): Should the results be printed to screen
 
         Returns:
             ObjFindGUI: Returns an instance of the ObjFindGUI class
     """
+    if trace_dict is None or sobjs is None:
+        print("Running the interactive object tracing tool outside of a reduction")
+        print("NOT YET IMPLEMENTED")
+        sys.exit()
+
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
     if trace_dict['edges_l'].ndim == 2:
