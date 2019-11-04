@@ -42,7 +42,7 @@ class ObjFindGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, sobjs, trace_dict, axes, profdict):
+    def __init__(self, canvas, image, frame, sobjs, trace_dict, axes, profdict, printout=False):
         """Controls for the interactive Object ID tasks in PypeIt.
 
         The main goal of this routine is to interactively add/delete/modify
@@ -56,12 +56,14 @@ class ObjFindGUI(object):
             trace_dict (dict): A dictionary containing information about the object traces
             axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
             profdict (dict): Dictionary containing profile information (profile data, and the left/right lines displayinf the FWHM)
+            printout (bool): Should the results be printed to screen
         """
         # Store the axes
         self.image = image
         self.frame = frame
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self.profile = profdict
+        self._printout = printout
         self._trcdict = trace_dict
         self.axes = axes
         self.specobjs = sobjs
@@ -403,6 +405,7 @@ class ObjFindGUI(object):
                     self.replot()
                 elif self._respreq[1] == "exit_update" and key == "y":
                     self._use_updates = True
+                    self.print_pypeit_info()
                     self.operations("qu", None)
                 elif self._respreq[1] == "exit_restore" and key == "y":
                     self._use_updates = False
@@ -544,6 +547,12 @@ class ObjFindGUI(object):
         self._obj_idx = -1
         self.replot()
 
+    def print_pypeit_info(self):
+        """print text that the user should insert into their .pypeit file
+        """
+        print("TO BE IMPLEMENTED!")
+
+
     def make_objprofile(self):
         """Generate an object profile from the traces
         """
@@ -611,7 +620,7 @@ class ObjFindGUI(object):
         return
 
 
-def initialise(frame, trace_dict, sobjs, slit_ids=None):
+def initialise(frame, trace_dict, sobjs, slit_ids=None, printout=False):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
 
         Args:
@@ -619,6 +628,7 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
             trace_dict (dict): Dictionary containing slit and object trace information
             sobjs (SpecObjs): SpecObjs Class
             slit_ids (list, None): List of slit ID numbers
+            printout (bool): Should the results be printed to screen
 
         Returns:
             ObjFindGUI: Returns an instance of the ObjFindGUI class
@@ -680,7 +690,7 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None):
     profdict = dict(profile=profile[0], fwhm=[vlinel, vliner])
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Object Tracing')
-    ofgui = ObjFindGUI(fig.canvas, image, frame, sobjs, trace_dict, axes, profdict)
+    ofgui = ObjFindGUI(fig.canvas, image, frame, sobjs, trace_dict, axes, profdict, printout=printout)
     plt.show()
 
     return ofgui
