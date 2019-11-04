@@ -1642,6 +1642,16 @@ class EdgeTracePar(ParSet):
         dtypes['pad'] = int
         descr['pad'] = 'Integer number of pixels to consider beyond the slit edges.'
 
+#        defaults['single'] = []
+#        dtypes['single'] = list
+#        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
+#                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
+#                          'the slit according to column values.  The second value (for the ' \
+#                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
+#                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
+#                          'user-definition for the first detector but adds one for the second. ' \
+#                          ' None means no user-level slits defined.'
+
         dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  The syntax to define a ' \
                              'slit to add is: \'det:spec:spat_left:spat_right\' where ' \
