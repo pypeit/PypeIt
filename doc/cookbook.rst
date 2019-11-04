@@ -1,8 +1,6 @@
-.. highlight:: rest
-
-==============
+===============
 PypeIt Cookbook
-==============
+===============
 
 This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.

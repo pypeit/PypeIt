@@ -42,6 +42,9 @@ https://github.com/pypeit/PypeIt/issues/676)
 * PyYAML
 * linetools
 
+# Code of Conduct
+(see `./doc/codeconduct.rst`)
+
 # License
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
