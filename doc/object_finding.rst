@@ -102,10 +102,13 @@ input pypeit file:
   interactive_objfind = True
 
 and this will launch an interactive GUI that will allow you to perform
-several simple operations on the object tracing. This GUI will also be
-launched in the event that no objects are found. At the most basic level,
-you will be able to delete spurious traces, add new object traces, and
-manually set the FWHM of the object profile. To view a complete list of
+several simple operations on the object tracing. However, we strongly
+recommend that run this interactive tool outside of your reduction. The
+tool will produce some script that you can insert into your .pypeit file,
+and this will allow for a reproducible data reduction.
+
+Using this tool, you will be able to delete spurious traces, add new object traces,
+and manually set the FWHM of the object profile. To view a complete list of
 the supported functions, press the '?' key on your keyboard when the
 mouse is hovering over the panel displaying the 2D image. The detailed
 information will be printed to the terminal (i.e. it is not displayed
@@ -131,11 +134,13 @@ You can select the answer by clicking on the yes/no button when they
 appear.
 
 Finally, there are two buttons on the right hand side of the GUI that
-allow you to exit the interactive tracing and continue with the data
-reduction. **Please use these exit buttons instead of killing the window
+allow you to exit the tracing and continue with the data
+reduction (if running interactively) or print out a script for you to
+include in your .pypeit file. **Please use these exit buttons instead of killing the window
 from the menu bar**. The button labelled "Continue (and save changes)"
-will exit the interactive session and use the object traces that you
-have interactively defined. The button labelled
+will exit the session and use the object traces that you
+have interactively defined (or print to screen the relevent text needed
+for inclusion in the .pypeit file). The button labelled
 "Continue (don't save changes)" will exit the interactive session and
 use the object traces that PypeIt found automatically (i.e. all of your
 interactive changes will be ignored).
