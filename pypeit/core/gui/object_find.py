@@ -125,7 +125,8 @@ class ObjectTraces:
         strall = ""
         for ii in range(self.nobj):
             if self._add_rm[ii] == 1:
-                strall += ",{0:d}:{1:f}:{2:f}:{3:f}".format(self._det[ii], self._pos_spat[ii], self._pos_spec[ii], self._fwhm[ii])
+                strall += ",{0:d}:{1:.1f}:{2:.1f}:{3:.1f}".format(self._det[ii], self._pos_spat[ii], self._pos_spec[ii], self._fwhm[ii])
+        strall += "\n"
         return strall[1:]
 
 
@@ -210,6 +211,7 @@ class ObjFindGUI(object):
         self._use_updates = True
         self._trcmthd = 'object'
         self.mmx, self.mmy = 0, 0
+        self._inslit = 0  # Which slit is the mouse in
 
         # Draw the spectrum
         self.canvas.draw()
@@ -606,6 +608,15 @@ class ObjFindGUI(object):
         # Replot, regardless of whether a fit is done (a point might have been added/removed)
         self.replot()
 
+    def get_slit(self):
+        """Find the slit that the mouse is currently in
+        """
+        ypos = int(self.mmy)
+        for sl in range(self._trcdict['slit_left'].shape[1]):
+            if (self.mmx > self._trcdict['slit_left'][ypos, sl]) and (self.mmx < self._trcdict['slit_righ'][ypos, sl]):
+                self._inslit = sl
+                return
+
     def add_object(self):
         if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
             self.update_infobox(message="You need to select more trace points before manually adding\n" +
@@ -618,7 +629,11 @@ class ObjFindGUI(object):
             # Now empty the manual tracing
             self.empty_mantrace()
         else:
-            trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"].copy()
+            if self._trcmthd == 'slit':
+                self.get_slit()
+                trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"][:, self._inslit].copy()
+            else:
+                trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"].copy()
             spat_0 = np.interp(self.mmy, spec_vec, trace_model)
             shift = self.mmx - spat_0
             trace_model += shift
@@ -695,8 +710,8 @@ class ObjFindGUI(object):
     def print_pypeit_info(self):
         """print text that the user should insert into their .pypeit file
         """
-        msgs.info("Please include the following lines in your .pypeit file:\n")
-        print("manual_extract=" + self._object_traces.get_pypeit_string())
+        msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
+        print(self._object_traces.get_pypeit_string())
 
     def make_objprofile(self):
         """Generate an object profile from the traces
