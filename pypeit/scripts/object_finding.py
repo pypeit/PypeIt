@@ -44,6 +44,7 @@ def parse_traces(hdulist_1d, det_nm):
     """Extract the relevant trace information
     """
     traces = dict(traces=[], fwhm=[])
+    pkflux = []
     for hdu in hdulist_1d:
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
@@ -52,6 +53,8 @@ def parse_traces(hdulist_1d, det_nm):
             obj_id = hdu.name.split('-')[0]
             traces['traces'].append(trace.copy())
             traces['fwhm'].append(np.median(fwhm))
+            pkflux.append(np.median(tbl['BOX_COUNTS']))
+    traces['pkflux'] = np.array(pkflux)
     return traces
 
 
@@ -90,7 +93,9 @@ def main(args):
         msgs.error('Requested detector {:s} has no bit mask.\n'
                    'Maybe you chose the wrong one to view?\n'
                    'Set with --det= or check file contents with --list'.format(sdet))
+
     mask = hdu[exten].data
+    frame = (sciimg - skymodel) * (mask == 0)
 
     mdir = head0['PYPMFDIR']
     if not os.path.exists(mdir):
@@ -121,7 +126,27 @@ def main(args):
         hdulist_1d = []
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
-
-    frame = (sciimg - skymodel) * (mask == 0)
     tslits_dict['objtrc'] = parse_traces(hdulist_1d, det_nm)
+
+    # TODO :: Need to include standard star trace in the spec2d files
+    std_trace = None
+
+    # Extract some trace models
+    fwhm = 2  # Start with some default value
+    # Brightest object on slit
+    trace_model_obj = None
+    trace_model_dict = dict()
+    if len(tslits_dict['objtrc']['pkflux']) > 0:
+        smash_peakflux = tslits_dict['objtrc']['pkflux']
+        ibri = smash_peakflux.argmax()
+        trace_model_obj = tslits_dict['objtrc']['traces'][ibri]
+        fwhm = tslits_dict['objtrc']['fwhm'][ibri]
+    trace_model_dict['object'] = dict(trace_model=trace_model_obj, fwhm=fwhm)
+    # Standard star trace
+    trace_model_dict['std'] = dict(trace_model=std_trace, fwhm=fwhm)
+    # Trace of the slit edge
+    trace_model_dict['slit'] = dict(trace_model=tslits_dict['slit_left'].copy(), fwhm=fwhm)
+    tslits_dict['trace_model'] = trace_model_dict
+
+    # Finally, initialise the GUI
     gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
