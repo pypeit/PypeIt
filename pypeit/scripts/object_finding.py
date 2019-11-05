@@ -97,5 +97,5 @@ def main(args):
                   '                          No objects were extracted.')
 
     frame = (sciimg - skymodel) * (mask == 0)
-    traces = parse_traces(hdulist_1d, det_nm)
-    gui_object_find.initialise(frame, None, None, traces=traces, printout=True)
+    trace_dict = parse_traces(hdulist_1d, det_nm)
+    gui_object_find.initialise(frame, trace_dict, None, printout=True)

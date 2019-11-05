@@ -23,15 +23,16 @@ from pypeit import msgs
 operations = dict({'cursor': "Select object trace (LMB click)\n" +
                     "         Navigate (LMB drag = pan, RMB drag = zoom)",
                    'a': "Add a new object trace using the selected method",
-                   'c': "Clear the anchor points and start again",
                    'd': "Delete selected object trace",
                    'h/r': "Return zoom to the original plotting limits",
-                   'm': "Insert a fitting anchor for manual object tracing",
-                   'n': "Delete the fitting anchor nearest to the cursor",
                    'p': "Toggle pan/zoom with the cursor",
                    '?': "Display the available options",
-                   '+/-': "Raise/Lower the order of the fitting polynomial"
                    })
+#                   Commands that could be used for manual object location
+#                   'c': "Clear the anchor points and start again",
+#                   'm': "Insert a fitting anchor for manual object tracing",
+#                   'n': "Delete the fitting anchor nearest to the cursor",
+#                   '+/-': "Raise/Lower the order of the fitting polynomial"
 
 
 class ObjFindGUI(object):
@@ -110,8 +111,8 @@ class ObjFindGUI(object):
         self._ax_meth_default = 'Object'
         self._methdict = dict({'Object': [0, 'object'],
                                'Standard Star': [1, 'std'],
-                               'Slit Edges': [2, 'slit'],
-                               'Manual': [3, 'manual']})
+                               'Slit Edges': [2, 'slit']})
+#                               'Manual': [3, 'manual']
         self.initialise_menu()
 
     def print_help(self):
@@ -139,7 +140,7 @@ class ObjFindGUI(object):
         # Button to select trace method
         rax = plt.axes([0.82, 0.59, 0.15, 0.15], facecolor=axcolor)
         rax.set_title("Select trace method:")
-        self._ax_meth = RadioButtons(rax, ('Object', 'Standard Star', 'Slit Edges', 'Manual'))
+        self._ax_meth = RadioButtons(rax, ('Object', 'Standard Star', 'Slit Edges'))#, 'Manual'))
         self._ax_meth.on_clicked(self.radio_meth)
         # Determine the best default to use:
         if self._trcdict["trace_model"]["object"]["trace_model"] is not None:
@@ -148,8 +149,8 @@ class ObjFindGUI(object):
             self._ax_meth_default = 'Standard Star'
         elif self._trcdict["trace_model"]["slit"]["trace_model"] is not None:
             self._ax_meth_default = 'Slit Edges'
-        elif self._trcdict["trace_model"]["manual"]["trace_model"] is not None:
-            self._ax_meth_default = 'Manual'
+#        elif self._trcdict["trace_model"]["manual"]["trace_model"] is not None:
+#            self._ax_meth_default = 'Manual'
         # Set the active method
         self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
 
@@ -619,21 +620,20 @@ class ObjFindGUI(object):
         return
 
 
-def initialise(frame, trace_dict, sobjs, traces=None, slit_ids=None, printout=False):
+def initialise(frame, trace_dict, sobjs, slit_ids=None, printout=False):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
 
         Args:
             frame (ndarray): Sky subtracted science image
             trace_dict (dict, None): Dictionary containing slit and object trace information
             sobjs (SpecObjs, None): SpecObjs Class
-            traces (list): Object trace locations
             slit_ids (list, None): List of slit ID numbers
             printout (bool): Should the results be printed to screen
 
         Returns:
             ObjFindGUI: Returns an instance of the ObjFindGUI class
     """
-    if trace_dict is None or sobjs is None:
+    if sobjs is None:
         print("Running the interactive object tracing tool outside of a reduction")
         print("NOT YET IMPLEMENTED")
         sys.exit()
