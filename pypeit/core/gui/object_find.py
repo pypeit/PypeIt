@@ -119,6 +119,15 @@ class ObjectTraces:
             # otherwise, just flag that it needs to be removed
             self._add_rm[ind] = -1
 
+    def get_pypeit_string(self):
+        """Construct a string that can be placed in the .pypeit file to define new object traces
+        """
+        strall = ""
+        for ii in range(self.nobj):
+            if self._add_rm[ii] == 1:
+                strall += ",{0:d}:{1:f}:{2:f}:{3:f}".format(self._det[ii], self._pos_spat[ii], self._pos_spec[ii], self._fwhm[ii])
+        return strall[1:]
+
 
 class ObjFindGUI(object):
     """
@@ -294,17 +303,19 @@ class ObjFindGUI(object):
         for i in self.objtraces: i.pop(0).remove()
         self.objtraces = []
         # Plot the object traces
-        allcols = ['b', 'y', 'r']  # colors mean: [original, added, deleted]
+        allcols = ['DodgerBlue', 'LimeGreen', 'r']  # colors mean: [original, added, deleted]
         for iobj in range(self._object_traces.nobj):
             color = allcols[self._object_traces._add_rm[iobj]]
             if iobj == self._obj_idx:
                 self.objtraces.append(self.axes['main'].plot(self._object_traces._trace_spat[iobj],
                                                              self._object_traces._trace_spec[iobj],
-                                                             color+'-', linewidth=4, alpha=0.5))
+                                                             color=color,
+                                                             linestyle='-', linewidth=4, alpha=0.5))
             else:
                 self.objtraces.append(self.axes['main'].plot(self._object_traces._trace_spat[iobj],
                                                              self._object_traces._trace_spec[iobj],
-                                                             color+'--', linewidth=3, alpha=0.5))
+                                                             color=color,
+                                                             linestyle='--', linewidth=3, alpha=0.5))
 
     def draw_anchors(self):
         """Draw the anchors for manual tracing
@@ -684,7 +695,8 @@ class ObjFindGUI(object):
     def print_pypeit_info(self):
         """print text that the user should insert into their .pypeit file
         """
-        print("TO BE IMPLEMENTED!")
+        msgs.info("Please include the following lines in your .pypeit file:\n")
+        print("manual_extract=" + self._object_traces.get_pypeit_string())
 
     def make_objprofile(self):
         """Generate an object profile from the traces
