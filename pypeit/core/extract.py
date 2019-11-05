@@ -1902,7 +1902,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         trace_dict = dict(slit_left=slit_left.T, slit_righ=slit_righ.T, profile=fluxconv_cont,
                           trace_model=trace_model_dict, sobj_par=sobj_par)
         # Initialise GUI
-        objsgui = gui_object_find.initialise(image*(thismask*inmask), trace_dict, sobjs=sobjs, slit_ids=sobjs[0].slitid)
+        objsgui = gui_object_find.initialise(specobj_dict['det'], image*(thismask*inmask), trace_dict,
+                                             sobjs=sobjs, runtime=True, slit_ids=sobjs[0].slitid)
         # Get the updated version of the specobjs (if requested)
         newsobjs = objsgui.get_specobjs()
         if newsobjs is not None:

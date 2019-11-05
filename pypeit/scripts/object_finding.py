@@ -122,4 +122,4 @@ def main(args):
 
     frame = (sciimg - skymodel) * (mask == 0)
     tslits_dict['object_traces'] = parse_traces(hdulist_1d, det_nm)
-    gui_object_find.initialise(frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
+    gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
