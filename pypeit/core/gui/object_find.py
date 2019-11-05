@@ -70,14 +70,15 @@ class ObjectTraces:
         """Fill the object traces from a SpecObjs class
 
         Args:
-            obj_dict (dict): A dictionary containing object trace information
+            obj_dict (dict): A dictionary containing the spatial object traces and FWHM
             det (int): Detector to which this applies
         """
-        nobj = sobjs.nobj
+        nobj = len(obj_dict['traces'])
         for ii in range(nobj):
-            pos_spat = sobjs.trace_spat[sobjs.trace_spat.size//2]
-            pos_spec = sobjs.trace_spec[sobjs.trace_spec.size//2]
-            self.add_object(det, pos_spat, pos_spec, sobjs.trace_spat, sobjs.trace_spec, sobjs.fwhm, addrm=0)
+            spec_trace = np.arange(obj_dict['traces'][ii].size)
+            pos_spat = obj_dict['traces'][ii][obj_dict['traces'][ii].size//2]
+            pos_spec = spec_trace[spec_trace.size//2]
+            self.add_object(det, pos_spat, pos_spec, obj_dict['traces'][ii], spec_trace, obj_dict['fwhm'][ii], addrm=0)
 
     def add_object(self, det, pos_spat, pos_spec, trc_spat, trc_spec, fwhm, addrm=1):
         """Add an object trace
@@ -167,7 +168,7 @@ class ObjFindGUI(object):
         self._spatpos = np.arange(frame.shape[1])[np.newaxis, :].repeat(frame.shape[0], axis=0)  # Spatial coordinate (as the frame shape)
         self.empty_mantrace()
         if sobjs is None:
-            self._object_traces.from_dict(self._trcdict['object_traces'], det)
+            self._object_traces.from_dict(self._trcdict['objtrc'], det)
         else:
             self._object_traces.from_specobj(sobjs, det)
 

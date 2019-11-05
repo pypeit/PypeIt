@@ -43,13 +43,15 @@ def parser(options=None):
 def parse_traces(hdulist_1d, det_nm):
     """Extract the relevant trace information
     """
-    traces = []
+    traces = dict(traces=[], fwhm=[])
     for hdu in hdulist_1d:
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
             trace = tbl['TRACE']
+            fwhm = tbl['FWHM']
             obj_id = hdu.name.split('-')[0]
-            traces.append(trace.copy())
+            traces['traces'].append(trace.copy())
+            traces['fwhm'].append(np.median(fwhm))
     return traces
 
 
@@ -121,5 +123,5 @@ def main(args):
                   '                          No objects were extracted.')
 
     frame = (sciimg - skymodel) * (mask == 0)
-    tslits_dict['object_traces'] = parse_traces(hdulist_1d, det_nm)
+    tslits_dict['objtrc'] = parse_traces(hdulist_1d, det_nm)
     gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
