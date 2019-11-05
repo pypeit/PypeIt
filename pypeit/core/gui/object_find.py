@@ -43,7 +43,7 @@ class ObjFindGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, sobjs, trace_dict, axes, profdict, printout=False):
+    def __init__(self, canvas, image, frame, sobjs, trace_dict, axes, profdict, slit_ids=None, printout=False):
         """Controls for the interactive Object ID tasks in PypeIt.
 
         The main goal of this routine is to interactively add/delete/modify
@@ -53,10 +53,11 @@ class ObjFindGUI(object):
             canvas (Matploltib figure canvas): The canvas on which all axes are contained
             image (AxesImage): The image plotted to screen
             frame (ndarray): The image data
-            sobjs (SpecObjs): An instance of the SpecObjs class
+            sobjs (SpecObjs, None): An instance of the SpecObjs class
             trace_dict (dict): A dictionary containing information about the object traces
             axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
             profdict (dict): Dictionary containing profile information (profile data, and the left/right lines displayinf the FWHM)
+            slit_ids (list, None): List of slit ID numbers
             printout (bool): Should the results be printed to screen
         """
         # Store the axes
@@ -65,6 +66,7 @@ class ObjFindGUI(object):
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self.profile = profdict
         self._printout = printout
+        self._slit_ids = slit_ids
         self._trcdict = trace_dict
         self.axes = axes
         self.specobjs = sobjs
@@ -421,40 +423,40 @@ class ObjFindGUI(object):
             self.print_help()
         elif key == 'a':
             self.add_object()
-        elif key == 'c':
-            self._respreq = [True, "clear_anchors"]
-            self.update_infobox(message="Are you sure you want to clear the anchors", yesno=True)
+#        elif key == 'c':
+#            self._respreq = [True, "clear_anchors"]
+#            self.update_infobox(message="Are you sure you want to clear the anchors", yesno=True)
         elif key == 'd':
             if self._obj_idx != -1:
                 self._respreq = [True, "delete_object"]
                 self.update_infobox(message="Are you sure you want to delete this object trace", yesno=True)
-        elif key == 'm':
-            if self._trcmthd != 'manual':
-                self.update_infobox(message="To add an anchor point, set the 'manual' trace method", yesno=False)
-            else:
-                self.add_anchor()
-        elif key == 'n':
-            self.remove_anchor()
+#        elif key == 'm':
+#            if self._trcmthd != 'manual':
+#                self.update_infobox(message="To add an anchor point, set the 'manual' trace method", yesno=False)
+#            else:
+#                self.add_anchor()
+#        elif key == 'n':
+#            self.remove_anchor()
         elif key == 'qu' or key == 'qr':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
                 plt.close()
-        elif key == '+':
-            if self._mantrace["polyorder"] < 10:
-                self._mantrace["polyorder"] += 1
-                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
-                self.fit_anchors()
-            else:
-                self.update_infobox(message="Polynomial order must be <= 10", yesno=False)
-        elif key == '-':
-            if self._mantrace["polyorder"] > 1:
-                self._mantrace["polyorder"] -= 1
-                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
-                self.fit_anchors()
-            else:
-                self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
+#        elif key == '+':
+#            if self._mantrace["polyorder"] < 10:
+#                self._mantrace["polyorder"] += 1
+#                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
+#                self.fit_anchors()
+#            else:
+#                self.update_infobox(message="Polynomial order must be <= 10", yesno=False)
+#        elif key == '-':
+#            if self._mantrace["polyorder"] > 1:
+#                self._mantrace["polyorder"] -= 1
+#                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
+#                self.fit_anchors()
+#            else:
+#                self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
         self.replot()
 
     def add_anchor(self):
@@ -640,14 +642,14 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None, printout=False):
 
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
-    if trace_dict['edges_l'].ndim == 2:
-        nslit = trace_dict['edges_l'].shape[1]
-        lordloc = trace_dict['edges_l']
-        rordloc = trace_dict['edges_r']
+    if trace_dict['slit_left'].ndim == 2:
+        nslit = trace_dict['slit_left'].shape[1]
+        lordloc = trace_dict['slit_left']
+        rordloc = trace_dict['slit_righ']
     else:
         nslit = 1
-        lordloc = trace_dict['edges_l'].reshape((trace_dict['edges_l'].size, 1))
-        rordloc = trace_dict['edges_r'].reshape((trace_dict['edges_r'].size, 1))
+        lordloc = trace_dict['slit_left'].reshape((trace_dict['slit_left'].size, 1))
+        rordloc = trace_dict['slit_righ'].reshape((trace_dict['slit_righ'].size, 1))
 
     # Assign the slit IDs if none were provided
     if slit_ids is None:
@@ -695,7 +697,8 @@ def initialise(frame, trace_dict, sobjs, slit_ids=None, printout=False):
     profdict = dict(profile=profile[0], fwhm=[vlinel, vliner])
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Object Tracing')
-    ofgui = ObjFindGUI(fig.canvas, image, frame, sobjs, trace_dict, axes, profdict, printout=printout)
+    ofgui = ObjFindGUI(fig.canvas, image, frame, sobjs, trace_dict, axes, profdict,
+                       slit_ids=slit_ids, printout=printout)
     plt.show()
 
     return ofgui

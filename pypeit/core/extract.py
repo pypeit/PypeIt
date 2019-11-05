@@ -1899,7 +1899,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                         orderindx=specobj_dict['orderindx'], objtype=specobj_dict['objtype'], ximg=ximg,
                         )
         # Generate a dictionary containing all of the information needed for interactive tracing
-        trace_dict = dict(edges_l=slit_left.T, edges_r=slit_righ.T, profile=fluxconv_cont,
+        trace_dict = dict(slit_left=slit_left.T, slit_righ=slit_righ.T, profile=fluxconv_cont,
                           trace_model=trace_model_dict, sobj_par=sobj_par)
         # Initialise GUI
         objsgui = gui_object_find.initialise(image*(thismask*inmask), trace_dict, sobjs=sobjs, slit_ids=sobjs[0].slitid)
