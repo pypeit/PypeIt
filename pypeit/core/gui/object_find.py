@@ -62,9 +62,9 @@ class ObjectTraces:
         """
         nobj = sobjs.nobj
         for ii in range(nobj):
-            pos_spat = sobjs.trace_spat[sobjs.trace_spat.size//2]
-            pos_spec = sobjs.trace_spec[sobjs.trace_spec.size//2]
-            self.add_object(det, pos_spat, pos_spec, sobjs.trace_spat, sobjs.trace_spec, sobjs.fwhm, addrm=0)
+            pos_spat = sobjs[ii].trace_spat[sobjs[ii].trace_spat.size//2]
+            pos_spec = sobjs[ii].trace_spec[sobjs[ii].trace_spec.size//2]
+            self.add_object(det, pos_spat, pos_spec, sobjs[ii].trace_spat, sobjs[ii].trace_spec, sobjs[ii].fwhm, addrm=0)
 
     def from_dict(self, obj_dict, det):
         """Fill the object traces from a SpecObjs class
@@ -118,6 +118,7 @@ class ObjectTraces:
             # otherwise, just flag that it needs to be removed
             self._add_rm[ind] = -1
 
+
 class ObjFindGUI(object):
     """
     GUI to interactively identify object traces. The GUI can be run within
@@ -147,6 +148,7 @@ class ObjFindGUI(object):
             runtime (bool): Is the GUI being launched during data reduction?
         """
         # Store the axes
+        self._det = det
         self.image = image
         self.frame = frame
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
@@ -291,7 +293,7 @@ class ObjFindGUI(object):
         for i in self.objtraces: i.pop(0).remove()
         self.objtraces = []
         # Plot the object traces
-        allcols = ['b', 'g', 'r']  # colors mean: [original, added, deleted]
+        allcols = ['b', 'y', 'r']  # colors mean: [original, added, deleted]
         for iobj in range(self._object_traces.nobj):
             color = allcols[self._object_traces._add_rm[iobj]]
             if iobj == self._obj_idx:
@@ -301,7 +303,7 @@ class ObjFindGUI(object):
             else:
                 self.objtraces.append(self.axes['main'].plot(self._object_traces._trace_spat[iobj],
                                                              self._object_traces._trace_spec[iobj],
-                                                             color+'--', linewidth=2, alpha=0.5))
+                                                             color+'--', linewidth=3, alpha=0.5))
 
     def draw_anchors(self):
         """Draw the anchors for manual tracing
@@ -593,6 +595,31 @@ class ObjFindGUI(object):
         self.replot()
 
     def add_object(self):
+        if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
+            self.update_infobox(message="You need to select more trace points before manually adding\n" +
+                                        "a manual object trace. To do this, use the 'm' key", yesno=False)
+            return
+        # Add an object trace
+        spec_vec = self._mantrace['spec_trc']
+        if self._trcmthd == 'manual':
+            trace_model = self._mantrace['spat_trc'].copy()
+            # Now empty the manual tracing
+            self.empty_mantrace()
+        else:
+            trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"].copy()
+            spat_0 = np.interp(self.mmy, spec_vec, trace_model)
+            shift = self.mmx - spat_0
+            trace_model += shift
+        # Determine the FWHM
+        if self._object_traces.nobj != 0:
+            fwhm = self._object_traces._fwhm[0]
+        else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
+            fwhm = 2
+
+        # Finally, add this object to the list
+        self._object_traces.add_object(self._det, self.mmx, self.mmy, trace_model, self._spectrace.copy(), fwhm)
+
+    def add_object_sobj(self):
         """Add an object to specobjs
         """
         if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
@@ -641,11 +668,17 @@ class ObjFindGUI(object):
         self.specobjs.add_sobj(thisobj)
 
     def delete_object(self):
+        """Delete an object trace
+        """
+        self._object_traces.delete_object(self._obj_idx)
+        self._obj_idx = -1
+        self.replot()
+
+    def delete_object_sobj(self):
         """Delete a specobj
         """
         self.specobjs.remove_sobj(self._obj_idx)
         self._obj_idx = -1
-        self.replot()
 
     def print_pypeit_info(self):
         """print text that the user should insert into their .pypeit file
