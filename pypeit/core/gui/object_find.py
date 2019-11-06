@@ -15,8 +15,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, RadioButtons
 from scipy.interpolate import RectBivariateSpline
 
-matplotlib.use('Qt5Agg')
-
 from pypeit import specobjs
 from pypeit import msgs
 
@@ -710,8 +708,9 @@ class ObjFindGUI(object):
     def print_pypeit_info(self):
         """print text that the user should insert into their .pypeit file
         """
-        msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
-        print(self._object_traces.get_pypeit_string())
+        if 1 in self._object_traces._add_rm:
+            msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
+            print(self._object_traces.get_pypeit_string())
 
     def make_objprofile(self):
         """Generate an object profile from the traces
@@ -801,12 +800,17 @@ def initialise(det, frame, trace_dict, sobjs, slit_ids=None, runtime=False, prin
     # vectors of size (nspec)
     if trace_dict['slit_left'].ndim == 2:
         nslit = trace_dict['slit_left'].shape[1]
-        lordloc = trace_dict['slit_left']
-        rordloc = trace_dict['slit_righ']
     else:
         nslit = 1
-        lordloc = trace_dict['slit_left'].reshape((trace_dict['slit_left'].size, 1))
-        rordloc = trace_dict['slit_righ'].reshape((trace_dict['slit_righ'].size, 1))
+        trace_dict['slit_left'] = trace_dict['slit_left'].reshape((trace_dict['slit_left'].size, 1))
+        trace_dict['slit_righ'] = trace_dict['slit_righ'].reshape((trace_dict['slit_righ'].size, 1))
+    lordloc = trace_dict['slit_left']
+    rordloc = trace_dict['slit_righ']
+
+    if trace_dict["trace_model"]["slit"]["trace_model"].ndim == 1:
+        arr = trace_dict["trace_model"]["slit"]["trace_model"]
+        trace_dict["trace_model"]["slit"]["trace_model"] = arr.reshape((arr.size, 1))
+
 
     # Assign the slit IDs if none were provided
     if slit_ids is None:
