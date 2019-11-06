@@ -4,7 +4,7 @@ import inspect
 import copy
 
 import numpy as np
-import scipy
+from scipy import interpolate, ndimage
 from matplotlib import pyplot as plt
 from matplotlib import cm, lines
 
@@ -23,8 +23,9 @@ from pypeit.core.moment import moment1d
 
 
 def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_neigh=2.0,
-                    only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25, cont_frac_fwhm=1.0,
-                    max_frac_fwhm=2.0, cont_samp=30, niter_cont=3, debug_lines=False, debug_peaks=False):
+                     only_these_lines=None, fwhm=4.0, nonlinear_counts=1e10, fit_frac_fwhm=1.25,
+                     cont_frac_fwhm=1.0, max_frac_fwhm=2.0, cont_samp=30, niter_cont=3,
+                     bpm=None, debug_lines=False, debug_peaks=False):
     """
     I can't believe this method has no docs
 
@@ -46,79 +47,93 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
         debug_peaks:
 
     Returns:
-        (np.ndarray, np.ndarray) or (None,None):
-
+        Three numpy.ndarray objects are returned with the (1) spatial
+        and (2) spectral locations for the starting point to trace
+        the line centroids and (3) a good value mask. Locations where
+        the good-value mask is False are locations that were rejected
+        either because the detection wasn't significant enough or the
+        line was too close to a more-significant, neighboring line.
     """
+    # Find peaks
+    tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, arc_cont_sub, nsig_tot \
+            = arc.detect_lines(arc_spec, sigdetect=np.min([sig_neigh,tracethresh]), fwhm=fwhm,
+                               fit_frac_fwhm=fit_frac_fwhm, cont_frac_fwhm=cont_frac_fwhm,
+                               max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp,
+                               niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
+                               bpm=bpm, debug=debug_peaks)
 
+#    good = np.zeros(tampl_tot.size, dtype=bool)
+#    good[wgood] = True
+#    arc.find_lines_qa(arc_cont_sub, tcent_tot, tampl_cont_tot, good, bpm=bpm,
+#                      nonlinear=nonlinear_counts)
 
-    nspec = arc_spec.size
-    spec_vec = np.arange(nspec)
-    # Find peaks with a liberal threshold of sigdetect = 5.0
-    tampl_tot, tampl_cont_tot, tcent_tot, twid_tot, _, wgood, arc_cont_sub, nsig_tot = arc.detect_lines(
-        arc_spec, sigdetect=np.min([sig_neigh,tracethresh]), fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm, cont_frac_fwhm=cont_frac_fwhm,
-        max_frac_fwhm=max_frac_fwhm, cont_samp=cont_samp, niter_cont=niter_cont, nonlinear_counts=nonlinear_counts,
-        debug=debug_peaks)
     # Good lines
     arcdet = tcent_tot[wgood]
     arc_ampl = tampl_cont_tot[wgood]
     nsig = nsig_tot[wgood]
 
     npix_neigh = nfwhm_neigh*fwhm
+
     # Determine the best lines to use to trace the tilts
-    aduse = np.zeros(arcdet.size, dtype=np.bool)  # Which lines should be used to trace the tilts
-    w = np.where(nsig >= tracethresh)
-    aduse[w] = 1
+    aduse = np.zeros(arcdet.size, dtype=bool)  # Which lines should be used to trace the tilts
+    aduse[nsig >= tracethresh] = True
+
+    msgs.info('Rejecting {0} lines below sigma threshold.'.format(arcdet.size-np.sum(aduse)))
+#    arc.find_lines_qa(arc_cont_sub, arcdet, arc_ampl, aduse, bpm=bpm,
+#                      nonlinear=nonlinear_counts)
+
+    # TODO: Refactor what's below to minimize/remove the for loops
+
     # Remove lines that are within npix_neigh pixels.
-    # #ToDO replce this with a near-neighbor based approach, where
-    # we identify groups and take the brightest line in a given group?
+    # TODO: replace this with a near-neighbor based approach, where we
+    # identify groups and take the brightest line in a given group?
     nuse = np.sum(aduse)
     detuse = arcdet[aduse]
     idxuse = np.arange(arcdet.size)[aduse]
     olduse = aduse.copy()
     for s in range(nuse):
-        w = np.where((np.abs(arcdet - detuse[s]) <= npix_neigh) & (np.abs(arcdet - detuse[s]) >= 1.0) & (nsig > sig_neigh))[0]
+        w = np.where((np.abs(arcdet - detuse[s]) <= npix_neigh) 
+                     & (np.abs(arcdet - detuse[s]) >= 1.0) & (nsig > sig_neigh))[0]
         for u in range(w.size):
             if nsig[w[u]] > nsig[olduse][s]:
                 aduse[idxuse[s]] = False
                 break
+
+    msgs.info('Removed {0} lines that were too close to neighboring lines.'.format(
+                    np.sum(olduse)-np.sum(aduse)))
+
     # Restricted to ID lines? [introduced to avoid LRIS ghosts]
+    # TODO: I don't think this is currently ever used...
     if only_these_lines is not None:
         ids_pix = np.array(only_these_lines)
         idxuse = np.arange(arcdet.size)[aduse]
         for s in idxuse:
             if np.min(np.abs(arcdet[s] - ids_pix)) > 2.0:
-                msgs.info("Ignoring line at spectral position={:6.1f} which was not identified".format(arcdet[s]))
+                msgs.info('Ignoring line at {:6.1f} which was not identified'.format(arcdet[s]))
                 aduse[s] = False
 
     # Final spectral positions of arc lines we will trace
     lines_spec = arcdet[aduse]
     nlines = len(lines_spec)
     if nlines == 0:
-        msgs.warn('No arc lines were deemed usable on this slit. Cannot compute tilts. Try lowering tracethresh.')
-        msgs.warn('Or, more likely, this was a bad slit (which you might remove)')
+        msgs.warn('No arc lines were deemed usable on this slit; line tilts cannot be computed.'
+                  '  This may be a bad slit, which you can remove.  Otherwise, try lowering '
+                  'the tracethresh parameter.')
         return None, None
     else:
-        msgs.info('Modelling arc line tilts with {:d} arc lines'.format(nlines))
+        msgs.info('Modeling arc line tilts with {:d} arc lines'.format(nlines))
 
-
+    nspec = arc_spec.size
+    spec_vec = np.arange(nspec)
     if debug_lines:
-        xrng = np.arange(nspec)
-        plt.figure(figsize=(14, 6))
-        plt.plot(xrng, arc_cont_sub, color='black', drawstyle='steps-mid', lw=3, label='arc', linewidth=1.0)
-        plt.plot(arcdet[np.invert(aduse)], arc_ampl[np.invert(aduse)], 'r+', markersize=6.0, label='bad for tilts')
-        plt.plot(arcdet[aduse], arc_ampl[aduse], 'g+', markersize=6.0, label='good for tilts')
-        if nonlinear_counts < 1e9:
-            plt.hlines(nonlinear_counts, xrng.min(), xrng.max(), color='orange', linestyle='--', linewidth=2.0,
-            label='nonlinear', zorder=10)
-        plt.title('Good Lines = {:d}'.format(np.sum(aduse)) + ',  Bad Lines = {:d}'.format(np.sum(~aduse)))
-        plt.ylim(arc_cont_sub.min(), 1.5 * arc_cont_sub.max())
-        plt.legend()
-        plt.show()
+        arc.find_lines_qa(arc_cont_sub, arcdet, arc_ampl, aduse, bpm=bpm,
+                          nonlinear=nonlinear_counts)
 
     # Spatial position of line, i.e. the central trace interpolated onto the spectral pixel of the line
-    lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
+    return arcdet, np.interp(arcdet, spec_vec, slit_cen), aduse
+#    lines_spat = np.interp(lines_spec, spec_vec, slit_cen)
+#    return lines_spec, lines_spat
 
-    return lines_spec, lines_spat
 
 # TODO: Change "mask" to "gpm"...
 def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None, gauss=False,
@@ -180,6 +195,9 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     show_tracefits: bool, default = False
        If true the fits will be shown to each arc line trace by iterative_fitting
     """
+
+    # TODO: Explain procedure in docstring
+
     nspec, nspat = arcimg.shape
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
@@ -249,7 +267,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             # NOTE: follow_centroid behaves differently from the old
             # trace_crude_init within 2-4 pixels at the trace edge
 
-            # Constuct the line trace by following the line centroid as
+            # Construct the line trace by following the line centroid as
             # a function of spatial position along the slit.
             # TODO: This also returns error estimates and a mask, but
             # those weren't used in the previous version of the code.
@@ -334,10 +352,15 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         # False...
         tilts_sub_fit[:, iline] = tset_out.xy(tilts_sub_spat[:, iline].reshape(1, nsub))[1]
 
-        # We use the tset_out.xy to evaluate the trace across the whole sub-image even for pixels off the slit. This
-        # guarantees that the fits are always evaluated across the whole sub-image which is required for the PCA step.
+        # We use the tset_out.xy to evaluate the trace across the whole
+        # sub-image even for pixels off the slit. This guarantees that
+        # the fits are always evaluated across the whole sub-image
+        # which is required for the PCA step.
 
-        # TODO: Clean this up.
+        # TODO: Clean this up: put the common statements up top,
+        # leaving only the ones that are actually dependent on the if
+        # statements in their respective blocks. Do we need to keep the
+        # commented code?
         if spat_min[iline] < 0:
             #tilts_sub[      -spat_min[iline]:,iline] = tilts_sub_out.flatten()
             #tilts_sub_err[  -spat_min[iline]:,iline] = tilts_sub_err_out.flatten()
@@ -369,12 +392,18 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
             tilts_bpm[ min_spat:max_spat,iline] = tilts_sub_bpm_out.flatten() # tilts_sub_err[ :,iline]
             tilts_mask[min_spat:max_spat,iline] = tilts_sub_mask_box.flatten() #tilts_sub_mask[:,iline]
 
-        # Now use these fits to the traces to get a more robust value of the tilt spectral position and spatial
-        # offset from the trace than what was initially determined from the 1d arc line spectrum. This is technically
-        # where the slit_cen cross the tilts_fit, but it is a tricky since they are parameterized by different
-        # independent variables (slit_cen uses spec_vec, whereas tilts_fit uses spat_vec). This code uses
-        # a trick of interpolating the slit_cen onto the arc pixels. If we find it fails, then replace with something
-        # simpler that simply iterates to zero on where the two cross.
+        # Now use these fits to the traces to get a more robust value
+        # of the tilt spectral position and spatial offset from the
+        # trace than what was initially determined from the 1d arc line
+        # spectrum. This is technically where the slit_cen cross the
+        # tilts_fit, but it is a tricky since they are parameterized by
+        # different independent variables (slit_cen uses spec_vec,
+        # whereas tilts_fit uses spat_vec). This code uses a trick of
+        # interpolating the slit_cen onto the arc pixels. If we find it
+        # fails, then replace with something simpler that simply
+        # iterates to zero on where the two cross.
+        # TODO: Under what conditions does the interpolation fail? Can
+        # we replace the try-except block with an if-else block?
 
         # ToDO Fix this later with an iterative thing that also updates spatial reference position of the tilt
         #imask = tilts_mask[:, iline]
@@ -388,10 +417,10 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         #spat_fit_now = np.interp(spec_fit_now,spec_vec, slit_cen)
         #tilts_spec[:, iline] = np.full(nspat, spec_fit_now)
 
-        tilts_dspat[:, iline] = (spat_vec - lines_spat[iline])
+        tilts_dspat[:,iline] = (spat_vec - lines_spat[iline])
         imask = tilts_mask[:,iline]
         try:
-            spec_fit_now = np.interp(0.0, tilts_dspat[imask, iline], tilts_fit[imask, iline])
+            spec_fit_now = np.interp(0.0, tilts_dspat[imask,iline], tilts_fit[imask,iline])
         except ValueError:
             spec_fit_now = lines_spec[iline]
         tilts_spec[:,iline] = np.full(nspat, spec_fit_now)
@@ -406,12 +435,14 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
 
     dev_mean, dev_median, dev_sig = sigma_clipped_stats(np.abs(tilts - tilts_fit), mask=bad_mask,
                                                         sigma=4.0, axis=0)
-    good_line = np.any(np.invert(bad_mask), axis=0) # Is it masked everywhere?
-    # Median absolute deviation for each line quantifies the goodnes of tracing
+    # Determine the line is masked everywhere
+    good_line = np.any(np.invert(bad_mask), axis=0)
+    # Median absolute deviation for each line quantifies the goodness of tracing
     dev_mad = 1.4826*dev_median
     # Now reject outliers from this distribution
     dev_mad_dist_median = np.median(dev_mad[good_line])
-    dev_mad_dist_mad = 1.4826*np.median(np.abs(dev_mad[good_line] - dev_mad_dist_median)) # i.e. this is like the sigma
+    # dev_mad_dist_mad is like the sigma
+    dev_mad_dist_mad = 1.4826*np.median(np.abs(dev_mad[good_line] - dev_mad_dist_median))
     # Reject lines that are sigrej trace outliers
     mad_rej = ((dev_mad - dev_mad_dist_median)/dev_mad_dist_mad) < sigrej_trace
 
@@ -419,15 +450,20 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     use_tilt = (mad_rej) & (bad_frac < max_badpix_frac) & good_line & (dev_mad < maxdev)
     nuse = np.sum(use_tilt)
 
-    msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse,nlines))
+    msgs.info('Number of usable arc lines for tilts: {:d}/{:d}'.format(nuse, nlines))
 
     tilts_mad = np.outer(np.ones(nspat),dev_mad)
 
     if (nuse < 0.05*nlines):
-        msgs.warn('This slit/order would have too many rejected lines.' + msgs.newline() +
-                  'We should be rejecting nuse ={:d} out of nlines = {:d} total lines'.format(nuse,nlines) +  msgs.newline() +
-                  'We are will proceed without rejecting anything but something is probably very wrong with this slit/order.')
-        use_tilt = np.ones(nlines,dtype=bool)
+        # TODO: We need to store failures like this and provide a
+        # report at the end of the run. Although we don't want them to
+        # cause a full fault of the code, we need to make sure the user
+        # sees these kinds of critical failures instead of them getting
+        # buried in all the other messages.
+        msgs.warn('Too many lines rejected in this slit/order.' + msgs.newline()
+                  + 'Would reject {0}/{1} lines (more than 95%).'.format(nlines-nuse,nlines)
+                  +  msgs.newline() + 'Proceeding without rejection, but reduction likely bogus.')
+        use_tilt = np.ones(nlines, dtype=bool)
         nuse = nlines
 
     # Tighten it up with Gaussian weighted centroiding
@@ -478,7 +514,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
        From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
        analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
        from that distribution.
-    max_badpix_frac: float, default = 0.70
+    max_badpix_frac: float, default = 0.30
        Maximum fraction of total pixels that can be masked by the trace_gweight algorithm
        (because the residuals are too large) to still be usable for tilt fitting.
     tcrude_nave: int, default = 5
@@ -501,6 +537,10 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     Returns:
     --------
     """
+
+    # TODO: Explain procedure in docstring
+
+    # TODO: Document where these come from.
     tcrude_maxerr = fwhm/4.0
     tcrude_maxshift = 3.0*fwhm/4.0
     tcrude_maxshift0 = fwhm
@@ -597,22 +637,28 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Fit the inverted model with a 2D polynomial
     msgs.info("Fitting tilts with a low order, 2D {:s}".format(func2d))
 
+    # TODO: Make adderr a parameter?  Where does this come from?
     adderr = 0.03
-    tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0))*np.sqrt(np.abs(tilts_mad)**2 + adderr**2)
+    tilts_sigma = ((tilts_mad < 100.0) & (tilts_mad > 0.0)) \
+                    * np.sqrt(np.abs(tilts_mad)**2 + adderr**2)
 
     tilts_ivar = utils.inverse((tilts_sigma.flatten()/xnspecmin1)**2)
-    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spec.flatten()/xnspecmin1, (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
-                                               fitxy, x2=tilts_dspat.flatten()/xnspatmin1, inmask=tot_mask.flatten(),
-                                               invvar=tilts_ivar,
-                                               function=func2d, maxiter=maxiter, lower=sigrej, upper=sigrej,
-                                               maxdev=maxdev_pix/xnspecmin1,minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
+    fitmask, coeff2 = utils.robust_polyfit_djs(tilts_spec.flatten()/xnspecmin1,
+                                               (tilts.flatten() - tilts_spec.flatten())/xnspecmin1,
+                                               fitxy, x2=tilts_dspat.flatten()/xnspatmin1,
+                                               inmask=tot_mask.flatten(), invvar=tilts_ivar,
+                                               function=func2d, maxiter=maxiter, lower=sigrej,
+                                               upper=sigrej, maxdev=maxdev_pix/xnspecmin1,
+                                               minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
                                                use_mad=False, sticky=False)
     fitmask = fitmask.reshape(tilts_dspat.shape)
-    # Compute a rejection  mask that we will use later. These are locations that were fit but were rejected
+    # Compute a rejection mask that we will use later. These are
+    # locations that were fit but were rejectedK
     rej_mask = tot_mask & np.invert(fitmask)
     # Compute and store the 2d tilts fit
-    delta_tilt_1 = xnspecmin1*utils.func_val(coeff2, tilts_spec[tilts_mask]/xnspecmin1, func2d, x2=tilts_dspat[tilts_mask]/xnspatmin1,
-                                            minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
+    delta_tilt_1 = xnspecmin1 * utils.func_val(coeff2, tilts_spec[tilts_mask]/xnspecmin1, func2d,
+                                               x2=tilts_dspat[tilts_mask]/xnspatmin1, minx=0.0,
+                                               maxx=1.0, minx2=-1.0, maxx2=1.0)
     delta_tilt = np.zeros_like(tilts_dspat)
     tilts_2dfit = np.zeros_like(tilts_dspat)
     delta_tilt[tilts_mask] = delta_tilt_1
@@ -635,14 +681,18 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
     spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
-    # We do some padding here to guarantee that the tilts arc lines falling off the image get tilted onto the image
+    # We do some padding here to guarantee that the tilts arc lines
+    # falling off the image get tilted onto the image
     spec_vec_pad = np.arange(-pad_spec, nspec + pad_spec)
     spat_vec_pad = np.arange(-pad_spat, nspat + pad_spat)
-    spat_img_pad, spec_img_pad = np.meshgrid(np.arange(-pad_spat, nspat + pad_spat),np.arange(-pad_spec, nspec + pad_spec))
-    slit_cen_pad = (scipy.interpolate.interp1d(spec_vec, slit_cen, bounds_error=False, fill_value='extrapolate'))(spec_vec_pad)
+    spat_img_pad, spec_img_pad = np.meshgrid(np.arange(-pad_spat, nspat + pad_spat),
+                                             np.arange(-pad_spec, nspec + pad_spec))
+    slit_cen_pad = interpolate.interp1d(spec_vec, slit_cen, bounds_error=False,
+                                        fill_value='extrapolate')(spec_vec_pad)
     thismask_pad = np.zeros_like(spec_img_pad, dtype=bool)
     ind_spec, ind_spat = np.where(thismask)
-    slit_cen_img_pad = np.outer(slit_cen_pad, np.ones(nspat + 2 * pad_spat))  # center of the slit replicated spatially
+    # Center of the slit replicated spatially
+    slit_cen_img_pad = np.outer(slit_cen_pad, np.ones(nspat + 2 * pad_spat))
     # Normalized spatial offset image (from central trace)
     dspat_img_nrm = (spat_img_pad - slit_cen_img_pad) / xnspatmin1
     # normalized spec image
@@ -651,44 +701,56 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     thismask_pad[ind_spec + pad_spec, ind_spat + pad_spat] = thismask[ind_spec, ind_spat]
     # Now grow the thismask_pad
     kernel = np.ones((2*pad_spec, 2*pad_spat)) / float(4 * pad_spec * pad_spat)
-    thismask_grow = scipy.ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
+    thismask_grow = ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
     # Evaluate the tilts on the padded image grid
-    tiltpix = spec_img_pad[thismask_grow] + xnspecmin1 * utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d,
-                                                                         x2=dspat_img_nrm[thismask_grow],
-                                                                         minx=0.0, maxx=1.0, minx2=-1.0, maxx2=1.0)
-    # Now do one last fit to invert the function above to obtain the final tilts model in normalized image coordinates
+    tiltpix = spec_img_pad[thismask_grow] + xnspecmin1 \
+                    * utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d,
+                                     x2=dspat_img_nrm[thismask_grow], minx=0.0, maxx=1.0,
+                                     minx2=-1.0, maxx2=1.0)
+
+    # Now do one last fit to invert the function above to obtain the
+    # final tilts model in normalized image coordinates
     inmask = np.isfinite(tiltpix)
     sigma = np.full_like(spec_img_pad, 10.0)
-    # JFH What I find confusing is that this last fit was actually what Burles was doing on the raw tilts, so why was that failing?
+    # JFH What I find confusing is that this last fit was actually what
+    # Burles was doing on the raw tilts, so why was that failing?
     tilts_ivar1 = utils.calc_ivar((sigma[thismask_grow]/xnspecmin1)**2)
-    # JFH Something appers wrong in this fit for LRIS-red with a science frame as the tilt image. It appears to be rejecting
-    # too much in this fit, which is just a simple inversion of the fit above. Perhaps the noise and maxdev need to be cranked
-    # up. That is my suspicion.
-    fitmask_tilts, coeff2_tilts = utils.robust_polyfit_djs(tiltpix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
-                                                           fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
-                                                           invvar=tilts_ivar1,
-                                                           upper=5.0, lower=5.0, maxdev=10.0/xnspecmin1,
-                                                           inmask=inmask, function=func2d, maxiter=20,
-                                                           minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, use_mad=False, sticky=False)
-    # JFH changed this to be stick=False, to limit the amount of rejection
+    # JFH Something appers wrong in this fit for LRIS-red with a
+    # science frame as the tilt image. It appears to be rejecting too
+    # much in this fit, which is just a simple inversion of the fit
+    # above. Perhaps the noise and maxdev need to be cranked up. That
+    # is my suspicion.
+    fitmask_tilts, coeff2_tilts \
+            = utils.robust_polyfit_djs(tiltpix/xnspecmin1, spec_img_pad[thismask_grow]/xnspecmin1,
+                                       fitxy, x2=spat_img_pad[thismask_grow]/xnspatmin1,
+                                       invvar=tilts_ivar1, upper=5.0, lower=5.0,
+                                       maxdev=10.0/xnspecmin1, inmask=inmask, function=func2d,
+                                       maxiter=20, minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
+                                       use_mad=False, sticky=False)
+    # JFH changed above to use stick=False, to limit the amount of rejection
     irej = np.invert(fitmask_tilts) & inmask
-    msgs.info('Rejected {:d}/{:d} pixels in final inversion tilts image fit'.format(np.sum(irej),np.sum(inmask)))
+    msgs.info('Rejected {0}/{1} pixels in final inversion tilts image fit'.format(
+                np.sum(irej),np.sum(inmask)))
     # normalized tilts image
-    #tilts_img = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    #tilts_img = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,
+    #                           minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     #tilts_img = np.fmax(np.fmin(tilts_img, 1.2),-0.2)
 
-    tilt_fit_dict = dict(nspec = nspec, nspat = nspat, ngood_lines=np.sum(use_tilt), npix_fit = np.sum(tot_mask),
-                         npix_rej = np.sum(fitmask == False), coeff2=coeff2_tilts, spec_order = spec_order, spat_order = spat_order,
-                         minx = 0.0, maxx = 1.0, minx2 = 0.0, maxx2 = 1.0, func=func2d)
+    tilt_fit_dict = dict(nspec=nspec, nspat=nspat, ngood_lines=np.sum(use_tilt),
+                         npix_fit=np.sum(tot_mask), npix_rej=np.sum(np.invert(fitmask)),
+                         coeff2=coeff2_tilts, spec_order=spec_order, spat_order=spat_order,
+                         minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, func=func2d)
 
     # Now do some QA
+    # TODO: I think we should do the QA outside of core functions.
     if doqa:
-        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
-                     slit=slit, setup=master_key, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order, spec_order, rms_fit, fwhm,
-                       slit=slit, setup=master_key, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spec(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm, slit=slit,
-                       setup = master_key, show_QA=show_QA, out_dir=out_dir)
+        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
+                     rms_fit, fwhm, slit=slit, setup=master_key, show_QA=show_QA, out_dir=out_dir)
+        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
+                       spec_order, rms_fit, fwhm, slit=slit, setup=master_key, show_QA=show_QA,
+                       out_dir=out_dir)
+        plot_tilt_spec(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
+                       slit=slit, setup = master_key, show_QA=show_QA, out_dir=out_dir)
 
     return tilt_fit_dict, trc_tilt_dict_out
 

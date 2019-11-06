@@ -9,8 +9,9 @@ import copy
 import inspect
 
 import numpy as np
+from matplotlib import pyplot as plt
 
-from astropy import stats
+from astropy import stats, visualization
 
 from pypeit import msgs
 from pypeit import masterframe
@@ -74,6 +75,7 @@ class WaveTilts(masterframe.MasterFrame):
     # Frametype is a class attribute
     master_type = 'Tilts'
 
+    # TODO: __init__ should be the first function.  Move this.
     @classmethod
     def from_master_file(cls, master_file):
         """
@@ -105,6 +107,7 @@ class WaveTilts(masterframe.MasterFrame):
     def __init__(self, msarc, tslits_dict, spectrograph, par, wavepar, det=1, master_key=None,
                  master_dir=None, reuse_masters=False, qa_path=None, msbpm=None):
 
+        # TODO: Perform type checking
         self.spectrograph = spectrograph
         self.par = par
         self.wavepar = wavepar
@@ -186,7 +189,7 @@ class WaveTilts(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
         return arccen, arccen_bpm, arc_maskslit
 
-    def find_lines(self, arcspec, slit_cen, slit, debug=False):
+    def find_lines(self, arcspec, slit_cen, slit, bpm=None, debug=False):
         """
         Find the lines for tracing
 
@@ -202,26 +205,36 @@ class WaveTilts(masterframe.MasterFrame):
             ndarray, ndarray:  Spectral, spatial positions of lines to trace
 
         """
-        if self.par['idsonly'] is not None:
+        # TODO: Implement this!
+        only_these_lines = None
+        if self.par['idsonly']:
             # Put in some hook here for getting the lines out of the
             # wave calib for i.e. LRIS ghosts.
-            only_these_lines = None
-            pass
-        else:
-            only_these_lines = None
+            raise NotImplementedError('Select lines with IDs for tracing not yet implemented.')
 
         tracethresh = self._parse_param(self.par, 'tracethresh', slit)
-        lines_spec, lines_spat \
+        lines_spec, lines_spat, good \
                 = tracewave.tilts_find_lines(arcspec, slit_cen, tracethresh=tracethresh,
                                              sig_neigh=self.par['sig_neigh'],
                                              nfwhm_neigh=self.par['nfwhm_neigh'],
                                              only_these_lines=only_these_lines,
                                              fwhm=self.wavepar['fwhm'],
                                              nonlinear_counts=self.nonlinear_counts,
-                                             debug_peaks=False, debug_lines=debug)
+                                             bpm=bpm, debug_peaks=False, debug_lines=debug)
+
+        if debug:
+            mean, median, stddev = stats.sigma_clipped_stats(self.msarc.image, sigma=3.)
+#            vmin, vmax = visualization.ZScaleInterval().get_limits(self.msarc.image)
+            vmin = median - 2*stddev
+            vmax = median + 2*stddev
+            plt.imshow(self.msarc.image, origin='lower', interpolation='nearest', aspect='auto',
+                       vmin=vmin, vmax=vmax)
+            plt.scatter(lines_spat[good], lines_spec[good], marker='x', color='k', lw=2, s=50)
+            plt.scatter(lines_spat[np.invert(good)], lines_spec[np.invert(good)], marker='x', color='C3', lw=2, s=50)
+            plt.show()
 
         self.steps.append(inspect.stack()[0][3])
-        return lines_spec, lines_spat
+        return lines_spec[good], lines_spat[good]
 
 
 
@@ -253,7 +266,8 @@ class WaveTilts(masterframe.MasterFrame):
                Array containing the coefficients for the 2d legendre polynomial fit
         """
         # Now perform a fit to the tilts
-        tilt_fit_dict, trc_tilt_dict_out \
+#        tilt_fit_dict, trc_tilt_dict_out \
+        self.all_fit_dict[slit], self.all_trace_dict[slit] \
                 = tracewave.fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=spat_order,
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
                                       sigrej=self.par['sigrej2d'], func2d=self.par['func2d'],
@@ -265,11 +279,12 @@ class WaveTilts(masterframe.MasterFrame):
         #                            tilt_fit_dict['coeff2'], tilt_fit_dict['func'])
 
         # Populate the fit dict, and update the all_trace_dict
-        self.all_fit_dict[slit] = copy.deepcopy(tilt_fit_dict)
-        self.all_trace_dict[slit] = copy.deepcopy(trc_tilt_dict_out)
+#        self.all_fit_dict[slit] = copy.deepcopy(tilt_fit_dict)
+#        self.all_trace_dict[slit] = copy.deepcopy(trc_tilt_dict_out)
 
         self.steps.append(inspect.stack()[0][3])
-        return tilt_fit_dict['coeff2']
+#        return tilt_fit_dict['coeff2']
+        return self.all_fit_dict[slit]['coeff2']
 
     def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
         """
@@ -303,15 +318,41 @@ class WaveTilts(masterframe.MasterFrame):
                                            spat_order=self.par['spat_order'],
                                            maxdev_tracefit=self.par['maxdev_tracefit'],
                                            sigrej_trace=self.par['sigrej_trace'])
+                                           #, debug_pca=True, show_tracefits=True)
 
         # Return
         self.steps.append(inspect.stack()[0][3])
         return trace_dict
 
-
-    def model_arc_continuum(self):
+    def model_arc_continuum(self, debug=False):
         """
         Model the continuum of the arc image.
+
+        The method uses the arc spectra extracted using
+        :attr:`extract_arcs` and fits a characteristic low-order
+        continuum for each slit/order using
+        :func:`pypeit.util.robust_polyfit_djs` and the parameters
+        `cont_function`, `cont_order`, and `cont_rej` from
+        :attr:`par`. The characteristic continuum is then rescaled to
+        match the continuum at each spatial position in the
+        slit/order.
+        
+        .. note::
+            The approach used here may be too simplistic (in the
+            robustness of the continuum fit and then how the
+            continuum is rescaled and projected for each slit/order).
+            Tests should be performed to make sure that the approach
+            is good enough to trace the centroid of the arc/sky lines
+            without biasing the centroids due to a non-zero continuum
+            level.
+
+        Args:
+            debug (:obj:`bool`, optional):
+                Run the method in debug mode.
+
+        Returns:
+            numpy.ndarray: Returns a 2D image with the same shape as
+            :attr:`msarc` with the model continuum.
         """
         # TODO: Instead check that extract arcs has been run using the
         # "steps" attribute?
@@ -319,46 +360,66 @@ class WaveTilts(masterframe.MasterFrame):
             # Extract the arc spectra for all slits
             self.arccen, self.arccen_bpm, self.arc_maskslit = self.extract_arcs()
 
-        fit_order = 3
-        fit_function = 'legendre'
-        upper_rej = 1.5
-        lower_rej = 3.
+        # TODO: Should make this operation part of WaveTiltsPar ...
+        # Parse the upper and lower sigma rejection thresholds; used
+        # when rescaling continuum from center spectrum.
+        lower_rej, upper_rej = self.par['cont_rej'] if hasattr(self.par['cont_rej'], '__len__') \
+                                    else numpy.repeat(self.par['cont_rej'], 2)
 
         # Fit the continuum of the extracted arc spectra for each slit
-        # TODO: use iter_continuum
         nspec, nslits = self.arccen.shape
         spec = np.arange(nspec, dtype=float)
         arc_continuum = np.zeros(self.arccen.shape, dtype=float)
         arc_fitmask = np.zeros(self.arccen.shape, dtype=bool)
         for i in range(nslits):
-            arc_fitmask[:,i], coeff \
-                    = utils.robust_polyfit_djs(spec, self.arccen[:,i], fit_order,
-                                               function=fit_function, minx=spec[0], maxx=spec[-1],
-                                               inmask=np.invert(self.arccen_bpm[:,i]),
-                                               upper=upper_rej, lower=lower_rej, use_mad=True,
-                                               sticky=True)
-            arc_continuum[:,i] = utils.func_val(coeff, spec, fit_function, minx=spec[0],
-                                                maxx=spec[-1])
+            # TODO: What to do with the following iter_continuum parameters?:
+            #       sigthresh, sigrej, niter_cont, cont_samp, cont_frac_fwhm
+            arc_continuum[:,i], arc_fitmask[:,i] \
+                    = arc.iter_continuum(self.arccen[:,i], inmask=np.invert(self.arccen_bpm[:,i]),
+                                         fwhm=self.wavepar['fwhm'])
+            # TODO: Original version.  Please leave it for now.
+#            arc_fitmask[:,i], coeff \
+#                    = utils.robust_polyfit_djs(spec, self.arccen[:,i], self.par['cont_order'],
+#                                               function=self.par['cont_function'],
+#                                               minx=spec[0], maxx=spec[-1],
+#                                               upper=upper_rej, lower=lower_rej, use_mad=True,
+#                                               sticky=True)
+#            arc_continuum[:,i] = utils.func_val(coeff, spec, self.par['cont_function'],
+#                                                minx=spec[0], maxx=spec[-1])
+
+            if debug:
+                plt.plot(spec, self.arccen[:,i], color='k', label='Arc')
+                plt.scatter(spec, np.ma.MaskedArray(self.arccen[:,i], mask=arc_fitmask[:,i]),
+                            marker='x', s=10, color='C1', label='Ignored')
+                plt.plot(arc_continuum[:,i], color='C3', label='Cont. Fit')
+                plt.xlabel('Spectral pixel')
+                plt.ylabel('Counts')
+                plt.legend()
+                plt.show()
 
         # For each slit, rescale the continuum to the spectrum at a
-        # given spatial position along the slit/order. The
-        # implementation below may be too simplistic.
+        # given spatial position along the slit/order. This
+        # implementation may be too simplistic in how it treats the
+        # spatial axis.
         nspat = self.slitmask.shape[1]
         cont_image = np.zeros(self.msarc.image.shape, dtype=float)
         ii = np.tile(np.arange(nspec), (nspat,1)).T
         jj = np.tile(np.arange(nspat), (nspec,1))
-        # TODO: Can probably do this without the for loop
+        # TODO: Can probably do this without the for loop but this
+        # still may be faster.
         for i in range(nslits):
             # Find the pixels in this slit
             indx = self.slitmask == i
 
-            # Get a single width for the slit to simplify the calculation
+            # Set a single width for the slit to simplify the
+            # calculation
             width = np.sum(indx, axis=1)
             width = int(np.amax(width[np.invert(self.arccen_bpm[:,i])]))
 
             # Get the spatial indices for spectral pixels in the
             # spatial dimension that follow the curvature of the slit
-            # center.  TODO: May need to be more sophisticated.
+            # center.
+            # TODO: May need to be more sophisticated.
             _jj = (self.slitcen[:,i,None] + np.arange(width)[None,:] - width//2).astype(int)
 
             # Set the index of masked pixels or those off the detector
@@ -375,7 +436,7 @@ class WaveTilts(masterframe.MasterFrame):
             # the continuum fit to the central extracted spectrum to
             # match the spectrum at each spatial position.
             # TODO: Instead of determining the scale factor directly,
-            # use the slit illumination profile?
+            # use the slit-illumination profile?
             cont_renorm = stats.sigma_clipped_stats(aligned_flux/arc_continuum[:,i,None],
                                                     sigma_lower=lower_rej, sigma_upper=upper_rej,
                                                     axis=0)[1]
@@ -421,10 +482,34 @@ class WaveTilts(masterframe.MasterFrame):
         # Extract the arc spectra for all slits
         self.arccen, self.arccen_bpm, self.arc_maskslit = self.extract_arcs()
 
+        # TODO: Leave for now.  Used for debugging
+#        self.par['rm_continuum'] = True
+#        debug = True
+#        show = True
+
         # Subtract arc continuum
-        sub_continuum = True
-        cont_image = self.model_arc_continuum() if sub_continuum \
-                        else np.zeros(self.shape_science, dtype=float)
+        _msarc = self.msarc.image.copy()
+        if self.par['rm_continuum']:
+            continuum = self.model_arc_continuum(debug=debug)
+            _msarc -= continuum
+            if debug:
+                # TODO: Put this into a function
+                vmin, vmax = visualization.ZScaleInterval().get_limits(_msarc)
+                w,h = plt.figaspect(1)
+                fig = plt.figure(figsize=(3*w,h))
+                ax = fig.add_axes([0.15/3, 0.1, 0.8/3, 0.8])
+                ax.imshow(self.msarc.image, origin='lower', interpolation='nearest',
+                          aspect='auto', vmin=vmin, vmax=vmax)
+                ax.set_title('MasterArc')
+                ax = fig.add_axes([1.15/3, 0.1, 0.8/3, 0.8])
+                ax.imshow(continuum, origin='lower', interpolation='nearest',
+                          aspect='auto', vmin=vmin, vmax=vmax)
+                ax.set_title('Continuum')
+                ax = fig.add_axes([2.15/3, 0.1, 0.8/3, 0.8])
+                ax.imshow(_msarc, origin='lower', interpolation='nearest',
+                          aspect='auto', vmin=vmin, vmax=vmax)
+                ax.set_title('MasterArc - Continuum')
+                plt.show()
 
         # maskslit
         self.mask = maskslits & (self.arc_maskslit==1)
@@ -442,29 +527,30 @@ class WaveTilts(masterframe.MasterFrame):
         #if show:
         #    viewer,ch = ginga.show_image(self.msarc*(self.slitmask > -1),chname='tilts')
 
-        # TODO: Leave for now.  Used for debugging
-#        debug = True
-#        show = True
-#        import pdb
-#        from matplotlib import pyplot
-
         # Loop on all slits
         for slit in gdslits:
-            msgs.info('Computing tilts for slit {:d}/{:d}'.format(slit,self.nslits-1))
+            msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.nslits-1))
             # Identify lines for tracing tilts
             msgs.info('Finding lines for tilt analysis')
-            self.lines_spec, self.lines_spat = self.find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit, debug=debug)
+            self.lines_spec, self.lines_spat \
+                    = self.find_lines(self.arccen[:,slit], self.slitcen[:,slit], slit,
+                                      bpm=self.arccen_bpm[:,slit], debug=False) #debug)
             if self.lines_spec is None:
                 self.mask[slit] = True
                 maskslits[slit] = True
                 continue
 
             thismask = self.slitmask == slit
-            # Trace
+
+            # Performs the initial tracing of the line centroids as a
+            # function of spatial position resulting in 1D traces for
+            # each line.
             msgs.info('Trace the tilts')
-            self.trace_dict = self.trace_tilts(self.msarc.image - cont_image,
-                                               self.lines_spec, self.lines_spat,
+            self.trace_dict = self.trace_tilts(_msarc, self.lines_spec, self.lines_spat,
                                                thismask, self.slitcen[:,slit])
+
+            # TODO: Show the traces before running the 2D fit
+
             #if show:
             #    ginga.show_tilts(viewer, ch, self.trace_dict)
 
@@ -475,7 +561,7 @@ class WaveTilts(masterframe.MasterFrame):
             coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit],
                                        self.spat_order[slit], self.spec_order[slit], slit,
                                        doqa=doqa, show_QA=show, debug=show)
-            self.coeffs[0:self.spec_order[slit]+1, 0:self.spat_order[slit]+1 , slit] = coeff_out
+            self.coeffs[:self.spec_order[slit]+1,:self.spat_order[slit]+1,slit] = coeff_out
 
             # Tilts are created with the size of the original slitmask,
             # which corresonds to the same binning as the science
@@ -486,24 +572,29 @@ class WaveTilts(masterframe.MasterFrame):
             thismask_science = self.slitmask_science == slit
             self.final_tilts[thismask_science] = self.tilts[thismask_science]
 
-            # TODO: Leave this commented code block for now. It plots
-            # the tilt traced positions and the fit against the
-            # continuum-subtracted image. This was used for testing.
-#            pyplot.imshow(self.msarc.image - cont_image, origin='lower', interpolation='nearest',
-#                          aspect='auto', vmin=0, vmax=1e3)
-#            spat = self.all_trace_dict[slit]['tilts_spat']
-#            spec = self.all_trace_dict[slit]['tilts']
-#            spec_fit = self.all_trace_dict[slit]['tilts_fit']
-#            in_fit = self.all_trace_dict[slit]['tot_mask']
-#            not_fit = np.invert(in_fit)
-#            fit_rej = in_fit & np.invert(self.all_trace_dict[slit]['fit_mask'])
-#            fit_keep = in_fit & self.all_trace_dict[slit]['fit_mask']
-#            pyplot.scatter(spat[not_fit], spec[not_fit], color='C1', marker='.', s=50, lw=0)
-#            pyplot.scatter(spat[fit_rej], spec[fit_rej], color='C3', marker='.', s=50, lw=0)
-#            pyplot.scatter(spat[fit_keep], spec[fit_keep], color='k', marker='.', s=50, lw=0)
-#            with_fit = np.invert(np.all(np.invert(fit_keep), axis=0))
-#            pyplot.plot(spat[:,with_fit], spec_fit[:,with_fit], color='k')
-#            pyplot.show()
+        if debug:
+            # TODO: Add this to the show method?
+            vmin, vmax = visualization.ZScaleInterval().get_limits(_msarc)
+            plt.imshow(_msarc, origin='lower', interpolation='nearest', aspect='auto',
+                       vmin=vmin, vmax=vmax)
+            for slit in gdslits:
+                spat = self.all_trace_dict[slit]['tilts_spat']
+                spec = self.all_trace_dict[slit]['tilts']
+                spec_fit = self.all_trace_dict[slit]['tilts_fit']
+                in_fit = self.all_trace_dict[slit]['tot_mask']
+                not_fit = np.invert(in_fit) & (spec > 0)
+                fit_rej = in_fit & np.invert(self.all_trace_dict[slit]['fit_mask'])
+                fit_keep = in_fit & self.all_trace_dict[slit]['fit_mask']
+                plt.scatter(spat[not_fit], spec[not_fit], color='C1', marker='.', s=30, lw=0)
+                plt.scatter(spat[fit_rej], spec[fit_rej], color='C3', marker='.', s=30, lw=0)
+                plt.scatter(spat[fit_keep], spec[fit_keep], color='k', marker='.', s=30, lw=0)
+                with_fit = np.invert(np.all(np.invert(fit_keep), axis=0))
+                for t in range(in_fit.shape[1]):
+                    if not with_fit[t]:
+                        continue
+                    l, r = np.nonzero(in_fit[:,t])[0][[0,-1]]
+                    plt.plot(spat[l:r+1,t], spec_fit[l:r+1,t], color='k')
+            plt.show()
 
         self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen':self.slitcen,
                            'func2d':self.par['func2d'], 'nslit':self.nslits,

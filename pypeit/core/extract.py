@@ -1184,7 +1184,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     mask_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym), 
                          fwgt=totmask.astype(float))[0] < 0.3
     flux_mean, flux_median, flux_sig \
-            = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma = 3.0,
+            = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma=3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
 
     ##   New CODE

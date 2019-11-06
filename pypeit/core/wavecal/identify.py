@@ -9,7 +9,13 @@ from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
 
-matplotlib.use('Qt5Agg')
+from IPython import embed
+
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    import warnings
+    warnings.warn('Qt5Agg backend could not be used.  Failures may occur.')
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import fitting, waveio, wvutils
@@ -801,3 +807,4 @@ def initialise(arccen, slit=0, par=None):
 
     # Now return the results
     return ident
+
