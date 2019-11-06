@@ -90,6 +90,8 @@ Current PypeItPar Parameter Hierarchy
 
     ``[fluxcalib]``: `FluxCalibrationPar Keywords`_
 
+    ``[coadd2d]``: `Coadd2DPar Keywords`_
+
 
 ----
 
@@ -107,6 +109,7 @@ Key               Type                                              Options  Def
 ``scienceimage``  :class:`pypeit.par.pypeitpar.ScienceImagePar`     ..       `ScienceImagePar Keywords`_     Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
 ``flexure``       :class:`pypeit.par.pypeitpar.FlexurePar`          ..       `FlexurePar Keywords`_          Parameters used by the flexure-correction procedure.  Flexure corrections are not performed by default.  To turn on, either set the parameters in the 'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group to use the default flexure-correction parameters.
 ``fluxcalib``     :class:`pypeit.par.pypeitpar.FluxCalibrationPar`  ..       `FluxCalibrationPar Keywords`_  Parameters used by the flux-calibration procedure.  Flux calibration is not performed by default.  To turn on, either set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' in the 'rdx' parameter group to use the default flux-calibration parameters.    
+``coadd2d``       :class:`pypeit.par.pypeitpar.Coadd2DPar`          ..       `Coadd2DPar Keywords`_          Par set to control 2D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
 ================  ================================================  =======  ==============================  ======================================================================================================================================================================================================================================================================================
 
 
@@ -324,7 +327,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``trace``, ``pixelflat``, ``standard``, ``bias``, ``arc``, ``tilt``, ``dark``, ``pinhole``, ``science``  ``science``                   Frame type.  Options are: trace, pixelflat, standard, bias, arc, tilt, dark, pinhole, science                                                                                                                                                                  
+``frametype``  str                                             ``arc``, ``dark``, ``pixelflat``, ``bias``, ``tilt``, ``science``, ``standard``, ``trace``, ``pinhole``  ``science``                   Frame type.  Options are: arc, dark, pixelflat, bias, tilt, science, standard, trace, pinhole                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -406,13 +409,13 @@ FlexurePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 
-============  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-Key           Type        Options                            Default                                                                         Description                                                                                                                                                                                                           
-============  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-``method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                        Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
-``maxshift``  int, float  ..                                 20                                                                              Maximum allowed flexure shift in pixels.                                                                                                                                                                              
-``spectrum``  str         ..                                 ``/Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
-============  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
+============  ==========  =================================  ==========================================================================  ======================================================================================================================================================================================================================
+Key           Type        Options                            Default                                                                     Description                                                                                                                                                                                                           
+============  ==========  =================================  ==========================================================================  ======================================================================================================================================================================================================================
+``method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                    Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
+``maxshift``  int, float  ..                                 20                                                                          Maximum allowed flexure shift in pixels.                                                                                                                                                                              
+``spectrum``  str         ..                                 ``/home/xavier/local/Python/PypeIt/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
+============  ==========  =================================  ==========================================================================  ======================================================================================================================================================================================================================
 
 
 ----
@@ -438,6 +441,21 @@ Key                   Type      Options  Default  Description
 ``poly_norder``       int       ..       5        Polynomial order for sensfunc fitting                                                                                                                                                                                                    
 ``polycorrect``       bool      ..       True     Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions                                                                                                                                  
 ====================  ========  =======  =======  =========================================================================================================================================================================================================================================
+
+
+----
+
+Coadd2DPar Keywords
+-------------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.Coadd2DPar`
+
+===========  =========  =======  ========  ===========================================================================
+Key          Type       Options  Default   Description                                                                
+===========  =========  =======  ========  ===========================================================================
+``offsets``  list       ..       ..        User-input list of offsets for the images being combined.                  
+``weights``  str, list  ..       ``auto``  Mode for the weights used to coadd images.  See coadd2d.py for all options.
+===========  =========  =======  ========  ===========================================================================
 
 
 
@@ -820,7 +838,7 @@ Alterations to the default parameters are::
       exprng = 61, None
   [flexure]
       method = boxcar
-      spectrum = /Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/sky_kastb_600.fits
+      spectrum = /home/xavier/local/Python/PypeIt/pypeit/data/sky_spec/sky_kastb_600.fits
 
 SHANE KASTr
 -----------

@@ -152,10 +152,8 @@ class TraceSlits(masterframe.MasterFrame):
     @property
     def nslit(self):
         """
-
         Returns:
             int: Number of slits currently identified
-
         """
         return 0 if self.slit_left is None else self.slit_left.shape[1]
 
@@ -255,7 +253,7 @@ class TraceSlits(masterframe.MasterFrame):
                                                       self.par['function'], minx=minvf, maxx=maxvf)
                 return True
             return False
-       
+
         if len(self.tc_dict['left']['xval']) == 1 and len(self.tc_dict['right']['xval']) == 1:
             # fweight the trace crude
             for key,sign in zip(['left','right'], [1., -1.]):
@@ -851,7 +849,7 @@ class TraceSlits(masterframe.MasterFrame):
         # Check shapes
         if self.mstrace.shape != self.msbpm.shape:
             msgs.error('Trace and bad-pixel mask images are not the same size!')
-            
+
         # Generate binarr
         _ = self._make_binarr()
 
@@ -1042,7 +1040,7 @@ class TraceSlits(masterframe.MasterFrame):
         Reads both the trace data and the trace image data.  This is
         largely a wrapper for
         :func:`pypeit.traceslits.TraceSlits.load_from_file`.
-        
+
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
@@ -1067,7 +1065,7 @@ class TraceSlits(masterframe.MasterFrame):
             # User does not want to load masters
             msgs.warn('PypeIt will not reuse masters!')
             return empty_return
-        
+
         if not os.path.isfile(_ifile):
             # Master file doesn't exist
             msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
@@ -1085,7 +1083,7 @@ class TraceSlits(masterframe.MasterFrame):
         the class.
 
         Reads both the trace data and the trace image data.
-        
+
         Args:
             filename (:obj:`str`):
                 Name of the master frame file.

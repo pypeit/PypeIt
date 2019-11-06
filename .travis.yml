@@ -127,27 +127,6 @@ matrix:
         - os: linux
           env: MAIN_CMD='pycodestyle packagename --count' SETUP_CMD=''
 
-before_install:
-
-    # Use utf8 encoding. Should be default, but this is insurance against
-    # future changes
-    - export PYTHONIOENCODING=UTF8
-    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-    - chmod +x miniconda.sh
-    - ./miniconda.sh -b -p $HOME/miniconda
-    - export PATH=$HOME/miniconda/bin:$PATH
-    - export GSL_PATH=$HOME/miniconda
-    - hash -r
-    - conda config --set always_yes yes --set changeps1 no
-    - conda update --yes conda
-    #- conda install -c https://conda.anaconda.org/asmeurer gsl
-
-    # UPDATE APT-GET LISTINGS
-    - sudo apt-get update
-
-    # DOCUMENTATION DEPENDENCIES
-    - if [[ $SETUP_CMD == build_sphinx* ]]; then sudo apt-get install graphviz texlive-latex-extra dvipng; fi
-
 install:
 
     - git clone git://github.com/astropy/ci-helpers.git
