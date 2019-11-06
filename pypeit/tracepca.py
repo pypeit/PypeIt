@@ -464,7 +464,9 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
                               minx=minx, maxx=maxx, debug=debug)
 
     # Return the traces predicted for all input traces
-    try:
-        return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
-    except:
-        embed()
+    return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
+
+#    try:
+#        return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
+#    except:
+#        embed()
