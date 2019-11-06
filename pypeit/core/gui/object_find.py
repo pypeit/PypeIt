@@ -19,8 +19,14 @@ from pypeit import specobjs
 from pypeit import msgs
 
 operations = dict({'cursor': "Select object trace (LMB click)\n" +
-                    "         Navigate (LMB drag = pan, RMB drag = zoom)",
+                   "         Navigate (LMB drag = pan, RMB drag = zoom)\n" +
+                   "         Note: In order to pan/zoom, you need to first activate\n" +
+                   "         the pan/zoom tool with the 'p' key, or by selecting the\n" +
+                   "         pan/zoom tool on the Matplotlib navigation tool menu. You\n" +
+                   "         can also zoom using the magnifying glass (select this option\n" +
+                   "         from the Matplotlib navigation tool menu)\n",
                    'a': "Add a new object trace using the selected method",
+                   'c': "Center the window at the location of the mouse",
                    'd': "Delete selected object trace",
                    'h/r': "Return zoom to the original plotting limits",
                    'p': "Toggle pan/zoom with the cursor",
@@ -227,6 +233,21 @@ class ObjFindGUI(object):
         """
         keys = operations.keys()
         print("===============================================================")
+        print("Add/remove object traces until you are happy with the resulting")
+        print("traces. When you've finished, click one of the exit buttons on")
+        print("the right side of the page. If you click 'Continue (and save changes)'")
+        print("the object traces will be printed to the terminal, where you can")
+        print("copy them into your .pypeit file.")
+        print("")
+        print("thick coloured dashed lines = object traces")
+        print("thick coloured solid line   = currently selected object trace")
+        print("thin green/blue lines       = slit edges")
+        print("")
+        print("Meanings of the different coloured dashed lines:")
+        print(" green = user-defined object trace")
+        print(" blue  = trace automatically generated with PypeIt")
+        print(" red   = trace automatically generated with PypeIt (deleted)")
+        print("===============================================================")
         print("       OBJECT ID OPERATIONS")
         for key in keys:
             print("{0:6s} : {1:s}".format(key, operations[key]))
@@ -261,7 +282,7 @@ class ObjFindGUI(object):
         # Set the active method
         self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
 
-    def radio_meth(self, label):
+    def radio_meth(self, label, infobox=True):
         """Tell the code what to do when a different trace method is selected
 
         Args:
@@ -276,6 +297,12 @@ class ObjFindGUI(object):
                 self.update_infobox(message="That option is not available - changing to default", yesno=False)
                 self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
                 self._trcmthd = self._methdict[self._ax_meth_default][1]
+            else:
+                if infobox:
+                    self.update_infobox(message="Trace method set to: {0:s}".format(label), yesno=False)
+        else:
+            if infobox:
+                self.update_infobox(message="Trace method set to: {0:s}".format(label), yesno=False)
 
     def button_cont(self, event):
         """What to do when the 'exit and save' button is clicked
@@ -441,6 +468,7 @@ class ObjFindGUI(object):
         elif event.inaxes == self.axes['profile']:
             if (event.x == self._start[0]) and (event.y == self._start[1]):
                 self.set_fwhm(event.xdata)
+                self.update_infobox(message="FWHM updated for the selected object", yesno=False)
             return
         elif self._respreq[0]:
             # The user is trying to do something before they have responded to a question
@@ -455,6 +483,7 @@ class ObjFindGUI(object):
                 if (self._end[0] == self._start[0]) and (self._end[1] == self._start[1]):
                     # The mouse button was pressed (not dragged)
                     self.get_ind_under_point(event)
+                    self.update_infobox(message="Object selected", yesno=False)
                     pass
                 elif self._end != self._start:
                     # The mouse button was dragged
@@ -534,6 +563,10 @@ class ObjFindGUI(object):
             self.print_help()
         elif key == 'a':
             self.add_object()
+        elif key == 'c':
+            if axisID == 0:
+                # If this is pressed on the main window
+                self.recenter()
 #        elif key == 'c':
 #            self._respreq = [True, "clear_anchors"]
 #            self.update_infobox(message="Are you sure you want to clear the anchors", yesno=True)
@@ -711,6 +744,16 @@ class ObjFindGUI(object):
         if 1 in self._object_traces._add_rm:
             msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
             print(self._object_traces.get_pypeit_string())
+
+    def recenter(self):
+        xlim = self.axes['main'].get_xlim()
+        ylim = self.axes['main'].get_ylim()
+        xmin = self.mmx - 0.5*(xlim[1]-xlim[0])
+        xmax = self.mmx + 0.5*(xlim[1]-xlim[0])
+        ymin = self.mmy - 0.5*(ylim[1]-ylim[0])
+        ymax = self.mmy + 0.5*(ylim[1]-ylim[0])
+        self.axes['main'].set_xlim([xmin, xmax])
+        self.axes['main'].set_ylim([ymin, ymax])
 
     def make_objprofile(self):
         """Generate an object profile from the traces
