@@ -263,7 +263,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
         sub_img = arcimg_trans[min_spat:max_spat, :]
         sub_inmask = inmask_trans[min_spat:max_spat,:]
         sub_thismask = thismask_trans[min_spat:max_spat,:]
-        if do_crude:
+        if do_crude: # First time tracing, do a trace crude
             # NOTE: follow_centroid behaves differently from the old
             # trace_crude_init within 2-4 pixels at the trace edge
 
@@ -339,9 +339,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                                       weighting='gaussian', fwhm=fwhm, maxdev=maxdev, niter=3,
                                       idx=str(iline), debug=show_tracefits, xmin=0.0,
                                       xmax=float(nsub-1))
-
-        # TODO: Why is this done outside of the 'if gauss' block?
-        tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
+            tilts_sub_mask_box = moment1d(sub_thismask, tilts_sub_fit_out, fwhm)[0] > 0.99*fwhm
 
         # Pack the results into arrays, accounting for possibly falling off the image
         # Deal with possibly falling off the chip

@@ -11,12 +11,6 @@ from matplotlib.widgets import Button, Slider
 
 from IPython import embed
 
-try:
-    matplotlib.use('Qt5Agg')
-except:
-    import warnings
-    warnings.warn('Qt5Agg backend could not be used.  Failures may occur.')
-
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import fitting, waveio, wvutils
 from pypeit import utils, msgs

@@ -80,8 +80,6 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
-        # Single slit
-#        par['calibrations']['slitedges']['single'] = [0,-1]
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]

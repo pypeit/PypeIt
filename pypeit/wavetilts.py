@@ -403,8 +403,7 @@ class WaveTilts(masterframe.MasterFrame):
         # spatial axis.
         nspat = self.slitmask.shape[1]
         cont_image = np.zeros(self.msarc.image.shape, dtype=float)
-        ii = np.tile(np.arange(nspec), (nspat,1)).T
-        jj = np.tile(np.arange(nspat), (nspec,1))
+        spat_img = np.tile(np.arange(nspat), (nspec,1))
         # TODO: Can probably do this without the for loop but this
         # still may be faster.
         for i in range(nslits):
@@ -420,17 +419,18 @@ class WaveTilts(masterframe.MasterFrame):
             # spatial dimension that follow the curvature of the slit
             # center.
             # TODO: May need to be more sophisticated.
-            _jj = (self.slitcen[:,i,None] + np.arange(width)[None,:] - width//2).astype(int)
+            _spat_img = (self.slitcen[:,i,None] + np.arange(width)[None,:] - width//2).astype(int)
 
             # Set the index of masked pixels or those off the detector
             # to -1 so that they don't cause the image indexing to
             # fault and can be selected for masking
-            _jj[(_jj < 0) | (_jj >= nspat) | self.arccen_bpm[:,i,None]] = -1
+            _spat_img[(_spat_img < 0) | (_spat_img >= nspat) | self.arccen_bpm[:,i,None]] = -1
 
             # Pull out the slit pixels into a square array and mask
             # pixels off of the slit
             aligned_spec = np.tile(np.arange(nspec), (width,1)).T
-            aligned_flux = np.ma.MaskedArray(self.msarc.image[aligned_spec, _jj], mask=_jj==-1)
+            aligned_flux = np.ma.MaskedArray(self.msarc.image[aligned_spec, _spat_img],
+                                             mask=_spat_img==-1)
 
             # Use a sigma-clipped median to determine the scaling of
             # the continuum fit to the central extracted spectrum to
@@ -443,7 +443,7 @@ class WaveTilts(masterframe.MasterFrame):
 
             # Fill the image with the continuum for this slit
             indx = np.invert(aligned_flux.mask)
-            cont_image[aligned_spec[indx], _jj[indx]] \
+            cont_image[aligned_spec[indx], _spat_img[indx]] \
                     = (arc_continuum[:,i,None] * cont_renorm[None,:])[indx]
 
         # Remove continuum measurements that are off any slits (because
