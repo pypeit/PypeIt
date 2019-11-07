@@ -38,11 +38,13 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
                             darkcurr        = 0.0,
                             saturation      = 65535.,
                             nonlinear       = 0.86,
-                            numamplifiers   = 2,
-                            gain            = [2.2, 2.4],
-                            ronoise         = [5.0, 5.0],
-                            datasec         = ['[:508,33:]', '[508:,33:]'],
-                            oscansec        = [':508, 1:32]', '[508:, 1:32]'],
+                            numamplifiers   = 4,
+                            gain            = [2.2, 2.2, 2.2, 2.2],
+                            ronoise         = [5.0, 5.0, 5.0, 5.0],
+                            datasec         = ['[9:509,33:2064]', '[509:,33:2064]',
+                                               '[9:509, 2065:4092', '[509:, 2065:4092'],
+                            oscansec        = ['[9:509, 1:32]', '[509:, 1:32]',
+                                               '[9:509, 4098:]', '[509:, 4098:]'],
                             suffix          = ''
                             )]
         self.numhead = 1
