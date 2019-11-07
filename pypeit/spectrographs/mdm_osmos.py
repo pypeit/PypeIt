@@ -24,11 +24,11 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         super(MDMOSMOSMDM4KSpectrograph, self).__init__()
         self.spectrograph = 'mdm_osmos_mdm4k'
         self.telescope = telescopes.MDMTelescopePar()
-        #self.camera = 'ISISb'
+        self.camera = 'MDM4K'
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
-                            dataext         = 1,
+                            dataext         = 0,
                             specaxis        = 1,
                             specflip        = True,
                             xgap            = 0.,
@@ -80,7 +80,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['arcframe']['exprng'] = [None, 120]
+        par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
@@ -188,30 +188,8 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['arc', 'tilt']:
-            #embed(header='192 of mdm')
-            return good_exp & np.array([ilamp in ['Ar','Xe'] for ilamp in fitstbl['lampstat01']]) & (
-                    np.array([iid in ['Ar', 'Xe'] for iid in fitstbl['idname']]))
+        if ftype in ['arc','tilt']:
+            return good_exp & np.array([ilamp in ['Ar','Xe'] for ilamp in fitstbl['lampstat01']]) & (fitstbl['idname'] == 'COMP')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-    def bpm(self, filename=None, det=None, shape=None, msbias=None, **null_kwargs):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str, REQUIRED for binning
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
-        """
-        # Get the empty bpm: force is always True
-        self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
-
 
