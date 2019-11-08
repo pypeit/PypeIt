@@ -9,11 +9,13 @@ from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
 
-matplotlib.use('Qt5Agg')
+#matplotlib.use('Qt5Agg')
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import fitting, waveio, wvutils
 from pypeit import utils, msgs
+from astropy.io import ascii as ascii_io
+from astropy.table import Table
 
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
@@ -25,6 +27,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'd' : "Delete all line identifications (start from scratch)",
                    'f' : "Fit the wavelength solution",
                    'r' : "Refit a line",
+                   's' : "Save current line IDs to a file",
                    'z' : "Delete a single line identification",
                    '+/-' : "Raise/Lower the order of the fitting polynomial"
                    })
@@ -537,8 +540,8 @@ class Identify(object):
                 msgs.info("You must select a fitting region first")
             else:
                 msgs.work("Feature not yet implemented")
-        elif key == 'w':
-            msgs.work("Feature not yet implemented")
+        elif key == 's':
+            self.save_IDs()
         elif key == 'z':
             self.delete_line_id()
         elif key == '+':
@@ -716,6 +719,17 @@ class Identify(object):
         """Update the regions used to fit Gaussian
         """
         self._fitregions[self._start:self._end] = self._addsub
+
+    def save_IDs(self, fname='waveid.ascii'):
+        """Save the current IDs
+        """
+        data = Table({'pixel' : self._detns,
+                      'wavelength' : self._lineids,
+                      'flag' : self._lineflg},
+                     names=['pixel', 'wavelength', 'flag'])
+        ascii_io.write(data, fname, format='fixed_width')
+        msgs.info("Line IDs saved as:" + msgs.newline() + fname)
+        self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
 
 
 def initialise(arccen, slit=0, par=None):
