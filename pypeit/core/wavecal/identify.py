@@ -28,6 +28,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'f' : "Fit the wavelength solution",
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
+                   'w' : "Toggle wavelength/pixels on the x-axis of the main panel",
                    'z' : "Delete a single line identification",
                    '+/-' : "Raise/Lower the order of the fitting polynomial"
                    })
@@ -65,6 +66,7 @@ class Identify(object):
         self.specres = specres   # Residual information
         self.specdata = spec.get_ydata()
         self.specx = np.arange(self.specdata.size)
+        self.plotx = self.specx.copy()
         # Detections, linelist, line IDs, and fitting params
         self._slit = slit
         self._detns = detns
@@ -109,6 +111,7 @@ class Identify(object):
         canvas.mpl_connect('key_press_event', self.key_press_callback)
         canvas.mpl_connect('button_release_event', self.button_release_callback)
         self.canvas = canvas
+        self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
 
         # Setup slider for the linelist
         self._slideval = 0  # Default starting point for the linelist slider
@@ -122,15 +125,27 @@ class Identify(object):
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
         self._qconf = False  # Confirm quit message
         self._changes = False
+        self._wavepix = 1   # Show wavelength (0) or pixels (1) on the x-axis of the main panel
 
         # Draw the spectrum
-        self.canvas.draw()
+        self.replot()
 
     def print_help(self):
         """Print the keys and descriptions that can be used for Identification
         """
         keys = operations.keys()
         print("===============================================================")
+        print(" Colored lines in main panels:")
+        print("   gray   : wavelength has not been assigned to this detection")
+        print("   red    : currently selected line")
+        print("   blue   : user has assigned wavelength to this detection")
+        print("   yellow : detection has been automatically assigned")
+        print(" Colored symbols in residual panels:")
+        print("   gray   : wavelength has not been assigned to this detection")
+        print("   blue   : user has assigned wavelength to this detection")
+        print("   yellow : detection has been automatically assigned")
+        print("   red    : automatically assigned wavelength was rejected")
+        print("---------------------------------------------------------------")
         print("       IDENTIFY OPERATIONS")
         for key in keys:
             print("{0:6s} : {1:s}".format(key, operations[key]))
@@ -139,9 +154,11 @@ class Identify(object):
     def replot(self):
         """Redraw the entire canvas
         """
+        # First set the xdata to be shown
         self.canvas.restore_region(self.background)
-        self.draw_lines()
+        self.toggle_wavepix()
         self.draw_residuals()
+        self.draw_lines()
         self.canvas.draw()
 
     def linelist_update(self, val):
@@ -189,6 +206,22 @@ class Identify(object):
         self._select = Button(selax, 'Assign Line', color=axcolor, hovercolor='y')
         self._select.on_clicked(self.linelist_select)
 
+    def toggle_wavepix(self, toggled=False):
+        if toggled:
+            self._wavepix = 1 - self._wavepix
+        self.plotx = self.specx.copy()  # Plot pixels on the x-axis
+        if self._wavepix == 0:
+            # Check that a wavelength solution exists
+            if self._fitdict['coeff'] is None:
+                self.update_infobox(message="Unable to show wavelength until a guess at the solution is available",
+                                    yesno=False)
+            else:
+                self.plotx = self._fitdict['wave_soln'].copy()
+        # Update the x-axis data and axis range
+        self.spec.set_xdata(self.plotx)
+        if toggled:
+            self.axes['main'].set_xlim([self.plotx.min(), self.plotx.max()])
+
     def draw_lines(self):
         """Draw the lines and annotate with their IDs
         """
@@ -196,26 +229,38 @@ class Identify(object):
         for i in self.anntexts: i.remove()
         self.annlines = []
         self.anntexts = []
+        # Decide if pixels or wavelength is being plotted
+        plotx = self._detns
+        if self._wavepix == 0 and self._fitdict['fitc'] is not None:
+            # Plot wavelength
+            pixel_fit = self._detns
+            xnorm = self._fitdict['xnorm']
+
+            # Calculate the estimated wavelength of the detections
+            plotx = utils.func_val(self._fitdict['fitc'],
+                                   pixel_fit / xnorm,
+                                   self._fitdict["function"],
+                                   minx=self._fitdict['fmin'],
+                                   maxx=self._fitdict['fmax'])
         # Plot the lines
         xmn, xmx = self.axes['main'].get_xlim()
-        ymn, ymx = self.axes['main'].get_ylim()
-        w = np.where((self._detns > xmn) & (self._detns < xmx))[0]
+        w = np.where((plotx > xmn) & (plotx < xmx))[0]
         for i in range(w.size):
             if self._lineflg[w[i]] in [0, 3]:
                 if w[i] == self._detns_idx:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
+                    self.annlines.append(self.axes['main'].axvline(plotx[w[i]], color='r'))
                 else:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='grey', alpha=0.5))
+                    self.annlines.append(self.axes['main'].axvline(plotx[w[i]], color='grey', alpha=0.5))
                 continue
             else:
                 if w[i] == self._detns_idx:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]], color='r'))
+                    self.annlines.append(self.axes['main'].axvline(plotx[w[i]], color='r'))
                 else:
-                    self.annlines.append(self.axes['main'].axvline(self._detns[w[i]],
+                    self.annlines.append(self.axes['main'].axvline(plotx[w[i]],
                                                                    color=self._lflag_color[self._lineflg[w[i]]]))
                 txt = "{0:.2f}".format(self._lineids[w[i]])
                 self.anntexts.append(
-                    self.axes['main'].annotate(txt, (self._detns[w[i]], self._detnsy[w[i]]), rotation=90.0,
+                    self.axes['main'].annotate(txt, (plotx[w[i]], self._detnsy[w[i]]), rotation=90.0,
                                      color='b', ha='right', va='bottom'))
 
     def draw_residuals(self):
@@ -295,7 +340,7 @@ class Identify(object):
         regwhr = np.copy(self._fitregions == 1)
         # Fudge to get the leftmost pixel shaded in too
         regwhr[np.where((self._fitregions[:-1] == 0) & (self._fitregions[1:] == 1))] = True
-        self._fitr = self.axes['main'].fill_between(self.specx, 0, 1, where=regwhr, facecolor='green',
+        self._fitr = self.axes['main'].fill_between(self.plotx, 0, 1, where=regwhr, facecolor='green',
                                           alpha=0.5, transform=trans)
 
     def get_ann_ypos(self, scale=1.02):
@@ -327,7 +372,7 @@ class Identify(object):
         Returns:
             ind (int): Index of the spectrum where the event occurred
         """
-        ind = np.argmin(np.abs(self.specx - event.xdata))
+        ind = np.argmin(np.abs(self.plotx - event.xdata))
         return ind
 
     def get_axisID(self, event):
@@ -454,8 +499,8 @@ class Identify(object):
         trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
         self.canvas.restore_region(self.background)
         self.draw_fitregions(trans)
-        self.draw_lines()
-        self.canvas.draw()
+        # Now replot everything
+        self.replot()
 
     def key_press_callback(self, event):
         """What to do when a key is pressed
@@ -520,10 +565,14 @@ class Identify(object):
             else:
                 msgs.info("You must identify a few lines first")
         elif key == 'c':
-            msgs.work("Feature not yet implemented")
+            wclr = np.where((self._lineflg == 2) | (self._lineflg == 3))
+            self._lineflg[wclr] = 0
+            self.replot()
         elif key == 'd':
-            msgs.work("Feature not yet implemented")
+            self._lineflg *= 0
+            self._lineids *= 0.0
             self._fitdict['coeff'] = None
+            self.replot()
         elif key == 'f':
             self.fitsol_fit()
             self.replot()
@@ -542,6 +591,9 @@ class Identify(object):
                 msgs.work("Feature not yet implemented")
         elif key == 's':
             self.save_IDs()
+        elif key == 'w':
+            self.toggle_wavepix(toggled=True)
+            self.replot()
         elif key == 'z':
             self.delete_line_id()
         elif key == '+':
