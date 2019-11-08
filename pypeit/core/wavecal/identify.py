@@ -721,12 +721,18 @@ class Identify(object):
         self._fitregions[self._start:self._end] = self._addsub
 
     def save_IDs(self, fname='waveid.ascii'):
-        """Save the current IDs
+        """Save the current IDs  0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         """
+        meta = dict(comments=["flags:",
+                              "   0 = wavelength has not been assigned to this detection",
+                              "   1 = user has assigned wavelength to this detection",
+                              "   2 = detection has been automatically assigned",
+                              "   3 = automatically assigned wavelength was rejected"])
         data = Table({'pixel' : self._detns,
                       'wavelength' : self._lineids,
                       'flag' : self._lineflg},
-                     names=['pixel', 'wavelength', 'flag'])
+                     names=['pixel', 'wavelength', 'flag'],
+                     meta=meta)
         ascii_io.write(data, fname, format='fixed_width')
         msgs.info("Line IDs saved as:" + msgs.newline() + fname)
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
