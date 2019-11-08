@@ -26,6 +26,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'c' : "Clear automatically identified lines",
                    'd' : "Delete all line identifications (start from scratch)",
                    'f' : "Fit the wavelength solution",
+                   'l' : "Load saved line IDs from file",
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
                    'w' : "Toggle wavelength/pixels on the x-axis of the main panel",
@@ -576,6 +577,8 @@ class Identify(object):
         elif key == 'f':
             self.fitsol_fit()
             self.replot()
+        elif key == 'l':
+            self.load_IDs()
         elif key == 'q':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
@@ -772,8 +775,21 @@ class Identify(object):
         """
         self._fitregions[self._start:self._end] = self._addsub
 
+    def load_IDs(self, fname='waveid.ascii'):
+        """Load line IDs
+        """
+        if os.path.exists(fname):
+            data = ascii_io.read(fname, format='fixed_width')
+            self._detns = data['pixel']
+            self._lineids = data['wavelength']
+            self._lineflg = data['flag']
+            msgs.info("Loaded line IDs:" + msgs.newline() + fname)
+            self.update_infobox(message="Loaded line IDs: {0:s}".format(fname), yesno=False)
+        else:
+            self.update_infobox(message="Could not find line IDs: {0:s}".format(fname), yesno=False)
+
     def save_IDs(self, fname='waveid.ascii'):
-        """Save the current IDs  0=no ID, 1=user ID, 2=auto ID, 3=flag reject
+        """Save the current IDs
         """
         meta = dict(comments=["flags:",
                               "   0 = wavelength has not been assigned to this detection",
