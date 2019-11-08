@@ -4,6 +4,7 @@ General utility functions.
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
 import os
+import pickle
 import warnings
 import itertools
 import matplotlib
@@ -1753,3 +1754,36 @@ def yamlify(obj, debug=False):
     return obj
 
 
+def save_pickle(fname, obj):
+    """Save an object to a python pickle file
+
+    Parameters
+    ----------
+    fname : :class:`str`
+        Filename
+    obj : :class:`object`
+       An object suitable for pickle serialization.
+    """
+    if fname.split(".")[-1] != 'pkl':
+        fname += '.pkl'
+    with open(fname, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        msgs.info('File saved: {0:s}'.format(fname))
+
+
+def load_pickle(fname):
+    """Load a python pickle file
+
+    Parameters
+    ----------
+    fname : :class:`str`
+        Filename
+
+    Returns
+    -------
+    :class:`object`
+       An object suitable for pickle serialization.
+    """
+    msgs.info('Loading file: {0:s}'.format(fname))
+    with open(fname, 'rb') as f:
+        return pickle.load(f)
