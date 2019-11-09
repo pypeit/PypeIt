@@ -120,19 +120,28 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
     # Check
     if chk:
         debugger.plot1d(nwwv, nwspec)
-        embed(header='102')
+        embed(header='123')
     # Generate the table
     write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut)
 
 
 def pypeit_arcspec(in_file, slit):
+    """
+
+    Args:
+        in_file:
+        slit:
+
+    Returns:
+
+    """
     wv_dict = ltu.loadjson(in_file)
     iwv_calib = wv_dict[str(slit)]
     x = np.arange(len(iwv_calib['spec']))
     wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
     # Return
-    return wv_vac, np.array(iwv_calib['spec'])
+    return wv_vac, np.array(iwv_calib['spec']).flatten()  # JXP added flatten on 2019-11-09
 
 
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
@@ -614,6 +623,15 @@ def main(flg):
         lcut = [3200.]
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
+    if flg & (2**23):  # MDM/OSMOS
+        # ArI 4159 -- 6800
+        wfile = os.path.join(template_path, 'MDM_OSMOS', 'MasterWaveCalib_MDM4K_01.json')
+        outroot = 'mdm_osmos_mdm4k.fits'
+        binspec = 1
+        slits = [0]
+        lcut = [3200.]
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
+                       chk=True, subtract_conti=True)
 
 # Command line execution
 if __name__ == '__main__':
@@ -663,7 +681,10 @@ if __name__ == '__main__':
     #flg += 2**21  # Hamamatsu B600 XIDL
 
     # WHT/ISIS
-    flg += 2**22  # Convert JSON to FITS
+    #flg += 2**23  # Convert JSON to FITS
+
+    # MDM/OSMMOS
+    flg += 2**23   # Convert JSON to FITS
 
     main(flg)
 
