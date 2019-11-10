@@ -226,7 +226,6 @@ def extract_boxcar(image,trace_in, radius_in, ycen=None):
 
 
 
-
 def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, specobj, min_frac_use = 0.05):
 
     """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
@@ -284,30 +283,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
         msgs.warn('Object profile is zero everywhere. This aperture is junk.')
-        junk = np.zeros(nspec)
-        # Fill in the optimally extraction tags
-        '''
-        specobj.optimal['WAVE'] = junk
-        specobj.optimal['COUNTS'] = junk
-        specobj.optimal['COUNTS_IVAR'] = junk
-        specobj.optimal['COUNTS_SIG'] = junk
-        specobj.optimal['COUNTS_NIVAR'] = junk
-        specobj.optimal['MASK'] = junk
-        specobj.optimal['COUNTS_SKY'] = junk
-        specobj.optimal['COUNTS_RN'] = junk
-        specobj.optimal['FRAC_USE'] = junk
-        specobj.optimal['CHI2'] = junk
-        # Fill in the boxcar tags
-        specobj.boxcar['WAVE'] = junk
-        specobj.boxcar['COUNTS'] = junk
-        specobj.boxcar['COUNTS_SIG'] = junk
-        specobj.boxcar['COUNTS_IVAR'] = junk
-        specobj.boxcar['COUNTS_NIVAR'] = junk
-        specobj.boxcar['MASK'] = junk
-        specobj.boxcar['COUNTS_SKY'] = junk
-        specobj.boxcar['COUNTS_RN'] = junk
-        specobj.boxcar['BOX_RADIUS'] = 0.0
-        '''
         return None
 
     mincol = np.min(ispat)
@@ -391,6 +366,21 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     specobj.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
     specobj.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     specobj.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
+
+    return
+
+
+def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img,
+                           box_radius, specobj):
+    # Setup
+    imgminsky = sciimg - skyimg
+    nspat = imgminsky.shape[1]
+    nspec = imgminsky.shape[0]
+
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
+    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     # Fill in the boxcar extraction tags
     flux_box = moment1d(imgminsky*mask, specobj.TRACE_SPAT, 2*box_radius,

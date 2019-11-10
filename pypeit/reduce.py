@@ -202,8 +202,6 @@ class Reduce(object):
         Main method to extract spectra from the ScienceImage
 
         """
-
-
         # Init outputs
         # set to first pass global sky
         self.skymodel = self.initial_sky
@@ -217,10 +215,12 @@ class Reduce(object):
             self.sobjs_obj.purge_neg()
         self.sobjs = self.sobjs_obj
 
+
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract
         if self.sobjs_obj.nobj > 0:
-            # Giddy up
+            # Boxcar only??
             if self.par['scienceimage']['extraction']['boxcar_only']:
+                msgs.info("Performing boxcar extraction only")
                 # Quick loop over the objects
                 for iord in range(self.nobj):
                     if self.spectrograph.pypeline == 'Echelle':
@@ -294,6 +294,8 @@ class Reduce(object):
                                         std_trace=std_trace,
                                         show=self.reduce_show,
                                         manual_extract_dict=manual_extract_dict)
+        else:
+            msgs.info("Skipping 2nd run of finding objects")
         # Return
         return self.sobjs_obj, self.nobj, self.skymask
 

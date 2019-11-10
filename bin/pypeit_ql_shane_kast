@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Run QL on Shane Kast
+"""
+
+from pypeit.scripts import  ql_shane_kast
+
+if __name__ == '__main__':
+    args = ql_shane_kast.parser()
+    ql_shane_kast.main(args)
