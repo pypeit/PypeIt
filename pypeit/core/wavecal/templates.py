@@ -623,7 +623,8 @@ def main(flg):
         lcut = [3200.]
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
-    if flg & (2**23):  # MDM/OSMOS
+    # MDM/OSMOS -- MDM4K
+    if flg & (2**23):
         # ArI 4159 -- 6800
         wfile = os.path.join(template_path, 'MDM_OSMOS', 'MasterWaveCalib_MDM4K_01.json')
         outroot = 'mdm_osmos_mdm4k.fits'
