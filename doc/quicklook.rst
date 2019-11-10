@@ -11,8 +11,43 @@ We describe each in turn.
 
 .. _run-calcheck:
 
-pypeit_nires_AB
-===============
+pypeit_ql_shane_kast
+====================
+
+This script performs a boxcar extraction of a long slit
+observation taken with the Kast spectrograph on the
+Shane 3m telescope at Lick Observatory.
+
+Here is the usage::
+
+    pypeit_ql_shane_kast -h
+    usage: pypeit_ql_shane_kast [-h] [-b BOX_RADIUS]
+                                camera full_rawpath arc flat science
+
+    Script to run PypeIt on a set of Kast files
+
+    positional arguments:
+      camera                blue or red
+      full_rawpath          Full path to the raw files
+      arc                   Arc frame
+      flat                  Flat frame
+      science               Science frame
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -b BOX_RADIUS, --box_radius BOX_RADIUS
+                            Set the radius for the boxcar extraction (arcsec)
+
+
+And here is a sample call on files from the Development suite::
+
+    pypeit_ql_shane_kast blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
+
+This generates a `shane_kast_blue_A` folder with the standard
+calibration (Masters), QA, and Science outputs.
+
+pypeit_ql_keck_nires
+====================
 
 This script performs a quick A-B reduction of a pair of
 Keck/NIRES spectral images.  Currently, the code takes
@@ -35,8 +70,8 @@ Options
 
 Here is the usage::
 
-    pypeit_nires_AB /data/Projects/Python/PypeIt-development-suite/REDUX_OUT/Keck_NIRES/AB_script/Raw s180604_0089.fits.gz s180604_0090.fits.gz -b 0.5 -h
-    usage: pypeit_nires_AB [-h] [-b BOX_RADIUS] full_rawpath fileA fileB
+    pypeit_ql_keck_nires /data/Projects/Python/PypeIt-development-suite/REDUX_OUT/Keck_NIRES/AB_script/Raw s180604_0089.fits.gz s180604_0090.fits.gz -b 0.5 -h
+    usage: pypeit_ql_keck_nires [-h] [-b BOX_RADIUS] full_rawpath fileA fileB
 
     Script to run PypeIt on a pair of NIRES files (A-B)
 
@@ -56,7 +91,7 @@ Example
 
 Here is an example call::
 
-    pypeit_nires_AB /data/Keck_NIRES/Raw s180604_0089.fits.gz s180604_0090.fits.gz -b 0.5
+    pypeit_ql_keck_nires /data/Keck_NIRES/Raw s180604_0089.fits.gz s180604_0090.fits.gz -b 0.5
 
 .. _nires-output:
 
