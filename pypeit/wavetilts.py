@@ -234,7 +234,7 @@ class WaveTilts(masterframe.MasterFrame):
             plt.show()
 
         self.steps.append(inspect.stack()[0][3])
-        return lines_spec[good], lines_spat[good]
+        return (None, None) if lines_spec is None else lines_spec[good], lines_spat[good]
 
 
 
