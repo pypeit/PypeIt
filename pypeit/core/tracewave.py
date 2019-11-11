@@ -119,7 +119,7 @@ def tilts_find_lines(arc_spec, slit_cen, tracethresh=10.0, sig_neigh=5.0, nfwhm_
         msgs.warn('No arc lines were deemed usable on this slit; line tilts cannot be computed.'
                   '  This may be a bad slit, which you can remove.  Otherwise, try lowering '
                   'the tracethresh parameter.')
-        return None, None
+        return None, None, None
     else:
         msgs.info('Modeling arc line tilts with {:d} arc lines'.format(nlines))
 
