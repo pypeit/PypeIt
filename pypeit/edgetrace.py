@@ -749,13 +749,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
-        # Add user traces
-        if self.par['add_slits'] is not None:
-            self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
-
         # Remove user traces
         if self.par['rm_slits'] is not None:
             self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
+
+        # Add user traces
+        if self.par['add_slits'] is not None:
+            self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
