@@ -515,7 +515,13 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
     dependency.
 
     .. note::
-        This is an adaptation of trace_crude from idlspec2d.
+        - This is an adaptation of ``trace_crude`` from ``idlspec2d``.
+        - You should consider smoothing the input ``flux`` array
+          before passing it to this function. See
+          :func:`pypeit.utils.boxcar_smooth_rows`. For example::
+
+            smimg = utils.boxcar_smooth_rows(img, nave, wgt=inmask)
+            cen, cene, cenm = trace.follow_centroid(smimg, ...)
 
     Args:
         flux (`numpy.ndarray`_):
@@ -523,7 +529,10 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             recentering. For example, when tracing slit edges, this
             should typically be the Sobel-filtered trace image after
             adjusting for the correct side and performing any
-            smoothing; see :func:`prepare_sobel_for_trace`.
+            smoothing; see :func:`prepare_sobel_for_trace`. In any
+            case, consider that this image may need to be smoothed
+            for robust output from this function. See
+            :func:`pypeit.utils.boxcar_smooth_rows`.
         start_row (:obj:`int`):
             Row at which to start the calculation. The function
             begins with this row and then continues first to higher
