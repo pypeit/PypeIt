@@ -138,8 +138,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
-        # Single slit
-        par['calibrations']['slits']['single'] = [0,-1]
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
@@ -295,13 +293,11 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
-        # Single slit
-        par['calibrations']['slits']['single'] = [0,-1]
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'identify'#'full_template'
+        par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -346,8 +342,8 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         # Wavelength calibrations
-#        if self.get_meta_value(scifile, 'dispname') == 'R1200R':
-#            par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_red_1200_4800.fits'
+        if self.get_meta_value(scifile, 'dispname') == 'R1200R':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_red_1200_6000.fits'
 
         # Return
         return par
