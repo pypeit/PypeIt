@@ -1006,7 +1006,7 @@ class ReducePar(ParSet):
         return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
                 'keck_nires', 'keck_hires_red', 'keck_hires_blue', 'mmt_binospec',
                 'keck_nirspec_low', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
-                'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
+                'tng_dolores', 'wht_isis_blue', 'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
                 'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
                 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
                 'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'vlt_fors2']

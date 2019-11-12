@@ -269,7 +269,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
                             numamplifiers   = 1,
                             gain            = 0.98,
                             ronoise         = 4.0,
-                            datasec         = '[:,2:4030]',
+                            datasec         = '[:,:]',
                             oscansec        = None,
                             suffix          = '_red'
                             )]
@@ -301,7 +301,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['method'] = 'identify'#'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
