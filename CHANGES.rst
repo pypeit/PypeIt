@@ -47,9 +47,20 @@
 - Added several from_master_file() instantiation methods
 - Use coadd2d.weighted_combine() to stack calibration images
 - Major refactor of slit edge tracing
-- Added 'Identify' tool to allow manual identification and calibration of an arc spectrum
+- Added 'Identify' tool to allow manual identification and calibration
+  of an arc spectrum
 - Added support for WHT/ISIS
 - Added code of conduct
+- Deprecated previous tracing code: `pypeit.traceslits` and
+  `pypeit.core.trace_slits`, as well as some functions in
+  `pypeit.core.extract` that were replaced by
+  `pypeit.core.moment.moment1d` and functions in `pypeit.core.trace`.
+- PCA now saved to MasterEdges file; added I/O methods
+- Allow for the continuum of the arc image to be modeled and subtracted
+  when tracing the line-centroid tilts
+- Include a mask in the line detection in extracted central arc spectrum
+  of each slit/order.  For VLT XShooter NIR, this was needed to ensure
+  the sigma calculation didn't include the off-order spectral positions.
 
 0.11.0 (22 Jun 2019)
 --------------------
