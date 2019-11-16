@@ -1913,6 +1913,16 @@ class EdgeTracePar(ParSet):
         dtypes['pad'] = int
         descr['pad'] = 'Integer number of pixels to consider beyond the slit edges.'
 
+#        defaults['single'] = []
+#        dtypes['single'] = list
+#        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
+#                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
+#                          'the slit according to column values.  The second value (for the ' \
+#                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
+#                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
+#                          'user-definition for the first detector but adds one for the second. ' \
+#                          ' None means no user-level slits defined.'
+
         dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  The syntax to define a ' \
                              'slit to add is: \'det:spec:spat_left:spat_right\' where ' \
@@ -1999,8 +2009,8 @@ class WaveTiltsPar(ParSet):
     """
     def __init__(self, idsonly=None, tracethresh=None, sig_neigh=None, nfwhm_neigh=None,
                  maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
-                 func2d=None, maxdev2d=None, sigrej2d=None):
-
+                 func2d=None, maxdev2d=None, sigrej2d=None, rm_continuum=None, cont_rej=None):
+#                 cont_function=None, cont_order=None,
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2024,7 +2034,7 @@ class WaveTiltsPar(ParSet):
         defaults['idsonly'] = False
         dtypes['idsonly'] = bool
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
-                           'tilts'
+                           'tilts (CURRENTLY NOT USED!)'
 
         defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
@@ -2082,6 +2092,25 @@ class WaveTiltsPar(ParSet):
         descr['sigrej2d'] = 'Outlier rejection significance determining which pixels on a fit to an arc line tilt ' \
                             'are rejected by the global 2D fit'
 
+        defaults['rm_continuum'] = False
+        dtypes['rm_continuum'] = bool
+        descr['rm_continuum'] = 'Before tracing the line center at each spatial position, ' \
+                                'remove any low-order continuum in the 2D spectra.'
+
+        # TODO: Replace these with relevant parameters from
+        # arc.iter_continuum
+#        defaults['cont_function'] = 'legendre'
+#        dtypes['cont_function'] = str
+#        descr['cont_function'] = 'Function type used to fit the continuum to be removed.'
+#
+#        defaults['cont_order'] = 3
+#        dtypes['cont_order'] = int
+#        descr['cont_order'] = 'Order of the function used to fit the continuum to be removed.'
+
+        defaults['cont_rej'] = [3, 1.5]
+        dtypes['cont_rej'] = [int, float, list, numpy.ndarray]
+        descr['cont_rej'] = 'The sigma threshold for rejection.  Can be a single number or two ' \
+                            'numbers that give the low and high sigma rejection, respectively.'
 
         # Right now this is not used the fits are hard wired to be legendre for the individual fits.
         #defaults['function'] = 'legendre'
@@ -2108,18 +2137,19 @@ class WaveTiltsPar(ParSet):
 
         # Instantiate the parameter set
         super(WaveTiltsPar, self).__init__(list(pars.keys()),
-                                            values=list(pars.values()),
-                                            defaults=list(defaults.values()),
-                                            options=list(options.values()),
-                                            dtypes=list(dtypes.values()),
-                                            descr=list(descr.values()))
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           options=list(options.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
-                   'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d']
+                   'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
+                   'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order',
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2127,7 +2157,10 @@ class WaveTiltsPar(ParSet):
 
 
     def validate(self):
-        pass
+        if hasattr(self.data['cont_rej'], '__len__'):
+            if len(self.data['cont_rej']) != 2:
+                raise ValueError('Continuum rejection threshold must be a single number or a '
+                                 'two-element list/array.')
 
     #@staticmethod
     #def valid_methods():
