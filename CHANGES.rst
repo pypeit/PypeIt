@@ -65,6 +65,11 @@
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
 
+0.11.0.1
+---------
+
+- Add DOI
+
 0.11.0 (22 Jun 2019)
 --------------------
 
