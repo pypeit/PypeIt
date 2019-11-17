@@ -90,7 +90,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
 
 class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     """
-    Child to handle Magellan/FIRE specific code
+    Child to handle Magellan/FIRE Echelle data
 
     .. note::
         For FIRE Echelle, we usually use high gain and SUTR read mode.
@@ -117,7 +117,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
                             ysize           = 1.,
                             platescale      = 0.18,
                             darkcurr        = 0.01,
-                            saturation      = 32000., # high gain is 20000., low gain is 32000
+                            saturation      = 20000., # high gain is 20000., low gain is 32000
                             nonlinear       = 1.0, # high gain mode, low gain is 0.875
                             numamplifiers   = 1,
                             gain            = 1.2, # high gain mode, low gain is 3.8 e-/DN
@@ -270,12 +270,11 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
 class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
     """
-    Child to handle Magellan/FIRE specific code
+    Child to handle Magellan/FIRE high-throughput data
 
     .. note::
-        For FIRE longslit, standard star and
-        calibrations are usually use Fowler 1 read mode in which case
-        the read noise is ~20 electron.
+        For FIRE longslit, science data are usually taken with SUTR readout mode with ~600s exposure
+        (at least for quasar hunting people) and the readout noise is ~6 e-
 
     """
     def __init__(self):
