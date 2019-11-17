@@ -72,21 +72,21 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution with OH lines
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0
-        par['calibrations']['wavelengths']['sigdetect']=[5,10,10,10,10,20,30,40,70,80,58,65,60,60,60,30,30,10,20,30,10]
+        par['calibrations']['wavelengths']['sigdetect']=[5,10,10,10,10,20,30,30,30,30,30,10,30,30,60,30,30,10,20,30,10]
         par['calibrations']['wavelengths']['n_first']=2
-        par['calibrations']['wavelengths']['n_final']=[3,3,3,3,4,4,4,4,4,4,4,4,4,6,6,4,4,4,4,4,4]
+        par['calibrations']['wavelengths']['n_final']=[3,3,3,2,4,4,4,3,4,4,4,3,4,4,4,4,4,4,6,6,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        par['calibrations']['wavelengths']['cc_thresh'] = 0.35
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_echelle.fits'
-        par['calibrations']['wavelengths']['match_toler']=5.0
+        par['calibrations']['wavelengths']['match_toler']=30.0
 
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
+        par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Always correct for flexure, starting with default parameters
