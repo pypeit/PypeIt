@@ -1,4 +1,7 @@
 """ Module for Magellan/FIRE specific codes
+Important Notes:
+   If you are reducing old FIRE data (before the broken happened in 2016), please change the ord_spat_pos array
+   (see lines from ~220 to ~230)
 """
 import numpy as np
 
@@ -216,12 +219,13 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     @property
     def order_spat_pos(self):
-        ## OLD data, i.e. before 2017
+        ## For OLD data, i.e. before 2017
         #ord_spat_pos = np.array([0.06054688, 0.14160156, 0.17089844, 0.22753906, 0.27539062,
         #                         0.32128906, 0.36474609, 0.40673828, 0.45019531, 0.48974609,
         #                         0.52978516, 0.56054688, 0.59814453, 0.63378906, 0.66503906,
         #                         0.70019531, 0.7421875 , 0.77978516, 0.82763672, 0.87109375,
         #                         0.9296875])
+        ## For NEW data
         ord_spat_pos = np.array([0.078125, 0.13769531, 0.19189453, 0.24414062, 0.29296875,
                                  0.34179688, 0.38330078, 0.42724609, 0.46582031, 0.50439453,
                                  0.54199219, 0.57763672, 0.61279297, 0.6484375 , 0.68457031,
