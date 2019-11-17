@@ -611,6 +611,19 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
+    if flg & (2**23): # FIRE longslit
+        binspec = 1
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        outroot = 'magellan_fire_long.fits'
+        xidl_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr_archive_fit.fits')
+        spec_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr2.sav')
+        fire_sol = Table.read(xidl_file)
+        wave = cheby_val(fire_sol['FFIT'].data[0], np.arange(2048), fire_sol['NRM'].data[0], fire_sol['NORD'].data[0])
+        wv_vac = airtovac(wave * units.AA)
+        xidl_dict = readsav(spec_file)
+        flux = xidl_dict['arc1d']
+        write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -661,6 +674,7 @@ if __name__ == '__main__':
     flg += 2**21  # Convert JSON to FITS
     # Magellan/FIRE
     #flg += 2**22  # Convert new JSON solution to FITS
+    #flg += 2**23  # Longslit
 
     main(flg)
 
