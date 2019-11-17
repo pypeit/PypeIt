@@ -95,12 +95,15 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
 
         # Set slits and tilts parameters
-#        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = 5
-        par['calibrations']['slits']['trace_npoly'] = 5
-        par['calibrations']['slits']['sigdetect'] = 10
-        par['calibrations']['slits']['maxshift'] = 0.5
-#        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slitedges']['edge_thresh'] = 10.
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['fit_order'] = 5
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['pca_order'] = 3
+
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -180,7 +183,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        msgs.info("Custom bad pixel mask for NIRES")
+        msgs.info("Custom bad pixel mask for FIRE")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
 
         return bpm_img

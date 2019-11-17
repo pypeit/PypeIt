@@ -58,6 +58,7 @@ def lines():
     line_dict['OH_GMOS'] = 2**16
     line_dict['OH_MODS'] = 2**17
     line_dict['ThAr_MagE'] = 2**18  # R=4100
+    line_dict['OH_FIRE_Echelle'] = 2**19  # R=6000
 
 
     #
