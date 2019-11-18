@@ -1336,6 +1336,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     else np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
                                                     for b in np.unique(self.spat_msk)])).tolist()
 
+    ## TODO It is confusing that this show routine shows images flipped from the PypeIt convention.
+    # It should be rewritten to show images with spectral direction vertical like all our other QA.
     def show(self, traceid=None, include_error=False, thin=1, in_ginga=False, include_img=False,
              include_sobel=False, img_buffer=100, flag=None, idlabel=False):
         """
@@ -1828,6 +1830,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         # TODO: Get rid of this when convinced it won't
                         # get tripped...
                         msgs.error('Traces remain but could not select good starting position.')
+
+                    ## TODO row and column should not be used here in the output. Adopt the PypeIt convention spec, spat
                     msgs.info('Following {0} {1} edge(s) '.format(np.sum(to_trace), side)
                               + 'from row {0}; '.format(_start_indx)
                               + '{0} trace(s) remain.'.format(np.sum(untraced)-np.sum(to_trace)))

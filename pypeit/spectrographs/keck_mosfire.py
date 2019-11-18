@@ -24,6 +24,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(KeckMOSFIRESpectrograph, self).__init__()
         self.telescope = telescopes.KeckTelescopePar()
+        self.spectrograph = 'keck_mosfire'
         self.camera = 'MOSFIRE'
         self.detector = [
                 # Detector 1
@@ -36,7 +37,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                             ysize           = 1.,
                             platescale      = 0.193,
                             darkcurr        = 0.8,
-                            saturation      = 43000., # ADU
+                            saturation      = 1e9, # ADU, this is hacked for now
                             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
                             numamplifiers   = 1,
                             gain            = 2.15,  # Taken from MOSFIRE detector webpage
@@ -46,7 +47,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                             )]
         self.numhead = 1
 
-    @staticmethod
     def default_pypeit_par(self):
         """
         Set default parameters for Keck/MOSFIRE
@@ -64,12 +64,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
-        #par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
         #par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
 
 
         # Tilt parameters
-        par['calibrations']['tilts']['tracethresh'] =  10.0
+        #par['calibrations']['tilts']['tracethresh'] =  100.0
         #par['calibrations']['tilts']['spat_order'] =  3
         #par['calibrations']['tilts']['spec_order'] =  3
 
@@ -89,6 +91,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Overscan but not bias
         #  This seems like a kludge of sorts
         par['calibrations']['biasframe']['useframe'] = 'none'
+        # No overscan
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'none'
+
 
 
         # Set the default exposure time ranges for the frame typing
