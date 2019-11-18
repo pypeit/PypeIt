@@ -515,7 +515,13 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
     dependency.
 
     .. note::
-        This is an adaptation of trace_crude from idlspec2d.
+        - This is an adaptation of ``trace_crude`` from ``idlspec2d``.
+        - You should consider smoothing the input ``flux`` array
+          before passing it to this function. See
+          :func:`pypeit.utils.boxcar_smooth_rows`. For example::
+
+            smimg = utils.boxcar_smooth_rows(img, nave, wgt=inmask)
+            cen, cene, cenm = trace.follow_centroid(smimg, ...)
 
     Args:
         flux (`numpy.ndarray`_):
@@ -523,7 +529,10 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             recentering. For example, when tracing slit edges, this
             should typically be the Sobel-filtered trace image after
             adjusting for the correct side and performing any
-            smoothing; see :func:`prepare_sobel_for_trace`.
+            smoothing; see :func:`prepare_sobel_for_trace`. In any
+            case, consider that this image may need to be smoothed
+            for robust output from this function. See
+            :func:`pypeit.utils.boxcar_smooth_rows`.
         start_row (:obj:`int`):
             Row at which to start the calculation. The function
             begins with this row and then continues first to higher
@@ -579,7 +588,8 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
 
     # Instantiate theses supplementary arrays here to speed things up
     # in iterative calling of moment1d. moment1d will check the array
-    # sizes.
+    # sizes. TODO: moment1d no longer instantiates these if they're not
+    # provided, so this likely isn't necessary; testing required.
     _ivar = np.ones_like(flux, dtype=float) if ivar is None else ivar
     _bpm = np.zeros_like(flux, dtype=bool) if bpm is None else bpm
     _fwgt = np.ones_like(flux, dtype=float) if fwgt is None else fwgt

@@ -4,6 +4,7 @@ General utility functions.
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 """
 import os
+import pickle
 import warnings
 import itertools
 import matplotlib
@@ -143,7 +144,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     Boxcar smooth an image along their first axis (rows).
 
     Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
-    smooth the image. Cannot accommodate masking.
+    smooth the image.  Smoothing does not account for any masking.
 
     .. note::
         For images following the PypeIt convention, this smooths the
@@ -165,6 +166,8 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     """
     if nave == 1:
         return img
+    if img.ndim != 2:
+        raise ValueError('Input image must be 2D.')
     if wgt is not None and img.shape != wgt.shape:
         raise ValueError('Input image to smooth and weights must have the same shape.')
     if nave > img.shape[0]:
@@ -940,7 +943,7 @@ def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
-def func_val(c, x, func, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None):
+def func_val(c, x, func, x2=None, minx=None, maxx=None, minx2=None, maxx2=None):
     """ Generic routine to return an evaluated function
     Functional forms include:
       polynomial, legendre, chebyshev, bspline, gauss
@@ -1755,3 +1758,36 @@ def yamlify(obj, debug=False):
     return obj
 
 
+def save_pickle(fname, obj):
+    """Save an object to a python pickle file
+
+    Parameters
+    ----------
+    fname : :class:`str`
+        Filename
+    obj : :class:`object`
+       An object suitable for pickle serialization.
+    """
+    if fname.split(".")[-1] != 'pkl':
+        fname += '.pkl'
+    with open(fname, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        msgs.info('File saved: {0:s}'.format(fname))
+
+
+def load_pickle(fname):
+    """Load a python pickle file
+
+    Parameters
+    ----------
+    fname : :class:`str`
+        Filename
+
+    Returns
+    -------
+    :class:`object`
+       An object suitable for pickle serialization.
+    """
+    msgs.info('Loading file: {0:s}'.format(fname))
+    with open(fname, 'rb') as f:
+        return pickle.load(f)

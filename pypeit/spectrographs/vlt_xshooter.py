@@ -193,6 +193,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slitedges']['length_range'] = 0.3
 
         # Tilt parameters
+        par['calibrations']['tilts']['rm_continuum'] = True
         par['calibrations']['tilts']['tracethresh'] =  25.0
         par['calibrations']['tilts']['maxdev_tracefit'] =  0.04
         par['calibrations']['tilts']['maxdev2d'] =  0.04

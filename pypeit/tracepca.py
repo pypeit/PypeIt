@@ -151,7 +151,7 @@ class TracePCA:
         self.maxiter = None
 
     def build_interpolator(self, order, ivar=None, weights=None, function='polynomial', lower=3.0,
-                           upper=3.0, minx=None, maxx=None, maxrej=1, maxiter=25, debug=False):
+                           upper=3.0, maxrej=1, maxiter=25, minx=None, maxx=None, debug=False):
         """
         Wrapper for :func:`fit_pca_coefficients` that uses class
         attributes and saves the input parameters.
@@ -200,7 +200,7 @@ class TracePCA:
         if self.fit_coeff is None:
             msgs.error('PCA coefficients have not been modeled; run model_coeffs first.')
         return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
-                               function=self.function).T
+                               function=self.function, minx=self.minx, maxx=self.maxx).T
 
     def _output_dtype(self):
         """
@@ -317,9 +317,9 @@ class TracePCA:
 # integrate the elements of the function below into classes that trace
 # objects and tilts so that the PCA can be called and used later
 def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca=None,
-                     pca_explained_var=99.0, reference_row=None, coo=None, trace_wgt=None,
-                     function='polynomial', lower=3.0, upper=3.0, maxrej=1, maxiter=25,
-                     debug=False):
+                     pca_explained_var=99.0, reference_row=None, coo=None, minx=None, maxx=None,
+                     trace_wgt=None, function='polynomial', lower=3.0, upper=3.0, maxrej=1,
+                     maxiter=25, debug=False):
     r"""
     Decompose and reconstruct the provided traces using
     principle-component analysis.
@@ -369,6 +369,11 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
             use for each trace. If None, coordinates are defined at
             the reference row of `trace_cen`. Shape must be
             :math:`(N_{\rm trace},)`.
+        minx, maxx (:obj:`float`, optional):
+            Minimum and maximum values used to rescale the
+            independent axis data. If None, the minimum and maximum
+            values of `coo` are used. See
+            :func:`utils.robust_polyfit_djs`.
         trace_wgt (`numpy.ndarray`_, optional):
             Weights to apply to the PCA coefficient of each trace
             during the fit. Weights are independent of the PCA
@@ -456,10 +461,12 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     # Build the interpolator that allows prediction of new traces
     cenpca.build_interpolator(_order, ivar=ivar, weights=weights, function=function,
                               lower=lower, upper=upper, maxrej=maxrej, maxiter=maxiter,
-                              debug=debug)
+                              minx=minx, maxx=maxx, debug=debug)
 
-    # Return the traces predicted for all 
-    try:
-        return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
-    except:
-        embed()
+    # Return the traces predicted for all input traces
+    return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
+
+#    try:
+#        return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
+#    except:
+#        embed()

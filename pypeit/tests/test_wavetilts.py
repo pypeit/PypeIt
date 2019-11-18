@@ -45,7 +45,7 @@ def test_step_by_step(master_dir):
                                     wavepar, det=1, master_key=master_key, master_dir=master_dir,
                                     reuse_masters=True)
     # Extract arcs
-    arccen, maskslits = waveTilts.extract_arcs()#waveTilts.slitcen, waveTilts.slitmask, waveTilts.inmask)
+    arccen, arccen_bpm, maskslits = waveTilts.extract_arcs()#waveTilts.slitcen, waveTilts.slitmask, waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0

@@ -25,6 +25,7 @@ https://github.com/pypeit/PypeIt/issues/676)
 * Keck/NIRSPEC (low-dispersion)
 * VLT/X-Shooter
 * VLT/FORS2
+* WHT/ISIS
 
 # Requirements
 
@@ -40,6 +41,9 @@ https://github.com/pypeit/PypeIt/issues/676)
 * future
 * PyYAML
 * linetools
+
+# Code of Conduct
+(see `./doc/codeconduct.rst`)
 
 # License
 This program is free software: you can redistribute it and/or modify
