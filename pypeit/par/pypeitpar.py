@@ -1012,6 +1012,7 @@ class ReducePar(ParSet):
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
                           'science frame'
 
+        # TODO: Explain what this actually does in the description.
         defaults['ignore_bad_headers'] = False
         dtypes['ignore_bad_headers'] = bool
         descr['ignore_bad_headers'] = 'Ignore bad headers (NOT recommended unless you know it is safe).'
