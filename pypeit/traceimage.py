@@ -38,5 +38,9 @@ class TraceImage(calibrationimage.CalibrationImage):
         self.process_steps += ['trim']
         self.process_steps += ['apply_gain']
         self.process_steps += ['orient']
-        self.process_steps += ['crmask']
+        # TODO: CR masking for the trace images causes major issues with
+        # the edge tracing because it identifies the edges of the slits
+        # as cosmic rays.  CR parameters need to be optimized for this
+        # to work.
+#        self.process_steps += ['crmask']
 
