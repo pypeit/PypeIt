@@ -85,6 +85,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
+        # ToDo: replace this with real bad pixel masks
         msgs.info("Custom bad pixel mask for FIRE")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
 
@@ -120,7 +121,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
                             ysize           = 1.,
                             platescale      = 0.18,
                             darkcurr        = 0.01,
-                            saturation      = 20000., # high gain is 20000., low gain is 32000
+                            #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
+                            saturation      = 100000., # This is an arbitrary value.
                             nonlinear       = 1.0, # high gain mode, low gain is 0.875
                             numamplifiers   = 1,
                             gain            = 1.2, # high gain mode, low gain is 3.8 e-/DN
@@ -219,6 +221,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     @property
     def order_spat_pos(self):
+        # ToDo: We somehow need to automate this.
         ## For OLD data, i.e. before 2017
         #ord_spat_pos = np.array([0.06054688, 0.14160156, 0.17089844, 0.22753906, 0.27539062,
         #                         0.32128906, 0.36474609, 0.40673828, 0.45019531, 0.48974609,
@@ -319,7 +322,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
             if 'frame' in key:
                 par['calibrations'][key]['process']['overscan'] = 'none'
         # Wavelengths
-        # 1D wavelength solution with OH lines
+        # 1D wavelength solution with arc lines
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0
         par['calibrations']['wavelengths']['sigdetect']=3
         par['calibrations']['wavelengths']['fwhm'] = 20
