@@ -90,6 +90,8 @@ Current PypeItPar Parameter Hierarchy
 
     ``[fluxcalib]``: `FluxCalibrationPar Keywords`_
 
+    ``[coadd2d]``: `Coadd2DPar Keywords`_
+
 
 ----
 
@@ -107,6 +109,7 @@ Key               Type                                              Options  Def
 ``scienceimage``  :class:`pypeit.par.pypeitpar.ScienceImagePar`     ..       `ScienceImagePar Keywords`_     Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
 ``flexure``       :class:`pypeit.par.pypeitpar.FlexurePar`          ..       `FlexurePar Keywords`_          Parameters used by the flexure-correction procedure.  Flexure corrections are not performed by default.  To turn on, either set the parameters in the 'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group to use the default flexure-correction parameters.
 ``fluxcalib``     :class:`pypeit.par.pypeitpar.FluxCalibrationPar`  ..       `FluxCalibrationPar Keywords`_  Parameters used by the flux-calibration procedure.  Flux calibration is not performed by default.  To turn on, either set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' in the 'rdx' parameter group to use the default flux-calibration parameters.    
+``coadd2d``       :class:`pypeit.par.pypeitpar.Coadd2DPar`          ..       `Coadd2DPar Keywords`_          Par set to control 2D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
 ================  ================================================  =======  ==============================  ======================================================================================================================================================================================================================================================================================
 
 
@@ -326,7 +329,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``standard``, ``trace``, ``pixelflat``, ``arc``, ``bias``, ``dark``, ``science``, ``tilt``, ``pinhole``  ``science``                   Frame type.  Options are: standard, trace, pixelflat, arc, bias, dark, science, tilt, pinhole                                                                                                                                                                  
+``frametype``  str                                             ``science``, ``pinhole``, ``standard``, ``pixelflat``, ``dark``, ``arc``, ``tilt``, ``trace``, ``bias``  ``science``                   Frame type.  Options are: science, pinhole, standard, pixelflat, dark, arc, tilt, trace, bias                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -440,6 +443,21 @@ Key                   Type      Options  Default  Description
 ``poly_norder``       int       ..       5        Polynomial order for sensfunc fitting                                                                                                                                                                                                    
 ``polycorrect``       bool      ..       True     Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions                                                                                                                                  
 ====================  ========  =======  =======  =========================================================================================================================================================================================================================================
+
+
+----
+
+Coadd2DPar Keywords
+-------------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.Coadd2DPar`
+
+===========  =========  =======  ========  ===========================================================================
+Key          Type       Options  Default   Description                                                                
+===========  =========  =======  ========  ===========================================================================
+``offsets``  list       ..       ..        User-input list of offsets for the images being combined.                  
+``weights``  str, list  ..       ``auto``  Mode for the weights used to coadd images.  See coadd2d.py for all options.
+===========  =========  =======  ========  ===========================================================================
 
 
 
