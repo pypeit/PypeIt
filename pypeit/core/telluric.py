@@ -331,6 +331,27 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
 ############################
 
 def tellfit_chi2(theta, flux, thismask, arg_dict):
+    """
+    Loss function which is optimized by differential evolution to perform the object + telluric model fitting for
+    telluric corrections. This is a general abstracted routine that provides the loss function for any object model
+    that the user provides.
+
+    Args:
+        theta (`numpy.ndarray`_):
+           Parameter vector for the object + telluric model. See documentation of tellfit for a detailed description.
+        flux (`numpy.ndarray`_):
+           The flux of the object being fit
+        thismask (`numpy.ndarray`_, boolean):
+           A mask indicating which values are to be fit. This is a good pixel mask, i.e. True=Good
+        arg_dict (dict):
+           A dictionary containing the parameters needed to evaluate the telluric model and the object model. See
+           documentation of tellfit for a detailed description.
+    Returns:
+        loss_function (float):
+           The value of the loss function at the location in parameter space theta. This is loss function is the thing
+           that is minimized to perform the fit.
+
+    """
 
     obj_model_func = arg_dict['obj_model_func']
     flux_ivar = arg_dict['ivar']
@@ -352,6 +373,50 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
         return loss_function
 
 def tellfit(flux, thismask, arg_dict, **kwargs_opt):
+    """
+    Routine to perform the object + telluric model fitting for telluric corrections. This is a general abstracted routine
+    that performs the fits for any object model that the user provides.
+    Args:
+        theta (`numpy.ndarray`_):
+           Parameter vector for the object + telluric model.
+
+           This is actually two concatenated paramter vectors, one
+           for the object and one for the telluric, i.e:
+              theta_obj = theta[:-6]
+              theta_tell = theta[-6:]
+
+           The telluric model theta_tell is currently hard wired to be six dimensional:
+              pressure, temperature, humidity, airmass, resln, shift = theta_tell
+
+           The object model theta_obj can have an arbitrary size and is provided as an argument to obj_model_func
+        flux (`numpy.ndarray`_):
+           The flux of the object being fit
+        thismask (`numpy.ndarray`_, boolean):
+           A mask indicating which values are to be fit. This is a good pixel mask, i.e. True=Good
+        arg_dict (dict):
+           A dictionary containing the parameters needed to evaluate the telluric model and the object model.
+           The required keys are:
+              arg_dict['flux_ivar'] =  Inverse variance for the flux array
+              arg_dict['tell_dict'] =  Dictionary containing the telluric grid and its parameters read in by read_telluric_grid
+              arg_dict['ind_lower'] =  Lower index into the telluric model wave_grid to trim down the telluric model.
+              arg_dict['ind_upper'] =  Upper index into the telluric model wave_grid to trim down the telluric model.
+              arg_dict['obj_model_func'] = User provided function for evaluating the object model
+              arg_dict['obj_dict']  =  Dictionary containing the object model arguments which is passed to the obj_model_func
+        **kwargs_opt (dict):
+           Optional arguments for the differential evolution optimization
+
+    Returns:
+        result, modelfit, ivartot
+
+        result (obj):
+           Result object returned by the differential evolution optimizer
+        modelfit (`numpy.ndarray`_):
+           Modelfit to the input flux. This has the same size as the flux
+        ivartot (`numpy.ndarray`_):
+           Corrected inverse variances for the flux. This has the same size as the flux. The errors are renormalized
+           using the renormalize_errors function by a correction factor, i.e. ivartot = flux_ivar/sigma_corr**2
+
+    """
 
     # Unpack arguments
     obj_model_func = arg_dict['obj_model_func'] # Evaluation function
@@ -383,14 +448,32 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
     return result, tell_model*obj_model, ivartot
 
 
+# TODO This should be a general reader once we get our act together with the data model.
+#  For echelle:  read in all the orders into a (nspec, nporders) array
+#  FOr longslit: read in the stanard into a (nspec, 1) array
 def unpack_orders(sobjs, ret_flam=False):
+    """
+    Utility function to unpack the sobjs object and return the arrays necessary for telluric fitting.
+    Args:
+        sobjs (obj):
+            SpecObjs object
+        ret_flam (bool):
+            If true return the FLAM, otherwise return COUNTS
+    Returns:
+        wave, flam, flam_ivar, flam_mask
 
-    # TODO This should be a general reader:
-    #  For echelle:  read in all the orders into a (nspec, nporders) array
-    #  FOr longslit: read in the stanard into a (nspec, 1) array
-    # read in the
+        wave (`numpy.ndarray`_):
+           Wavelength grids
+        flam (`numpy.ndarray`_):
+           Flambda or counts
+        flam_ivar (`numpy.ndarray`_):
+           Inverse variance (of Flambda or counts)
+        flam_mask (`numpy.ndarray`_):
+           Good pixel mask. True=Good
 
+        All return values have shape (nspec, norders)
 
+    """
     # Read in the spec1d file
     norders = len(sobjs) # ToDO: This is incorrect if you have more than one object in the sobjs
     if ret_flam:
@@ -861,6 +944,15 @@ class Telluric(object):
         plt.show()
 
     def init_output(self):
+        """
+        Method to initialize the outputs
+
+        Returns:
+            meta_table (:obj:`astropy.table.Table`):
+               Table containing the meta information for the telluric model fits
+            out_table (:obj:`astropy.table.Table`):
+               Table containing the telluric model fits and the object model fits.
+        """
 
         # Allocate the meta parameter table, ext=1
         meta_table = table.Table(meta={'name': 'Parameter Values'})
@@ -897,6 +989,15 @@ class Telluric(object):
         return meta_table, out_table
 
     def assign_output(self, iord):
+        """
+        Routine to assign outputs to self.out_table for the order in question.
+
+        Args:
+            iord (int):
+            The order for which the output table should bbe assigned.
+
+
+        """
 
         ## TODO Store the outmask with rejected pixels??
         gdwave = self.wave_in_arr[:,iord] > 1.0
@@ -920,8 +1021,11 @@ class Telluric(object):
         self.out_table['SUCCESS'][iord] = self.result_list[iord].success
         self.out_table['NITER'][iord] = self.result_list[iord].nit
 
-
+    # TODO Purge? This does not appear to be used at the moment.
     def interpolate_inmask(self, mask, wave_inmask, inmask):
+        """
+        Utitlity routine to interpolate the input mask.
+        """
 
         if inmask is not None:
             if wave_inmask is None:
@@ -944,6 +1048,20 @@ class Telluric(object):
 
 
     def get_ind_lower_upper(self):
+        """
+        Utiltity routine to determine the ind_lower and ind_upper for each order. This trimming makes things
+        faster because then we only need to convolve the portion of the telluric model that is needed for the model fit
+        to each order, rather than convolving the entire telluric model grid.
+
+        Returns:
+            ind_lower, ind_upper
+
+            ind_lower (int):
+               Lower index into the telluric model wave_grid to trim down the telluric model.
+            ind_upper (int):
+               Upper index into the telluric model wave_grid to trim down the telluric model.
+
+        """
 
         ind_lower = np.zeros(self.norders, dtype=int)
         ind_upper = np.zeros(self.norders, dtype=int)
@@ -959,6 +1077,25 @@ class Telluric(object):
         return ind_lower, ind_upper
 
     def reshape(self, wave, flux, ivar, mask):
+        """
+        Utiltity routine to repackage all of the data to have shape (nspec, norders).
+
+        Args:
+            wave (`numpy.ndarray`_):
+              Wavelength array
+            flux (`numpy.ndarray`_):
+              Flux array
+            ivar (`numpy.ndarray`_):
+              Inverse variance array
+            mask (`numpy.ndarray`_, bool):
+              Good pixel mask True=Good.
+
+        Returns:
+            wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+
+            Reshaped arrays, and norde = total number of orders
+
+        """
         # Repackage the data into arrays of shape (nspec, norders)
         if flux.ndim == 1:
             nspec = flux.size
@@ -998,6 +1135,9 @@ class Telluric(object):
 
 
     def get_tell_guess(self):
+        """
+        Utility routine to get the telluric guess to determine the bounds with the init_obj_model function.
+        """
 
         tell_guess = (np.median(self.tell_dict['pressure_grid']),
                       np.median(self.tell_dict['temp_grid']),
@@ -1007,6 +1147,10 @@ class Telluric(object):
         return tell_guess
 
     def get_bounds_tell(self):
+        """
+        Utility routine to determine the telluric model grid bounds for the optimization.
+
+        """
 
         # Set the bounds for the optimization
         bounds_tell = [(self.tell_dict['pressure_grid'].min(), self.tell_dict['pressure_grid'].max()),
@@ -1019,6 +1163,17 @@ class Telluric(object):
         return bounds_tell
 
     def sort_telluric(self):
+        """
+        Utility routine to determine the order in which the telluric model is fit for multi-order data. This is done
+        by computing the median telluric absorption at the midpoint of parameters governing the telluric grid, for the
+        given the wavelengths of the data set by the ind_lower, ind_upper.
+
+        Args:
+
+        Returns:
+            srt_order_tell (`numpy.ndarray`_, int):
+                Array of sorted indices from strongest telluric absorption to weakest.
+        """
 
         tell_med = np.zeros(self.norders)
         # Do a quick loop over all the orders to sort them in order of strongest to weakest telluric absorption
@@ -1036,12 +1191,14 @@ class Telluric(object):
 
 def mask_star_lines(wave_star, mask_width=10.0):
     """
-    Mask stellar recombination lines
+    Routine to mask stellar recombination lines
+
     Args:
         wave_star: ndarray, shape (nspec,) or (nspec, nimgs)
         mask_width: float, width to mask around each line centers in Angstroms
     Returns:
-        mask: ndarray, same shape as wave_star, True=Good (i.e. does not hit a stellar absorption line)
+        mask (`numpy.ndarray`_, int):
+           same shape as wave_star, True=Good (i.e. does not hit a stellar absorption line)
     """
 
     mask_star = np.ones_like(wave_star, dtype=bool)
