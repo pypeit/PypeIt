@@ -472,6 +472,9 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     # ToDo Add some code here to treat the edges and places where fits go bad?
     # Set the pixelflat to 1.0 wherever the flat was nonlinear
     pixelflat[flat >= nonlinear_counts] = 1.0
+    # Do not apply pixelflat field corrections that are greater than 100% to avoid creating edge effects, etc.
+    # TODO Should we do the same for the illumflat??
+    pixelflat = np.fmax(np.fmin(pixelflat, 2.0), 0.5)
 
     return pixelflat, illumflat, flat_model, tilts, thismask_out, slit_left_out, slit_righ_out
 

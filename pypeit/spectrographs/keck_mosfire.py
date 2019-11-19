@@ -88,15 +88,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
+
         # Overscan but not bias
         #  This seems like a kludge of sorts
         par['calibrations']['biasframe']['useframe'] = 'none'
         # No overscan
+        par['scienceframe']['process']['overscan'] ='none'
         for key in par['calibrations'].keys():
             if 'frame' in key:
                 par['calibrations'][key]['process']['overscan'] = 'none'
-
-
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]

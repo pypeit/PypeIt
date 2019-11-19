@@ -62,6 +62,8 @@ class PypeItImage(maskimage.ImageMask):
         pypeitImage.head0 = head0
         if hdul[1].name != 'IMAGE':
             msgs.warn("Badly formated PypeItImage.  I hope this is an old calibration frame for compatibility")
+            # TODO This warninig is printed to the screen when from_file is used to read in the MasterArc. I think
+            # there is an inconsistenc with the headers written to the MasterArc.
 
         # Load up the other extensions, as present
         for kk in range(2,len(hdul)):
