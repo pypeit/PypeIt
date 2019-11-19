@@ -1,0 +1,321 @@
+""" Module for Magellan/FIRE specific codes
+Important Notes:
+   If you are reducing old FIRE data (before the broken happened in 2016), please change the ord_spat_pos array
+   (see lines from ~220 to ~230)
+"""
+import numpy as np
+
+from pypeit import msgs
+from pypeit import telescopes
+from pypeit.core import framematch
+from pypeit.par import pypeitpar
+from pypeit.spectrographs import spectrograph
+
+
+class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
+    """
+    Child to handle Gemini/Flamingos specific code
+
+    .. note::
+        For FIRE Echelle, we usually use high gain and SUTR read mode.
+        The exposure time is usually around 900s. The detector
+        parameters below are based on such mode. Standard star and
+        calibrations are usually use Fowler 1 read mode in which case
+        the read noise is ~20 electron.
+
+    """
+    def __init__(self):
+        # Get it started
+        super(GeminiFLAMINGOSSpectrograph, self).__init__()
+        self.spectrograph = 'gemini_flamingos'
+        self.telescope = telescopes.GeminiSTelescopePar()
+
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for the reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        return par
+
+    def init_meta(self):
+        """
+        Generate the meta data dict
+        Note that the children can add to this
+
+        Returns:
+            self.meta: dict (generated in place)
+
+        """
+        meta = {}
+        # Required (core)
+        meta['ra'] = dict(ext=0, card='RA')
+        meta['dec'] = dict(ext=0, card='DEC')
+        meta['target'] = dict(ext=0, card='OBJECT')
+        meta['decker'] = dict(ext=0, card='MASKNAME')
+        meta['dichroic'] = dict(ext=0, card='FILTER')
+        meta['binning'] = dict(ext=0, card=None, default='1,1')
+
+        meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        meta['exptime'] = dict(ext=0, card='EXPTIME')
+        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # Extras for config and frametyping
+        meta['dispname'] = dict(ext=0, card='GRISM')
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
+
+        # Ingest
+        self.meta = meta
+
+class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
+    """
+    Child to handle Magellan/FIRE Echelle data
+
+    .. note::
+        For FIRE Echelle, we usually use high gain and SUTR read mode.
+        The exposure time is usually around 900s. The detector
+        parameters below are based on such mode. Standard star and
+        calibrations are usually use Fowler 1 read mode in which case
+        the read noise is ~20 electron.
+
+    """
+    def __init__(self):
+        # Get it started
+        super(GeminiFLAMINGOS2Spectrograph, self).__init__()
+        self.spectrograph = 'gemini_flamingos2'
+        self.camera = 'FLAMINGOS'
+        self.numhead = 2
+        self.detector = [
+                # Detector 1
+                pypeitpar.DetectorPar(
+                            dataext         = 1,
+                            specaxis        = 0,
+                            specflip        = True,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.1787,
+                            darkcurr        = 0.5,
+                            saturation      = 700000., #155400.,
+                            nonlinear       = 1.0,
+                            numamplifiers   = 1,
+                            gain            = 4.44,
+                            ronoise         = 5.0, #8 CDS read
+                            datasec         = '[:,:]',
+                            oscansec        = '[:,:]'
+                            )]
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for the reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = 'gemini_flamingos2'
+        # No overscan
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'none'
+        # Wavelengths
+        # 1D wavelength solution with arc lines
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
+        par['calibrations']['wavelengths']['sigdetect']=5
+        par['calibrations']['wavelengths']['fwhm'] = 5
+        par['calibrations']['wavelengths']['n_first']=2
+        par['calibrations']['wavelengths']['n_final']=4
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['method'] = 'full_template'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
+        par['calibrations']['wavelengths']['match_toler']=5.0
+
+        # Set slits and tilts parameters
+        par['calibrations']['tilts']['tracethresh'] = 5
+        par['calibrations']['tilts']['spat_order'] = 4
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        # Scienceimage parameters
+        #par['scienceimage']['sig_thresh'] = 5
+        #par['scienceimage']['maxnumber'] = 2
+        par['scienceimage']['find_trim_edge'] = [5,5]
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Do not correct for flexure
+        par['flexure'] = None
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['standardframe']['exprng'] = [None, 30]
+        par['calibrations']['tiltframe']['exprng'] = [50, None]
+        par['calibrations']['arcframe']['exprng'] = [50, None]
+        par['calibrations']['darkframe']['exprng'] = [20, None]
+        par['scienceframe']['exprng'] = [20, None]
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # TODO: Should we allow the user to override these?
+
+        if self.get_meta_value(scifile, 'dispname') == 'HK_G5802':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_HK_HK.fits'
+        # Return
+        return par
+
+
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['pinhole', 'bias']:
+            # No pinhole or bias frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['pixelflat', 'trace']:
+            return good_exp & (fitstbl['idname'] == 'FLAT')
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['idname'] == 'OBJECT')
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+
+    def bpm(self, filename, det, shape=None):
+        """
+        Override parent bpm function with BPM specific to X-Shooter VIS.
+
+        .. todo::
+            Allow for binning changes.
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+            Captured and never used
+
+        Returns
+        -------
+        bpix : ndarray
+          0 = ok; 1 = Mask
+
+        """
+        # ToDo: replace this with real bad pixel masks
+        msgs.info("Custom bad pixel mask for FLAMINGOS")
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        return bpm_img
+
+
+class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
+    """
+    TODO: Place holder, NOT works yet.
+
+    """
+    def __init__(self):
+        # Get it started
+        super(GeminiFLAMINGOS1Spectrograph, self).__init__()
+        self.spectrograph = 'gemini_flamingos1'
+        self.camera = 'FLAMINGOS'
+        self.numhead = 1
+        self.detector = [
+                # Detector 1
+                pypeitpar.DetectorPar(
+                            dataext         = 0,
+                            specaxis        = 0,
+                            specflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.15,
+                            darkcurr        = 0.01,
+                            saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
+                            nonlinear       = 0.875,
+                            numamplifiers   = 1,
+                            gain            = 3.8,
+                            ronoise         = 6.0, # SUTR readout mode with exposure~600s
+                            datasec         = '[5:2044, 900:1250]',
+                            oscansec        = '[:5, 900:1250]'
+                            )]
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters.
+        """
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = 'magellan_fire_long'
+
+        # No overscan
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'none'
+        # Wavelengths
+        # 1D wavelength solution with arc lines
+        par['calibrations']['wavelengths']['rms_threshold'] = 1.0
+        par['calibrations']['wavelengths']['sigdetect']=3
+        par['calibrations']['wavelengths']['fwhm'] = 20
+        par['calibrations']['wavelengths']['n_first']=2
+        par['calibrations']['wavelengths']['n_final']=4
+        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
+        par['calibrations']['wavelengths']['match_toler']=5.0
+
+        # Set slits and tilts parameters
+        par['calibrations']['tilts']['tracethresh'] = 5
+        par['calibrations']['slitedges']['trace_thresh'] = 5.
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        # Scienceimage parameters
+        par['scienceimage']['sig_thresh'] = 5
+        par['scienceimage']['maxnumber'] = 2
+        par['scienceimage']['find_trim_edge'] = [50,50]
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Do not correct for flexure
+        par['flexure'] = None
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['standardframe']['exprng'] = [None, 60]
+        par['calibrations']['arcframe']['exprng'] = [1, 50]
+        par['calibrations']['darkframe']['exprng'] = [20, None]
+        par['scienceframe']['exprng'] = [20, None]
+        return par
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['pinhole', 'bias']:
+            # No pinhole or bias frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['pixelflat', 'trace']:
+            return good_exp & (fitstbl['idname'] == 'PixFlat')
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'Telluric')
+        if ftype == 'science':
+            return good_exp & (fitstbl['idname'] == 'Science')
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['idname'] == 'Arc')
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+

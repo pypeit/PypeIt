@@ -427,6 +427,10 @@ class Spectrograph(object):
         # Raw image
         hdu = fits.open(raw_file)
         raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
+        # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
+        # it's easier to change here than writing another get_rawimage function in the spectrograph file.
+        if np.size(raw_img.shape)==3:
+            raw_img = raw_img[0]
 
         # Extras
         headarr = self.get_headarr(hdu)

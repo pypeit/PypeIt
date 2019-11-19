@@ -624,6 +624,17 @@ def main(flg):
         flux = xidl_dict['arc1d']
         write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
 
+    # Gemini/Flamingos2
+    if flg & (2**24):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'Flamingos2_HK_HK.json'
+        outroot='Flamingos2_HK_HK.fits'
+        binspec = 1
+        slits = [0]
+        lcut = []
+        wfile = os.path.join(reid_path, iroot)
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -671,10 +682,13 @@ if __name__ == '__main__':
     #flg += 2**20  # E2V Convert JSON to FITS
 
     # WHT/ISIS
-    flg += 2**21  # Convert JSON to FITS
+    #flg += 2**21  # Convert JSON to FITS
     # Magellan/FIRE
     #flg += 2**22  # Convert new JSON solution to FITS
     #flg += 2**23  # Longslit
+
+    # Gemini Flamingos2
+    flg += 2**24
 
     main(flg)
 
