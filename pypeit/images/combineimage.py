@@ -73,12 +73,10 @@ class CombineImage(object):
         """
         # Load raw image
         rawImage = rawimage.RawImage(filename, self.spectrograph, self.det)
-
         # Process
         processrawImage = processrawimage.ProcessRawImage(rawImage, self.par, bpm=bpm)
         processedImage = processrawImage.process(process_steps, bias=bias, pixel_flat=pixel_flat,
                                                  illum_flat=illum_flat)
-
         # Return
         return processedImage
 
@@ -148,6 +146,8 @@ class CombineImage(object):
             if pypeitImage.rn2img is not None:
                 rn2img_stack[kk, :, :] = pypeitImage.rn2img
             # Final mask for this image
+            # TODO This seems kludgy to me. Why not just pass ignore_saturation to process_one and ignore the saturation
+            # when the mask is actually built, rather than untoggling the bit here
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
                 indx = pypeitImage.bitmask.flagged(pypeitImage.mask, flag=['SATURATION'])
                 pypeitImage.mask[indx] = pypeitImage.bitmask.turn_off(pypeitImage.mask[indx], 'SATURATION')

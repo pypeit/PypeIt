@@ -1005,7 +1005,7 @@ class ReducePar(ParSet):
         # be rethought.
         return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
                 'keck_nires', 'keck_hires_red', 'keck_hires_blue', 'mmt_binospec',
-                'keck_nirspec_low', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
+                'keck_nirspec_low', 'keck_mosfire', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
                 'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
                 'magellan_fire', 'magellan_fire_long', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
                 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham', 'gemini_flamingos1', 'gemini_flamingos2',

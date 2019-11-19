@@ -514,7 +514,7 @@ def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, d
     nexp = np.size(fnames)
     for iexp in range(nexp):
         spec1dfile = fnames[iexp]
-        outfile = spec1dfile[:-5] + '_flux.fits'
+        #outfile = spec1dfile[:-5] + '_flux.fits'
         sobjs, head = load.load_specobjs(spec1dfile)
         instrument = head['INSTRUME']
         spectrograph = load_spectrograph(instrument)
@@ -524,7 +524,7 @@ def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, d
         apply_sensfunc_specobjs(sobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=extinct_correct,
                                 tell_correct=tell_correct, longitude=longitude, latitude=latitude,
                                 debug=debug, show=show)
-        save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
+        save.save_1d_spectra_fits(sobjs, head, spectrograph, spec1dfile, helio_dict=None, overwrite=True)
 
 ### Routines for standard sensfunc started from here
 def find_standard(specobj_list):
