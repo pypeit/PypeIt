@@ -174,6 +174,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         # TODO: Should we allow the user to override these?
 
         if self.get_meta_value(scifile, 'dispname') == 'HK_G5802':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_HK_HK.fits'
         # Return
         return par
