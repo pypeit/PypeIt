@@ -101,6 +101,7 @@ For Developers
 .. toctree::
    :maxdepth: 1
 
+   development
    scripts
    flow
    new_spectrograph

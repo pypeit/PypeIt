@@ -210,11 +210,11 @@ class ProcessImagesPar(ParSet):
         defaults['bias'] = 'as_available'
         options['bias'] = ProcessImagesPar.valid_bias()
         dtypes['bias'] = str
-        descr['bias'] = 'Parameter for bias subtraction. Options are:\n' \
-                        '    `as_available`: Bias subtract if bias frames were provided\n' \
-                        '    `force`: Require bias subtraction; exception raised if no ' \
-                        'biases available.\n' \
-                        '    `skip`: Skip bias subtraction even if bias frames were provided'
+        descr['bias'] = 'Parameter for bias subtraction. Options are: ' \
+                        '(1) \'as_available\' -- Bias subtract if bias frames were provided;  ' \
+                        '(2) \'force\' -- Require bias subtraction; exception raised if no ' \
+                        'biases available;  ' \
+                        '(3) \'skip\' -- Skip bias subtraction even if bias frames were provided.'
 
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
@@ -606,7 +606,8 @@ class FlexurePar(ParSet):
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
-        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
+        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                            'paranal_sky.fits')
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 

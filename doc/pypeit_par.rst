@@ -11,24 +11,103 @@ PypeIt Parameters
 PypeIt allows you to customize its execution without having to change the
 code directly.
 
-Although not ubiquitous, most optional arguments of PypeIt's
-algorithms are contained within the :class:`pypeit.par.pypeitpar.PypeItPar`
-superset.  See the `Current PypeItPar Parameter Hierarchy`_ below for the
-current structure of a :class:`pypeit.par.pypeitpar.PypeItPar` instance.
+Although not ubiquitous, most optional arguments of PypeIt's algorithms
+are contained within the :class:`pypeit.par.pypeitpar.PypeItPar`
+superset.  PypeIt uses the `configobj`_ class to parse the user-supplied
+arguments  in the :ref:`pypeit_file` into an instance of
+:class:`pypeit.par.pypeitpar.PypeItPar` that is passed to all of
+PypeIt's main modules.  The syntax used to set parameters using the
+:ref:`pypeit_file` is important and the nesting of the parameter changes
+must match the `Current PypeItPar Parameter Hierarchy`_.
 
-More importantly, each instrument served provides its own default values
-for :class:`pypeit.par.pypeitpar.PypeItPar` as defined by its
-`default_pypeit_par` method; e.g.,
+Importantly, each instrument served provides its own default values for
+:class:`pypeit.par.pypeitpar.PypeItPar` as defined by its
+``default_pypeit_par`` method; e.g.,
 :func:`pypeit.spectrographs.shane_kast.ShaneKastSpectrograph.default_pypeit_par`.
-Users can alter these parameters via the PypeIt file, see
-:ref:`pypeit_file`.  Only those parameters that the user wishes to be
-different from the default *used for their specified instrument* need to
-be includes in the PypeIt file.
+Only those parameters that the user wishes to be different from the
+default *as set by their specified instrument* need to be changed via
+the :ref:`pypeit_file`.  The `Instrument-Specific Default
+Configuration`_ are listed below.
 
-PypeIt uses the `configobj`_ class to parse the user supplied arguments.
-The syntax is important and the nesting of the parameter changes must
-match the `Current PypeItPar Parameter Hierarchy`_.  Examples of `How to
-change parameters using the PypeIt file`_ are given below.
+.. warning::
+
+ * Parsing of the PypeIt parameters from the :ref:`pypeit_file` does not
+   yet check that the parameter group and keyword are valid.  This can
+   make the syntax of the changes made incredibly important.  In
+   particular, the indentation of the configuration lines, while useful
+   for legibility, is irrelevant to how the lines are parsed.  For
+   example, the following successfully changes the theshold for slit
+   edge detection::
+        
+        [calibrations]
+            [[slitedges]]
+                edge_thresh = 100
+    
+   whereas the following fails silently::
+        
+        [calibrations]
+            [slitedges]
+                edge_thresh = 100
+
+ - Default values of parameters that actually point to data files
+   provided by PypeIt (e.g. the ``spectrum`` parameter for
+   :class:`pypeit.par.pypeitpar.FlexurePar`) in its root directory will
+   point to the relevant location on disk of whoever generated the
+   documentation, which will be different for your installation.
+
+How to change a parameter
+=========================
+
+To change a parameter, set its value at the beginning of your pypeit
+file.  The *syntax* of the configuration block is important, but the
+indentation is not.  The indentation will just make the block easier to
+read.  All PypeIt files begin with the lines that set the spectrograph::
+
+    [rdx]
+        spectrograph = keck_deimos
+
+The nesting of the PypeIt parameters is as illustrated in the `Current
+PypeItPar Parameter Hierarchy`_ section below.  Here are a few examples
+of how to change various parameters; for additional examples see the
+`Instrument-Specific Default Configuration`_ section.
+
+ * To change the threshold used for detecting slit/order edges, add::
+
+    [calibrations]
+        [[slitedges]]
+            edge_thresh = 100
+
+ * To change the exposure time range used to identify an arc and
+   flat-field frames and to increase the LA Cosmic sigma-clipping
+   threshold for arc frames, add::
+
+    [calibrations]
+        [[arcframe]]
+            exprng = None,10
+            [[process]]
+                sigclip = 6.
+        [[pixelflatframe]]
+            exprng = 11,30
+
+How to change the image processing parameters for all frame types
+=================================================================
+
+To change the base-level image processing parameters that will be
+applied to *all* frame types, you can use the ``baseprocess`` parameter
+group.  This allows you to set these parameters once instead of having
+to include lines in your PypeIt file for each frame type.  Any
+frame-type-specific alterations can still be made and will overwrite the
+base-level processing parameters.  For example, to change the
+sigma-clipping level used by the LA Cosmic routine to default to 3.0 but
+to use a value of 6.0 for arc frames, you can add the following to your
+PypeIt file::
+
+    [baseprocess]
+        sigclip = 3.0
+    [calibrations]
+        [[arcframe]]
+            [[[process]]]
+                sigclip = 6.0
 
 
 Current PypeItPar Parameter Hierarchy
@@ -329,7 +408,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``trace``, ``science``, ``arc``, ``tilt``, ``pinhole``, ``bias``, ``dark``, ``standard``, ``pixelflat``  ``science``                   Frame type.  Options are: trace, science, arc, tilt, pinhole, bias, dark, standard, pixelflat                                                                                                                                                                  
+``frametype``  str                                             ``pixelflat``, ``tilt``, ``dark``, ``trace``, ``standard``, ``bias``, ``pinhole``, ``science``, ``arc``  ``science``                   Frame type.  Options are: pixelflat, tilt, dark, trace, standard, bias, pinhole, science, arc                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -344,30 +423,27 @@ ProcessImagesPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
 
-================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
-Key               Type        Options                                                                Default           Description                                                                                                                                                                                                                                                    
-================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
-``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan.  Options are: polynomial, savgol, median, none                                                                                                                                                                                
-``overscan_par``  int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                    
-``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                                        
-``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                                          
-``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                             
-``cr_reject``     bool        ..                                                                     False             Perform cosmic ray rejection                                                                                                                                                                                                                                   
-``sigrej``        int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                                                 
-``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                               
-``sig_lohi``      list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                                         
-``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                                        
-``lamaxiter``     int         ..                                                                     1                 Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                                           
-``grow``          int, float  ..                                                                     1.5               Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                                         
-``rmcompact``     bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                                                
-``sigclip``       int, float  ..                                                                     4.5               Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                
-``sigfrac``       int, float  ..                                                                     0.3               Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                                               
-``objlim``        int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                                                   
-``bias``          str         ``as_available``, ``force``, ``skip``                                  ``as_available``  Parameter for bias subtraction. Options are:
-    `as_available`: Bias subtract if bias frames were provided
-    `force`: Require bias subtraction; exception raised if no biases available.
-    `skip`: Skip bias subtraction even if bias frames were provided
-================  ==========  =====================================================================  ================  ===============================================================================================================================================================================================================================================================
+================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
+Key               Type        Options                                                                Default           Description                                                                                                                                                                                                                                                              
+================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
+``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan.  Options are: polynomial, savgol, median, none                                                                                                                                                                                          
+``overscan_par``  int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                              
+``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                                                  
+``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                                                    
+``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                                       
+``cr_reject``     bool        ..                                                                     False             Perform cosmic ray rejection                                                                                                                                                                                                                                             
+``sigrej``        int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                                                           
+``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                                         
+``sig_lohi``      list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                                                   
+``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                                                  
+``lamaxiter``     int         ..                                                                     1                 Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                                                     
+``grow``          int, float  ..                                                                     1.5               Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                                                   
+``rmcompact``     bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                                                          
+``sigclip``       int, float  ..                                                                     4.5               Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                          
+``sigfrac``       int, float  ..                                                                     0.3               Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                                                         
+``objlim``        int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                                                             
+``bias``          str         ``as_available``, ``force``, ``skip``                                  ``as_available``  Parameter for bias subtraction. Options are: (1) 'as_available' -- Bias subtract if bias frames were provided;  (2) 'force' -- Require bias subtraction; exception raised if no biases available;  (3) 'skip' -- Skip bias subtraction even if bias frames were provided.
+================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1447,8 +1523,8 @@ Alterations to the default parameters are::
           satpix = nothing
           sigclip = 20.0
 
-MAGELLAN magellan_mage
-----------------------
+MAGELLAN MagE
+-------------
 Alterations to the default parameters are::
 
   [rdx]
