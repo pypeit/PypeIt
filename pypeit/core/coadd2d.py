@@ -932,7 +932,7 @@ class Coadd2d(object):
             if os.path.isfile(spec1d_files[ifile]):
                 sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
                 head1d_list.append(sobjs.header)
-                this_det = sobjs.DET == self.DET
+                this_det = sobjs.DET == self.det
                 specobjs_list.append(sobjs[this_det])
 
         # slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
