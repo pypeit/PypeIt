@@ -26,7 +26,8 @@ from pypeit.core import arc
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 
-def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, specobj, min_frac_use = 0.05):
+def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
+                    min_frac_use = 0.05):
 
     """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
 
@@ -50,7 +51,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         Image containing the profile of the object that we are extracting
     box_radius: float
         Size of boxcar window in floating point pixels in the spatial direction.
-    specobj: SpecObj object (from the SpecObj class in specobj.py).
+    spec: SpecObj object (from the SpecObj class in specobj.py).
          This is the container that holds object, trace,
          and extraction information for the object in question. This routine operates one object at a time.
     min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
@@ -82,30 +83,28 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
         msgs.warn('Object profile is zero everywhere. This aperture is junk.')
-        junk = np.zeros(nspec)
-        # Fill in the optimally extraction tags
-        '''
-        specobj.optimal['WAVE'] = junk
-        specobj.optimal['COUNTS'] = junk
-        specobj.optimal['COUNTS_IVAR'] = junk
-        specobj.optimal['COUNTS_SIG'] = junk
-        specobj.optimal['COUNTS_NIVAR'] = junk
-        specobj.optimal['MASK'] = junk
-        specobj.optimal['COUNTS_SKY'] = junk
-        specobj.optimal['COUNTS_RN'] = junk
-        specobj.optimal['FRAC_USE'] = junk
-        specobj.optimal['CHI2'] = junk
-        # Fill in the boxcar tags
-        specobj.boxcar['WAVE'] = junk
-        specobj.boxcar['COUNTS'] = junk
-        specobj.boxcar['COUNTS_SIG'] = junk
-        specobj.boxcar['COUNTS_IVAR'] = junk
-        specobj.boxcar['COUNTS_NIVAR'] = junk
-        specobj.boxcar['MASK'] = junk
-        specobj.boxcar['COUNTS_SKY'] = junk
-        specobj.boxcar['COUNTS_RN'] = junk
-        specobj.boxcar['BOX_RADIUS'] = 0.0
-        '''
+#        junk = np.zeros(nspec)
+#        # Fill in the optimally extraction tags
+#        specobj.optimal['WAVE'] = junk
+#        specobj.optimal['COUNTS'] = junk
+#        specobj.optimal['COUNTS_IVAR'] = junk
+#        specobj.optimal['COUNTS_SIG'] = junk
+#        specobj.optimal['COUNTS_NIVAR'] = junk
+#        specobj.optimal['MASK'] = junk
+#        specobj.optimal['COUNTS_SKY'] = junk
+#        specobj.optimal['COUNTS_RN'] = junk
+#        specobj.optimal['FRAC_USE'] = junk
+#        specobj.optimal['CHI2'] = junk
+#        # Fill in the boxcar tags
+#        specobj.boxcar['WAVE'] = junk
+#        specobj.boxcar['COUNTS'] = junk
+#        specobj.boxcar['COUNTS_SIG'] = junk
+#        specobj.boxcar['COUNTS_IVAR'] = junk
+#        specobj.boxcar['COUNTS_NIVAR'] = junk
+#        specobj.boxcar['MASK'] = junk
+#        specobj.boxcar['COUNTS_SKY'] = junk
+#        specobj.boxcar['COUNTS_RN'] = junk
+#        specobj.boxcar['BOX_RADIUS'] = 0.0
         return None
 
     mincol = np.min(ispat)
@@ -171,7 +170,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         if oprof_bad.any():
             # For pixels with completely bad profile values, interpolate from trace.
             f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg*thismask)
-            wave_opt[oprof_bad] = f_wave(specobj.trace_spec[oprof_bad], specobj.TRACE_SPAT[oprof_bad],grid=False)
+            wave_opt[oprof_bad] = f_wave(spec.trace_spec[oprof_bad], spec.TRACE_SPAT[oprof_bad],
+                                         grid=False)
 
     flux_model = np.outer(flux_opt,np.ones(nsub))*oprof_sub
     chi2_num = np.nansum((img_sub - flux_model)**2*ivar_sub*mask_sub,axis=1)
@@ -179,58 +179,56 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     chi2 = chi2_num/chi2_denom
 
     # Fill in the optimally extraction tags
-    specobj.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
-    specobj.OPT_COUNTS = flux_opt    # Optimally extracted flux
-    specobj.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    specobj.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
-    specobj.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-    specobj.OPT_MASK = mask_opt    # Mask for optimally extracted flux
-    specobj.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
-    specobj.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
-    specobj.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
-    specobj.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
+    spec.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
+    spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
+    spec.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+    spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
+    spec.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+    spec.OPT_MASK = mask_opt    # Mask for optimally extracted flux
+    spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
+    spec.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
+    spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
+    spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
     # Fill in the boxcar extraction tags
-    flux_box = moment1d(imgminsky*mask, specobj.TRACE_SPAT, 2*box_radius,
-                        row=specobj.trace_spec)[0]
+    flux_box = moment1d(imgminsky*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # Denom is computed in case the trace goes off the edge of the image
-    box_denom = moment1d(waveimg*mask > 0.0, specobj.TRACE_SPAT, 2*box_radius,
-                         row=specobj.trace_spec)[0]
-    wave_box = moment1d(waveimg*mask, specobj.TRACE_SPAT, 2*box_radius,
-                        row=specobj.trace_spec)[0] / (box_denom + (box_denom == 0.0))
+    box_denom = moment1d(waveimg*mask > 0.0, spec.TRACE_SPAT, 2*box_radius,
+                         row=spec.trace_spec)[0]
+    wave_box = moment1d(waveimg*mask, spec.TRACE_SPAT, 2*box_radius,
+                        row=spec.trace_spec)[0] / (box_denom + (box_denom == 0.0))
     varimg = 1.0/(ivar + (ivar == 0.0))
-    var_box = moment1d(varimg*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    nvar_box = moment1d(var_no*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    sky_box = moment1d(skyimg*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    rn2_box = moment1d(rn2_img*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
+    var_box = moment1d(varimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    nvar_box = moment1d(var_no*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    sky_box = moment1d(skyimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    rn2_box = moment1d(rn2_img*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     rn_posind = (rn2_box > 0.0)
     rn_box = np.zeros(rn2_box.shape,dtype=float)
     rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
-    pixtot = moment1d(ivar*0 + 1.0, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    pixmsk = moment1d(ivar*mask == 0.0, specobj.TRACE_SPAT, 2*box_radius,
-                      row=specobj.trace_spec)[0]
+    pixtot = moment1d(ivar*0 + 1.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    pixmsk = moment1d(ivar*mask == 0.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
     mask_box = (pixmsk != pixtot) & np.isfinite(wave_box) & (wave_box > 0.0)
     bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
         f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
-        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.TRACE_SPAT[bad_box],
-                                   grid=False)
+        wave_box[bad_box] = f_wave(spec.trace_spec[bad_box], spec.TRACE_SPAT[bad_box], grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
-    specobj.BOX_WAVE = wave_box
-    specobj.BOX_COUNTS = flux_box*mask_box
-    specobj.BOX_COUNTS_IVAR = ivar_box*mask_box
-    specobj.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
-    specobj.BOX_COUNTS_NIVAR = nivar_box*mask_box
-    specobj.BOX_MASK = mask_box
-    specobj.BOX_COUNTS_SKY = sky_box
-    specobj.BOX_COUNTS_RN = rn_box
-    specobj.BOX_RADIUS = box_radius
+    spec.BOX_WAVE = wave_box
+    spec.BOX_COUNTS = flux_box*mask_box
+    spec.BOX_COUNTS_IVAR = ivar_box*mask_box
+    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
+    spec.BOX_COUNTS_NIVAR = nivar_box*mask_box
+    spec.BOX_MASK = mask_box
+    spec.BOX_COUNTS_SKY = sky_box
+    spec.BOX_COUNTS_RN = rn_box
+    spec.BOX_RADIUS = box_radius
 
+    # TODO: Why is the returning None? It doesn't have to, right?
     return None
 
 
@@ -1967,14 +1965,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
 
-            flux_tmp  = moment1d(image*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+            flux_tmp  = moment1d(image*inmask_iord, spec.TRACE_SPAT, 2*box_rad_pix,
                                  row=spec.trace_spec)[0]
-            var_tmp  = moment1d(varimg*inmask_iord, spec.trace_spat, 2*box_rad_pix,
+            var_tmp  = moment1d(varimg*inmask_iord, spec.TRACE_SPAT, 2*box_rad_pix,
                                 row=spec.trace_spec)[0]
             ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = moment1d(ivar*0 + 1.0, spec.trace_spat, 2*box_rad_pix,
+            pixtot  = moment1d(ivar*0 + 1.0, spec.TRACE_SPAT, 2*box_rad_pix,
                                row=spec.trace_spec)[0]
-            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.trace_spat, 2*box_rad_pix,
+            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.TRACE_SPAT, 2*box_rad_pix,
                                 row=spec.trace_spec)[0] != pixtot
 
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
@@ -2108,3 +2106,4 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
     return sobjs_final, skymask[allmask]
+
