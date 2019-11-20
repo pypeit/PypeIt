@@ -132,22 +132,36 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['calibrations']['tilts']['tracethresh'] = 5
         par['calibrations']['tilts']['spat_order'] = 4
         par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 200.
+        #par['calibrations']['slitedges']['det_min_spec_length'] = 0.3
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # Scienceimage parameters
-        #par['scienceimage']['sig_thresh'] = 5
-        #par['scienceimage']['maxnumber'] = 2
-        par['scienceimage']['find_trim_edge'] = [5,5]
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Do not correct for flexure
-        par['flexure'] = None
+        # Overscan but not bias
+        #  This seems like a kludge of sorts
+        par['calibrations']['biasframe']['useframe'] = 'none'
+        # No overscan
+        par['scienceframe']['process']['overscan'] ='none'
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'none'
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 30]
         par['calibrations']['tiltframe']['exprng'] = [50, None]
         par['calibrations']['arcframe']['exprng'] = [50, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Scienceimage parameters
+        #par['scienceimage']['sig_thresh'] = 5
+        #par['scienceimage']['maxnumber'] = 2
+        par['scienceimage']['find_trim_edge'] = [10,10]
+        # Always flux calibrate, starting with default parameters
+        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Do not correct for flexure
+        par['flexure'] = None
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -173,7 +187,10 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
         # TODO: Should we allow the user to override these?
 
-        if self.get_meta_value(scifile, 'dispname') == 'HK_G5802':
+        if self.get_meta_value(scifile, 'dispname') == 'JH_G5801':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_JH_JH.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'HK_G5802':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_HK_HK.fits'
         # Return

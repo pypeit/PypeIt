@@ -627,13 +627,14 @@ def main(flg):
     # Gemini/Flamingos2
     if flg & (2**24):
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
-        iroot = 'Flamingos2_HK_HK.json'
-        outroot='Flamingos2_HK_HK.fits'
+        iroot = ['Flamingos2_JH_JH.json','Flamingos2_HK_HK.json']
+        outroot=['Flamingos2_JH_JH.fits','Flamingos2_HK_HK.fits']
         binspec = 1
         slits = [0]
         lcut = []
-        wfile = os.path.join(reid_path, iroot)
-        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
 
 # Command line execution
 if __name__ == '__main__':
