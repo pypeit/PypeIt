@@ -26,6 +26,8 @@
 
 .. _Joe Hennawi: joe@physics.ucsb.edu
 
+.. _X Prochaska: xavier@ucolick.org
+
 .. _development:
 
 PypeIt Development Procedures and Guidelines
@@ -89,8 +91,8 @@ When editing the code, please create a new branch stemming from the
     git pull
     git checkout -b my_new_feature
 
-Development Principles
-----------------------
+Development Principles and Communication
+----------------------------------------
 
 The main thing to keep in mind when developing for PypeIt is that its
 primary use is as an end-to-end reduction pipeline.  This has a few
@@ -101,7 +103,7 @@ implications that one should keep in mind:
    direct interaction with the code should be required at any point**,
    unless explicitly requested by the user.  PypeIt does have some
    interactive components, but most of these are executed via separate
-   scripts. (check this...)
+   scripts.
 
  * Any input needed from the user for your feature should be provided by
    a parameter (preferred) or as a command-line argument.
@@ -145,6 +147,10 @@ process.  This leads to a few important guidelines:
    base, it's difficult to have more than one significant PR open at any
    given time.
 
+Our primary means of **communication** for development is the `PypeIt
+developers Slack <https://pypeit.slack.com>`_.  Contact `X Prochaska`_ for
+access.
+
 Testing the Code
 ----------------
 
@@ -171,12 +177,24 @@ To test PypeIt using the data from the Google TeamDrive:
    ``CALIBS`` and ``RAW_DATA`` directories should be accessible.  For
    syncing, consider using `rclone`_.
 
+   .. warning::
+
+        The ``RAW_DATA`` directory currently contains about 20 GB of
+        data.
+
  * Run the test suite on the setups designated for development purposes:
 
    .. code-block:: bash
         
         cd PypeIt-development-suite
         ./pypeit_test develop
+
+   .. warning::
+        
+        The current script executes 31 tests.  These tests are mostly
+        reductions of example data, but they also include fluxing,
+        flexure, and coadding tests.  The execution time is system
+        dependent, but you should expect it to take approx. 12 hours.
 
 Unit Tests
 ~~~~~~~~~~
@@ -250,7 +268,7 @@ A typical PypeIt development workflow is as follows:
         ./pypeit_test develop
 
  * Build the cooked tar file (e.g., replace x.xx.x with some unique
-   version for your branch) and upload it to the TeamDrive:
+   version for your branch):
  
    .. code-block:: bash
         
@@ -279,6 +297,7 @@ A typical PypeIt development workflow is as follows:
 
    .. code-block:: bash
 
+        cd $PYPEIT_DIR
         git add -u
         git commit -m 'final prep for PR'
         git push
@@ -316,6 +335,10 @@ are as follows:
    .. figure:: figures/tests_success.png
 
         Example posting of successful tests.
+
+   For hotfixes, these tests can be circumvented at the discretion of
+   the core developers in the cases where the hotfix is obviously
+   correct.
 
  * All new methods and classes must be at least minimally documented.
    "Minimally documented" means that each method has a docstring that
