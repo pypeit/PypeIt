@@ -1210,7 +1210,8 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
              one bin versus another depending on the sampling.
     '''
 
-    ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0)
+    #mask bad values and extreme values (usually caused by extreme low sensitivity at the edge of detectors)
+    ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0) & (utils.inverse(ivars)<1e10)
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
     ivars_flat = ivars[ubermask].flatten()

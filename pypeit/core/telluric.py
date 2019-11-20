@@ -509,6 +509,11 @@ def general_spec_reader(specfile, ret_flam=False):
         # Read in the standard spec1d file produced by Pypeit
         sobjs, head = load.load_specobjs(specfile)
         wave, counts, counts_ivar, counts_mask = unpack_orders(sobjs, ret_flam=ret_flam)
+        if (head['PYPELINE'] !='Echelle') and (wave.shape[1]>1):
+            idx = flux_calib.find_standard(sobjs)
+            npix = head['NPIX']
+            wave, counts = np.reshape(wave[:,idx],(npix,1)), np.reshape(counts[:,idx],(npix,1))
+            counts_ivar, counts_mask = np.reshape(counts_ivar[:,idx],(npix,1)), np.reshape(counts_mask[:,idx],(npix,1))
         bonus['ECH_ORDER'] = (sobjs.ech_order).astype(int)
         bonus['ECH_ORDERINDX'] = (sobjs.ech_orderindx).astype(int)
         bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)

@@ -230,6 +230,7 @@ class ProcessImagesPar(ParSet):
                                 'order, window size ; for \'median\', set overscan_par = ' \
                                 'None or omit the keyword.'
 
+        # TODO I don't think this option is implemented? Deprecate?
         defaults['match'] = -1
         dtypes['match'] = [int, float]
         descr['match'] = '(Deprecate?) Match frames with pixel counts that are within N-sigma ' \
