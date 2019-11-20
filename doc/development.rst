@@ -313,6 +313,10 @@ are as follows:
 
         rclone copyto Cooked_pypeit_dev_vx.xx.x.tar.gz gdv:Cooked_pypeit_dev_vx.xx.x.tar.gz
 
+   .. figure:: figures/tests_success.png
+
+        Example posting of successful tests.
+
  * All new methods and classes must be at least minimally documented.
    "Minimally documented" means that each method has a docstring that
    gives at least (1) a one sentence description of the purpose of the
