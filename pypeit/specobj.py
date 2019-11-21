@@ -67,6 +67,11 @@ data_model = {
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
+    'BOX_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Boxcar wavelengths in COADD2D grid'),
+    'BOX_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for boxcar wavelengths in COADD2D grid'),
+    'BOX_WAVE_GRID_MIN': dict(otype=float, desc='Minimum boxcar wavelength COADD2D grid'),
+    'BOX_WAVE_GRID_MAX': dict(otype=float, desc='Maximum boxcar wavelength COADD2D grid'),
+    #
     'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
     #
     'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
@@ -176,8 +181,8 @@ class SpecObj(object):
             # Echelle
             self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
             self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
-            self.ech_frac_was_fit = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
-            self.ech_snr = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+            self.ech_frac_was_fit = None #
+            self.ech_snr = None #
 
         # after initialisation, setting attributes is the same as setting an item
         self.__initialised = True

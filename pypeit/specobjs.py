@@ -68,6 +68,20 @@ class SpecObjs(object):
             tbl = fits.connect.read_table_fits(hdul, hdu=kk)
             sobj = specobj.SpecObj.from_table(tbl)
             slf.add_sobj(sobj)
+
+        # PYPELINE specific
+        if slf[0].PYPELINE == 'Echelle':
+            # Set ech_objid
+            uni_frac = np.unique(slf.ECH_FRACPOS)
+            for ii, ufrac in enumerate(uni_frac):
+                idx = np.isclose(slf.ECH_FRACPOS, ufrac)
+                slf[idx].ech_objid = ii
+            # Set ech_orderindx
+            uni_order = np.unique(slf.ECH_ORDER)
+            for ii, uorder in enumerate(uni_order):
+                idx = slf.ECH_ORDER == uorder
+                slf[idx].ech_orderindx = ii
+
         # Return
         return slf
 
