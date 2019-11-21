@@ -507,7 +507,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     mph : {None, number}, optional (default = None)
         detect peaks that are greater than minimum peak height (if parameter
         `valley` is False) or peaks that are smaller than maximum peak height
-         (if parameter `valley` is True).
+        (if parameter `valley` is True).
     mpd : positive integer, optional (default = 1)
         detect peaks that are at least separated by minimum peak distance (in
         number of data).
@@ -534,15 +534,23 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     Notes
     -----
     The detection of valleys instead of peaks is performed internally by simply
-    negating the data: `ind_valleys = detect_peaks(-x)`
+    negating the data::
+        
+        ind_valleys = detect_peaks(-x)
 
     The function can handle NaN's
 
     See this IPython Notebook [1]_.
 
-    __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
-    __version__ = "1.0.5"
-    __license__ = "MIT"
+    .. code-block:: python
+
+        __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
+        __version__ = "1.0.5"
+        __license__ = "MIT"
+
+    Version history:
+
+        * '1.0.5': The sign of `mph` is inverted if parameter `valley` is True
 
     References
     ----------
@@ -576,11 +584,6 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
     >>> # set threshold = 2
     >>> detect_peaks(x, threshold = 2, show=True)
-
-    Version history
-    ---------------
-    '1.0.5':
-        The sign of `mph` is inverted if parameter `valley` is True
 
     """
 

@@ -58,12 +58,13 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
         if the object is matched to a library standard star.  If check
         is False and no match is found, return None.  Otherwise, return
         a dictionary with the matching standard star with the following
-        meta data::
-            - 'file': str -- Filename
-              table
+        meta data:
+
+            - 'file': str -- Filename table
             - 'name': str -- Star name
             - 'ra': str -- RA(J2000)
             - 'dec': str -- DEC(J2000)
+
     """
     # Priority
     std_sets = ['xshooter', 'calspec']
@@ -143,22 +144,23 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     return None
 
 def stellar_model(V, sptype):
-    """Parse Kurucz SED given T and g
-    Also convert absolute/apparent magnitudes
+    """
+    Parse Kurucz SED given T and g.  Also convert absolute/apparent
+    magnitudes
 
-    Parameters:
+    Parameters
     ----------
     V: float
-      Apparent magnitude of the telluric star
+        Apparent magnitude of the telluric star
     sptype: str
-      Spectral type of the telluric star
+        Spectral type of the telluric star
 
-    Returns:
-    ----------
+    Returns
+    -------
     loglam: ndarray
-      log wavelengths
+        log wavelengths
     flux: ndarray
-      SED f_lambda (cgs units, I think, probably per Ang)
+        SED f_lambda (cgs units, I think, probably per Ang)
     """
 
     # Grab telluric star parameters
@@ -235,17 +237,19 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     '''
     Get the standard spetrum using given information of your standard/telluric star.
 
-    Parameters:
-      star_type: str
-         Spectral type of your standard/telluric star
-      star_mag: float
-       Apparent magnitude of the telluric star
-      ra: str
-        Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
-      dec: str
-        Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
-    Return: dict
-        Dictionary containing the information you provided and the standard/telluric spectrum.
+    Args:
+        star_type: str
+            Spectral type of your standard/telluric star
+        star_mag: float
+            Apparent magnitude of the telluric star
+        ra: str
+            Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
+        dec: str
+            Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
+
+    Returns:
+        dict: Dictionary containing the information you provided and the
+        standard/telluric spectrum.
     '''
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
@@ -290,12 +294,12 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     Parameters
     ----------
     toler : Angle, optional
-      Tolerance for matching detector to site (5 deg)
+        Tolerance for matching detector to site (5 deg)
 
     Returns
     -------
     ext_file : Table
-      astropy Table containing the 'wavelength', 'extinct' data for AM=1.
+        astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
     mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
@@ -331,17 +335,17 @@ def extinction_correction(wave, airmass, extinct):
     Parameters
     ----------
     wave : ndarray
-      Wavelengths for interpolation. Should be sorted
-      Assumes Angstroms
+        Wavelengths for interpolation. Should be sorted Assumes
+        Angstroms
     airmass : float
-      Airmass
+        Airmass
     extinct : Table
-      Table of extinction values
+        Table of extinction values
 
     Returns
     -------
     flux_corr : ndarray
-      Flux corrections at the input wavelengths
+        Flux corrections at the input wavelengths
     """
     # Checks
     if airmass < 1.:
@@ -539,7 +543,7 @@ def find_standard(specobj_list):
     Returns
     -------
     mxix : int
-      Index of the standard star
+        Index of the standard star
 
     """
     # Repackage as necessary (some backwards compatability)
@@ -559,27 +563,27 @@ def find_standard(specobj_list):
     # Return
     return mxix
 
-def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
-                        longitude=None, latitude=None):
-    """ Apply the sensitivity function to the data
-    We also correct for extinction.
-
-    Parameters
-    ----------
-    spec_obj : dict
-      SpecObj
-    sens_dict : dict
-      Sens Function dict
-    airmass : float
-      Airmass
-    exptime : float
-      Exposure time in seconds
-    longitude : float
-      longitude in degree for observatory
-    latitude: float
-      latitude in degree for observatory
-      Used for extinction correction
-    """
+#def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
+#                        longitude=None, latitude=None):
+#    """ Apply the sensitivity function to the data
+#    We also correct for extinction.
+#
+#    Parameters
+#    ----------
+#    spec_obj : dict
+#        SpecObj
+#    sens_dict : dict
+#        Sens Function dict
+#    airmass : float
+#        Airmass
+#    exptime : float
+#        Exposure time in seconds
+#    longitude : float
+#        longitude in degree for observatory
+#    latitude: float
+#        latitude in degree for observatory. Used for extinction
+#        correction
+#    """
 
 
 
@@ -587,62 +591,67 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
                       star_mag=None, ra=None, dec=None, std_file = None, poly_norder=4, BALM_MASK_WID=5., nresln=20.,
                       resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
 
-    """ Function to generate the sensitivity function.
-        This can work in different regimes:
-    - If telluric=False and RA=None and Dec=None
-      the code creates a synthetic standard star spectrum (or VEGA spectrum if type=A0) using the Kurucz models,
-      and from this it generates a sens func using nresln=20.0 and masking out telluric regions.
-    - If telluric=False and RA and Dec are assigned
-      the standard star spectrum is extracted from the archive, and a sens func
-      is generated using nresln=20.0 and masking out telluric regions.
-    - If telluric=True
-      the code creates a sintetic standard star spectrum  (or VEGA spectrum if type=A0) using the Kurucz models,
-      the sens func is a pixelized sensfunc (not smooth) for correcting both throughput and telluric lines.
-      if you set polycorrect=True, the sensfunc in the Hydrogen recombination line region (often seen in star spectra)
-      will be replaced by a smoothed polynomial function.
+    """
 
-    Parameters:
+    Function to generate the sensitivity function.
+
+    This can work in different regimes:
+        - If telluric=False and RA=None and Dec=None the code creates a
+          synthetic standard star spectrum (or VEGA spectrum if type=A0)
+          using the Kurucz models, and from this it generates a sens
+          func using nresln=20.0 and masking out telluric regions.
+        - If telluric=False and RA and Dec are assigned the standard
+          star spectrum is extracted from the archive, and a sens func
+          is generated using nresln=20.0 and masking out telluric
+          regions.
+        - If telluric=True the code creates a sintetic standard star
+          spectrum  (or VEGA spectrum if type=A0) using the Kurucz
+          models, the sens func is a pixelized sensfunc (not smooth) for
+          correcting both throughput and telluric lines.  if you set
+          polycorrect=True, the sensfunc in the Hydrogen recombination
+          line region (often seen in star spectra) will be replaced by a
+          smoothed polynomial function.
+
+    Parameters
     ----------
     wave : array
-      Wavelength of the star [no longer with units]
+        Wavelength of the star [no longer with units]
     counts : array
-      Flux (in counts) of the star
+        Flux (in counts) of the star
     counts_ivar : array
-      Inverse variance of the star
+        Inverse variance of the star
     airmass : float
-      Airmass
+        Airmass
     exptime : float
-      Exposure time in seconds
+        Exposure time in seconds
     spectrograph : dict
-      Instrument specific dict
-      Used for extinction correction
+        Instrument specific dict.  Used for extinction correction
     telluric : bool
-      if True performs a telluric correction
+        if True performs a telluric correction
     star_type : str
-      Spectral type of the telluric star (used if telluric=True)
+        Spectral type of the telluric star (used if telluric=True)
     star_mag : float
-      Apparent magnitude of telluric star (used if telluric=True)
+        Apparent magnitude of telluric star (used if telluric=True)
     RA : float
-      deg, RA of the telluric star
-      if assigned, the standard star spectrum will be extracted from
-      the archive
+        deg, RA of the telluric star.  If assigned, the standard star
+        spectrum will be extracted from the archive
     DEC : float
-      deg, DEC of the telluric star
-      if assigned, the standard star spectrum will be extracted from
-      the archive
+        deg, DEC of the telluric star. If assigned, the standard star
+        spectrum will be extracted from the archive
     BALM_MASK_WID : float
-      Mask parameter for Balmer absorption. A region equal to
-      BALM_MASK_WID*resln is masked where resln is the estimate
-      for the spectral resolution.
+        Mask parameter for Balmer absorption. A region equal to
+        BALM_MASK_WID*resln is masked where resln is the estimate for
+        the spectral resolution.
     polycorrect: bool
-      Whether you want to correct the sensfunc with polynomial in the Balmer absortion line regions
+        Whether you want to correct the sensfunc with polynomial in the
+        Balmer absortion line regions
     poly_norder: int
-      Order number of polynomial fit.
+        Order number of polynomial fit.
 
-    Returns:
+    Returns
     -------
     sens_dict : dict
-      sensitivity function described by a dict
+        sensitivity function described by a dict
     """
     # Create copy of the arrays to avoid modification and convert to
     # electrons / s
@@ -733,27 +742,29 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
 def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BALM_MASK_WID=10., trans_thresh=0.9):
     '''
     Get couple of masks from your observed standard spectrum.
+
     Parameters
     ----------
-      wave_star: numpy array
+    wave_star: numpy array
         wavelength array of your spectrum
-      flux_star: numpy array
+    flux_star: numpy array
         flux array of your spectrum
-      ivar_star:
+    ivar_star:
         ivar array of your spectrum
-      mask_star: bool
+    mask_star: bool
         whether you need to mask Hydrogen recombination line region. If False, the returned msk_star are all good.
-      mask_tell: bool
+    mask_tell: bool
         whether you need to mask telluric region. If False, the returned msk_tell are all good.
-      trans_thresh: float
+    trans_thresh: float
         parameter for selecting telluric regions.
-    returns
-    ----------
-      msk_bad: bool type numpy array
+
+    Returns
+    -------
+    msk_bad: bool type numpy array
         mask for bad pixels.
-      msk_star: bool type numpy array
+    msk_star: bool type numpy array
         mask for recombination lines in star spectrum.
-      msk_tell: bool type numpy array
+    msk_tell: bool type numpy array
         mask for telluric regions.
     '''
 
@@ -1118,10 +1129,10 @@ def scale_in_filter(xspec, scale_dict):
     Scale spectra to input magnitude in given filter
 
     scale_dict has data model:
-      'filter' (str): name of filter
-      'mag' (float): magnitude
-      'mag_type' (str, optional): type of magnitude.  Assumed 'AB'
-      'masks' (list, optional): Wavelength ranges to mask in calculation
+      - 'filter' (str): name of filter
+      - 'mag' (float): magnitude
+      - 'mag_type' (str, optional): type of magnitude.  Assumed 'AB'
+      - 'masks' (list, optional): Wavelength ranges to mask in calculation
 
     Args:
         xspec (linetools.spectra.xspectrum1d.XSpectrum1D):
@@ -1129,8 +1140,6 @@ def scale_in_filter(xspec, scale_dict):
 
     Returns:
         linetools.spectra.xspectrum1d.XSpectrum1D, float:  Scaled spectrum
-
-
     """
     # Parse the spectrum
     sig = xspec.sig
@@ -1180,3 +1189,4 @@ def scale_in_filter(xspec, scale_dict):
         msgs.error("Need a magnitude for scaling")
 
     return new_spec,scale
+

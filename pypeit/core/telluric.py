@@ -15,7 +15,7 @@ from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit.core import save
 from pypeit.core import coadd1d
-from pypeit import newspecobjs
+from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 
@@ -304,7 +304,7 @@ def general_spec_reader(specfile, ret_flam=False):
     try:
         # Read in the standard spec1d file produced by Pypeit
         #sobjs, head = load.load_specobjs(specfile)
-        sobjs = newspecobjs.SpecObjs.from_fitsfile(specfile)
+        sobjs = specobjs.SpecObjs.from_fitsfile(specfile)
         head = sobjs.header
         wave, counts, counts_ivar, counts_mask = unpack_orders(sobjs, ret_flam=ret_flam)
         bonus['ECH_ORDER'] = (sobjs.ECH_ORDER).astype(int)

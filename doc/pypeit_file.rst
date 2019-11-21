@@ -36,7 +36,7 @@ Instrument PypeIt file
 For each instrument being reduced in a working folder,
 the top-level PypeIt file is referred to as an *instrument*
 PypeIt file.  It is intended to be used to generate the
-instrument :doc:`setups` file and custom PypeIt files for the
+instrument :doc:`setup` file and custom PypeIt files for the
 full reductions.
 
 The standard naming for the instrument PypeIt file is::
@@ -113,7 +113,7 @@ The following documentation is mainly for guiding
 modifications to an existing PypeIt file.
 
 Naming
-++++++
+------
 
 Create a .pypeit file. Name it anything you want, but for example,
 it's useful to have: the instrument name, the grating or grism used,
@@ -133,7 +133,7 @@ with comments.
 .. _run_block:
 
 Run block
-+++++++++
+---------
 
 The first thing to include are changes to the
 default settings related to running PypeIt.
@@ -143,7 +143,7 @@ spectrograph::
     run spectograph name_of_your_spectrograph
 
 We do recommend including several others, and the
-.pypeit files made by the :ref:`pypeit_pypfiles` script
+.pypeit files made by the `pypeit_pypfiles` (out of date!) script
 includes most of the following.
 Here are ones that one typically sets::
 
@@ -160,10 +160,10 @@ Here are ones that one typically sets::
 .. _reduce-block:
 
 Reduce block
-++++++++++++
+------------
 
 bias
-----
+~~~~
 
 If you have no bias frames and/or wish to subtract the bias with
 the overscan region, then set the following::
@@ -172,7 +172,7 @@ the overscan region, then set the following::
 
 
 Setup block
-+++++++++++
+-----------
 
 If a Setup is defined here, the value (e.g. "A" or "D") will be
 used instead of starting from the default "A" value.  But *only*
@@ -181,16 +181,16 @@ if there is a single Setup in the PypeIt file.
 .. _data_block:
 
 Data block
-++++++++++
+----------
 
 By Files
---------
+========
 
 This is the recommended approach when performing the
 full run (as opposed to :ref:`pypeit-setup`).
 
 By Path Only
-------------
+============
 
 Next, tell PypeIt where your raw data lives!
 One specifies the full path and may use wild cards
@@ -214,7 +214,7 @@ These will be ignored as if they didn't exist.
 .. _spect_block:
 
 Spect block
-+++++++++++
+-----------
 
 Then, give PypeIt some information about your raw data. For
 example, PypeIt only accepts calibration files if they were
@@ -250,7 +250,7 @@ Here are some examples::
 
 
 Whole enchilada
-+++++++++++++++
+---------------
 With that, the most basic PypeIt file looks something like this::
 
     # Change the default settings
@@ -276,3 +276,5 @@ With that, the most basic PypeIt file looks something like this::
 
 You can now run PypeIt with this .pypeit settings file! See how in
 :doc:`running`.
+
+

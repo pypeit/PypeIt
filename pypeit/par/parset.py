@@ -580,10 +580,10 @@ class ParSet(object):
                 Key for new parameter
             value (:obj:`dtype`):
                 Parameter value, must have a type in the list provided
-                by :arg:`dtype`, if the list is provided
+                by `dtype`, if the list is provided
             default (:obj:`dtype`, optional):
                 Define a default value for the parameter, must have a
-                type in the list provided by :arg:`dtype`, if the list
+                type in the list provided by `dtype`, if the list
                 is provided.  No default if not provided.
             options (:obj:`list`, optional):
                 List of discrete values that the parameter is allowed to

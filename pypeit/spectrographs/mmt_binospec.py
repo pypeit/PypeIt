@@ -387,17 +387,15 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         Wrapper to the raw image reader for DEIMOS
 
         Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
+            raw_file (str):
+                filename
+            det (int):
+                Desired detector
             **null_kwargs:
-              Captured and never used
+                Captured and never used
 
         Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            head0: Header
-
+            tuple: Raw image and header
         """
         raw_img, head0, _ = read_deimos(raw_file, det=det)
 
@@ -783,23 +781,24 @@ class DEIMOSDetectorMap(DetectorMap):
 
 def read_deimos(raw_file, det=None):
     """
-    Read a raw DEIMOS data frame (one or more detectors)
-    Packed in a multi-extension HDU
-    Based on pypeit.arlris.read_lris...
-       Based on readmhdufits.pro
+    Read a raw DEIMOS data frame (one or more detectors).
+
+    Data are unpacked from the multi-extension HDU.  Function is
+    based :func:`pypeit.spectrographs.keck_lris.read_lris`, which
+    was based on the IDL procedure ``readmhdufits.pro``.
 
     Parameters
     ----------
     raw_file : str
-      Filename
+        Filename
 
     Returns
     -------
     array : ndarray
-      Combined image
+        Combined image
     header : FITS header
     sections : tuple
-      List of datasec, oscansec sections
+        List of datasec, oscansec sections
     """
 
     # Check for file; allow for extra .gz, etc. suffix

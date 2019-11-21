@@ -7,22 +7,13 @@ Provides a set of functions to handle resampling.
     Copyright (c) 2018, SDSS-IV/MaNGA Pipeline Group
         Licensed under BSD 3-clause license - see LICENSE.rst
 
-*Source location*:
-    $MANGADAP_DIR/python/mangadap/util/resample.py
-
 *Revision history*:
     | **30 Aug 2018**: Moved here from old instrument.py module by K.
         Westfall (KBW).
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
 """
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-import sys
-if sys.version > '3':
-    long = int
 
 import warnings
 import numpy

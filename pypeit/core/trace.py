@@ -9,6 +9,9 @@ TODO: Is there a way that we could define this link so that it's
 accessible by the docstring of all modules?
 
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
+.. _scipy.ndimage.sobel: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.sobel.html
+
 """
 from collections import Counter
 
@@ -737,6 +740,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
         fill (:obj:`str`, optional):
             A string keyword specifying how flagged centroids should
             be replaced. Options are:
+
                 - 'input': Replace the flagged centroids with their
                   input value.
                 - 'bound': *Only* for the case where the
@@ -745,6 +749,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
                   positive or negative boundary edge. In all other
                   cases, the centroid is still replaced with the
                   input value. See replacement cases above.
+
         fill_error (:obj:`float`, optional):
             For flagged centroids, this error is replaced with this
             dummy value.
@@ -825,8 +830,9 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     `niter`. There is no convergence test, meaning that this number
     of iterations is *always* performed.
 
-    History:
-        23-June-2018  Written by J. Hennawi
+    Notes:
+        Revision History:
+            - 23-June-2018  Written by J. Hennawi
 
     Args:
         flux (`numpy.ndarray`_):
@@ -901,15 +907,17 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             Default is to use the image size in nspec direction
 
     Returns:
-        Returns four `numpy.ndarray`_ objects all with the same shape
-        as the input positions (`trace_cen`) and provide:
-            - The best-fitting positions of each trace determined by
-              the polynomial fit.
-            - The centroids of the trace determined by either flux-
-              or Gaussian-weighting, to which the polynomial is fit.
+        tuple: Returns four `numpy.ndarray`_ objects all with the same
+        shape as the input positions (`trace_cen`) and provide:
+
+            - The best-fitting positions of each trace determined by the
+              polynomial fit.
+            - The centroids of the trace determined by either flux- or
+              Gaussian-weighting, to which the polynomial is fit.
             - The errors in the centroids.
             - Boolean flags for each centroid measurement (see
               :func:`pypeit.core.moment.moment1d`).
+
     """
     # Ensure setup is correct
     if flux.ndim != 2:
@@ -1320,17 +1328,19 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
     Returns:
         Returns four `numpy.ndarray`_ objects and the number of peak
         traces. The number of peak traces should be used to separate
-        peak from trough traces; if `trough` is False, this will just
-        be the total number of traces. The four
-        `numpy.ndarray`_ objects provide:
-            - The best-fitting positions of each trace determined by
-              the polynomial fit.
+        peak from trough traces; if `trough` is False, this will just be
+        the total number of traces.  The four `numpy.ndarray`_ objects
+        provide:
+
+            - The best-fitting positions of each trace determined by the
+              polynomial fit.
             - The centroids of the trace determined by the
-              Gaussian-weighting iteration, to which the polynomial
-              is fit.
+              Gaussian-weighting iteration, to which the polynomial is
+              fit.
             - The errors in the Gaussian-weighted centroids.
             - Boolean flags for each centroid measurement (see
               :func:`pypeit.core.moment.moment1d`).
+
     """
     # Setup and ensure input is correct
     if flux.ndim != 2:

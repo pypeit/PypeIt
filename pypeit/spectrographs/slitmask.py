@@ -1,5 +1,9 @@
 """
 Module to define the SlitMask class
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. _scipy.optimize.least_squares: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
+
 """
 from collections import OrderedDict
 import warnings
@@ -720,10 +724,12 @@ class SlitRegister:
         the list of trace coordinates (see `minmax`), but without a
         matching trace index.
 
-        TODO: explain synced adjustment
+        .. todo::
+            explain synced adjustment
 
         The set of mask-to-trace matches are identified as "bad" if
         they meet any of the following criteria:
+
             - The trace has not been masked (see :attr:`trace_mask`)
             - A unique match could not be found (see :func:`match`)
             - The absolute value of the separation is larger than the
