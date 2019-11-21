@@ -20,7 +20,7 @@ def link_string(p):
 #-----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    t = time.clock()
+    t = time.perf_counter()
 
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         f.write('\n'.join(lines))
 
     print('Wrote: {}'.format(output_rst))
-    print('Elapsed time: {0} seconds'.format(time.clock() - t))
+    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 
 
 
