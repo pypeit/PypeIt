@@ -1,5 +1,8 @@
 """
 Class for organizing PypeIt setup
+
+.. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
+
 """
 import os
 import inspect
@@ -70,7 +73,7 @@ class PypeItSetup(object):
         pypeit_file (:obj:`str`, optional):
             The name of the pypeit file used to instantiate the
             reduction.  This can be None, and will lead to default names
-            for output files (TODO: Give list).  Setting `pypeit_file`
+            for output files (TODO: Give list).  Setting :ref:`pypeit_file`
             here *only sets the name of the file*.  To instantiate a
             `PypitSetup` object directly from a pypeit file (i.e. by
             reading the file), use the :func:`from_pypeit_file` method;
@@ -153,7 +156,7 @@ class PypeItSetup(object):
             filename (str):
                 Name of the pypeit file to read.  Pypit files have a
                 specific set of valid formats. A description can be
-                found `here`_ (include doc link).
+                found :ref:`pypeit_file`.
         
         Returns:
             :class:`PypeitSetup`: The instance of the class.
@@ -322,7 +325,7 @@ class PypeItSetup(object):
 
     def write_metadata(self, sort_dir=None, ofile=None):
         """
-        Write the :class:`astropy.table.Table` object in :attr:`fitstbl`
+        Write the `astropy.table.Table`_ object in :attr:`fitstbl`
         to a file.
 
         If an output file is provided, the file is used.  If that file
@@ -340,7 +343,7 @@ class PypeItSetup(object):
             sort_dir (:obj:`str`, optional):
                 The full root of the name for the metadata table
                 ('.lst') file.
-            ofile (:obj:`str, optional):
+            ofile (:obj:`str`, optional):
                 The name of the file to write.  See description above.
         """
         if ofile is None:

@@ -210,11 +210,11 @@ class ProcessImagesPar(ParSet):
         defaults['bias'] = 'as_available'
         options['bias'] = ProcessImagesPar.valid_bias()
         dtypes['bias'] = str
-        descr['bias'] = 'Parameter for bias subtraction. Options are:\n' \
-                        '    `as_available`: Bias subtract if bias frames were provided\n' \
-                        '    `force`: Require bias subtraction; exception raised if no ' \
-                        'biases available.\n' \
-                        '    `skip`: Skip bias subtraction even if bias frames were provided'
+        descr['bias'] = 'Parameter for bias subtraction. Options are: ' \
+                        '(1) \'as_available\' -- Bias subtract if bias frames were provided;  ' \
+                        '(2) \'force\' -- Require bias subtraction; exception raised if no ' \
+                        'biases available;  ' \
+                        '(3) \'skip\' -- Skip bias subtraction even if bias frames were provided.'
 
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
@@ -606,7 +606,8 @@ class FlexurePar(ParSet):
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
-        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
+        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                            'paranal_sky.fits')
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -652,6 +653,61 @@ class FlexurePar(ParSet):
 #        if self.data['spectrum'] is not None and not os.path.isfile(self.data['spectrum']):
 #            raise ValueError('Provided archive spectrum does not exist: {0}.'.format(
 #                             self.data['spectrum']))
+
+
+class Coadd2DPar(ParSet):
+    """
+    A parameter set holding the arguments for how to perform the flux
+    calibration.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, offsets=None, weights=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Offsets
+        defaults['offsets'] = None
+        dtypes['offsets'] = list
+        descr['offsets'] = 'User-input list of offsets for the images being combined.'
+
+        # Weights
+        defaults['weights'] = 'auto'
+        dtypes['weights'] = [str, list]
+        descr['weights'] = 'Mode for the weights used to coadd images.  See coadd2d.py for all options.'
+
+        # Instantiate the parameter set
+        super(Coadd2DPar, self).__init__(list(pars.keys()),
+                                                 values=list(pars.values()),
+                                                 defaults=list(defaults.values()),
+                                                 dtypes=list(dtypes.values()),
+                                                 descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['offsets', 'weights']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
 
 
 class FluxCalibrationPar(ParSet):
@@ -957,6 +1013,7 @@ class ReducePar(ParSet):
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
                           'science frame'
 
+        # TODO: Explain what this actually does in the description.
         defaults['ignore_bad_headers'] = False
         dtypes['ignore_bad_headers'] = bool
         descr['ignore_bad_headers'] = 'Ignore bad headers (NOT recommended unless you know it is safe).'
@@ -1878,7 +1935,7 @@ class WaveTiltsPar(ParSet):
         k = cfg.keys()
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
                    'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
-                   'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order', 
+                   'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order',
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2270,7 +2327,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
-                 flexure=None, fluxcalib=None):
+                 flexure=None, fluxcalib=None, coadd2d=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2308,7 +2365,7 @@ class PypeItPar(ParSet):
 
         # Flexure is turned OFF by default
         defaults['flexure'] = FlexurePar()
-        dtypes['flexure'] = [ ParSet, dict ]
+        dtypes['flexure'] = [ParSet, dict]
         descr['flexure'] = 'Parameters used by the flexure-correction procedure.  Flexure ' \
                            'corrections are not performed by default.  To turn on, either ' \
                            'set the parameters in the \'flexure\' parameter group or set ' \
@@ -2316,13 +2373,18 @@ class PypeItPar(ParSet):
                            'default flexure-correction parameters.'
 
         # Flux calibration is turned OFF by default
-        dtypes['fluxcalib'] = [ ParSet, dict ]
+        dtypes['fluxcalib'] = [ParSet, dict]
         descr['fluxcalib'] = 'Parameters used by the flux-calibration procedure.  Flux ' \
                              'calibration is not performed by default.  To turn on, either ' \
                              'set the parameters in the \'fluxcalib\' parameter group or set ' \
                              '\'fluxcalib = True\' in the \'rdx\' parameter group to use the ' \
                              'default flux-calibration parameters.'
-        
+
+        # Coadd2D
+        defaults['coadd2d'] = Coadd2DPar()
+        dtypes['fluxcalib'] = [ParSet, dict]
+        descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
+
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
                                        values=list(pars.values()),
@@ -2331,16 +2393,6 @@ class PypeItPar(ParSet):
                                        descr=list(descr.values()))
 
         self.validate()
-
-#    def update(self, par):
-#        """
-#        Update the current parameters.
-#
-#        Likely doesn't work because it isn't recursive ...
-#        """
-#        if not isinstance(par, PypeItPar):
-#            raise TypeError('Parameters can only be updated using another instance of PypeItPar.')
-#        self.data.update(par.data)
 
     @classmethod
     def from_cfg_file(cls, cfg_file=None, merge_with=None, evaluate=True):
@@ -2360,13 +2412,13 @@ class PypeItPar(ParSet):
                 config file from a previous run that was constructed and
                 output by pypeit.  This has to contain the full set of
                 parameters, not just the subset you want to change.  For
-                the latter, use :arg:`merge_with` to provide one or more
+                the latter, use `merge_with` to provide one or more
                 config files to merge with the defaults to construct the
                 full parameter set.
             merge_with (:obj:`str`, :obj:`list`, optional):
                 One or more config files with the modifications to
-                either default parameters (:arg:`cfg_file` is None) or
-                the parameters provided by :arg:`cfg_file`.  The
+                either default parameters (`cfg_file` is None) or
+                the parameters provided by `cfg_file`.  The
                 modifications are performed in series so the list order
                 of the config files is important.
             evaluate (:obj:`bool`, optional):
@@ -2378,7 +2430,7 @@ class PypeItPar(ParSet):
                 
         .. warning::
 
-            When :arg:`evaluate` is true, the function runs `eval()` on
+            When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
             :func:`_recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally
@@ -2437,7 +2489,7 @@ class PypeItPar(ParSet):
                 constructed and output by pypeit.  This has to contain
                 the full set of parameters, not just the subset to
                 change.  For the latter, leave this as the default value
-                (None) and use :arg:`merge_with` to provide a set of
+                (None) and use `merge_with` to provide a set of
                 lines to merge with the defaults to construct the full
                 parameter set.
             merge_with (:obj:`list`, optional):
@@ -2454,7 +2506,7 @@ class PypeItPar(ParSet):
                 
         .. warning::
 
-            When :arg:`evaluate` is true, the function runs `eval()` on
+            When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
             :func:`_recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally
@@ -2504,7 +2556,7 @@ class PypeItPar(ParSet):
                 
         .. warning::
 
-            When :arg:`evaluate` is true, the function runs `eval()` on
+            When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
             :func:`_recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally
@@ -2553,6 +2605,11 @@ class PypeItPar(ParSet):
         default = FluxCalibrationPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
         kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else default
+
+        # Allow flexure to be turned on using cfg['rdx']
+        pk = 'coadd2d'
+        default = Coadd2DPar()
+        kwargs[pk] = Coadd2DPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)

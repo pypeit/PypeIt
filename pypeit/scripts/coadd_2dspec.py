@@ -16,6 +16,7 @@ from pypeit.pypeit import PypeIt
 from pypeit import par, msgs
 from pypeit.core import coadd2d
 from pypeit.core import save
+from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from IPython import embed
 
@@ -49,6 +50,7 @@ def read_coadd2d_file(ifile):
     lines = par.util._read_pypeit_file_lines(ifile)
     is_config = np.ones(len(lines), dtype=bool)
 
+
     # Parse the coadd block
     spec2d_files = []
     s, e = par.util._find_pypeit_block(lines, 'coadd2d')
@@ -81,12 +83,13 @@ def parser(options=None):
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--debug_offsets", default=False, action="store_true",
-                        help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
+                        help="Not sure what this does")
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
-    parser.add_argument("--basename", type=str, default=None, help="Basename of files to save the parameters, spec1d, and spec2d")
-    parser.add_argument('--samp_fact', default=1.0, type=float, help="Make the wavelength grid finer (samp_fact > 1.0) "
-                                                                     "or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument("--basename", type=str, default=None,
+                        help="Basename of files to save the parameters, spec1d, and spec2d")
+    parser.add_argument('--samp_fact', default=1.0, type=float,
+                        help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
     # TODO implement an option to only do certian slits
@@ -130,9 +133,16 @@ def main(args):
         msgs.info("Restricting reductions to detector={}".format(args.det))
         parset['rdx']['detnum'] = int(args.det)
 
-    # Get headers and base names
+    # Get headers (if possible) and base names
     spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
-    head1d = fits.getheader(spec1d_files[0])
+    head1d = None
+    for spec1d_file in spec1d_files:
+        if os.path.isfile(spec1d_file):
+            head1d = fits.getheader(spec1d_file)
+    if head1d is None:
+        msgs.warn("No 1D spectra so am generating a dummy header for output")
+        head1d = io.initialize_header()
+
     head2d = fits.getheader(spec2d_files[0])
     if args.basename is None:
         filename = os.path.basename(spec2d_files[0])
@@ -186,8 +196,11 @@ def main(args):
         sci_dict[det] = {}
 
         # Instantiate Coadd2d
-        coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det, offsets=None, par=parset,
-                                         ir_redux=ir_redux, debug_offsets=args.debug_offsets, debug=args.debug,
+        coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det,
+                                       offsets=parset['coadd2d']['offsets'],
+                                       weights=parset['coadd2d']['weights'],
+                                       par=parset, ir_redux=ir_redux,
+                                       debug_offsets=args.debug_offsets, debug=args.debug,
                                          samp_fact=args.samp_fact)
 
         # Coadd the slits

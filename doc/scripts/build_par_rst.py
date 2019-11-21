@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     # Start to append the automatically generated documentation
     lines += ['Current PypeItPar Parameter Hierarchy']
-    lines += ['++++++++++++++++++++++++++++++++++++']
+    lines += ['+++++++++++++++++++++++++++++++++++++']
     lines += ['']
 
     p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),

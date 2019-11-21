@@ -52,7 +52,7 @@ class Calibrations(object):
         caldir (:obj:`str`, optional):
             Path to write the output calibrations.  If None, calibration
             data are not saved.
-        qadir (:obj:`str, optional):
+        qadir (:obj:`str`, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
         save_masters (:obj:`bool`, optional):

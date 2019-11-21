@@ -507,7 +507,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     mph : {None, number}, optional (default = None)
         detect peaks that are greater than minimum peak height (if parameter
         `valley` is False) or peaks that are smaller than maximum peak height
-         (if parameter `valley` is True).
+        (if parameter `valley` is True).
     mpd : positive integer, optional (default = 1)
         detect peaks that are at least separated by minimum peak distance (in
         number of data).
@@ -534,15 +534,23 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     Notes
     -----
     The detection of valleys instead of peaks is performed internally by simply
-    negating the data: `ind_valleys = detect_peaks(-x)`
+    negating the data::
+        
+        ind_valleys = detect_peaks(-x)
 
     The function can handle NaN's
 
     See this IPython Notebook [1]_.
 
-    __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
-    __version__ = "1.0.5"
-    __license__ = "MIT"
+    .. code-block:: python
+
+        __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
+        __version__ = "1.0.5"
+        __license__ = "MIT"
+
+    Version history:
+
+        * '1.0.5': The sign of `mph` is inverted if parameter `valley` is True
 
     References
     ----------
@@ -576,11 +584,6 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
     >>> # set threshold = 2
     >>> detect_peaks(x, threshold = 2, show=True)
-
-    Version history
-    ---------------
-    '1.0.5':
-        The sign of `mph` is inverted if parameter `valley` is True
 
     """
 
@@ -1080,12 +1083,13 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 
 
 def simple_calib_driver(llist, censpec, ok_mask, n_final=5, get_poly=False,
+                        sigdetect=10.,
                         IDpixels=None, IDwaves=None, nonlinear_counts=1e10):
     wv_calib = {}
     for slit in ok_mask:
         iwv_calib = simple_calib(llist, censpec[:, slit], n_final=n_final,
                                  get_poly=get_poly, IDpixels=IDpixels, IDwaves=IDwaves,
-                                 nonlinear_counts=nonlinear_counts)
+                                 nonlinear_counts=nonlinear_counts, sigdetect=sigdetect)
         wv_calib[str(slit)] = iwv_calib.copy()
     return wv_calib
 
@@ -1124,7 +1128,7 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     # IDs were input by hand
     # Check that there are at least 5 values
     pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
-    if np.sum(pixels > 0.) < 5:
+    if np.sum(pixels > 0.) < 4:
         msgs.error("Need to give at least 5 pixel values!")
     #
     msgs.info("Using input lines to seed the wavelength solution")
@@ -1143,7 +1147,7 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     for jj,pix in enumerate(pixels):
         diff = np.abs(tcent-pix-med_poff)
         if np.min(diff) > 2.:
-            debugger.set_trace()
+            embed(header='1076 of arc.py')
             msgs.error("No match with input pixel {:g}!".format(pix))
         else:
             imn = np.argmin(diff)

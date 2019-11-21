@@ -24,7 +24,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(MagellanMAGESpectrograph, self).__init__()
         self.spectrograph = 'magellan_mage'
-        self.camera = 'magellan_mage'
+        self.camera = 'MagE'
         self.telescope = telescopes.MagellanTelescopePar()
         self.numhead = 1
         self.detector = [

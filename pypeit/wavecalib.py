@@ -45,26 +45,23 @@ class WaveCalib(masterframe.MasterFrame):
 
     Attributes:
         frametype : str
-          Hard-coded to 'wv_calib'
+            Hard-coded to 'wv_calib'
         steps : list
-          List of the processing steps performed
+            List of the processing steps performed
         wv_calib : dict
-          Primary output
-          Keys
-            0, 1, 2, 3 -- Solution for individual slit
-            steps
+            Primary output.  Keys 0, 1, 2, 3 are solution for individual
+            slit steps
         arccen (ndarray):
             (nwave, nslit) Extracted arc(s) down the center of the slit(s)
         maskslits : ndarray (nslit); bool
-          Slits to ignore because they were not extracted
-          WARNING: Outside of this Class, it is best to regenerate
-          the mask using  make_maskslits()
+            Slits to ignore because they were not extracted. WARNING:
+            Outside of this Class, it is best to regenerate the mask
+            using  make_maskslits()
         gpm (np.ndarray):
             Good pixel mask
             Eventually, we might attach this to self.msarc although that would then
             require that we write it to disk with self.msarc.image
     """
-
     # Frametype is a class attribute
     frametype = 'wv_calib'
     master_type = 'WaveCalib'
@@ -171,6 +168,7 @@ class WaveCalib(masterframe.MasterFrame):
 
             final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask,
                                                     n_final=self.par['n_final'],
+                                                    sigdetect=self.par['sigdetect'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
@@ -252,7 +250,7 @@ class WaveCalib(masterframe.MasterFrame):
             for slit in ok_mask:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit,
                                              out_dir=self.qa_path)
-                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
+                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile=outfile)
 
         # Return
         self.steps.append(inspect.stack()[0][3])
@@ -320,11 +318,11 @@ class WaveCalib(masterframe.MasterFrame):
         Args:
 
         Returns:
-            (self.arccen, self.arc_maskslit_
-           self.arccen: ndarray, (nspec, nslit)
-              arc spectrum for all slits
-            self.arc_maskslit: ndarray, bool (nsit)
-              boolean array containing a mask indicating which slits are good
+            tuple: Returns the following:
+                - self.arccen: ndarray, (nspec, nslit): arc spectrum for
+                  all slits
+                - self.arc_maskslit: ndarray, bool (nsit): boolean array
+                  containing a mask indicating which slits are good
 
         """
         # Do it

@@ -4,6 +4,7 @@ all instruments served by PypeIt.
 
 The key functionality of this base class and its derived classes are to
 provide instrument-specific:
+
     - file I/O routines
     - detector properties (see
       :class:`pypeit.par.pypeitpar.DetectorPar`)
@@ -124,19 +125,18 @@ class Spectrograph(object):
             det (:obj:`int`):
                 1-indexed detector number.
             datasec_img (np.ndarray, optional):
-                If provided, nonlinear_counts is returned as an image
-                WARNING:  THIS IS NOT YET IMPLEMENTED DOWNSTREAM,
-                  i.e. don't use this option
+                If provided, nonlinear_counts is returned as an image.
+                DO NOT USE THIS OPTION; IT IS NOT YET IMPLEMENTED
+                DOWNSTREAM.
             apply_gain (bool, optional):
                 Apply gain in the calculation, i.e. convert to counts
                 If only a float is returned, (i.e. no datasec_img is provided)
                 then the mean of the gains for all amplifiers is adopted
 
         Returns:
-            float or np.ndarray:
-                Counts at which detector response becomes nonlinear.
-                If datasec_img is provided, an image with the same shape
-                is returned
+            float, np.ndarray: Counts at which detector response becomes
+            nonlinear.  If datasec_img is provided, an image with the
+            same shape is returned
         """
         # Deal with gain
         gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
@@ -199,7 +199,7 @@ class Spectrograph(object):
                 1-indexed detector number.
 
         Returns:
-            :obj:`bool`: Flat that transpose is required.
+            :obj:`bool`: Flag that transpose is required.
         """
         return self.detector[det-1]['specaxis'] == 1
 

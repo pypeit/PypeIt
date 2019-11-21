@@ -32,7 +32,7 @@ Running PypeIt
 
    pypeit_par
    cookbook
-   setups
+   setup
    pypeit_file
    calcheck
    running
@@ -46,6 +46,7 @@ Data Products
 
    outputs
    qa
+   specobj
 
 Calibrations
 ++++++++++++
@@ -91,7 +92,6 @@ Documentation
 
    flexure
    frametype
-   inst_settings
    internals
 
 For Developers
@@ -100,11 +100,30 @@ For Developers
 .. toctree::
    :maxdepth: 1
 
+   development
    scripts
    flow
    new_spectrograph
    images
    PypeIt API <api/pypeit>
+   PypeIt Modules <api/modules>
+
+Orphaned Docs
++++++++++++++
+
+.. toctree::
+   :maxdepth: 1
+
+   inst_settings
+   gemini_gmos
+   heliocorr
+   mask
+   masters
+   metadata
+   pyp_twine
+   rawdata
+   standards
+   xshooter
 
 .. _kast webpage: http://mthamilton.ucolick.org/techdocs/instruments/kast/
 

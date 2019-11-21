@@ -1,4 +1,7 @@
 """ Module for image processing core methods
+
+.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+
 """
 import numpy as np
 from scipy import signal, ndimage
@@ -250,7 +253,7 @@ def gain_frame(amp_img, gain):
             amplifier 1 is provided by `gain[0]`, etc.
 
     Returns:
-        `numpy.ndarray`: Image with the gain for each pixel.
+        `numpy.ndarray`_: Image with the gain for each pixel.
     """
     # TODO: Remove this or actually do it.
     # msgs.warn("Should probably be measuring the gain across the amplifier boundary")
@@ -747,22 +750,26 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
             superfluous.  Could get the number of amplifiers from the
             maximum value in datasec_img or the length of the
             gain/ronoise lists.)
-        ronoise (:obj:`float`, array-like):
-
-        darkcurrent (:noise (:
-
-        adderr: float, default = 0.01
-            Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
-            S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
+        darkcurr (:obj:`float`, optional):
+            Dark current in electrons per second if the exposure time is
+            provided, otherwise in electrons.  If None, set to 0.
+        exptime (:obj:`float`, optional):
+            Exposure time in **hours**.  If None, darkcurrent *must* be
+            in electrons.
+        skyframe (`numpy.ndarray`_, optional):
+            Sky image.
+        objframe (`numpy.ndarray`_, optional):
+            Model of object counts
+        adderr (:obj:`float`, optional):
+            Error floor. The quantity adderr**2*sciframe**2 is added in
+            qudarature to the variance to ensure that the S/N is never >
+            1/adderr, effectively setting a floor on the noise or a
+            ceiling on the S/N.
         rnoise (:obj:`numpy.ndarray`, optional):
-            Read noise image
-            If not provided, it will be generated
+            Read noise image.  If not provided, it will be generated
 
-    objframe : ndarray, optional
-      Model of object counts
-    Returns
-    -------
-    variance image : ndarray
+    Returns:
+        `numpy.ndarray`_: Variance image
     """
 
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image

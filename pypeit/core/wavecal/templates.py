@@ -15,6 +15,7 @@ from linetools import utils as ltu
 from pypeit import utils
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
+from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import fitting
 
@@ -36,8 +37,9 @@ outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
-                   normalize=False, wvspec=None,
-                   lowredux=True, ifiles=None, det_cut=None, chk=False):
+                   normalize=False, subtract_conti=False, wvspec=None,
+                   lowredux=True, ifiles=None, det_cut=None, chk=False,
+                   miny=None):
     """
     Generate a full_template for a given instrument
 
@@ -51,6 +53,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         ifiles:
         det_cut:
         chk:
+        miny (float):
+            Impose a minimum value
         normalize (bool, optional):
             If provided multiple in_files, normalize each
             snippet to have the same maximum amplitude.
@@ -93,6 +97,11 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         # Append
         yvals.append(spec[gdi])
         lvals.append(wv_vac[gdi])
+    # Continuum
+    if subtract_conti:
+        for kk,spec in enumerate(yvals):
+            _, _, _, _, spec_cont_sub = wvutils.arc_lines_from_spec(spec)
+            yvals[kk] = spec_cont_sub
     # Normalize?
     if normalize:
         norm_val = 10000.
@@ -105,6 +114,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
     # Concatenate
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
+    # Min y?
+    if miny is not None:
+        nwspec = np.maximum(nwspec, miny)
     # Check
     if chk:
         debugger.plot1d(nwwv, nwspec)
@@ -543,18 +555,20 @@ def main(flg):
     if flg & (2**19):  # GMOS R400 Hamamatsu
         binspec = 2
         outroot='gemini_gmos_r400_ham.fits'
-        # 1 : 4728 - 6044
-        # 2 : 6100 - 7750
-        ifiles = [0, 1, 2]
-        slits = [0, 0, 0]
-        lcut = [6040., 7750]
-        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_01_aa.json')
-        wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_02_aa.json')
-        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
         #
-        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
+        ifiles = [0, 1, 2, 3, 4]
+        slits = [0, 2, 3, 0, 0]  # Be careful with the order..
+        lcut = [5400., 6620., 8100., 9000.]
+        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_01_aa.json')
+        wfile5 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_05_aa.json') # 5190 -- 6679
+        #wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_02_aa.json')
+        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_04_aa.json')
+        wfile4 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
+        wfile6 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_06_aa.json')
+        #
+        build_template([wfile1,wfile5,wfile3,wfile4, wfile6], slits, lcut, binspec,
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
-                       normalize=True)
+                       normalize=True, subtract_conti=True)
 
 
     # ##############################
@@ -573,7 +587,25 @@ def main(flg):
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
                        normalize=True)
 
-    if flg & (2**21):  # WHT/ISIS
+    # ##############################
+    if flg & (2**22):  # GMOS R400 Hamamatsu
+        binspec = 2
+        outroot='gemini_gmos_b600_ham.fits'
+        #
+        ifiles = [0, 1, 2, 3, 4]
+        slits = [0, 0, 0, 0, 0]
+        lcut = [4250., 4547., 5250., 5615.]
+        wfile1 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_01.json')
+        wfile5 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_01.json') # - 4547
+        wfile2 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_02.json')
+        wfile4 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_02.json') # 4610-5608
+        wfile3 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_03.json')
+        #
+        build_template([wfile1,wfile5,wfile2,wfile4,wfile3], slits, lcut, binspec,
+                       outroot, lowredux=False, ifiles=ifiles, chk=True,
+                       normalize=True, subtract_conti=True, miny=-100.)
+
+    if flg & (2**22):  # WHT/ISIS
         iroot = 'wht_isis_blue_1200_4800.json'
         outroot = 'wht_isis_blue_1200_4800.fits'
         wfile = os.path.join(template_path, 'WHT_ISIS', '1200B', iroot)
@@ -626,11 +658,12 @@ if __name__ == '__main__':
     #flg += 2**18  # Convert JSON to FITS
 
     # Gemini/GMOS
-    #flg += 2**19  # Hamamatsu Convert JSON to FITS
+    #flg += 2**19  # Hamamatsu R400 Convert JSON to FITS
     #flg += 2**20  # E2V Convert JSON to FITS
+    #flg += 2**21  # Hamamatsu B600 XIDL
 
     # WHT/ISIS
-    flg += 2**21  # Convert JSON to FITS
+    flg += 2**22  # Convert JSON to FITS
 
     main(flg)
 

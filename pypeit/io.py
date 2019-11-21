@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Provides a set of I/O routines.
+
+.. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
+
 """
 import os
 import sys

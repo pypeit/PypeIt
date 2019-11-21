@@ -12,27 +12,6 @@ Base class for handling bit masks.
 
 *Revision history*:
     | **01 Jun 2015**: Original implementation by K. Westfall (KBW)
-    | **07 Oct 2015**: (KBW) Added a usage case
-    | **29 Jan 2016**: (KBW) Changed attributes of :class:`BitMask` and
-        added functionality to print a description of the bits.  Convert
-        :class:`mangadap.proc.templatelibrary.TemplateLibraryBitMask` to
-        new format where the bits are read from a configuration file.
-    | **17 Feb 2016**: (KBW) Minor edit to documentation
-    | **16 Mar 2016**: (KBW) Moved TemplateLibraryBitMask to
-        :class:`mangadap.proc.templatelibrary.TemplateLibraryBitMask`;
-        moved HDUList_mask_wavelengths to
-        :func:`mangadap.proc.util.HDUList_mask_wavelengths`.
-    | **27 Mar 2016**: (KBW) Added :func:`BitMask.from_ini_file` and
-        :func:`BitMask.from_par_file` class methods.  Added
-        :func:`BitMask._fill_sequence` static method.  This allows for
-        :class:`BitMask` objects to be declared directly from the files,
-        and allows the bit values to take on any number.
-    | **05 Apr 2016**: (KBW) Added parameters to initialization of
-        :class:`BitMask` objects to clean up some of the derived class
-        initialization.
-    | **11 May 2016**: (KBW) Switch to using `pydl.pydlutils.yanny`_
-        instead of internal yanny reader
-    | **29 Jul 2016**: (KBW) Change asarray to atleast_1d
     | **06 Sep 2018**: (KBW) Added to PypeIt repo, removed
         functionality of instantiating a bitmask from a file, code
         update, and slight doc changes.

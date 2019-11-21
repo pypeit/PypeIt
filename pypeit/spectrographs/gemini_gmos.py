@@ -50,6 +50,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(ext=0, card='CENTWAVE', rtol=1e-5)
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
 
+        self.meta['datasec'] = dict(ext=1, card='DATASEC')
+
+    def configuration_keys(self):
+        """
+        Extra keys for defining the configuration
+
+        Returns:
+
+        """
+        return ['datasec']
+
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -275,100 +286,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Return, transposing array back to orient the overscan properly
         return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
-    '''
-    def load_raw_frame(self, raw_file, det=None, **null_kwargs):
-        """
-        Wrapper to the raw image reader for GMOS
-
-        Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            hdu: HDUList
-
-        """
-        raw_img, hdu, _ = read_gmos(raw_file, det=det)
-
-        return raw_img, hdu
-
-    def get_raw_image_shape(self, filename=None, det=None, **null_kwargs):
-        """
-        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
-
-        Must always provide a file.
-        """
-        # Cannot be determined without file
-        if filename is None:
-            raise ValueError('Must provide a file to determine the shape of a GMOS image.')
-
-        # Use a file
-        self._check_detector()
-        shape, datasec, oscansec, _ = gmos_image_sections(filename, det)
-        self.naxis = shape
-        return self.naxis
-
-    def get_image_section(self, inp, det, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        Overwrites base class function to use :func:`read_gmos` to get
-        the image sections.
-
-        .. todo::
-            - It feels really ineffiecient to just get the image section
-              using the full :func:`read_gmos`.  Can we parse that
-              function into something that can give you the image
-              section directly?
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
-
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-            section (:obj:`str`, optional):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
-
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Read the file
-        if inp is None:
-            msgs.error('Must provide Gemini GMOS file or hdulist to get image section.')
-        # Load it up
-        shape, datasec, oscansec, _ = gmos_image_sections(inp, det)
-        if section == 'datasec':
-            return datasec, False, False
-        elif section == 'oscansec':
-            # Need to flip these
-            # TODO: What does the above mean?
-            return oscansec, False, False
-        else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
-    '''
-
-
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
@@ -521,6 +438,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         #
         return par
 
@@ -548,7 +467,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         super(GeminiGMOSNHamSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos_north_ham'
 
-        self.detector = [  #  Hamamatsu (since 2011)
+        self.detector = [  #  Hamamatsu
             # Detector 1
             DetectorPar(dataext         = 1,  # Not sure this is used
                         specaxis        = 1,
@@ -622,6 +541,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         #
         return par
 
@@ -686,12 +607,12 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         ]
         self.numhead = 7
 
-    def init_meta(self):
-        """
-        Generate the meta data dictionary.
-        """
-        super(GeminiGMOSNE2VSpectrograph, self).init_meta()
-        self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
+    #def init_meta(self):
+    #    """
+    #    Generate the meta data dictionary.
+    #    """
+    #    super(GeminiGMOSNE2VSpectrograph, self).init_meta()
+    #    self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -720,81 +641,6 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
         #
         return par
-
-'''
-def gmos_image_sections(inp, det):
-    if isinstance(inp, str):
-        hdu = fits.open(inp)
-    else:
-        hdu = inp
-    head0 = hdu[0].header
-    head1 = hdu[1].header
-
-    # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-    numamp = (len(hdu)-1)//3
-
-    # Setup for datasec, oscansec
-    dsec = []
-    osec = []
-
-    # get the x and y binning factors...
-    binning = head1['CCDSUM']
-    xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
-
-    # First read over the header info to determine the size of the output array...
-    datasec = head1['DATASEC']
-    x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
-    biassec = head1['BIASSEC']
-    b1, b2, b3, b4 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
-    nxb = b2-b1 + 1
-
-    # determine the output array size...
-    nx = (x2-x1+1)*numamp + nxb*numamp
-    ny = y2-y1+1
-
-    if numamp == 2:   # E2V
-        if det == 1: # BLUEST DETECTOR
-            order = range(6,4,-1)
-        elif det == 2: # NEXT
-            order = range(3,5)
-        elif det == 3: # REDDEST DETECTOR
-            order = range(1,3)
-    elif numamp == 4:  # Hamamatsu
-        if det == 1: # BLUEST DETECTOR
-            order = range(12,8,-1)
-        elif det == 2: # BLUEST DETECTOR
-            order = range(8,4,-1)
-        elif det == 3: # BLUEST DETECTOR
-            order = range(4,0,-1)
-    else:
-        embed()
-
-    # Do it
-    shape = (nx, ny)
-    for kk, jj in enumerate(order):
-        header = hdu[jj].header
-        # datasec
-        datasec = header['DATASEC']
-        xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
-        inx = xdata2-xdata1+1
-        xs = inx*kk
-        xe = xs + inx
-        section = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)
-        dsec.append(section)
-        # oscansec
-        xs = nx - numamp*nxb + kk*nxb
-        xe = xs + nxb
-        osection = '[{:d}:{:d},:]'.format(xs*xbin, xe*xbin)
-        osec.append(osection)
-
-    # Pack up extras
-    ext_items = hdu, order, xbin, numamp, nxb, nx
-
-    # Return
-    return shape, dsec, osec, ext_items
-'''
-
-
 
 def gemini_read_amp(inp, ext):
     """

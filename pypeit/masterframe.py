@@ -173,8 +173,8 @@ class MasterFrame(object):
 
 def items_from_master_file(master_file):
     """
-    Grab items from the Master file
-    In particular, generate the spectrograph object
+    Grab items from the Master file.  In particular, generate the
+    spectrograph object
 
     Either the header or some other part of the object
 
@@ -183,11 +183,11 @@ def items_from_master_file(master_file):
             Full path to the file
 
     Returns:
-        pypeit.spectrograph.Spectrograph, list:
-          Spectrograph generated from information in the the master object,
-          extras -- Avoid having this grow out of control!
-            If FITS, the extras list is:  [head0]
-
+        tuple: Returns a :class:`pypeit.spectrograph.Spectrograph`
+        instance generated from information in the the master object and
+        a :obj:`list` of extra objects, currently the header from the
+        master file (developer note: avoid having extras this grow out
+        of control!)
     """
     ext = master_file.split('.')[-1]
 
@@ -202,3 +202,5 @@ def items_from_master_file(master_file):
         msgs.error("Not read for this type of master file")
     # Return
     return spectrograph, extras
+
+

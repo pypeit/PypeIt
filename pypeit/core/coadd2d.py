@@ -22,6 +22,7 @@ from pypeit import specobjs
 from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
+from pypeit import specobjs
 from pypeit import edgetrace
 from pypeit import reduce
 from pypeit.core import extract
@@ -77,11 +78,12 @@ def optimal_weights(specobjs_list, slitid, objid, sn_smooth_npix, const_weights=
            The objid index of the brightest object whose S/N will be used to determine the weight for each frame.
 
     Returns:
-        (rms_sn, weights)
-        rms_sn : ndarray, shape = (len(specobjs_list),)
-            Root mean square S/N value for each input spectra
-        weights : ndarray, shape (len(specobjs_list),)
-            Weights to be applied to the spectra. These are signal-to-noise squared weights.
+        tuple: Returns the following:
+            - rms_sn : ndarray, shape = (len(specobjs_list),): Root mean
+              square S/N value for each input spectra
+            - weights : ndarray, shape (len(specobjs_list),): Weights to
+              be applied to the spectra. These are signal-to-noise
+              squared weights.
     """
 
     nexp = len(specobjs_list)
@@ -124,8 +126,9 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
           Maximum wavelength covered by the data in question.
 
     Returns:
-        (ind_lower, ind_upper): tuple, int
-          Integer lower and upper indices into the array wave_grid that cover the interval (wave_min, wave_max)
+        tuple: Returns (ind_lower, ind_upper), Integer lower and upper
+        indices into the array wave_grid that cover the interval
+        (wave_min, wave_max)
     """
 
     diff = wave_grid - wave_min
@@ -250,33 +253,39 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             log(angstroms). (TODO: Check units...)
 
     Returns:
-        TODO: This needs to be updated.
-
-        (sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat, thismask, tslits_dict)
-
-        sciimg: float ndarray shape = (nspec_coadd, nspat_coadd)
-            Rectified and coadded science image
-        sciivar: float ndarray shape = (nspec_coadd, nspat_coadd)
-            Rectified and coadded inverse variance image with correct error propagation
-        imgminsky: float ndarray shape = (nspec_coadd, nspat_coadd)
-            Rectified and coadded sky subtracted image
-        outmask: bool ndarray shape = (nspec_coadd, nspat_coadd)
-            Output mask for rectified and coadded images. True = Good, False=Bad.
-        nused: int ndarray shape = (nspec_coadd, nspat_coadd)
-            Image of integers indicating the number of images from the image stack that contributed to each pixel
-        tilts: float ndarray shape = (nspec_coadd, nspat_coadd)
-            The averaged tilts image corresponding to the rectified and coadded data.
-        waveimg: float ndarray shape = (nspec_coadd, nspat_coadd)
-            The averaged wavelength image corresponding to the rectified and coadded data.
-        dspat: float ndarray shape = (nspec_coadd, nspat_coadd)
-            The average spatial offsets in pixels from the reference trace trace_stack corresponding to the rectified
-            and coadded data.
-        thismask: bool ndarray shape = (nspec_coadd, nspat_coadd)
-            Output mask for rectified and coadded images. True = Good, False=Bad. This image is trivial, and
-            is simply an image of True values the same shape as the rectified and coadded data.
-        tslits_dict: dict
-            tslits_dict dictionary containing the information about the slits boundaries. The slit boundaries
-            are trivial and are simply vertical traces at 0 and nspat_coadd-1.
+        tuple: Returns the following (TODO: This needs to be updated):
+            - sciimg: float ndarray shape = (nspec_coadd, nspat_coadd):
+              Rectified and coadded science image
+            - sciivar: float ndarray shape = (nspec_coadd, nspat_coadd):
+              Rectified and coadded inverse variance image with correct
+              error propagation
+            - imgminsky: float ndarray shape = (nspec_coadd,
+              nspat_coadd): Rectified and coadded sky subtracted image
+            - outmask: bool ndarray shape = (nspec_coadd, nspat_coadd):
+              Output mask for rectified and coadded images. True = Good,
+              False=Bad.
+            - nused: int ndarray shape = (nspec_coadd, nspat_coadd):
+              Image of integers indicating the number of images from the
+              image stack that contributed to each pixel
+            - tilts: float ndarray shape = (nspec_coadd, nspat_coadd):
+              The averaged tilts image corresponding to the rectified
+              and coadded data.
+            - waveimg: float ndarray shape = (nspec_coadd, nspat_coadd):
+              The averaged wavelength image corresponding to the
+              rectified and coadded data.
+            - dspat: float ndarray shape = (nspec_coadd, nspat_coadd):
+              The average spatial offsets in pixels from the reference
+              trace trace_stack corresponding to the rectified and
+              coadded data.
+            - thismask: bool ndarray shape = (nspec_coadd, nspat_coadd):
+              Output mask for rectified and coadded images. True = Good,
+              False=Bad. This image is trivial, and is simply an image
+              of True values the same shape as the rectified and coadded
+              data.
+            - tslits_dict: dict: tslits_dict dictionary containing the
+              information about the slits boundaries. The slit
+              boundaries are trivial and are simply vertical traces at 0
+              and nspat_coadd-1.
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
@@ -378,22 +387,29 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
             which are to be rebbinned with proper erorr propagation
 
     Returns:
-        sci_list_out: list
-           The list of ndarray rebinned images with new shape (nimgs, nspec_rebin, nspat_rebin)
-        var_list_out: list
-           The list of ndarray rebinned variance images with correct error propagation with shape
-           (nimgs, nspec_rebin, nspat_rebin)
-        norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
-           An image stack indicating the integer occupation number of a given pixel. In other words, this number would be zero
-           for empty bins, one for bins that were populated by a single pixel, etc. This image takes the input
-           inmask_stack into account. The output mask for each image can be formed via
-           outmask_rebin_satck = (norm_rebin_stack > 0)
-        nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
-           An image stack indicating the integer occupation number of a given pixel taking only the thismask_stack into
-           account, but taking the inmask_stack into account. This image is mainly constructed for bookeeping purposes,
-           as it represents the number of times each pixel in the rebin image was populated taking only the "geometry"
-           of the rebinning into account (i.e. the thismask_stack), but not the masking (inmask_stack).
-
+        tuple: Returns the following:
+            - sci_list_out: list: The list of ndarray rebinned images
+              with new shape (nimgs, nspec_rebin, nspat_rebin)
+            - var_list_out: list: The list of ndarray rebinned variance
+              images with correct error propagation with shape (nimgs,
+              nspec_rebin, nspat_rebin)
+            - norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
+              nspat_rebin): An image stack indicating the integer
+              occupation number of a given pixel. In other words, this
+              number would be zero for empty bins, one for bins that
+              were populated by a single pixel, etc. This image takes
+              the input inmask_stack into account. The output mask for
+              each image can be formed via outmask_rebin_satck =
+              (norm_rebin_stack > 0)
+            - nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
+              nspat_rebin): An image stack indicating the integer
+              occupation number of a given pixel taking only the
+              thismask_stack into account, but taking the inmask_stack
+              into account. This image is mainly constructed for
+              bookeeping purposes, as it represents the number of times
+              each pixel in the rebin image was populated taking only
+              the "geometry" of the rebinning into account (i.e. the
+              thismask_stack), but not the masking (inmask_stack).
     """
 
     shape = combine.img_list_error_check(sci_list, var_list)
@@ -471,13 +487,13 @@ class Coadd2d(object):
         show:
         show_peaks:
 
-    Returns:
-
     """
 
     def __init__(self, spec2d_files, spectrograph, det=1, offsets=None, weights='auto', sn_smooth_npix=None, par=None,
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
+
+        TODO: These args should be in the previous doc string.
 
         Args:
             spec2d_files:
@@ -808,9 +824,8 @@ class Coadd2d(object):
                detector in question
 
         Returns:
-            stack_dict: dict
-               Dictionary containing all the images and keys required for perfomring 2d coadds.
-
+            dict: Dictionary containing all the images and keys required
+            for perfomring 2d coadds.
         """
 
         # Get the detector string
@@ -854,11 +869,21 @@ class Coadd2d(object):
         tslits_dict_list = []
         # TODO Sort this out with the correct detector extensions etc.
         # Read in the image stacks
+        waveimgfile, tiltfile, tracefile = None, None, None
         for ifile in range(nfiles):
-            #waveimg = WaveImage.load_from_file(waveimgfiles[ifile])  # JXP
-            waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
-            #tilts = WaveTilts.load_from_file(tiltfiles[ifile])
-            tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
+            # Load up the calibs, if needed
+            if waveimgfiles[ifile] == waveimgfile:
+                pass
+            else:
+                waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
+            if tiltfile == tiltfiles[ifile]:
+                pass
+            else:
+                tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
+            # Save
+            waveimgfile = waveimgfiles[ifile]
+            tiltfile = tiltfiles[ifile]
+            #
             hdu = fits.open(spec2d_files[ifile])
             # One detector, sky sub for now
             names = [hdu[i].name for i in range(len(hdu))]
@@ -899,8 +924,14 @@ class Coadd2d(object):
                 slitmask_stack = np.zeros(shape_sci, dtype=float)
 
             # Slit Traces and slitmask
-            tslits_dict \
+#            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
+            if tracefile == tracefiles[ifile]:
+                pass
+            else:
+                tslits_dict \
                     = edgetrace.EdgeTraceSet.from_file(tracefiles[ifile]).convert_to_tslits_dict()
+            tracefile = tracefiles[ifile]
+            #
             tslits_dict_list.append(tslits_dict)
             slitmask = pixels.tslits2mask(tslits_dict)
             slitmask_stack[ifile, :, :] = slitmask
@@ -912,10 +943,11 @@ class Coadd2d(object):
             skymodel_stack[ifile, :, :] = skymodel
 
             # Specobjs
-            head1d_list.append(head)
-            sobjs, head = load.load_specobjs(spec1d_files[ifile])
-            this_det = sobjs.det == self.det
-            specobjs_list.append(sobjs[this_det])
+            if os.path.isfile(spec1d_files[ifile]):
+                sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
+                head1d_list.append(sobjs.header)
+                this_det = sobjs.DET == self.DET
+                specobjs_list.append(sobjs[this_det])
 
         # slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
 
@@ -1069,22 +1101,20 @@ class MultiSlitCoadd2d(Coadd2d):
         """
         Utility routine to find the brightest object in each exposure given a specobjs_list for MultiSlit reductions.
 
-        Parameters:
+        Args:
             specobjs_list: list
                List of SpecObjs objects.
-        Optional Parameters:
-            echelle: bool, default=True
+            echelle: bool, default=True, optional
 
         Returns:
-            (objid, slitid, snr_bar)
-
-            objid: ndarray, int, shape (len(specobjs_list),)
-                Array of object ids representing the brightest object in each exposure
-            slitid (int):
-                Slit that highest S/N ratio object is on (only for pypeline=MultiSlit)
-            snr_bar: ndarray, float, shape (len(list),)
-                Average S/N over all the orders for this object
-
+            tuple: Returns the following:
+                - objid: ndarray, int, shape (len(specobjs_list),):
+                  Array of object ids representing the brightest object
+                  in each exposure
+                - slitid (int): Slit that highest S/N ratio object is on
+                  (only for pypeline=MultiSlit)
+                - snr_bar: ndarray, float, shape (len(list),): Average
+                  S/N over all the orders for this object
         """
         nexp = len(specobjs_list)
         nspec = specobjs_list[0][0].shape[0]
@@ -1177,20 +1207,18 @@ class EchelleCoadd2d(Coadd2d):
         """
         Utility routine to find the brightest object in each exposure given a specobjs_list for echelle reductions.
 
-        Parameters:
+        Args:
             specobjs_list: list
                List of SpecObjs objects.
-        Optional Parameters:
-            echelle: bool, default=True
+            echelle: bool, default=True, optional
 
         Returns:
-            (objid, snr_bar)
-
-            objid: ndarray, int, shape (len(specobjs_list),)
-                Array of object ids representing the brightest object in each exposure
-            snr_bar: ndarray, float, shape (len(list),)
-                Average S/N over all the orders for this object
-
+            tuple: Returns the following:
+                - objid: ndarray, int, shape (len(specobjs_list),):
+                  Array of object ids representing the brightest object
+                  in each exposure
+                - snr_bar: ndarray, float, shape (len(list),): Average
+                  S/N over all the orders for this object
         """
         nexp = len(specobjs_list)
         nspec = specobjs_list[0][0].shape[0]

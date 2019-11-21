@@ -45,7 +45,7 @@ Internals
 =========
 
 PypeItSetup
-----------
+-----------
 
 The PypeItSetup class organizes and runs PypeIt setup, guided
 by the loaded settings.   The
@@ -77,7 +77,7 @@ object used interally.
 .. _pypeit_setup:
 
 pypeit_setup
-===========
+============
 
 PypeIt includes a script that one may execute (*highly recommended*)
 to initiate the data reduction process.  This script helps organize
@@ -157,7 +157,7 @@ Here is sample output for the LRISb instrument::
       '02': {binning: '2,2', det: 2, namp: 2}
 
 PypeIt file
-----------
+-----------
 
 A .pypeit file is included but should be ignored at this stage.
 Only the ones generated with --custom are valuable to you.
@@ -180,10 +180,9 @@ user.
 Sorted File
 -----------
 
-This file is perhaps the most useful for inspecting
- the setups and individual files.
- Files are sorted by instrument configuration
-(setup) and then by frametype.
+This file is perhaps the most useful for inspecting the setups and
+individual files.  Files are sorted by instrument configuration (setup)
+and then by frametype.
 
 Here is some sample output::
 
@@ -201,9 +200,6 @@ Here is some sample output::
     | LB.20160406.11483.fits | 2016-04-06T03:11:26 |      1002 |        arc |        unknown |       1 | 600/4000 | long_1.0 |
     | LB.20160406.35081.fits | 2016-04-06T10:14:44 |      1003 |    science |     J1201+2117 |    1800 | 600/4000 | long_1.0 |
     ##end
-
-
-
 
 
 Output with --cfg_split

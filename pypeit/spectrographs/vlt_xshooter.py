@@ -68,6 +68,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card=None, default='default')
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+        meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
 
         # Ingest
         self.meta = meta
@@ -97,12 +98,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
-        return []
+        return ['arm']
 
-    def pypeit_file_keys(self):
-        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -286,6 +283,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
 
+    def pypeit_file_keys(self):
+        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
     def bpm(self, filename, det, shape=None):
         """
