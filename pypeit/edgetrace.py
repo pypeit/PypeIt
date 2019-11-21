@@ -4199,6 +4199,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict.
         """
 
+        #JFH This is massively memory inefficient. We just created like 5 bogus images filled with zeros
+        # from one set of slit boundaries? This is exactly why I wanted the slit boundaries and the slit boundaries
+        # only written to a separate file.
         # Caveats:
         #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
         par = EdgeTracePar()
@@ -4224,6 +4227,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
         this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
         this.spat_img = np.round(this.spat_cen).astype(int)
+        # JFH It appears I need to add this for the so created edgetrace object to be readable from a file, i.e.
+        # in 2d coadds
+        this.is_synced = True
         return this
 
     def update_using_tslits_dict(self, tslits_dict):
