@@ -139,9 +139,9 @@ todo_include_todos = True
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 # TODO: I think I prefer this theme; bizstyle would be my second choice
-html_theme = 'sphinx_rtd_theme'
+#html_theme = 'sphinx_rtd_theme'
 #html_theme = 'sphinxdoc'
-#html_theme = 'bizstyle'
+html_theme = 'bizstyle'
 #html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme

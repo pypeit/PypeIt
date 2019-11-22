@@ -99,6 +99,8 @@ import time
 import inspect
 from collections import OrderedDict
 
+from IPython import embed
+
 import numpy as np
 
 from scipy import ndimage
@@ -111,23 +113,20 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from astropy import table
 
-from pypeit.bitmask import BitMask
-from pypeit.par.pypeitpar import EdgeTracePar
-from pypeit.core import parse, pydl, procimg, pca, trace
-
 from pypeit import msgs
 from pypeit import utils
 from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
-from pypeit.core import trace_slits
+from pypeit.bitmask import BitMask
+from pypeit.par.pypeitpar import EdgeTracePar
+from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.traceimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
 
-from IPython import embed
 
 class EdgeTraceBitMask(BitMask):
     """
@@ -220,8 +219,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         edges = EdgeTraceSet(spec, par, load=True)
 
     In the latter case, note that the `load` argument takes
-    precedence and an exception is raised if one provides both both
-    `img` and sets `load=True`.
+    precedence and an exception is raised if one provides both `img`
+    and sets `load=True`.
 
     Most commonly, one will use the automatic tracing routine to
     trace the slit edges; see the description of the steps used
@@ -380,7 +379,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             A list of strings indicating the main methods applied
             when tracing.
     """
-#    master_type = 'Trace'   # For MasterFrame base
     master_type = 'Edges'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
@@ -901,7 +899,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Decide if mask should be passed to this or not,
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
-        # NOTE: This used to be edgearr_from_binarr
         self.sobel_sig, edge_img \
                 = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
@@ -918,7 +915,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # number?
 #        minimum_spec_length = self.nspec * self.par['det_min_spec_length']
         minimum_spec_length = 50
-        # NOTE: This used to be match_edges()
         _trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
                                               minimum_spec_length=minimum_spec_length)
 
@@ -1110,6 +1106,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')
                             ])
+        if self.pca is not None:
+            if self.par['left_right_pca']:
+                hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
+            else:
+                hdu += [self.pca.to_hdu()]
         if self.design is not None: 
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
@@ -1125,7 +1126,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.info('Compressing file to: {0}.gz'.format(_outfile))
             io.compress_file(_outfile, overwrite=overwrite)
 
-    def load(self, validate=True, rebuild_pca=True):
+    def load(self, validate=True, rebuild_pca=False):
         """
         Load and reinitialize the trace data.
 
@@ -1149,9 +1150,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 defined by the header is used instead of the existing
                 :attr:`bitmask`.
             rebuild_pca (:obj:`bool`, optional):
-                If the primary header indicates that the PCA
-                decompostion had been performed on the save object,
-                use the saved parameters to rebuild that PCA.
+                Rebuild the PCA decomposition of the traces based on
+                the loaded trace data, but only if the PCA had been
+                originally produced for the saved object (as
+                indicated by the fits header). Otherwise, any
+                existing saved PCA data will be used to construct the
+                PCA object(s). If the header indicates that the PCA
+                was not originally performed, this is ignored.
         Raises:
             FileNotFoundError:
                 Raised if no data has been written for this master
@@ -1174,7 +1179,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         return os.path.isfile(self.master_file_path)
 
     @classmethod
-    def from_file(cls, filename, rebuild_pca=True):
+    def from_file(cls, filename, rebuild_pca=False):
         """
         Instantiate using data from a file.
 
@@ -1185,9 +1190,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             filename (:obj:`str`):
                 Fits file produced by :func:`save`.
             rebuild_pca (:obj:`bool`, optional):
-                If the primary header indicates that the PCA
-                decompostion had been performed on the save object,
-                use the saved parameters to rebuild that PCA.
+                Rebuild the PCA decomposition of the traces based on
+                the loaded trace data, but only if the PCA had been
+                originally produced for the saved object (as
+                indicated by the fits header). Otherwise, any
+                existing saved PCA data will be used to construct the
+                PCA object(s). If the header indicates that the PCA
+                was not originally performed, this is ignored.
         """
 
         # TODO: Consolidate this with items_from_master_file in
@@ -1207,7 +1216,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             this._reinit(hdu, rebuild_pca=rebuild_pca)
         return this
 
-    def _reinit(self, hdu, validate=True, rebuild_pca=True):
+    def _reinit(self, hdu, validate=True, rebuild_pca=False):
         """
         Reinitialize the internals based on the provided fits HDU.
 
@@ -1225,9 +1234,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 defined by the header is used instead of the existing
                 :attr:`bitmask`.
             rebuild_pca (:obj:`bool`, optional):
-                If the primary header indicates that the PCA
-                decompostion had been performed on the save object,
-                use the saved parameters to rebuild that PCA.
+                Rebuild the PCA decomposition of the traces based on
+                the loaded trace data, but only if the PCA had been
+                originally produced for the saved object (as
+                indicated by the fits header). Otherwise, any
+                existing saved PCA data will be used to construct the
+                PCA object(s). If the header indicates that the PCA
+                was not originally performed, this is ignored.
         """
         # Read and assign data from the fits file
         self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
@@ -1262,9 +1275,19 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             else (np.round(self.spat_cen if self.spat_fit is None
                                     else self.spat_fit).astype(int))
 
-        # Rebuild the PCA if it existed previously and requested
+        # Read or rebuild the PCA if it existed previously
         self.pca_type = None if hdu[0].header['PCATYPE'] == 'None' else hdu[0].header['PCATYPE']
-        self._reset_pca(rebuild_pca and self.pca_type is not None and self.can_pca())
+        if self.pca_type is None:
+            self.pca = None
+        elif rebuild_pca:
+            if self.can_pca():
+                self._reset_pca(True)
+            else:
+                # TODO: Should this throw a warning instead?
+                msgs.error('Traces do not meet necessary criteria for the PCA decomposition.')
+        else:
+            self.pca = [ TracePCA.from_hdu(hdu[ext]) for ext in ['LPCA', 'RPCA']] \
+                            if self.par['left_right_pca'] else TracePCA.from_hdu(hdu['PCA'])
 
         self.log = io.parse_hdr_key_group(hdu[0].header, prefix='LOG')
 
@@ -2669,7 +2692,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 continue
 
             # Perform the fit
-            fit[:,indx], cen[:,indx], err[:,indx], msk[:,indx] \
+            fit[:,indx], cen[:,indx], err[:,indx], msk[:,indx], _ \
                     = trace.fit_trace(_sobel_sig, self.spat_cen[:,indx], order, ivar=ivar,
                                       bpm=bpm, trace_bpm=spat_bpm[:,indx],
                                       weighting=weighting, fwhm=fwhm, maxshift=maxshift,
@@ -4159,11 +4182,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict['pad'] = self.par['pad']
         tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
         tslits_dict['spectrograph'] = self.spectrograph.spectrograph
-        slit_spat_pos = trace_slits.slit_spat_pos(tslits_dict)
         tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(slit_spat_pos,
+            self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
                                           binspectral=tslits_dict['binspectral'])
-            #self.spectrograph.slit_minmax(slit_spat_pos, binspectral=tslits_dict['binspectral'])
 
         return tslits_dict
 
@@ -4214,3 +4235,62 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit_type = 'tweaked'
         # TODO: Resort?
 
+# TODO: This needs to be integrated into EdgeTraceSet, or just use
+# EdgeTraceSet.traceid
+def get_slitid(shape, lordloc, rordloc, islit, ypos=0.5):
+    """
+    TODO: This is out of date!
+    Convert slit position to a slitid
+
+    Parameters
+    ----------
+    slf : SciExpObj or tuple
+    det : int
+    islit : int
+    ypos : float, optional
+
+    Returns
+    -------
+    slitid : int
+      Slit center position on the detector normalized to range from 0-10000
+    slitcen : float
+      Slitcenter relative to the detector ranging from 0-1
+    xslit : tuple
+      left, right positions of the slit edges
+    """
+    #if isinstance(slf, tuple):
+    #    shape, lordloc, rordloc = slf
+    #else:
+    #    shape = slf._mstrace[det-1].shape
+    #    lordloc = slf._lordloc[det-1]
+    #    rordloc = slf._rordloc[det-1]
+    # Index at ypos
+    yidx = int(np.round(ypos*lordloc.shape[0]))
+    # Slit at yidx
+    pixl_slit = lordloc[yidx, islit]
+    pixr_slit = rordloc[yidx, islit]
+    # Relative to full image
+    xl_slit = pixl_slit/shape[1]
+    xr_slit = pixr_slit/shape[1]
+    # Center
+    slitcen = np.mean([xl_slit, xr_slit])
+    slitid = int(np.round(slitcen*1e4))
+    # Return them all
+    return slitid, slitcen, (xl_slit, xr_slit)
+
+
+# TODO: This needs to be integrated into EdgeTraceSet
+def slit_spat_pos(tslits_dict):
+    """
+    Generate an array of the slit spat positions
+    from the tslits_dict
+
+    Args:
+        tslits_dict (:obj:`dict`):
+            Trace slits dict
+
+    Returns:
+        np.ndarray
+    """
+    return (tslits_dict['slit_left'][tslits_dict['nspec']//2, :] +
+            tslits_dict['slit_righ'][tslits_dict['nspec']//2,:]) /2/tslits_dict['nspat']

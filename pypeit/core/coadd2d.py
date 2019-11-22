@@ -5,33 +5,31 @@ Module for performing two-dimensional coaddition of spectra.
 
 """
 import os
+import copy
+
+from IPython import embed
 
 import numpy as np
 import scipy
-import copy
+from matplotlib import pyplot as plt
 
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit import ginga
+from pypeit import specobjs
 from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
-from pypeit.traceslits import TraceSlits
 from pypeit import edgetrace
-from pypeit.images import scienceimage
 from pypeit import reduce
 from pypeit.core import extract
-
 from pypeit.core import load, coadd1d, pixels
 from pypeit.core import parse
 from pypeit.core import combine
+from pypeit.images import scienceimage
 from pypeit.spectrographs import util
-from matplotlib import pyplot as plt
-from IPython import embed
-from pypeit import ginga
-from pypeit import specobjs
-
 
 
 def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
@@ -718,9 +716,6 @@ class Coadd2d(object):
                               master_dir=master_dir)
         waveImage.save(image=self.psuedo_dict['waveimg'])
 
-#        traceSlits = TraceSlits(None, None, master_key=master_key_dict['trace'], master_dir=master_dir)
-#        traceSlits.save(tslits_dict=self.psuedo_dict['tslits_dict'])
-
         edges = edgetrace.EdgeTraceSet.from_tslits_dict(self.psuedo_dict['tslits_dict'],
                                                         master_key_dict['trace'], master_dir)
         edges.save()
@@ -904,7 +899,6 @@ class Coadd2d(object):
                 slitmask_stack = np.zeros(shape_sci, dtype=float)
 
             # Slit Traces and slitmask
-#            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
             tslits_dict \
                     = edgetrace.EdgeTraceSet.from_file(tracefiles[ifile]).convert_to_tslits_dict()
             tslits_dict_list.append(tslits_dict)
@@ -1253,7 +1247,6 @@ class EchelleCoadd2d(Coadd2d):
             return None
 
 
-
 def instantiate_me(spec2d_files, spectrograph, **kwargs):
     """
     Instantiate the CoAdd2d subclass appropriate for the provided
@@ -1280,7 +1273,7 @@ def instantiate_me(spec2d_files, spectrograph, **kwargs):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
     return Coadd2d.__subclasses__()[np.where(indx)[0][0]](spec2d_files, spectrograph, **kwargs)
 
-
+# TODO: Can we get rid of all the commented lines below?
 # Determine brightest object either if offsets were not input, or if automatic weight determiniation is desired
 # if offsets is None or auto_weights is True:
 #    self.objid_bri, self.slitid_bri, self.snr_bar_bri = get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits)

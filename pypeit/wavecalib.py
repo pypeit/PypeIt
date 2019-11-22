@@ -5,6 +5,8 @@ import os
 import copy
 import inspect
 
+from IPython import embed
+
 import numpy as np
 
 from matplotlib import pyplot as plt
@@ -13,12 +15,10 @@ import linetools.utils
 
 from pypeit import msgs
 from pypeit import masterframe
+from pypeit import edgetrace
 from pypeit.core import arc, qa, pixels
 from pypeit.core.wavecal import autoid, waveio, identify, templates
-from pypeit.core import trace_slits
 
-from pypeit import debugger
-import IPython
 
 
 class WaveCalib(masterframe.MasterFrame):
@@ -127,7 +127,7 @@ class WaveCalib(masterframe.MasterFrame):
             #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
                 self.gpm &= self.msarc.image < self.nonlinear_counts
-            self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
 
         else:
             self.slitmask_science = None
@@ -328,7 +328,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         """
         # Do it
-        arccen, arc_maskslit = arc.get_censpec(
+        arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
             self.slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm)  #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
         # Step

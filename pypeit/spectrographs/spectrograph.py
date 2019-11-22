@@ -779,7 +779,7 @@ class Spectrograph(object):
 
         Args:
             slit_spat_pos (float or ndarray):
-                normalized slit_spatial position as computed by trace_slits.slit_spat_pos
+                normalized slit_spatial position as computed by edgetrace.slit_spat_pos
             binspectral (int): default=1
                spectral binning
 

@@ -5,12 +5,14 @@ Class for guiding calibration object generation in PypeIt
 
 """
 import os
-import numpy as np
 
 from abc import ABCMeta
 
-from astropy.io import fits
 from IPython import embed
+
+import numpy as np
+
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import arcimage
@@ -18,16 +20,12 @@ from pypeit import tiltimage
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
-#from pypeit import traceslits
 from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
-
 from pypeit.metadata import PypeItMetaData
-
 from pypeit.core import parse
-
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
 
@@ -160,7 +158,6 @@ class Calibrations(object):
         self.msarc = None
         self.msbias = None
         self.msbpm = None
-        self.mstrace = None
         self.tslits_dict = None
         self.wavecalib = None
         self.tilts_dict = None
@@ -586,12 +583,6 @@ class Calibrations(object):
                 # TODO: These should be saved separately
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
-#                    # Add tweaked boundaries to the MasterTrace file
-#                    self.traceSlits.tslits_dict = self.flatField.tslits_dict
-#                    try:
-#                        self.traceSlits.save(traceImage=self.traceImage)
-#                    except:
-#                        self.traceSlits.save(traceImage=self.mstrace)
                     self.edges.update_using_tslits_dict(self.flatField.tslits_dict)
                     self.edges.save()
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
@@ -655,13 +646,6 @@ class Calibrations(object):
             return self.tslits_dict
 
         # Instantiate
-        # TODO: Leave this for now for testing
-#        self.traceSlits = traceslits.TraceSlits(self.spectrograph, self.par['slits'], det=self.det,
-#                                                master_key=self.master_key_dict['trace'],
-#                                                master_dir=self.master_dir, qa_path=self.qa_path,
-#                                                reuse_masters=self.reuse_masters, msbpm=self.msbpm)
-#        self.par['slitedges'].to_config('in_calibrations.ini', section_name='slitedges',
-#                                        include_descr=False)
         self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
                                             master_key=self.master_key_dict['trace'],
                                             master_dir=self.master_dir,
@@ -671,11 +655,6 @@ class Calibrations(object):
             self.edges.load()
             self.tslits_dict = self.edges.convert_to_tslits_dict()
         else:
-
-#        # Load the MasterFrame (if it exists and is desired)?
-#        self.tslits_dict, _ = self.traceSlits.load()
-#        if self.tslits_dict is None:
-
             # Build the trace image
             self.traceImage = traceimage.TraceImage(self.spectrograph,
                                                     files=self.trace_image_files, det=self.det,
@@ -701,8 +680,6 @@ class Calibrations(object):
             self.tslits_dict = self.edges.convert_to_tslits_dict()
 
         # Save, initialize maskslits, and return
-        # TODO: We're not caching self.mstrace.  And actually there is
-        # no mstrace in Calibrations anymore; only in TraceSlits?
         self._update_cache('trace', 'trace', self.tslits_dict)
         return self.tslits_dict
 
@@ -870,6 +847,7 @@ class Calibrations(object):
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
                                              qa_path=self.qa_path, msbpm=self.msbpm)
+
         # Master
         self.tilts_dict = self.waveTilts.load()
         if self.tilts_dict is None:
