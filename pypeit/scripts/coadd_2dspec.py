@@ -223,7 +223,7 @@ def main(args):
 
     # Save the results
     save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
-                  head2d, scipath, basename, binning=coadd.binning)
+                  head2d, scipath, basename)#, binning=coadd.binning)
 
 
 

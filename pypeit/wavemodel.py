@@ -20,6 +20,7 @@ from pypeit.core import arc
 from pypeit import utils
 from pypeit.core.wave import airtovac
 
+from IPython import embed
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -575,6 +576,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
 
     msgs.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
     gauss_kernel = Gaussian1DKernel(px_sigma)
+
     flux_convolved = convolve(flux, gauss_kernel)
 
     if debug:
