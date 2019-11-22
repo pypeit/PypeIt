@@ -265,7 +265,7 @@ class SpecObj(object):
         Sets self.name internally
 
         Returns:
-            str: :attr:`self.name`
+            str
 
         """
         if 'Echelle' in self.PYPELINE:
@@ -278,7 +278,7 @@ class SpecObj(object):
             # Order
             self.name += '-'+naming_model['order']
             self.name += '{:04d}'.format(self.ECH_ORDER)
-        else:
+        elif 'MultiSlit' in self.PYPELINE:
             # Spat
             self.name = naming_model['spat']
             if 'SPAT_PIXPOS' not in self._data.meta.keys():
@@ -288,6 +288,8 @@ class SpecObj(object):
             # Slit
             self.name += '-'+naming_model['slit']
             self.name += '{:04d}'.format(self.SLITID)
+        else:
+            msgs.error("Bad PYPELINE")
         # Detector
         sdet = parse.get_dnum(self.DET, prefix=False)
         self.name += '-{:s}{:s}'.format(naming_model['det'], sdet)

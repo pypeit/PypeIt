@@ -163,9 +163,13 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     # Fit
     n_order = n_first
-    flg_quit = False
+    flg_penultimate = False
+    flg_last = False
     fmin, fmax = 0.0, 1.0
-    while (n_order <= n_final) and (flg_quit is False):
+    # Note the number of parameters is actually n_order and not n_order+1
+    while (n_order <= n_final) or flg_last:
+        if flg_penultimate:
+            flg_last = True
         # Fit with rejection
         xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
         mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_first,
@@ -193,12 +197,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit, dtype=int))
-        # Increment order
+        # Increment order?
         if n_order < n_final:
             n_order += 1
-        else:
-            # This does 2 iterations at the final order
-            flg_quit = True
+        if n_order == n_final:
+            flg_penultimate = True
 
     # Final fit (originals can now be rejected)
     #fmin, fmax = 0., 1.

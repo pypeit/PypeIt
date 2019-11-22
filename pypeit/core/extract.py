@@ -83,28 +83,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
         msgs.warn('Object profile is zero everywhere. This aperture is junk.')
-#        junk = np.zeros(nspec)
-#        # Fill in the optimally extraction tags
-#        specobj.optimal['WAVE'] = junk
-#        specobj.optimal['COUNTS'] = junk
-#        specobj.optimal['COUNTS_IVAR'] = junk
-#        specobj.optimal['COUNTS_SIG'] = junk
-#        specobj.optimal['COUNTS_NIVAR'] = junk
-#        specobj.optimal['MASK'] = junk
-#        specobj.optimal['COUNTS_SKY'] = junk
-#        specobj.optimal['COUNTS_RN'] = junk
-#        specobj.optimal['FRAC_USE'] = junk
-#        specobj.optimal['CHI2'] = junk
-#        # Fill in the boxcar tags
-#        specobj.boxcar['WAVE'] = junk
-#        specobj.boxcar['COUNTS'] = junk
-#        specobj.boxcar['COUNTS_SIG'] = junk
-#        specobj.boxcar['COUNTS_IVAR'] = junk
-#        specobj.boxcar['COUNTS_NIVAR'] = junk
-#        specobj.boxcar['MASK'] = junk
-#        specobj.boxcar['COUNTS_SKY'] = junk
-#        specobj.boxcar['COUNTS_RN'] = junk
-#        specobj.boxcar['BOX_RADIUS'] = 0.0
         return None
 
     mincol = np.min(ispat)

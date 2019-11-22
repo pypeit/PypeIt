@@ -1123,10 +1123,10 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     tcent = tcent[icut]
 
     # IDs were input by hand
-    # Check that there are at least 5 values
+    # Check that there are at least 4 values
     pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
     if np.sum(pixels > 0.) < 4:
-        msgs.error("Need to give at least 5 pixel values!")
+        msgs.error("Need to give at least 4 pixel values!")
     #
     msgs.info("Using input lines to seed the wavelength solution")
     # Calculate median offset
@@ -1144,7 +1144,6 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     for jj,pix in enumerate(pixels):
         diff = np.abs(tcent-pix-med_poff)
         if np.min(diff) > 2.:
-            embed(header='1076 of arc.py')
             msgs.error("No match with input pixel {:g}!".format(pix))
         else:
             imn = np.argmin(diff)

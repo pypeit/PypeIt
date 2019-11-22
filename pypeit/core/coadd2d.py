@@ -869,13 +869,9 @@ class Coadd2d(object):
         waveimgfile, tiltfile, tracefile = None, None, None
         for ifile in range(nfiles):
             # Load up the calibs, if needed
-            if waveimgfiles[ifile] == waveimgfile:
-                pass
-            else:
+            if waveimgfiles[ifile] != waveimgfile:
                 waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
-            if tiltfile == tiltfiles[ifile]:
-                pass
-            else:
+            if tiltfile != tiltfiles[ifile]:
                 tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
             # Save
             waveimgfile = waveimgfiles[ifile]
@@ -921,10 +917,7 @@ class Coadd2d(object):
                 slitmask_stack = np.zeros(shape_sci, dtype=float)
 
             # Slit Traces and slitmask
-#            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
-            if tracefile == tracefiles[ifile]:
-                pass
-            else:
+            if tracefile != tracefiles[ifile]:
                 tslits_dict \
                     = edgetrace.EdgeTraceSet.from_file(tracefiles[ifile]).convert_to_tslits_dict()
             tracefile = tracefiles[ifile]
