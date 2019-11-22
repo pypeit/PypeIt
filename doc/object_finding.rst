@@ -95,17 +95,15 @@ Interactive object finding/tracing
 
 In some cases, the code may not find the object that you're after,
 or may find several spurious objects. To add/remove/modify object
-traces interactively, you can add the following lines to your
-input pypeit file:
+traces interactively, there is an interactive GUI utility.
 
-[scienceimage]
-  interactive_objfind = True
+pypeit_find_objects Science/spec2d.fits
 
 and this will launch an interactive GUI that will allow you to perform
-several simple operations on the object tracing. However, we strongly
-recommend that run this interactive tool outside of your reduction. The
-tool will produce some script that you can insert into your .pypeit file,
-and this will allow for a reproducible data reduction.
+several simple operations on the object tracing. The
+tool will produce a few lines of text that you can insert
+into your .pypeit file, and this will allow for a
+reproducible data reduction.
 
 Using this tool, you will be able to delete spurious traces, add new object traces,
 and manually set the FWHM of the object profile. To view a complete list of
@@ -134,16 +132,13 @@ You can select the answer by clicking on the yes/no button when they
 appear.
 
 Finally, there are two buttons on the right hand side of the GUI that
-allow you to exit the tracing and continue with the data
-reduction (if running interactively) or print out a script for you to
+allow you to exit the tracing and print out a script for you to
 include in your .pypeit file. **Please use these exit buttons instead of killing the window
 from the menu bar**. The button labelled "Continue (and save changes)"
-will exit the session and use the object traces that you
-have interactively defined (or print to screen the relevent text needed
-for inclusion in the .pypeit file). The button labelled
+will exit the session and print to screen the relevent text needed
+for inclusion in the .pypeit file. The button labelled
 "Continue (don't save changes)" will exit the interactive session and
-use the object traces that PypeIt found automatically (i.e. all of your
-interactive changes will be ignored).
+all of your interactive changes will be ignored.
 
 Just below these exit buttons there are four radio buttons that allow
 you to select a method to trace the object profiles. Below is a
