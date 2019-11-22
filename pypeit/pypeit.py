@@ -588,8 +588,7 @@ class PypeIt(object):
             self.redux.find_objects(self.sciImg.image, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace, maskslits=self.maskslits,
                                     show=self.show & (not self.std_redux),
-                                    manual_extract_dict=manual_extract_dict,
-                                    final_search=False)
+                                    manual_extract_dict=manual_extract_dict)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
@@ -600,8 +599,7 @@ class PypeIt(object):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(self.sciImg.image - self.initial_sky, std=self.std_redux,
                                         ir_redux=self.ir_redux, std_trace=std_trace,maskslits=self.maskslits,
-                                        show=self.show, manual_extract_dict=manual_extract_dict,
-                                        final_search=True)
+                                        show=self.show, manual_extract_dict=manual_extract_dict)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:

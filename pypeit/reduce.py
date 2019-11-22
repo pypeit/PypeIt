@@ -191,21 +191,14 @@ class Reduce(object):
 
     def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                      show_peaks=False, show_fits=False, show_trace=False, show=False,
-                     manual_extract_dict=None, final_search=False, debug=False):
-
-        # Check if this is the final attempt at finding objects
-        # only do the interactive object finding on the last attempt
-        if final_search:
-            interactive = self.redux_par['interactive_objfind']
-        else:
-            interactive = False
+                     manual_extract_dict=None, debug=False):
 
         # Positive image
         parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_init, nobj_init, skymask_pos = \
             self.find_objects_pypeline(image, std=std, ir_redux=ir_redux, std_trace=std_trace, maskslits=maskslits,
                                        show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
-                                       manual_extract_dict=parse_manual, interactive=interactive, debug=debug)
+                                       manual_extract_dict=parse_manual, debug=debug)
 
         # For nobj we take only the positive objects
         if ir_redux:
@@ -214,7 +207,7 @@ class Reduce(object):
             sobjs_obj_init_neg, nobj_init_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, std=std, ir_redux=ir_redux, std_trace=std_trace, maskslits=maskslits,
                                            show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
-                                           manual_extract_dict=parse_manual, interactive=interactive)
+                                           manual_extract_dict=parse_manual)
             #self.find_objects_pypeline(-image, ivar, std=std, std_trace=std_trace, maskslits=maskslits,
             skymask = skymask_pos & skymask_neg
             sobjs_obj_init.append_neg(sobjs_obj_init_neg)
@@ -229,7 +222,7 @@ class Reduce(object):
 
     def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                               show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False,
-                              manual_extract_dict=None, interactive=False):
+                              manual_extract_dict=None):
 
         """
          Dummy method for object finding. Overloaded by class specific object finding.
@@ -537,7 +530,7 @@ class MultiSlit(Reduce):
     def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, interactive=False, debug=False):
+                              show=False, debug=False):
 
         """
         Find objects in the slits. This is currently setup only for ARMS
@@ -610,7 +603,6 @@ class MultiSlit(Reduce):
                                 npoly_cont=self.redux_par['find_npoly_cont'],
                                 fwhm=self.redux_par['find_fwhm'],
                                 maxdev=self.redux_par['find_maxdev'],
-                                interactive=interactive,
                                 qa_title=qa_title, nperslit=self.redux_par['maxnumber'], debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
 
@@ -742,7 +734,7 @@ class Echelle(Reduce):
             npoly_cont=self.redux_par['find_npoly_cont'], fwhm=self.redux_par['find_fwhm'],
             maxdev=self.redux_par['find_maxdev'], max_snr=self.redux_par['ech_find_max_snr'],
             min_snr=self.redux_par['ech_find_min_snr'], nabove_min_snr=self.redux_par['ech_find_nabove_min_snr'],
-            show_trace=show_trace, interactive=self.redux_par['interactive_objfind'], debug=debug)
+            show_trace=show_trace, debug=debug)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

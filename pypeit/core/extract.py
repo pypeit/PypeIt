@@ -1044,7 +1044,7 @@ def create_skymask_fwhm(sobjs, thismask):
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, interactive=False,
+            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False, qa_title='objfind'):
 
     """ Find the location of objects in a slitmask slit or a echelle order.
@@ -1114,8 +1114,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         Fit a continuum to the illumination pattern across the slit when peak finding
     npoly_cont (int): default=1
         Order of polynomial fit to the illumination pattern across the slit when peak finding
-    interactive (bool): default=False
-        If True, an interactive GUI will be opened for the user to add/delete/modify object traces
     specobj_dict: dict, default = None
          Dictionary containing meta-data for the objects that will be propgated into the SpecObj objects, i.e. setup,
          slitid, detector, object type, and pipeline. The default is None, in which case the following dictionary will be used.
@@ -1508,43 +1506,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs.add_sobj(thisobj)
 
     nobj = len(sobjs)
-    # If there are no regular aps and no hand aps, open a GUI to interactively select apertures
-    trace_model_dict = dict()
-    interactive_updates = False
-    if interactive:
-        msgs.info("Initializing the object tracing tool")
-        # Brightest object on slit
-        trace_model_obj = None
-        if nobj_reg > 0:
-            smash_peakflux = sobjs.smash_peakflux
-            ibri = smash_peakflux.argmax()
-            trace_model_obj = sobjs[ibri].trace_spat
-        trace_model_dict['object'] = dict(trace_model=trace_model_obj, fwhm=np.median(sobjs.fwhm))
-        # Standard star trace
-        trace_model_dict['std'] = dict(trace_model=std_trace, fwhm=fwhm)
-        # Trace of the slit edge
-        trace_model_dict['slit'] = dict(trace_model=slit_left.copy(), fwhm=fwhm)
-        # Now setup the parameters needed to generate new specobjs
-        sobj_par = dict(frameshape=frameshape, slit_spat_pos=slit_spat_pos, slit_spec_pos=slit_spec_pos,
-                        det=specobj_dict['det'], setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
-                        orderindx=specobj_dict['orderindx'], objtype=specobj_dict['objtype'], ximg=ximg,
-                        )
-        # Generate a dictionary containing all of the information needed for interactive tracing
-        trace_dict = dict(slit_left=slit_left.T, slit_righ=slit_righ.T, profile=fluxconv_cont,
-                          trace_model=trace_model_dict, sobj_par=sobj_par)
-        # Initialise GUI
-        objsgui = gui_object_find.initialise(specobj_dict['det'], image*(thismask*inmask), trace_dict,
-                                             sobjs=sobjs, runtime=True, slit_ids=sobjs[0].slitid)
-        # Get the updated version of the specobjs (if requested)
-        newsobjs = objsgui.get_specobjs()
-        if newsobjs is not None:
-            interactive_updates = True
-            sobjs = newsobjs
-        nobj = len(sobjs)
-
     # Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     # We're going to assume that if interactive updates were made that the user has manually assigned the traces.
-    if (nobj_reg > 0) and (hand_extract_dict is not None) and (not interactive_updates):
+    if (nobj_reg > 0) and (hand_extract_dict is not None):
         spat_pixpos = sobjs.spat_pixpos
         hand_flag = sobjs.hand_extract_flag
         spec_fwhm = sobjs.fwhm
@@ -1655,7 +1619,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 fof_link=1.5, order_vec=None, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None, interactive=False,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False, debug_all=False):
     """
@@ -1697,8 +1661,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         Friends-of-friends linking length in arcseconds used to link together traces across orders. The routine links
         together at the same fractional slit position and links them together with a friends-of-friends algorithm using
         this linking length.
-    interactive (bool): default=False
-        If True, an interactive GUI will be opened for the user to add/delete/modify object traces
     plate_scale: float or ndarray, if an ndarray shape is (norders,) default = 0.2
        plate scale of your detector, in unit of arcsec/pix. This can either be a single float for every order, or an array
        with size norders indicating the plate scale of each order.
@@ -1810,7 +1772,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                     hand_extract_dict=hand_extract_dict, ir_redux=ir_redux,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
-                    npoly_cont=npoly_cont, show_peaks=show_peaks, interactive=interactive,
+                    npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace, specobj_dict=specobj_dict)
         # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
         for spec in sobjs_slit:
