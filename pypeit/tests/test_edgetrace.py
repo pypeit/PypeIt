@@ -53,7 +53,7 @@ def test_addrm_slit():
 def test_chk_kast_slits():
     """ This tests finding the longslit for Kast blue """
     # Red, blue
-    for root in ['MasterEdges_ShaneKastred_600_7500_d55.fits.gz',
+    for root in ['MasterEdges_ShaneKastred_600_7500_d55_ret.fits.gz',
                  'MasterEdges_ShaneKastblue_600_4310_d55.fits.gz']:
         # Load
         trace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace', root)

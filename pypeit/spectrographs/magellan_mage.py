@@ -95,9 +95,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['tracethresh'] = [10]*self.norders
-        par['calibrations']['slits']['trace_npoly'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the bluest orders
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 3.
         par['calibrations']['slitedges']['edge_thresh'] = 10.  # Tough to get the bluest orders
