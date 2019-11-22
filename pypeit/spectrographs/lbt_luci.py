@@ -340,9 +340,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
                             # ronoise         = 10.0,
                             ronoise         = 4.47,
                             datasec='[5:2044,5:2044]',
-                            oscansec= '[5:2044,1:4]',
-                            # datasec='[700:1450,5:2044]',
-                            # oscansec= '[700:1450,1:4]',
+                            oscansec='[5:2044,1:4]',
                             suffix          = '_luci2'
                             )]
         self.numhead = 1
