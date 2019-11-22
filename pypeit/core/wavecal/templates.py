@@ -45,14 +45,17 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
 
     Args:
         in_files (list or str):
-        slits:
-        wv_cuts:
-        binspec:
-        outroot:
-        lowredux:
+        slits (list):
+        wv_cuts (list):
+        binspec (int):
+            Spectral binning of the archived spectrum
+        outroot (str):
+        lowredux (bool, optional):
+        wvspec:
         ifiles:
         det_cut:
-        chk:
+        chk (bool, optional):
+            Show a plot or two
         miny (float):
             Impose a minimum value
         normalize (bool, optional):
@@ -588,7 +591,7 @@ def main(flg):
                        normalize=True)
 
     # ##############################
-    if flg & (2**22):  # GMOS R400 Hamamatsu
+    if flg & (2**21):  # GMOS R400 Hamamatsu
         binspec = 2
         outroot='gemini_gmos_b600_ham.fits'
         #

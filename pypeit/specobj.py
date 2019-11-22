@@ -21,8 +21,6 @@ naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[skey.lower()] = skey
 
-# TODO -- The following needs to be parsed into our docs so that the user
-#  can view it all.  A solution like the ParSets would be ideal.
 # Data model -- Put here to be able to reach it without instantiating the class
 #  These are outward facing items, i.e. items that the user will receive and use.
 #  These are upper case to distinguish them from internal attributes
@@ -101,11 +99,22 @@ class SpecObj(object):
     finding routine, and then all spectral extraction information for the object are assigned as attributes
 
     Args:
+        pypeline (str): Name of the PypeIt pypeline method
+            Allowed options are:  MultiSlit, Echelle
         det (int): Detector number
+        indict (dict, optional): Used to set the entire internal dict of the object.
+            Only used in the copy() method so far.
         objtype (str, optional)
            Type of object ('unknown', 'standard', 'science')
         slitid (int, optional):
-           Identifier for the slit (max=9999)
+           Identifier for the slit (max=9999).
+           Multislit only
+        specobj_dict (dict, optional):
+           Uswed in the objfind() method of extract.py to Instantiate
+        orderindx (int, optional):
+           Running index for the order
+        ech_order (int, optional):
+           Physical order number
 
     Attributes:
         slitcen (float): Center of slit in fraction of total (trimmed) detector size at ypos
@@ -151,7 +160,8 @@ class SpecObj(object):
                  indict=None,
                  slitid=None,
                  ech_order=None,
-                 orderindx=None):
+                 orderindx=None,
+                 specobj_dict=None):
 
         self._data = Table()
 
@@ -164,6 +174,7 @@ class SpecObj(object):
             # set any attributes here - before initialisation
             # these remain as normal attributes
             # We may wish to eliminate *all* of these
+
 
             self.objid = 999
             self.name = None
@@ -193,19 +204,29 @@ class SpecObj(object):
 
         # Initialize a few, if we aren't copying
         if indict is None:
-            self.FLEX_SHIFT = 0.
-            self.OBJTYPE = objtype
-            self.DET = det
-            self.PYPELINE = pypeline
-
-            # pypeline specific
-            if self.PYPELINE == 'MultiSlit':
-                self.SLITID = slitid
-            elif self.PYPELINE == 'Echelle':
-                self.ECH_ORDER = ech_order
-                self.ech_orderindx = orderindx
+            if specobj_dict is not None:
+                self.PYPELINE = specobj_dict['pypeline']
+                self.OBJTYPE = specobj_dict['objtype']
+                self.DET = specobj_dict['det']
+                if self.PYPELINE == 'MultiSlit':
+                    self.SLITID = specobj_dict['slitid']
+                elif self.PYPELINE == 'Echelle':
+                    self.ECH_ORDER = specobj_dict['order']
+                    self.ech_orderindx = specobj_dict['orderindx']
             else:
-                msgs.error("Uh oh")
+                self.PYPELINE = pypeline
+                self.OBJTYPE = objtype
+                self.DET = det
+                # pypeline specific
+                if self.PYPELINE == 'MultiSlit':
+                    self.SLITID = slitid
+                elif self.PYPELINE == 'Echelle':
+                    self.ECH_ORDER = ech_order
+                    self.ech_orderindx = orderindx
+                else:
+                    msgs.error("Uh oh")
+
+            self.FLEX_SHIFT = 0.
 
         # Name
         self.set_name()
@@ -256,6 +277,15 @@ class SpecObj(object):
             return self._data.meta[item]
         else:
             raise KeyError
+
+    def keys(self):
+        """
+        Simple method to return the keys of _data
+
+        Returns:
+            list
+        """
+        return self._data.keys()
 
     def set_name(self):
         """

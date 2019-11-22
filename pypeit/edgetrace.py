@@ -1110,11 +1110,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
             else:
-                try:  # Crashing for GMOS data on FRB 191001
-                    hdu += [self.pca.to_hdu()]
-                except:
-                    embed(header='1116 of edgetrace')
-        if self.design is not None: 
+                hdu += [self.pca.to_hdu()]
+        if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
             hdu += [fits.BinTableHDU(data=self.objects, name='OBJECTS')]

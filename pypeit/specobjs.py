@@ -208,6 +208,19 @@ class SpecObjs(object):
             index = (self.objid < 0) | (self.ech_objid < 0)
             self.remove_sobj(index)
 
+    def slitorder_indices(self, slitorder):
+        """
+        Return the set of indices matching the input slit/order
+        """
+        if self[0].PYPELINE == 'Echelle':
+            indx = self.ech_orderindx == slitorder
+        elif self[0].PYPELINE == 'MultiSlit':
+            indx = self.SLITID == slitorder
+        else:
+            msgs.error("Should not get here")
+        #
+        return indx
+
     def set_names(self):
         for sobj in self.specobjs:
             sobj.set_name()

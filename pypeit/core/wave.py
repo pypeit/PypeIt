@@ -498,29 +498,13 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     gdslits = np.where(~maskslits)[0]
     # Loop on slits to apply
     for slit in gdslits:
-        if specObjs[0].PYPELINE == 'Echelle':
-            indx = specObjs.ech_orderindx == slit
-        elif specObjs[0].PYPELINE == 'MultiSlit':
-            indx = specObjs.SLITID == slit
-        else:
-            msgs.error("Should not get here")
+        indx = specObjs.slitorder_indices(slit)
         this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:
             if specobj is None:
                 continue
             specobj.apply_helio(vel_corr, refframe)
-            '''
-            # Loop on extraction methods
-            for attr in ['boxcar', 'optimal']:
-                if not hasattr(specobj, attr):
-                    continue
-                if 'WAVE' in getattr(specobj, attr).keys():
-                    msgs.info('Applying {0} correction to '.format(refframe)
-                              + '{0} extraction for object:'.format(attr)
-                              + msgs.newline() + "{0}".format(str(specobj)))
-                    getattr(specobj, attr)['WAVE'] = getattr(specobj, attr)['WAVE'] * vel_corr
-            '''
     # Return
     return vel, vel_corr  # Mainly for debugging
 
@@ -673,7 +657,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
         for iobj, specobj in enumerate(this_specobjs):
-            if specobj is None or (len(specobj._data.keys()) == 1):
+            if specobj is None or len(specobj._data.keys()) == 1:
                 continue
             # Correlation QA
             ax = plt.subplot(gs[iobj//ncol, iobj % ncol])

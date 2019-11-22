@@ -139,6 +139,7 @@ def main(args):
     for spec1d_file in spec1d_files:
         if os.path.isfile(spec1d_file):
             head1d = fits.getheader(spec1d_file)
+            break
     if head1d is None:
         msgs.warn("No 1D spectra so am generating a dummy header for output")
         head1d = io.initialize_header()

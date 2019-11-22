@@ -183,7 +183,10 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 self.process_steps += ['trim']
             self.process_steps += ['apply_gain']
             self.process_steps += ['orient']
-            self.process_steps += ['crmask']
+            # Turning this on leads to substantial edge-tracing problems when last tested
+            #     JXP November 22, 2019
+            #if self.par['cr_reject']:
+            #    self.process_steps += ['crmask']
             self.steps.append(inspect.stack()[0][3])
             # Do it
             self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias,

@@ -1298,19 +1298,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nobj_reg = len(xcen)
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
-            # ToDo Label with objid and objind here?
-            if specobj_dict['pypeline'] == 'MultiSlit':
-                thisobj = specobj.SpecObj('MultiSlit', specobj_dict['det'],
-                                             slitid=specobj_dict['slitid'],
-                                             objtype=specobj_dict['objtype'])
-            elif specobj_dict['pypeline'] == 'Echelle':
-                thisobj = specobj.SpecObj('Echelle', specobj_dict['det'],
-                                             orderindx=specobj_dict['orderindx'],
-                                             ech_order=specobj_dict['order'],
-                                             objtype=specobj_dict['objtype'])
-            else:
-                msgs.error("Should not get here")
-
+            thisobj = specobj.SpecObj('UNKNOWN', indict=specobj_dict)
+            #
             thisobj.SPAT_FRACPOS = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
             thisobj.smash_nsig = ypeak[iobj]/sigma
@@ -1460,11 +1449,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            thisobj = specobj.SpecObj(frameshape,
-                                       det=specobj_dict['det'],
-                                       setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
-                                       orderindx = specobj_dict['orderindx'],
-                                       objtype=specobj_dict['objtype'])
+            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict=specobj_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]
@@ -1762,10 +1747,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                     show_fits=show_single_fits, show_trace=show_single_trace,
                     specobj_dict=specobj_dict)
         # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
-        #for spec in sobjs_slit:
-        #    spec.ech_orderindx = iord
-        #    spec.ech_order = order_vec[iord]
-        #    _ = spec.set_idx()
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)
