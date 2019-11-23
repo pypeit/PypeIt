@@ -608,12 +608,6 @@ class SpecObjs(object):
         # Recast as an array
         return lst_to_array(lst)
 
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state):
-        self.__dict__ = state
-
     # Printing
     def __repr__(self):
         return self.summary.__repr__()

@@ -553,9 +553,6 @@ class MultiSlit(Reduce):
         SHOW_TRACE:  bool
           Generate QA  showing traces identified. Requires an open ginga RC modules window
 
-        INTERACTIVE:  bool
-          Run an interactive GUI session?
-
         Returns
         -------
         specobjs : Specobjs object
