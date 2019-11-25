@@ -266,13 +266,15 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
     Args:
         specobjs (pypeit.specobjs.Specobjs):
-        maskslits:
-        method:
-        method : str
+        maskslits (ndarray):
+            True = masked slit
+        method (str)
           'boxcar' -- Recommneded
           'slitpix' --
-        sky_file: str
-        mxshft:
+        sky_file (str):
+            Sky file
+        mxshft (int, optional):
+            Passed to flex_shift()
 
     Returns:
         list:  list of dicts containing flexure results
