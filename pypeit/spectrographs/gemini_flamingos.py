@@ -156,6 +156,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         # Scienceimage parameters
         #par['scienceimage']['sig_thresh'] = 5
         #par['scienceimage']['maxnumber'] = 2
+        par['scienceimage']['sky_sigrej'] = 5.0
         par['scienceimage']['find_trim_edge'] = [10,10]
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
