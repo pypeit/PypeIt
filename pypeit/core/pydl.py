@@ -7,6 +7,7 @@ from warnings import warn
 from pypeit import msgs
 from pypeit import debugger
 from pypeit import utils
+from IPython import embed
 import copy
 
 """This module corresponds to the image directory in idlutils.
@@ -652,7 +653,11 @@ class bspline(object):
         if self.npoly > 1:
             goodcoeff = self.coeff[:, coeffbk]
         else:
-            goodcoeff = self.coeff[coeffbk]
+            try:
+                goodcoeff = self.coeff[coeffbk]
+            except:
+                msgs.warn('No good coefficients in bspline evaluation. All breakpoints were rejected. Something is probably wrong')
+                embed()
         # maskthis = np.zeros(xwork.shape,dtype=xwork.dtype)
         for i in range(n-self.nord+1):
             ict = upper[i] - lower[i] + 1
@@ -978,6 +983,9 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
         #        if 'fullbkpt' in kwargs:
         #            fullbkpt = kwargs['fullbkpt']
         else:
+
+
+        
             sset = bspline(xdata[xsort[maskwork]], nord = nord, bkpt = bkpt, fullbkpt = fullbkpt, **kwargs_bspline)
             if maskwork.sum() < sset.nord:
                 print('Number of good data points fewer than nord.')

@@ -619,6 +619,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         #sigrej_ceil = 1e10
         sigrej = 50.0  # 25 wasn't enough for MagE 2x2 binning (probably undersampled)
     else:
+        # TODO Why is this not an input parameter
         chi2_sigrej = 6.0
         #sigrej_ceil = 10.0
     # We will use this number later
