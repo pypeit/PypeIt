@@ -102,7 +102,7 @@ class SpecObj(object):
         pypeline (str): Name of the PypeIt pypeline method
             Allowed options are:  MultiSlit, Echelle
         det (int): Detector number
-        indict (dict, optional): Used to set the entire internal dict of the object.
+        copy_dict (dict, optional): Used to set the entire internal dict of the object.
             Only used in the copy() method so far.
         objtype (str, optional)
            Type of object ('unknown', 'standard', 'science')
@@ -133,14 +133,14 @@ class SpecObj(object):
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     @classmethod
-    def from_table(cls, table, indict=None):
+    def from_table(cls, table, copy_dict=None):
         if table.meta['PYPELINE'] == 'MultiSlit':
             # Instantiate
             slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      slitid=table.meta['SLITID'], indict=indict)
+                      slitid=table.meta['SLITID'], copy_dict=copy_dict)
         else:
             slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      indict=indict, ech_order=table.meta['ECH_ORDER'])
+                      copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'])
         # Pop a few that land in standard FITS header
         # Loop me -- Do this to deal with checking the data model
         for key in table.keys():
@@ -157,7 +157,7 @@ class SpecObj(object):
         return slf
 
     def __init__(self, pypeline, det, objtype='unknown',
-                 indict=None,
+                 copy_dict=None,
                  slitid=None,
                  ech_order=None,
                  orderindx=None,
@@ -166,10 +166,10 @@ class SpecObj(object):
         self._data = Table()
 
         # For copying the object
-        if indict is not None:
-            if '_SpecObj_initialised' in indict:
-                indict.pop('_SpecObj_initialised')
-            self.__dict__ = indict
+        if copy_dict is not None:
+            if '_SpecObj_initialised' in copy_dict:
+                copy_dict.pop('_SpecObj_initialised')
+            self.__dict__ = copy_dict
         else:
             # set any attributes here - before initialisation
             # these remain as normal attributes
@@ -203,7 +203,7 @@ class SpecObj(object):
         self.__initialised = True
 
         # Initialize a few, if we aren't copying
-        if indict is None:
+        if copy_dict is None:
             self.DET = det
             if specobj_dict is not None:
                 self.PYPELINE = specobj_dict['pypeline']
@@ -335,7 +335,7 @@ class SpecObj(object):
 
         """
         sobj_copy = SpecObj(self.PYPELINE, self.DET,
-                            indict=self.__dict__.copy())
+                            copy_dict=self.__dict__.copy())
         # Return
         return sobj_copy
 
