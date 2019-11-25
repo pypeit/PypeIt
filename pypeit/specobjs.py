@@ -184,6 +184,9 @@ class SpecObjs(object):
             sobjs_neg (SpecObjs):
 
         """
+        if sobjs_neg.nobj == 0:
+            msgs.warn("No negative objects found...")
+            return
         # Assign the sign and the objids
         sobjs_neg.sign = -1.0
         if sobjs_neg[0].PYPELINE == 'Echelle':

@@ -1487,7 +1487,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         #spat_pixpos = np.array([spec.SPAT_PIXPOS for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
         #spec_fwhm = np.array([spec.FWHM for spec in specobjs])
-        reg_ind, = np.where(~hand_flag)
+        reg_ind, = np.where(np.invert(hand_flag))
         hand_ind, = np.where(hand_flag)
         #med_fwhm = np.median(spec_fwhm[~hand_flag])
         #spat_pixpos_hand = spat_pixpos[hand_ind]
@@ -1746,7 +1746,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
                     specobj_dict=specobj_dict)
-        # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)
@@ -1814,16 +1813,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     for iobj in range(nobj):
         for iord in range(norders):
             on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
-            # ToDO fix specobjs set_item to get rid of these crappy loops
             sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
             sobjs_align[on_order].ech_objid = uni_obj_id[iobj]
             sobjs_align[on_order].objid = uni_obj_id[iobj]
             sobjs_align[on_order].ech_frac_was_fit = False
-            #for spec in sobjs_align[on_order]:
-                #spec.ech_fracpos = uni_frac[iobj]
-                #spec.ech_objid = uni_obj_id[iobj]
-            #    spec.objid = uni_obj_id[iobj]
-            #    spec.ech_frac_was_fit = False
 
     # Reset names (just in case)
     sobjs_align.set_names()
@@ -2024,7 +2017,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # resulting in a bunch of objects landing on top of each other.
 
     # Set the IDs
-    sobjs_final.ECH_ORDER = order_vec[sobjs_final.ech_orderindx]
+    sobjs_final[:].ECH_ORDER = order_vec[sobjs_final[:].ech_orderindx]
     #for spec in sobjs_final:
     #    spec.ech_order = order_vec[spec.ech_orderindx]
     sobjs_final.set_names()

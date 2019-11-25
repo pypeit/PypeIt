@@ -656,8 +656,7 @@ class FlexurePar(ParSet):
 
 class Coadd2DPar(ParSet):
     """
-    A parameter set holding the arguments for how to perform the flux
-    calibration.
+    A parameter set holding the arguments for how to perform 2D coadds
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
@@ -2381,7 +2380,7 @@ class PypeItPar(ParSet):
 
         # Coadd2D
         defaults['coadd2d'] = Coadd2DPar()
-        dtypes['fluxcalib'] = [ParSet, dict]
+        dtypes['coadd2d'] = [ParSet, dict]
         descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
 
         # Instantiate the parameter set

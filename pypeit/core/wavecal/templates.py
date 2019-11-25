@@ -45,15 +45,23 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
 
     Args:
         in_files (list or str):
+            Wavelength solution files, XIDL or PypeIt
         slits (list):
+            Slits in the archive files to use
         wv_cuts (list):
+            Wavelengths to cut each slit at
         binspec (int):
             Spectral binning of the archived spectrum
         outroot (str):
+            Name of output archive
         lowredux (bool, optional):
-        wvspec:
-        ifiles:
-        det_cut:
+            If true, in_files are from LowRedux
+        wvspec (ndarray, optional):
+            Manually input the wavelength values
+        ifiles (list, optional):
+            Ordering of the in_files.  Default is np.arange(len(in_files))
+        det_cut (dict, optional):
+            Cut the detector into pieces.  Important for long detectors with wavelengths on one side
         chk (bool, optional):
             Show a plot or two
         miny (float):
@@ -61,9 +69,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         normalize (bool, optional):
             If provided multiple in_files, normalize each
             snippet to have the same maximum amplitude.
-
-    Returns:
-
+        subtract_conti (bool, optional):
+            Subtract the continuum for the final archive
     """
     # Load xidl file
     # Grab it

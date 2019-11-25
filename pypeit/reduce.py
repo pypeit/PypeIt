@@ -234,11 +234,8 @@ class Reduce(object):
                                            debug=debug)
             # Mask
             skymask = skymask_pos & skymask_neg
-            # Add
-            if sobjs_obj_init_neg.nobj > 0:
-                sobjs_obj_init.append_neg(sobjs_obj_init_neg)
-            else:
-                msgs.warn("No negative objects found..")
+            # Add (if there are any)
+            sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
             skymask = skymask_pos
 

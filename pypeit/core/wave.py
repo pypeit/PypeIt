@@ -264,19 +264,20 @@ def flexure_slit():
 def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
-    Parameters:
-    ----------
-    method : str
-      'boxcar' -- Recommneded
-      'slitpix' --
-    sky_file: str
+    Args:
+        specobjs (pypeit.specobjs.Specobjs):
+        maskslits:
+        method:
+        method : str
+          'boxcar' -- Recommneded
+          'slitpix' --
+        sky_file: str
+        mxshft:
 
     Returns:
-    ----------
-    flex_list: list
-      list of dicts containing flexure results
-        Aligned with specobjs
-        Filled with a basically empty dict if the slit is skipped or there is no object
+        list:  list of dicts containing flexure results
+            Aligned with specobjs
+            Filled with a basically empty dict if the slit is skipped or there is no object
 
     """
     sv_fdict = None
@@ -297,7 +298,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     for slit in range(nslits):
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(slit))
         # TODO -- This only will work for MultiSlit
-        indx = specobjs.SLITID == slit
+        indx = specobjs.slitorder_indices(slit)
         this_specobjs = specobjs[indx]
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
@@ -495,7 +496,7 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     vel = geomotion_calculate(radec, time, longitude, latitude, elevation, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
-    gdslits = np.where(~maskslits)[0]
+    gdslits = np.where(np.invert(maskslits))[0]
     # Loop on slits to apply
     for slit in gdslits:
         indx = specObjs.slitorder_indices(slit)
@@ -636,7 +637,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
 
     # Loop over slits, and then over objects here
     for slit in gdslits:
-        indx = specobjs.SLITID == slit
+        indx = specobjs.slitorder_indices(slit)
         this_specobjs = specobjs[indx]
         this_flex_dict = flex_list[slit]
 
