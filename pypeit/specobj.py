@@ -204,10 +204,10 @@ class SpecObj(object):
 
         # Initialize a few, if we aren't copying
         if indict is None:
+            self.DET = det
             if specobj_dict is not None:
                 self.PYPELINE = specobj_dict['pypeline']
                 self.OBJTYPE = specobj_dict['objtype']
-                self.DET = specobj_dict['det']
                 if self.PYPELINE == 'MultiSlit':
                     self.SLITID = specobj_dict['slitid']
                 elif self.PYPELINE == 'Echelle':
@@ -216,7 +216,6 @@ class SpecObj(object):
             else:
                 self.PYPELINE = pypeline
                 self.OBJTYPE = objtype
-                self.DET = det
                 # pypeline specific
                 if self.PYPELINE == 'MultiSlit':
                     self.SLITID = slitid

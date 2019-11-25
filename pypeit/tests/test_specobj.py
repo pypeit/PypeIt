@@ -36,6 +36,7 @@ def test_assignment():
         sobj.PYPELINE = 2
     #
     sobj.SPAT_PIXPOS = 523.0
+    sobj.PYPELINE = 'MultiSlit'
     sobj.set_name()
     assert sobj.name == 'SPAT0523-SLIT0000-DET01'
 

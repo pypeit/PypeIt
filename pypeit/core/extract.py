@@ -1298,7 +1298,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nobj_reg = len(xcen)
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
-            thisobj = specobj.SpecObj('UNKNOWN', indict=specobj_dict)
+            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
             #
             thisobj.SPAT_FRACPOS = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
@@ -1449,7 +1449,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict=specobj_dict)
+            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]

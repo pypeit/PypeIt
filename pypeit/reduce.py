@@ -615,9 +615,6 @@ class MultiSlit(Reduce):
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
 
-            # JFH This is a bad idea
-            #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
-            #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],
                                 self.tslits_dict['slit_righ'][:,slit], inmask=inmask, ir_redux=ir_redux,
