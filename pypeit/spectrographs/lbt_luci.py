@@ -229,7 +229,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
                             darkcurr        = 0.0,
                     # Saturation is 55000, but will be set to dummy value for
                     # now
-                            saturation      = 1e+7,
+                            saturation      = 1e+8,
                     # NIR detectors are non-linear even in lower percentages
                     # of the full well, thus for precision measurements one
                     # should take into account a general non-linearity
@@ -261,6 +261,11 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
          """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'lbt_luci1'
+
+        # for key in par['calibrations'].keys():
+        #     print(key)
+        #     par['calibrations'][key]['process']['overscan'] = 'none'
+
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
@@ -281,9 +286,12 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
         # Extraction
         # Model full slit currently turned on
-        par['scienceimage']['model_full_slit'] = True
+        par['scienceimage']['model_full_slit'] = False
+        # Tailored profile nsigma parameter for the standard, trying 100 (30
+        # was standard
+        par['scienceimage']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['global_sky_std'] = False
+        par['scienceimage']['global_sky_std'] = True
         par['scienceimage']['bspline_spacing'] = 0.8
         par['scienceimage']['sn_gauss'] = 4.0
 
@@ -292,6 +300,10 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
+        # par['scienceframe']['process']['satpix'] = 'reject'
+
+        par['scienceframe']['process']['overscan'] = 'none'
+        # par['standardframe']['process']['overscan'] = 'none'
 
         return par
 
@@ -333,7 +345,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
                             darkcurr        = 0.0,
                             # Saturation is 55000, but will be set to dummy value for
                             # now
-                            saturation=1e+7,
+                            saturation=1e+8,
                             nonlinear       = 0.80,
                             numamplifiers   = 1,
                             gain            = 2.0,
@@ -352,6 +364,11 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
          """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'lbt_luci2'
+
+        # for key in par['calibrations'].keys():
+        #     print(key)
+        #     par['calibrations'][key]['process']['overscan'] = 'none'
+
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
@@ -367,17 +384,20 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         par['calibrations']['slitedges']['edge_thresh'] = 300
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['fit_order'] = 8
 
         # Flats
         par['calibrations']['flatfield']['illumflatten'] = True
+        # par['calibration']['flatfield']['tweak_slits'] = False
 
         # Extraction
         # Model full slit currently turned on
         par['scienceimage']['model_full_slit'] = True
+        # Tailored profile nsigma parameter for the standard
+        par['scienceimage']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
         par['scienceimage']['global_sky_std'] = False
         par['scienceimage']['bspline_spacing'] = 0.8
-
         par['scienceimage']['sn_gauss'] = 4.0
 
         # Flexure
@@ -385,6 +405,10 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
+        # par['scienceframe']['process']['satpix'] = 'reject'
+
+        par['scienceframe']['process']['overscan'] = 'none'
+        # par['standardframe']['process']['overscan'] = 'none'
 
         return par
 
