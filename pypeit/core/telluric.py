@@ -316,14 +316,19 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     # Deal with padding for the convolutions
     ind_lower_pad = np.fmax(ind_lower - tell_dict['tell_pad_pix'], 0)
     ind_upper_pad = np.fmin(ind_upper + tell_dict['tell_pad_pix'], tell_dict['wave_grid'].size - 1)
-    tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_pad - ind_upper)
+    ## FW: There is an extreme case with ind_upper == ind_upper_pad, the previous -0 won't work
+    if ind_upper_pad == ind_upper:
+        ind_upper_final = ind_upper_pad
+    else:
+        ind_upper_final = ind_upper - ind_upper_pad
+    tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_final)
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad + 1], tell_dict['dloglam'], theta_tell[4])
 
     if ntheta == 6:
         tellmodel_out = shift_telluric(tellmodel_conv, np.log10(tell_dict['wave_grid'][ind_lower_pad: ind_upper_pad+1]), tell_dict['dloglam'], theta_tell[5])
-        return tellmodel_out[tell_pad_tuple[0]:-tell_pad_tuple[1]]
+        return tellmodel_out[tell_pad_tuple[0]:ind_upper_final]
     else:
-        return tellmodel_conv[tell_pad_tuple[0]:-tell_pad_tuple[1]]
+        return tellmodel_conv[tell_pad_tuple[0]:ind_upper_final]
 
 
 ############################
