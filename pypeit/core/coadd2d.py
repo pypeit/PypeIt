@@ -297,7 +297,6 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
                       inmask_stack, sci_list, var_list)
-
     # Now compute the final stack with sigma clipping
     sigrej = 3.0
     maxiters = 10
@@ -750,7 +749,7 @@ class Coadd2d(object):
         ref_trace_stack = np.zeros((nspec, nexp))
         for iexp, tslits_dict in enumerate(tslits_dict_list):
             ref_trace_stack[:, iexp] = (tslits_dict['slit_left'][:, slitid] +
-                                        tslits_dict['slit_righ'][:, slitid])/2.0 + offsets[iexp]
+                                        tslits_dict['slit_righ'][:, slitid])/2.0 - offsets[iexp]
         return ref_trace_stack
 
     def coadd(self, only_slits=None):
@@ -1001,6 +1000,8 @@ class MultiSlitCoadd2d(Coadd2d):
         else:
             msgs.error('Unrecognized format for weights')
 
+    # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
+    # and another time to weighted_combine the images in compute2d. This could be sped up
     def compute_offsets(self):
 
         objid_bri, slitid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits)
@@ -1018,6 +1019,7 @@ class MultiSlitCoadd2d(Coadd2d):
         sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
         var_list = []
 
+        msgs.info('Rebinning Images')
         sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = rebin2d(
             wave_bins, dspat_bins, self.stack_dict['waveimg_stack'], dspat_stack, thismask_stack,
             (self.stack_dict['mask_stack'] == 0), sci_list, var_list)
@@ -1125,6 +1127,8 @@ class MultiSlitCoadd2d(Coadd2d):
 
         return objid, slitid, snr_bar
 
+    # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
+    # single slit???
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
 
         return self.offset_slit_cen(slitid, offsets)

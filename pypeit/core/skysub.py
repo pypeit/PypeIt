@@ -619,6 +619,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         #sigrej_ceil = 1e10
         sigrej = 50.0  # 25 wasn't enough for MagE 2x2 binning (probably undersampled)
     else:
+        # TODO Why is this not an input parameter
         chi2_sigrej = 6.0
         #sigrej_ceil = 10.0
     # We will use this number later
@@ -749,7 +750,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
             sky_bmodel = np.array(0.0)
             iterbsp = 0
-            while (not sky_bmodel.any()) & (iterbsp <= 5):
+            while (not sky_bmodel.any()) & (iterbsp <= 4):
                 bsp_now = (1.2 ** iterbsp) * bsp
                 fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
                                          skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
@@ -766,7 +767,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                                                  spatial=spatial_img.flat[isub],
                                                                  fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
                 iterbsp = iterbsp + 1
-                if (not sky_bmodel.any()) & (iterbsp <= 4):
+                if (not sky_bmodel.any()) & (iterbsp <= 3):
                     msgs.warn('***************************************')
                     msgs.warn('WARNING: bspline sky-subtraction failed')
                     msgs.warn('Increasing bkpt spacing by 20%. Retry')
