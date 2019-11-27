@@ -23,7 +23,7 @@ from pypeit.core import parse
 
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
-             update_det=None):
+             update_det=None, binning='None'):
     """
     Routine to save PypeIt 1d and 2d outputs
 
@@ -78,6 +78,9 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
         all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
+        # Txt file
+        outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
+        save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
 
     # Write 2D images for the Science Frame
     save_2d_images(sci_dict, head2d, spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
@@ -166,44 +169,45 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, ob
 # arguments...
 def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
     """
+    Write info to an ASCII file
 
-    Parameters
-    ----------
-    all_specobjs : list
-    fitstbl : Table
+    Args:
+        all_specobjs (specobjs.SpecObjs):
+        spectrograph (spectrograph.Spectrograph):
+        outfile (str):
+        binning (str, optional):
 
-    Returns
-    -------
+    Returns:
 
     """
     slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
     binspectral, binspatial = parse.parse_binning(binning)
-    for specobj in all_specobjs:
+    for specobj in all_specobjs.specobjs:
         if specobj is None:
             continue
         # Append
-        names.append(specobj.idx)
-        slits.append(specobj.slitid)
-        spat_pixpos.append(specobj.spat_pixpos)
+        names.append(specobj.name)
+        slits.append(specobj.SLITID)
+        spat_pixpos.append(specobj.SPAT_PIXPOS)
         if spectrograph.pypeline == 'MultiSlit':
-            spat_fracpos.append(specobj.spat_fracpos)
+            spat_fracpos.append(specobj.SPAT_FRACPOS)
         elif spectrograph.pypeline == 'Echelle':
-            spat_fracpos.append(specobj.ech_fracpos)
+            spat_fracpos.append(specobj.ECH_FRACPOS)
         # Boxcar width
-        if 'BOX_RADIUS' in specobj.boxcar.keys():
-            slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
+        if 'BOX_RADIUS' in specobj.keys():
+            slit_pix = 2.0*specobj.BOX_RADIUS
             # Convert to arcsec
             binspectral, binspatial = parse.parse_binning(binning)
-            boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
+            boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
         else:
             boxsize.append(0.)
 
         # Optimal profile (FWHM)
-        opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial*spectrograph.detector[specobj.det-1]['platescale'])
+        opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
         # S2N -- default to boxcar
         #sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-        ivar = specobj.optimal['COUNTS_IVAR']
-        is2n = np.median(specobj.optimal['COUNTS']*np.sqrt(ivar))
+        ivar = specobj.OPT_COUNTS_IVAR
+        is2n = np.median(specobj.OPT_COUNTS*np.sqrt(ivar))
         s2n.append(is2n)
 
     # Generate the table, if we have at least one source
