@@ -132,10 +132,11 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
-        # Tilt parameters
+        # Tilt and slit parameters
         par['calibrations']['tilts']['tracethresh'] =  10.0
         par['calibrations']['tilts']['spat_order'] = 6
         par['calibrations']['tilts']['spec_order'] = 6
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Flats
         par['calibrations']['flatfield']['illumflatten'] = True
