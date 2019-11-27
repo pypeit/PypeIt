@@ -4228,6 +4228,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         this.spat_img = np.round(this.spat_cen).astype(int)
         # JFH It appears I need to add this for the so created edgetrace object to be readable from a file, i.e.
         # in 2d coadds
+        embed()
         this.is_synced = True
         return this
 
