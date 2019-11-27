@@ -18,3 +18,4 @@ from pypeit.spectrographs import wht_isis
 from pypeit.spectrographs import lbt_mods
 from pypeit.spectrographs import vlt_fors
 from pypeit.spectrographs import lbt_luci
+from pypeit.spectrographs import mmt_binospec
