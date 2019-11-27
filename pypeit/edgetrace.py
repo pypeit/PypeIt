@@ -4159,8 +4159,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Stop-gap function to construct the old tslits_dict object.
         """
-        if not self.is_synced:
-            msgs.error('Edges must be synced to construct tslits_dict.')
+
+        # JFH This is causing problems and I cannot figure out how to toggle is_sync when creating psuedo masters. Let's
+        # assume if we are converting to a tslits_dict we are always already synced.
+        #if not self.is_synced:
+        #    msgs.error('Edges must be synced to construct tslits_dict.')
 
         tslits_dict = {}
 
@@ -4226,10 +4229,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
         this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
         this.spat_img = np.round(this.spat_cen).astype(int)
-        # JFH It appears I need to add this for the so created edgetrace object to be readable from a file, i.e.
-        # in 2d coadds
-        embed()
-        this.is_synced = True
+        # JFH This does not work. 
+        #this.is_synced = True
         return this
 
     def update_using_tslits_dict(self, tslits_dict):
