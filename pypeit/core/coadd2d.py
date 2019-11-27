@@ -98,7 +98,10 @@ def optimal_weights(specobjs_list, slitid, objid, sn_smooth_npix, const_weights=
             ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
         except AttributeError:
             ithis = (sobjs.ech_orderindx == slitid) & (sobjs.ech_objid == objid[iexp])
-        flux_stack[:,iexp] = sobjs[ithis][0].OPT_COUNTS
+        try:
+            flux_stack[:,iexp] = sobjs[ithis][0].OPT_COUNTS
+        except:
+            embed(header='104')
         ivar_stack[:,iexp] = sobjs[ithis][0].OPT_COUNTS_IVAR
         wave_stack[:,iexp] = sobjs[ithis][0].OPT_WAVE
         mask_stack[:,iexp] = sobjs[ithis][0].OPT_MASK
@@ -1106,14 +1109,14 @@ class MultiSlitCoadd2d(Coadd2d):
 
         """
         nexp = len(specobjs_list)
-        nspec = specobjs_list[0][0].shape[0]
+        nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
 
         slit_snr_max = np.full((nslits, nexp), -np.inf)
         objid_max = np.zeros((nslits, nexp), dtype=int)
         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
             for islit in range(nslits):
-                ithis = sobjs.slitid == islit
+                ithis = sobjs.SLITID == islit
                 nobj_slit = np.sum(ithis)
                 if np.any(ithis):
                     objid_this = sobjs[ithis].objid

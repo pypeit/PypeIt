@@ -77,9 +77,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     if len(all_specobjs) == 0:
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
-        all_specobjs.write_to_fits(outfile1d, header=head1d,
-                                   spectrograph=spectrograph,
-                                   update_det=update_det)
+        all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
 
     # Write 2D images for the Science Frame
     save_2d_images(sci_dict, head2d, spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
