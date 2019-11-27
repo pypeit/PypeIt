@@ -467,6 +467,12 @@ def apply_sensfunc_specobjs(specobjs, sens_meta, sens_table, airmass, exptime, e
                                                                      minx=wave_min, maxx=wave_max)
                     sensfunc_mask_global = sensfunc_global>0.0
 
+        # Hotfix for multi-slit data where ech_orderindx is populated with 999
+        if ech_orderindx == 999:
+            msgs.info('Switch to applying sensfunc to Longslit/Multislit data')
+            ech_orderindx = 0
+            polyorder_vec = [polyorder_vec]
+
         for extract_type in ['boxcar', 'optimal']:
             extract = getattr(sobj_ispec, extract_type)
 
