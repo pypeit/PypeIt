@@ -4203,7 +4203,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
 
         #JFH This is massively memory inefficient. We just created like 5 bogus images filled with zeros
-        # from one set of slit boundaries?
+        # from one set of slit boundaries? Can we just set these things which do not exist to None?
         # Caveats:
         #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
         par = EdgeTracePar()
