@@ -332,6 +332,7 @@ class SpecObj(object):
             if 'ECH_FRACPOS' not in self._data.meta.keys():
                 self.name += '----'
             else:
+                # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 self.name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
             # Order
             self.name += '-'+naming_model['order']
