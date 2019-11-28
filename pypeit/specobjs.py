@@ -215,6 +215,7 @@ class SpecObjs(object):
             index = (self.OBJID < 0) | (self.ECH_OBJID < 0)
             self.remove_sobj(index)
 
+
     def slitorder_indices(self, slitorder):
         """
         Return the set of indices matching the input slit/order
@@ -223,6 +224,20 @@ class SpecObjs(object):
             indx = self.ECH_ORDERINDX == slitorder
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.SLITID == slitorder
+        else:
+            msgs.error("Should not get here")
+        #
+        return indx
+
+
+    def slitorder_objid_indices(self, slitorder, objid):
+        """
+        Return the set of indices matching the input slit/order and the input objid
+        """
+        if self[0].PYPELINE == 'Echelle':
+            indx = (self.ECH_ORDERINDX == slitorder) & (self.ECH_OBJID == objid)
+        elif self[0].PYPELINE == 'MultiSlit':
+            indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
             msgs.error("Should not get here")
         #
@@ -283,16 +298,18 @@ class SpecObjs(object):
         # In development
         pass
 
-    def set_idx(self):
-        """
-        Set the idx in all the SpecObj
-        Update the summary Table
 
-        Returns:
-
-        """
-        for sobj in self.specobjs:
-            sobj.set_idx()
+#    JFH This function is deprecated
+#    def set_idx(self):
+#        """
+#        Set the idx in all the SpecObj
+#        Update the summary Table
+#
+#        Returns:
+#
+#        """
+#        for sobj in self.specobjs:
+#            sobj.set_idx()
 
     def __getitem__(self, item):
         if isinstance(item, str):
