@@ -14,13 +14,13 @@ import numpy as np
 
 from IPython import embed
 
-from astropy.table import Table
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import ginga
 from pypeit import edgetrace
+from pypeit import specobjs
 from pypeit.core import pixels
 from pypeit.core.parse import get_dnum
 from pypeit.images.maskimage import ImageBitMask
@@ -46,13 +46,13 @@ def parser(options=None):
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def show_trace(hdulist_1d, det_nm, viewer, ch):
-    for hdu in hdulist_1d:
-        if det_nm in hdu.name:
-            tbl = Table(hdu.data)
-            trace = tbl['TRACE']
-            obj_id = hdu.name.split('-')[0]
-            ginga.show_trace(viewer, ch, trace, obj_id, color='orange')
+def show_trace(specobjs, det, viewer, ch):
+
+    in_det = np.where(specobjs.DET == det)[0]
+    for kk in in_det:
+        trace = specobjs[kk]['TRACE_SPAT']
+        obj_id = specobjs[kk].name
+        ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 
 
 def main(args):
@@ -132,14 +132,13 @@ def main(args):
     # Show the bitmask?
     mask_in = mask if args.showmask else None
 
-    # Object traces
+    # Object traces from spec1d file
     spec1d_file = args.file.replace('spec2d', 'spec1d')
 
-    det_nm = 'DET{:s}'.format(sdet)
     if os.path.isfile(spec1d_file):
-        hdulist_1d = fits.open(spec1d_file)
+        sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     else:
-        hdulist_1d = []
+        sobjs = None
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
@@ -174,9 +173,10 @@ def main(args):
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
                                   bitmask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.clean:
-        show_trace(hdulist_1d, det_nm, viewer, ch)
-        ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
-                    #, args.det)
+        if sobjs is not None:
+            show_trace(sobjs, args.det, viewer, ch)
+    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
+
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
@@ -184,20 +184,20 @@ def main(args):
     viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
                                   cuts=(-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
     if not args.clean:
-        show_trace(hdulist_1d, det_nm, viewer, ch)
-        ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
-                    #, args.det)
+        if sobjs is not None:
+            show_trace(sobjs, args.det, viewer, ch)
+    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
     image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (mask == 0)
     viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
-                                  cuts = (-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
+                                  cuts = (-5.0, 5.0), bitmask = mask_in)
     if not args.clean:
-        show_trace(hdulist_1d, det_nm, viewer, ch)
-        ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
-                    #, args.det)
+        if sobjs is not None:
+            show_trace(sobjs, args.det, viewer, ch)
+    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

@@ -647,12 +647,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         group = np.array([], dtype=np.int)
         group = np.append(group, i1)
         # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
-        min_spat1 = np.maximum(sobjs[i1].trace_spat - sobjs[i1].maskwidth - 1, slit_left)
-        max_spat1 = np.minimum(sobjs[i1].trace_spat + sobjs[i1].maskwidth + 1, slit_righ)
+        min_spat1 = np.maximum(sobjs[i1].TRACE_SPAT - sobjs[i1].maskwidth - 1, slit_left)
+        max_spat1 = np.minimum(sobjs[i1].TRACE_SPAT + sobjs[i1].maskwidth + 1, slit_righ)
         for i2 in range(i1 + 1, nobj):
-            left_edge = sobjs[i2].trace_spat - sobjs[i2].maskwidth - 1
-            righ_edge = sobjs[i2].trace_spat + sobjs[i2].maskwidth + 1
-            touch = (left_edge < max_spat1) & (sobjs[i2].trace_spat > slit_left) & (righ_edge > min_spat1)
+            left_edge = sobjs[i2].TRACE_SPAT - sobjs[i2].maskwidth - 1
+            righ_edge = sobjs[i2].TRACE_SPAT + sobjs[i2].maskwidth + 1
+            touch = (left_edge < max_spat1) & (sobjs[i2].TRACE_SPAT > slit_left) & (righ_edge > min_spat1)
             if touch.any():
                 max_spat1 = np.minimum(np.maximum(righ_edge, max_spat1), slit_righ)
                 min_spat1 = np.maximum(np.minimum(left_edge, min_spat1), slit_left)
@@ -689,60 +689,61 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # boxcar extraction.
                     msgs.info("----------------------------------- PROFILE FITTING --------------------------------------------------------")
                     msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].objid) + " of {:}".format(nobj))
-                    msgs.info("At x = {:5.2f}".format(sobjs[iobj].spat_pixpos) + " on slit # {:}".format(sobjs[iobj].slitid))
+                    msgs.info("At x = {:5.2f}".format(sobjs[iobj].SPAT_PIXPOS) + " on slit # {:}".format(sobjs[iobj].slit_order))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
-                    flux = moment1d(img_minsky * outmask, sobjs[iobj].trace_spat, 2*box_rad,
+                    flux = moment1d(img_minsky * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                     row=sobjs[iobj].trace_spec)[0]
                     mvarimg = 1.0 / (modelivar + (modelivar == 0))
-                    mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].trace_spat, 2*box_rad,
+                    mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                         row=sobjs[iobj].trace_spec)[0]
-                    pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].trace_spat, 2*box_rad,
+                    pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                       row=sobjs[iobj].trace_spec)[0]
-                    mask_box = moment1d(np.invert(outmask), sobjs[iobj].trace_spat, 2*box_rad,
+                    mask_box = moment1d(np.invert(outmask), sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                         row=sobjs[iobj].trace_spec)[0] != pixtot
-                    box_denom = moment1d(waveimg > 0.0, sobjs[iobj].trace_spat, 2*box_rad,
+                    box_denom = moment1d(waveimg > 0.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                          row=sobjs[iobj].trace_spec)[0]
-                    wave = moment1d(waveimg, sobjs[iobj].trace_spat, 2*box_rad,
+                    wave = moment1d(waveimg, sobjs[iobj].TRACE_SPAT, 2*box_rad,
                                     row=sobjs[iobj].trace_spec)[0] \
                                 / (box_denom + (box_denom == 0.0))
                     fluxivar = mask_box / (mvar_box + (mvar_box == 0.0))
                 else:
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
-                    trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
+                    trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
                     objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, thismask,
                                             last_profile, box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
-                    if sobjs[iobj].optimal['MASK'].any():
-                        flux = sobjs[iobj].optimal['COUNTS']
-                        fluxivar = sobjs[iobj].optimal['COUNTS_IVAR']*sobjs[iobj].optimal['MASK']
-                        wave = sobjs[iobj].optimal['WAVE']
+                    if 'OPT_MASK' in sobjs[iobj].keys():
+                        if sobjs[iobj].OPT_MASK.any():
+                            flux = sobjs[iobj].OPT_COUNTS
+                            fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
+                            wave = sobjs[iobj].OPT_WAVE
 
-                obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slitid) + ', iter # {:}'.format(iiter) + ':'
+                obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slit_order) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
                     sign = sobjs[iobj].sign
                     # TODO This is "sticky" masking. Do we want it to be?
                     profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
-                        sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].trace_spat,
+                        sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
-                        thisfwhm=sobjs[iobj].fwhm, maskwidth=sobjs[iobj].maskwidth,
+                        thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
                         prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
                         show_profile=show_profile)
                     #proc_list.append(show_proc)
 
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
-                    sobjs[iobj].trace_spat = trace_new
-                    sobjs[iobj].fwhmfit = fwhmfit
-                    sobjs[iobj].fwhm = np.median(fwhmfit)
+                    sobjs[iobj].TRACE_SPAT = trace_new
+                    sobjs[iobj].FWHMFIT = fwhmfit
+                    sobjs[iobj].FWHM = np.median(fwhmfit)
                     mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
                     maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
                     if sobjs[iobj].prof_nsigma is None:
                         sobjs[iobj].maskwidth = maskwidth
                     else:
-                        sobjs[iobj].maskwidth = sobjs[iobj].prof_nsigma * (sobjs[iobj].fwhm / 2.3548)
+                        sobjs[iobj].maskwidth = sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
 
                 else:
                     msgs.warn("Bad extracted wavelengths in local_skysub_extract")
@@ -830,10 +831,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         for ii in range(objwork):
             iobj = group[ii]
             msgs.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
-                      ' with objid = {:d}'.format(sobjs[iobj].objid) + ' on slit # {:d}'.format(sobjs[iobj].slitid) +
-                      ' at x = {:5.2f}'.format(sobjs[iobj].spat_pixpos))
+                      ' with objid = {:d}'.format(sobjs[iobj].objid) + ' on slit # {:d}'.format(sobjs[iobj].slit_order) +
+                      ' at x = {:5.2f}'.format(sobjs[iobj].SPAT_PIXPOS))
             this_profile = obj_profiles[:, :, ii]
-            trace = np.outer(sobjs[iobj].trace_spat, np.ones(nspat))
+            trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
             objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask & objmask), waveimg, skyimage, rn2_img, thismask, this_profile,
                             box_rad, sobjs[iobj])
@@ -855,7 +856,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 color = 'magenta'
             else:
                 color = 'orange'
-            ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
 
         # These are the pixels that were masked by the extraction
         spec_mask, spat_mask = np.where((outmask == False) & (inmask == True))
@@ -1010,7 +1011,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                         fwhm_str = 'median '
                     indx = (sobjs.ech_objid == uni_objid[iobj]) & (sobjs.ech_orderindx == iord)
                     for spec in sobjs[indx]:
-                        spec.fwhm = fwhm_this_ord
+                        spec.FWHM = fwhm_this_ord
 
                     str_out = ''
                     for slit_now, order_now, snr_now, fwhm_now in zip(slit_vec[other_orders], order_vec[other_orders],order_snr[other_orders,ibright], fwhm_here[other_orders]):
@@ -1041,7 +1042,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                     indx     = np.where((sobjs.ech_objid == uni_objid[iobj]) & (sobjs.ech_orderindx == iord))[0][0]
                     indx_bri = np.where((sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord))[0][0]
                     spec = sobjs[indx]
-                    spec.fwhm = sobjs[indx_bri].fwhm
+                    spec.FWHM = sobjs[indx_bri].FWHM
 
         thisobj = (sobjs.ech_orderindx == iord) # indices of objects for this slit
         thismask = (slitmask == iord) # pixels for this slit
@@ -1058,10 +1059,10 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord)
-        fwhm_here[iord] = np.median(sobjs[indx].fwhmfit)
+        fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)
         # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
         # for future fits
-        if np.abs(fwhm_here[iord] - sobjs[indx].fwhm) >= 0.01:
+        if np.abs(fwhm_here[iord] - sobjs[indx].FWHM) >= 0.01:
             fwhm_was_fit[iord] = False
 
     # Set the bit for pixels which were masked by the extraction.
