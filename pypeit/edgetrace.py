@@ -4229,7 +4229,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
         this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
         this.spat_img = np.round(this.spat_cen).astype(int)
-        # JFH This does not work. 
+        # JFH This does not work.
         #this.is_synced = True
         return this
 
