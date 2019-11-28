@@ -83,7 +83,7 @@ def parser(options=None):
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--debug_offsets", default=False, action="store_true",
-                        help="Not sure what this does")
+                        help="Show QA plots useful for debugging automatic offset determination")
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
     parser.add_argument("--basename", type=str, default=None,
