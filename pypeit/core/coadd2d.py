@@ -1211,7 +1211,7 @@ class MultiSlitCoadd2d(Coadd2d):
                 ithis = sobjs.SLITID == islit
                 nobj_slit = np.sum(ithis)
                 if np.any(ithis):
-                    objid_this = sobjs[ithis].objid
+                    objid_this = sobjs[ithis].OBJID
                     flux = np.zeros((nspec, nobj_slit))
                     ivar = np.zeros((nspec, nobj_slit))
                     wave = np.zeros((nspec, nobj_slit))
