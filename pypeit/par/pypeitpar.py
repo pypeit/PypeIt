@@ -654,6 +654,60 @@ class FlexurePar(ParSet):
 #                             self.data['spectrum']))
 
 
+class Coadd2DPar(ParSet):
+    """
+    A parameter set holding the arguments for how to perform 2D coadds
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, offsets=None, weights=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Offsets
+        defaults['offsets'] = None
+        dtypes['offsets'] = list
+        descr['offsets'] = 'User-input list of offsets for the images being combined.'
+
+        # Weights
+        defaults['weights'] = 'auto'
+        dtypes['weights'] = [str, list]
+        descr['weights'] = 'Mode for the weights used to coadd images.  See coadd2d.py for all options.'
+
+        # Instantiate the parameter set
+        super(Coadd2DPar, self).__init__(list(pars.keys()),
+                                                 values=list(pars.values()),
+                                                 defaults=list(defaults.values()),
+                                                 dtypes=list(dtypes.values()),
+                                                 descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['offsets', 'weights']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+
+
 class FluxCalibrationPar(ParSet):
     """
     A parameter set holding the arguments for how to perform the flux
@@ -957,6 +1011,7 @@ class ReducePar(ParSet):
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
                           'science frame'
 
+        # TODO: Explain what this actually does in the description.
         defaults['ignore_bad_headers'] = False
         dtypes['ignore_bad_headers'] = bool
         descr['ignore_bad_headers'] = 'Ignore bad headers (NOT recommended unless you know it is safe).'
@@ -1198,7 +1253,7 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['n_final'] = 4
         dtypes['n_final'] = [int, float, list, numpy.ndarray]
-        descr['n_final'] = 'Order of final fit to the wavelength solution. This can be a single number or a list/array providing the value for each slit'
+        descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit'
 
 
         defaults['sigrej_final'] = 3.0
@@ -1878,7 +1933,7 @@ class WaveTiltsPar(ParSet):
         k = cfg.keys()
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
                    'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
-                   'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order', 
+                   'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order',
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2270,7 +2325,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
-                 flexure=None, fluxcalib=None):
+                 flexure=None, fluxcalib=None, coadd2d=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2308,7 +2363,7 @@ class PypeItPar(ParSet):
 
         # Flexure is turned OFF by default
         defaults['flexure'] = FlexurePar()
-        dtypes['flexure'] = [ ParSet, dict ]
+        dtypes['flexure'] = [ParSet, dict]
         descr['flexure'] = 'Parameters used by the flexure-correction procedure.  Flexure ' \
                            'corrections are not performed by default.  To turn on, either ' \
                            'set the parameters in the \'flexure\' parameter group or set ' \
@@ -2316,13 +2371,18 @@ class PypeItPar(ParSet):
                            'default flexure-correction parameters.'
 
         # Flux calibration is turned OFF by default
-        dtypes['fluxcalib'] = [ ParSet, dict ]
+        dtypes['fluxcalib'] = [ParSet, dict]
         descr['fluxcalib'] = 'Parameters used by the flux-calibration procedure.  Flux ' \
                              'calibration is not performed by default.  To turn on, either ' \
                              'set the parameters in the \'fluxcalib\' parameter group or set ' \
                              '\'fluxcalib = True\' in the \'rdx\' parameter group to use the ' \
                              'default flux-calibration parameters.'
-        
+
+        # Coadd2D
+        defaults['coadd2d'] = Coadd2DPar()
+        dtypes['coadd2d'] = [ParSet, dict]
+        descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
+
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
                                        values=list(pars.values()),
@@ -2331,16 +2391,6 @@ class PypeItPar(ParSet):
                                        descr=list(descr.values()))
 
         self.validate()
-
-#    def update(self, par):
-#        """
-#        Update the current parameters.
-#
-#        Likely doesn't work because it isn't recursive ...
-#        """
-#        if not isinstance(par, PypeItPar):
-#            raise TypeError('Parameters can only be updated using another instance of PypeItPar.')
-#        self.data.update(par.data)
 
     @classmethod
     def from_cfg_file(cls, cfg_file=None, merge_with=None, evaluate=True):
@@ -2553,6 +2603,11 @@ class PypeItPar(ParSet):
         default = FluxCalibrationPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
         kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else default
+
+        # Allow flexure to be turned on using cfg['rdx']
+        pk = 'coadd2d'
+        default = Coadd2DPar()
+        kwargs[pk] = Coadd2DPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)

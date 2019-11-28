@@ -35,6 +35,7 @@ Submodules
    pypeit.reduce
    pypeit.sampling
    pypeit.setup_package
+   pypeit.specobj
    pypeit.specobjs
    pypeit.telescopes
    pypeit.tiltimage

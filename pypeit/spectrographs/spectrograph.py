@@ -199,7 +199,7 @@ class Spectrograph(object):
                 1-indexed detector number.
 
         Returns:
-            :obj:`bool`: Flat that transpose is required.
+            :obj:`bool`: Flag that transpose is required.
         """
         return self.detector[det-1]['specaxis'] == 1
 

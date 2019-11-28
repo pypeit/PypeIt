@@ -12,6 +12,8 @@ accessible by the docstring of all modules?
 """
 from collections import Counter
 
+from IPython import embed
+
 import numpy as np
 from scipy import ndimage, signal, interpolate
 from matplotlib import pyplot as plt
@@ -152,7 +154,7 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
     # Check the input
     if edge_img.ndim > 2:
         msgs.error('Provided edge image must be 2D.')
-    if not np.array_equal(np.unique(edge_img), [-1,0,1]):
+    if not np.all(np.isin(np.unique(edge_img), [-1,0,1])):
         msgs.error('Edge image must only have -1, 0, or 1 values.')
 
     # Find the left and right coordinates

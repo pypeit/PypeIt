@@ -46,9 +46,14 @@ def load_wavelength_calibration(filename):
     for key in wv_calib.keys():
         if key in ['steps', 'par']:  # This isn't really necessary
             continue
+        # Masked slit?
+        if wv_calib[key] is None:
+            continue
+        # Arrays
         for tkey in wv_calib[key].keys():
             if isinstance(wv_calib[key][tkey], list):
                 wv_calib[key][tkey] = np.array(wv_calib[key][tkey])
+
 
     return wv_calib
 

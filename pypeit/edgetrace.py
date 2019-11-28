@@ -1111,7 +1111,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
             else:
                 hdu += [self.pca.to_hdu()]
-        if self.design is not None: 
+        if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
             hdu += [fits.BinTableHDU(data=self.objects, name='OBJECTS')]
