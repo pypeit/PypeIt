@@ -1515,7 +1515,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     spat_pixpos = sobjs.SPAT_PIXPOS
     sobjs = sobjs[spat_pixpos.argsort()]
     # Assign integer objids
-    sobjs[:].objid = np.arange(nobj) + 1
+    sobjs[:].OBJID = np.arange(nobj) + 1
 
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
@@ -1587,7 +1587,7 @@ def remap_orders(xinit, spec_min_max, inverse=False):
                                                              bounds_error=False, fill_value='extrapolate')(spec_vec_norm)
     return xinit_remap
 
-
+# TODO Can we purge OBJID in this routine in place of ech_objid everywhere?
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
                 fof_link=1.5, order_vec=None, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
@@ -1817,8 +1817,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         for iord in range(norders):
             on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
-            sobjs_align[on_order].ech_objid = uni_obj_id[iobj]
-            sobjs_align[on_order].objid = uni_obj_id[iobj]
+            sobjs_align[on_order].ECH_OBJID = uni_obj_id[iobj]
+            sobjs_align[on_order].OBJID = uni_obj_id[iobj]
             sobjs_align[on_order].ech_frac_was_fit = False
 
     # Reset names (just in case)
@@ -1830,7 +1830,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     ## TODO
     for iobj in range(nobj):
         # Grab all the members of this obj_id from the object list
-        indx_obj_id = sobjs_align.ech_objid == uni_obj_id[iobj]
+        indx_obj_id = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
         nthisobj_id = np.sum(indx_obj_id)
         # Perform the fit if this objects shows up on more than three orders
         if (nthisobj_id > 3) and (nthisobj_id<norders):
@@ -1871,7 +1871,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # Now loop over the orders and add objects on the ordrers for which the current object was not found
         for iord in range(norders):
             # Is the current object detected on this order?
-            on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
@@ -1897,8 +1897,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
-                thisobj.ech_objid = uni_obj_id[iobj]
-                #thisobj.objid = uni_obj_id[iobj]
+                thisobj.ECH_OBJID = uni_obj_id[iobj]
+                thisobj.OBJID = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
                 thisobj.set_name()
                 sobjs_align.add_sobj(thisobj)
@@ -1913,7 +1913,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     SNR_arr = np.zeros((norders, nobj))
     for iobj in range(nobj):
         for iord in range(norders):
-            indx = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
             spec = sobjs_align[indx][0]
             thismask = slitmask == iord
             inmask_iord = inmask & thismask
@@ -1948,11 +1948,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     for iobj in range(nobj):
         if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr):
             keep_obj[iobj] = True
-            ikeep = sobjs_align.ech_objid == uni_obj_id[iobj]
+            ikeep = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
             sobjs_keep = sobjs_align[ikeep].copy()
-            for spec in sobjs_keep:
-                spec.ech_objid = iobj_keep
-                #spec.objid = iobj_keep
+            sobjs_keep[:].ECH_OBJID = iobj_keep
+            sobjs_keep[:].OBJID = iobj_keep
+#            for spec in sobjs_keep:
+#                spec.ECH_OBJID = iobj_keep
+#                #spec.OBJID = iobj_keep
             sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
             iobj_keep += 1
         else:
@@ -1980,7 +1982,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
 
 
     for iobj in range(nobj_trim):
-        indx_obj_id = sobjs_final.ech_objid == (iobj + 1)
+        indx_obj_id = sobjs_final.ECH_OBJID == (iobj + 1)
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
                 iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))

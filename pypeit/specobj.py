@@ -87,9 +87,14 @@ data_model = {
     'SPAT_FRACPOS': dict(otype=(float,np.float32), desc='Fractional location of the object on the slit'),
     #
     'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
+    'OBJID': dict(otype=(int, np.int64), desc='Object ID for multislit data. Each object is given an index for the slit '
+                                                  'it appears increasing from from left to right. These are one based.'),
     #
     'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
     'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
+    'ECH_OBJID': dict(otype=(int, np.int64), desc='Object ID for echelle data. Each object is given an index in the order '
+                                                  'it appears increasing from from left to right. These are one based.'),
+
 }
 
 
