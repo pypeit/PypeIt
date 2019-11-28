@@ -62,6 +62,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     # out of sync with what's in pypeit.PypeIt
     outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
+    outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
 
     # TODO: Need some checks here that the exposure has been reduced
 
@@ -79,7 +80,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     else:
         all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
         # Txt file
-        outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
+        # TODO JFH: Make this a method in the specobjs class. 
         save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
 
     # Write 2D images for the Science Frame
