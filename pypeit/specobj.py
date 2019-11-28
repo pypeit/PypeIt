@@ -277,6 +277,10 @@ class SpecObj(object):
         else:
             raise KeyError
 
+    # TODO: JFH Can we change this functio name to data_model, and have a separate function called
+    # keys which returns sobjs._dict__.keys() which is the list of attributes of the actual object
+    # excluding the data model. Or even better, use keys for both, but append the two lists with one set uppercase and
+    # the other set lowercase
     def keys(self):
         """
         Simple method to return the keys of _data
@@ -286,6 +290,7 @@ class SpecObj(object):
         """
         return self._data.keys()
 
+    # TODO JFH Please describe the naming model somewhere in this module.
     def set_name(self):
         """
         Generate a unique index for this spectrum based on the
