@@ -34,6 +34,21 @@ from pypeit.spectrographs import util
 
 
 def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
+    """
+    Utility function for determining the reference trace about which 2d coadds are performed
+
+    Args:
+        slitid (int):
+           The slit or order that we are currently considering
+        stack_dict (dict):
+           Dictionary containing all the images and keys required for perfomring 2d coadds.
+        offsets (list or ndarray:
+           An array with the same dimensionality as the number of images being coadded.
+        objid:
+
+    Returns:
+
+    """
 
     if offsets is not None and objid is not None:
         msgs.errror('You can only input offsets or an objid, but not both')
@@ -812,6 +827,7 @@ class Coadd2d(object):
 
     def load_coadd2d_stacks(self, spec2d_files):
         """
+        Routine to read in required images for 2d coadds given a list of spec2d files.
 
         Args:
             spec2d_files: list
