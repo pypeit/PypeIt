@@ -147,7 +147,7 @@ class SpecObj(object):
                       slitid=table.meta['SLITID'], copy_dict=copy_dict)
         else:
             slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'])
+                      copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'], orderindx=table.meta['ECH_ORDERINDX'])
         # Pop a few that land in standard FITS header
         # Loop me -- Do this to deal with checking the data model
         for key in table.keys():
@@ -163,6 +163,8 @@ class SpecObj(object):
         # Return
         return slf
 
+    # TODO I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
+    # done via the copy method as it was before.
     def __init__(self, pypeline, det, objtype='unknown',
                  copy_dict=None,
                  slitid=None,
@@ -190,6 +192,7 @@ class SpecObj(object):
             self.smash_peakflux = None
             self.smash_nsig = None
             self.maskwidth = None
+            self.hand_extract_flag = False
 
             # Object profile
             self.prof_nsigma = None
@@ -208,6 +211,10 @@ class SpecObj(object):
 
         # after initialisation, setting attributes is the same as setting an item
         self.__initialised = True
+
+        # TODO: JFH This is not very elegant and error prone. Perhaps we should loop over the copy dict keys
+        # and populate whatever keys are actually there. For instance, if the user does not pass in a copy dict,
+        # and forgets to pass in ech_order, the code is going to crash becuase ech_order cannot be None.
 
         # Initialize a few, if we aren't copying
         if copy_dict is None:
@@ -241,6 +248,16 @@ class SpecObj(object):
     def slit_order(self):
         if self.PYPELINE == 'Echelle':
             return self.ECH_ORDER
+        elif self.PYPELINE == 'MultiSlit':
+            return self.SLITID
+        else:
+            msgs.error("Uh oh")
+
+
+    @property
+    def slit_orderindx(self):
+        if self.PYPELINE == 'Echelle':
+            return self.ECH_ORDERINDX
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
         else:
@@ -346,8 +363,12 @@ class SpecObj(object):
             SpecObj
 
         """
+        #sobj_copy = SpecObj(self.PYPELINE, self.DET,
+        #                    copy_dict=self.__dict__.copy())
+        # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
+        # copy changes the original object which wreaks havoe. That is why it was deepcopy before (I think).
         sobj_copy = SpecObj(self.PYPELINE, self.DET,
-                            copy_dict=self.__dict__.copy())
+                            copy_dict=copy.deepcopy(self.__dict__))
         # Return
         return sobj_copy
 
