@@ -779,7 +779,7 @@ class Coadd2d(object):
         parcopy['scienceimage']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
         redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], parcopy, psuedo_dict['tilts'],
-                                      ir_redux=self.ir_redux, objtype = 'science', det=self.det, binning=self.binning)
+                                      ir_redux=self.ir_redux, objtype = 'science_coadd2d', det=self.det, binning=self.binning)
 
         if show:
             redux.show('image', image=psuedo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
