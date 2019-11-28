@@ -1213,7 +1213,7 @@ class EchelleCoadd2d(Coadd2d):
 
     def get_brightest_obj(self, specobjs_list, nslits):
         """
-        Utility routine to find the brightest object in each exposure given a specobjs_list for echelle reductions.
+        Utility routine to find the brightest object in each exposure given a specobjs_list for Echelle reductions.
 
         Parameters:
             specobjs_list: list
