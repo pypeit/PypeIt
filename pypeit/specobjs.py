@@ -212,7 +212,12 @@ class SpecObjs(object):
         """
         # Assign the sign and the objids
         if self.nobj > 0:
-            index = (self.OBJID < 0) | (self.ECH_OBJID < 0)
+            if self[0].PYPELINE == 'Echelle':
+                index = self.ECH_OBJID < 0
+            elif self[0].PYPELINE == 'MultiSlit':
+                index = self.OBJID < 0
+            else:
+                msgs.error("Should not get here")
             self.remove_sobj(index)
 
 
