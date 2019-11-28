@@ -80,7 +80,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     else:
         all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
         # Txt file
-        # TODO JFH: Make this a method in the specobjs class. 
+        # TODO JFH: Make this a method in the specobjs class.
         save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
 
     # Write 2D images for the Science Frame
@@ -190,12 +190,11 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
         # Append
         names.append(specobj.name)
         spat_pixpos.append(specobj.SPAT_PIXPOS)
+        slits.append(specobj.slit_orderindx)
         if spectrograph.pypeline == 'MultiSlit':
             spat_fracpos.append(specobj.SPAT_FRACPOS)
-            slits.append(specobj.SLITID)
         elif spectrograph.pypeline == 'Echelle':
             spat_fracpos.append(specobj.ECH_FRACPOS)
-            slits.append(specobj.ECH_ORDERINDX)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.keys():
             slit_pix = 2.0*specobj.BOX_RADIUS
@@ -220,8 +219,8 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             obj_tbl['slit'] = slits
             obj_tbl['slit'].format = 'd'
         elif spectrograph.pypeline == 'Echelle':
-            obj_tbl['order'] = slits
-            obj_tbl['order'].format = 'd'
+            obj_tbl['orderindx'] = slits
+            obj_tbl['orderindx'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'
