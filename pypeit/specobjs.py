@@ -69,18 +69,22 @@ class SpecObjs(object):
             sobj = specobj.SpecObj.from_table(tbl)
             slf.add_sobj(sobj)
 
+        # JFH I'm commenting this out below. I prefer to just directly write out attributes and reinstantiate them
+        # from files. Doing things like this just leads to errors
+        # since it is not in touch with the code that actually determined what these attributes should be.
+
         # PYPELINE specific
-        if slf[0].PYPELINE == 'Echelle':
-            # Set ech_objid
-            uni_frac = np.unique(slf.ECH_FRACPOS)
-            for ii, ufrac in enumerate(uni_frac):
-                idx = np.isclose(slf.ECH_FRACPOS, ufrac)
-                slf[idx].ech_objid = ii
-            # Set ech_orderindx
-            uni_order = np.unique(slf.ECH_ORDER)
-            for ii, uorder in enumerate(uni_order):
-                idx = slf.ECH_ORDER == uorder
-                slf[idx].ech_orderindx = ii
+        #if slf[0].PYPELINE == 'Echelle':
+        #    # Set ech_objid
+        #    uni_frac = np.unique(slf.ECH_FRACPOS)
+        #    for ii, ufrac in enumerate(uni_frac):
+        #        idx = np.isclose(slf.ECH_FRACPOS, ufrac)
+        #        slf[idx].ECH_OBJID = ii
+        #    # Set ech_orderindx
+        #    uni_order = np.unique(slf.ECH_ORDER)
+        #    for ii, uorder in enumerate(uni_order):
+        #        idx = slf.ECH_ORDER == uorder
+        #        slf[idx].ech_orderindx = ii
 
         # Return
         return slf
@@ -190,9 +194,9 @@ class SpecObjs(object):
         # Assign the sign and the objids
         sobjs_neg.sign = -1.0
         if sobjs_neg[0].PYPELINE == 'Echelle':
-            sobjs_neg.ech_objid = -1*sobjs_neg.ech_objid
+            sobjs_neg.ECH_OBJID = -1*sobjs_neg.ECH_OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
-            sobjs_neg.objid = -sobjs_neg.objid
+            sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
             msgs.error("Should not get here")
         self.add_sobj(sobjs_neg)
@@ -208,7 +212,7 @@ class SpecObjs(object):
         """
         # Assign the sign and the objids
         if self.nobj > 0:
-            index = (self.objid < 0) | (self.ech_objid < 0)
+            index = (self.OBJID < 0) | (self.ECH_OBJID < 0)
             self.remove_sobj(index)
 
     def slitorder_indices(self, slitorder):
@@ -216,7 +220,7 @@ class SpecObjs(object):
         Return the set of indices matching the input slit/order
         """
         if self[0].PYPELINE == 'Echelle':
-            indx = self.ech_orderindx == slitorder
+            indx = self.ECH_ORDERINDX == slitorder
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.SLITID == slitorder
         else:

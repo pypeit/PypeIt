@@ -80,20 +80,22 @@ data_model = {
     'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
     'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
     #
-    'DET': dict(otype=(int,np.int64), desc='Detector number'),
+    'DET': dict(otype=(int,np.int64,np.int32), desc='Detector number'),
     'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
     'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
     'SPAT_PIXPOS': dict(otype=(float,np.float32), desc='Spatial location of the trace on detector (pixel)'),
     'SPAT_FRACPOS': dict(otype=(float,np.float32), desc='Fractional location of the object on the slit'),
     #
-    'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
-    'OBJID': dict(otype=(int, np.int64), desc='Object ID for multislit data. Each object is given an index for the slit '
+    'SLITID': dict(otype=(int,np.int64,np.int32), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
+    'OBJID': dict(otype=(int, np.int64,np.int32), desc='Object ID for multislit data. Each object is given an index for the slit '
                                                   'it appears increasing from from left to right. These are one based.'),
     #
+    'ECH_OBJID': dict(otype=(int, np.int64, np.int32),
+                      desc='Object ID for echelle data. Each object is given an index in the order '
+                           'it appears increasing from from left to right. These are one based.'),
+    'ECH_ORDERINDX': dict(otype=(int, np.int64, np.int32), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
     'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
-    'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
-    'ECH_OBJID': dict(otype=(int, np.int64), desc='Object ID for echelle data. Each object is given an index in the order '
-                                                  'it appears increasing from from left to right. These are one based.'),
+    'ECH_ORDER': dict(otype=(int, np.int64, np.int32), desc='Physical echelle order'),
 
 }
 
@@ -181,7 +183,7 @@ class SpecObj(object):
             # We may wish to eliminate *all* of these
 
 
-            self.objid = 999
+            #self.objid = 999
             self.name = None
 
             # Object finding
@@ -199,8 +201,8 @@ class SpecObj(object):
             self.trace_spec = None  # Only for debuggin, internal plotting
 
             # Echelle
-            self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
-            self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+            #self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
+            #self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
             self.ech_frac_was_fit = None #
             self.ech_snr = None #
 
@@ -217,7 +219,7 @@ class SpecObj(object):
                     self.SLITID = specobj_dict['slitid']
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = specobj_dict['order']
-                    self.ech_orderindx = specobj_dict['orderindx']
+                    self.ECH_ORDERINDX = specobj_dict['orderindx']
             else:
                 self.PYPELINE = pypeline
                 self.OBJTYPE = objtype
@@ -226,7 +228,7 @@ class SpecObj(object):
                     self.SLITID = slitid
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = ech_order
-                    self.ech_orderindx = orderindx
+                    self.ECH_ORDERINDX = orderindx
                 else:
                     msgs.error("Uh oh")
 

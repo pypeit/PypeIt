@@ -167,6 +167,7 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, ob
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
+# TODO JFH: we make exceptions for core objects like specobjs
 def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
     """
     Write info to an ASCII file
@@ -187,12 +188,13 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             continue
         # Append
         names.append(specobj.name)
-        slits.append(specobj.SLITID)
         spat_pixpos.append(specobj.SPAT_PIXPOS)
         if spectrograph.pypeline == 'MultiSlit':
             spat_fracpos.append(specobj.SPAT_FRACPOS)
+            slits.append(specobj.SLITID)
         elif spectrograph.pypeline == 'Echelle':
             spat_fracpos.append(specobj.ECH_FRACPOS)
+            slits.append(specobj.ECH_ORDERINDX)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.keys():
             slit_pix = 2.0*specobj.BOX_RADIUS

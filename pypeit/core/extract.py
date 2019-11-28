@@ -25,6 +25,7 @@ from pypeit.core import pixels
 from pypeit.core import arc
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
+from IPython import embed
 
 def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
                     min_frac_use = 0.05):
@@ -1776,11 +1777,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     nobj_init = len(uni_obj_id_init)
     for iobj in range(nobj_init):
         for iord in range(norders):
-            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ech_orderindx == iord)
+            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX == iord)
             if (np.sum(on_order) > 1):
                 msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(iord) + msgs.newline() +
                           'Spawning new objects to maintain a single object per order.')
-                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ech_orderindx != iord)
+                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX != iord)
                 ind = np.where(on_order)[0]
                 if np.any(off_order):
                     # Keep the closest object to the location of the rest of the group (on other orders)
@@ -1815,7 +1816,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Loop over the orders and assign each specobj a fractional position and a obj_id number
     for iobj in range(nobj):
         for iord in range(norders):
-            on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
             sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
             sobjs_align[on_order].ECH_OBJID = uni_obj_id[iobj]
             sobjs_align[on_order].OBJID = uni_obj_id[iobj]
@@ -1834,7 +1835,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         nthisobj_id = np.sum(indx_obj_id)
         # Perform the fit if this objects shows up on more than three orders
         if (nthisobj_id > 3) and (nthisobj_id<norders):
-            thisorderindx = sobjs_align[indx_obj_id].ech_orderindx
+            thisorderindx = sobjs_align[indx_obj_id].ECH_ORDERINDX
             goodorder = np.zeros(norders, dtype=bool)
             goodorder[thisorderindx] = True
             badorder = np.invert(goodorder)
@@ -1871,14 +1872,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # Now loop over the orders and add objects on the ordrers for which the current object was not found
         for iord in range(norders):
             # Is the current object detected on this order?
-            on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              objtype=sobjs_align[0].OBJTYPE,
                                              orderindx=iord,
                                              ech_order=order_vec[iord])
-                #thisobj.ech_orderindx = iord
+                #thisobj.ECH_ORDERINDX = iord
                 #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
                 # Assign traces using the fractional position fit above
@@ -1893,7 +1894,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
-                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ech_orderindx - iord))
+                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDERINDX - iord))
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
@@ -1913,7 +1914,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     SNR_arr = np.zeros((norders, nobj))
     for iobj in range(nobj):
         for iord in range(norders):
-            indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
             spec = sobjs_align[indx][0]
             thismask = slitmask == iord
             inmask_iord = inmask & thismask
@@ -1955,7 +1956,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
 #            for spec in sobjs_keep:
 #                spec.ECH_OBJID = iobj_keep
 #                #spec.OBJID = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX)])
             iobj_keep += 1
         else:
             msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy max_snr > {:5.2f} OR min_snr > {:5.2f}'.format(max_snr, min_snr) +
@@ -2022,9 +2023,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # resulting in a bunch of objects landing on top of each other.
 
     # Set the IDs
-    sobjs_final[:].ECH_ORDER = order_vec[sobjs_final[:].ech_orderindx]
+    sobjs_final[:].ECH_ORDER = order_vec[sobjs_final[:].ECH_ORDERINDX]
     #for spec in sobjs_final:
-    #    spec.ech_order = order_vec[spec.ech_orderindx]
+    #    spec.ech_order = order_vec[spec.ECH_ORDERINDX]
     sobjs_final.set_names()
 
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
