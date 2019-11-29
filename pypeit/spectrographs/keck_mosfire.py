@@ -67,16 +67,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        #par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
-
-
-        # Tilt parameters
-        #par['calibrations']['tilts']['tracethresh'] =  100.0
-        #par['calibrations']['tilts']['spat_order'] =  3
-        #par['calibrations']['tilts']['spec_order'] =  3
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
+        # Do not illumination correct. We should also not be flat fielding given the bars.
+        # TODO Implement imaging flats for MOSFIRE. Do test with/without illumination flats.
+        par['calibrations']['flatfield']['illumflatten'] = False
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.8
