@@ -504,7 +504,6 @@ def unpack_orders(sobjs, ret_flam=False):
 def general_spec_reader(specfile, ret_flam=False):
 
     # Place holder routine that provides a generic spectrum reader
-
     bonus = {}
     try:
         # Read in the standard spec1d file produced by Pypeit
@@ -766,7 +765,34 @@ def eval_poly_model(theta, obj_dict):
 # obj_model, modelmask =  eval_obj_model(theta_obj, obj_dict)
 
 class Telluric(object):
+    """
 
+    Args:
+        wave:
+        flux:
+        ivar:
+        mask:
+        telgridfile:
+        obj_params:
+        init_obj_model:
+        eval_obj_model:
+        sn_clip:
+        airmass_guess:
+        resln_guess:
+        resln_frac_bounds:
+        pix_shift_bounds:
+        maxiter:
+        sticky:
+        lower:
+        upper:
+        seed:
+        tol:
+        popsize:
+        recombination:
+        polish:
+        disp:
+        debug:
+    """
     def __init__(self, wave, flux, ivar, mask, telgridfile, obj_params, init_obj_model, eval_obj_model,
                  sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
                  resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
@@ -1253,12 +1279,41 @@ def sensfunc_telluric(spec1dfile, telgridfile, outfile, star_type=None, star_mag
                       sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True,
                       debug_init=False, debug=False):
 
+    """
+    Function to compute a sensitivity function and a telluric model from the PypeIt spec1d file of a standard star spectrum
 
+    Args:
+        spec1dfile:
+        telgridfile:
+        outfile:
+        star_type:
+        star_mag:
+        star_ra:
+        star_dec:
+        polyorder:
+        mask_abs_lines:
+        delta_coeff_bounds:
+        minmax_coeff_bounds:
+        sn_clip:
+        only_orders:
+        tol:
+        popsize:
+        recombination:
+        polish:
+        disp:
+        debug_init:
+        debug:
+
+    Returns:
+
+    """
     # Read in the data
-    wave, counts, counts_ivar, counts_mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
+    sobjs_std = (specobjs.SpecObjs.from_fitsfile(spec1dfile)).get_std()
+    wave, counts, counts_ivar, counts_mask, meta_spec, header = sobjs_std.unpack_one_obj(ret_flam=False)
+    #wave, counts, counts_ivar, counts_mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
     # Read in standard star dictionary and interpolate onto regular telluric wave_grid
-    star_ra = meta_spec['core']['RA'] if star_ra is None else star_ra
-    star_dec = meta_spec['core']['DEC'] if star_dec is None else star_dec
+    star_ra = meta_spec['RA'] if star_ra is None else star_ra
+    star_dec = meta_spec['DEC'] if star_dec is None else star_dec
     std_dict = flux_calib.get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=star_ra, dec=star_dec)
 
     if counts.ndim == 2:
@@ -1275,9 +1330,9 @@ def sensfunc_telluric(spec1dfile, telgridfile, outfile, star_type=None, star_mag
         polyorder_vec = np.full(norders, polyorder)
 
     # Initalize the object parameters
-    obj_params = dict(std_dict=std_dict, airmass=meta_spec['core']['AIRMASS'],
+    obj_params = dict(std_dict=std_dict, airmass=meta_spec['AIRMASS'],
                       delta_coeff_bounds=delta_coeff_bounds, minmax_coeff_bounds=minmax_coeff_bounds,
-                      polyorder_vec=polyorder_vec, exptime=meta_spec['core']['EXPTIME'],
+                      polyorder_vec=polyorder_vec, exptime=meta_spec['EXPTIME'],
                       func='legendre', sigrej=3.0,
                       std_source=std_dict['std_source'], std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
                       std_name=std_dict['name'], std_calfile=std_dict['cal_file'],
