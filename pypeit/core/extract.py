@@ -1249,9 +1249,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         pass
 
     # Now find all the peaks without setting any threshold
-    ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv_cont, cont_subtract = False, fwhm = fwhm,
-                                                            input_thresh = 'None', debug=False)
-
+    ypeak, _, xcen, sigma_pk, _, good_indx, _, _ = arc.detect_lines(fluxconv_cont, cont_subtract = False, fwhm = fwhm,
+                                                                    max_frac_fwhm = 5.0, input_thresh = 'None', debug=False)
+    ypeak = ypeak[good_indx]
+    xcen = xcen[good_indx]
     # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
     # with the edgemask, but we do it here anyway
     not_near_edge = (xcen > trim_edg[0]) & (xcen < (nsamp - trim_edg[1]))
