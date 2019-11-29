@@ -542,6 +542,7 @@ class SpecObj(object):
         # Return
         return xspec
 
+    # TODO JFH: This method does not work
     def show(self, extraction='optimal'):
         """
         Show the spectrum by converting it to a XSpectrum1D object

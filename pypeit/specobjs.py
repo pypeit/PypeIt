@@ -12,6 +12,7 @@ from pypeit import msgs
 from pypeit.core import save
 from pypeit import specobj
 from pypeit.io import initialize_header
+from pypeit.spectrographs.util import load_spectrograph
 
 from IPython import embed
 
@@ -24,7 +25,7 @@ class SpecObjs(object):
 
     Internals:
         summary (astropy.table.Table):
-
+        header: JFH add docs
 
     __getitem__ is overloaded to allow one to pull an attribute or a
                 portion of the SpecObjs list
@@ -89,6 +90,8 @@ class SpecObjs(object):
         # Return
         return slf
 
+    # JFH TODO This init from specobjs does not attach the header. I think we probalby need a header argument or we
+    # we need to do some kind of copy.
     def __init__(self, specobjs=None):
 
         # Only one attribute is allowed for this Object -- specobjs
@@ -134,6 +137,86 @@ class SpecObjs(object):
         """
         return len(self.specobjs)
 
+    def unpack_one_obj(self, ret_flam=False):
+        """
+
+        Utility function to unpack the sobjs for an object and return various numpy arrays describing the spectrum
+        and meta data. The user needs to already have trimmed the Specobjs to the relevant indices.
+
+        Args:
+           ret_flam (bool):
+              If True return the FLAM, otherwise return COUNTS
+
+        Returns:
+         wave, flux, flux_ivar, flux_gpm, meta_spec, header
+
+
+        All numpy arrays returned have shape (nspec, norders) for Echelle data and (nspec,) for Multislit data.
+
+        wave (`numpy.ndarray`_):
+           Wavelength grids
+        flux (`numpy.ndarray`_):
+           Flambda or counts
+        flux_ivar (`numpy.ndarray`_):
+           Inverse variance (of Flambda or counts)
+        flux_gpm (`numpy.ndarray`_):
+           Good pixel mask. True=Good
+        meta_spec (dict:)
+           Dictionary containing meta data. The keys are defined by spectrograph.header_cards_from_spec()
+        header (astropy.io.header object):
+           header from spec1d file
+    """
+
+        # Read in the spec1d file
+        norders = self.nobj
+        if ret_flam:
+            # TODO Should nspec be an attribute of specobj?
+            nspec = self[0].OPT_FLAM.size
+        else:
+            nspec = self[0].OPT_COUNTS.size
+        # Allocate arrays and unpack spectrum
+        wave = np.zeros((nspec, norders))
+        flux = np.zeros((nspec, norders))
+        flux_ivar = np.zeros((nspec, norders))
+        flux_gpm = np.zeros((nspec, norders), dtype=bool)
+        for iord in range(norders):
+            wave[:, iord] = self[iord].OPT_WAVE
+            flux_gpm[:, iord] = self[iord].OPT_MASK
+            if ret_flam:
+                flux[:, iord] = self[iord].OPT_FLAM
+                flux_ivar[:, iord] = self[iord].OPT_FLAM_IVAR
+            else:
+                flux[:, iord] = self[iord].OPT_COUNTS
+                flux_ivar[:, iord] = self[iord].OPT_COUNTS_IVAR
+
+        # Populate meta data
+        pypeline = self[0].PYPELINE
+        try:
+            spectrograph = load_spectrograph(self.header['PYP_SPEC'])
+        except:
+            # This is a hack until a generic spectrograph is implemented.
+            spectrograph = load_spectrograph('shane_kast_blue')
+
+        meta_spec = {}
+        core_keys = spectrograph.header_cards_for_spec()
+        for key in core_keys:
+            try:
+                meta_spec[key.upper()] = self.header[key.upper()]
+            except KeyError:
+                pass
+
+
+        if pypeline == 'MultiSlit':
+            return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
+                   flux_gpm.reshape(nspec), meta_spec, self.header
+        else:
+            return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
+
+
+
+
+
+
     def get_std(self):
         """
         Return the standard star from this Specobjs. For MultiSlit this
@@ -157,7 +240,9 @@ class SpecObjs(object):
             # Maximize S/N
             istd = SNR.argmax()
             # Return
-            return SpecObjs(specobjs=[self[istd]])
+            sobjs_std = SpecObjs(specobjs=[self[istd]])
+            sobjs_std.header = self.header
+            return sobjs_std
         elif 'Echelle' in pypeline:
             uni_objid = np.unique(self.ECH_FRACPOS)  # A little risky using floats
             uni_order = np.unique(self.ECH_ORDER)
@@ -176,7 +261,9 @@ class SpecObjs(object):
             # Finish
             indx = self.ECH_FRACPOS == objid_std
             # Return
-            return SpecObjs(specobjs=self[indx])
+            sobjs_std = SpecObjs(specobjs=self[indx])
+            sobjs_std.header = self.header
+            return sobjs_std
         else:
             msgs.error('Unknown pypeline')
 
