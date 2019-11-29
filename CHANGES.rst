@@ -2,6 +2,8 @@
 0.11.1dev
 ---------
 
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band spectroscopy. 
+- Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
 - Brings Gemini/GMOS into the suite (R400)
