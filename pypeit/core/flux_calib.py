@@ -24,6 +24,7 @@ from pypeit import debugger
 from pypeit.wavemodel import conv2res
 from pypeit.core import pydl, load, save, coadd1d
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import specobjs
 
 from IPython import embed
 
@@ -367,6 +368,30 @@ def extinction_correction(wave, airmass, extinct):
     flux_corr = 10.0 ** (0.4 * mag_ext * airmass)
     # Return
     return flux_corr
+
+# JFH Reintroducing this function as a stopgap until we clean all these routines up and merge the flux calibration
+# methods.
+def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, debug=False, show=False):
+
+    sens_meta = Table.read(sensfile, 1)
+    sens_table = Table.read(sensfile, 2)
+
+    nexp = np.size(fnames)
+    for iexp in range(nexp):
+        spec1dfile = fnames[iexp]
+        outfile = spec1dfile[:-5] + '_flux.fits'
+        sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfile)
+        #sobjs, head = load.load_specobjs(spec1dfile)
+        embed()
+        instrument = head['INSTRUME']
+        spectrograph = load_spectrograph(instrument)
+        airmass, exptime = head['AIRMASS'], head['EXPTIME']
+        longitude, latitude = head['LON-OBS'], head['LAT-OBS']
+
+        apply_sensfunc_specobjs(sobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=extinct_correct,
+                                tell_correct=tell_correct, longitude=longitude, latitude=latitude,
+                                debug=debug, show=show)
+        save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
 
 def apply_sensfunc_spec(wave, counts, ivar, sensfunc, airmass, exptime, mask=None, extinct_correct=True, telluric=None,
                         longitude=None, latitude=None, debug=False):
