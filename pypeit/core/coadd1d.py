@@ -847,8 +847,8 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
     return telluric
 
 
-def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=20.0, min_good=0.05,
-                        maxiters=5, sigrej=3.0, max_factor=10.0):
+def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,
+                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0):
     '''
     Robustly determine the ratio between input spectrum flux and reference spectrum flux_ref. The code will perform
     best if the reference spectrum is chosen to be the higher S/N ratio spectrum, i.e. a preliminary stack that you want
@@ -869,9 +869,10 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
             inverse variance of reference spectrum.
         mask_ref: ndarray, bool, (nspec,)
             mask for reference spectrum. True=Good. If not input, computed from inverse variance.
-        ref_percentile: float, default=20.0
-            Percentile fraction used for selecting the minimum SNR cut. Pixels above this cut are deemed the "good"
-            pixels and are used to compute the ratio. This must be a number between 0 and 100.
+        ref_percentile: float, default=70.0
+            Percentile fraction used for selecting the minimum SNR cut from the reference spectrum. Pixels above this
+            percentile cut are deemed the "good" pixels and are used to compute the ratio. This must be a number
+            between 0 and 100.
         min_good: float, default = 0.05
             Minimum fraction of good pixels determined as a fraction of the total pixels for estimating the median ratio
         maxiters: int, defrault = 5,
@@ -880,6 +881,11 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
             Rejection threshold for astropy.stats.SigmaClip
         max_factor: float, default = 10.0,
             Maximum allowed value of the returned ratio
+        snr_do_not_rescale (float):, default = 1.0
+            If the S/N ratio of the set of pixels (defined by upper ref_percentile in the reference spectrum) in the
+            input spectrum have a median value below snr_do_not_rescale, median rescaling will not be attempted
+            and the code returns ratio = 1.0. We also use this parameter to define the set of pixels (determined from
+            the reference spectrum) to compare for the rescaling.
     Returns:
         ratio: float, the number that must be multiplied into flux in order to get it to match up with flux_ref
     '''
@@ -892,10 +898,13 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
 
     nspec = flux.size
     snr_ref = flux_ref * np.sqrt(ivar_ref)
-    snr_ref_best = np.fmax(np.percentile(snr_ref[mask_ref], ref_percentile),0.5)
+    snr_ref_best = np.fmax(np.percentile(snr_ref[mask_ref], ref_percentile),snr_do_not_rescale)
     calc_mask = (snr_ref > snr_ref_best) & mask_ref & mask
 
-    if (np.sum(calc_mask) > min_good*nspec):
+    snr_resc = flux*np.sqrt(ivar)
+    snr_resc_med = np.median(snr_resc[calc_mask])
+
+    if (np.sum(calc_mask) > min_good*nspec) & (snr_resc_med > snr_do_not_rescale):
         # Take the best part of the higher SNR reference spectrum
         sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
 
@@ -919,8 +928,12 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
             msgs.info('Used {:} good pixels for computing median flux ratio'.format(np.sum(new_mask)))
             ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
-        msgs.warn('Found only {:} good pixels for computing median flux ratio.'.format(np.sum(calc_mask))
-                  + msgs.newline() + 'No median rescaling applied')
+        if (np.sum(calc_mask) <= min_good*nspec):
+            msgs.warn('Found only {:} good pixels for computing median flux ratio.'.format(np.sum(calc_mask))
+            + msgs.newline() + 'No median rescaling applied')
+        if (snr_resc_med <= snr_do_not_rescale):
+            msgs.warn('Median flux ratio of pixels in reference spectrum {:} <= snr_do_not_rescale = {:}.'.format(snr_resc_med, snr_do_not_rescale)
+                      + msgs.newline() + 'No median rescaling applied')
         ratio = 1.0
 
     return ratio
@@ -2028,7 +2041,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
-#Todo: Make this work for multiple objects after the coadd script input file format is fixed.
+#TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
 def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_value=True,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
