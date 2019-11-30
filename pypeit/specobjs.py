@@ -137,11 +137,11 @@ class SpecObjs(object):
         """
         return len(self.specobjs)
 
-    def unpack_one_obj(self, ret_flam=False):
+    def unpack_object(self, ret_flam=False):
         """
 
-        Utility function to unpack the sobjs for an object and return various numpy arrays describing the spectrum
-        and meta data. The user needs to already have trimmed the Specobjs to the relevant indices.
+        Utility function to unpack the sobjs for one object and return various numpy arrays describing the spectrum
+        and meta data. The user needs to already have trimmed the Specobjs to the relevant indices for the object.
 
         Args:
            ret_flam (bool):

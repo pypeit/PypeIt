@@ -1274,7 +1274,7 @@ def mask_star_lines(wave_star, mask_width=10.0):
 
     return mask_star
 
-def sensfunc_telluric(spec1dfile, telgridfile, outfile, star_type=None, star_mag=None, star_ra=None, star_dec=None,
+def sensfunc_telluric(spec1dfile, outfile, telgridfile=None, star_type=None, star_mag=None, star_ra=None, star_dec=None,
                       polyorder=8, mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True,
                       debug_init=False, debug=False):
@@ -1309,12 +1309,14 @@ def sensfunc_telluric(spec1dfile, telgridfile, outfile, star_type=None, star_mag
     """
     # Read in the data
     sobjs_std = (specobjs.SpecObjs.from_fitsfile(spec1dfile)).get_std()
-    wave, counts, counts_ivar, counts_mask, meta_spec, header = sobjs_std.unpack_one_obj(ret_flam=False)
-    #wave, counts, counts_ivar, counts_mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
-    # Read in standard star dictionary and interpolate onto regular telluric wave_grid
+    wave, counts, counts_ivar, counts_mask, meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
+    # Read in standard star dictionary
     star_ra = meta_spec['RA'] if star_ra is None else star_ra
     star_dec = meta_spec['DEC'] if star_dec is None else star_dec
     std_dict = flux_calib.get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=star_ra, dec=star_dec)
+
+    spectrograph = load_spectrograph(header['PYP_SPEC'])
+    telgridfile = spectrograph.telgridfile
 
     if counts.ndim == 2:
         norders = counts.shape[1]

@@ -242,3 +242,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
+
+
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+
+        reid_arxiv_path = resource_filename('pypeit', '/data/telluric//')
+
+        return telgridfile
