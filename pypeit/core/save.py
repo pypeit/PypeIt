@@ -94,7 +94,7 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, ob
     '''
     Args:
         outfile (str): name of fitsfile you want to save to
-        waves (ndarray): one-D or two-D (nspec by nexp/norder) wavelength array
+        waves (ndarray): 1-D or 2-D (nspec by nexp/norder) wavelength array
         fluxes (ndarray): flux array
         ivars (ndarray): ivar array
         masks (ndarray): mask array

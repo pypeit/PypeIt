@@ -399,6 +399,10 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(9500.0), np.log10(26000)
 
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+        return resource_filename('pypeit', '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
 
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
@@ -611,6 +615,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         if det == 1:
             bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return bpm_img
+
+
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+        return resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):

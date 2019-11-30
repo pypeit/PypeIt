@@ -823,6 +823,11 @@ class Spectrograph(object):
         return np.power(10.0,loglam_grid)
 
 
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+        pass
+
     def __repr__(self):
         # Generate string
         txt = '<{:s}: '.format(self.__class__.__name__)

@@ -9,6 +9,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pkg_resources import resource_filename
 
 from pypeit import debugger
 
@@ -339,6 +340,13 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         # Get it started
         super(KeckNIRSPECLowSpectrograph, self).__init__()
         self.spectrograph = 'keck_nirspec_low'
+
+
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+        return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
 
 
     '''

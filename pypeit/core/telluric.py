@@ -1284,8 +1284,8 @@ def sensfunc_telluric(spec1dfile, outfile, telgridfile=None, star_type=None, sta
 
     Args:
         spec1dfile:
-        telgridfile:
         outfile:
+        telgridfile:
         star_type:
         star_mag:
         star_ra:
@@ -1300,7 +1300,8 @@ def sensfunc_telluric(spec1dfile, outfile, telgridfile=None, star_type=None, sta
         popsize:
         recombination:
         polish:
-        disp:
+        disp (bool):
+            Display status messages to the screen during differential evolution optimization.
         debug_init:
         debug:
 
@@ -1316,7 +1317,7 @@ def sensfunc_telluric(spec1dfile, outfile, telgridfile=None, star_type=None, sta
     std_dict = flux_calib.get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=star_ra, dec=star_dec)
 
     spectrograph = load_spectrograph(header['PYP_SPEC'])
-    telgridfile = spectrograph.telgridfile
+    telgridfile = spectrograph.telluric_grid_file
 
     if counts.ndim == 2:
         norders = counts.shape[1]
@@ -1370,7 +1371,7 @@ def create_bal_mask(wave):
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, create_bal_mask=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
-                 pca_upper=3100.0, polish=True, disp=True, debug=False,
+                 pca_upper=3100.0, polish=True, disp=True, debug_init=False, debug=False,
                  show=False):
 
 

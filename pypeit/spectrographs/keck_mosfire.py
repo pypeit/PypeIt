@@ -5,14 +5,14 @@ import os
 import numpy as np
 from astropy.io import fits
 
-from pkg_resources import resource_filename
-
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pkg_resources import resource_filename
+
 
 from IPython import embed
 
@@ -247,7 +247,4 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     @property
     def telluric_grid_file(self):
         """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-
-        reid_arxiv_path = resource_filename('pypeit', '/data/telluric//')
-
-        return telgridfile
+        return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
