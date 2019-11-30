@@ -722,6 +722,10 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
                 weights[:, iexp] = np.full(nspec, np.fmax(sn2[iexp], 1e-2)) # set the minimum  to be 1e-2 to avoid zeros
             else:
                 weight_method = 'wavelength dependent'
+                # JFH THis line is experimental but it deals with cases where the spectrum drops to zero. We thus
+                # transition to using ivar_weights. This needs more work because the spectra are not rescaled at this point.
+                #sn_val[sn_val[:, iexp] < 1.0, iexp] = ivar_stack[sn_val[:, iexp] < 1.0, iexp]
+
                 sn_med1 = utils.fast_running_median(sn_val[mask_stack[:, iexp],iexp]**2, sn_smooth_npix)
                 sn_med2 = scipy.interpolate.interp1d(spec_vec[mask_stack[:, iexp]], sn_med1, kind = 'cubic',
                                                      bounds_error = False, fill_value = 0.0)(spec_vec)
@@ -1050,7 +1054,7 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
 
 
 def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, mask_ref=None, scale_method=None, min_good=0.05,
-               ref_percentile=20.0, maxiters=5, sigrej=3, max_median_factor=10.0,
+               ref_percentile=70.0, maxiters=5, sigrej=3, max_median_factor=10.0,
                npoly=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
     '''
     Routine for solving for the best way to rescale an input spectrum flux to match a reference spectrum flux_ref.
@@ -1085,7 +1089,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
        maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
     sigrej: float, default=3.0
        rejection threshold used for rejecting outliers by robsut_median_ratio
-    ref_percentile: float, default=20.0
+    ref_percentile: float, default=70.0
        percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
     npoly: int, default=None
        order for the poly ratio scaling if polynomial rescaling is the method used. Default is to automatically compute
@@ -1788,7 +1792,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused
 
 
-def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_percentile=30.0, maxiter_scale=5, sigrej_scale=3,
+def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_percentile=70.0, maxiter_scale=5, sigrej_scale=3,
                      scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
 
     '''
@@ -1845,7 +1849,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
         maxiter_reject: int, default=5
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
-        ref_percentile: float, default=20.0
+        ref_percentile: float, default=70.0
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
         maxiter_scale: int, default=5
             Maximum number of iterations performed for rescaling spectra.
@@ -1922,7 +1926,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
 #Todo: This should probaby take a parset?
 def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
              wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
-             ref_percentile=20.0, maxiter_scale=5,
+             ref_percentile=70.0, maxiter_scale=5,
              sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
              maxrej=None, qafile=None, title='', debug=False, debug_scale=False, show_scale=False, show=False):
@@ -2044,7 +2048,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 #TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
 def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_value=True,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
-                   wave_grid_max=None, ref_percentile=20.0, maxiter_scale=5,
+                   wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None, nmaskedge=2, phot_scale_dicts=None,
@@ -2080,7 +2084,7 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
 
 def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux_value=True, wave_method='log10',
                  dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
-                 ref_percentile=20.0, maxiter_scale=5,
+                 ref_percentile=70.0, maxiter_scale=5,
                  niter_order_scale=3, sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
@@ -2117,8 +2121,8 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max: float, default=None
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
-        ref_percentile:
-            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+        ref_percentile (float): default = 70.0
+            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio.
         maxiter_scale: int, default=5
             Maximum number of iterations performed for rescaling spectra.
         max_median_factor: float, default=10.0
