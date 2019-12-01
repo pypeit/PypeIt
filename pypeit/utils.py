@@ -745,7 +745,7 @@ def clip_ivar(flux, ivar, sn_clip, mask=None):
         sn_clip (float):
             Small erorr is added to input ivar so that the output ivar_out will never give S/N greater than sn_clip.
             This prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a
-            level greater than the theoretical S/N due to systematics.
+            level greater than the formal S/N due to systematics.
         mask (ndarray, bool): mask array, True=good
     Returns:
          ivar_out (ndarray): new ivar array
