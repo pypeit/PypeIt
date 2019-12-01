@@ -1908,6 +1908,8 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
     # Rescale spectra to line up with our preliminary stack so that we can sensibly reject outliers
     nexp = np.shape(fluxes)[1]
     fluxes_scale = np.zeros_like(fluxes)
+
+
     ivars_scale = np.zeros_like(ivars)
     scales = np.zeros_like(fluxes)
     scale_method_used = []
