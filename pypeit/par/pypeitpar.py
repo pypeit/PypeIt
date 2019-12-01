@@ -809,9 +809,60 @@ class FluxCalibrationPar(ParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 
-
-
 class SensfuncPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, uvis=None, ir=None):
+        # Grab the parameter names and values from the function arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+
+        defaults['uvis'] = SensfuncUVISPar()
+        dtypes['uvis'] = [ParSet, dict ]
+        descr['uvis'] = 'Parameters for the UVIS sensfunc algorithm'
+
+        defaults['ir'] = TelluricPar()
+        dtypes['ir'] = [ ParSet, dict ]
+        descr['ir'] = 'Parameters for the IR sensfunc algorithm'
+
+        # Instantiate the parameter set
+        super(SensfuncPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['uvis', 'ir']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+        # JFH add something in here which checks that either recombination value provided is bewteen 0 and 1, although
+        # scipy.optimize.differential_evoluiton probalby checks this.
+
+
+class SensfuncUVISPar(ParSet):
     """
     A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
     sensfunc.SensFuncUV
@@ -904,7 +955,7 @@ class SensfuncPar(ParSet):
                                 'be using telluric.sensnfunc_telluric'
 
         # Instantiate the parameter set
-        super(SensfuncPar, self).__init__(list(pars.keys()),
+        super(SensfuncUVISPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
                                           defaults=list(defaults.values()),
                                           dtypes=list(dtypes.values()),
@@ -972,12 +1023,27 @@ class TelluricPar(ParSet):
                                'your spectrum will be used and the resolution calculated using a typical sampling of 3 ' \
                                'spectral pixels per resolution element.'
 
+
+        # Force resln_frac_bounds to be a tuple
+        if pars['resln_frac_bounds'] is not None and not isinstance(pars['resln_frac_bounds'], tuple):
+            try:
+                pars['resln_frac_bouncs'] = tuple(pars['resln_frac_bounds'])
+            except:
+                raise TypeError('Could not convert provided resln_frac_bounds to a tuple.')
+
         defaults['resln_frac_bounds'] = (0.5,1.5)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
                                      'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
                                      'spectral resolution fit to be within the range ' \
                                      'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+
+        # Force pix_shisft_bounds to be a tuple
+        if pars['pix_shift_bounds'] is not None and not isinstance(pars['pix_shift_bounds'], tuple):
+            try:
+                pars['pix_shift_bounds'] = tuple(pars['pix_shift_bounds'])
+            except:
+                raise TypeError('Could not convert provided pix_shift_bounds to a tuple.')
 
         defaults['pix_shift_bounds'] = (-5.0,5.0)
         dtypes['pix_shift_bounds'] = tuple
@@ -2602,7 +2668,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
-                 flexure=None, fluxcalib=None, coadd2d=None):
+                 flexure=None, fluxcalib=None, coadd2d=None, sensfunc=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2659,6 +2725,13 @@ class PypeItPar(ParSet):
         defaults['coadd2d'] = Coadd2DPar()
         dtypes['coadd2d'] = [ParSet, dict]
         descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
+
+
+        # Sensfunc
+        defaults['sensfunc'] = SensfuncPar()
+        dtypes['sensfunc'] = [ParSet, dict]
+        descr['sensfunc'] = 'Par set to control sensitivity function computation.  Only used in the after-burner script.'
+
 
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
