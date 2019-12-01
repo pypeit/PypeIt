@@ -194,7 +194,7 @@ class SpecObjs(object):
         try:
             spectrograph = load_spectrograph(self.header['PYP_SPEC'])
         except:
-            # This is a hack until a generic spectrograph is implemented.
+            # TODO JFH  This is a hack until a generic spectrograph is implemented.
             spectrograph = load_spectrograph('shane_kast_blue')
 
         meta_spec = {}
@@ -204,7 +204,8 @@ class SpecObjs(object):
                 meta_spec[key.upper()] = self.header[key.upper()]
             except KeyError:
                 pass
-
+        # Add the pyp spec. Not sure why that is not already part of specobjs by default.
+        meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
 
         if pypeline == 'MultiSlit':
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \

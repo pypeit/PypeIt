@@ -119,6 +119,12 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+
+
         return par
 
     def init_meta(self):

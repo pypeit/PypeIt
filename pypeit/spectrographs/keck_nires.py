@@ -108,6 +108,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [60, None]
         par['scienceframe']['exprng'] = [60, None]
 
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
         return par
 
     def init_meta(self):
@@ -242,11 +247,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     @property
     def loglam_minmax(self):
         return np.log10(9400.0), np.log10(26000)
-
-    @property
-    def telluric_grid_file(self):
-        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-        return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
 
 

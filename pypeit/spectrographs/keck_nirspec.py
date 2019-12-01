@@ -110,6 +110,15 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+
+
+
         return par
 
     # JFH Replaced with values from MOSFIRE above.

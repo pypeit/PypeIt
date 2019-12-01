@@ -134,6 +134,12 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # controls everything
         par['calibrations']['biasframe']['useframe'] = 'none'
 
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+
 
 
         return par
@@ -281,12 +287,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             bpm_img[:, 1000:] = 1.
 
         return bpm_img
-
-
-    @property
-    def telluric_grid_file(self):
-        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-        return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
 
 

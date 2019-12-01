@@ -249,6 +249,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['standardframe']['process']['bias'] = 'skip'
         par['scienceframe']['process']['bias'] = 'skip'
 
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
+
+
 
         return par
 
@@ -399,11 +405,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(9500.0), np.log10(26000)
 
-    @property
-    def telluric_grid_file(self):
-        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-        return resource_filename('pypeit', '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
-
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
@@ -502,6 +503,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par
 
@@ -616,11 +622,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
             bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return bpm_img
 
-
-    @property
-    def telluric_grid_file(self):
-        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-        return resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):

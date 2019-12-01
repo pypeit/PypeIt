@@ -591,8 +591,8 @@ def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=T
 
 
 # JFH TODO This code needs to be cleaned up. The telluric option should probably be removed. Logic is not easy to follow.
-def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, telluric=False,
-             polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
+def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, mask_abs_lines=True,
+             telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
     """ Function to generate the sensitivity function.
        This can work in different regimes: NOTE THAT TELLURIC MODE IS DEPRECATED, use telluric.sensfunc_telluric instead
     - If telluric=False
@@ -674,8 +674,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             plt.show()
 
     # Get masks from observed star spectrum. True = Good pixels
-    mask_bad, mask_balm, mask_tell = get_mask(wave_star, flux_star, ivar_star, mask_star, mask_balmer=True, mask_tell=True,
-                                           balm_mask_wid=balm_mask_wid, trans_thresh=trans_thresh)
+    mask_bad, mask_balm, mask_tell = get_mask(wave_star, flux_star, ivar_star, mask_star, mask_abs_lines=mask_abs_lines,
+                                              mask_telluric=True, balm_mask_wid=balm_mask_wid, trans_thresh=trans_thresh)
 
     # Get sensfunc
     LBLRTM = False
@@ -699,8 +699,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     # Allocate the meta parameter table, ext=1
     meta_table = table.Table(meta={'name': 'Parameter Values'})
-    meta_table['WAVE_MIN'] = np.min(wave_star)
-    meta_table['WAVE_MAX'] = np.min(wave_star)
+    meta_table['WAVE_MIN'] = [np.min(wave_star)]
+    meta_table['WAVE_MAX'] = [np.min(wave_star)]
     meta_table['EXPTIME'] = [exptime]
     meta_table['AIRMASS'] = [airmass]
     meta_table['STD_RA'] = [std_dict['std_ra']]
@@ -718,7 +718,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
 
 
-def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_balmer=True, mask_tell=True, balm_mask_wid=10., trans_thresh=0.9):
+def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mask_telluric=True, balm_mask_wid=10., trans_thresh=0.9):
     '''
     Get a couple of masks from your observed standard spectrum.
 
@@ -767,7 +767,8 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_balmer=True, mask_t
     atms_cutoff = wave_star <= 3000.0
     mask_bad[atms_cutoff] = False
 
-    if mask_balmer:
+    # TODO JFH replace with mask_star_lines from telluric.py
+    if mask_abs_lines:
         # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
         msgs.info("Masking recombination lines:")
         # Mask Balmer
@@ -804,7 +805,7 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_balmer=True, mask_t
             ipfund = np.abs(wave_star - line_pfund) <= balm_mask_wid
             mask_balm[ipfund] = False
 
-    if mask_tell:
+    if mask_telluric:
         ## Mask telluric region in the optical
         tell_opt = np.any([((wave_star >= 6270.00) & (wave_star <= 6290.00)), # H2O
                        ((wave_star >= 6850.00) & (wave_star <= 6960.00)), #O2 telluric band

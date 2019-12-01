@@ -61,7 +61,7 @@ import glob
 import warnings
 from pkg_resources import resource_filename
 import inspect
-
+from IPython import embed
 from collections import OrderedDict
 
 import numpy
@@ -708,7 +708,7 @@ class Coadd2DPar(ParSet):
         """
         pass
 
-# TODO  JFH: This is deprecated, replaced by SensfuncPar
+# TODO  JFH: This is deprecated, replaced by SensFuncPar
 class FluxCalibrationPar(ParSet):
     """
     A parameter set holding the arguments for how to perform the flux
@@ -809,7 +809,7 @@ class FluxCalibrationPar(ParSet):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
 
-class SensfuncPar(ParSet):
+class SensFuncPar(ParSet):
     """
     A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
     sensfunc.SensFuncUV
@@ -817,7 +817,8 @@ class SensfuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, uvis=None, ir=None):
+    def __init__(self, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+                 star_dec=None, mask_abs_lines=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])
@@ -827,17 +828,51 @@ class SensfuncPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
+        defaults['algorithm'] = 'UVIS'
+        dtypes['algorithm'] = str
+        descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are:\n " \
+                             "\n" \
+                             "UVIS = Should be used for data with lambda < 7000A.\n" \
+                             "No detailed model of telluric absorption but corrects for atmospheric extinction.\n" \
+                             "\n" \
+                             "IR   = Should be used for data with lambbda > 7000A.\n" \
+                             "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models." \
 
-        defaults['uvis'] = SensfuncUVISPar()
-        dtypes['uvis'] = [ParSet, dict ]
-        descr['uvis'] = 'Parameters for the UVIS sensfunc algorithm'
+        defaults['UVIS'] = SensfuncUVISPar()
+        dtypes['UVIS'] = [ParSet, dict ]
+        descr['UVIS'] = 'Parameters for the UVIS sensfunc algorithm'
 
-        defaults['ir'] = TelluricPar()
-        dtypes['ir'] = [ ParSet, dict ]
-        descr['ir'] = 'Parameters for the IR sensfunc algorithm'
+        defaults['IR'] = TelluricPar()
+        dtypes['IR'] = [ ParSet, dict ]
+        descr['IR'] = 'Parameters for the IR sensfunc algorithm'
+
+        # JFH SHould the default by higher like 8?
+        defaults['polyorder'] = 5
+        dtypes['polyorder'] = int
+        descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
+
+        defaults['star_type'] = None
+        dtypes['star_type'] = str
+        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
+
+        defaults['star_mag'] = None
+        dtypes['star_mag'] = float
+        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
+
+        defaults['star_ra'] = None
+        dtypes['star_ra'] = float
+        descr['star_ra'] = 'RA of the standard star. This will override values in the header, i.e. if they are wrong or absent'
+
+        defaults['star_dec'] = None
+        dtypes['star_dec'] = float
+        descr['star_dec'] = 'DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent'
+
+        defaults['mask_abs_lines'] = True
+        dtypes['mask_abs_lines'] = bool
+        descr['mask_abs_lines'] = 'Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit'
 
         # Instantiate the parameter set
-        super(SensfuncPar, self).__init__(list(pars.keys()),
+        super(SensFuncPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
                                           defaults=list(defaults.values()),
                                           dtypes=list(dtypes.values()),
@@ -847,7 +882,7 @@ class SensfuncPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['uvis', 'ir']
+        parkeys = ['algorithm', 'UVIS', 'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -857,9 +892,9 @@ class SensfuncPar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        pass
-        # JFH add something in here which checks that either recombination value provided is bewteen 0 and 1, although
-        # scipy.optimize.differential_evoluiton probalby checks this.
+        if not ((self.data['algorithm'] == 'IR') or  (self.data['algorithm'] == 'UVIS')):
+            raise ValueError('algorithm must be set to either  "IR" or "UVIS"')
+        # JFH add other checks?
 
 
 class SensfuncUVISPar(ParSet):
@@ -871,8 +906,8 @@ class SensfuncUVISPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, star_type=None, star_mag=None, multi_det=None, telluric=None,
-                 poly_norder=None, polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
+                 telluric_correct=None, multi_det=None, telluric=None,
+                 polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -924,16 +959,6 @@ class SensfuncUVISPar(ParSet):
         descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
             'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
 
-        dtypes['star_type'] = str
-        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
-
-        dtypes['star_mag'] = float
-        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
-
-        defaults['polyorder'] = 5
-        dtypes['polyorder'] = int
-        descr['polyorder'] = 'Polynomial order for sensfunc fitting'
-
         defaults['polycorrect'] = True
         dtypes['polycorrect'] = bool
         descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
@@ -966,8 +991,7 @@ class SensfuncUVISPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
-                   'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect', 'nresln', 'resolution',
-                   'trans_thresh']
+                   'multi_det', 'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -991,7 +1015,7 @@ class TelluricPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, sn_clip=None, resln_guess=None, relsn_frac_bounds=None, pix_shift_bounds=None, maxiter=None,
+    def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None, maxiter=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None):
 
@@ -1006,9 +1030,15 @@ class TelluricPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
+        defaults['telgridfile'] = None
+        dtypes['telgridfile'] = str
+        descr['telgridfile'] = 'File containing the telluric grid for the observatory in question. These grids are ' \
+                               'generated from HITRAN models for each observatory using nominal site parameters. They ' \
+                               'must be downloaded from the GoogleDrive and stored in PypeIt/pypeit/data/telluric/'
+
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
-        descr['sn_clp'] = 'This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. ' \
+        descr['sn_clip'] = 'This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. ' \
                           'standard stars, bright objects) using the function utils.clip_ivar. A small erorr is added ' \
                           'to the input ivar so that the output ivar_out will never give S/N greater than sn_clip. This ' \
                           'prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a ' \
@@ -1136,7 +1166,7 @@ class TelluricPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['sn_clip', 'resln_guess', 'relsn_frac_bounds', 'pix_shift_bounds', 'maxiter', 'sticky', 'lower',
+        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'pix_shift_bounds', 'maxiter', 'sticky', 'lower',
                    'upper', 'seed', 'tol', 'popsize', 'recombination', 'polish', 'disp']
         kwargs = {}
         for pk in parkeys:
@@ -2728,7 +2758,7 @@ class PypeItPar(ParSet):
 
 
         # Sensfunc
-        defaults['sensfunc'] = SensfuncPar()
+        defaults['sensfunc'] = SensFuncPar()
         dtypes['sensfunc'] = [ParSet, dict]
         descr['sensfunc'] = 'Par set to control sensitivity function computation.  Only used in the after-burner script.'
 
