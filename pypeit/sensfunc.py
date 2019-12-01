@@ -13,6 +13,8 @@ from pypeit import specobjs
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.spectrograph.util import load_spectrograph
+from astropy.io import fits
+from astropy import table
 
 from pypeit.par import pypeitpar
 from pypeit.core import save
@@ -33,8 +35,6 @@ class SensFunc(object):
         self.star_ra = star_ra
         self.star_dec = star_dec
         self.debug = debug
-        # Set parset
-        self.par = pypeitpar.SensFuncPar() if par is None else par
 
         # Read in the Standard star data
         sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std()
@@ -62,30 +62,40 @@ class SensFunc(object):
     def show(self):
         pass
 
+
+
 class SensFuncIR(SensFunc):
-    def __init__(self, spec1dfile, sensfile, par=None, star_type=None, star_mag=None, star_ra=None, star_dec=None, debug=False, debug_init=False, telgridfile=None):
+    def __init__(self, spec1dfile, sensfile, par=None, star_type=None, star_mag=None, star_ra=None, star_dec=None, debug=False,
+                 debug_init=False, telgridfile=None, only_orders=None):
         super().__init__(spec1dfile, sensfile, par=par, star_type=star_type, star_mag=star_mag, star_ra=star_ra, star_dec=star_dec, debug=debug)
 
+
+        # Set parset
+        self.par = pypeitpar.TelluricPar() if par is None else par
+        self.only_orders = only_orders
         self.debug_init = debug_init
         if telgridfile is None:
             self.telgridfile = self.spectrograph.telluric_grid_file
         else:
             self.telgridfile=telgridfile
+        self.TelObj = None
 
     def generate_sensfunc(self):
 
         self.TelObj = telluric.sensfunc_telluric(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                                  self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'],
-                                                 self.telgridfile, polyorder=self.par['polyorder'],
+                                                 self.std_dict, self.telgridfile,
+                                                 polyorder=self.par['polyorder'],
                                                  mask_abs_lines=self.par['mask_abs_lines'],
                                                  delta_coeff_bounds=self.par['delta_coeff_bounds'],
                                                  minmax_coeff_bounds=self.par['min_max_coeff_bounds'],
-                                                 sn_clip=self.par['sn_clip'], only_orders=self.par['only_orders'],
+                                                 sn_clip=self.par['sn_clip'], only_orders=self.only_orders,
                                                  tol=self.par['tol'], popsize=self.par['popsize'],
                                                  recombination=self.par['recombination'], polish=self.par['polish'],
                                                  disp=self.par['disp'], debug_init=self.debug_init, debug=self.debug)
 
-        return self.TelObj
+        self.meta_table, self.out_table = self.TelObj.meta_table, self.TelObj.meta_table
+        return self.meta_table, self.out_table
 
     def save(self):
         self.TelObj.save(self.sensfile)
@@ -95,30 +105,45 @@ class SensFuncIR(SensFunc):
 
 
 
-class SensFuncUV(SensFunc):
+class SensFuncUVIS(SensFunc):
     def __init__(self, spec1dfile, sensfile, par=None, star_type=None, star_mag=None, star_ra=None, star_dec=None, debug=False):
         super().__init__(spec1dfile, sensfile, par=par, star_type=star_type, star_mag=star_mag, star_ra=star_ra, star_dec=star_dec, debug=debug)
 
+        # Set parset
+        self.par = pypeitpar.SensfuncPar() if par is None else par
+
     def generate_sensfunc(self):
+        self.meta_table, self.out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
+                                                              self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
+                                                              self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
+                                                              telluric=False, polyorder=self.par['polyorder'],
+                                                              balm_mask_wid=self.par['balm_mask_wid'],
+                                                              nresln=self.par['nresln'], resolution=self.par['resolution'],
+                                                              trans_thresh=self.par['trans_thresh'],
+                                                              polycorrect=True, debug=self.debug)
 
-        self.TelObj = telluric.sensfunc_telluric(self.wave, self.counts, self.counts_ivar, self.counts_mask,
-                                                 self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'],
-                                                 self.telgridfile, polyorder=self.par['polyorder'],
-                                                 mask_abs_lines=self.par['mask_abs_lines'],
-                                                 delta_coeff_bounds=self.par['delta_coeff_bounds'],
-                                                 minmax_coeff_bounds=self.par['min_max_coeff_bounds'],
-                                                 sn_clip=self.par['sn_clip'], only_orders=self.par['only_orders'],
-                                                 tol=self.par['tol'], popsize=self.par['popsize'],
-                                                 recombination=self.par['recombination'], polish=self.par['polish'],
-                                                 disp=self.par['disp'], debug_init=self.debug_init, debug=self.debug)
-
-        return self.TelObj
+        return self.meta_table, self.out_table
 
     def save(self):
-        self.TelObj.save(self.sensfile)
+
+        # Write to outfile
+        msgs.info('Writing object and telluric models to file: {:}'.format(self.sensfile))
+        hdu_meta = fits.table_to_hdu(self.meta_table)
+        hdu_meta.name = 'METADATA'
+        hdu_out = fits.table_to_hdu(self.out_table)
+        hdu_out.name = 'OUT_TABLE'
+        hdulist = fits.HDUList()
+        hdulist.append(hdu_meta)
+        hdulist.append(hdu_out)
+        hdulist.writeto(self.sensfile, overwrite=True)
 
     def load(self, sensfile):
-        self.TelObj.load(sensfile)
+        # Write to outfile
+        msgs.info('Reading object and telluric models from file: {:}'.format(sensfile))
+        meta_table = table.Table.read(sensfile, hdu=1)
+        out_table = table.Table.read(sensfile, hdu=2)
+
+        return meta_table, out_table
 
 
 
