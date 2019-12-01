@@ -708,7 +708,7 @@ class Coadd2DPar(ParSet):
         """
         pass
 
-
+# TODO  JFH: This is deprecated, replaced by SensfuncPar
 class FluxCalibrationPar(ParSet):
     """
     A parameter set holding the arguments for how to perform the flux
@@ -808,6 +808,282 @@ class FluxCalibrationPar(ParSet):
         if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
+
+
+
+class SensfuncPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
+                 telluric_correct=None, star_type=None, star_mag=None, multi_det=None, telluric=None,
+                 poly_norder=None, polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+
+        # These are the UV sensfunc parameters
+        defaults['balm_mask_wid'] = 5.
+        dtypes['balm_mask_wid'] = float
+        descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
+
+        dtypes['std_file'] = str
+        descr['std_file'] = 'Standard star file to generate sensfunc'
+
+        dtypes['std_obj_id'] = [str, int]
+        descr['std_obj_id'] = 'Specifies object in spec1d file to use as standard.' \
+            ' The brightest object found is used otherwise.'
+
+        dtypes['multi_det'] = list
+        descr['multi_det'] = 'List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)' \
+                        ' They are assumed to be in order of increasing wavelength' \
+                        ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
+
+        dtypes['sensfunc'] = str
+        descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
+
+
+        defaults['extinct_correct'] = True
+        dtypes['extinct_correct'] = bool
+        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
+                                   'extinction correct the data below 10000A. Note that this correction makes no ' \
+                                   'sense if one is telluric correcting and this shold be set to False'
+
+
+        defaults['telluric_correct'] = False
+        dtypes['telluric_correct'] = bool
+        descr['telluric_correct'] = "If telluric_correct=True the code will grab the sens_dict['telluric'] tag from the " \
+                                    "sensfunc dictionary and apply it to the data."
+
+        defaults['telluric'] = False
+        dtypes['telluric'] = bool
+        descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
+            'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
+
+        dtypes['star_type'] = str
+        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
+
+        dtypes['star_mag'] = float
+        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
+
+        defaults['polyorder'] = 5
+        dtypes['polyorder'] = int
+        descr['polyorder'] = 'Polynomial order for sensfunc fitting'
+
+        defaults['polycorrect'] = True
+        dtypes['polycorrect'] = bool
+        descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
+
+
+        defaults['nresln'] = 20
+        dtypes['nresln'] = [int, float]
+        descr['nresln'] = 'Parameter governing the spacing of the bspline breakpoints.'
+
+
+        defaults['resolution'] = 3000.0
+        dtypes['resolution'] = [int, float]
+        descr['resolution'] = 'Expected resolution of the standard star spectrum. This should be measured from the data.'
+
+        defaults['trans_thresh'] = 0.9
+        dtypes['trans_thresh'] = float
+        descr['trans_thresh'] = 'Parameter for selecting telluric regions which are masked. Locations below this ' \
+                                'transmission value are masked. If you have significant telluric absorption you should ' \
+                                'be using telluric.sensnfunc_telluric'
+
+        # Instantiate the parameter set
+        super(SensfuncPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
+                   'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect', 'nresln', 'resolution',
+                   'trans_thresh']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
+            raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
+                             self.data['sensfunc']))
+
+
+class TelluricPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, sn_clip=None, resln_guess=None, relsn_frac_bounds=None, pix_shift_bounds=None, maxiter=None,
+                 sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
+                 disp=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['sn_clip'] = 30.0
+        dtypes['sn_clip'] = [int, float]
+        descr['sn_clp'] = 'This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. ' \
+                          'standard stars, bright objects) using the function utils.clip_ivar. A small erorr is added ' \
+                          'to the input ivar so that the output ivar_out will never give S/N greater than sn_clip. This ' \
+                          'prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a ' \
+                          'level greater than the formal S/N due to the fact that our telluric models are only good to ' \
+                          'about 3%.'
+
+        defaults['resln_guess'] = None
+        dtypes['resln_guess'] = [int, float]
+        descr['resln_guess'] = 'A guess for the resolution of your spectrum expressed as lambda/dlambda. The resolution ' \
+                               'is fit explicitly as part of the telluric model fitting, but this guess helps determine ' \
+                               'the bounds for the optimization (see next). If not provided, the  wavelength sampling of ' \
+                               'your spectrum will be used and the resolution calculated using a typical sampling of 3 ' \
+                               'spectral pixels per resolution element.'
+
+        defaults['resln_frac_bounds'] = (0.5,1.5)
+        dtypes['resln_frac_bounds'] = tuple
+        descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
+                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'spectral resolution fit to be within the range ' \
+                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+
+        defaults['pix_shift_bounds'] = (-5.0,5.0)
+        dtypes['pix_shift_bounds'] = tuple
+        descr['pix_shift_bounds'] = ' Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
+                                    'The atmosphere will be allowed to shift within this range during the fit.'
+
+
+        defaults['maxiter'] = 3
+        dtypes['maxiter'] = int
+        descr['maxiter'] = 'Maximum number of iterations for the telluric + object model fitting. The code performs ' \
+                           'multiple iterations rejecting outliers at each step. The fit is then performed anew to the ' \
+                           'remaining good pixels. For this reason if you run with the disp=True option, you will see ' \
+                           'that the f(x) loss function gets progressively better during the iterations.'
+
+        defaults['sticky'] = True
+        dtypes['sticky'] = bool
+        descr['sticky'] = 'Sticky parameter for the utils.djs_reject algorithm for iterative model fit rejection.  ' \
+                          'If set to True then points rejected from a previous iteration are kept rejected, in other ' \
+                          'words the bad pixel mask is the OR of all previous iterations and rejected pixels accumulate. ' \
+                          'If set to False, the bad pixel mask is the mask from the previous iteration, and if the model ' \
+                          'fit changes between iterations, points can alternate from being rejected to not rejected. ' \
+                          'At present this code only performs optimizations with differential evolution and experience ' \
+                          'shows that sticky needs to be True in order for these to converge. This is because the ' \
+                          'outliers can be so large that they dominate the loss function, and one never iteratively ' \
+                          'converges to a good model fit. In other words, the deformations in the model between ' \
+                          'iterations with sticky=False are too small to approach a reasonable fit.'
+
+        defaults['lower'] = 3.0
+        dtypes['lower'] = [int, float]
+        descr['lower'] = 'Lower rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the ' \
+                         'spectrum, and sigma_corr is an empirically determined correction to the formal error. The ' \
+                         'distribution of input chi (defined by chi = (data - model)/sigma) values is analyzed, and a ' \
+                         'correction factor to the formal error sigma_corr is returned which is multiplied into the ' \
+                         'formal errors. In this way, a rejection threshold of i.e. 3-sigma, will always correspond to ' \
+                         'roughly the same percentile.  This renormalization is performed with ' \
+                         'coadd1d.renormalize_errors function, and guarantees that rejection is not too agressive in ' \
+                         'cases where the empirical errors determined from the chi-distribution differ significantly ' \
+                         'from the formal noise which is used to determine chi.'
+
+        defaults['upper'] = 3.0
+        dtypes['upper'] = [int, float]
+        descr['upper'] = 'Upper rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the ' \
+                         'spectrum, and sigma_corr is an empirically determined correction to the formal error. See ' \
+                         'above for description.'
+
+        defaults['seed'] = 777
+        dtypes['seed'] = int
+        descr['seed'] = 'An initial seed for the differential evolution optimization, which is a random process. ' \
+                        'The default is a seed = 777 which will be used to generate a unique seed for every order. ' \
+                        'A specific seed is used because otherwise the random number generator will use the time for ' \
+                        'the seed, and the results will not be reproducible.'
+
+
+        defaults['tol'] = 1e-3
+        dtypes['tol'] = float
+        descr['tol'] = 'Relative tolerance for converage of the differential evolution optimization. See ' \
+                       'scipy.optimize.differential_evolution for details.'
+
+
+        defaults['popsize'] = 30
+        dtypes['popsize'] = int
+        descr['popsize'] = 'A multiplier for setting the total population size for the differential evolution ' \
+                           'optimization. See scipy.optimize.differential_evolution for details.'
+
+        defaults['recombination'] = 0.7
+        dtypes['recombination'] = [int, float]
+        descr['recombination'] = 'The recombination constant for the differential evolution optimization. This should ' \
+                                 'be in the range [0, 1]. See scipy.optimize.differential_evolution for details.'
+
+        defaults['polish'] = True
+        dtypes['polish'] = bool
+        descr['polish'] = 'If True then differential evolution will perform an additional optimizatino at the end to ' \
+                          'polish the best fit at the end, which can improve the optimization slightly. See ' \
+                          'scipy.optimize.differential_evolution for details.'
+
+        defaults['disp'] = True
+        dtypes['disp'] = bool
+        descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will  display status messages to the ' \
+                        'screen indicating the status of the optimization. See documentation for telluric.Telluric ' \
+                        'for a description of the output and how to know if things are working well.'
+
+        # Instantiate the parameter set
+        super(TelluricPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = cfg.keys()
+        parkeys = ['sn_clip', 'resln_guess', 'relsn_frac_bounds', 'pix_shift_bounds', 'maxiter', 'sticky', 'lower',
+                   'upper', 'seed', 'tol', 'popsize', 'recombination', 'polish', 'disp']
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+        # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
+        # scipy.optimize.differential_evoluiton probalby checks this.
 
 
 class ManualExtractionPar(ParSet):
