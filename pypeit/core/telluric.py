@@ -726,7 +726,7 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     # set the flux_ref to be the data here, i.e. flux
     scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd1d.solve_poly_ratio(
         wave, tellmodel, tellmodel_ivar, flux, ivar, obj_params['polyorder_vec'][iord],
-        mask=tellmodel_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'])
+        mask=tellmodel_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'], scale_max=1e5)
     # TODO JFH Sticky = False seems to recover better from bad initial fits. Maybe we should change this since poly ratio
     # uses a different optimizer.
 
