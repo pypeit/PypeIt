@@ -17,6 +17,7 @@ from astropy.io import fits
 from matplotlib import pyplot as plt
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
+from astropy import table
 
 from pypeit import msgs
 from pypeit import utils
@@ -589,28 +590,17 @@ def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=T
 
 
 
-def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, telgridfile,
-                      outfile=None, polyorder=8, mask_abs_lines=True,
-                      delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
-                      sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True,
-                      debug_init=False, debug=False):
-
+# JFH TODO This code needs to be cleaned up. The telluric option should probably be removed. Logic is not easy to follow.
 def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, telluric=False,
              polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
-
     """ Function to generate the sensitivity function.
-        This can work in different regimes:
-    - If telluric=False and RA=None and Dec=None
-      the code creates a synthetic standard star spectrum (or VEGA spectrum if type=A0) using the Kurucz models,
-      and from this it generates a sens func using nresln=20.0 and masking out telluric regions.
-    - If telluric=False and RA and Dec are assigned
-      the standard star spectrum is extracted from the archive, and a sens func
-      is generated using nresln=20.0 and masking out telluric regions.
+       This can work in different regimes: NOTE THAT TELLURIC MODE IS DEPRECATED, use telluric.sensfunc_telluric instead
+    - If telluric=False
+        a sens func is generated using nresln=20.0 and masking out telluric regions.
     - If telluric=True
-      the code creates a sintetic standard star spectrum  (or VEGA spectrum if type=A0) using the Kurucz models,
-      the sens func is a pixelized sensfunc (not smooth) for correcting both throughput and telluric lines.
-      if you set polycorrect=True, the sensfunc in the Hydrogen recombination line region (often seen in star spectra)
-      will be replaced by a smoothed polynomial function.
+       sens func is a pixelized sensfunc (not smooth) for correcting both throughput and telluric lines.
+       if you set polycorrect=True, the sensfunc in the Hydrogen recombination line region (often seen in star spectra)
+       will be replaced by a smoothed polynomial function.
 
     Parameters:
     ----------
@@ -628,27 +618,21 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
       Instrument specific dict
       Used for extinction correction
     telluric : bool
-      if True performs a telluric correction
-    star_type : str
-      Spectral type of the telluric star (used if telluric=True)
-    star_mag : float
-      Apparent magnitude of telluric star (used if telluric=True)
-    RA : float
-      deg, RA of the telluric star
-      if assigned, the standard star spectrum will be extracted from
-      the archive
-    DEC : float
-      deg, DEC of the telluric star
-      if assigned, the standard star spectrum will be extracted from
-      the archive
-    BALM_MASK_WID : float
+      if True attemts to fit telluric absorption. See above, but this mode is deprecated.
+    balm_mask_wid: float
       Mask parameter for Balmer absorption. A region equal to
       BALM_MASK_WID*resln is masked where resln is the estimate
       for the spectral resolution.
     polycorrect: bool
       Whether you want to correct the sensfunc with polynomial in the Balmer absortion line regions
-    poly_norder: int
-      Order number of polynomial fit.
+    nresln (float): default = 20.0
+      Parameter governing the spacing of the bspline breakpoints.
+    resolution (float): default=3000.0
+      Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
+      not currently.
+    trans_thresh (float): default = 0.9
+        Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
+        If you have significant telluric absorption you should be using telluric.sensnfunc_telluric
 
     Returns:
     -------
@@ -690,8 +674,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             plt.show()
 
     # Get masks from observed star spectrum. True = Good pixels
-    msk_bad, msk_star, msk_tell = get_mask(wave_star, flux_star, ivar_star, mask_star, mask_balmer=True, mask_tell=True,
-                                           balm_mask_wid=balm_mask_wid, trans_thresh=0.9)
+    mask_bad, mask_balm, mask_tell = get_mask(wave_star, flux_star, ivar_star, mask_star, mask_balmer=True, mask_tell=True,
+                                           balm_mask_wid=balm_mask_wid, trans_thresh=trans_thresh)
 
     # Get sensfunc
     LBLRTM = False
@@ -699,10 +683,10 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
         # sensfunc = lblrtm_sensfunc() ???
         msgs.develop('fluxing and telluric correction based on LBLRTM model is under developing.')
     else:
-        sensfunc, mask_sens = standard_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, msk_bad=msk_bad, msk_star=msk_star,
-                                msk_tell=msk_tell, maxiter=35,upper=3.0, lower=3.0, polyorder=polyorder,
-                                balm_mask_wid=balm_mask_wid,nresln=nresln,telluric=telluric, resolution=resolution,
-                                polycorrect= polycorrect, debug=debug, show_QA=False)
+        sensfunc, mask_sens = standard_sensfunc(wave_star, flux_star, ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
+                                mask_tell=mask_tell, maxiter=35, upper=3.0, lower=3.0, polyorder=polyorder,
+                                balm_mask_wid=balm_mask_wid, nresln=nresln,telluric=telluric, resolution=resolution,
+                                polycorrect=polycorrect, debug=debug, show_QA=False)
 
     if debug:
         plt.plot(wave_star.value[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')
@@ -713,36 +697,32 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
         plt.show()
 
 
-    # Add in wavemin,wavemax
-    sens_dict = {}
-    sens_dict['wave'] = wave_star.value
-    sens_dict['sensfunc'] = sensfunc
-    sens_dict['wave_min'] = np.min(wave_star)
-    sens_dict['wave_max'] = np.max(wave_star)
-    sens_dict['exptime']= exptime
-    sens_dict['airmass']= airmass
-    sens_dict['std_file']= std_file
-    # Get other keys from standard dict
-    sens_dict['std_ra'] = std_dict['std_ra']
-    sens_dict['std_dec'] = std_dict['std_dec']
-    sens_dict['std_name'] = std_dict['name']
-    sens_dict['cal_file'] = std_dict['cal_file']
-    sens_dict['flux_true'] = flux_true
-    sens_dict['mask_sens'] = mask_sens
-    #sens_dict['std_dict'] = std_dict
-    #sens_dict['msk_star'] = msk_star
-    #sens_dict['mag_set'] = mag_set
+    # Allocate the meta parameter table, ext=1
+    meta_table = table.Table(meta={'name': 'Parameter Values'})
+    meta_table['WAVE_MIN'] = np.min(wave_star)
+    meta_table['WAVE_MAX'] = np.min(wave_star)
+    meta_table['EXPTIME'] = [exptime]
+    meta_table['AIRMASS'] = [airmass]
+    meta_table['STD_RA'] = [std_dict['std_ra']]
+    meta_table['STD_DEC'] = [std_dict['std_dec']]
+    meta_table['STD_NAME'] = [std_dict['name']]
+    meta_table['CAL_FILE'] = [std_dict['cal_file']]
+    # Allocate the output table, ext=2
+    out_table = table.Table(meta={'name': 'Sensitivity Function'})
+    out_table['WAVE'] = wave_star
+    out_table['SENSFUNC'] = sensfunc
+    out_table['MASK_SENS'] = mask_sens
 
-    return sens_dict
+    return meta_table, out_table
 
 
 
 
-def get_mask(wave_star,flux_star, ivar_star, mask_balmer=True, mask_tell=True, BALM_MASK_WID=10., trans_thresh=0.9):
+def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_balmer=True, mask_tell=True, balm_mask_wid=10., trans_thresh=0.9):
     '''
-    Get couple of masks from your observed standard spectrum.
-    Parameters
-    ----------
+    Get a couple of masks from your observed standard spectrum.
+
+    Args:
       wave_star: numpy array
         wavelength array of your spectrum
       flux_star: numpy array
@@ -755,8 +735,8 @@ def get_mask(wave_star,flux_star, ivar_star, mask_balmer=True, mask_tell=True, B
         whether you need to mask telluric region. If False, the returned msk_tell are all good.
       trans_thresh: float
         parameter for selecting telluric regions.
-    returns
-    ----------
+
+    Returns:
       msk_bad: bool type numpy array
         mask for bad pixels.
       msk_star: bool type numpy array
@@ -767,24 +747,25 @@ def get_mask(wave_star,flux_star, ivar_star, mask_balmer=True, mask_tell=True, B
 
     # Mask (True = good pixels)
     # mask for bad pixels
-    msk_bad = np.ones_like(flux_star).astype(bool)
+    #mask_bad = np.ones_like(flux_star).astype(bool)
     # mask for recombination lines
-    msk_star = np.ones_like(flux_star).astype(bool)
+    mask_balm = np.ones_like(flux_star).astype(bool)
     # mask for telluric regions
-    msk_tell = np.ones_like(flux_star).astype(bool)
+    mask_tell = np.ones_like(flux_star).astype(bool)
 
     # masking bad entries
     msgs.info(" Masking bad pixels")
-    msk_bad[ivar_star <= 0.] = False
-    msk_bad[flux_star <= 0.] = False
+    mask_bad = mask_star.copy()
+    mask_bad[ivar_star <= 0.] = False
+    mask_bad[flux_star <= 0.] = False
     # Mask edges
     msgs.info(" Masking edges")
-    msk_bad[:1] = False
-    msk_bad[-1:] = False
+    mask_bad[:1] = False
+    mask_bad[-1:] = False
     # Mask Atm. cutoff
     msgs.info(" Masking Below the atmospheric cutoff")
     atms_cutoff = wave_star <= 3000.0
-    msk_bad[atms_cutoff] = False
+    mask_bad[atms_cutoff] = False
 
     if mask_balmer:
         # Mask Balmer, Paschen, Brackett, and Pfund recombination lines
@@ -794,8 +775,8 @@ def get_mask(wave_star,flux_star, ivar_star, mask_balmer=True, mask_tell=True, B
         lines_balm = np.array([3836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7, 5407.0,
                                6564.6, 8224.8, 8239.2])
         for line_balm in lines_balm:
-            ibalm = np.abs(wave_star - line_balm) <= BALM_MASK_WID
-            msk_star[ibalm] = False
+            ibalm = np.abs(wave_star - line_balm) <= balm_mask_wid
+            mask_balm[ibalm] = False
         # Mask Paschen
         msgs.info(" Masking Paschen")
         # air wavelengths from:
@@ -804,24 +785,24 @@ def get_mask(wave_star,flux_star, ivar_star, mask_balmer=True, mask_tell=True, B
                                8865.2, 9017.4, 9229.0, 9546.0, 10049.4, 10938.1,
                                12818.1, 18751.0])
         for line_pasc in lines_pasc:
-            ipasc = np.abs(wave_star - line_pasc) <= BALM_MASK_WID
-            msk_star[ipasc] = False
+            ipasc = np.abs(wave_star - line_pasc) <= balm_mask_wid
+            mask_balm[ipasc] = False
         # Mask Brackett
         msgs.info(" Masking Brackett")
         # air wavelengths from:
         # https://www.subarutelescope.org/Science/Resources/lines/hi.html
         lines_brac = np.array([14584.0, 18174.0, 19446.0, 21655.0,26252.0, 40512.0])
         for line_brac in lines_brac:
-            ibrac = np.abs(wave_star - line_brac) <= BALM_MASK_WID
-            msk_star[ibrac] = False
+            ibrac = np.abs(wave_star - line_brac) <= balm_mask_wid
+            mask_balm[ibrac] = False
         # Mask Pfund
         msgs.info(" Masking Pfund")
         # air wavelengths from:
         # https://www.subarutelescope.org/Science/Resources/lines/hi.html
         lines_pfund = np.array([22788.0, 32961.0, 37395.0, 46525.0,74578.0])
         for line_pfund in lines_pfund:
-            ipfund = np.abs(wave_star - line_pfund) <= BALM_MASK_WID
-            msk_star[ipfund] = False
+            ipfund = np.abs(wave_star - line_pfund) <= balm_mask_wid
+            mask_balm[ipfund] = False
 
     if mask_tell:
         ## Mask telluric region in the optical
@@ -830,21 +811,21 @@ def get_mask(wave_star,flux_star, ivar_star, mask_balmer=True, mask_tell=True, B
                        ((wave_star >= 7580.00) & (wave_star <= 7750.00)), #O2 telluric band
                        ((wave_star >= 7160.00) & (wave_star <= 7340.00)), #H2O
                        ((wave_star >= 8150.00) & (wave_star <= 8250.00))],axis=0) #H2O
-        msk_tell[tell_opt] = False
+        mask_tell[tell_opt] = False
         ## Mask near-infrared telluric region
         if np.max(wave_star)>9100.0:
             # ToDo: should use the specific atmosphere transmission after FBD get the grid.
             ## Read atmosphere transmission
-            '''
-            if watervp <1.5:
-                skytrans_file = resource_filename('pypeit', '/data/skisim/'+'mktrans_zm_10_10.dat')
-            elif (watervp>=1.5 and watervp<2.3):
-                skytrans_file = resource_filename('pypeit', '/data/skisim/'+'mktrans_zm_16_10.dat')
-            elif (watervp>=2.3 and watervp<4.0):
-                skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_30_10.dat')
-            else:
-                skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_50_10.dat')
-            '''
+            #
+            #if watervp <1.5:
+            #    skytrans_file = resource_filename('pypeit', '/data/skisim/'+'mktrans_zm_10_10.dat')
+            #elif (watervp>=1.5 and watervp<2.3):
+            #    skytrans_file = resource_filename('pypeit', '/data/skisim/'+'mktrans_zm_16_10.dat')
+            #elif (watervp>=2.3 and watervp<4.0):
+            #    skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_30_10.dat')
+            #else:
+            #    skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_50_10.dat')
+            #
             skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_10_10.dat')
             skytrans = ascii.read(skytrans_file)
             wave_trans, trans = skytrans['wave'].data*10000.0, skytrans['trans'].data
@@ -857,15 +838,14 @@ def get_mask(wave_star,flux_star, ivar_star, mask_balmer=True, mask_tell=True, B
             trans_final = scipy.interpolate.interp1d(wave_trans[trans_use], trans_convolved,bounds_error=False,
                                                      fill_value='extrapolate')(wave_star)
             tell_nir = (trans_final<trans_thresh) & (wave_star>9100.0)
-            msk_tell[tell_nir] = False
+            mask_tell[tell_nir] = False
         else:
             msgs.info('Your spectrum is bluer than 9100A, only optical telluric regions are masked.')
 
-    return msk_bad, msk_star, msk_tell
+    return mask_bad, mask_balm, mask_tell
 
-#TODO This output format needs to be merged with sensfunc_telluric
-def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, msk_tell=None,
-                 maxiter=35, upper=2, lower=2, poly_norder=5, BALM_MASK_WID=50., nresln=20., telluric=True,
+def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask_tell=None,
+                 maxiter=35, upper=2.0, lower=2.0, polyorder=5, balm_mask_wid=50., nresln=20., telluric=True,
                  resolution=2700., polycorrect=True, debug=False, show_QA=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
@@ -892,12 +872,12 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
       number of sigma for rejection in polynomial
     lower : integer
       number of sigma for rejection in polynomial
-    poly_norder : integer
+    polyorder : integer
       order of polynomial fit
-    BALM_MASK_WID : float
+    balm_mask_wid: float
       in units of angstrom
       Mask parameter for Balmer absorption. A region equal to
-      BALM_MASK_WID is masked.
+      balm_mask_wid is masked.
     resolution: integer/float.
       spectra resolution
       This paramters should be removed in the future. The resolution should be estimated from spectra directly.
@@ -913,16 +893,16 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
     flux_obs = flux.copy()
     ivar_obs = ivar.copy()
     # preparing arrays
-    if np.all(~np.isfinite(ivar_obs)):
+    if np.all(np.invert(np.isfinite(ivar_obs))):
         msgs.warn("NaN are present in the inverse variance")
 
     # check masks
-    if msk_bad is None:
-        msk_bad = np.ones_like(wave_obs,dtype=bool)
-    if msk_tell is None:
-        msk_tell = np.ones_like(wave_obs,dtype=bool)
-    if msk_star is None:
-        msk_star = np.ones_like(wave_obs, dtype=bool)
+    #if mask_bad is None:
+    #    mask_bad = np.ones_like(wave_obs,dtype=bool)
+    if mask_tell is None:
+        mask_tell = np.ones_like(wave_obs,dtype=bool)
+    if mask_balm is None:
+        mask_balm = np.ones_like(wave_obs, dtype=bool)
 
     # Removing outliers
     # Calculate log of flux_obs setting a floor at TINY
@@ -939,17 +919,17 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
 
     # Define two new masks, True is good and False is masked pixel
     # mask for all bad pixels on sensfunc
-    masktot = msk_bad & msk_magfunc & np.isfinite(ivar_obs) & np.isfinite(logflux_obs) & np.isfinite(logflux_std)
+    masktot = mask_bad & msk_magfunc & np.isfinite(ivar_obs) & np.isfinite(logflux_obs) & np.isfinite(logflux_std)
     logivar_obs[np.invert(masktot)] = 0.0
     # mask used for polynomial fit
-    msk_fit_sens = masktot & msk_tell & msk_star
+    msk_fit_sens = masktot & mask_tell & mask_balm
 
     # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
-    _, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], poly_norder, \
-                                                    function='polynomial', invvar=None, guesses=None, maxiter=maxiter, \
-                                                    inmask=None, lower=lower, upper=upper, maxdev=None, \
-                                                    maxrej=None, groupdim=None, groupsize=None, groupbadpix=False, \
-                                                    grow=0, sticky=True, use_mad=True)
+    _, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], polyorder,
+                                             function='polynomial', invvar=None, guesses=None, maxiter=maxiter,
+                                             inmask=None, lower=lower, upper=upper, maxdev=None,
+                                             maxrej=None, groupdim=None, groupsize=None, groupbadpix=False,
+                                             grow=0, sticky=True, use_mad=True)
     magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
 
     # Polynomial corrections on Hydrogen Recombination lines
@@ -961,13 +941,13 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
         lines_hydrogen = np.array([5407.0, 6564.6, 8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, \
                                    8667.4, 8752.9, 8865.2, 9017.4, 9229.0, 10049.4, 10938.1, 12818.1, 21655.0])
         for line_hydrogen in lines_hydrogen:
-            ihydrogen = np.abs(wave_obs - line_hydrogen) <= BALM_MASK_WID
+            ihydrogen = np.abs(wave_obs - line_hydrogen) <= balm_mask_wid
             balmer_clean[ihydrogen] = True
         msk_clean = ((balmer_clean) | (magfunc == MAGFUNC_MAX) | (magfunc == MAGFUNC_MIN)) & \
                     (magfunc_poly > MAGFUNC_MIN) & (magfunc_poly < MAGFUNC_MAX)
         magfunc[msk_clean] = magfunc_poly[msk_clean]
         msk_badpix = np.isfinite(ivar_obs) & (ivar_obs > 0)
-        magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
+        magfunc[np.invert(msk_badpix)] = magfunc_poly[np.invert(msk_badpix)]
     else:
         ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
         msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
@@ -1002,7 +982,7 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
         # TESTING turning off masking for now
         # remove masked regions from breakpoints
         msk_obs = np.ones_like(wave_obs).astype(bool)
-        msk_obs[~masktot] = False
+        msk_obs[np.invert(masktot)] = False
         msk_bkpt = scipy.interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
         init_breakpoints = fullbkpt[msk_bkpt > 0.999]
 
@@ -1019,9 +999,9 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
             plt.figure(1)
             plt.plot(wave_obs, magfunc, drawstyle='steps-mid', color='black', label='magfunc')
             plt.plot(wave_obs, logfit1, color='cornflowerblue', label='logfit1')
-            plt.plot(wave_obs[~msk_fit_sens], magfunc[~msk_fit_sens], '+', color='red', markersize=5.0,
+            plt.plot(wave_obs[np.invert(msk_fit_sens)], magfunc[np.invert(msk_fit_sens)], '+', color='red', markersize=5.0,
                      label='masked magfunc')
-            plt.plot(wave_obs[~msk_fit_sens], logfit1[~msk_fit_sens], '+', color='red', markersize=5.0,
+            plt.plot(wave_obs[np.invert(msk_fit_sens)], logfit1[np.invert(msk_fit_sens)], '+', color='red', markersize=5.0,
                      label='masked logfit1')
             plt.plot(init_breakpoints, logfit_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
             plt.plot(init_breakpoints, np.interp(init_breakpoints, wave_obs, magfunc), '.', color='green',
@@ -1036,11 +1016,11 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
         # Create sensitivity function
         magfunc = np.maximum(np.minimum(logfit1, MAGFUNC_MAX), MAGFUNC_MIN)
         if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):
-            msk_clean = ((magfunc==MAGFUNC_MAX) | (magfunc==MAGFUNC_MIN)) & \
-                        (magfunc_poly>MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
+            msk_clean = ((magfunc == MAGFUNC_MAX) | (magfunc == MAGFUNC_MIN)) & \
+                        (magfunc_poly > MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
             magfunc[msk_clean] = magfunc_poly[msk_clean]
-            msk_badpix = np.isfinite(ivar_obs)& (ivar_obs>0)
-            magfunc[~msk_badpix] = magfunc_poly[~msk_badpix]
+            msk_badpix = np.isfinite(ivar_obs) & (ivar_obs>0)
+            magfunc[np.invert(msk_badpix)] = magfunc_poly[np.invert(msk_badpix)]
         else:
             ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
             msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
@@ -1053,9 +1033,9 @@ def standard_sensfunc(wave, flux, ivar, flux_std, msk_bad=None, msk_star=None, m
         magfunc_raw = logflux_std - logflux_obs
         plt.plot(wave_obs[masktot],magfunc_raw[masktot] , 'k-',lw=3,label='Raw Magfunc')
         plt.plot(wave_obs[masktot],magfunc_poly[masktot] , 'c-',lw=3,label='Polynomial Fit')
-        plt.plot(wave_obs[np.invert(msk_tell)], magfunc_raw[np.invert(msk_tell)], 's',
+        plt.plot(wave_obs[np.invert(mask_tell)], magfunc_raw[np.invert(mask_tell)], 's',
                  color='0.7',label='Telluric Region')
-        plt.plot(wave_obs[np.invert(msk_star)], magfunc_raw[np.invert(msk_star)], 'r+',label='Recombination Line region')
+        plt.plot(wave_obs[np.invert(mask_balm)], magfunc_raw[np.invert(mask_balm)], 'r+',label='Recombination Line region')
         plt.plot(wave_obs[masktot], magfunc[masktot],'b-',label='Final Magfunc')
         plt.legend(fancybox=True, shadow=True)
         plt.xlim([0.995*np.min(wave_obs[masktot]),1.005*np.max(wave_obs[masktot])])
