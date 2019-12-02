@@ -535,7 +535,27 @@ class Spectrograph(object):
             except (KeyError, TypeError):
                 value = None
 
-        if value is None:
+
+
+        # JFH Added this bit of code to deal with situations where the header card is there but the wrong type, e.g.
+        # MJD-OBS = 'null'
+        try:
+            if self.meta_data_model[meta_key]['dtype'] == str:
+                retvalue = str(value).strip()
+            elif self.meta_data_model[meta_key]['dtype'] == int:
+                retvalue = int(value)
+            elif self.meta_data_model[meta_key]['dtype'] == float:
+                retvalue = float(value)
+            elif self.meta_data_model[meta_key]['dtype'] == tuple:
+                assert isinstance(value, tuple)
+                retvalue = value
+            castable = True
+        except:
+            castable = False
+
+        # JFH Added the typing to prevent a crash below when the header value exists, but is the wrong type. This
+        # causes a crash below  when the value is cast.
+        if value is None or not castable:
             # Was this required?
             if required:
                 kerror = True
@@ -555,19 +575,21 @@ class Spectrograph(object):
                         self.meta[meta_key]['card']))
             return None
 
+        # JFH Old code which causes a crash when the type is wrong
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
-        if self.meta_data_model[meta_key]['dtype'] == str:
-            value = str(value).strip()
-        elif self.meta_data_model[meta_key]['dtype'] == int:
-            value = int(value)
-        elif self.meta_data_model[meta_key]['dtype'] == float:
-            value = float(value)
-        elif self.meta_data_model[meta_key]['dtype'] == tuple:
-            assert isinstance(value, tuple)
-        else:
-            debugger.set_trace()
+        #if self.meta_data_model[meta_key]['dtype'] == str:
+        #    value = str(value).strip()
+        #elif self.meta_data_model[meta_key]['dtype'] == int:
+        #    value = int(value)
+        #elif self.meta_data_model[meta_key]['dtype'] == float:
+        #    value = float(value)
+        #elif self.meta_data_model[meta_key]['dtype'] == tuple:
+        #    assert isinstance(value, tuple)
+        #else:
+        #    embed()
         # Return
-        return value
+
+        return retvalue
 
     def validate_metadata(self):
         """

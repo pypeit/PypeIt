@@ -1478,7 +1478,11 @@ class PypeItMetaData:
             ff.write('Setup {:s}\n'.format(setup))
             ff.write(yaml.dump(utils.yamlify(cfg)))
             ff.write('#---------------------------------------------------------\n')
-            subtbl.sort(['mjd']) # JFH added this line so that the output reads like a log file
+            mjd = subtbl['mjd'].copy()
+            # Deal with possibly None mjds if there were corrupt header cards
+            mjd[mjd == None] = -99999.0
+            isort = np.argsort(mjd)
+            subtbl = subtbl[isort]
             subtbl.write(ff, format='ascii.fixed_width')
         ff.write('##end\n')
         ff.close()
