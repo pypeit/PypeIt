@@ -115,7 +115,7 @@ class IR(SensFunc):
                                                  recombination=self.par['IR']['recombination'], polish=self.par['IR']['polish'],
                                                  disp=self.par['IR']['disp'], debug=self.debug)
 
-        self.meta_table, self.out_table = self.TelObj.meta_table, self.TelObj.meta_table
+        self.meta_table, self.out_table = self.TelObj.meta_table, self.TelObj.out_table
         # Add the algorithm to the meta_table
         self.meta_table['ALGORITHM'] = self.par['algorithm']
         return self.meta_table, self.out_table
