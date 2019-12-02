@@ -903,7 +903,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
                                           sigdetect=self.par['edge_thresh'])
-
         # Empty out the images prepared for left and right tracing
         # until they're needed.
         self.sobel_sig_left = None
@@ -1337,7 +1336,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                                     for b in np.unique(self.spat_msk)])).tolist()
 
     ## TODO It is confusing that this show routine shows images flipped from the PypeIt convention.
-    # It should be rewritten to show images with spectral direction vertical like all our other QA.
+    ## It should be rewritten to show images with spectral direction vertical like all our other QA.
     def show(self, traceid=None, include_error=False, thin=1, in_ginga=False, include_img=False,
              include_sobel=False, img_buffer=100, flag=None, idlabel=False):
         """

@@ -1151,7 +1151,7 @@ class MultiSlitCoadd2d(Coadd2d):
                                            trim_edg=self.par['scienceimage']['find_trim_edge'],
                                            npoly_cont=self.par['scienceimage']['find_npoly_cont'],
                                            maxdev=self.par['scienceimage']['find_maxdev'],
-                                           ncoeff=3, sig_thresh=10.0, nperslit=1,
+                                           ncoeff=3, sig_thresh=self.par['scienceimage']['sig_thresh'], nperslit=1,
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
