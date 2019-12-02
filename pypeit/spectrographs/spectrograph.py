@@ -719,15 +719,15 @@ class Spectrograph(object):
 
     @property
     def norders(self):
-        pass
+        return None
 
     @property
     def order_spat_pos(self):
-        pass
+        return None
 
     @property
     def orders(self):
-        pass
+        return None
 
     @property
     def spec_min_max(self):
@@ -735,11 +735,11 @@ class Spectrograph(object):
 
     @property
     def dloglam(self):
-        pass
+        return None
 
     @property
     def loglam_minmax(self):
-        pass
+        return None
 
     def slit2order(self, slit_spat_pos):
         """

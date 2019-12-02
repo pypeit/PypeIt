@@ -4171,6 +4171,48 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
 
+    def slit_spatial_center(self, normalized=True, spec=None, resort=False, use_center=False):
+        """
+        Return the spatial coordinate of the center of each slit.
+
+        The slit edges must be left-right synchronized.
+
+        Args:
+            normalized (:obj:`bool`, optional):
+                Return coordinates normalized by the size of the
+                detector.
+            spec (:obj:`int`, optional):
+                Spectral position (row) at which to return the
+                spatial position. If ``None``, set at the central row
+                (i.e., ``self.nspat//2``)
+            resort (:obj:`bool`, optional):
+                Ensure that the traces are sorted. If ``False``, they
+                are assumed to be.
+            use_center (:obj:`bool`, optional):
+                Use the measured centroids to define the slit edges
+                even if the slit edges have been otherwise modeled.
+
+        Returns:
+            `numpy.ndarray`_: Spatial coordinates of the slit centers
+            in pixels or in fractions of the detector.
+        """
+        if not self.is_synced:
+            msgs.error('EdgeTraceSet must be synced to compute slit centers.')
+
+        # TODO: Use reference_row by default? Except that it's only
+        # defined if the PCA is defined.
+        _spec = self.nspat//2 if spec is None else spec
+
+        # Resort if requested
+        if resort:
+            self.spatial_sort()
+
+        # Synced, spatially sorted traces are always ordered in left,
+        # right pairs
+        trace_cen = self.spat_cen if self.spat_fit is None or use_center else self.spat_fit
+        slit_c = np.mean(trace_cen[_spec,:].reshape(-1,2), axis=1)
+        return slit_c/self.nspat if normalized else slit_c
+
     def convert_to_tslits_dict(self):
         """
         Stop-gap function to construct the old tslits_dict object.
@@ -4293,6 +4335,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if not self.is_synced:
             msgs.error('Slit edges must be synced to produce slit image.')
 
+        # If the minimum and maximum spectral pixels are set for this
+        # spectrograph, grab them and make sure that the number of
+        # slits/orders found are consistent
+        minmax = self.spectrograph.spec_min_max
+
         # Find the pixels in each slit
         if pad is None:
             pad = self.par['pad']
@@ -4301,25 +4348,35 @@ class EdgeTraceSet(masterframe.MasterFrame):
         spat = np.arange(self.nspat)
         # Trace spatial centers
         trace_cen = self.spat_cen if self.spat_fit is None or use_center else self.spat_fit
-        # TODO: The approach below could be a memory hog if there are
-        # lots of slits and the images are large.
-        in_slit = (spat[None,None,:] > trace_cen[:,self.is_left,None] - pad) \
-                        & (spat[None,None,:] < trace_cen[:,self.is_right,None] + pad)
-        if self.spectrograph.spec_min_max is not None:
-            # Get the (unbinned or) normalized slit position
-            # Match slit to order
-            # Get spectral range in binned pixel coordinates
-            # Limit what's "in" the slit
-            pass
 
-        # Warn the user that the slits overlap
-        # TODO: Need to think about what the best approach is here;
-        # current behavior is described in the docstring.
-        if np.any(np.sum(in_slit, axis=1) > 1):
-            msgs.warn('Slits overlap!')
+        slitid_img = np.full((self.nspec,self.nspat), -1, dtype=int)
+        for s in range(1,self.nslits+1):
+            indx = (spat[None,:] > trace_cen[:,self.traceid == -s] - pad) \
+                        & (spat[None,:] < trace_cen[:,self.traceid == s] + pad)
+            slitid_img[indx] = s-1
+        return slitid_img
 
-        # Isolate and return a single slit to identify with each pixel
-        return np.amax(in_slit.astype(int) * np.arange(1,self.nslits+1)[None,:,None] - 1, axis=1)
+         
+        # TODO: Keep this for now. This approach was much slower and a
+        # memory hog, but the nice part was that it let you flag if
+        # slits overlapped...
+#        in_slit = (spat[None,None,:] > trace_cen[:,self.is_left,None] - pad) \
+#                        & (spat[None,None,:] < trace_cen[:,self.is_right,None] + pad)
+#        if self.spectrograph.spec_min_max is not None:
+#            # Get the (unbinned or) normalized slit position
+#            # Match slit to order
+#            # Get spectral range in binned pixel coordinates
+#            # Limit what's "in" the slit
+#            pass
+#
+#        # Warn the user that the slits overlap
+#        # TODO: Need to think about what the best approach is here;
+#        # current behavior is described in the docstring.
+#        if np.any(np.sum(in_slit, axis=1) > 1):
+#            msgs.warn('Slits overlap!')
+#
+#        # Isolate and return a single slit to identify with each pixel
+#        return np.amax(in_slit.astype(int) * np.arange(1,self.nslits+1)[None,:,None] - 1, axis=1)
 
 
 # TODO: This needs to be integrated into EdgeTraceSet, or just use
