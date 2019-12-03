@@ -24,7 +24,7 @@ from pypeit.core import procimg
 
 # TODO Add the data model up here as a standard thing, which is an astropy table.
 # data model needs a tag on whether its merged or not. For merged specobjs, you only apply sensfunc directly coefficients
-# are then nonsense. homogenize data model to be the same for both algorithms. 
+# are then nonsense. homogenize data model to be the same for both algorithms.
 
 #TODO Should this be a master frame? I think not.
 #TODO Standard output location for sensfunc?
