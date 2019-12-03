@@ -168,26 +168,26 @@ class SpecObjs(object):
     """
 
         # Read in the spec1d file
-        norders = self.nobj
+        norddet = self.nobj
         if ret_flam:
             # TODO Should nspec be an attribute of specobj?
             nspec = self[0].OPT_FLAM.size
         else:
             nspec = self[0].OPT_COUNTS.size
         # Allocate arrays and unpack spectrum
-        wave = np.zeros((nspec, norders))
-        flux = np.zeros((nspec, norders))
-        flux_ivar = np.zeros((nspec, norders))
-        flux_gpm = np.zeros((nspec, norders), dtype=bool)
-        for iord in range(norders):
-            wave[:, iord] = self[iord].OPT_WAVE
-            flux_gpm[:, iord] = self[iord].OPT_MASK
+        wave = np.zeros((nspec, norddet))
+        flux = np.zeros((nspec, norddet))
+        flux_ivar = np.zeros((nspec, norddet))
+        flux_gpm = np.zeros((nspec, norddet), dtype=bool)
+        for iorddet in range(norddet):
+            wave[:, iorddet] = self[iorddet].OPT_WAVE
+            flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
             if ret_flam:
-                flux[:, iord] = self[iord].OPT_FLAM
-                flux_ivar[:, iord] = self[iord].OPT_FLAM_IVAR
+                flux[:, iorddet] = self[iorddet].OPT_FLAM
+                flux_ivar[:, iorddet] = self[iorddet].OPT_FLAM_IVAR
             else:
-                flux[:, iord] = self[iord].OPT_COUNTS
-                flux_ivar[:, iord] = self[iord].OPT_COUNTS_IVAR
+                flux[:, iorddet] = self[iorddet].OPT_COUNTS
+                flux_ivar[:, iorddet] = self[iorddet].OPT_COUNTS_IVAR
 
         # Populate meta data
         pypeline = self[0].PYPELINE
@@ -207,7 +207,7 @@ class SpecObjs(object):
         # Add the pyp spec. Not sure why that is not already part of specobjs by default.
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
 
-        if pypeline == 'MultiSlit':
+        if pypeline == 'MultiSlit' and self.nobj == 1:
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
                    flux_gpm.reshape(nspec), meta_spec, self.header
         else:
@@ -218,13 +218,16 @@ class SpecObjs(object):
 
 
 
-    def get_std(self):
+    def get_std(self, multi_spec_det=None):
         """
         Return the standard star from this Specobjs. For MultiSlit this
         will be a single specobj in SpecObjs container, for Echelle it
         will be the standard for all the orders.
 
         Args:
+            multi_spec_det (list):
+                If there are multiple detectors arranged in the spectral direction, return the sobjs for
+                the standard on each detector.
 
         Returns:
             SpecObj or SpecObjs
@@ -233,15 +236,20 @@ class SpecObjs(object):
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
-            SNR = np.zeros(self.nobj)
             # Have to do a loop to extract the counts for all objects
-            for iobj in range(self.nobj):
-                SNR[iobj] = np.median(self[iobj].OPT_COUNTS*np.sqrt(
-                    self[iobj].OPT_COUNTS_IVAR))
-            # Maximize S/N
-            istd = SNR.argmax()
-            # Return
-            sobjs_std = SpecObjs(specobjs=[self[istd]])
+            SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+            # For multiple detectors grab the requested detectors
+            if multi_spec_det is not None:
+                sobjs_std = SpecObjs()
+                # Now append the maximum S/N object on each detector
+                for idet in multi_spec_det:
+                    this_det = self.DET == idet
+                    istd = SNR[this_det].argmax()
+                    sobjs_std.add_sobj(self[this_det][istd])
+            else: # For normal multislit take the brightest object
+                istd = SNR.argmax()
+                # Return
+                sobjs_std = SpecObjs(specobjs=[self[istd]])
             sobjs_std.header = self.header
             return sobjs_std
         elif 'Echelle' in pypeline:

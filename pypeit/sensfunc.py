@@ -36,7 +36,19 @@ from pypeit.core import procimg
 # multislit, but it will fail in cases where the detectors have different througphut, since there will be jumps in the
 # co-added spectrum across detector boundaries, making the sensunc discontinouus.
 
+# TODO Define sensfunc data model here.
+
 class SensFunc(object):
+    """
+    Class to generate sensitivity function from a standard star spectrum.
+
+    Args:
+        spec1dfile (str):
+            PypeIt spec1d file for the standard file.
+        sensfile:
+        par:
+        debug:
+    """
 
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -44,7 +56,6 @@ class SensFunc(object):
         return next(c for c in cls.__subclasses__() if c.__name__ == par['algorithm'])(spec1dfile, sensfile, par, debug=debug)
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
-
         self.spec1dfile = spec1dfile
         self.sensfile = sensfile
         self.par = par
@@ -55,7 +66,8 @@ class SensFunc(object):
         self.out_table = None
 
         # Read in the Standard star data
-        sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std()
+        multi_spec_det = [3,7]
+        sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=multi_spec_det)
         # Put spectrograph info into meta
         self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
         # Set spectrograph
@@ -143,6 +155,7 @@ class UVIS(SensFunc):
 
 
     def generate_sensfunc(self):
+        # TODO This routine needs to now operate on a array which is nspec, norder or nspec, ndet
         self.meta_table, self.out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                                               self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
                                                               self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],

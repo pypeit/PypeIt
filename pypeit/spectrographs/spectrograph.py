@@ -551,6 +551,7 @@ class Spectrograph(object):
                 retvalue = value
             castable = True
         except:
+            retvalue = None
             castable = False
 
         # JFH Added the typing to prevent a crash below when the header value exists, but is the wrong type. This

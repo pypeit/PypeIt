@@ -58,6 +58,7 @@ def read_sensfile(ifile):
 
 
 
+# TODO Need an option here for detectors, passed as a list of numbers in the SensFunc parset, or as --det 3 7 on the command line
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
@@ -126,6 +127,9 @@ def main(args):
     if args.algorithm is not None:
         par['sensfunc']['algorithm'] = args.algorithm
 
+    # TODO Add parsing of detectors here. If detectors passed from the command line, overwrite the parset values read
+    # in from the .sens file
+
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
     par['sensfunc'].to_config('sensfunc.par', section_name='sensfunc', include_descr=False)
@@ -134,9 +138,11 @@ def main(args):
     # Parse the output filename
     outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') if args.outfile is None else args.outfile
     # Instantiate the relevant class for the requested algorithm
-    sensobj= sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'], debug=args.debug)
+    sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'], debug=args.debug)
     # Generate the sensfunc
     meta_table, out_table = sensobj.generate_sensfunc()
     # Write it out to a file
     sensobj.save()
+
+    #TODO If --det is passed, then we need to here call sensobj.splice(sensfunc_files
     #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
