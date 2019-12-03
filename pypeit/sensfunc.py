@@ -22,6 +22,10 @@ from pypeit.core import load
 from pypeit.core import pixels
 from pypeit.core import procimg
 
+# TODO Add the data model up here as a standard thing, which is an astropy table.
+# data model needs a tag on whether its merged or not. For merged specobjs, you only apply sensfunc directly coefficients
+# are then nonsense. homogenize data model to be the same for both algorithms. 
+
 #TODO Should this be a master frame? I think not.
 #TODO Standard output location for sensfunc?
 #TODO What if the user wants to coadd exposures first for say a multi-detector instrument where detector runs in the wavelength
@@ -113,7 +117,7 @@ class SensFunc(object):
     def show(self):
         pass
 
-
+# TODO Add a method which optionally merges sensfunc using the nsens > 1 logic
 
 
 

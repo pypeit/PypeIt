@@ -58,7 +58,7 @@ def read_sensfile(ifile):
 
 
 
-# TODO Need an option here for detectors, passed as a list of numbers in the SensFunc parset, or as --det 3 7 on the command line
+# TODO Need an option here for multi_spec_det detectors, passed as a list of numbers in the SensFunc parset, or as --det 3 7 on the command line
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
