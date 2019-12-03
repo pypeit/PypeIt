@@ -24,6 +24,17 @@ from pypeit.core import procimg
 
 #TODO Should this be a master frame? I think not.
 #TODO Standard output location for sensfunc?
+#TODO What if the user wants to coadd exposures first for say a multi-detector instrument where detector runs in the wavelength
+# dimension, then compute a single sensfunc, rather than one for each detector? In that case this routine would need to run
+# on co-added data written in a different format? That is easy enough to do, but we need to require that that file
+# have certain meta data in its header.
+# TODO How do we deal with cases of multiple-detectors where detector runs in the spectral direction? This code currently
+# knows nothing about detectors. This is a tricky case. The options are:
+# 1) Flux calibrate each detector separately, and then apply detector specific sensfuncs. This works for longslit, but
+# but will fail for multislit, since different slits have different wavelength coverage.
+# 2) Co-add the standard star spectra in counts, and compute one global sensfunc for the data. This would work well for
+# multislit, but it will fail in cases where the detectors have different througphut, since there will be jumps in the
+# co-added spectrum across detector boundaries, making the sensunc discontinouus.
 
 class SensFunc(object):
 
