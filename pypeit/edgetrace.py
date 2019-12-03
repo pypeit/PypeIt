@@ -4158,11 +4158,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Stop-gap function to construct the old tslits_dict object.
         """
-
-        # JFH This is causing problems and I cannot figure out how to toggle is_sync when creating psuedo masters. Let's
-        # assume if we are converting to a tslits_dict we are always already synced.
-        #if not self.is_synced:
-        #    msgs.error('Edges must be synced to construct tslits_dict.')
+        # To construct at tslits_dict, the traces must be left-right
+        # synchronized.
+        if not self.is_synced:
+            msgs.error('Edges must be synced to construct tslits_dict.')
 
         tslits_dict = {}
 
@@ -4217,19 +4216,29 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   file, but just set it to 1 for now.
         this.det = 1
         this.binning = '{0},{1}'.format(tslits_dict['binspectral'], tslits_dict['binspatial'])
-
         #   - Build the trace data
-        nleft = tslits_dict['slit_left'].shape[1]
-        nright = tslits_dict['slit_righ'].shape[1]
-        this.traceid = np.append(-np.arange(nleft)-1, np.arange(nright)+1)
+        nslits = tslits_dict['slit_left'].shape[1]
+        #       - Force the input traces to be synced
+        if nslits != tslits_dict['slit_righ'].shape[1]:
+            msgs.error('Input dictionary has different number of left and right traces.')
+        #       - Initialize the trace arrays
+        this.traceid = np.append(-np.arange(nslits)-1, np.arange(nslits)+1)
         this.spat_cen = np.hstack((tslits_dict['slit_left'], tslits_dict['slit_righ']))
+        #       - Resort them into synced pairs; assumes left and right
+        #         slits are correctly ordered in the input dictionary
+        srt = np.arange(2*nslits).reshape(2,-1).T.ravel()
+        this.traceid = this.traceid[srt]
+        this.spat_cen = this.spat_cen[:,srt]
+        # - Dummy data to produce a complete object
+        #   TODO: Refactor so that the object can be put in a
+        #   "read-only" state.  Then these attributes wouldn't need to
+        #   be defined, but this state would prohibit the execution of
+        #   some methods.
         this.spat_fit = this.spat_cen.copy()
         this.spat_fit_type = 'legendre'
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
         this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
         this.spat_img = np.round(this.spat_cen).astype(int)
-        # JFH This does not work.
-        #this.is_synced = True
         return this
 
     def update_using_tslits_dict(self, tslits_dict):
