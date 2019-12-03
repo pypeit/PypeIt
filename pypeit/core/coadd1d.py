@@ -431,7 +431,8 @@ def median_filt_spec(flux, ivar, mask, med_width):
 
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
                      scale_min = 0.05, scale_max = 100.0, func='legendre', model ='square',
-                     maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01, debug=False):
+                     maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01,
+                     ref_percentile=70.0, debug=False):
     '''
     Routine for solving for the polynomial rescaling of an input spectrum flux to match a reference spectrum flux_ref.
     The two spectra need to be defined on the same wavelength grid. The code will work best if you choose the reference
@@ -501,7 +502,8 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     #
     nspec = wave.size
     # Determine an initial guess
-    ratio = robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=mask_ref)
+    ratio = robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=mask_ref,
+                                ref_percentile=ref_percentile)
     if 'poly' in model:
         guess = np.append(ratio, np.zeros(norder-1))
     elif 'square' in model:
@@ -1147,7 +1149,8 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
             else:
                 npoly = 1
         scale, fit_tuple, flux_scale, ivar_scale, outmask = solve_poly_ratio(
-            wave, flux, ivar, flux_ref_int, ivar_ref_int, npoly,mask=mask, mask_ref=mask_ref_int, debug=debug)
+            wave, flux, ivar, flux_ref_int, ivar_ref_int, npoly,mask=mask, mask_ref=mask_ref_int,
+            ref_percentile=ref_percentile, debug=debug)
     elif scale_method == 'median':
         # Median ratio (reference to spectrum)
         med_scale = robust_median_ratio(flux, ivar, flux_ref_int, ivar_ref_int,ref_percentile=ref_percentile,min_good=min_good,
@@ -1247,20 +1250,22 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     weights_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=weights_flat)
 
     # Calculate the stacked wavelength
+    ## FW: I changed from 0.0 to 1e-4 to remove extreme values
+    ## TODO: JFH Check that 1e-4 makes sense. It seems to me it should be a smaller number.
     wave_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=waves_flat*weights_flat)
-    wave_stack = (weights_total > 0.0)*wave_stack_total/(weights_total+(weights_total==0.))
+    wave_stack = (weights_total > 1e-4)*wave_stack_total/(weights_total+(weights_total==0.))
 
     # Calculate the stacked flux
     flux_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=fluxes_flat*weights_flat)
-    flux_stack = (weights_total > 0.0)*flux_stack_total/(weights_total+(weights_total==0.))
+    flux_stack = (weights_total > 1e-4)*flux_stack_total/(weights_total+(weights_total==0.))
 
     # Calculate the stacked ivar
     var_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=vars_flat*weights_flat**2)
-    var_stack = (weights_total > 0.0)*var_stack_total/(weights_total+(weights_total==0.))**2
+    var_stack = (weights_total > 1e-4)*var_stack_total/(weights_total+(weights_total==0.))**2
     ivar_stack = utils.inverse(var_stack)
 
     # New mask for the stack
-    mask_stack = (weights_total > 0.0) & (nused > 0.0)
+    mask_stack = (weights_total > 1e-4) & (nused > 0.0)
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
@@ -1908,17 +1913,19 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
     # Rescale spectra to line up with our preliminary stack so that we can sensibly reject outliers
     nexp = np.shape(fluxes)[1]
     fluxes_scale = np.zeros_like(fluxes)
-
-
     ivars_scale = np.zeros_like(ivars)
     scales = np.zeros_like(fluxes)
     scale_method_used = []
     for iexp in range(nexp):
+        if hand_scale is not None:
+            hand_scale_iexp = hand_scale[iexp]
+        else:
+            hand_scale_iexp = None
         # TODO Create a parset for the coadd parameters!!!
         fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp], scale_method_iexp = scale_spec(
             waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], sn[iexp], wave_stack, flux_stack, ivar_stack,
             mask=masks[:, iexp], mask_ref=mask_stack, ref_percentile=ref_percentile, maxiters=maxiter_scale,
-            sigrej=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale, sn_max_medscale=sn_max_medscale,
+            sigrej=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale_iexp, sn_max_medscale=sn_max_medscale,
             sn_min_medscale=sn_min_medscale, debug=debug, show=show)
         scale_method_used.append(scale_method_iexp)
 

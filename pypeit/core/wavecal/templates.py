@@ -624,6 +624,59 @@ def main(flg):
         lcut = [3200.]
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
+    if flg & (2**23):  # Magellan/FIRE
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'magellan_fire_echelle.json'
+        iout = 'magellan_fire_echelle.fits'
+        # Load
+        old_file = os.path.join(reid_path, iroot)
+        odict, par = waveio.load_reid_arxiv(old_file)
+
+        # Do it
+        orders = odict['fit2d']['orders'][::-1].astype(int)  # Flipped
+        all_wave = np.zeros((odict['0']['nspec'], orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk,order in enumerate(orders):
+            all_flux[:,kk] = odict[str(kk)]['spec']
+            if 'nir' in iroot:
+                all_wave[:,kk] = odict[str(kk)]['wave_soln']
+            else:
+                all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = os.path.join(reid_path, iout)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
+    if flg & (2**24): # FIRE longslit
+        binspec = 1
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        outroot = 'magellan_fire_long.fits'
+        xidl_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr_archive_fit.fits')
+        spec_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr2.sav')
+        fire_sol = Table.read(xidl_file)
+        wave = cheby_val(fire_sol['FFIT'].data[0], np.arange(2048), fire_sol['NRM'].data[0], fire_sol['NORD'].data[0])
+        wv_vac = airtovac(wave * units.AA)
+        xidl_dict = readsav(spec_file)
+        flux = xidl_dict['arc1d']
+        write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
+
+    # Gemini/Flamingos2
+    if flg & (2**25):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['Flamingos2_JH_JH.json','Flamingos2_HK_HK.json']
+        outroot=['Flamingos2_JH_JH.fits','Flamingos2_HK_HK.fits']
+        binspec = 1
+        slits = [0]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
 
 # Command line execution
 if __name__ == '__main__':
@@ -673,7 +726,13 @@ if __name__ == '__main__':
     #flg += 2**21  # Hamamatsu B600 XIDL
 
     # WHT/ISIS
-    flg += 2**22  # Convert JSON to FITS
+    #flg += 2**22  # Convert JSON to FITS
+    # Magellan/FIRE
+    #flg += 2**23  # FIRE Echelle
+    #flg += 2**24  # FIRElongslit
+    # Gemini Flamingos2
+    #flg += 2**25  # Longslit
+    flg += 2**25
 
     main(flg)
 

@@ -808,7 +808,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False,
+def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
@@ -932,9 +932,9 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             mwvsnippet = mwv[i0:i1]
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
-                                                              line_lists, 1, debug_xcorr=False,
+                                                              line_lists, 1, debug_xcorr=debug_xcorr,
                                                               nonlinear_counts=par['nonlinear_counts'],
-                                                              debug_reid=False,  # verbose=True,
+                                                              debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
                                                               cc_thresh=0.1, fwhm=par['fwhm'])
             # Deal with IDs
