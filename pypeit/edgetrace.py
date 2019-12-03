@@ -1049,7 +1049,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   - Add the tracing parameters
         self.par.to_header(prihdr)
         #   - List the completed methods, if there are any
-        if self.log is not None:
+        if self.log is not None and len(self.log) > 0:
             ndig = int(np.log10(len(self.log)))+1
             for i,m in enumerate(self.log):
                 prihdr['LOG{0}'.format(str(i+1).zfill(ndig))] \
