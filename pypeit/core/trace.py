@@ -768,6 +768,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
     xerr[indx] = fill_error
     if maxshift is None and maxerror is None and bitmask is None:
         # Nothing else to do
+        ## TODO: JFH It seems like this shold be returning indx here and not matherr if bitmask is None.
         return xfit, xerr, matherr
 
     # Flag large shifts
