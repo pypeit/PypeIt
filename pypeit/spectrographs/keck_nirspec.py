@@ -48,7 +48,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck/MOSFIRE
+        Set default parameters for Keck/NIRSPEC
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_nirspec_low'
