@@ -172,6 +172,7 @@ class WaveCalib(masterframe.MasterFrame):
 
             final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask,
                                                     n_final=self.par['n_final'],
+                                                    sigdetect=self.par['sigdetect'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
@@ -253,7 +254,7 @@ class WaveCalib(masterframe.MasterFrame):
             for slit in ok_mask:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit,
                                              out_dir=self.qa_path)
-                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
+                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile=outfile)
 
         # Return
         self.steps.append(inspect.stack()[0][3])

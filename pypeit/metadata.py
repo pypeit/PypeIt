@@ -215,6 +215,8 @@ class PypeItMetaData:
         additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
         additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
         additional_meta['detector'] = dict(dtype=str, comment='Name of detector')
+        additional_meta['arm'] = dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)')
+        additional_meta['datasec'] = dict(dtype=str, comment='Data section (windowing)')
 
         # Calibration lamps
         for kk in range(20):

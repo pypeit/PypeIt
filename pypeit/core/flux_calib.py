@@ -13,7 +13,6 @@ from astropy import coordinates
 from astropy.table import Table, Column
 from astropy.io import ascii
 from astropy.io import fits
-from astropy.stats import sigma_clipped_stats
 
 from matplotlib import pyplot as plt
 
@@ -25,6 +24,8 @@ from pypeit import debugger
 from pypeit.wavemodel import conv2res
 from pypeit.core import pydl, load, save, coadd1d
 from pypeit.spectrographs.util import load_spectrograph
+
+from IPython import embed
 
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
@@ -506,25 +507,6 @@ def apply_sensfunc_specobjs(specobjs, sens_meta, sens_table, airmass, exptime, e
         plt.ylabel('Flux')
         plt.show()
 
-def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, debug=False, show=False):
-
-    sens_meta = Table.read(sensfile, 1)
-    sens_table = Table.read(sensfile, 2)
-
-    nexp = np.size(fnames)
-    for iexp in range(nexp):
-        spec1dfile = fnames[iexp]
-        outfile = spec1dfile[:-5] + '_flux.fits'
-        sobjs, head = load.load_specobjs(spec1dfile)
-        instrument = head['INSTRUME']
-        spectrograph = load_spectrograph(instrument)
-        airmass, exptime = head['AIRMASS'], head['EXPTIME']
-        longitude, latitude = head['LON-OBS'], head['LAT-OBS']
-
-        apply_sensfunc_specobjs(sobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=extinct_correct,
-                                tell_correct=tell_correct, longitude=longitude, latitude=latitude,
-                                debug=debug, show=show)
-        save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
 
 ### Routines for standard sensfunc started from here
 def find_standard(specobj_list):
@@ -548,7 +530,7 @@ def find_standard(specobj_list):
         if spobj is None:
             medfx.append(0.)
         else:
-            medfx.append(np.median(spobj.boxcar['COUNTS']))
+            medfx.append(np.median(spobj.BOX_COUNTS))
     try:
         mxix = np.argmax(np.array(medfx))
     except:
@@ -580,56 +562,7 @@ def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=T
       Used for extinction correction
     """
 
-    # Loop on extraction modes
-    for extract_type in ['boxcar', 'optimal']:
-        extract = getattr(spec_obj, extract_type)
-        if len(extract) == 0:
-            continue
-        msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() + "{}".format(spec_obj))
-        try:
-            wave = np.copy(np.array(extract['WAVE_GRID']))
-        except KeyError:
-            wave = np.copy(np.array(extract['WAVE']))
-        wave_sens = sens_dict['wave']
-        sensfunc = sens_dict['sensfunc'].copy()
 
-        # Did the user request a telluric correction from the same file?
-        if telluric_correct and 'telluric' in sens_dict.keys():
-            # This assumes there is a separate telluric key in this dict.
-            telluric = sens_dict['telluric']
-            msgs.info('Applying telluric correction')
-            sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
-
-        sensfunc_obs = scipy.interpolate.interp1d(wave_sens, sensfunc, bounds_error = False, fill_value='extrapolate')(wave)
-
-        if extinct_correct:
-            if longitude is None or latitude is None:
-                msgs.error('You must specify longitude and latitude if we are extinction correcting')
-            # Apply Extinction if optical bands
-            msgs.info("Applying extinction correction")
-            msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-            extinct = load_extinction_data(longitude,latitude)
-            ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
-            senstot = sensfunc_obs * ext_corr
-        else:
-            senstot = sensfunc_obs.copy()
-
-        flam = extract['COUNTS'] * senstot/ exptime
-        flam_sig = (senstot/exptime)/ (np.sqrt(extract['COUNTS_IVAR']))
-        flam_var = extract['COUNTS_IVAR'] / (senstot / exptime) **2
-
-        # Mask bad pixels
-        msgs.info(" Masking bad pixels")
-        msk = np.zeros_like(senstot).astype(bool)
-        msk[senstot <= 0.] = True
-        msk[extract['COUNTS_IVAR'] <= 0.] = True
-        flam[msk] = 0.
-        flam_sig[msk] = 0.
-        flam_var[msk] = 0.
-
-        extract['FLAM'] = flam
-        extract['FLAM_SIG'] = flam_sig
-        extract['FLAM_IVAR'] = flam_var
 
 def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, latitude, telluric=True, star_type=None,
                       star_mag=None, ra=None, dec=None, std_file = None, poly_norder=4, BALM_MASK_WID=5., nresln=20.,
@@ -710,7 +643,8 @@ def generate_sensfunc(wave, counts, counts_ivar, airmass, exptime, longitude, la
     flux_star = flux_star * ext_corr
     ivar_star = ivar_star / ext_corr ** 2
 
-    std_dict =  get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
+    std_dict = get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
+
     # Interpolate the standard star onto the current set of observed wavelengths
     flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],bounds_error=False,
                                            fill_value='extrapolate')(wave_star)
@@ -886,7 +820,7 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BAL
             '''
             skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_10_10.dat')
             skytrans = ascii.read(skytrans_file)
-            wave_trans, trans = skytrans['wave']*10000.0, skytrans['trans']
+            wave_trans, trans = skytrans['wave'].data*10000.0, skytrans['trans'].data
             trans_use = (wave_trans>=np.min(wave_star)-100.0) & (wave_trans<=np.max(wave_star)+100.0)
             # Estimate the resolution of your spectra.
             # I assumed 3 pixels per resolution. This gives an approximate right resolution at the middle point.
