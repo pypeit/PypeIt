@@ -589,8 +589,8 @@ class Coadd2d(object):
         Args:
             slitorderid (int):
                The slit or order id that has the brightest object whose S/N will be used to determine the weight for each frame.
-            objid (np.ndarray): shape = (nexp,)
-               Array of object indices of the brightest object whose S/N will be used to determine the weight for each frame.
+            objid (np.ndarray):
+               Array of object indices with  shape = (nexp,) of the brightest object whose S/N will be used to determine the weight for each frame.
             const_weights (bool):
                Use constant weights for coadding the exposures. Default=False
 
