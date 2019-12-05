@@ -595,8 +595,6 @@ class Coadd2d(object):
                Use constant weights for coadding the exposures. Default=False
 
         Returns:
-            rms_sn, weights
-
             rms_sn : ndarray, shape = (len(specobjs_list),)
                 Root mean square S/N value for each input spectra
             weights : ndarray, shape (len(specobjs_list),)
