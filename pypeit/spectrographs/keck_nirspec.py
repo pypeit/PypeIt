@@ -111,7 +111,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [20, None]
         return par
 
-    # JFH Replaced with values from MOSFIRE above.
+    # JFH Replaced with updated values based on experienced with MOSFIRE above.
     #
     # @staticmethod
     # def default_pypeit_par():
