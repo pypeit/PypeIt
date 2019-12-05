@@ -126,6 +126,7 @@ class BitMask:
         are non-sequential. This is used primarily for instantiation
         the BitMask from bits written to a file where the NULL bits
         have been skipped.
+
         Args:
             keys (:obj:`list`, :obj:`str`):
                 Bit names
@@ -167,7 +168,8 @@ class BitMask:
         Returns:
             list: List of bit keywords.
         """
-        return list(set(self.bits.keys())-set(['NULL']))
+        k = numpy.array(list(self.bits.keys()))
+        return k[numpy.invert(k == 'NULL')]
 
     def info(self):
         """
@@ -362,6 +364,11 @@ class BitMask:
             Exception: Raised if the provided *flag* is not a string.
         """
         if flag is None:
+            value (int, array-like):
+                Bitmask value.  It should be less than or equal to
+                :attr:`max_value`; however, that is not checked.
+            flag (str, array-like):
+        
             raise ValueError('Provided bit name cannot be None.')
 
         _flag = self._prep_flags(flag)
