@@ -101,31 +101,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         return par
 
 
-#    def default_pypeit_par():
-#        """
-#        Set default parameters for NIRSPEC reductions
-#        """
-#        par = pypeitpar.PypeItPar()
-#        # No bias subtraction
-#        par['calibrations']['biasframe']['useframe'] = 'none'
-#        # No overscan
-#        for key in par['calibrations'].keys():
-#            if 'frame' in key:
-#                par['calibrations'][key]['process']['overscan'] = 'none'
-#
-#        # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
-#        par['flexure'] = pypeitpar.FlexurePar()
-#        par['flexure']['method'] = 'skip'
-#        # Lower the default threshold for tilts
-#        par['calibrations']['tilts']['tracethresh'] = 10.
-#        # Slits
-#        par['calibrations']['slits']['sigdetect'] = 200.
-#        # 1D wavelength solution
-#        par['calibrations']['wavelengths']['lamps'] = ['OH_R24000']
-#        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
-#        par['calibrations']['wavelengths']['sigdetect'] = 5.
-#
-#        return par
 
     def init_meta(self):
         """
