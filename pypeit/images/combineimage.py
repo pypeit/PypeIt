@@ -48,6 +48,8 @@ class CombineImage(object):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.par = par  # This musts be named this way as it is frequently a child
         self.files = files
+        if self.nfiles == 0:
+            msgs.error('Combineimage requires a list of files to instantiate')
 
     def process_one(self, filename, process_steps, bias, pixel_flat=None, illum_flat=None, bpm=None):
         """
