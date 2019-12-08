@@ -54,6 +54,8 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     frametype = 'arc'
     master_type = 'Arc'
 
+    #JFH TODO: files should be a reqiured argument for this class. save and load should be class methods
+    # which do not require an instance of the class.
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False, msbias=None):
     
