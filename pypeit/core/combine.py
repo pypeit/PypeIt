@@ -39,7 +39,7 @@ def maxnonsat(array, saturated):
 
 # TODO make weights optional and do uniform weighting without.
 def weighted_combine(weights, sci_list, var_list, inmask_stack,
-                     sigma_clip=False, sigma_clip_stack = None, sigrej=None, maxiters=5):
+                     sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
     """
 
     Args:

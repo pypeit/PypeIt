@@ -64,14 +64,24 @@ def get_sampling(waves, pix_per_R=3.0):
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
-    Parameters
-    ----------
-    spec
-    siglev
-    min_ampl
+    Simple wrapper to arc.detect_lines.
+    See that code for docs
 
-    Returns
-    -------
+    Args:
+        spec:
+        sigdetect:
+        fwhm:
+        fit_frac_fwhm:
+        cont_frac_fwhm:
+        max_frac_fwhm:
+        cont_samp:
+        niter_cont:
+        nonlinear_counts:
+        debug:
+
+    Returns:
+        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub
+            See arc.detect_lines
 
     """
 

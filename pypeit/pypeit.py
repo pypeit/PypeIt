@@ -14,7 +14,7 @@ from pypeit import reduce
 from pypeit.core import qa
 from pypeit.core import wave
 from pypeit.core import save
-from pypeit.core import load
+from pypeit import specobjs
 from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 from linetools import utils as ltu
@@ -369,7 +369,6 @@ class PypeIt(object):
         # TODO: JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
-        sci_dict['meta']['vel_corr'] = 0.
         sci_dict['meta']['ir_redux'] = self.ir_redux
 
         # Print status message
@@ -409,12 +408,9 @@ class PypeIt(object):
             sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
                 sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
                 sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-                sci_dict[self.det]['specobjs'], vel_corr \
+                sci_dict[self.det]['specobjs'], \
                         = self.extract_one(frames, self.det, bg_frames=bg_frames,
                                            std_outfile=std_outfile)
-            if vel_corr is not None:
-                sci_dict['meta']['vel_corr'] = vel_corr
-
             # JFH TODO write out the background frame?
 
         # Return
@@ -489,15 +485,15 @@ class PypeIt(object):
 
         """
         if std_redux is False and std_outfile is not None:
-            sobjs, hdr_std = load.load_specobjs(std_outfile)
+            sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
             # Does the detector match?
             # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
             # we would use the standard from another detector
-            this_det = sobjs.det == det
+            this_det = sobjs.DET == det
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
-                std_trace = sobjs_std.trace_spat
+                std_trace = sobjs_std.TRACE_SPAT
                 # flatten the array if this multislit
                 if 'MultiSlit' in self.spectrograph.pypeline:
                     std_trace = std_trace.flatten()
@@ -533,7 +529,6 @@ class PypeIt(object):
                 - ndarray: Model of inverse variance
                 - ndarray: Mask
                 - :obj:`pypeit.specobjs.SpecObjs`: spectra
-                - astropy.units.Quantity: velocity correction
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
@@ -588,8 +583,7 @@ class PypeIt(object):
             self.redux.find_objects(self.sciImg.image, std=self.std_redux, ir_redux=self.ir_redux,
                                     std_trace=std_trace, maskslits=self.maskslits,
                                     show=self.show & (not self.std_redux),
-                                    manual_extract_dict=manual_extract_dict,
-                                    final_search=False)
+                                    manual_extract_dict=manual_extract_dict)
 
         # Global sky subtraction, first pass. Uses skymask from object finding step above
         self.initial_sky = \
@@ -600,8 +594,7 @@ class PypeIt(object):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.redux.find_objects(self.sciImg.image - self.initial_sky, std=self.std_redux,
                                         ir_redux=self.ir_redux, std_trace=std_trace,maskslits=self.maskslits,
-                                        show=self.show, manual_extract_dict=manual_extract_dict,
-                                        final_search=True)
+                                        show=self.show, manual_extract_dict=manual_extract_dict)
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract, flexure, geo_motion
         if self.nobj > 0:
@@ -625,7 +618,7 @@ class PypeIt(object):
 
             # Grab coord
             radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
-            self.vel_corr = self.redux.helio_correct(self.sobjs, radec, self.obstime)
+            self.redux.helio_correct(self.sobjs, radec, self.obstime)
             #embed(header='620 of pypeit')
 
         else:
@@ -646,9 +639,8 @@ class PypeIt(object):
             if self.ir_redux:
                 self.sobjs_obj.purge_neg()
             self.sobjs = self.sobjs_obj
-            self.vel_corr = None
 
-        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.vel_corr
+        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename):
@@ -681,8 +673,7 @@ class PypeIt(object):
         # Determine the paths/filenames
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
                       self.spectrograph, head1d, head2d, self.science_path, basename,
-                      refframe=refframe, update_det=self.par['rdx']['detnum'],
-                      binning=self.fitstbl['binning'][frame])
+                      update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
     def msgs_reset(self):
         """

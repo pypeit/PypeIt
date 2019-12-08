@@ -1,329 +1,19 @@
 """ Module for the SpecObjs and SpecObj classes
 """
-import copy
+import os
 import re
 
 import numpy as np
 
-from scipy import interpolate
-
-from astropy import units
-from astropy.table import Table
 from astropy.units import Quantity
-from astropy.utils import isiterable
-
-from linetools.spectra import xspectrum1d
+from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.core import parse
+from pypeit.core import save
+from pypeit import specobj
+from pypeit.io import initialize_header
 
-naming_model = {}
-for key in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
-    naming_model[key.lower()] = key
-
-
-class SpecObj(object):
-    """Class to handle object spectra from a single exposure
-    One generates one of these Objects for each spectrum in the exposure. They are instantiated by the object
-    finding routine, and then all spectral extraction information for the object are assigned as attributes
-
-    Args:
-        shape (tuple): nspec, nspat
-           dimensions of the spectral image that the object is identified on
-        slit_spat_pos (tuple): tuple of floats (spat_left,spat_right)
-            The spatial pixel location of the left and right slit trace arrays evaluated at slit_spec_pos (see below). These
-            will be in the range (0,nspat)
-        slit_spec_pos (float):
-            The midpoint of the slit location in the spectral direction. This will typically be nspec/2, but must be in the
-            range (0,nspec)
-        det (int): Detector number
-        config (str, optional): Instrument configuration
-        objtype (str, optional)
-           Type of object ('unknown', 'standard', 'science')
-        slitid (int, optional):
-           Identifier for the slit (max=9999)
-
-    Attributes:
-        slitcen (float): Center of slit in fraction of total (trimmed) detector size at ypos
-        objid (int): Identifier for the object (max=999)
-        flex_shift (float): Flexure correction in pixels
-
-    Extraction dict's
-        'WAVE' : wave_opt  # Optimally extracted wavelengths
-        'COUNTS' : flux_opt  # Optimally extracted flux
-        'COUNTS_IVAR' : mivar_opt  # Inverse variance of optimally extracted flux using modelivar image
-        'COUNTS_NIVAR' : nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-        'MASK' : mask_opt  # Mask for optimally extracted flux
-        'COUNTS_SKY' : sky_opt  # Optimally extracted sky
-        'COUNTS_RN' : rn_opt  # Square root of optimally extracted read noise squared
-        'FRAC_USE' : frac_use  # Fraction of pixels in the object profile subimage used for this extraction
-        'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
-    """
-    # Attributes
-
-    def __init__(self, shape, slit_spat_pos, slit_spec_pos, det=1, setup=None, idx=None,
-                 slitid=999, orderindx=999, objtype='unknown', pypeline='unknown', spat_pixpos=None, config=None):
-
-
-        #Assign from init parameters
-        self.shape = shape
-        self.slit_spat_pos = slit_spat_pos
-        self.slit_spec_pos = slit_spec_pos
-        self.setup = setup
-        self.slitid = slitid
-        self.det = det
-        self.objtype = objtype
-        self.config = config
-        self.pypeline = pypeline
-
-        # ToDo add all attributes here and to the documentaiton
-
-        # Object finding attributes
-        self.sign = 1.0
-        self.objid = 999
-        self.spat_fracpos = None
-        self.smash_peakflux = None
-        self.fwhm = None
-        self.trace_spat = None
-        self.spat_pixpos = spat_pixpos # Position on the image in pixels at the midpoint of the slit in spectral direction
-        self.maskwidth = None
-        self.min_spat = None
-        self.max_spat = None
-        self.prof_nsigma = None
-        self.fwhmfit = None
-        self.smash_nsig = None
-
-        # Wavelength items
-        self.flex_shift = 0.
-
-        # Some things for echelle functionality
-        self.ech_order = 0 # Needs a default value
-        self.ech_orderindx = orderindx
-        self.ech_objid = 999
-        self.ech_snr = None
-        self.ech_fracpos = None
-        self.ech_frac_was_fit = None
-        self.ech_usepca = False
-
-        # Attributes for HAND apertures, which are object added to the extraction by hand
-        self.hand_extract_spec = None
-        self.hand_extract_spat = None
-        self.hand_extract_det = None
-        self.hand_extract_fwhm = None
-        self.hand_extract_flag = False
-
-
-        # Dictionaries holding boxcar and optimal extraction parameters
-        self.boxcar = {}   # Boxcar extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
-        self.optimal = {}  # Optimal extraction 'wave', 'counts', 'var', 'sky', 'mask', 'flam', 'flam_var'
-
-
-
-        # Generate IDs
-        #self.slitid = int(np.round(self.slitcen*1e4))
-        #self.objid = int(np.round(xobj*1e3))
-
-        # Set index
-        if idx is None:
-            self.set_idx()
-        else:
-            self.idx = idx
-        #
-
-    @staticmethod
-    def sobjs_key():
-        """
-        This function returns the dictionary that defines the mapping between specobjs attributes and the fits header
-        cards
-
-        Returns:
-            dict:
-
-        """
-        sobjs_key_dict = dict(det='DET',
-                              objid='OBJID',
-                              slitid='SLITID',
-                              ech_objid='ECHOBJID',
-                              ech_orderindx='ECHOINDX',
-                              ech_order='ECHORDER',
-                              pypeline='PYPELINE')
-
-        return sobjs_key_dict
-
-
-    def set_idx(self):
-        """
-        Generate a unique index for this spectrum
-
-        Sets self.idx internally
-
-        Returns:
-            str: :attr:`self.idx`
-
-        """
-        # Detector string
-        sdet = parse.get_dnum(self.det, prefix=False)
-
-        if 'Echelle' in self.pypeline:
-            # ObjID
-            self.idx = naming_model['obj']
-            if self.ech_objid is None:
-                self.idx += '----'
-            else:
-                self.idx += '{:04d}'.format(self.ech_objid)
-            self.idx += '-'+naming_model['order']
-            # Order
-            if self.ech_orderindx is None:
-                self.idx += '----'
-            else:
-                self.idx += '{:04d}'.format(self.ech_order)
-        else:
-            # Spat
-            self.idx = naming_model['spat']
-            if self.spat_pixpos is None:
-                self.idx += '----'
-            else:
-                self.idx += '{:04d}'.format(int(np.rint(self.spat_pixpos)))
-            # Slit
-            self.idx += '-'+naming_model['slit']
-            if self.slitid is None:
-                self.idx += '----'
-            else:
-                self.idx += '{:04d}'.format(self.slitid)
-
-        self.idx += '-{:s}{:s}'.format(naming_model['det'], sdet)
-        # Return
-        return self.idx
-
-    def check_trace(self, trace, toler=1.):
-        """
-        Check that the input trace matches the defined specobjexp
-
-        Args:
-            trace (ndarray): Trace of the object
-            toler (float): Tolerance for matching, in pixels
-
-        Returns:
-            bool:  True = match within tolerance
-
-        """
-        # Trace
-        yidx = int(np.round(self.ypos*trace.size))
-        obj_trc = trace[yidx]
-        # self
-        nslit = self.shape[1]*(self.xslit[1]-self.xslit[0])
-        xobj_pix = self.shape[1]*self.xslit[0] + nslit*self.xobj
-        # Check
-        if np.abs(obj_trc-xobj_pix) < toler:
-            return True
-        else:
-            return False
-
-    def copy(self):
-        """
-        Generate a copy of this object
-
-        Returns:
-            SpecObj
-
-        """
-        sobj_copy = SpecObj(self.shape, self.slit_spat_pos, self.slit_spec_pos) # Instantiate
-#        sobj_copy.__dict__ = self.__dict__.copy() # Copy over all attributes
-#        sobj_copy.boxcar = self.boxcar.copy() # Copy boxcar and optimal dicts
-#        sobj_copy.optimal = self.optimal.copy()
-        sobj_copy.__dict__ = copy.deepcopy(self.__dict__)
-        sobj_copy.boxcar = copy.deepcopy(self.boxcar) # Copy boxcar and optimal dicts
-        sobj_copy.optimal = copy.deepcopy(self.optimal)
-        # These attributes are numpy arrays that don't seem to copy from the lines above??
-        return sobj_copy
-
-    def flexure_interp(self, sky_wave, fdict):
-        """
-        Apply interpolation with the flexure dict
-
-        Args:
-            sky_wave (np.ndarray): Wavelengths of the extracted sky
-            fdict (dict): Holds the various flexure items
-
-        Returns:
-            np.ndarray:  New sky spectrum (mainly for QA)
-
-        """
-        # Simple interpolation to apply
-        npix = len(sky_wave)
-        x = np.linspace(0., 1., npix)
-        # Apply
-        for attr in ['boxcar', 'optimal']:
-            if not hasattr(self, attr):
-                continue
-            if 'WAVE' in getattr(self, attr).keys():
-                msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
-                          msgs.newline() + "{0:s}".format(str(self)))
-                f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                getattr(self, attr)['WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
-        # Shift sky spec too
-        cut_sky = fdict['sky_spec']
-        x = np.linspace(0., 1., cut_sky.npix)
-        f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-        twave = f(x + fdict['shift'] / (cut_sky.npix - 1)) * units.AA
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
-        # Save
-        self.flex_shift = fdict['shift']
-        # Return
-        return new_sky
-
-    def to_xspec1d(self, extraction='optimal'):
-        """
-        Convert the SpecObj to an XSpectrum1D object
-
-        Args:
-            extraction (str): Extraction method to convert
-
-        Returns:
-            linetools.spectra.xspectrum1d.XSpectrum1D:  Spectrum object
-
-        """
-        extract = getattr(self, extraction)
-        if len(extract) == 0:
-            msgs.warn("This object has not been extracted with extract={}".format(extraction))
-        if 'FLAM' in extract:
-            flux = extract['FLAM']
-            sig = extract['FLAM_SIG']
-        else:
-            flux = extract['COUNTS']
-            sig = np.zeros_like(flux)
-            gdc = extract['COUNTS_IVAR'] > 0.
-            sig[gdc] = 1./np.sqrt(extract['COUNTS_IVAR'][gdc])
-        # Create
-        xspec = xspectrum1d.XSpectrum1D.from_tuple((extract['WAVE'], flux, sig))
-        return xspec
-
-    def show(self, extraction='optimal'):
-        """
-        Show the spectrum by converting it to a XSpectrum1D object
-
-        Args:
-            extraction (str): Extraction option 'optimal' or 'boxcar'
-
-        Returns:
-
-        """
-        extract = getattr(self, extraction)
-        # Generate an XSpec
-        xspec = self.to_xspec1d(extraction=extraction)
-        if xspec is None:
-            return
-        xspec.plot(xspec=True)
-
-    def __getitem__(self, key):
-        # Access the DB groups
-        return getattr(self, key)
-
-    def __repr__(self):
-        # Create a single summary table for one object, so that the representation is always the same
-        sobjs = SpecObjs(specobjs=[self])
-        return sobjs.summary.__repr__()
-
+from IPython import embed
 
 class SpecObjs(object):
     """
@@ -352,7 +42,52 @@ class SpecObjs(object):
         First attempts to grab data from the Summary table, then the list
     """
 
+    @classmethod
+    def from_fitsfile(cls, fits_file):
+        """
+        Instantiate from a FITS file
+
+        Also tag on the Header
+
+        Args:
+            fits_file (str):
+
+        Returns:
+            specobsj.SpecObjs
+
+        """
+        # HDUList
+        hdul = fits.open(fits_file)
+        nhdu = len(hdul)
+        # Init
+        slf = cls()
+        # Add on the header
+        slf.header = hdul[0].header
+        # Loop on em
+        for kk in range(1,nhdu):
+            tbl = fits.connect.read_table_fits(hdul, hdu=kk)
+            sobj = specobj.SpecObj.from_table(tbl)
+            slf.add_sobj(sobj)
+
+        # PYPELINE specific
+        if slf[0].PYPELINE == 'Echelle':
+            # Set ech_objid
+            uni_frac = np.unique(slf.ECH_FRACPOS)
+            for ii, ufrac in enumerate(uni_frac):
+                idx = np.isclose(slf.ECH_FRACPOS, ufrac)
+                slf[idx].ech_objid = ii
+            # Set ech_orderindx
+            uni_order = np.unique(slf.ECH_ORDER)
+            for ii, uorder in enumerate(uni_order):
+                idx = slf.ECH_ORDER == uorder
+                slf[idx].ech_orderindx = ii
+
+        # Return
+        return slf
+
     def __init__(self, specobjs=None):
+
+        # Only one attribute is allowed for this Object -- specobjs
         if specobjs is None:
             self.specobjs = np.array([])
         else:
@@ -360,8 +95,29 @@ class SpecObjs(object):
                 specobjs = np.array(specobjs)
             self.specobjs = specobjs
 
-        # Internal summary Table
-        self.build_summary()
+        # Other attributes
+        self.header = None
+
+        # Turn off attributes from here
+        #   Anything else set will be on the individual specobj objects in the specobjs array
+        self.__initialised = True
+
+    def __setattr__(self, item, value):
+
+        if not '_SpecObjs__initialised' in self.__dict__:  # this test allows attributes to be set in the __init__ method
+            return dict.__setattr__(self, item, value)
+        elif item in self.__dict__:  # any normal attributes are handled normally
+            dict.__setattr__(self, item, value)
+        else:
+            # Special handling when the input is an array/list and the length matches that of the slice
+            if isinstance(value, (list, np.ndarray)):
+                if len(self.specobjs) == len(value):  # Assume these are to be paired up
+                    for kk, specobj in enumerate(self.specobjs):
+                        setattr(specobj, item, value[kk])
+                    return
+            #
+            for specobj in self.specobjs:
+                setattr(specobj, item, value)
 
     @property
     def nobj(self):
@@ -372,7 +128,7 @@ class SpecObjs(object):
             int
 
         """
-        return self.specobjs.size
+        return len(self.specobjs)
 
     def get_std(self):
         """
@@ -387,33 +143,38 @@ class SpecObjs(object):
 
         """
         # Is this MultiSlit or Echelle
-        pypeline = (self.pypeline)[0]
+        pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
-            nspec = self[0].optimal['COUNTS'].size
             SNR = np.zeros(self.nobj)
             # Have to do a loop to extract the counts for all objects
             for iobj in range(self.nobj):
-                SNR[iobj] = np.median(self[iobj].optimal['COUNTS']*np.sqrt(self[iobj].optimal['COUNTS_IVAR']))
+                SNR[iobj] = np.median(self[iobj].OPT_COUNTS*np.sqrt(
+                    self[iobj].OPT_COUNTS_IVAR))
+            # Maximize S/N
             istd = SNR.argmax()
+            # Return
             return SpecObjs(specobjs=[self[istd]])
         elif 'Echelle' in pypeline:
-            uni_objid = np.unique(self.ech_objid)
-            uni_order = np.unique(self.ech_orderindx)
+            uni_objid = np.unique(self.ECH_FRACPOS)  # A little risky using floats
+            uni_order = np.unique(self.ECH_ORDER)
             nobj = len(uni_objid)
             norders = len(uni_order)
+            # Build up S/N
             SNR = np.zeros((norders, nobj))
             for iobj in range(nobj):
                 for iord in range(norders):
-                    ind = (self.ech_objid == uni_objid[iobj]) & (self.ech_orderindx == uni_order[iord])
+                    ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
-                    SNR[iord, iobj] = np.median(spec[0].optimal['COUNTS']*np.sqrt(spec[0].optimal['COUNTS_IVAR']))
+                    SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
+            # Maximize S/N
             SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
             objid_std = uni_objid[SNR_all.argmax()]
-            indx = self.ech_objid == objid_std
+            # Finish
+            indx = self.ECH_FRACPOS == objid_std
+            # Return
             return SpecObjs(specobjs=self[indx])
         else:
             msgs.error('Unknown pypeline')
-
 
     def append_neg(self, sobjs_neg):
         """
@@ -423,25 +184,22 @@ class SpecObjs(object):
             sobjs_neg (SpecObjs):
 
         """
-
+        if sobjs_neg.nobj == 0:
+            msgs.warn("No negative objects found...")
+            return
         # Assign the sign and the objids
-        for spec in sobjs_neg:
-            spec.sign = -1.0
-            try:
-                spec.objid = -spec.objid
-            except TypeError:
-                pass
-            try:
-                spec.ech_objid = -spec.ech_objid
-            except TypeError:
-                pass
-
+        sobjs_neg.sign = -1.0
+        if sobjs_neg[0].PYPELINE == 'Echelle':
+            sobjs_neg.ech_objid = -1*sobjs_neg.ech_objid
+        elif sobjs_neg[0].PYPELINE == 'MultiSlit':
+            sobjs_neg.objid = -sobjs_neg.objid
+        else:
+            msgs.error("Should not get here")
         self.add_sobj(sobjs_neg)
 
         # Sort objects according to their spatial location. Necessary for the extraction to properly work
         if self.nobj > 0:
-            spat_pixpos = self.spat_pixpos
-            self.specobjs = self.specobjs[spat_pixpos.argsort()]
+            self.specobjs = self.specobjs[np.argsort(self.SPAT_PIXPOS)]
 
     def purge_neg(self):
         """
@@ -453,6 +211,22 @@ class SpecObjs(object):
             index = (self.objid < 0) | (self.ech_objid < 0)
             self.remove_sobj(index)
 
+    def slitorder_indices(self, slitorder):
+        """
+        Return the set of indices matching the input slit/order
+        """
+        if self[0].PYPELINE == 'Echelle':
+            indx = self.ech_orderindx == slitorder
+        elif self[0].PYPELINE == 'MultiSlit':
+            indx = self.SLITID == slitorder
+        else:
+            msgs.error("Should not get here")
+        #
+        return indx
+
+    def set_names(self):
+        for sobj in self.specobjs:
+            sobj.set_name()
 
     def add_sobj(self, sobj):
         """
@@ -466,37 +240,12 @@ class SpecObjs(object):
 
 
         """
-        if isinstance(sobj, SpecObj):
+        if isinstance(sobj, specobj.SpecObj):
             self.specobjs = np.append(self.specobjs, [sobj])
         elif isinstance(sobj, (np.ndarray,list)):
             self.specobjs = np.append(self.specobjs, sobj)
         elif isinstance(sobj, SpecObjs):
             self.specobjs = np.append(self.specobjs, sobj)
-
-        # Rebuild summary table
-        self.build_summary()
-
-    def build_summary(self):
-        """
-        Build the internal Summary Table
-
-        Returns:
-            Builds self.summary Table internally
-
-        """
-        # Dummy?
-        if len(self.specobjs) == 0:
-            self.summary = Table()
-            return
-        #
-        atts = self.specobjs[0].__dict__.keys()
-        uber_dict = {}
-        for key in atts:
-            uber_dict[key] = []
-            for sobj in self.specobjs:
-                uber_dict[key] += [getattr(sobj, key)]
-        # Build it
-        self.summary = Table(uber_dict)
 
     def remove_sobj(self, index):
         """
@@ -512,9 +261,6 @@ class SpecObjs(object):
         msk[index] = False
         # Do it
         self.specobjs = self.specobjs[msk]
-        # Update
-        self.build_summary()
-
 
     def copy(self):
         """
@@ -527,8 +273,11 @@ class SpecObjs(object):
         sobj_copy = SpecObjs()
         for sobj in self.specobjs:
             sobj_copy.add_sobj(sobj.copy())
-        sobj_copy.build_summary()
         return sobj_copy
+
+    def grab_spec_arrays(self, obj_id, DET=None, ECH_ORDER=None, **kwargs):
+        # In development
+        pass
 
     def set_idx(self):
         """
@@ -540,14 +289,12 @@ class SpecObjs(object):
         """
         for sobj in self.specobjs:
             sobj.set_idx()
-        self.build_summary()
-
 
     def __getitem__(self, item):
         if isinstance(item, str):
             return self.__getattr__(item)
         elif isinstance(item, (int, np.integer)):
-            return self.specobjs[item] # TODO Is this using pointers or creating new data????
+            return self.specobjs[item]   # TODO Is this using pointers or creating new data????
         elif (isinstance(item, slice) or  # Stolen from astropy.table
             isinstance(item, np.ndarray) or
             isinstance(item, list) or
@@ -557,180 +304,110 @@ class SpecObjs(object):
             # For all, a new table is constructed with slice of all columns
             return SpecObjs(specobjs=self.specobjs[item])
 
-
-    # TODO this code fails for assignments of this nature sobjs[:].attribute = np.array(5)
-    def __setitem__(self, name, value):
-        self.set(slice(0,self.nobj), name, value)
-
-    def set(self, islice, attr, value):
-        """
-        Set the attribute for a slice of the specobjs
-
-        Args:
-            islice (int, ndarray of bool, slice):  Indicates SpecObj to affect
-            attr (str):
-            value (anything) : Value of the item
-
-        Returns:
-
-        """
-        sub_sobjs = self.specobjs[islice]
-        if isiterable(value):
-            if sub_sobjs.size == len(value):  # Assume you want each paired up
-                for kk,sobj in enumerate(sub_sobjs):
-                    setattr(sobj, attr, value[kk])
-                    return
-        # Assuming scalar assignment
-        if isinstance(sub_sobjs, SpecObj):
-            setattr(sub_sobjs, attr, value)
-        else:
-            for sobj in sub_sobjs:
-                setattr(sobj, attr, value)
-        return
-
-
     def __getattr__(self, k):
-        # Overloaded
-        self.build_summary()
-        # Special case(s)
-        if k in self.summary.keys():  # _data
-            lst = self.summary[k]
-        else:
-            lst = None
-        # specobjs last!
-        if lst is None:
-            if len(self.specobjs) == 0:
-                raise ValueError("Attribute not available!")
-            try:
-                lst = [getattr(specobj, k) for specobj in self.specobjs]
-            except ValueError:
-                raise ValueError("Attribute does not exist")
+        if len(self.specobjs) == 0:
+            raise ValueError("Empty specobjs")
+        try:
+            lst = [getattr(specobj, k) for specobj in self.specobjs]
+        except ValueError:
+            raise ValueError("Attribute does not exist")
         # Recast as an array
         return lst_to_array(lst)
 
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state):
-        self.__dict__ = state
-
     # Printing
     def __repr__(self):
-        return self.summary.__repr__()
+        txt = '<{:s}:'.format(self.__class__.__name__)
+        if self.nobj == 0:
+            txt += "Empty SpecObjs"
+        else:
+            txt += '\n'
+            for sobj in self.specobjs:
+                txt += '  {} \n'.format(sobj)
+        txt += '>'
+        return txt
 
     def __len__(self):
         return len(self.specobjs)
 
-    def keys(self):
-        self.build_summary()
-        return self.summary.keys()
+    def write_to_fits(self, outfile, header=None, spectrograph=None, overwrite=True,
+                      update_det=None):
+        """
+        Write the set of SpecObj objects to one multi-extension FITS file
 
+        Args:
+            outfile (str):
+            header:
+            spectrograph:
+            overwrite (bool, optional):
+            update_det (int or list, optional):
+              If provided, do not clobber the existing file but only update
+              the indicated detectors.  Useful for re-running on a subset of detectors
 
+        """
+        if os.path.isfile(outfile) and (not overwrite):
+            msgs.warn("Outfile exists.  Set overwrite=True to clobber it")
+            return
 
-def objnm_to_dict(objnm):
-    """ Convert an object name or list of them into a dict
+        # If the file exists and update_det is provided, use the existing header
+        #   and load up all the other hdus so that we only over-write the ones
+        #   we are updating
+        if os.path.isfile(outfile) and (update_det is not None):
+            hdus, prihdu = save.init_hdus(update_det, outfile)
+        else:
+            # Build up the Header
+            prihdu = fits.PrimaryHDU()
+            hdus = [prihdu]
+            # Add to the header from input header
+            if header is not None:
+                try:
+                    prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
+                except KeyError:
+                    prihdu.header['MJD-OBS'] = header['MJD-OBS']
+                if spectrograph is not None:
+                    core_keys = spectrograph.header_cards_for_spec()
+                    for key in core_keys:
+                        # Allow for fitstbl vs. header
+                        try:
+                            prihdu.header[key.upper()] = header[key.upper()]
+                        except KeyError:
+                            prihdu.header[key.upper()] = header[key]
+            if spectrograph is not None:
+                # Specify which pipeline created this file
+                prihdu.header['PYPELINE'] = spectrograph.pypeline
+                prihdu.header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+                # Observatory
+                telescope = spectrograph.telescope
+                prihdu.header['LON-OBS'] = telescope['longitude']
+                prihdu.header['LAT-OBS'] = telescope['latitude']
+                prihdu.header['ALT-OBS'] = telescope['elevation']
 
-    Parameters
-    ----------
-    objnm : str or list of str
+        ext = len(hdus)-1
+        # Loop on the SpecObj objects
+        for sobj in self.specobjs:
+            if sobj is None:
+                continue
+            ext += 1
+            # Add header keyword
+            keywd = 'EXT{:04d}'.format(ext)
+            prihdu.header[keywd] = sobj.name
 
-    Returns
-    -------
-    odict : dict
-      Object value or list of object values
-    """
-    if isinstance(objnm, list):
-        tdict = {}
-        for kk,iobj in enumerate(objnm):
-            idict = objnm_to_dict(iobj)
-            if kk == 0:
-                for key in idict.keys():
-                    tdict[key] = []
-            # Fill
-            for key in idict.keys():
-                tdict[key].append(idict[key])
-        # Generate the Table
-        return tdict
-    # Generate the dict
-    prs = objnm.split('-')
-    odict = {}
-    for iprs in prs:
-        # Find first character that is an integer
-        idig = re.search("\d", iprs).start()
-        odict[iprs[:idig]] = int(iprs[idig:])
-    # Return
-    return odict
+            # Table
+            shdu = fits.table_to_hdu(sobj._data)
+            shdu.name = sobj.name
+            # Append
+            hdus += [shdu]
 
+        # A few more for the header
+        prihdu.header['NSPEC'] = len(hdus) - 1
+        #prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
+        # Code versions
+        _ = initialize_header(prihdu.header)
 
-def mtch_obj_to_objects(iobj, objects, stol=50, otol=10, **kwargs):
-    """
-    Parameters
-    ----------
-    iobj : str
-      Object identifier in format O###-S####-D##
-    objects : list
-      List of object identifiers
-    stol : int
-      Tolerance in slit matching
-    otol : int
-      Tolerance in object matching
-
-    Returns
-    -------
-    matches : list
-      indices of matches in objects
-      None if none
-    indcies : list
-
-    """
-    # Parse input object
-    odict = objnm_to_dict(iobj)
-    # Generate a Table of the objects
-    tbl = Table(objnm_to_dict(objects))
-
-    # Logic on object, slit and detector [ignoring sciidx for now]
-    gdrow = (np.abs(tbl[naming_model['spat']]-odict[naming_model['spat']]) < otol) & (
-            np.abs(tbl[naming_model['slit']]-odict[naming_model['slit']]) < stol) & (
-            tbl[naming_model['det']] == odict[naming_model['det']])
-    if np.sum(gdrow) == 0:
-        return None
-    else:
-        return np.array(objects)[gdrow].tolist(), np.where(gdrow)[0].tolist()
-
-
-
-def dummy_specobj(shape, det=1, extraction=True):
-    """ Generate dummy specobj classes
-    Parameters
-    ----------
-    shape : tuple
-      naxis1, naxis0
-    Returns
-    sobj_list: list
-      Pair of SpecObj objects
-    -------
-
-    """
-    config = 'AA'
-    scidx = 5 # Could be wrong
-    xslit = (0.3,0.7) # Center of the detector
-    ypos = 0.5
-    xobjs = [0.4, 0.6]
-    sobj_list = []
-    for jj,xobj in enumerate(xobjs):
-        specobj = SpecObj(shape, 1240, xslit, spat_pixpos=900, det=det, config=config)
-        specobj.slitid = jj+1
-        #specobj = SpecObj(shape, config, scidx, det, xslit, ypos, xobj)
-        # Dummy extraction?
-        if extraction:
-            npix = 2001
-            specobj.boxcar['WAVE'] = np.linspace(4000., 6000., npix)*units.AA
-            specobj.boxcar['COUNTS'] = 50.*(specobj.boxcar['WAVE'].value/5000.)**-1.
-            specobj.boxcar['COUNTS_IVAR']  = 1./specobj.boxcar['COUNTS'].copy()
-        # Append
-        sobj_list.append(specobj)
-    # Return
-    return sobj_list
+        # Finish
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(outfile, overwrite=overwrite)
+        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
+        return
 
 
 def lst_to_array(lst, mask=None):
@@ -754,32 +431,3 @@ def lst_to_array(lst, mask=None):
         return Quantity(lst)[mask]
     else:
         return np.array(lst)[mask]
-
-
-def unravel_specobjs(specobjs):
-    """
-    Likely to be Deprecated
-
-    Method to unwrap nested specobjs objects into a single list
-
-    Args:
-        specobjs (list of lists or list of SpecObj):
-
-    Returns:
-        list: list of SpecObj
-
-    """
-    # Wrapped is all None and lists
-    ans = [isinstance(ispec, (list, type(None))) for ispec in specobjs]
-    if np.all(ans):
-        all_specobj = []
-        for det in range(len(specobjs)):           # detector loop
-            if specobjs[det] is None:
-                continue
-            for sl in range(len(specobjs[det])):   # slit loop
-                for spobj in specobjs[det][sl]:    # object loop
-                    all_specobj.append(spobj)
-    else:
-        all_specobj = specobjs
-    # Return
-    return all_specobj

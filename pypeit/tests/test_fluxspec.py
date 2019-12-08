@@ -70,7 +70,7 @@ def test_from_sens_func(kast_blue_files):
     assert 'FEIGE66' in FxSpec.sens_dict['0']['std_name']
     # Flux me some science
     FxSpec.flux_science(sci_file)
-    assert 'FLAM' in FxSpec.sci_specobjs[0].optimal.keys()
+    assert 'OPT_FLAM' in FxSpec.sci_specobjs[0]._data.keys()
     # Write
     FxSpec.write_science(data_path('tmp.fits'))
 

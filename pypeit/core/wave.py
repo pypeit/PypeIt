@@ -261,23 +261,25 @@ def flexure_slit():
     return flex_dict
 '''
 
-# TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
 def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
-    Parameters:
-    ----------
-    method : str
-      'boxcar' -- Recommneded
-      'slitpix' --
-    sky_file: str
+    Args:
+        specobjs (pypeit.specobjs.Specobjs):
+        maskslits (ndarray):
+            True = masked slit
+        method (str)
+          'boxcar' -- Recommneded
+          'slitpix' --
+        sky_file (str):
+            Sky file
+        mxshft (int, optional):
+            Passed to flex_shift()
 
     Returns:
-    ----------
-    flex_list: list
-      list of dicts containing flexure results
-        Aligned with specobjs
-        Filled with a basically empty dict if the slit is skipped or there is no object
+        list:  list of dicts containing flexure results
+            Aligned with specobjs
+            Filled with a basically empty dict if the slit is skipped or there is no object
 
     """
     sv_fdict = None
@@ -297,7 +299,8 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     # Loop over slits, and then over objects here
     for slit in range(nslits):
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(slit))
-        indx = specobjs.slitid == slit
+        # TODO -- This only will work for MultiSlit
+        indx = specobjs.slitorder_indices(slit)
         this_specobjs = specobjs[indx]
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
@@ -310,11 +313,13 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
         for ss, specobj in enumerate(this_specobjs):
             if specobj is None:
                 continue
-            msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.slitid))
+            if len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
+                continue
+            msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.SLITID))
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
-                sky_wave = specobj.boxcar['WAVE'] #.to('AA').value
-                sky_flux = specobj.boxcar['COUNTS_SKY']
+                sky_wave = specobj.BOX_WAVE #.to('AA').value
+                sky_flux = specobj.BOX_COUNTS_SKY
             else:
                 msgs.error("Not ready for this flexure method: {}".format(method))
 
@@ -359,7 +364,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
             slit, ss = items
             flex_dict = flex_list[slit]
             specobj = specobjs[ss]
-            sky_wave = specobj.boxcar['WAVE'] #.to('AA').value
+            sky_wave = specobj.BOX_WAVE #.to('AA').value
             # Copy me
             fdict = copy.deepcopy(sv_fdict)
             # Interpolate
@@ -413,8 +418,8 @@ def flexure_obj_oldbuggyversion(specobjs, maskslits, method, sky_spectrum, sky_f
 
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
-                sky_wave = specobj.boxcar['WAVE'] #.to('AA').value
-                sky_flux = specobj.boxcar['COUNTS_SKY']
+                sky_wave = specobj.BOX_WAVE #.to('AA').value
+                sky_flux = specobj.BOX_COUNTS_SKY
             else:
                 msgs.error("Not ready for this flexure method: {}".format(method))
 
@@ -482,7 +487,7 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
         refframe (str):
 
     Returns:
-        Two objects are returned::
+        Two objects are returned:
             - float: - The velocity correction that should be applied to the wavelength array.
             - float: The relativistic velocity correction that should be multiplied by the
                   wavelength array to convert each wavelength into the user-specified
@@ -493,24 +498,16 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     vel = geomotion_calculate(radec, time, longitude, latitude, elevation, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
-    gdslits = np.where(~maskslits)[0]
+    gdslits = np.where(np.invert(maskslits))[0]
     # Loop on slits to apply
     for slit in gdslits:
-        indx = specObjs.slitid == slit
+        indx = specObjs.slitorder_indices(slit)
         this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:
             if specobj is None:
                 continue
-            # Loop on extraction methods
-            for attr in ['boxcar', 'optimal']:
-                if not hasattr(specobj, attr):
-                    continue
-                if 'WAVE' in getattr(specobj, attr).keys():
-                    msgs.info('Applying {0} correction to '.format(refframe)
-                              + '{0} extraction for object:'.format(attr)
-                              + msgs.newline() + "{0}".format(str(specobj)))
-                    getattr(specobj, attr)['WAVE'] = getattr(specobj, attr)['WAVE'] * vel_corr
+            specobj.apply_helio(vel_corr, refframe)
     # Return
     return vel, vel_corr  # Mainly for debugging
 
@@ -642,7 +639,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
 
     # Loop over slits, and then over objects here
     for slit in gdslits:
-        indx = specobjs.slitid == slit
+        indx = specobjs.slitorder_indices(slit)
         this_specobjs = specobjs[indx]
         this_flex_dict = flex_list[slit]
 
@@ -663,7 +660,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
         for iobj, specobj in enumerate(this_specobjs):
-            if specobj is None:
+            if specobj is None or len(specobj._data.keys()) == 1:
                 continue
             # Correlation QA
             ax = plt.subplot(gs[iobj//ncol, iobj % ncol])
@@ -685,7 +682,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobj.idx), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobj.name), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][iobj]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -703,6 +700,10 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
             iobj = 0
             specobj = this_specobjs[iobj]
 
+        if len(this_flex_dict['shift']) == 0:
+            return
+
+        # Repackage
         sky_spec = this_flex_dict['sky_spec'][iobj]
         arx_spec = this_flex_dict['arx_spec'][iobj]
 
@@ -729,7 +730,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.name), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
@@ -808,7 +809,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
 
         # Outfile
         outfile = qa.set_qa_filename(basename, method+'_corr', det=det,
-                                       slit=specobjs[sl][0].slitid)
+                                       slit=specobjs[sl][0].SLITID)
 
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -834,7 +835,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].idx), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].name), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -870,7 +871,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
 
         # Outfile
         outfile = qa.set_qa_filename(basename, method+'_sky', det=det,
-                                       slit=specobjs[sl][0].slitid)
+                                       slit=specobjs[sl][0].SLITID)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -879,7 +880,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.idx), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.name), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]

@@ -95,7 +95,7 @@ def test_shanekastblue():
 def test_shanekastredret():
     s = spectrographs.shane_kast.ShaneKastRedRetSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Shane_Kast_red',
-                                '600_7500_d55', 'r112.fits.gz')
+                                '600_7500_d55_ret', 'r112.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast red read.'
     det = 1
     data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
