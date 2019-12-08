@@ -684,15 +684,16 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                                               mask_telluric=True, balm_mask_wid=balm_mask_wid, trans_thresh=trans_thresh)
 
     # Get sensfunc
-    LBLRTM = False
-    if LBLRTM:
-        # sensfunc = lblrtm_sensfunc() ???
-        msgs.develop('fluxing and telluric correction based on LBLRTM model is under developing.')
-    else:
-        sensfunc, mask_sens = standard_sensfunc(wave_star, flux_star, ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
-                                mask_tell=mask_tell, maxiter=35, upper=3.0, lower=3.0, polyorder=polyorder,
-                                balm_mask_wid=balm_mask_wid, nresln=nresln,telluric=telluric, resolution=resolution,
-                                polycorrect=polycorrect, debug=debug, show_QA=False)
+    #LBLRTM = False
+    #if LBLRTM:
+    #    # sensfunc = lblrtm_sensfunc() ???
+    #    msgs.develop('fluxing and telluric correction based on LBLRTM model is under developing.')
+    #else:
+    sensfunc, mask_sens = standard_sensfunc(
+        wave_star, flux_star, ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
+        mask_tell=mask_tell, maxiter=35, upper=3.0, lower=3.0, polyorder=polyorder,
+        balm_mask_wid=balm_mask_wid, nresln=nresln,telluric=telluric, resolution=resolution,
+        polycorrect=polycorrect, debug=debug, show_QA=False)
 
     if debug:
         plt.plot(wave_star.value[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')

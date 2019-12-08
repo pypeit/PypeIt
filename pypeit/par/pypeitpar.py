@@ -817,7 +817,7 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+    def __init__(self, multi_spec_det=None, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
                  star_dec=None, mask_abs_lines=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -828,6 +828,12 @@ class SensFuncPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
+        defaults['multi_spec_det'] = None
+        dtypes['multi_spec_det'] = list
+        descr['multi_spec_det'] = 'List of detector numbers to splice together for multi-detector instruments ' \
+                                  '(e.g. DEIMOS, GMOS). It is assumed that there is *no* overlap in wavelength ' \
+                                  'across detectors (might be ok if there is)'
+
         defaults['algorithm'] = 'UVIS'
         dtypes['algorithm'] = str
         descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are:\n " \
@@ -836,7 +842,8 @@ class SensFuncPar(ParSet):
                              "No detailed model of telluric absorption but corrects for atmospheric extinction.\n" \
                              "\n" \
                              "IR   = Should be used for data with lambbda > 7000A.\n" \
-                             "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models." \
+                             "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models."
+
 
         defaults['UVIS'] = SensfuncUVISPar()
         dtypes['UVIS'] = [ParSet, dict ]
@@ -882,7 +889,7 @@ class SensFuncPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['algorithm', 'UVIS', 'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
+        parkeys = ['multi_spec_det', 'algorithm', 'UVIS', 'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -933,10 +940,6 @@ class SensfuncUVISPar(ParSet):
         descr['std_obj_id'] = 'Specifies object in spec1d file to use as standard.' \
             ' The brightest object found is used otherwise.'
 
-        dtypes['multi_det'] = list
-        descr['multi_det'] = 'List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)' \
-                        ' They are assumed to be in order of increasing wavelength' \
-                        ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
 
         dtypes['sensfunc'] = str
         descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'

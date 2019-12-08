@@ -65,7 +65,7 @@ def parser(options=None):
                         help="spec1d file for the standard that will be used to compute sensitivity function")
     parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
                         help="R|Override the default algorithm for computing the sensitivity function. \n"
-                             "Note that it is not possible to set --algorithm and simultaneously use a .sens file via\n"
+                             "Note that it is not possible to set --algorithm and simultaneously use a .sens file with\n"
                              "the --sens_file option. If you are using a .sens file set the algorithm there via:\n"
                              "\n"
                              "    [sensfunc]\n"
@@ -78,6 +78,16 @@ def parser(options=None):
                              "\n"
                              "    IR   = Should be used for data with lambbda > 7000A.\n"
                              "    Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.\n"
+                             "\n")
+    parser.add_argument("--multi", type=str,
+                        help="R|List of detector numbers to splice together for instruments with multiple detectors\n"
+                             "arranged in the spectral direction, e.g. --multi = '3,7'\n"
+                             "Note that it is not possible to set --multi and \n"
+                             "simultaneously use a .sens file with the --sens_file option. If you are using a .sens file\n"
+                             "set the algorithm there via:\n"
+                             "\n"
+                             "         [sensfunc]\n"
+                             "              multi_spec_det = 3,7\n"
                              "\n")
     parser.add_argument("-o", "--outfile", type=str,
                         help="Ouput file for sensitivity function. If not specified, the sensitivity function will "
@@ -103,6 +113,7 @@ def main(args):
     """ Executes sensitivity function computation.
     """
 
+    # Check parameter inputs
     if args.algorithm is not None and args.sens_file is not None:
         msgs.error("It is not possible to set --algorithm and simultaneously use a .sens file via\n"
                    "the --sens_file option. If you are using a .sens file set the algorithm there via:\n"
@@ -111,6 +122,14 @@ def main(args):
                    "         algorithm = IR\n"
                    "\n")
 
+    if args.multi is not None and args.sens_file is not None:
+        msgs.error("It is not possible to set --multi and simultaneously use a .sens file via\n"
+                   "the --sens_file option. If you are using a .sens file set the detectors there via:\n"
+                   "\n"
+                   "\n"
+                   "         [sensfunc]\n"
+                   "              multi_spec_det = 3,7\n"
+                   "\n")
     # Determine the spectrograph
     header = fits.getheader(args.spec1dfile)
     spectrograph = load_spectrograph(header['PYP_SPEC'])
@@ -123,10 +142,16 @@ def main(args):
     else:
         par = spectrograph_def_par
 
-    # If algorith was provided override defaults. Note this does undo .sens file since they cannot both be passed
+    # If algorithm was provided override defaults. Note this does undo .sens file since they cannot both be passed
     if args.algorithm is not None:
         par['sensfunc']['algorithm'] = args.algorithm
+    # If multi was set override defaults. Note this does undo .sens file since they cannot both be passed
+    if args.multi is not None:
+        # parse
+        multi_spec_det  = [int(item) for item in args.multi.split(',')]
+        par['sensfunc']['multi_spec_det'] = multi_spec_det
 
+    embed()
     # TODO Add parsing of detectors here. If detectors passed from the command line, overwrite the parset values read
     # in from the .sens file
 

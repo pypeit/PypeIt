@@ -53,9 +53,16 @@ class SensFunc(object):
     Args:
         spec1dfile (str):
             PypeIt spec1d file for the standard file.
-        sensfile:
-        par:
+        sensfile (str):
+            File to write sensitivity function to.
+        par (parset object):
+            Parset containing parameters for sensitivity function computation.
+        multi_spec_det (list):
+            List of detectors for which to create a spliced sensitivity function.  If passed the sensitivity function
+            code will merge together the sensitivity functions for the specified list of detectors. This option is
+            required for instruments which have multiple detectors arranged in the spectral direction.
         debug:
+            Run the sensitivity function codes in debug mode sending diagnostic information to the screen.
     """
 
     # Superclass factory method generates the subclass instance
@@ -69,13 +76,14 @@ class SensFunc(object):
         self.par = par
         self.debug = debug
 
+        # Are we splicing together multiple detectors?
+        self.multi_det = True if self.par['multi_spec_det'] is not None else False
         # Core attributes that will be output to file
         self.meta_table = None
         self.out_table = None
 
         # Read in the Standard star data
-        multi_spec_det = [3,7]
-        sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=multi_spec_det)
+        sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=self.par['multi_spec_det'])
         # Put spectrograph info into meta
         self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
         # Set spectrograph
@@ -117,6 +125,25 @@ class SensFunc(object):
         out_table = table.Table.read(sensfile, hdu=2)
 
         return meta_table, out_table
+
+    def splice_sensfunc(self):
+        msgs.info('Merging sensfunc from detectors {:s}'.format(self.par['multi_spec_det']))
+        embed()
+        sens_min_global = np.min(sens_min)
+        sens_max_global = np.max(sens_max)
+        wave_sens_global, _, _ = coadd1d.get_wave_grid(sobj_ispec.boxcar['WAVE'][sobj_ispec.boxcar['MASK']].value,
+                                                       wave_method='linear', wave_grid_min=sens_min_global,
+                                                       wave_grid_max=sens_max_global, samp_fact=1.0)
+        sensfunc_global = np.zeros_like(wave_sens_global)
+        for isens in range(nsens):
+            coeff = sens_table[isens]['OBJ_THETA'][0:polyorder_vec[isens] + 2]
+            wave_min = sens_table[isens]['WAVE_MIN']
+            wave_max = sens_table[isens]['WAVE_MAX']
+            sens_wave_mask = (wave_sens_global > wave_min) & (wave_sens_global < wave_max)
+            sensfunc_global[sens_wave_mask] = utils.func_val(coeff, wave_sens_global[sens_wave_mask], func,
+                                                             minx=wave_min, maxx=wave_max)
+            sensfunc_mask_global = sensfunc_global > 0.0
+
 
     def show(self):
         pass
