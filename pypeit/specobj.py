@@ -163,7 +163,7 @@ class SpecObj(object):
         # Return
         return slf
 
-    # TODO I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
+    # TODO: JFH I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
     # done via the copy method as it was before.
     def __init__(self, pypeline, det, objtype='unknown',
                  copy_dict=None,
@@ -367,7 +367,7 @@ class SpecObj(object):
         #sobj_copy = SpecObj(self.PYPELINE, self.DET,
         #                    copy_dict=self.__dict__.copy())
         # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
-        # copy changes the original object which wreaks havoe. That is why it was deepcopy before (I think).
+        # copy changes the original object which wreaks havoc. That is why it was deepcopy before (I think).
         sobj_copy = SpecObj(self.PYPELINE, self.DET,
                             copy_dict=copy.deepcopy(self.__dict__))
         # Return
