@@ -32,6 +32,8 @@ from pypeit.core import procimg
 # dimension, then compute a single sensfunc, rather than one for each detector? In that case this routine would need to run
 # on co-added data written in a different format? That is easy enough to do, but we need to require that that file
 # have certain meta data in its header.
+
+
 # TODO How do we deal with cases of multiple-detectors where detector runs in the spectral direction? This code currently
 # knows nothing about detectors. This is a tricky case. The options are:
 # 1) Flux calibrate each detector separately, and then apply detector specific sensfuncs. This works for longslit, but
@@ -41,6 +43,8 @@ from pypeit.core import procimg
 # co-added spectrum across detector boundaries, making the sensunc discontinouus.
 
 # TODO Define sensfunc data model here.
+
+
 
 class SensFunc(object):
     """
