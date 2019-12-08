@@ -1040,11 +1040,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    b      = -999.0*np.ones(sz_p, dtype=np.float)
-    ampl   = -999.0*np.ones(sz_p, dtype=np.float)
-    cent   = -999.0*np.ones(sz_p, dtype=np.float)
-    widt   = -999.0*np.ones(sz_p, dtype=np.float)
-    centerr = -999.0*np.ones(sz_p, dtype=np.float)
+    b      = np.full(sz_p, -999.0, dtype=float)
+    ampl   = np.full(sz_p, -999.0, dtype=float)
+    cent   = np.full(sz_p, -999.0, dtype=float)
+    widt   = np.full(sz_p, -999.0, dtype=float)
+    centerr =np.full(sz_p, -999.0, dtype=float)
 
     for p in range(sz_p):
         # This interval is always symmetric about the peak

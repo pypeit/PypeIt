@@ -306,7 +306,7 @@ class Spectrograph(object):
         # Return
         return bpm_img
 
-    def bpm(self, filename, det, shape=None, msbias=None):
+    def bpm(self, filename, det, shape=None):
         """
         Generate a default bad-pixel mask.
 
