@@ -1975,8 +1975,7 @@ class ScienceImagePar(ParSet):
                  find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
                  find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, ech_find_max_snr=None,
                  ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 std_prof_nsigma=None,
-                 model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
+                 std_prof_nsigma=None, model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2526,7 +2525,7 @@ class PypeItPar(ParSet):
         """
         # Get the base parameters in a ConfigObj instance
         cfg = ConfigObj(PypeItPar().to_config() if cfg_lines is None else cfg_lines)
-        
+
         # Merge in additional parameters
         if merge_with is not None:
             cfg.merge(ConfigObj(merge_with))

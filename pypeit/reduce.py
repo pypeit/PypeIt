@@ -191,7 +191,7 @@ class Reduce(object):
         return manual_extract_dict
 
     def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
-                          show_peaks=False, show_fits=False, show_trace=False, show=False,
+                     show_peaks=False, show_fits=False, show_trace=False, show=False,
                      manual_extract_dict=None, debug=False):
         """
 
@@ -245,7 +245,6 @@ class Reduce(object):
 
         # For nobj we take only the positive objects
         return sobjs_obj_init, nobj_init, skymask
-
 
     def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                               show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False,
@@ -554,8 +553,7 @@ class MultiSlit(Reduce):
     def __init__(self, sciImg, spectrograph, tslits_dict, par, tilts, **kwargs):
         super(MultiSlit, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
-
-    def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace = None, maskslits=None,
+    def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, debug=False):
