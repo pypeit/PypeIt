@@ -189,6 +189,6 @@ class CombineImage(object):
             int
 
         """
-        return len(self.files) if isinstance(self.files, list) else 0
+        return len(self.files) if isinstance(self.files, (np.ndarray, list)) else 0
 
 
