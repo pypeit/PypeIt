@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+"""
+This script opens the interactive object finding/tracing
+"""
+
+import pypeit.scripts.object_finding as object_finding
+
+if __name__ == '__main__':
+    args = object_finding.parser()
+    object_finding.main(args)
