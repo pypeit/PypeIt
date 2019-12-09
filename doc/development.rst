@@ -179,8 +179,9 @@ To test PypeIt using the data from the Google TeamDrive:
 
    .. warning::
 
-        The ``RAW_DATA`` directory currently contains about 20 GB of
-        data.
+        The ``RAW_DATA`` directory currently contains about 22 Gb of
+        data, and running the develop test below produces about 26 Gb of
+        reduced data.
 
  * Run the test suite on the setups designated for development purposes:
 
