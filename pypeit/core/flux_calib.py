@@ -594,56 +594,160 @@ def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=T
       Used for extinction correction
     """
 
+def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, mask_abs_lines=True,
+             telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
+    """
+    Function to generate the sensitivity function. This function fits a bspline to the 2.5*log10(flux_std/flux_counts).
+    The break points spacing, which determines the scale of variation of the sensitivity function is determined by the
+    nresln parameter.  This code can work in different regimes, but NOTE THAT TELLURIC MODE IS DEPRECATED, use
+    telluric.sensfunc_telluric instead
+
+    Args:
+       wave (ndarray):
+         Wavelength of the star. Shape (nspec,)
+       counts (ndarray):
+         Flux (in counts) of the star. Shape (nspec,)
+       counts_ivar (ndarray):
+         Inverse variance of the star counts. Shape (nspec,)
+       counts_mask (ndarray):
+         Good pixel mask for the counts.
+       exptime (float):
+         Exposure time in seconds
+       airmass (float):
+         Airmass
+       std_dict (dict):
+         Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
+       longitude (float):
+         Telescope longitude, used for extinction correction.
+       latitude (float):
+         Telescope latitude, used for extinction correction
+       telluric (bool):
+         If True attempts to fit telluric absorption. This feature is deprecated, as one should instead
+         use telluric.sensfunc_telluric. Default=False
+       mask_abs_lines (bool):
+         If True, mask stellar absorption lines before fitting sensitivity function. Default = True
+       balm_mask_wid (float):
+         Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
+         equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
+         per resolution element.
+       polycorrect: bool
+         Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
+         fitting with the bspline
+       nresln (float):
+         Parameter governing the spacing of the bspline breakpoints. default = 20.0
+       resolution (float):
+         Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
+         currently hard wired. default=3000.0
+       trans_thresh (float):
+        Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
+        If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
+
+    Returns:
+       meta_table (astropy.Table):
+         Table containing meta data for the sensitivity function
+       out_table (astropy.Table):
+         Table containing the sensitivity function
+
+
+    """
+
+    wave_arr, counts_arr, ivar_arr, mask_arr, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
+    sensfunc = np.zeros_like(wave_arr)
+    mask_sens = np.ones_like(mask_arr)
+    wave_min = np.zeros(norders)
+    wave_max = np.zeros(norders)
+
+    for iord in range(norders):
+        sensfunc[:, iord], mask_sens[:, iord] = sensfunc_eval(
+            wave_arr[:,iord], counts_arr[:,iord], ivar_arr[:,iord], mask_arr[:,iord], exptime, airmass, std_dict,
+            longitude, latitude, mask_abs_lines=mask_abs_lines, telluric=telluric, polyorder=polyorder,
+            balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution, trans_thresh=trans_thresh,
+            polycorrect=polycorrect, debug=debug)
+        wave_min[iord] = wave_arr[wave_arr[:,iord] > 1.0, iord].min()
+        wave_max[iord] = wave_arr[wave_arr[:,iord] > 1.0, iord].max()
+
+    # Allocate the meta parameter table, ext=1
+    meta_table = table.Table(meta={'name': 'Parameter Values'})
+    meta_table['EXPTIME'] = [exptime]
+    meta_table['AIRMASS'] = [airmass]
+    meta_table['STD_RA'] = [std_dict['std_ra']]
+    meta_table['STD_DEC'] = [std_dict['std_dec']]
+    meta_table['STD_NAME'] = [std_dict['name']]
+    meta_table['CAL_FILE'] = [std_dict['cal_file']]
+    # Allocate the output table, ext=2
+    out_table = table.Table(meta={'name': 'Sensitivity Function'})
+    # These are transposed because we need to store them in an astropy table, with number of rows = norders
+    out_table['WAVE'] = wave_arr.T
+    out_table['SENSFUNC'] = sensfunc.T
+    out_table['MASK_SENS'] = mask_sens.T
+    out_table['WAVE_MIN'] = wave_min
+    out_table['WAVE_MAX'] = wave_max
+
+    return meta_table, out_table
+
 
 
 # JFH TODO This code needs to be cleaned up. The telluric option should probably be removed. Logic is not easy to follow.
-def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, mask_abs_lines=True,
+def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, mask_abs_lines=True,
              telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
-    """ Function to generate the sensitivity function.
-       This can work in different regimes: NOTE THAT TELLURIC MODE IS DEPRECATED, use telluric.sensfunc_telluric instead
+    """ Function to generate the sensitivity function. This function fits a bspline to the 2.5*log10(flux_std/flux_counts).
+    The break points spacing, which determines the scale of variation of the sensitivity function is determined by the
+    nresln parameter.  This code can work in different regimes, but NOTE THAT TELLURIC MODE IS DEPRECATED, use
+    telluric.sensfunc_telluric instead
+
     - If telluric=False
-        a sens func is generated using nresln=20.0 and masking out telluric regions.
+        a sensfunc is generated by fitting a bspline to the using nresln=20.0 and masking out telluric regions.
     - If telluric=True
        sens func is a pixelized sensfunc (not smooth) for correcting both throughput and telluric lines.
        if you set polycorrect=True, the sensfunc in the Hydrogen recombination line region (often seen in star spectra)
        will be replaced by a smoothed polynomial function.
 
-    Parameters:
-    ----------
-    wave : array
-      Wavelength of the star [no longer with units]
-    counts : array
-      Flux (in counts) of the star
-    counts_ivar : array
-      Inverse variance of the star
-    airmass : float
-      Airmass
-    exptime : float
-      Exposure time in seconds
-    spectrograph : dict
-      Instrument specific dict
-      Used for extinction correction
-    telluric : bool
-      if True attemts to fit telluric absorption. See above, but this mode is deprecated.
-    balm_mask_wid: float
-      Mask parameter for Balmer absorption. A region equal to
-      BALM_MASK_WID*resln is masked where resln is the estimate
-      for the spectral resolution.
-    polycorrect: bool
-      Whether you want to correct the sensfunc with polynomial in the Balmer absortion line regions
-    nresln (float): default = 20.0
-      Parameter governing the spacing of the bspline breakpoints.
-    resolution (float): default=3000.0
-      Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
-      not currently.
-    trans_thresh (float): default = 0.9
+    Args:
+       wave (ndarray):
+         Wavelength of the star. Shape (nspec,)
+       counts (ndarray):
+         Flux (in counts) of the star. Shape (nspec,)
+       counts_ivar (ndarray):
+         Inverse variance of the star counts. Shape (nspec,)
+       counts_mask (ndarray):
+         Good pixel mask for the counts.
+       exptime (float):
+         Exposure time in seconds
+       airmass (float):
+         Airmass
+       std_dict (dict):
+         Dictionary containing information about the standard star returned by flux_calib.get_standard_spectrum
+       longitude (float):
+         Telescope longitude, used for extinction correction.
+       latitude (float):
+         Telescope latitude, used for extinction correction
+       telluric (bool):
+         If True attempts to fit telluric absorption. This feature is deprecated, as one should instead
+         use telluric.sensfunc_telluric. Default=False
+       mask_abs_lines (bool):
+         If True, mask stellar absorption lines before fitting sensitivity function. Default = True
+       balm_mask_wid (float):
+         Parameter describing the width of the mask for or stellar absorption lines (i.e. mask_abs_lines=True). A region
+         equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
+         per resolution element.
+       polycorrect: bool
+         Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
+         fitting with the bspline
+       nresln (float):
+         Parameter governing the spacing of the bspline breakpoints. default = 20.0
+       resolution (float):
+         Expected resolution of the standard star spectrum. This should probably be determined from the grating, but is
+         currently hard wired. default=3000.0
+       trans_thresh (float):
         Parameter for selecting telluric regions which are masked. Locations below this transmission value are masked.
-        If you have significant telluric absorption you should be using telluric.sensnfunc_telluric
+        If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
 
     Returns:
-    -------
-    sens_dict : dict
-      sensitivity function described by a dict
+        sensfunc (ndarray):
+            Sensitivity function with same shape as wave (nspec,)
+        mask_sens (ndarray, bool):
+            Good pixel mask for sensitivity function with same shape as wave (nspec,)
+
     """
     # Create copy of the arrays to avoid modification and convert to
     # electrons / s
@@ -704,23 +808,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
         plt.show()
 
 
-    # Allocate the meta parameter table, ext=1
-    meta_table = table.Table(meta={'name': 'Parameter Values'})
-    meta_table['WAVE_MIN'] = [np.min(wave_star)]
-    meta_table['WAVE_MAX'] = [np.min(wave_star)]
-    meta_table['EXPTIME'] = [exptime]
-    meta_table['AIRMASS'] = [airmass]
-    meta_table['STD_RA'] = [std_dict['std_ra']]
-    meta_table['STD_DEC'] = [std_dict['std_dec']]
-    meta_table['STD_NAME'] = [std_dict['name']]
-    meta_table['CAL_FILE'] = [std_dict['cal_file']]
-    # Allocate the output table, ext=2
-    out_table = table.Table(meta={'name': 'Sensitivity Function'})
-    out_table['WAVE'] = wave_star
-    out_table['SENSFUNC'] = sensfunc
-    out_table['MASK_SENS'] = mask_sens
-
-    return meta_table, out_table
+    return sensfunc, mask_sens
 
 
 
