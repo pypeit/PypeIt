@@ -175,7 +175,7 @@ class ParSet(object):
         self.options = dict([ (p, [o]) if o is not None and not isinstance(o, list) else (p, o) \
                                        for p, o in zip(pars, _options) ])
         # Set the valid types
-        self.dtype = dict([ (p, [t]) if t is not None and not isinstance(t, list) else (p, t) \
+        self.dtype = dict([ (p, [t]) if not isinstance(t, list) else (p, t) \
                                      for p, t in zip(pars, _dtypes) ])
 
         # Set the calling flags
@@ -284,7 +284,7 @@ class ParSet(object):
                 By default, the table includes the parameter key, its
                 current value, the default value, its data type, and if
                 the value can be a callable function.  If
-                `value_only=True`, only the paramter key and current
+                `value_only=True`, only the parameter key and current
                 value are returned.
 
         Returns:
@@ -311,7 +311,8 @@ class ParSet(object):
                     data_table[i+1,2] = ParSet._data_string(self.default[k])
             if value_only:
                 continue
-            data_table[i+1,3] = ', '.join([t.__name__ for t in self.dtype[k]])
+            data_table[i+1,3] = ', '.join(['Undefined' if t is None else t.__name__ 
+                                            for t in self.dtype[k]])
             data_table[i+1,4] = self.can_call[k].__repr__()
 
         output = [ParSet._data_table_string(data_table)]
