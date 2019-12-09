@@ -913,7 +913,7 @@ class SensfuncUVISPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, multi_det=None, telluric=None,
+                 telluric_correct=None, telluric=None,
                  polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
 
         # Grab the parameter names and values from the function
@@ -994,7 +994,7 @@ class SensfuncUVISPar(ParSet):
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
-                   'multi_det', 'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
+                   'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
