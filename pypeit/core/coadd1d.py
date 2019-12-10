@@ -40,8 +40,10 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
     Create a new wavelength grid for the spectra to be rebinned and coadded on
 
     Args:
-        waves (ndarray): (nspec, nexp,)
-            Set of N original wavelength arrays
+        waves (ndarray):
+            Set of N original wavelength arrays shape = (nspec, nexp)
+        masks (ndarray):
+            Good pixel mask for wavelengths. shape = (nspec, nexp). Optional.
         wave_method (str): optional
             Desired method for creating new wavelength grid.
             'iref' -- Use the first wavelength array (default)
@@ -70,15 +72,15 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
     Returns:
         wave_grid, wave_grid_mid, dsamp
 
-             wave_grid (np.ndarray):
-                  New wavelength grid, not masked
-             wave_grid_mid (np.ndarray):
-                  New wavelength grid evaluated at the centers of the wavelength bins, that is this
-                  grid is simply offset from wave_grid by dsamp/2.0, in either linear space or log10
-                  depending on whether linear or (log10 or velocity) was requested.  For iref or concatenate
-                  the linear wavelength sampling will be calculated.
-            dsamp (float):
-                  The pixel sampling for wavelength grid created.
+        wave_grid (np.ndarray):
+           New wavelength grid, not masked
+        wave_grid_mid (np.ndarray):
+           New wavelength grid evaluated at the centers of the wavelength bins, that is this
+           grid is simply offset from wave_grid by dsamp/2.0, in either linear space or log10
+           depending on whether linear or (log10 or velocity) was requested.  For iref or concatenate
+           the linear wavelength sampling will be calculated.
+        dsamp (float):
+           The pixel sampling for wavelength grid created.
 
 
     """

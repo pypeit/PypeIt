@@ -1168,6 +1168,7 @@ class Telluric(object):
 
         return meta_table, out_table
 
+
     def assign_output(self, iord):
         """
         Routine to assign outputs to self.out_table for the order in question.
@@ -1381,7 +1382,7 @@ def mask_star_lines(wave_star, mask_width=10.0):
     return mask_star
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, telgridfile,
-                      outfile=None, polyorder=8, mask_abs_lines=True,
+                      polyorder=8, mask_abs_lines=True,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True,
                       debug_init=False, debug=False):
@@ -1428,11 +1429,12 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     else:
         polyorder_vec = np.full(norders, polyorder)
 
+    func ='legendre'
     # Initalize the object parameters
     obj_params = dict(std_dict=std_dict, airmass=airmass,
                       delta_coeff_bounds=delta_coeff_bounds, minmax_coeff_bounds=minmax_coeff_bounds,
                       polyorder_vec=polyorder_vec, exptime=exptime,
-                      func='legendre', sigrej=3.0,
+                      func=func, sigrej=3.0,
                       std_source=std_dict['std_source'], std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
                       std_name=std_dict['name'], std_calfile=std_dict['cal_file'],
                       output_meta_keys=('airmass', 'polyorder_vec', 'exptime', 'func', 'std_source',
@@ -1452,10 +1454,23 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       polish=polish, disp=disp, debug=debug)
 
     TelObj.run(only_orders=only_orders)
-    if outfile is not None:
-        TelObj.save(outfile)
+    # Append the sensfunc to the output table for convenience
+    meta_table, out_table = TelObj.meta_table, TelObj.out_table
+    out_table['SENSFUNC'] = np.zeros_like(TelObj.out_table['WAVE'])
+    out_table['SENSFUNC_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+    for iord in range(norders):
+        gdwave = TelObj.wave_in_arr[:, iord] > 1.0
+        wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
+        wave_min = out_table[iord]['WAVE_MIN']
+        wave_max = out_table[iord]['WAVE_MAX']
+        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+        out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
+        out_table[iord]['SENSFUNC_GPM'][gdwave] = True
 
-    return TelObj
+    #if outfile is not None:
+    #    TelObj.save(outfile)
+
+    return meta_table, out_table
 
 def create_bal_mask(wave):
 

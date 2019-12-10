@@ -164,7 +164,7 @@ def main(args):
     # Instantiate the relevant class for the requested algorithm
     sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'], debug=args.debug)
     # Generate the sensfunc
-    meta_table, out_table = sensobj.generate_sensfunc()
+    meta_table, out_table = sensobj.run()
     # Write it out to a file
     sensobj.save()
 

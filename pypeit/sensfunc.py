@@ -3,7 +3,7 @@
 import os
 import inspect
 import numpy as np
-
+import scipy
 from IPython import embed
 
 from pypeit import msgs
@@ -17,11 +17,6 @@ from astropy.io import fits
 from astropy import table
 from pypeit.core import coadd1d
 
-from pypeit.par import pypeitpar
-from pypeit.core import save
-from pypeit.core import load
-from pypeit.core import pixels
-from pypeit.core import procimg
 
 # TODO Add the data model up here as a standard thing, which is an astropy table.
 # data model needs a tag on whether its merged or not. For merged specobjs, you only apply sensfunc directly coefficients
@@ -87,6 +82,7 @@ class SensFunc(object):
         sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=self.par['multi_spec_det'])
         # Put spectrograph info into meta
         self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
+        self.norderdet = self.wave.shape[1]
         # Set spectrograph
         self.spectrograph = load_spectrograph(self.meta_spec['PYP_SPEC'])
 
@@ -102,9 +98,24 @@ class SensFunc(object):
         return self.par['algorithm']
 
 
-    def generate_sensfunc(self):
-        pass
+    def compute_sensfunc(self):
+        """
+        Dummy method overloaded by subclasses
 
+        Returns:
+            meta_table, out_table
+
+        """
+        pass
+        return None, None
+
+    def run(self):
+        meta_table, out_table = self.compute_sensfunc()
+        if self.splice_multi_det:
+            self.meta_table, self.out_table = self.splice_sensfunc(meta_table, out_table)
+        else:
+            self.meta_table, self.out_table = meta_table, out_table
+        return self.meta_table, self.out_table
 
     def save(self):
 
@@ -129,23 +140,31 @@ class SensFunc(object):
 
     def splice_sensfunc(self, meta_table, out_table):
 
-        if self.splice_multi_det:
-            embed()
-            msgs.info('Merging sensfunc from detectors {:}'.format(self.par['multi_spec_det']))
-            wave_min_global = out_table['WAVE_MIN'].min()
-            wave_max_global = out_table['WAVE_MAX'].max()
-            wave_sens_global, _, _ = coadd1d.get_wave_grid(sobj_ispec.boxcar['WAVE'][sobj_ispec.boxcar['MASK']].value,
-                                                           wave_method='linear', wave_grid_min=wave_min_global,
-                                                           wave_grid_max=wave_max_global, samp_fact=1.0)
-        sensfunc_global = np.zeros_like(wave_sens_global)
-        for isens in range(nsens):
-            coeff = sens_table[isens]['OBJ_THETA'][0:polyorder_vec[isens] + 2]
-            wave_min = sens_table[isens]['WAVE_MIN']
-            wave_max = sens_table[isens]['WAVE_MAX']
-            sens_wave_mask = (wave_sens_global > wave_min) & (wave_sens_global < wave_max)
-            sensfunc_global[sens_wave_mask] = utils.func_val(coeff, wave_sens_global[sens_wave_mask], func,
-                                                             minx=wave_min, maxx=wave_max)
-            sensfunc_mask_global = sensfunc_global > 0.0
+        # splice the sensitivity functions together, and add the splice as a key in the meta_table
+        # (since we cannot pack the splice into the output table since it has a different shape). Otherwise just return the
+        # input arguments unchanged
+        msgs.info('Merging sensfunc for {:d} detectors {:}'.format(self.norderdet, self.par['multi_spec_det']))
+        # TODO Can add some logic here to slightly extrapolate on both ends by say 10%
+        wave_splice_min = out_table['WAVE_MIN'].min()
+        wave_splice_max = out_table['WAVE_MAX'].max()
+        wave_splice, _, _ = coadd1d.get_wave_grid(
+            out_table['WAVE'].T, wave_method='linear',wave_grid_min=wave_splice_min, wave_grid_max=wave_splice_max,
+            samp_fact=1.0)
+        sensfunc_splice = np.zeros_like(wave_splice)
+        for idet in range(self.norderdet):
+            wave_min = out_table['WAVE_MIN'][idet]
+            wave_max = out_table['WAVE_MAX'][idet]
+            splice_wave_mask = (wave_splice >= wave_min) & (wave_splice <= wave_max)
+            sensfunc_splice[splice_wave_mask] = scipy.interpolate.interp1d(
+            out_table['WAVE'][idet], out_table['SENSFUNC'][idet], kind='cubic', bounds_error=False,
+            fill_value=0.0)(wave_splice[splice_wave_mask])
+
+        #sensfunc_splice_mask  = sensfunc_splice > 0.0
+        # Add the spliced information to the meta_table, since the size of the outpt table is fixed
+        meta_table['SPLICE_MULTI_DET'] = True
+        meta_table['WAVE_SPLICE'] = [wave_splice]
+        meta_table['SENSFUNC_SPLICE'] = [sensfunc_splice]
+        return meta_table, out_table
 
 
     def show(self):
@@ -162,26 +181,22 @@ class IR(SensFunc):
 
         self.TelObj = None
 
-    def generate_sensfunc(self):
-        self.TelObj = telluric.sensfunc_telluric(self.wave, self.counts, self.counts_ivar, self.counts_mask,
-                                                 self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
-                                                 self.par['IR']['telgridfile'],
-                                                 polyorder=self.par['polyorder'],
-                                                 sn_clip=self.par['IR']['sn_clip'],
-                                                 mask_abs_lines=self.par['mask_abs_lines'],
-                                                 # JFH Implement thease in parset?
-                                                 #delta_coeff_bounds=self.par['IR']['delta_coeff_bounds'],
-                                                 #minmax_coeff_bounds=self.par['IR']['min_max_coeff_bounds'],
-                                                 tol=self.par['IR']['tol'], popsize=self.par['IR']['popsize'],
-                                                 recombination=self.par['IR']['recombination'], polish=self.par['IR']['polish'],
-                                                 disp=self.par['IR']['disp'], debug=self.debug)
+    def compute_sensfunc(self):
 
-        meta_table, out_table = self.TelObj.meta_table, self.TelObj.out_table
+        meta_table, out_table = telluric.sensfunc_telluric(
+            self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec['EXPTIME'],
+            self.meta_spec['AIRMASS'], self.std_dict, self.par['IR']['telgridfile'], polyorder=self.par['polyorder'],
+            sn_clip=self.par['IR']['sn_clip'], mask_abs_lines=self.par['mask_abs_lines'],
+            # JFH Implement thease in parset?
+            #delta_coeff_bounds=self.par['IR']['delta_coeff_bounds'],
+            #minmax_coeff_bounds=self.par['IR']['min_max_coeff_bounds'],
+            tol=self.par['IR']['tol'], popsize=self.par['IR']['popsize'], recombination=self.par['IR']['recombination'],
+            polish=self.par['IR']['polish'],
+            disp=self.par['IR']['disp'], debug=self.debug)
         # Add the algorithm to the meta_table
         meta_table['ALGORITHM'] = self.par['algorithm']
-        self.meta_table, self.out_table = self.splice_sensfunc(meta_table, out_table)
 
-        return self.meta_table, self.out_table
+        return meta_table, out_table
 
 
 
@@ -194,8 +209,8 @@ class UVIS(SensFunc):
         self.meta_spec['LONGITUDE'] = self.spectrograph.telescope['longitude']
 
 
-    def generate_sensfunc(self):
-        # TODO This routine needs to now operate on a array which is nspec, norder or nspec, ndet
+    def compute_sensfunc(self):
+
         meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                                               self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
                                                               self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
@@ -207,9 +222,6 @@ class UVIS(SensFunc):
                                                               polycorrect=True, debug=self.debug)
         # Add the algorithm to the meta_table
         meta_table['ALGORITHM'] = self.par['algorithm']
-
-        self.meta_table, self.out_table = self.splice_sensfunc(meta_table, out_table)
-
-        return self.meta_table, self.out_table
+        return meta_table, out_table
 
 

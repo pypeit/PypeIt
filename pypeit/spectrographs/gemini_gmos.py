@@ -12,6 +12,8 @@ from .. import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.par import pypeitpar
+from pkg_resources import resource_filename
+
 
 from IPython import embed
 
@@ -99,7 +101,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for Gemini GMOS reductions.
         """
         par = pypeitpar.PypeItPar()
         par['calibrations']['slitedges']['edge_thresh'] = 20.
@@ -348,6 +350,15 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         ]
         self.numhead = 13
 
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for XSHOOTER NIR reductions.
+        """
+        par = GeminiGMOSSpectrograph.default_pypeit_par()
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        return par
+
     def bpm(self, filename, det, shape=None):
         """ Generate a BPM
 
@@ -442,6 +453,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         #
         return par
+
 
 
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
