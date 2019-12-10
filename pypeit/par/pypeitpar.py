@@ -2916,6 +2916,7 @@ class PypeItPar(ParSet):
         # Evaluate the strings if requested
         if evaluate:
             cfg = util.recursive_dict_evaluate(cfg)
+
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
@@ -2987,10 +2988,13 @@ class PypeItPar(ParSet):
                         if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
         kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else default
 
-        # Allow flexure to be turned on using cfg['rdx']
         pk = 'coadd2d'
         default = Coadd2DPar()
         kwargs[pk] = Coadd2DPar.from_dict(cfg[pk]) if pk in k else default
+
+        pk = 'sensfunc'
+        default = SensFuncPar()
+        kwargs[pk] = SensFuncPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)
