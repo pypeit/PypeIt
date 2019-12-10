@@ -164,7 +164,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Obtain a list of good slits
         ok_mask = np.where(~self.maskslits)[0]
-
+        embed()
         # Obtain calibration for all slits
         if method == 'simple':
             lines = self.par['lamps']
@@ -177,7 +177,7 @@ class WaveCalib(masterframe.MasterFrame):
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
             # TODO: THIS IS CURRENTLY BROKEN
-            debugger.set_trace()
+            embed()
             final_fit = {}
             for slit in ok_mask:
                 # HACKS BY JXP
