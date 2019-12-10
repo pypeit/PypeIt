@@ -263,6 +263,7 @@ class Spectrograph(object):
             image = np.flip(image, axis=1)
         return image
 
+    ## TODO: JFH Are these bad pixel masks in the raw frame, or the flipped/transposed pypeit frame??
     def empty_bpm(self, filename, det, shape=None):
         """
         Generate a generic (empty) bad-pixel mask.

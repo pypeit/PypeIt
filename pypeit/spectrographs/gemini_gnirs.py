@@ -263,7 +263,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     def bpm(self, filename, det, shape=None):
         """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
+        Override parent bpm function with BPM specific to Gemini/GNIRS
 
         .. todo::
             Allow for binning changes.
@@ -282,9 +282,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for GNIRS")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
-        # JFH Changed. Entire GNIRS detector is fine
-        #if det == 1:
-        #    bpm_img[:, :20] = 1.
+        # JFH Changed. Dealing with detector scratch
+        if det == 1:
+            bpm_img[687:765,12:16] = 1.
+            bpm_img[671:687,8:13] = 1.
         #    bpm_img[:, 1000:] = 1.
 
         return bpm_img

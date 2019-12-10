@@ -180,7 +180,7 @@ def nearest_unmasked(arr, use_indices=False):
     return np.ma.argmin(nearest, axis=1)
 
 
-def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
+def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     """
     Boxcar smooth an image along their first axis (rows).
 
@@ -226,7 +226,12 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
     wimg = ndimage.convolve(wgt, kernel, mode='nearest')
     smoothed_img = np.ma.divide(cimg, wimg)
-    smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
+    if replace == 'original':
+        smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
+    elif replace == 'zero':
+        smoothed_img[smoothed_img.mask] = 0.0
+    else:
+        msgs.error('Unrecognized value of replace')
     return smoothed_img.data
 
 
