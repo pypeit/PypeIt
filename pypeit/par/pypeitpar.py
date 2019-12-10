@@ -909,7 +909,7 @@ class ManualExtractionParOld(ParSet):
             must go through, 500 is the spectral location that the trace
             must go through, and the last two numbers (10,10) are the
             widths around the stated (spatial,spectral) location that
-            should also be in the trace.'
+            should also be in the trace.
     """
     def __init__(self, frame=None, params=None):
 
