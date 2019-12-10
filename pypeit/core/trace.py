@@ -415,6 +415,8 @@ def handle_orphan_edges(edge_img, sobel_sig, bpm=None, flux_valid=True, buffer=0
 
 
 def most_common_trace_row(trace_bpm, valid_frac=1/3.):
+    ## JFH DO not use row and column in the docs!!!! Change everywhere to spectral spatial. Traces always
+    ## run spectral
     """
     Find the spectral position (row) that crosses the most traces.
 
