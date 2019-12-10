@@ -139,6 +139,7 @@ def main(args):
         cfg_lines = read_sensfile(args.sens_file)
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=cfg_lines)
+        embed()
     else:
         par = spectrograph_def_par
 

@@ -179,9 +179,13 @@ class SpecObjs(object):
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
+        detector = np.zeros(norddet, dtype=int)
+        ech_order = np.zeros(norddet, dtype=int)
         for iorddet in range(norddet):
             wave[:, iorddet] = self[iorddet].OPT_WAVE
             flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
+            detector[iorddet] = self[iorddet].DET
+            ech_order[iorddet] = self[iorddet].ECH_ORDER
             if ret_flam:
                 flux[:, iorddet] = self[iorddet].OPT_FLAM
                 flux_ivar[:, iorddet] = self[iorddet].OPT_FLAM_IVAR
@@ -204,13 +208,16 @@ class SpecObjs(object):
                 meta_spec[key.upper()] = self.header[key.upper()]
             except KeyError:
                 pass
-        # Add the pyp spec. Not sure why that is not already part of specobjs by default.
+        # Add the pyp spec.
+        # TODO JFH: Make this an atribute of the specobj by default.
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
-
+        meta_spec['PYPELINE'] = pypeline
+        meta_spec['DET'] = detector
         if pypeline == 'MultiSlit' and self.nobj == 1:
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
                    flux_gpm.reshape(nspec), meta_spec, self.header
         else:
+            meta_spec['ECH_ORDER'] = ech_order
             return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
 
 

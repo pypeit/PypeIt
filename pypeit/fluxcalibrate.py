@@ -9,7 +9,9 @@ from pypeit import msgs
 from pypeit.core import flux_calib
 from pypeit.core import load
 from pypeit.core import save
+from pypeit import sensfunc
 from pypeit import specobjs
+from astropy import table
 from pypeit import debugger
 
 from IPython import embed
@@ -20,19 +22,18 @@ class FluxCalibrate(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfile, sensfile, par, debug=False):
-        return next(c for c in cls.__subclasses__() if c.__name__ == par['algorithm'])(spec1dfile, sensfile, par, debug=debug)
+    def get_instance(cls, spec1dfiles, sensfiles, par, debug=False):
+        meta_table = table.Table.read(sensfiles[0], hdu=1)
+        algorithm = meta_table['ALGORITHM']
+        return next(c for c in cls.__subclasses__() if c.__name__ == algorithm)(spec1dfiles, sensfiles, par, debug=debug)
 
-    def __init__(self, spec1dfile, sensfile, par=None, debug=False):
+    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False):
 
-        self.spec1dfile = spec1dfile
-        self.sensfile = sensfile
+        self.spec1dfiles = spec1dfiles
+        self.sensfiles = sensfiles
         self.par = par
         self.debug = debug
 
-        # Core attributes that will be output to file
-        self.meta_table = None
-        self.out_table = None
 
         # Read in the data
         sobjs = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std()

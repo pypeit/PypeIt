@@ -66,6 +66,14 @@ class SensFunc(object):
     def get_instance(cls, spec1dfile, sensfile, par, debug=False):
         return next(c for c in cls.__subclasses__() if c.__name__ == par['algorithm'])(spec1dfile, sensfile, par, debug=debug)
 
+    @classmethod
+    def load(cls, sensfile):
+        # Write to outfile
+        msgs.info('Reading sensitivity function from file: {:}'.format(sensfile))
+        meta_table = table.Table.read(sensfile, hdu=1)
+        out_table = table.Table.read(sensfile, hdu=2)
+        return meta_table, out_table
+
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
         self.spec1dfile = spec1dfile
         self.sensfile = sensfile
@@ -129,14 +137,6 @@ class SensFunc(object):
         hdulist.append(hdu_meta)
         hdulist.append(hdu_out)
         hdulist.writeto(self.sensfile, overwrite=True)
-
-    def load(self, sensfile):
-        # Write to outfile
-        msgs.info('Reading object and telluric models from file: {:}'.format(sensfile))
-        meta_table = table.Table.read(sensfile, hdu=1)
-        out_table = table.Table.read(sensfile, hdu=2)
-
-        return meta_table, out_table
 
     def splice_sensfunc(self, meta_table, out_table):
 
