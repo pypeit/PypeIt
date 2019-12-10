@@ -188,6 +188,7 @@ class EdgeTraceBitMask(BitMask):
         return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT']
 
 
+## JFH
 class EdgeTraceSet(masterframe.MasterFrame):
     r"""
     Core class that identifies, traces, and pairs edges in an image
@@ -900,7 +901,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
         self.sobel_sig, edge_img \
-                = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
+                = trace.detect_slit_edges(_img, bpm=self.bpm, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
                                           sigdetect=self.par['edge_thresh'])
         # Empty out the images prepared for left and right tracing
@@ -1379,6 +1380,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if include_img and include_sobel:
             msgs.error('Cannot show both the trace image and the filtered version.')
         if in_ginga:
+            # TODO JFH This can easily be fixed.
             # Currently can only show in ginga if the edges are
             # synchronized into slits
             if not self.is_synced:
@@ -1667,12 +1669,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         boxcar = 5
         if side == 'left':
             if self.sobel_sig_left is None:
-                self.sobel_sig_left = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=boxcar,
+                self.sobel_sig_left = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=boxcar,
                                                                     side='left')
             return self.sobel_sig_left
         if side == 'right':
             if self.sobel_sig_right is None:
-                self.sobel_sig_right = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=boxcar,
+                self.sobel_sig_right = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=boxcar,
                                                                      side='right')
             return self.sobel_sig_right
         msgs.error('Side must be left or right.')
@@ -2772,7 +2774,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # traces are done separately
         ## JFH Changed from > 4 to  >= 4 to deal with GNIRS_10L. I guess this should be an input
         ## parameter in the parset.
-        return np.sum(good[self.is_left]) >= 4 and np.sum(good[self.is_right]) >= 4 \
+        return np.sum(good[self.is_left]) > 4 and np.sum(good[self.is_right]) > 4 \
                     if self.par['left_right_pca'] else np.sum(good) > 4
 
     def predict_traces(self, spat_cen, side=None):
@@ -3130,7 +3132,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Iterate through each side
             for i,side in enumerate(['left', 'right']):
                 # Get the image relevant to tracing
-                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=side)
+                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5, side=side)
 
                 _fit, _cen, _err, _msk, nside \
                         = trace.peak_trace(_sobel_sig, ivar=ivar, bpm=bpm,
@@ -3151,7 +3153,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     nleft = nside
         else:
             # Get the image relevant to tracing
-            _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=None)
+            _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5, side=None)
 
             # Find and trace both peaks and troughs in the image. The
             # input trace data (`trace` argument) is the PCA prediction
