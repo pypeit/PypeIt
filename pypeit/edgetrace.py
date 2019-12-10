@@ -2771,6 +2771,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Returned value depends on whether or not the left and right
         # traces are done separately
+        ## JFH Changed from > 4 to  >= 4 to deal with GNIRS_10L. I guess this should be an input
+        ## parameter in the parset.
         return np.sum(good[self.is_left]) >= 4 and np.sum(good[self.is_right]) >= 4 \
                     if self.par['left_right_pca'] else np.sum(good) > 4
 
