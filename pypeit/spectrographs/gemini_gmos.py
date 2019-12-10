@@ -136,6 +136,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['flexure'] = pypeitpar.FlexurePar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
+        # Splice detectors 1,2,3 when creating sensitivity function
+        par['sensfunc']['multi_spec_det'] = [1,2,3]
 
         # Set the default exposure time ranges for the frame typing
         #par['scienceframe']['exprng'] = [30, None]
