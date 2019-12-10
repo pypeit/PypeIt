@@ -151,7 +151,6 @@ def main(args):
         multi_spec_det  = [int(item) for item in args.multi.split(',')]
         par['sensfunc']['multi_spec_det'] = multi_spec_det
 
-    embed()
     # TODO Add parsing of detectors here. If detectors passed from the command line, overwrite the parset values read
     # in from the .sens file
 

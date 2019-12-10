@@ -27,6 +27,47 @@ from pypeit import msgs
 from IPython import embed
 from numpy.lib.stride_tricks import as_strided
 
+def spec_atleast_2d(wave, flux, ivar, mask):
+    """
+    Utility routine to repackage spectra to have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp)
+
+    Args:
+        wave (`numpy.ndarray`_):
+            Wavelength array
+        flux (`numpy.ndarray`_):
+            Flux array
+        ivar (`numpy.ndarray`_):
+            Inverse variance array
+        mask (`numpy.ndarray`_, bool):
+            Good pixel mask True=Good.
+
+    Returns:
+        wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+
+            Reshaped arrays which all have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp) along
+            with nspec, and norders = total number of orders, detectors, or exposures
+
+
+    """
+    # Repackage the data into arrays of shape (nspec, norders)
+    if flux.ndim == 1:
+        nspec = flux.size
+        norders = 1
+        wave_arr = wave.reshape(nspec, 1)
+        flux_arr = flux.reshape(nspec, 1)
+        ivar_arr = ivar.reshape(nspec, 1)
+        mask_arr = mask.reshape(nspec, 1)
+    else:
+        nspec, norders = flux.shape
+        if wave.ndim == 1:
+            wave_arr = np.tile(wave, (norders, 1)).T
+        else:
+            wave_arr = wave
+        flux_arr = flux
+        ivar_arr = ivar
+        mask_arr = mask
+
+    return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):

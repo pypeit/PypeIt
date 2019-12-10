@@ -15,6 +15,7 @@ from pypeit.core import telluric
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
 from astropy import table
+from pypeit.core import coadd1d
 
 from pypeit.par import pypeitpar
 from pypeit.core import save
@@ -77,7 +78,7 @@ class SensFunc(object):
         self.debug = debug
 
         # Are we splicing together multiple detectors?
-        self.multi_det = True if self.par['multi_spec_det'] is not None else False
+        self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
         # Core attributes that will be output to file
         self.meta_table = None
         self.out_table = None
@@ -126,14 +127,16 @@ class SensFunc(object):
 
         return meta_table, out_table
 
-    def splice_sensfunc(self):
-        msgs.info('Merging sensfunc from detectors {:s}'.format(self.par['multi_spec_det']))
-        embed()
-        sens_min_global = np.min(sens_min)
-        sens_max_global = np.max(sens_max)
-        wave_sens_global, _, _ = coadd1d.get_wave_grid(sobj_ispec.boxcar['WAVE'][sobj_ispec.boxcar['MASK']].value,
-                                                       wave_method='linear', wave_grid_min=sens_min_global,
-                                                       wave_grid_max=sens_max_global, samp_fact=1.0)
+    def splice_sensfunc(self, meta_table, out_table):
+
+        if self.splice_multi_det:
+            embed()
+            msgs.info('Merging sensfunc from detectors {:}'.format(self.par['multi_spec_det']))
+            wave_min_global = out_table['WAVE_MIN'].min()
+            wave_max_global = out_table['WAVE_MAX'].max()
+            wave_sens_global, _, _ = coadd1d.get_wave_grid(sobj_ispec.boxcar['WAVE'][sobj_ispec.boxcar['MASK']].value,
+                                                           wave_method='linear', wave_grid_min=wave_min_global,
+                                                           wave_grid_max=wave_max_global, samp_fact=1.0)
         sensfunc_global = np.zeros_like(wave_sens_global)
         for isens in range(nsens):
             coeff = sens_table[isens]['OBJ_THETA'][0:polyorder_vec[isens] + 2]
@@ -173,9 +176,11 @@ class IR(SensFunc):
                                                  recombination=self.par['IR']['recombination'], polish=self.par['IR']['polish'],
                                                  disp=self.par['IR']['disp'], debug=self.debug)
 
-        self.meta_table, self.out_table = self.TelObj.meta_table, self.TelObj.out_table
+        meta_table, out_table = self.TelObj.meta_table, self.TelObj.out_table
         # Add the algorithm to the meta_table
-        self.meta_table['ALGORITHM'] = self.par['algorithm']
+        meta_table['ALGORITHM'] = self.par['algorithm']
+        self.meta_table, self.out_table = self.splice_sensfunc(meta_table, out_table)
+
         return self.meta_table, self.out_table
 
 
@@ -191,7 +196,7 @@ class UVIS(SensFunc):
 
     def generate_sensfunc(self):
         # TODO This routine needs to now operate on a array which is nspec, norder or nspec, ndet
-        self.meta_table, self.out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
+        meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                                               self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
                                                               self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
                                                               telluric=False, polyorder=self.par['polyorder'],
@@ -201,7 +206,9 @@ class UVIS(SensFunc):
                                                               trans_thresh=self.par['UVIS']['trans_thresh'],
                                                               polycorrect=True, debug=self.debug)
         # Add the algorithm to the meta_table
-        self.meta_table['ALGORITHM'] = self.par['algorithm']
+        meta_table['ALGORITHM'] = self.par['algorithm']
+
+        self.meta_table, self.out_table = self.splice_sensfunc(meta_table, out_table)
 
         return self.meta_table, self.out_table
 

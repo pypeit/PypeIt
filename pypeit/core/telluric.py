@@ -957,7 +957,7 @@ class Telluric(object):
 
         # 2) Reshape all spectra to be (nspec, norders)
         self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.nspec_in, self.norders = \
-            self.reshape(wave, flux, ivar, mask)
+            utils.spec_atleast_2d(wave, flux, ivar, mask)
 
         # Optimizer requires a seed. This guarantees that the fit will be deterministic and hence reproducible
         self.seed = seed
@@ -1255,46 +1255,6 @@ class Telluric(object):
             ind_lower[iord] = np.ma.argmin(wave_grid_ma)
             ind_upper[iord] = np.ma.argmax(wave_grid_ma)
         return ind_lower, ind_upper
-
-    def reshape(self, wave, flux, ivar, mask):
-        """
-        Utiltity routine to repackage all of the data to have shape (nspec, norders).
-
-        Args:
-            wave (`numpy.ndarray`_):
-              Wavelength array
-            flux (`numpy.ndarray`_):
-              Flux array
-            ivar (`numpy.ndarray`_):
-              Inverse variance array
-            mask (`numpy.ndarray`_, bool):
-              Good pixel mask True=Good.
-
-        Returns:
-            wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
-
-            Reshaped arrays, and norde = total number of orders
-
-        """
-        # Repackage the data into arrays of shape (nspec, norders)
-        if flux.ndim == 1:
-            nspec = flux.size
-            norders = 1
-            wave_arr = wave.reshape(nspec,1)
-            flux_arr = flux.reshape(nspec, 1)
-            ivar_arr = ivar.reshape(nspec, 1)
-            mask_arr = mask.reshape(nspec, 1)
-        else:
-            nspec, norders = flux.shape
-            if wave.ndim == 1:
-                wave_arr = np.tile(wave, (norders, 1)).T
-            else:
-                wave_arr = wave
-            flux_arr = flux
-            ivar_arr = ivar
-            mask_arr = mask
-
-        return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
 
     ##########################
     ## telluric grid methods #
