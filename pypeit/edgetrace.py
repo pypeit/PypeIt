@@ -2545,7 +2545,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if self.spat_fit is not None and not use_fit:
                 cen[bpm] = self.spat_fit[bpm]
 
-        embed()
         # Get the sorted indices
         if use_mean:
             # Sort the traces by their spatial position (always use
