@@ -62,6 +62,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     # out of sync with what's in pypeit.PypeIt
     outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
+    outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
 
     # TODO: Need some checks here that the exposure has been reduced
 
@@ -79,7 +80,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     else:
         all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
         # Txt file
-        outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
+        # TODO JFH: Make this a method in the specobjs class.
         save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
 
     # Write 2D images for the Science Frame
@@ -167,6 +168,7 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, ob
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
+# TODO JFH: we make exceptions for core objects like specobjs
 def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
     """
     Write info to an ASCII file
@@ -187,8 +189,8 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             continue
         # Append
         names.append(specobj.name)
-        slits.append(specobj.SLITID)
         spat_pixpos.append(specobj.SPAT_PIXPOS)
+        slits.append(specobj.slit_orderindx)
         if spectrograph.pypeline == 'MultiSlit':
             spat_fracpos.append(specobj.SPAT_FRACPOS)
         elif spectrograph.pypeline == 'Echelle':
@@ -217,8 +219,8 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             obj_tbl['slit'] = slits
             obj_tbl['slit'].format = 'd'
         elif spectrograph.pypeline == 'Echelle':
-            obj_tbl['order'] = slits
-            obj_tbl['order'].format = 'd'
+            obj_tbl['orderindx'] = slits
+            obj_tbl['orderindx'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'

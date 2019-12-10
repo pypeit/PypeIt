@@ -942,7 +942,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     #   - Center is within the limits of the spectrum
     #   - The Gaussian-fitted center and the center from `detect_lines`
     #     are not different by more than 0.75*FWHM
-    #   - Width is finite, greater than 0, and less than FWHM/2.35
+    #   - Width is finite, greater than 0, and less than FWHM_MAX/2.35
     good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
@@ -1040,11 +1040,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    b      = -1.0*np.ones(sz_p, dtype=np.float)
-    ampl   = -1.0*np.ones(sz_p, dtype=np.float)
-    cent   = -1.0*np.ones(sz_p, dtype=np.float)
-    widt   = -1.0*np.ones(sz_p, dtype=np.float)
-    centerr = -1.0*np.ones(sz_p, dtype=np.float)
+    b      = np.full(sz_p, -999.0, dtype=float)
+    ampl   = np.full(sz_p, -999.0, dtype=float)
+    cent   = np.full(sz_p, -999.0, dtype=float)
+    widt   = np.full(sz_p, -999.0, dtype=float)
+    centerr =np.full(sz_p, -999.0, dtype=float)
 
     for p in range(sz_p):
         # This interval is always symmetric about the peak

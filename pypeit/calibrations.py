@@ -660,7 +660,6 @@ class Calibrations(object):
                                                     files=self.trace_image_files, det=self.det,
                                                     par=self.par['traceframe'],
                                                     bias=self.msbias)
-
             self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             try:

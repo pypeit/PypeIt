@@ -315,7 +315,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                 continue
             if len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                 continue
-            msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.SLITID))
+            msgs.info("Working on flexure for object # {:d}".format(specobj.OBJID) + "in slit # {:d}".format(specobj.SLITID))
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
                 sky_wave = specobj.BOX_WAVE #.to('AA').value
