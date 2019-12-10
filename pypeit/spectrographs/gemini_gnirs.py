@@ -282,9 +282,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for GNIRS")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
-        if det == 1:
-            bpm_img[:, :20] = 1.
-            bpm_img[:, 1000:] = 1.
+        # JFH Changed. Entire GNIRS detector is fine
+        #if det == 1:
+        #    bpm_img[:, :20] = 1.
+        #    bpm_img[:, 1000:] = 1.
 
         return bpm_img
 
