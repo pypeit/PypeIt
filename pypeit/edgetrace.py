@@ -2545,6 +2545,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if self.spat_fit is not None and not use_fit:
                 cen[bpm] = self.spat_fit[bpm]
 
+        embed()
         # Get the sorted indices
         if use_mean:
             # Sort the traces by their spatial position (always use
@@ -2770,7 +2771,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Returned value depends on whether or not the left and right
         # traces are done separately
-        return np.sum(good[self.is_left]) > 4 and np.sum(good[self.is_right]) > 4 \
+        return np.sum(good[self.is_left]) >= 4 and np.sum(good[self.is_right]) >= 4 \
                     if self.par['left_right_pca'] else np.sum(good) > 4
 
     def predict_traces(self, spat_cen, side=None):
