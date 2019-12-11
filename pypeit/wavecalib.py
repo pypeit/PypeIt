@@ -164,7 +164,6 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Obtain a list of good slits
         ok_mask = np.where(~self.maskslits)[0]
-        embed()
         # Obtain calibration for all slits
         if method == 'simple':
             lines = self.par['lamps']
