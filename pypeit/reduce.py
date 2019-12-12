@@ -38,6 +38,7 @@ class Reduce(object):
          objtype : str
            'science'
            'standard'
+           'science_coadd2d'
          scidx : int
            Row in the fitstbl corresponding to the exposure
 
@@ -190,7 +191,7 @@ class Reduce(object):
         return manual_extract_dict
 
     def find_objects(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
-                          show_peaks=False, show_fits=False, show_trace=False, show=False,
+                     show_peaks=False, show_fits=False, show_trace=False, show=False,
                      manual_extract_dict=None, debug=False):
         """
 
@@ -234,11 +235,8 @@ class Reduce(object):
                                            debug=debug)
             # Mask
             skymask = skymask_pos & skymask_neg
-            # Add
-            if sobjs_obj_init_neg.nobj > 0:
-                sobjs_obj_init.append_neg(sobjs_obj_init_neg)
-            else:
-                msgs.warn("No negative objects found..")
+            # Add (if there are any)
+            sobjs_obj_init.append_neg(sobjs_obj_init_neg)
         else:
             skymask = skymask_pos
 
@@ -247,7 +245,6 @@ class Reduce(object):
 
         # For nobj we take only the positive objects
         return sobjs_obj_init, nobj_init, skymask
-
 
     def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                               show_peaks=False, show_fits=False, show_trace=False, show=False, debug=False,
@@ -523,7 +520,7 @@ class Reduce(object):
         if sobjs is not None:
             for spec in sobjs:
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
-                ginga.show_trace(viewer, ch, spec.trace_spat, spec.idx, color=color)
+                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
 
         if slits:
             if self.tslits_dict is not None:
@@ -556,8 +553,7 @@ class MultiSlit(Reduce):
     def __init__(self, sciImg, spectrograph, tslits_dict, par, tilts, **kwargs):
         super(MultiSlit, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
-
-    def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace = None, maskslits=None,
+    def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace=None, maskslits=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, debug=False):
@@ -615,9 +611,6 @@ class MultiSlit(Reduce):
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
 
-            # JFH This is a bad idea
-            #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
-            #
             sobjs_slit, skymask[thismask] = \
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],
                                 self.tslits_dict['slit_righ'][:,slit], inmask=inmask, ir_redux=ir_redux,
@@ -733,18 +726,22 @@ class Echelle(Reduce):
     def __init__(self, sciImg, spectrograph, tslits_dict, par, tilts, **kwargs):
         super(Echelle, self).__init__(sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
 
+        # JFH For 2d coadds the orders are no longer located at the standard locations
+        if 'coadd2d' in self.objtype:
+            self.order_vec = spectrograph.orders
+        else:
+            slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
+            self.order_vec = self.spectrograph.order_vec(slit_spat_pos)
+
 
     def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace = None, maskslits=None,
                               show=False, show_peaks=False, show_fits=False, show_trace = False, debug=False,
                               manual_extract_dict=None):
-        # For echelle orders
-        slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 
-        order_vec = self.spectrograph.order_vec(slit_spat_pos)
-        plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
+        plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.mask == 0
         # Find objects
         specobj_dict = {'setup': self.setup, 'slitid': 999, #'orderindx': 999,
@@ -754,7 +751,7 @@ class Echelle(Reduce):
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'], self.tslits_dict['slit_righ'],
             spec_min_max=np.vstack((self.tslits_dict['spec_min'],self.tslits_dict['spec_max'])),
-            inmask=inmask, ir_redux=ir_redux, ncoeff=self.redux_par['trace_npoly'], order_vec=order_vec,
+            inmask=inmask, ir_redux=ir_redux, ncoeff=self.redux_par['trace_npoly'], order_vec=self.order_vec,
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale, std_trace=std_trace,
             specobj_dict=specobj_dict,sig_thresh=self.redux_par['sig_thresh'], show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.redux_par['find_trim_edge'], cont_fit=self.redux_par['find_cont_fit'],
@@ -798,14 +795,10 @@ class Echelle(Reduce):
         self.waveimg = waveimg
         self.global_sky = global_sky
 
-        # For echelle orders
-        slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
-        order_vec = self.spectrograph.order_vec(slit_spat_pos)
-        #
-        plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
+        plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciImg.image, self.sciImg.ivar, self.sciImg.mask, self.tilts, self.waveimg, self.global_sky,
-            self.sciImg.rn2img, self.tslits_dict, sobjs, order_vec, spat_pix=spat_pix,
+            self.sciImg.rn2img, self.tslits_dict, sobjs, self.order_vec, spat_pix=spat_pix,
             std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.redux_par['bspline_spacing'],
             box_rad_order=self.redux_par['boxcar_radius']/plate_scale,
             sigrej=self.redux_par['sky_sigrej'],

@@ -24,6 +24,7 @@ import astropy
 import sklearn
 import pypeit
 import time
+from IPython import embed
 
 def init_record_array(shape, dtype):
     r"""
@@ -158,7 +159,7 @@ def parse_hdr_key_group(hdr, prefix='F'):
 
     If the prefix is 'F', the header keywords are expected to be, e.g.,
     'F1', 'F2', 'F3', etc.  The list of values returned are then, e.g.,
-    [ hdr['F1'], hdr['F2'], hdr['F3'], ... ].  The function performs not
+    [ hdr['F1'], hdr['F2'], hdr['F3'], ... ].  The function performs no
     retyping, so the values in the returned list have whatever type they
     had in the fits header.
 
@@ -190,7 +191,13 @@ def parse_hdr_key_group(hdr, prefix='F'):
 
     # Convert from dictionary with integer keys to an appropriately
     # sorted list
-    return [values[i] for i in range(max(values.keys())+1)]
+    # JFH try/except added to deal with cases where no header cards were found with the desired
+    # prefix. I'm not sure returning an empty list is the desired behavior, but None will cause
+    # downstream things to crash.
+    try:
+        return [values[i] for i in range(max(values.keys())+1)]
+    except:
+        return []
 
 
 def initialize_header(hdr=None):

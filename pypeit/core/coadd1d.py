@@ -72,13 +72,19 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             1.0 undersamples (coarser)
 
     Returns:
-        Returns two numpy.ndarray objects. (1) New wavelength grid, not
-        masked; and (2) New wavelength grid evaluated at the centers of
-        the wavelength bins, that is this grid is simply offset from
-        wave_grid by dsamp/2.0, in either linear space or log10
-        depending on whether linear or (log10 or velocity) was
-        requested.  For iref or concatenate the linear wavelength
-        sampling will be calculated.
+        tuple: Returns two numpy.ndarray objects and a float:
+
+            - wave_grid (np.ndarray): New wavelength grid, not masked
+            - wave_grid_mid (np.ndarray): New wavelength grid evaluated
+              at the centers of the wavelength bins, that is this grid
+              is simply offset from wave_grid by dsamp/2.0, in either
+              linear space or log10 depending on whether linear or
+              (log10 or velocity) was requested.  For iref or
+              concatenate the linear wavelength sampling will be
+              calculated.
+            - dsamp (float): The pixel sampling for wavelength grid
+              created.
+
     """
     c_kms = constants.c.to('km/s').value
 
@@ -688,7 +694,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
             Number of pixels used for determining smoothly varying S/N ratio weights.
 
     Returns:
-        (1) rms_sn : ndarray, shape (nexp) -- Root mean square S/N value
+        tuple: (1) rms_sn : ndarray, shape (nexp) -- Root mean square S/N value
         for each input spectra; (2) weights : ndarray, shape = (nspec,
         nexp) -- Weights to be applied to the spectra. These are
         signal-to-noise squared weights.
@@ -1261,7 +1267,8 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
               another depending on the sampling.
     '''
 
-    ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0)
+    #mask bad values and extreme values (usually caused by extreme low sensitivity at the edge of detectors)
+    ubermask = masks & (weights > 0.0) & (waves > 1.0) & (ivars > 0.0) & (utils.inverse(ivars)<1e10)
     waves_flat = waves[ubermask].flatten()
     fluxes_flat = fluxes[ubermask].flatten()
     ivars_flat = ivars[ubermask].flatten()

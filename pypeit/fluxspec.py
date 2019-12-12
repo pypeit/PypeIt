@@ -178,12 +178,6 @@ class FluxSpec(object):
         elif self.spectrograph.pypeline == 'Echelle':
             # Find brightest object in each order
             std_brightest = self.std_specobjs[flux_calib.find_standard(self.std_specobjs)]
-            #std_objid = std_brightest['idx'].split('-')[0]
-            #std_objid = std_brightest.ECH_FRACPOS
-            #self.std_idx = np.zeros(len(self.std_specobjs), dtype=bool)
-            #for ii in range(len(self.std_specobjs)):
-            #    if std_objid in self.std_specobjs[ii]['idx']:
-            #        self.std_idx[ii] = True
             self.std_idx = np.isclose(std_brightest.ECH_FRACPOS, self.std_specobjs.ECH_FRACPOS)
             # Set internal
             self.std = self.std_specobjs[self.std_idx]

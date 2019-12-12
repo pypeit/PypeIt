@@ -25,8 +25,10 @@ from pypeit.core import pixels
 from pypeit.core import arc
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
+from IPython import embed
 
-def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, specobj, min_frac_use = 0.05):
+def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
+                    min_frac_use = 0.05):
 
     """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
 
@@ -50,7 +52,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         Image containing the profile of the object that we are extracting
     box_radius: float
         Size of boxcar window in floating point pixels in the spatial direction.
-    specobj: SpecObj object (from the SpecObj class in specobj.py).
+    spec: SpecObj object (from the SpecObj class in specobj.py).
          This is the container that holds object, trace,
          and extraction information for the object in question. This routine operates one object at a time.
     min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
@@ -83,30 +85,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
         msgs.warn('Object profile is zero everywhere. This aperture is junk.')
-        junk = np.zeros(nspec)
-        # Fill in the optimally extraction tags
-        '''
-        specobj.optimal['WAVE'] = junk
-        specobj.optimal['COUNTS'] = junk
-        specobj.optimal['COUNTS_IVAR'] = junk
-        specobj.optimal['COUNTS_SIG'] = junk
-        specobj.optimal['COUNTS_NIVAR'] = junk
-        specobj.optimal['MASK'] = junk
-        specobj.optimal['COUNTS_SKY'] = junk
-        specobj.optimal['COUNTS_RN'] = junk
-        specobj.optimal['FRAC_USE'] = junk
-        specobj.optimal['CHI2'] = junk
-        # Fill in the boxcar tags
-        specobj.boxcar['WAVE'] = junk
-        specobj.boxcar['COUNTS'] = junk
-        specobj.boxcar['COUNTS_SIG'] = junk
-        specobj.boxcar['COUNTS_IVAR'] = junk
-        specobj.boxcar['COUNTS_NIVAR'] = junk
-        specobj.boxcar['MASK'] = junk
-        specobj.boxcar['COUNTS_SKY'] = junk
-        specobj.boxcar['COUNTS_RN'] = junk
-        specobj.boxcar['BOX_RADIUS'] = 0.0
-        '''
         return None
 
     mincol = np.min(ispat)
@@ -172,7 +150,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         if oprof_bad.any():
             # For pixels with completely bad profile values, interpolate from trace.
             f_wave = scipy.interpolate.RectBivariateSpline(spec_vec,spat_vec, waveimg*thismask)
-            wave_opt[oprof_bad] = f_wave(specobj.trace_spec[oprof_bad], specobj.TRACE_SPAT[oprof_bad],grid=False)
+            wave_opt[oprof_bad] = f_wave(spec.trace_spec[oprof_bad], spec.TRACE_SPAT[oprof_bad],
+                                         grid=False)
 
     flux_model = np.outer(flux_opt,np.ones(nsub))*oprof_sub
     chi2_num = np.nansum((img_sub - flux_model)**2*ivar_sub*mask_sub,axis=1)
@@ -180,58 +159,56 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     chi2 = chi2_num/chi2_denom
 
     # Fill in the optimally extraction tags
-    specobj.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
-    specobj.OPT_COUNTS = flux_opt    # Optimally extracted flux
-    specobj.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
-    specobj.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
-    specobj.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-    specobj.OPT_MASK = mask_opt    # Mask for optimally extracted flux
-    specobj.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
-    specobj.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
-    specobj.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
-    specobj.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
+    spec.OPT_WAVE = wave_opt    # Optimally extracted wavelengths
+    spec.OPT_COUNTS = flux_opt    # Optimally extracted flux
+    spec.OPT_COUNTS_IVAR = mivar_opt   # Inverse variance of optimally extracted flux using modelivar image
+    spec.OPT_COUNTS_SIG = np.sqrt(utils.inverse(mivar_opt))
+    spec.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
+    spec.OPT_MASK = mask_opt    # Mask for optimally extracted flux
+    spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
+    spec.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
+    spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
+    spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
     # Fill in the boxcar extraction tags
-    flux_box = moment1d(imgminsky*mask, specobj.TRACE_SPAT, 2*box_radius,
-                        row=specobj.trace_spec)[0]
+    flux_box = moment1d(imgminsky*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # Denom is computed in case the trace goes off the edge of the image
-    box_denom = moment1d(waveimg*mask > 0.0, specobj.TRACE_SPAT, 2*box_radius,
-                         row=specobj.trace_spec)[0]
-    wave_box = moment1d(waveimg*mask, specobj.TRACE_SPAT, 2*box_radius,
-                        row=specobj.trace_spec)[0] / (box_denom + (box_denom == 0.0))
+    box_denom = moment1d(waveimg*mask > 0.0, spec.TRACE_SPAT, 2*box_radius,
+                         row=spec.trace_spec)[0]
+    wave_box = moment1d(waveimg*mask, spec.TRACE_SPAT, 2*box_radius,
+                        row=spec.trace_spec)[0] / (box_denom + (box_denom == 0.0))
     varimg = 1.0/(ivar + (ivar == 0.0))
-    var_box = moment1d(varimg*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    nvar_box = moment1d(var_no*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    sky_box = moment1d(skyimg*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    rn2_box = moment1d(rn2_img*mask, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
+    var_box = moment1d(varimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    nvar_box = moment1d(var_no*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    sky_box = moment1d(skyimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    rn2_box = moment1d(rn2_img*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     rn_posind = (rn2_box > 0.0)
     rn_box = np.zeros(rn2_box.shape,dtype=float)
     rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
-    pixtot = moment1d(ivar*0 + 1.0, specobj.TRACE_SPAT, 2*box_radius, row=specobj.trace_spec)[0]
-    pixmsk = moment1d(ivar*mask == 0.0, specobj.TRACE_SPAT, 2*box_radius,
-                      row=specobj.trace_spec)[0]
+    pixtot = moment1d(ivar*0 + 1.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    pixmsk = moment1d(ivar*mask == 0.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
     mask_box = (pixmsk != pixtot) & np.isfinite(wave_box) & (wave_box > 0.0)
     bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
         f_wave = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, waveimg)
-        wave_box[bad_box] = f_wave(specobj.trace_spec[bad_box], specobj.TRACE_SPAT[bad_box],
-                                   grid=False)
+        wave_box[bad_box] = f_wave(spec.trace_spec[bad_box], spec.TRACE_SPAT[bad_box], grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
-    specobj.BOX_WAVE = wave_box
-    specobj.BOX_COUNTS = flux_box*mask_box
-    specobj.BOX_COUNTS_IVAR = ivar_box*mask_box
-    specobj.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
-    specobj.BOX_COUNTS_NIVAR = nivar_box*mask_box
-    specobj.BOX_MASK = mask_box
-    specobj.BOX_COUNTS_SKY = sky_box
-    specobj.BOX_COUNTS_RN = rn_box
-    specobj.BOX_RADIUS = box_radius
+    spec.BOX_WAVE = wave_box
+    spec.BOX_COUNTS = flux_box*mask_box
+    spec.BOX_COUNTS_IVAR = ivar_box*mask_box
+    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
+    spec.BOX_COUNTS_NIVAR = nivar_box*mask_box
+    spec.BOX_MASK = mask_box
+    spec.BOX_COUNTS_SKY = sky_box
+    spec.BOX_COUNTS_RN = rn_box
+    spec.BOX_RADIUS = box_radius
 
+    # TODO: Why is the returning None? It doesn't have to, right?
     return None
 
 
@@ -536,7 +513,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
                                      kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
-    cont_flux, _ = c_answer.value(wave[indsp])
+    try:
+        cont_flux, _ = c_answer.value(wave[indsp])
+    except:
+        embed()
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)
@@ -1043,6 +1023,7 @@ def create_skymask_fwhm(sobjs, thismask):
         else:
             return skymask
 
+
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
@@ -1177,7 +1158,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         show_cont = True
 
     if specobj_dict is None:
-        specobj_dict = dict(setup=None, slitid=999, det=1, objtype='unknown', pypeline='unknown', orderindx=999)
+        specobj_dict = dict(setup=None, slitid=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1305,9 +1286,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         pass
 
     # Now find all the peaks without setting any threshold
-    ypeak, _, xcen, sigma_pk, _, _, _, _ = arc.detect_lines(fluxconv_cont, cont_subtract = False, fwhm = fwhm,
-                                                            input_thresh = 'None', debug=False)
-
+    ypeak, _, xcen, sigma_pk, _, good_indx, _, _ = arc.detect_lines(fluxconv_cont, cont_subtract = False, fwhm = fwhm,
+                                                                    max_frac_fwhm = 5.0, input_thresh = 'None', debug=False)
+    ypeak = ypeak[good_indx]
+    xcen = xcen[good_indx]
     # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
     # with the edgemask, but we do it here anyway
     not_near_edge = (xcen > trim_edg[0]) & (xcen < (nsamp - trim_edg[1]))
@@ -1358,19 +1340,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nobj_reg = len(xcen)
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
-            # ToDo Label with objid and objind here?
-            if specobj_dict['pypeline'] == 'MultiSlit':
-                thisobj = specobj.SpecObj('MultiSlit', specobj_dict['det'],
-                                             slitid=specobj_dict['slitid'],
-                                             objtype=specobj_dict['objtype'])
-            elif specobj_dict['pypeline'] == 'Echelle':
-                thisobj = specobj.SpecObj('Echelle', specobj_dict['det'],
-                                             orderindx=specobj_dict['orderindx'],
-                                             ech_order=specobj_dict['order'],
-                                             objtype=specobj_dict['objtype'])
-            else:
-                msgs.error("Should not get here")
-
+            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
+            #
             thisobj.SPAT_FRACPOS = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
             thisobj.smash_nsig = ypeak[iobj]/sigma
@@ -1413,7 +1384,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs[iobj].TRACE_SPAT = std_trace + shift
         else:    # If no standard is provided shift left slit boundary over to be initial trace
             # ToDO make this the average left and right boundary instead. That would be more robust.
-            sobjs[iobj].TRACE_SPAT = slit_left  + xsize*sobjs[iobj].SPAT_FRACPOS
+            sobjs[iobj].TRACE_SPAT = slit_left + xsize*sobjs[iobj].SPAT_FRACPOS
         sobjs[iobj].trace_spec = spec_vec
         sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
@@ -1520,11 +1491,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            thisobj = specobj.SpecObj(frameshape,
-                                       det=specobj_dict['det'],
-                                       setup=specobj_dict['setup'], slitid=specobj_dict['slitid'],
-                                       orderindx = specobj_dict['orderindx'],
-                                       objtype=specobj_dict['objtype'])
+            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]
@@ -1562,11 +1529,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         #spat_pixpos = np.array([spec.SPAT_PIXPOS for spec in specobjs])
         #hand_flag = np.array([spec.hand_extract_flag for spec in specobjs])
         #spec_fwhm = np.array([spec.FWHM for spec in specobjs])
-        reg_ind, = np.where(~hand_flag)
+        reg_ind, = np.where(np.invert(hand_flag))
         hand_ind, = np.where(hand_flag)
         #med_fwhm = np.median(spec_fwhm[~hand_flag])
         #spat_pixpos_hand = spat_pixpos[hand_ind]
-        keep = np.ones(nobj,dtype=bool)
+        keep = np.ones(nobj, dtype=bool)
         for ihand in hand_ind:
             close = np.abs(sobjs[reg_ind].SPAT_PIXPOS - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
@@ -1587,7 +1554,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     spat_pixpos = sobjs.SPAT_PIXPOS
     sobjs = sobjs[spat_pixpos.argsort()]
     # Assign integer objids
-    sobjs[:].objid = np.arange(nobj)
+    sobjs.OBJID = np.arange(nobj) + 1
 
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
@@ -1659,7 +1626,7 @@ def remap_orders(xinit, spec_min_max, inverse=False):
                                                              bounds_error=False, fill_value='extrapolate')(spec_vec_norm)
     return xinit_remap
 
-
+# TODO Can we purge OBJID in this routine in place of ech_objid everywhere?
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
                 fof_link=1.5, order_vec=None, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
@@ -1844,11 +1811,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
                     specobj_dict=specobj_dict)
-        # ToDO make the specobjs _set_item_ work with expressions like this spec[:].orderindx = iord
-        #for spec in sobjs_slit:
-        #    spec.ech_orderindx = iord
-        #    spec.ech_order = order_vec[iord]
-        #    _ = spec.set_idx()
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)
@@ -1864,6 +1826,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     if nfound>1:
         inobj_id, multobj_id, firstobj_id, nextobj_id \
                 = pydl.spheregroup(ra_fake, dec_fake, FOF_frac/1000.0)
+        # TODO spheregroup returns zero based indices but we use one based. We should probably add 1 to inobj_id here,
+        # i.e. obj_id_init = inobj_id + 1
         obj_id_init = inobj_id.copy()
     elif nfound==1:
         obj_id_init = np.zeros(1,dtype='int')
@@ -1876,11 +1840,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     nobj_init = len(uni_obj_id_init)
     for iobj in range(nobj_init):
         for iord in range(norders):
-            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ech_orderindx == iord)
+            on_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX == iord)
             if (np.sum(on_order) > 1):
                 msgs.warn('Found multiple objects in a FOF group on order iord={:d}'.format(iord) + msgs.newline() +
                           'Spawning new objects to maintain a single object per order.')
-                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ech_orderindx != iord)
+                off_order = (obj_id_init == uni_obj_id_init[iobj]) & (sobjs.ECH_ORDERINDX != iord)
                 ind = np.where(on_order)[0]
                 if np.any(off_order):
                     # Keep the closest object to the location of the rest of the group (on other orders)
@@ -1915,17 +1879,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Loop over the orders and assign each specobj a fractional position and a obj_id number
     for iobj in range(nobj):
         for iord in range(norders):
-            on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
-            # ToDO fix specobjs set_item to get rid of these crappy loops
+            on_order = (obj_id == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
             sobjs_align[on_order].ECH_FRACPOS = uni_frac[iobj]
-            sobjs_align[on_order].ech_objid = uni_obj_id[iobj]
-            sobjs_align[on_order].objid = uni_obj_id[iobj]
+            sobjs_align[on_order].ECH_OBJID = uni_obj_id[iobj]
+            sobjs_align[on_order].OBJID = uni_obj_id[iobj]
             sobjs_align[on_order].ech_frac_was_fit = False
-            #for spec in sobjs_align[on_order]:
-                #spec.ech_fracpos = uni_frac[iobj]
-                #spec.ech_objid = uni_obj_id[iobj]
-            #    spec.objid = uni_obj_id[iobj]
-            #    spec.ech_frac_was_fit = False
 
     # Reset names (just in case)
     sobjs_align.set_names()
@@ -1933,14 +1891,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
     # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
     # where no object was found
-    ## TODO
     for iobj in range(nobj):
         # Grab all the members of this obj_id from the object list
-        indx_obj_id = sobjs_align.ech_objid == uni_obj_id[iobj]
+        indx_obj_id = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
         nthisobj_id = np.sum(indx_obj_id)
         # Perform the fit if this objects shows up on more than three orders
         if (nthisobj_id > 3) and (nthisobj_id<norders):
-            thisorderindx = sobjs_align[indx_obj_id].ech_orderindx
+            thisorderindx = sobjs_align[indx_obj_id].ECH_ORDERINDX
             goodorder = np.zeros(norders, dtype=bool)
             goodorder[thisorderindx] = True
             badorder = np.invert(goodorder)
@@ -1977,14 +1934,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         # Now loop over the orders and add objects on the ordrers for which the current object was not found
         for iord in range(norders):
             # Is the current object detected on this order?
-            on_order = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
+            on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              objtype=sobjs_align[0].OBJTYPE,
                                              orderindx=iord,
                                              ech_order=order_vec[iord])
-                #thisobj.ech_orderindx = iord
+                #thisobj.ECH_ORDERINDX = iord
                 #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
                 # Assign traces using the fractional position fit above
@@ -1999,12 +1956,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 # Use the real detections of this objects for the FWHM
                 this_obj_id = obj_id == uni_obj_id[iobj]
                 # Assign to the fwhm of the nearest detected order
-                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ech_orderindx - iord))
+                imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDERINDX - iord))
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
-                thisobj.ech_objid = uni_obj_id[iobj]
-                #thisobj.objid = uni_obj_id[iobj]
+                thisobj.ECH_OBJID = uni_obj_id[iobj]
+                thisobj.OBJID = uni_obj_id[iobj]
                 thisobj.ech_frac_was_fit = True
                 thisobj.set_name()
                 sobjs_align.add_sobj(thisobj)
@@ -2019,22 +1976,23 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     SNR_arr = np.zeros((norders, nobj))
     for iobj in range(nobj):
         for iord in range(norders):
-            indx = (sobjs_align.ech_objid == uni_obj_id[iobj]) & (sobjs_align.ech_orderindx == iord)
-            spec = sobjs_align[indx][0]
+            indx = sobjs_align.slitorder_objid_indices(iord, uni_obj_id[iobj])
+            #indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
+            #spec = sobjs_align[indx][0]
             thismask = slitmask == iord
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
 
-            flux_tmp  = moment1d(image*inmask_iord, spec.trace_spat, 2*box_rad_pix,
-                                 row=spec.trace_spec)[0]
-            var_tmp  = moment1d(varimg*inmask_iord, spec.trace_spat, 2*box_rad_pix,
-                                row=spec.trace_spec)[0]
+            flux_tmp  = moment1d(image*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
+                                 row=sobjs_align[indx][0].trace_spec)[0]
+            var_tmp  = moment1d(varimg*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
+                                row=sobjs_align[indx][0].trace_spec)[0]
             ivar_tmp = utils.calc_ivar(var_tmp)
-            pixtot  = moment1d(ivar*0 + 1.0, spec.trace_spat, 2*box_rad_pix,
-                               row=spec.trace_spec)[0]
-            mask_tmp = moment1d(ivar*inmask_iord == 0.0, spec.trace_spat, 2*box_rad_pix,
-                                row=spec.trace_spec)[0] != pixtot
+            pixtot  = moment1d(ivar*0 + 1.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
+                               row=sobjs_align[indx][0].trace_spec)[0]
+            mask_tmp = moment1d(ivar*inmask_iord == 0.0, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
+                                row=sobjs_align[indx][0].trace_spec)[0] != pixtot
 
             flux_box[:,iord,iobj] = flux_tmp*mask_tmp
             ivar_box[:,iord,iobj] = np.fmax(ivar_tmp*mask_tmp,0.0)
@@ -2043,7 +2001,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
             sigma_lower=5.0,sigma_upper=5.0)
             # ToDO assign this to sobjs_align for use in the extraction
             SNR_arr[iord,iobj] = med_sn
-            spec.ech_snr = med_sn
+            sobjs_align[indx][0].ech_snr = med_sn
 
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
@@ -2054,12 +2012,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     for iobj in range(nobj):
         if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr):
             keep_obj[iobj] = True
-            ikeep = sobjs_align.ech_objid == uni_obj_id[iobj]
+            ikeep = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
             sobjs_keep = sobjs_align[ikeep].copy()
-            for spec in sobjs_keep:
-                spec.ech_objid = iobj_keep
-                #spec.objid = iobj_keep
-            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ech_orderindx)])
+            sobjs_keep.ECH_OBJID = iobj_keep
+            sobjs_keep.OBJID = iobj_keep
+#            for spec in sobjs_keep:
+#                spec.ECH_OBJID = iobj_keep
+#                #spec.OBJID = iobj_keep
+            sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX)])
             iobj_keep += 1
         else:
             msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy max_snr > {:5.2f} OR min_snr > {:5.2f}'.format(max_snr, min_snr) +
@@ -2084,12 +2044,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     for iord in range(norders):
         trc_inmask[:,iord] = (spec_vec >= spec_min_max[0,iord]) & (spec_vec <= spec_min_max[1,iord])
 
-
     for iobj in range(nobj_trim):
-        indx_obj_id = sobjs_final.ech_objid == (iobj + 1)
+        indx_obj_id = sobjs_final.ECH_OBJID == (iobj + 1)
         # PCA predict all the orders now (where we have used the standard or slit boundary for the bad orders above)
         msgs.info('Fitting echelle object finding PCA for object {:d}\{:d} with median SNR = {:5.3f}'.format(
-                iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
+            iobj + 1,nobj_trim,np.median(sobjs_final[indx_obj_id].ech_snr)))
         pca_fits[:,:,iobj] \
                 = tracepca.pca_trace_object(sobjs_final[indx_obj_id].TRACE_SPAT.T,
                                             order=coeff_npoly, npca=npca,
@@ -2126,9 +2085,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # resulting in a bunch of objects landing on top of each other.
 
     # Set the IDs
-    sobjs_final.ECH_ORDER = order_vec[sobjs_final.ech_orderindx]
+    sobjs_final[:].ECH_ORDER = order_vec[sobjs_final[:].ECH_ORDERINDX]
     #for spec in sobjs_final:
-    #    spec.ech_order = order_vec[spec.ech_orderindx]
+    #    spec.ech_order = order_vec[spec.ECH_ORDERINDX]
     sobjs_final.set_names()
 
     skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)

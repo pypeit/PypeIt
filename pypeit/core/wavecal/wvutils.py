@@ -69,6 +69,8 @@ def get_sampling(waves, pix_per_R=3.0):
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
+    Simple wrapper to arc.detect_lines.
+    See that code for docs
 
     Args:
         spec:

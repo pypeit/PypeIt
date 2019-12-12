@@ -2,6 +2,8 @@
 0.11.1dev
 ---------
 
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band spectroscopy. 
+- Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
 - Brings Gemini/GMOS into the suite (R400)
@@ -50,6 +52,7 @@
 - Added 'Identify' tool to allow manual identification and calibration
   of an arc spectrum
 - Added support for WHT/ISIS
+- Added 'Object Tracing' tool to allow interactive object tracing
 - Added code of conduct
 - Deprecated previous tracing code: `pypeit.traceslits` and
   `pypeit.core.trace_slits`, as well as some functions in
