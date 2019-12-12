@@ -2,7 +2,8 @@
 0.11.1dev
 ---------
 
-- Implemented MOSFIRE and further implemented NIRSPEC for Y-band spectroscopy. 
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band
+  spectroscopy. 
 - Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
@@ -67,6 +68,9 @@
 - Include a mask in the line detection in extracted central arc spectrum
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
+- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
+  key is not valid for the given parameter set.  NOTE: The check may
+  fail if there are identical keys for different parameter sets.
 
 0.11.0.1
 ---------
