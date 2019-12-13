@@ -1,32 +1,4 @@
-.. _bumpversion: https://pypi.org/project/bumpversion/
-
-.. _repo: https://github.com/pypeit/PypeIt
-
-.. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite
-
-.. _Sphinx: https://www.sphinx-doc.org/en/master/index.html
-
-.. _reStructuredText: http://docutils.sourceforge.net/rst.html
-
-.. _Google-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google
-
-.. _Numpy-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html#example-numpy
-
-.. _rclone: https://rclone.org/
-
-.. _pip: https://pip.pypa.io/en/stable/
-
-.. _pdb: https://docs.python.org/3/library/pdb.html
-
-.. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
-
-.. _pytest: https://docs.pytest.org/en/latest/
-
-.. _documentation: https://pypeit.readthedocs.io/en/latest/
-
-.. _Joe Hennawi: joe@physics.ucsb.edu
-
-.. _X Prochaska: xavier@ucolick.org
+.. include:: links.rst
 
 .. _development:
 
