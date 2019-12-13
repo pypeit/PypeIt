@@ -824,7 +824,8 @@ def initialise(arccen, slit=0, par=None):
     par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
     # Extract the lines that are detected in arccen
-    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(arccen[:, slit].copy(), sigdetect=par['sigdetect'],
+    thisarc = arccen[:, slit]
+    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
                                                         nonlinear_counts=par['nonlinear_counts'])
     detns = tdetns[icut]
 
@@ -836,7 +837,7 @@ def initialise(arccen, slit=0, par=None):
         line_lists = waveio.load_line_lists(par['lamps'])
 
     # Create a Line2D instance for the arc spectrum
-    spec = Line2D(np.arange(arccen.size), arccen,
+    spec = Line2D(np.arange(thisarc.size), thisarc,
                   linewidth=1, linestyle='solid', color='k',
                   drawstyle='steps', animated=True)
 
@@ -856,7 +857,7 @@ def initialise(arccen, slit=0, par=None):
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
     axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
     axres.axhline(0.0, color='r', linestyle='-')  # Zero level
-    axres.set_xlim((0, arccen.size - 1))
+    axres.set_xlim((0, thisarc.size - 1))
     axres.set_ylim((-0.3, 0.3))
     axres.set_xlabel('Pixel')
     axres.set_ylabel('Residuals (Pix)')
@@ -864,9 +865,9 @@ def initialise(arccen, slit=0, par=None):
     # pixel vs wavelength
     respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    resfit = Line2D(np.arange(arccen.size), np.zeros(arccen.size), linewidth=1, linestyle='-', color='r')
+    resfit = Line2D(np.arange(thisarc.size), np.zeros(thisarc.size), linewidth=1, linestyle='-', color='r')
     axfit.add_line(resfit)
-    axfit.set_xlim((0, arccen.size - 1))
+    axfit.set_xlim((0, thisarc.size - 1))
     axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
     axfit.set_xlabel('Pixel')
     axfit.set_ylabel('Wavelength')

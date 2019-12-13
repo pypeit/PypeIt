@@ -388,6 +388,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # TODO: It's possible for the master key and the detector
         # number to be inconsistent...
+
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, file_format='fits.gz')
 

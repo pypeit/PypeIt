@@ -9,6 +9,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pkg_resources import resource_filename
+from IPython import embed
 
 
 from pypeit import debugger
@@ -70,38 +71,37 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 par['calibrations'][key]['process']['overscan'] = 'none'
 
         # Slits
-        par['calibrations']['slitedges']['edge_thresh'] = 20.
-        par['calibrations']['slitedges']['trace_thresh'] = 10.
-        par['calibrations']['slitedges']['fit_order'] = 5
-        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
-        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
-        par['calibrations']['slitedges']['left_right_pca'] = True
-        par['calibrations']['slitedges']['pca_order'] = 3
+        #par['calibrations']['slitedges']['edge_thresh'] = 20.
+        #par['calibrations']['slitedges']['trace_thresh'] = 10.
+        #par['calibrations']['slitedges']['fit_order'] = 5
+        #par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        #par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
+        #par['calibrations']['slitedges']['left_right_pca'] = True
+        #par['calibrations']['slitedges']['pca_order'] = 3
 
         # Wavelengths
-        par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['n_first'] = 2
-        par['calibrations']['wavelengths']['n_final'] = [1,3,3,3,3,3]
+        #par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
+        #par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        #par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['n_first'] = 2
+        #par['calibrations']['wavelengths']['n_final'] = [1,3,3,3,3,3]
 
         # Reidentification parameters
-        par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['cc_thresh'] = 0.6
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
-        par['calibrations']['wavelengths']['ech_fix_format'] = True
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
+        #par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         # JFH This is provisional these IDs should be checked.
-        par['calibrations']['wavelengths']['echelle'] = True
-        par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-        par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
-        par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+        #par['calibrations']['wavelengths']['echelle'] = True
+        #par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+        #par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Tilts
-        par['calibrations']['tilts']['tracethresh'] = [5.0,10,10,10,10,10]
-        par['calibrations']['tilts']['sig_neigh'] = 5.0
-        par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+        #par['calibrations']['tilts']['tracethresh'] = [5.0,10,10,10,10,10]
+        #par['calibrations']['tilts']['sig_neigh'] = 5.0
+        #par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
 
         # Flats
         par['calibrations']['flatfield']['illumflatten'] = False
@@ -139,8 +139,101 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for specific instrument configurations.
 
 
+        Args:
+           scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+           inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+           :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set  adjusted for configuration specific parameter values.
+        """
+
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+
+        # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
+        if '32/mm' in self.get_meta_value(scifile, 'dispname'):
+            # Edges
+            par['calibrations']['slitedges']['edge_thresh'] = 20.
+            par['calibrations']['slitedges']['trace_thresh'] = 10.
+            par['calibrations']['slitedges']['fit_order'] = 5
+            par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
+            par['calibrations']['slitedges']['left_right_pca'] = True
+            par['calibrations']['slitedges']['pca_order'] = 3
+
+            # Wavelengths
+            par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
+            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
+            par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0][
+                'saturation']
+            par['calibrations']['wavelengths']['n_first'] = 2
+            par['calibrations']['wavelengths']['n_final'] = [1, 3, 3, 3, 3, 3]
+
+            # Reidentification parameters
+            par['calibrations']['wavelengths']['method'] = 'reidentify'
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
+            par['calibrations']['wavelengths']['ech_fix_format'] = True
+            # Echelle parameters
+            # JFH This is provisional these IDs should be checked.
+            par['calibrations']['wavelengths']['echelle'] = True
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['ech_norder_coeff'] = 5
+            par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+            # Tilts
+            par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
+            par['calibrations']['tilts']['sig_neigh'] = 5.0
+            par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+        # 10/mmLBSX_G5532 setup, covering JHK with the long blue
+        elif '10/mm' in self.get_meta_value(scifile, 'dispname'):
+            # Edges
+            par['calibrations']['slitedges']['edge_thresh'] = 20.
+            par['calibrations']['slitedges']['trace_thresh'] = 10.
+            par['calibrations']['slitedges']['fit_order'] = 2
+            par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+            par['calibrations']['slitedges']['det_min_spec_length'] = 0.20
+            par['calibrations']['slitedges']['fit_min_spec_length'] = 0.20
+            par['calibrations']['slitedges']['left_right_pca'] = True # Actually we need a parameter to disable PCA entirely
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+            # Wavelengths
+            par['calibrations']['wavelengths']['method'] = 'identify'
+            par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
+            par['calibrations']['wavelengths']['sigdetect'] = 5.0
+            par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_GNIRS']
+            par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+            par['calibrations']['wavelengths']['n_first'] = 2
+            par['calibrations']['wavelengths']['n_final'] = [3, 3, 3, 3]
+
+            # Reidentification parameters
+            #par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+            #par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
+            #par['calibrations']['wavelengths']['ech_fix_format'] = True
+            # Echelle parameters
+            # JFH This is provisional these IDs should be checked.
+            par['calibrations']['wavelengths']['echelle'] = True
+            par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
+            par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
+            par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+            # Tilts
+            par['calibrations']['tilts']['tracethresh'] = [10, 10, 10, 10]
+            par['calibrations']['tilts']['sig_neigh'] = 5.0
+            par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
+        else:
+            msgs.erro('Unrecognized GNIRS dispname')
 
         return par
 
