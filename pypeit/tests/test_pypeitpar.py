@@ -143,3 +143,21 @@ def test_detector():
 def test_telescope():
     pypeitpar.TelescopePar()
 
+def test_fail_badpar():
+    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+
+    # Faults because there's no junk parameter
+    cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
+    with pytest.raises(ValueError):
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=cfg_lines)
+    
+def test_fail_badlevel():
+    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+
+    # Faults because process isn't at the right level (i.e., there's no
+    # process parameter for CalibrationsPar)
+    cfg_lines = ['[calibrations]', '[[biasframe]]', '[[process]]', 'cr_reject = True']
+    with pytest.raises(ValueError):
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=cfg_lines)
+
+
