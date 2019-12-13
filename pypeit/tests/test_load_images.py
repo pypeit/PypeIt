@@ -70,7 +70,7 @@ def test_load_nires():
 
 @dev_suite_required
 def test_load_nirspec():
-    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRSPEC', 'NIRSPEC-1',
+    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRSPEC', 'LOW_NIRSPEC-1',
                          'NS.20160414.02604.fits.gz')
     try:
         # First amplifier
