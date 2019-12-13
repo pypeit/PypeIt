@@ -92,10 +92,8 @@ exposure in a fits file called `trace_file`::
                                    master_dir=master_dir, img=traceImage, det=det, auto=True)
     edges.save()
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
-.. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import time

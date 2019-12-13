@@ -2,9 +2,8 @@
 Implements a general purpose object used to decompose and predict
 traces using principle-component analysis.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _astropy.io.fits.BinTableHDU: https://docs.astropy.org/en/stable/io/fits/api/tables.html#astropy.io.fits.BinTableHDU
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import warnings
 from IPython import embed

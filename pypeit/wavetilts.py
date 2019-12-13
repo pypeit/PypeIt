@@ -1,8 +1,8 @@
 """
 Module for guiding Arc/Sky line tracing
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import copy

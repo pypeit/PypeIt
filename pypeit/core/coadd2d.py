@@ -1,8 +1,8 @@
 """
 Module for performing two-dimensional coaddition of spectra.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import copy
@@ -876,25 +876,27 @@ class Coadd2d(object):
 
     def get_wave_grid(self, **kwargs_wave):
         """
-        Routine to create a wavelength grid for 2d coadds using all of the wavelengths of the extracted objects. Calls
+        Routine to create a wavelength grid for 2d coadds using all
+        of the wavelengths of the extracted objects. Calls
         coadd1d.get_wave_grid.
 
         Args:
-            **kwargs_wave (dict): Optional argumments for coadd1d.get_wve_grid function
+            **kwargs_wave (dict):
+                Optional argumments for coadd1d.get_wve_grid function
 
         Returns:
-
-             wave_grid (np.ndarray):
-                  New wavelength grid, not masked
-             wave_grid_mid (np.ndarray):
-                  New wavelength grid evaluated at the centers of the wavelength bins, that is this
-                  grid is simply offset from wave_grid by dsamp/2.0, in either linear space or log10
-                  depending on whether linear or (log10 or velocity) was requested.  For iref or concatenate
-                  the linear wavelength sampling will be calculated.
-            dsamp (float):
-                  The pixel sampling for wavelength grid created.
-
-
+            tuple: Returns the following:
+                - wave_grid (np.ndarray): New wavelength grid, not
+                  masked
+                - wave_grid_mid (np.ndarray): New wavelength grid
+                  evaluated at the centers of the wavelength bins, that
+                  is this grid is simply offset from wave_grid by
+                  dsamp/2.0, in either linear space or log10 depending
+                  on whether linear or (log10 or velocity) was
+                  requested.  For iref or concatenate the linear
+                  wavelength sampling will be calculated.
+                - dsamp (float): The pixel sampling for wavelength grid
+                  created.
         """
 
         nobjs_tot = np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum()

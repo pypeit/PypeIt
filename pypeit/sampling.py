@@ -11,8 +11,8 @@ Provides a set of functions to handle resampling.
     | **30 Aug 2018**: Moved here from old instrument.py module by K.
         Westfall (KBW).
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 
 import warnings

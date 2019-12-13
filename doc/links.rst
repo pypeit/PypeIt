@@ -26,6 +26,8 @@
 .. _scipy.sparse.triu: http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.triu.html
 .. _scipy.linalg.lu_factor: http://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lu_factor.html
 .. _scipy.linalg.lu_solve: https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lu_solve.html
+.. _scipy.ndimage.sobel: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.sobel.html
+.. _scipy.ndimage.convolve: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.convolve.html#scipy.ndimage.convolve
 
 .. matplotlib
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
@@ -37,6 +39,7 @@
 .. _astropy.io.fits.Header: http://docs.astropy.org/en/stable/io/fits/api/headers.html#header
 .. _astropy.io.fits.BinTableHDU: http://docs.astropy.org/en/stable/io/fits/api/tables.html#astropy.io.fits.BinTableHDU
 .. _astropy.io.fits.Column: http://docs.astropy.org/en/stable/io/fits/api/tables.html#astropy.io.fits.Column
+.. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
 .. _astropy.wcs.wcs.WCS: http://docs.astropy.org/en/stable/api/astropy.wcs.WCS.html
 .. _astropy.modeling: http://docs.astropy.org/en/stable/modeling/index.html
 .. _astropy.modeling.polynomial.Legendre1D: http://docs.astropy.org/en/stable/api/astropy.modeling.polynomial.Legendre1D.html
@@ -44,6 +47,9 @@
 .. _astropy.modeling.FittableModel: http://docs.astropy.org/en/stable/api/astropy.modeling.FittableModel.html
 .. _astropy.cosmology.FlatLambdaCDM: http://docs.astropy.org/en/stable/api/astropy.cosmology.FlatLambdaCDM.html#flatlambdacdm
 .. _astropy.constants: http://docs.astropy.org/en/stable/constants/index.html
+
+.. scikit-learn
+.. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
 
 .. pydl
 .. _pydl.goddard.astro.airtovac: http://pydl.readthedocs.io/en/stable/api/pydl.goddard.astro.airtovac.html#pydl.goddard.astro.airtovac

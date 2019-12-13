@@ -1,10 +1,8 @@
 """
 General utility functions.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _numpy.ma.MaskedArray: https://docs.scipy.org/doc/numpy/reference/maskedarray.baseclass.html#the-maskedarray-class
-.. _scipy.ndimage.convolve: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.convolve.html#scipy.ndimage.convolve
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import pickle

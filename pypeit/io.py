@@ -3,8 +3,8 @@
 """
 Provides a set of I/O routines.
 
-.. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import sys

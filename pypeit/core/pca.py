@@ -1,8 +1,8 @@
 """
 Implement principle-component-analysis tools.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 from IPython import embed
 

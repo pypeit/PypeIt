@@ -37,8 +37,8 @@ Define a utility base class used to hold parameters.
         allow it to print the configuration lines for a dictionary, not
         just ParSets.
 
-.. _isinstance: https://docs.python.org/2/library/functions.html#isinstance
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import warnings

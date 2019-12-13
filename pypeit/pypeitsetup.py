@@ -1,8 +1,8 @@
 """
 Class for organizing PypeIt setup
 
-.. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import inspect
