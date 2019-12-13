@@ -210,6 +210,7 @@ class WaveCalib(masterframe.MasterFrame):
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
             # Todo : Generalise to multislit case
+            embed()
             arcfitter = gui_identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
             slit = 0
