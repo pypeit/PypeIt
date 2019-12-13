@@ -164,7 +164,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.__class__.default_pypeit_par() if inp_par is None else inp_par
+        par = self.__class__.default_pypeit_par(self) if inp_par is None else inp_par
 
         headarr = self.get_headarr(scifile)
 
