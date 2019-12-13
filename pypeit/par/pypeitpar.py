@@ -2097,7 +2097,10 @@ class EdgeTracePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        # TODO Please provide docs
+        k = numpy.array([*cfg.keys()])
+        # JFH FIX above
+        # k = numpy.array(cfg.keys())
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
                    'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
                    'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
