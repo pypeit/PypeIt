@@ -153,7 +153,7 @@ class FrameGroupPar(ParSet):
 
     @classmethod
     def from_dict(cls, frametype, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['useframe', 'number', 'exprng']
         # TODO: cfg can contain frametype but it is ignored...
         allkeys = parkeys + ['process', 'frametype']
@@ -315,7 +315,7 @@ class ProcessImagesPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'bias', 'overscan', 'overscan_par', 'match',
                     'combine', 'satpix', 'cr_reject', 'sigrej', 'n_lohi',
                     'sig_lohi', 'replace', 'lamaxiter', 'grow',
@@ -529,7 +529,7 @@ class FlatFieldPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse', 'spat_samp',
                     'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac']
 
@@ -637,7 +637,7 @@ class FlexurePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'method', 'maxshift', 'spectrum' ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -715,7 +715,7 @@ class Coadd2DPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['offsets', 'weights']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -818,7 +818,7 @@ class FluxCalibrationPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
                    'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect']
 
@@ -919,7 +919,7 @@ class SensFuncPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['multi_spec_det', 'algorithm', 'UVIS', 'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -1028,7 +1028,7 @@ class SensfuncUVISPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
                    'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
@@ -1209,7 +1209,7 @@ class TelluricPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds', 'pix_shift_bounds', 'maxiter', 'sticky', 'lower',
                    'upper', 'seed', 'tol', 'popsize', 'recombination', 'polish', 'disp']
 
@@ -1294,7 +1294,7 @@ class ManualExtractionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'frame', 'spec','spat','det','fwhm']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -1390,7 +1390,7 @@ class ReducePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
@@ -1668,7 +1668,7 @@ class WavelengthSolutionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'nonlinear_counts', 'sigdetect',
                    'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
@@ -1737,15 +1737,16 @@ class EdgeTracePar(ParSet):
                  det_min_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
                  max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
                  fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None,
-                 fit_min_spec_length=None, left_right_pca=None, pca_n=None, pca_var_percent=None,
-                 pca_function=None, pca_order=None, pca_sigrej=None, pca_maxrej=None,
-                 pca_maxiter=None, smash_range=None, edge_detect_clip=None, trace_median_frac=None,
-                 trace_thresh=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
-                 niter_gaussian=None, det_buffer=None, max_nudge=None, sync_predict=None,
-                 sync_center=None, gap_offset=None, sync_to_edge=None, minimum_slit_length=None,
-                 length_range=None, minimum_slit_gap=None, clip=None, sync_clip=None,
-                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
-                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+                 fit_min_spec_length=None, auto_pca=None, left_right_pca=None, pca_min_edges=None,
+                 pca_n=None, pca_var_percent=None, pca_function=None, pca_order=None,
+                 pca_sigrej=None, pca_maxrej=None, pca_maxiter=None, smash_range=None,
+                 edge_detect_clip=None, trace_median_frac=None, trace_thresh=None,
+                 fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None, niter_gaussian=None,
+                 det_buffer=None, max_nudge=None, sync_predict=None, sync_center=None,
+                 gap_offset=None, sync_to_edge=None, minimum_slit_length=None, length_range=None,
+                 minimum_slit_gap=None, clip=None, sync_clip=None, mask_reg_maxiter=None,
+                 mask_reg_maxsep=None, mask_reg_sigrej=None, ignore_alignment=None, pad=None,
+                 add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1849,11 +1850,29 @@ class EdgeTracePar(ParSet):
                                        'to use in any modeling procedure (polynomial fitting ' \
                                        'or PCA decomposition).'
 
+        defaults['auto_pca'] = True
+        dtypes['auto_pca'] = bool
+        descr['auto_pca'] = 'During automated tracing, attempt to construct a PCA decomposition ' \
+                            'of the traces. When True, the edge traces resulting from the ' \
+                            'initial detection, centroid refinement, and polynomial fitting ' \
+                            'must meet a set of criteria for performing the pca; see ' \
+                            ':func:`pypeit.edgetrace.EdgeTraceSet.can_pca`.  If False, the ' \
+                            '``sync_predict`` parameter *cannot* be set to ``pca``; if it is ' \
+                            'not, the value is set to ``nearest`` and a warning is issued when ' \
+                            'validating the parameter set.'
+
         defaults['left_right_pca'] = False
         dtypes['left_right_pca'] = bool
         descr['left_right_pca'] = 'Construct a PCA decomposition for the left and right traces ' \
                                   'separately.  This can be important for cross-dispersed ' \
                                   'echelle spectrographs (e.g., Keck-NIRES)'
+
+        defaults['pca_min_edges'] = 4
+        dtypes['pca_min_edges'] = int
+        descr['pca_min_edges'] = 'Minimum number of edge traces required to perform a PCA '\
+                                 'decomposition of the trace form.  If left_right_pca is True, ' \
+                                 'this minimum applies to the number of left and right traces '\
+                                 'separately.'
 
         dtypes['pca_n'] = int
         descr['pca_n'] = 'The number of PCA components to keep, which must be less than the ' \
@@ -2099,19 +2118,18 @@ class EdgeTracePar(ParSet):
     def from_dict(cls, cfg):
         # TODO Please provide docs
         k = numpy.array([*cfg.keys()])
-        # JFH FIX above
-        # k = numpy.array(cfg.keys())
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
                    'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
                    'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
-                   'fit_niter', 'fit_min_spec_length', 'left_right_pca', 'pca_n',
-                   'pca_var_percent', 'pca_function', 'pca_order', 'pca_sigrej', 'pca_maxrej',
-                   'pca_maxiter', 'smash_range', 'edge_detect_clip', 'trace_median_frac',
-                   'trace_thresh', 'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian',
-                   'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict', 'sync_center',
-                   'gap_offset', 'sync_to_edge', 'minimum_slit_length', 'length_range',
-                   'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter', 'mask_reg_maxsep',
-                   'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
+                   'fit_niter', 'fit_min_spec_length', 'auto_pca', 'left_right_pca',
+                   'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
+                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
+                   'trace_median_frac', 'trace_thresh', 'fwhm_uniform', 'niter_uniform',
+                   'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict',
+                   'sync_center', 'gap_offset', 'sync_to_edge', 'minimum_slit_length',
+                   'length_range', 'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter',
+                   'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits',
+                   'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -2145,7 +2163,10 @@ class EdgeTracePar(ParSet):
         return ['median', 'nearest', 'gap']
 
     def validate(self):
-        pass
+        """Validate the parameter set."""
+        if not self['auto_pca'] and self['sync_predict'] == 'pca':
+            warnings.warn('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
+            self['sync_predict'] = 'nearest'
 
 
 class WaveTiltsPar(ParSet):
@@ -2300,7 +2321,7 @@ class WaveTiltsPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
                    'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
                    'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order',
@@ -2487,7 +2508,7 @@ class ScienceImagePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         #ToDO change to updated param list
         parkeys = ['bspline_spacing', 'boxcar_radius', 'trace_npoly', 'global_sky_std',
                    'sig_thresh', 'maxnumber', 'sn_gauss', 'model_full_slit', 'no_poly', 'manual',
@@ -2619,7 +2640,7 @@ class CalibrationsPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = [ 'caldir', 'setup', 'trim', 'badpix' ]
@@ -2974,7 +2995,7 @@ class PypeItPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib',
                    'coadd2d', 'sensfunc', 'baseprocess']
@@ -3235,7 +3256,7 @@ class DetectorPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
                    'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
                    'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix']
@@ -3336,7 +3357,7 @@ class TelescopePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array(cfg.keys())
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'name', 'longitude', 'latitude', 'elevation', 'fratio', 'diameter' ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
