@@ -312,46 +312,72 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         order_platescale: ndarray, float
 
         """
-        return np.full(order_vec.size, 0.15)
-
+        if '10/mm' in self.meta['dispname']:
+            return np.full(order_vec.size, 0.05)
+        elif '32/mm' in self.meta['dispname']:
+            return np.full(order_vec.size, 0.15)
+        else:
+            msgs.error('Unrecognized disperser')
 
     @property
     def norders(self):
-        return 6
+        if '10/mm' in self.meta['dispname']:
+            return 4
+        elif '32/mm' in self.meta['dispname']:
+            return 6
+        else:
+            msgs.error('Unrecognized disperser')
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos = np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
-        return ord_spat_pos
+        if '10/mm' in self.meta['dispname']:
+            return np.array([0.050, 0.215, 0.442, 0.759])
+        elif '32/mm' in self.meta['dispname']:
+            return np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
+        else:
+            msgs.error('Unrecognized disperser')
 
     @property
     def orders(self):
-        return np.arange(8,2,-1, dtype=int)
-
+        if '10/mm' in self.meta['dispname']:
+            return np.arange(8,2,-1, dtype=int)
+        elif '32/mm' in self.meta['dispname']:
+            return np.arange(6,2,-1,dtype=int)
+        else:
+            msgs.error('Unrecognized disperser')
 
     @property
     def spec_min_max(self):
-        spec_max = np.asarray([1022,1022,1022,1022,1022,1022])
-        spec_min = np.asarray([512,280, 0, 0, 0, 0])
-        return np.vstack((spec_min, spec_max))
+        if '10/mm' in self.meta['dispname']:
+            spec_max = np.asarray([1022, 1022, 1022, 1022])
+            spec_min = np.asarray([450, 0, 0, 0])
+            return np.vstack((spec_min, spec_max))
+        elif '32/mm' in self.meta['dispname']:
+            spec_max = np.asarray([1022, 1022, 1022, 1022, 1022, 1022])
+            spec_min = np.asarray([512, 280, 0, 0, 0, 0])
+            return np.vstack((spec_min, spec_max))
+        else:
+            msgs.error('Unrecognized disperser')
 
-    @property
-    def dloglam(self):
-        dloglam = 0.000127888 # this is the average of the median dispersions
-        return dloglam
 
-    @property
-    def loglam_minmax(self):
-        return np.log10(7000), np.log10(26000)
 
-    def wavegrid(self, binning=None, samp_fact=1.0, midpoint=False):
+#    @property
+#    def dloglam(self):
+#        dloglam = 0.000127888 # this is the average of the median dispersions
+#        return dloglam
 
-        # Define the grid for GNIRS
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam, samp_fact=samp_fact)
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam/2.0
-        return np.power(10.0,loglam_grid)
+#    @property
+#    def loglam_minmax(self):
+#        return np.log10(7000), np.log10(26000)
+#
+#    def wavegrid(self, binning=None, samp_fact=1.0, midpoint=False):
+#
+#        # Define the grid for GNIRS
+#        logmin, logmax = self.loglam_minmax
+#        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam, samp_fact=samp_fact)
+#        if midpoint:
+#            loglam_grid = loglam_grid + self.dloglam/2.0
+#        return np.power(10.0,loglam_grid)
 
 
     def bpm(self, filename, det, shape=None):
