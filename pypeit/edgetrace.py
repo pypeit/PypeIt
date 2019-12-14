@@ -705,7 +705,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Check if the PCA decomposition is possible; this should catch
         # long slits
-        if self.can_pca():
+        if self.par['auto_pca'] and self.can_pca():
             # Use a PCA decomposition to parameterize the trace
             # functional forms
             self.pca_refine(debug=debug)
@@ -2727,18 +2727,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Determine if traces are suitable for PCA decomposition.
 
-        The criterion is that at least 5 traces must cover more than
-        the fraction of the full spectral range specified by
-        `fit_min_spec_length` in :attr:`par`. Traces that are
-        inserted are ignored.
+        The criterion is that a minimum number of traces
+        (``pca_min_edges``) must cover more than the fraction of the
+        full spectral range specified by `fit_min_spec_length` in
+        :attr:`par`. Traces that are inserted are ignored.
 
         If the PCA decomposition will be performed on the left and
         right traces separately, the function will return `False` if
-        there are fewer than 5 left *or* right edge traces.
+        there are fewer than the minimum left *or* right edge traces.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `fit_min_spec_length` and `left_right_pca`.
+        ``fit_min_spec_length``, ``left_right_pca``, and ``pca_min_edges``.
 
         .. warning::
             This function calls :func:`check_trace` using
@@ -2773,10 +2773,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Returned value depends on whether or not the left and right
         # traces are done separately
-        ## JFH Changed from > 4 to  >= 4 to deal with GNIRS_10L. I guess this should be an input
-        ## parameter in the parset.
-        return np.sum(good[self.is_left]) > 4 and np.sum(good[self.is_right]) > 4 \
-                    if self.par['left_right_pca'] else np.sum(good) > 4
+        return np.sum(good[self.is_left]) > self.par['pca_min_edges'] \
+                    and np.sum(good[self.is_right]) > self.par['pca_min_edges'] \
+                    if self.par['left_right_pca'] else np.sum(good) > self.par['pca_min_edges']
 
     def predict_traces(self, spat_cen, side=None):
         """

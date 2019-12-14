@@ -1737,15 +1737,16 @@ class EdgeTracePar(ParSet):
                  det_min_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
                  max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
                  fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None,
-                 fit_min_spec_length=None, left_right_pca=None, pca_n=None, pca_var_percent=None,
-                 pca_function=None, pca_order=None, pca_sigrej=None, pca_maxrej=None,
-                 pca_maxiter=None, smash_range=None, edge_detect_clip=None, trace_median_frac=None,
-                 trace_thresh=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
-                 niter_gaussian=None, det_buffer=None, max_nudge=None, sync_predict=None,
-                 sync_center=None, gap_offset=None, sync_to_edge=None, minimum_slit_length=None,
-                 length_range=None, minimum_slit_gap=None, clip=None, sync_clip=None,
-                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
-                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+                 fit_min_spec_length=None, auto_pca=None, left_right_pca=None, pca_min_edges=None,
+                 pca_n=None, pca_var_percent=None, pca_function=None, pca_order=None,
+                 pca_sigrej=None, pca_maxrej=None, pca_maxiter=None, smash_range=None,
+                 edge_detect_clip=None, trace_median_frac=None, trace_thresh=None,
+                 fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None, niter_gaussian=None,
+                 det_buffer=None, max_nudge=None, sync_predict=None, sync_center=None,
+                 gap_offset=None, sync_to_edge=None, minimum_slit_length=None, length_range=None,
+                 minimum_slit_gap=None, clip=None, sync_clip=None, mask_reg_maxiter=None,
+                 mask_reg_maxsep=None, mask_reg_sigrej=None, ignore_alignment=None, pad=None,
+                 add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1849,11 +1850,29 @@ class EdgeTracePar(ParSet):
                                        'to use in any modeling procedure (polynomial fitting ' \
                                        'or PCA decomposition).'
 
+        defaults['auto_pca'] = True
+        dtypes['auto_pca'] = bool
+        descr['auto_pca'] = 'During automated tracing, attempt to construct a PCA decomposition ' \
+                            'of the traces. When True, the edge traces resulting from the ' \
+                            'initial detection, centroid refinement, and polynomial fitting ' \
+                            'must meet a set of criteria for performing the pca; see ' \
+                            ':func:`pypeit.edgetrace.EdgeTraceSet.can_pca`.  If False, the ' \
+                            '``sync_predict`` parameter *cannot* be set to ``pca``; if it is ' \
+                            'not, the value is set to ``nearest`` and a warning is issued when ' \
+                            'validating the parameter set.'
+
         defaults['left_right_pca'] = False
         dtypes['left_right_pca'] = bool
         descr['left_right_pca'] = 'Construct a PCA decomposition for the left and right traces ' \
                                   'separately.  This can be important for cross-dispersed ' \
                                   'echelle spectrographs (e.g., Keck-NIRES)'
+
+        defaults['pca_min_edges'] = 4
+        dtypes['pca_min_edges'] = int
+        descr['pca_min_edges'] = 'Minimum number of edge traces required to perform a PCA '\
+                                 'decomposition of the trace form.  If left_right_pca is True, ' \
+                                 'this minimum applies to the number of left and right traces '\
+                                 'separately.'
 
         dtypes['pca_n'] = int
         descr['pca_n'] = 'The number of PCA components to keep, which must be less than the ' \
@@ -2102,14 +2121,15 @@ class EdgeTracePar(ParSet):
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
                    'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
                    'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
-                   'fit_niter', 'fit_min_spec_length', 'left_right_pca', 'pca_n',
-                   'pca_var_percent', 'pca_function', 'pca_order', 'pca_sigrej', 'pca_maxrej',
-                   'pca_maxiter', 'smash_range', 'edge_detect_clip', 'trace_median_frac',
-                   'trace_thresh', 'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian',
-                   'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict', 'sync_center',
-                   'gap_offset', 'sync_to_edge', 'minimum_slit_length', 'length_range',
-                   'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter', 'mask_reg_maxsep',
-                   'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
+                   'fit_niter', 'fit_min_spec_length', 'auto_pca', 'left_right_pca',
+                   'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
+                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
+                   'trace_median_frac', 'trace_thresh', 'fwhm_uniform', 'niter_uniform',
+                   'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict',
+                   'sync_center', 'gap_offset', 'sync_to_edge', 'minimum_slit_length',
+                   'length_range', 'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter',
+                   'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits',
+                   'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -2143,7 +2163,10 @@ class EdgeTracePar(ParSet):
         return ['median', 'nearest', 'gap']
 
     def validate(self):
-        pass
+        """Validate the parameter set."""
+        if not self['auto_pca'] and self['sync_predict'] == 'pca':
+            warnings.warn('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
+            self['sync_predict'] = 'nearest'
 
 
 class WaveTiltsPar(ParSet):
