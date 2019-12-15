@@ -1142,11 +1142,11 @@ class ArchiveReid:
                 test = int(key)
             except ValueError:
                 narxiv -=1
-        '''
-        if self.ech_fix_format and (self.nslits != narxiv):
-            msgs.error('You have set ech_fix_format = True, but nslits={:d} != narxiv={:d}'.format(self.nslits,narxiv) + '.' +
-                       msgs.newline() + 'The number of orders identified does not match the number of solutions in the arxiv')
-        '''
+
+        #if self.ech_fix_format and (self.nslits != narxiv):
+        #    msgs.error('You have set ech_fix_format = True, but nslits={:d} != narxiv={:d}'.format(self.nslits,narxiv) + '.' +
+        #               msgs.newline() + 'The number of orders identified does not match the number of solutions in the arxiv')
+        #
 
         # Array to hold continuum subtracted arcs
         self.spec_cont_sub = np.zeros_like(self.spec)
@@ -1185,8 +1185,8 @@ class ArchiveReid:
             else:
                 ind_sp = np.arange(narxiv,dtype=int)
 
-            sigdetect = self._parse_param(self.par, 'sigdetect', slit)
-            cc_thresh = self._parse_param(self.par, 'cc_thresh', slit)
+            sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
+            cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
@@ -1200,7 +1200,7 @@ class ArchiveReid:
                 continue
 
             # Perform the fit
-            n_final = self._parse_param(self.par, 'n_final', slit)
+            n_final = wvutils.parse_param(self.par, 'n_final', slit)
             final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)],
                                          self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
@@ -1213,7 +1213,7 @@ class ArchiveReid:
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Is the RMS below the threshold?
-            rms_threshold = self._parse_param(self.par, 'rms_threshold', slit)
+            rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)
             if final_fit['rms'] > rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Reidentify report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
@@ -1272,18 +1272,17 @@ class ArchiveReid:
         return copy.deepcopy(self.all_patt_dict), copy.deepcopy(self.wv_calib)
 
 
-    def _parse_param(self, par, key, slit):
-
-        # Find good lines for the tilts
-        param_in = par[key]
-        if isinstance(param_in, (float, int)):
-            param = param_in
-        elif isinstance(param_in, (list, np.ndarray)):
-            param = param_in[slit]
-        else:
-            raise ValueError('Invalid input for parameter {:s}'.format(key))
-
-        return param
+#    def _parse_param(self, par, key, slit):
+#        # Find good lines for the tilts
+#        param_in = par[key]
+#        if isinstance(param_in, (float, int)):
+#            param = param_in
+#        elif isinstance(param_in, (list, np.ndarray)):
+#            param = param_in[slit]
+#        else:
+#            raise ValueError('Invalid input for parameter {:s}'.format(key))
+#
+#        return param
 
 
 
