@@ -136,6 +136,15 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
 
 
 def pypeit_arcspec(in_file, slit):
+    """
+    Documentation needed.
+    Args:
+        in_file:
+        slit:
+
+    Returns:
+
+    """
     wv_dict = ltu.loadjson(in_file)
     iwv_calib = wv_dict[str(slit)]
     x = np.arange(len(iwv_calib['spec']))
@@ -176,10 +185,26 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
     return
 
 
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None):
+    """
+    TODO: Documentation needed
+    Args:
+        nwwv:
+        nwspec:
+        binspec:
+        outpath:
+        outroot:
+        det_cut:
+
+    Returns:
+
+    """
     tbl = Table()
     tbl['wave'] = nwwv
     tbl['flux'] = nwspec
+    if order is not None:
+        tbl['order'] = order
+
     tbl.meta['BINSPEC'] = binspec
     # Detector snippets??
     if det_cut is not None:
@@ -562,7 +587,7 @@ def main(flg):
         print("Wrote: {}".format(outfile))
 
     # ##############################
-    if flg & (2**19):  # GMOS R400 Hamamatsu
+    if flg & (2**20):  # GMOS R400 Hamamatsu
         binspec = 2
         outroot='gemini_gmos_r400_ham.fits'
         #
@@ -582,7 +607,7 @@ def main(flg):
 
 
     # ##############################
-    if flg & (2**20):  # GMOS R400 E2V
+    if flg & (2**21):  # GMOS R400 E2V
         binspec = 2
         outroot='gemini_gmos_r400_e2v.fits'
         #
@@ -598,7 +623,7 @@ def main(flg):
                        normalize=True)
 
     # ##############################
-    if flg & (2**21):  # GMOS R400 Hamamatsu
+    if flg & (2**22):  # GMOS R400 Hamamatsu
         binspec = 2
         outroot='gemini_gmos_b600_ham.fits'
         #
@@ -615,7 +640,7 @@ def main(flg):
                        outroot, lowredux=False, ifiles=ifiles, chk=True,
                        normalize=True, subtract_conti=True, miny=-100.)
 
-    if flg & (2**22):  # WHT/ISIS
+    if flg & (2**23):  # WHT/ISIS
         iroot = 'wht_isis_blue_1200_4800.json'
         outroot = 'wht_isis_blue_1200_4800.fits'
         wfile = os.path.join(template_path, 'WHT_ISIS', '1200B', iroot)
@@ -624,7 +649,7 @@ def main(flg):
         lcut = [3200.]
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
-    if flg & (2**23):  # Magellan/FIRE
+    if flg & (2**24):  # Magellan/FIRE
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = 'magellan_fire_echelle.json'
         iout = 'magellan_fire_echelle.fits'
@@ -653,7 +678,7 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
-    if flg & (2**24): # FIRE longslit
+    if flg & (2**25): # FIRE longslit
         binspec = 1
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         outroot = 'magellan_fire_long.fits'
@@ -667,7 +692,7 @@ def main(flg):
         write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
 
     # Gemini/Flamingos2
-    if flg & (2**25):
+    if flg & (2**26):
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
         iroot = ['Flamingos2_JH_JH.json','Flamingos2_HK_HK.json']
         outroot=['Flamingos2_JH_JH.fits','Flamingos2_HK_HK.fits']
@@ -719,20 +744,21 @@ if __name__ == '__main__':
 
     # Gemini/GNIRS
     #flg += 2**18  # Convert JSON to FITS
+    #flg += 2**19  # Convert JSON to FITS
 
     # Gemini/GMOS
-    #flg += 2**19  # Hamamatsu R400 Convert JSON to FITS
-    #flg += 2**20  # E2V Convert JSON to FITS
-    #flg += 2**21  # Hamamatsu B600 XIDL
+    #flg += 2**20  # Hamamatsu R400 Convert JSON to FITS
+    #flg += 2**21  # E2V Convert JSON to FITS
+    #flg += 2**22  # Hamamatsu B600 XIDL
 
     # WHT/ISIS
-    #flg += 2**22  # Convert JSON to FITS
+    #flg += 2**23  # Convert JSON to FITS
     # Magellan/FIRE
-    #flg += 2**23  # FIRE Echelle
-    #flg += 2**24  # FIRElongslit
+    #flg += 2**24  # FIRE Echelle
+    #flg += 2**25  # FIRElongslit
     # Gemini Flamingos2
-    #flg += 2**25  # Longslit
-    flg += 2**25
+    #flg += 2**26  # Longslit
+    flg += 2**19
 
     main(flg)
 
