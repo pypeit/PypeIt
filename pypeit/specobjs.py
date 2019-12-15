@@ -298,6 +298,7 @@ class SpecObjs(object):
         sobjs_neg.sign = -1.0
         if sobjs_neg[0].PYPELINE == 'Echelle':
             sobjs_neg.ECH_OBJID = -1*sobjs_neg.ECH_OBJID
+            sobjs_neg.OBJID = -1*sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
