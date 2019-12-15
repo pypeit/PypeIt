@@ -417,18 +417,21 @@ class Identify(object):
             gd_det = np.where((self._lineflg == 1) | (self._lineflg == 2))[0]
             bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
             try:
+                n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
                 final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det,
                                                       self._lineids[gd_det], self._line_lists, bdisp,
                                                       verbose=False, n_first=self.par['n_first'],
                                                       match_toler=self.par['match_toler'],
                                                       func=self.par['func'],
-                                                      n_final=self.par['n_final'],
+                                                      n_final=n_final,
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])
             except TypeError:
-                wvcalib[str(self._slit)] = None
+                wvcalib = None
+                #wvcalib[str(self._slit)] = None
             else:
-                wvcalib[str(self._slit)] = copy.deepcopy(final_fit)
+                wvcalib = copy.deepcopy(final_fit)
+                #wvcalib[str(self._slit)] = copy.deepcopy(final_fit)
         return wvcalib
 
     def button_press_callback(self, event):
