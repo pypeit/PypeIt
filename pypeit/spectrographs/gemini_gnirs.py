@@ -24,6 +24,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'gemini_gnirs'
         self.telescope = telescopes.GeminiNTelescopePar()
         self.camera = 'GNIRS'
+        self.dispname = None # TODO We need a model for setting setup specific parameters in spectrograph
         self.numhead = 2
         self.detector = [
                 # Detector 1
@@ -160,8 +161,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
+        # TODO This is a hack for now until we figure out how to set dispname and other meta information in the
+        # spectrograph class itself
+        self.dispname = self.get_meta_value(scifile, 'dispname')
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
-        if '32/mm' in self.get_meta_value(scifile, 'dispname'):
+        if '32/mm' in self.dispname:
             # Edges
             par['calibrations']['slitedges']['edge_thresh'] = 20.
             par['calibrations']['slitedges']['trace_thresh'] = 10.
@@ -196,8 +200,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['tilts']['tracethresh'] = [5.0, 10, 10, 10, 10, 10]
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
-        # 10/mmLBSX_G5532 setup, covering JHK with the long blue
-        elif '10/mm' in self.get_meta_value(scifile, 'dispname'):
+        # 10/mmLBSX_G5532 setup, covering YJHK with the long blue camera and SXD prism
+        elif '10/mmLBSX' in self.dispname:
             # Edges
             par['calibrations']['slitedges']['edge_thresh'] = 20.
             par['calibrations']['slitedges']['trace_thresh'] = 10.
@@ -209,20 +213,18 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
             # Wavelengths
-            par['calibrations']['wavelengths']['method'] = 'identify'
             par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
             par['calibrations']['wavelengths']['sigdetect'] = 5.0
             par['calibrations']['wavelengths']['lamps'] = ['Ar_IR_GNIRS']
             par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2
             par['calibrations']['wavelengths']['n_final'] = [3, 3, 3, 3]
-
             # Reidentification parameters
-            #par['calibrations']['wavelengths']['cc_thresh'] = 0.6
-            #par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
-            #par['calibrations']['wavelengths']['ech_fix_format'] = True
+            par['calibrations']['wavelengths']['method'] = 'reidentify'
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.6
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs_10mm_LBSX.fits'
+            par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
-            # JFH This is provisional these IDs should be checked.
             par['calibrations']['wavelengths']['echelle'] = True
             par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
             par['calibrations']['wavelengths']['ech_norder_coeff'] = 3
@@ -312,47 +314,47 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         order_platescale: ndarray, float
 
         """
-        if '10/mm' in self.meta['dispname']:
+        if '10/mmLBSX' in self.dispname:
             return np.full(order_vec.size, 0.05)
-        elif '32/mm' in self.meta['dispname']:
+        elif '32/mm' in self.dispname:
             return np.full(order_vec.size, 0.15)
         else:
             msgs.error('Unrecognized disperser')
 
     @property
     def norders(self):
-        if '10/mm' in self.meta['dispname']:
+        if '10/mmLBSX' in self.dispname:
             return 4
-        elif '32/mm' in self.meta['dispname']:
+        elif '32/mm' in self.dispname:
             return 6
         else:
             msgs.error('Unrecognized disperser')
 
     @property
     def order_spat_pos(self):
-        if '10/mm' in self.meta['dispname']:
+        if '10/mmLBSX' in self.dispname:
             return np.array([0.050, 0.215, 0.442, 0.759])
-        elif '32/mm' in self.meta['dispname']:
+        elif '32/mm' in self.dispname:
             return np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
         else:
             msgs.error('Unrecognized disperser')
 
     @property
     def orders(self):
-        if '10/mm' in self.meta['dispname']:
-            return np.arange(8,2,-1, dtype=int)
-        elif '32/mm' in self.meta['dispname']:
-            return np.arange(6,2,-1,dtype=int)
+        if '10/mmLBSX' in self.dispname:
+            return np.arange(6,2,-1, dtype=int)
+        elif '32/mm' in self.dispname:
+            return np.arange(8,2,-1,dtype=int)
         else:
             msgs.error('Unrecognized disperser')
 
     @property
     def spec_min_max(self):
-        if '10/mm' in self.meta['dispname']:
+        if '10/mmLBSX' in self.dispname:
             spec_max = np.asarray([1022, 1022, 1022, 1022])
             spec_min = np.asarray([450, 0, 0, 0])
             return np.vstack((spec_min, spec_max))
-        elif '32/mm' in self.meta['dispname']:
+        elif '32/mm' in self.dispname:
             spec_max = np.asarray([1022, 1022, 1022, 1022, 1022, 1022])
             spec_min = np.asarray([512, 280, 0, 0, 0, 0])
             return np.vstack((spec_min, spec_max))
