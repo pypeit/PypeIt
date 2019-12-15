@@ -87,6 +87,8 @@ class PypeIt(object):
         if sci_file is not None:
             msgs.info('Setting configuration-specific parameters using {0}'.format(
                       os.path.split(sci_file)[1]))
+        # TODO we need a way of setting configuration specific information like disperser in the spectrograph
+        # class itself.
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
