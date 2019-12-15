@@ -429,6 +429,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.qa_path = qa_path          # Directory for QA output
 
         self.log = None                 # Log of methods applied
+        self.spec_min = None            # spec_min, spec_max which go into the tslits_dict
+        self.spec_max = None
 
         if img is not None and load:
             msgs.error('Arguments img and load are mutually exclusive.  Choose to either trace '
@@ -443,6 +445,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 self.auto_trace(img, bpm=bpm, det=det, binning=binning, save=save, debug=debug,
                                 show_stages=show_stages)
             else:
+                # JFH Is this option every used?
                 self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=save)
 
     def _reinit_trace_data(self):
@@ -776,6 +779,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
+
+        # JFH I have to convert to a tslits_dict at this point in order to set the spec_min,spec_max because
+        # I need that to be written to disk. Otherwise, reading in the edges and converting to tslits_dict
+        # depends on the spectrograph object. But the spectrogaph object is configuration dependent and I can only
+        # # know that configuration with a science file. We have that information here, but we will not have it later
+        # i.e. in pypeit_show_2dspec where we need that information.
+
+        # JFH I'm doing this in this silly way of computing the tslits_dict and then running slit_spat_pos, because
+        # slit_spat_pos was never integrated as a method into EdgeTrace
+        tslits_dict = self.convert_to_tslits_dict()
+        self.spec_min, self.spec_max = self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
+                                                                     binspectral=tslits_dict['binspectral'])
         if save:
             # Save the object to a file
             self.save()
@@ -1021,6 +1036,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Convert floating-point data to this data type before
                 writing.  Default is 32-bit precision.
         """
+
         _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
@@ -1107,6 +1123,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')
                             ])
+        if self.spec_min is not None:
+            hdu += [fits.ImageHDU(data=self.spec_min, name='SPEC_MIN'), fits.ImageHDU(data=self.spec_max, name='SPEC_MAX')]
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
@@ -1260,7 +1278,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit = hdu['CENTER_FIT'].data
         self.spat_fit_type = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
                                 else hdu['CENTER_FIT'].header['FITTYP']
-
+        self.spec_min = hdu['SPEC_MIN'].data
+        self.spec_max = hdu['SPEC_MAX'].data
         # Get the design and object data if they exist
         ext = [h.name for h in hdu]
         if 'DESIGN' in ext:
@@ -4191,9 +4210,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict['pad'] = self.par['pad']
         tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
         tslits_dict['spectrograph'] = self.spectrograph.spectrograph
-        tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
-                                          binspectral=tslits_dict['binspectral'])
+        tslits_dict['spec_min'], tslits_dict['spec_max'] = self.spec_min, self.spec_max
+        # JFH This removes the dependency on spectrograph which is likely going to need to be state dependent
+        #tslits_dict['spec_min'], tslits_dict['spec_max'] = \
+        #    self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
+        #                                  binspectral=tslits_dict['binspectral'])
+
 
         return tslits_dict
 
@@ -4243,6 +4265,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
         this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
         this.spat_img = np.round(this.spat_cen).astype(int)
+        this.spec_min = tslits_dict['spec_min']
+        this.spec_max = tslits_dict['spec_max']
         return this
 
     def update_using_tslits_dict(self, tslits_dict):
