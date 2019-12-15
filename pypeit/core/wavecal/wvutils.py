@@ -14,6 +14,17 @@ from IPython import embed
 from pypeit.core import arc
 
 
+def parse_param(par, key, slit):
+    # Find good lines for the tilts
+    param_in = par[key]
+    if isinstance(param_in, (float, int)):
+        param = param_in
+    elif isinstance(param_in, (list, np.ndarray)):
+        param = param_in[slit]
+    else:
+        raise ValueError('Invalid input for parameter {:s}'.format(key))
+
+    return param
 
 def get_sampling(waves, pix_per_R=3.0):
     """
