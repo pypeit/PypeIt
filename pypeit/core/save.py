@@ -200,6 +200,9 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             slit_pix = 2.0*specobj.BOX_RADIUS
             # Convert to arcsec
             binspectral, binspatial = parse.parse_binning(binning)
+            # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
+            # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
+            # different attribute. platescale should be a spectrograph attribute determined on the fly.
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
         else:
             boxsize.append(0.)
