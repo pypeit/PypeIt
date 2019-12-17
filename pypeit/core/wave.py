@@ -264,19 +264,22 @@ def flexure_slit():
 def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
-    Parameters:
-    ----------
-    method : str
-      'boxcar' -- Recommneded
-      'slitpix' --
-    sky_file: str
+    Args:
+        specobjs (pypeit.specobjs.Specobjs):
+        maskslits (ndarray):
+            True = masked slit
+        method (str)
+          'boxcar' -- Recommneded
+          'slitpix' --
+        sky_file (str):
+            Sky file
+        mxshft (int, optional):
+            Passed to flex_shift()
 
     Returns:
-    ----------
-    flex_list: list
-      list of dicts containing flexure results
-        Aligned with specobjs
-        Filled with a basically empty dict if the slit is skipped or there is no object
+        list:  list of dicts containing flexure results
+            Aligned with specobjs
+            Filled with a basically empty dict if the slit is skipped or there is no object
 
     """
     sv_fdict = None
@@ -297,7 +300,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     for slit in range(nslits):
         msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(slit))
         # TODO -- This only will work for MultiSlit
-        indx = specobjs.SLITID == slit
+        indx = specobjs.slitorder_indices(slit)
         this_specobjs = specobjs[indx]
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
@@ -312,7 +315,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                 continue
             if len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                 continue
-            msgs.info("Working on flexure for object # {:d}".format(specobj.objid) + "in slit # {:d}".format(specobj.SLITID))
+            msgs.info("Working on flexure for object # {:d}".format(specobj.OBJID) + "in slit # {:d}".format(specobj.SLITID))
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
                 sky_wave = specobj.BOX_WAVE #.to('AA').value
@@ -495,32 +498,16 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     vel = geomotion_calculate(radec, time, longitude, latitude, elevation, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
-    gdslits = np.where(~maskslits)[0]
+    gdslits = np.where(np.invert(maskslits))[0]
     # Loop on slits to apply
     for slit in gdslits:
-        if specObjs[0].PYPELINE == 'Echelle':
-            indx = specObjs.ech_orderindx == slit
-        elif specObjs[0].PYPELINE == 'MultiSlit':
-            indx = specObjs.SLITID == slit
-        else:
-            msgs.error("Should not get here")
+        indx = specObjs.slitorder_indices(slit)
         this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:
             if specobj is None:
                 continue
             specobj.apply_helio(vel_corr, refframe)
-            '''
-            # Loop on extraction methods
-            for attr in ['boxcar', 'optimal']:
-                if not hasattr(specobj, attr):
-                    continue
-                if 'WAVE' in getattr(specobj, attr).keys():
-                    msgs.info('Applying {0} correction to '.format(refframe)
-                              + '{0} extraction for object:'.format(attr)
-                              + msgs.newline() + "{0}".format(str(specobj)))
-                    getattr(specobj, attr)['WAVE'] = getattr(specobj, attr)['WAVE'] * vel_corr
-            '''
     # Return
     return vel, vel_corr  # Mainly for debugging
 
@@ -652,7 +639,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
 
     # Loop over slits, and then over objects here
     for slit in gdslits:
-        indx = specobjs.SLITID == slit
+        indx = specobjs.slitorder_indices(slit)
         this_specobjs = specobjs[indx]
         this_flex_dict = flex_list[slit]
 
@@ -673,7 +660,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
         for iobj, specobj in enumerate(this_specobjs):
-            if specobj is None or (len(specobj._data.keys()) == 1):
+            if specobj is None or len(specobj._data.keys()) == 1:
                 continue
             # Correlation QA
             ax = plt.subplot(gs[iobj//ncol, iobj % ncol])

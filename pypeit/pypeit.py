@@ -651,8 +651,7 @@ class PypeIt(object):
         # Determine the paths/filenames
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
                       self.spectrograph, head1d, head2d, self.science_path, basename,
-                      update_det=self.par['rdx']['detnum'])
-                      #binning=self.fitstbl['binning'][frame])
+                      update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
     def msgs_reset(self):
         """

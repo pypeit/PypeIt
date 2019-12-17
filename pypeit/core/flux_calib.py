@@ -507,25 +507,6 @@ def apply_sensfunc_specobjs(specobjs, sens_meta, sens_table, airmass, exptime, e
         plt.ylabel('Flux')
         plt.show()
 
-#def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, debug=False, show=False):
-#
-#    sens_meta = Table.read(sensfile, 1)
-#    sens_table = Table.read(sensfile, 2)
-#
-#    nexp = np.size(fnames)
-#    for iexp in range(nexp):
-#        spec1dfile = fnames[iexp]
-#        outfile = spec1dfile[:-5] + '_flux.fits'
-#        sobjs, head = load.load_specobjs(spec1dfile)
-#        instrument = head['INSTRUME']
-#        spectrograph = load_spectrograph(instrument)
-#        airmass, exptime = head['AIRMASS'], head['EXPTIME']
-#        longitude, latitude = head['LON-OBS'], head['LAT-OBS']
-#
-#        apply_sensfunc_specobjs(sobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=extinct_correct,
-#                                tell_correct=tell_correct, longitude=longitude, latitude=latitude,
-#                                debug=debug, show=show)
-#        save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
 
 ### Routines for standard sensfunc started from here
 def find_standard(specobj_list):
@@ -839,7 +820,7 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star=True, mask_tell=True, BAL
             '''
             skytrans_file = resource_filename('pypeit', '/data/skisim/' + 'mktrans_zm_10_10.dat')
             skytrans = ascii.read(skytrans_file)
-            wave_trans, trans = skytrans['wave']*10000.0, skytrans['trans']
+            wave_trans, trans = skytrans['wave'].data*10000.0, skytrans['trans'].data
             trans_use = (wave_trans>=np.min(wave_star)-100.0) & (wave_trans<=np.max(wave_star)+100.0)
             # Estimate the resolution of your spectra.
             # I assumed 3 pixels per resolution. This gives an approximate right resolution at the middle point.

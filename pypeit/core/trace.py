@@ -12,6 +12,8 @@ accessible by the docstring of all modules?
 """
 from collections import Counter
 
+from IPython import embed
+
 import numpy as np
 from scipy import ndimage, signal, interpolate
 from matplotlib import pyplot as plt
@@ -152,7 +154,7 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
     # Check the input
     if edge_img.ndim > 2:
         msgs.error('Provided edge image must be 2D.')
-    if not np.array_equal(np.unique(edge_img), [-1,0,1]):
+    if not np.all(np.isin(np.unique(edge_img), [-1,0,1])):
         msgs.error('Edge image must only have -1, 0, or 1 values.')
 
     # Find the left and right coordinates
@@ -515,7 +517,13 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
     dependency.
 
     .. note::
-        This is an adaptation of trace_crude from idlspec2d.
+        - This is an adaptation of ``trace_crude`` from ``idlspec2d``.
+        - You should consider smoothing the input ``flux`` array
+          before passing it to this function. See
+          :func:`pypeit.utils.boxcar_smooth_rows`. For example::
+
+            smimg = utils.boxcar_smooth_rows(img, nave, wgt=inmask)
+            cen, cene, cenm = trace.follow_centroid(smimg, ...)
 
     Args:
         flux (`numpy.ndarray`_):
@@ -523,7 +531,10 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             recentering. For example, when tracing slit edges, this
             should typically be the Sobel-filtered trace image after
             adjusting for the correct side and performing any
-            smoothing; see :func:`prepare_sobel_for_trace`.
+            smoothing; see :func:`prepare_sobel_for_trace`. In any
+            case, consider that this image may need to be smoothed
+            for robust output from this function. See
+            :func:`pypeit.utils.boxcar_smooth_rows`.
         start_row (:obj:`int`):
             Row at which to start the calculation. The function
             begins with this row and then continues first to higher

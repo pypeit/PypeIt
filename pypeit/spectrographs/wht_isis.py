@@ -80,8 +80,6 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
-        # Single slit
-        par['calibrations']['slits']['single'] = [0,-1]
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
@@ -89,6 +87,8 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['n_first'] = 3
+        par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 4859.0
         par['calibrations']['wavelengths']['disp'] = 0.2

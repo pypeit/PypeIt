@@ -23,7 +23,7 @@ from pypeit.core import parse
 
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
-             update_det=None):
+             update_det=None, binning='None'):
     """
     Routine to save PypeIt 1d and 2d outputs
 
@@ -62,6 +62,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     # out of sync with what's in pypeit.PypeIt
     outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
+    outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
 
     # TODO: Need some checks here that the exposure has been reduced
 
@@ -77,139 +78,15 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     if len(all_specobjs) == 0:
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
-        # Create the helio_dict
-        all_specobjs.write_to_fits(outfile1d, header=head1d,
-                                   spectrograph=spectrograph,
-                                   update_det=update_det)
+        all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
+        # Txt file
+        # TODO JFH: Make this a method in the specobjs class.
+        save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
 
     # Write 2D images for the Science Frame
     save_2d_images(sci_dict, head2d, spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
 
     return
-
-#def save_1d_spectra_fits(specObjs, header, spectrograph, outfile, helio_dict=None, overwrite=True, update_det=None):
-#    """ Write 1D spectra to a multi-extension FITS file
-#
-#    Args:
-#        specobjs : SpecObjs object
-#        header (dict or Row; dict-like):  Typically a Row from the fitstbl
-#        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
-#          Name of PypeIt pipeline (e.g. 'MultiSlit')
-#        outfile (str):
-#        helio_dict (dict, optional):
-#        overwrite : bool, optional
-#        update_det : int or list, optional
-#          If provided, do not clobber the existing file but only update
-#          the indicated detectors.  Useful for re-running on a subset of detectors
-#
-#    Returns:
-#        str: outfile
-#
-#    """
-#
-#    pypeline = spectrograph.pypeline
-#    instrume = spectrograph.spectrograph
-#    telescope = spectrograph.telescope
-#    hdus, prihdu = init_hdus(update_det, outfile)
-#    sobjs_key = specobjs.SpecObj.sobjs_key()
-#    # Init for spec1d as need be
-#    if hdus is None:
-#        prihdu = fits.PrimaryHDU()
-#        hdus = [prihdu]
-#        # Add critical data to header
-#        core_keys = spectrograph.header_cards_for_spec()
-#        for key in core_keys: #['ra', 'dec', 'exptime', 'target', 'airmass', 'filename']:
-#            # Allow for fitstbl vs. header
-#            try:
-#                prihdu.header[key.upper()] = header[key.upper()]
-#            except KeyError:
-#                prihdu.header[key.upper()] = header[key]
-#        try:
-#            prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
-#        except KeyError:
-#            prihdu.header['MJD-OBS'] = header['MJD-OBS']
-#        prihdu.header['INSTRUME'] = instrume
-#
-#        # Specify which pipeline created this file
-#        prihdu.header['PYPELINE'] = pypeline
-#
-#        # Observatory
-#        if telescope is not None:
-#            prihdu.header['LON-OBS'] = telescope['longitude']
-#            prihdu.header['LAT-OBS'] = telescope['latitude']
-#            prihdu.header['ALT-OBS'] = telescope['elevation']
-#        # Helio
-#        if helio_dict is not None:
-#            prihdu.header['VEL-TYPE'] = helio_dict['refframe'] # settings.argflag['reduce']['calibrate']['refframe']
-#            prihdu.header['VEL'] = helio_dict['vel_correction'] # slf.vel_correction
-#
-#    ext = len(hdus)-1
-#    # Loop on specobjs
-#    for sobj in specObjs.specobjs:
-#        if sobj is None:
-#            continue
-#        ext += 1
-#        # Add header keyword
-#        keywd = 'EXT{:04d}'.format(ext)
-#        prihdu.header[keywd] = sobj.idx
-#
-#        # Flexure shift
-#        keywd = 'FLX{:04d}'.format(ext)
-#        prihdu.header[keywd] = sobj.flex_shift
-#
-#        # Add Spectrum Table
-#        cols = []
-#        # Trace
-#        if sobj.trace_spat is not None:
-#            cols += [fits.Column(array=sobj.trace_spat, name=str('TRACE'), format=sobj.trace_spat.dtype)]
-#        # FWHM fit from extraction
-#        if sobj.fwhmfit is not None:
-#            cols += [fits.Column(array=sobj.fwhmfit, name=str('FWHM'), format=sobj.fwhmfit.dtype)]
-#        # Boxcar
-#        for key in sobj.boxcar.keys():
-#            # Skip some
-#            if key in ['BOX_RADIUS']:
-#                continue
-#            if isinstance(sobj.boxcar[key], units.Quantity):
-#                cols += [fits.Column(array=sobj.boxcar[key].value,
-#                                     name=str('BOX_'+key), format=sobj.boxcar[key].value.dtype)]
-#            else:
-#                cols += [fits.Column(array=sobj.boxcar[key],
-#                                     name=str('BOX_'+key), format=sobj.boxcar[key].dtype)]
-#        # Optimal
-#        for key in sobj.optimal.keys():
-#            # Skip some
-#            #if key in ['fwhm']:
-#            #    continue
-#            # Generate column
-#            if isinstance(sobj.optimal[key], units.Quantity):
-#                cols += [fits.Column(array=sobj.optimal[key].value,
-#                                       name=str('OPT_'+key), format=sobj.optimal[key].value.dtype)]
-#            else:
-#                cols += [fits.Column(array=sobj.optimal[key],
-#                                       name=str('OPT_'+key), format=sobj.optimal[key].dtype)]
-#        # Finish
-#        coldefs = fits.ColDefs(cols)
-#        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-#        tbhdu.name = sobj.idx
-#        for attr, hdrcard in sobjs_key.items():
-#            tbhdu.header[hdrcard] = getattr(sobj,attr)
-#        hdus += [tbhdu]
-#
-#    # A few more for the header
-#    prihdu.header['NSPEC'] = len(hdus) - 1
-#    prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
-#    # If this is echelle write the objid and the orderindx to the header as well
-#
-#
-#    # Finish
-#    hdulist = fits.HDUList(hdus)
-#    #if outfile is None:
-#    #    outfile = settings.argflag['run']['directory']['science']+'/spec1d_{:s}.fits'.format(slf._basename)
-#    hdulist.writeto(outfile, overwrite=overwrite)
-#    msgs.info("Wrote 1D spectra to {:s}".format(outfile))
-#    return outfile
-
 
 
 def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
@@ -291,51 +168,55 @@ def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, ob
 
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
+# TODO JFH: we make exceptions for core objects like specobjs
 def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
     """
+    Write info to an ASCII file
 
-    Parameters
-    ----------
-    all_specobjs : list
-    fitstbl : Table
+    Args:
+        all_specobjs (specobjs.SpecObjs):
+        spectrograph (spectrograph.Spectrograph):
+        outfile (str):
+        binning (str, optional):
 
-    Returns
-    -------
+    Returns:
 
     """
     slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
     binspectral, binspatial = parse.parse_binning(binning)
-    for specobj in all_specobjs:
+    for specobj in all_specobjs.specobjs:
         if specobj is None:
             continue
         # Append
-        names.append(specobj.idx)
-        slits.append(specobj.slitid)
-        spat_pixpos.append(specobj.spat_pixpos)
+        names.append(specobj.name)
+        spat_pixpos.append(specobj.SPAT_PIXPOS)
+        slits.append(specobj.slit_orderindx)
         if spectrograph.pypeline == 'MultiSlit':
-            spat_fracpos.append(specobj.spat_fracpos)
+            spat_fracpos.append(specobj.SPAT_FRACPOS)
         elif spectrograph.pypeline == 'Echelle':
-            spat_fracpos.append(specobj.ech_fracpos)
+            spat_fracpos.append(specobj.ECH_FRACPOS)
         # Boxcar width
-        if 'BOX_RADIUS' in specobj.boxcar.keys():
-            slit_pix = 2.0*specobj.boxcar['BOX_RADIUS']
+        if 'BOX_RADIUS' in specobj.keys():
+            slit_pix = 2.0*specobj.BOX_RADIUS
             # Convert to arcsec
             binspectral, binspatial = parse.parse_binning(binning)
-            boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.det-1]['platescale'])
+            boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
         else:
             boxsize.append(0.)
-        # S/N and Optimal profile (FWHM) if it exists
+
+        # Optimal profile (FWHM)
+        # S2N -- default to boxcar
         if specobj.fwhmfit is not None:
-            opt_fwhm.append(np.median(specobj.fwhmfit)* binspatial*spectrograph.detector[specobj.det-1]['platescale'])
+            opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
             # S2N -- optimal
-            ivar = specobj.optimal['COUNTS_IVAR']
-            is2n = np.median(specobj.optimal['COUNTS']*np.sqrt(ivar))
+            ivar = specobj.OPT_COUNTS_IVAR
+            is2n = np.median(specobj.OPT_COUNTS*np.sqrt(ivar))
             s2n.append(is2n)
         else: # Optimal is not required to occur
             opt_fwhm.append(0.)
             # S2N -- use boxcar
-            ivar = specobj.boxcar['COUNTS_IVAR']
-            is2n = np.median(specobj.boxcar['COUNTS']*np.sqrt(ivar))
+            ivar = specobj.BOX_COUNTS_IVAR
+            is2n = np.median(specobj.BOX_COUNTS*np.sqrt(ivar))
             s2n.append(is2n)
 
     # Generate the table, if we have at least one source
@@ -345,8 +226,8 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             obj_tbl['slit'] = slits
             obj_tbl['slit'].format = 'd'
         elif spectrograph.pypeline == 'Echelle':
-            obj_tbl['order'] = slits
-            obj_tbl['order'].format = 'd'
+            obj_tbl['orderindx'] = slits
+            obj_tbl['orderindx'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'
@@ -384,7 +265,7 @@ def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir,
     Returns:
 
     """
-    if os.path.isfile(outfile) and (update_det is not None):
+    if os.path.isfile(outfile) and update_det is not None:
         hdus, prihdu = init_hdus(update_det, outfile)
     else:
         # Primary HDU for output
@@ -502,7 +383,7 @@ def init_hdus(update_det, outfile):
     """
     Load up existing header and HDUList
 
-    ..todo.. Confirm this works when you are modifying an inner HDU
+    ..todo:: Confirm this works when you are modifying an inner HDU
 
     Args:
         update_det (int or list):

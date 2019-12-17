@@ -2,6 +2,8 @@
 0.11.1dev
 ---------
 
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band spectroscopy. 
+- Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
 - Brings Gemini/GMOS into the suite (R400)
@@ -47,8 +49,10 @@
 - Added several from_master_file() instantiation methods
 - Use coadd2d.weighted_combine() to stack calibration images
 - Major refactor of slit edge tracing
-- Added 'Identify' tool to allow manual identification and calibration of an arc spectrum
+- Added 'Identify' tool to allow manual identification and calibration
+  of an arc spectrum
 - Added support for WHT/ISIS
+- Added 'Object Tracing' tool to allow interactive object tracing
 - Added code of conduct
 - Deprecated previous tracing code: `pypeit.traceslits` and
   `pypeit.core.trace_slits`, as well as some functions in
@@ -58,7 +62,16 @@
 - Improved CuAr linelists and archives for Gemini wavelength solutions
 - New data model for specobj and specobsj objects (spec1d)
 - Started some improvements to Coadd2D, TBC
+- Allow for the continuum of the arc image to be modeled and subtracted
+  when tracing the line-centroid tilts
+- Include a mask in the line detection in extracted central arc spectrum
+  of each slit/order.  For VLT XShooter NIR, this was needed to ensure
+  the sigma calculation didn't include the off-order spectral positions.
 
+0.11.0.1
+---------
+
+- Add DOI
 
 0.11.0 (22 Jun 2019)
 --------------------

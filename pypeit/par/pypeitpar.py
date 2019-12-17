@@ -230,6 +230,7 @@ class ProcessImagesPar(ParSet):
                                 'order, window size ; for \'median\', set overscan_par = ' \
                                 'None or omit the keyword.'
 
+        # TODO I don't think this option is implemented? Deprecate?
         defaults['match'] = -1
         dtypes['match'] = [int, float]
         descr['match'] = '(Deprecate?) Match frames with pixel counts that are within N-sigma ' \
@@ -656,8 +657,7 @@ class FlexurePar(ParSet):
 
 class Coadd2DPar(ParSet):
     """
-    A parameter set holding the arguments for how to perform the flux
-    calibration.
+    A parameter set holding the arguments for how to perform 2D coadds
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
@@ -1012,6 +1012,7 @@ class ReducePar(ParSet):
         descr['calwin'] = 'The window of time in hours to search for calibration frames for a ' \
                           'science frame'
 
+        # TODO: Explain what this actually does in the description.
         defaults['ignore_bad_headers'] = False
         dtypes['ignore_bad_headers'] = bool
         descr['ignore_bad_headers'] = 'Ignore bad headers (NOT recommended unless you know it is safe).'
@@ -1061,7 +1062,7 @@ class ReducePar(ParSet):
         # be rethought.
         return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
                 'keck_nires', 'keck_hires_red', 'keck_hires_blue', 'mmt_binospec',
-                'keck_nirspec_low', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
+                'keck_nirspec_low', 'keck_mosfire', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
                 'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
                 'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
                 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
@@ -1254,7 +1255,7 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['n_final'] = 4
         dtypes['n_final'] = [int, float, list, numpy.ndarray]
-        descr['n_final'] = 'Order of final fit to the wavelength solution. This can be a single number or a list/array providing the value for each slit'
+        descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit'
 
 
         defaults['sigrej_final'] = 3.0
@@ -1362,222 +1363,6 @@ class WavelengthSolutionPar(ParSet):
 
     def validate(self):
         pass
-
-
-class TraceSlitsPar(ParSet):
-    """
-    The parameter set used to hold arguments for tracing the slit
-    positions along the dispersion axis.
-    
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-    """
-    prefix = 'TSP'  # Prefix for writing parameters to a header is a class attribute
-    def __init__(self, function=None, medrep=None, number=None, trim=None, maxgap=None,
-                 maxshift=None, pad=None, sigdetect=None, min_slit_width=None, add_slits=None,
-                 rm_slits=None, diffpolyorder=None, single=None, sobel_mode=None, pcaextrap=None,
-                 smash_range=None, trace_npoly=None, mask_frac_thresh=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])      # "1:" to skip 'self'
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-
-        defaults['function'] = 'legendre'
-        options['function'] = TraceSlitsPar.valid_functions()
-        dtypes['function'] = str
-        descr['function'] = 'Function use to trace the slit center.  ' \
-                            'Options are: {0}'.format(', '.join(options['function']))
-
-        defaults['medrep'] = 0
-        dtypes['medrep'] = int
-        descr['medrep'] = 'Median-smoothing iterations to perform on sqrt(trace) image before ' \
-                          'applying to Sobel filter, which detects slit/order edges.'
-
-        # TODO: Never used?
-        # Force number to be an integer
-        if values['number'] == 'auto':
-            values['number'] = -1
-        defaults['number'] = -1
-        dtypes['number'] = int
-        descr['number'] = 'Manually set the number of slits to identify (>=1). \'auto\' or -1 ' \
-                          'will automatically identify the number of slits.'
-
-        # Force trim to be a tuple
-        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
-            try:
-                pars['trim'] = tuple(pars['trim'])
-            except:
-                raise TypeError('Could not convert provided trim to a tuple.')
-        defaults['trim'] = (0,0)
-        dtypes['trim'] = tuple
-        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
-                        'or positive'
-
-        dtypes['maxgap'] = int
-        descr['maxgap'] = 'Maximum number of pixels to allow for the gap between slits.  Use ' \
-                          'None if the neighbouring slits are far apart or of similar ' \
-                          'illumination.'
-
-        defaults['maxshift'] = 0.15
-        dtypes['maxshift'] = [int, float]
-        descr['maxshift'] = 'Maximum shift in trace crude. Use a larger number for more curved ' \
-                            'slits/orders.'
-
-        defaults['pad'] = 0
-        dtypes['pad'] = int
-        descr['pad'] = 'Integer number of pixels to consider beyond the slit edges.'
-
-        defaults['sigdetect'] = 20.0
-        dtypes['sigdetect'] = [int, float]
-        descr['sigdetect'] = 'Sigma detection threshold for edge detection'
-
-        defaults['mask_frac_thresh'] = 0.6
-        dtypes['mask_frac_thresh'] = float
-        descr['mask_frac_thresh'] = 'Minimum fraction of the slit edge that was *not* masked ' \
-                                    'to use in initial PCA.'
-
-        defaults['smash_range'] = [0., 1.]
-        dtypes['smash_range'] = list
-        descr['smash_range'] = 'Range of the slit in the spectral direction (in fractional ' \
-                               'units) to smash when searching for slit edges.  If the ' \
-                               'spectrum covers only a portion of the image, use that range.'
-
-        defaults['trace_npoly'] = 5
-        dtypes['trace_npoly'] = int
-        descr['trace_npoly'] = 'Order of legendre polynomial fits to slit/order boundary traces.'
-
-        # TODO: slit *width* is a misnomer.  Should be slit *length*
-        defaults['min_slit_width'] = 6.0  # arcseconds!
-        dtypes['min_slit_width'] = float
-        descr['min_slit_width'] = 'If a slit spans less than this number of arcseconds over ' \
-                                   'the spatial direction of the detector, it will be ignored.' \
-                                   '  Use this option to prevent the alignment (box) slits ' \
-                                   'from multislit reductions, which typically cannot be ' \
-                                   'reduced without a significant struggle.'
-
-        defaults['diffpolyorder'] = 2
-        dtypes['diffpolyorder'] = int
-        descr['diffpolyorder'] = 'Order of the 2D function used to fit the 2d solution for the ' \
-                                 'spatial size of all orders.'
-
-        # TO BE DEPRECATED?
-        defaults['single'] = []
-        dtypes['single'] = list
-        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
-                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
-                          'the slit according to column values.  The second value (for the ' \
-                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
-                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
-                          'user-definition for the first detector but adds one for the second. ' \
-                          ' None means no user-level slits defined.'
-
-        dtypes['add_slits'] = [str, list]
-        descr['add_slits'] = 'Add one or more user-defined slits.  The syntax to define a ' \
-                             'slit to add is: \'det:spec:spat_left:spat_right\' where ' \
-                             'det=detector, spec=spectral pixel, spat_left=spatial pixel of ' \
-                             'left slit boundary, and spat_righ=spatial pixel of right slit ' \
-                             'boundary.  For example, \'2:2000:2121:2322,3:2000:1201:1500\' ' \
-                             'will add a slit to detector 2 passing through spec=2000 ' \
-                             'extending spatially from 2121 to 2322 and another on detector 3 ' \
-                             'at spec=2000 extending from 1201 to 1500.'
-
-        dtypes['rm_slits'] = [str, list]
-        descr['rm_slits'] = 'Remove one or more user-specified slits.  The syntax used to ' \
-                            'define a slit to remove is: \'det:spec:spat\' where det=detector, ' \
-                            'spec=spectral pixel, spat=spatial pixel.  For example, ' \
-                            '\'2:2000:2121,3:2000:1500\' will remove the slit on detector 2 ' \
-                            'that contains pixel (spat,spec)=(2000,2121) and on detector 3 ' \
-                            'that contains pixel (2000,2121).'
-
-        defaults['sobel_mode'] = 'nearest'
-        options['sobel_mode'] = TraceSlitsPar.valid_sobel_modes()
-        dtypes['sobel_mode'] = str
-        descr['sobel_mode'] = 'Mode for Sobel filtering.  Default is \'nearest\' but the ' \
-                              'developers find \'constant\' works best for DEIMOS.'
-
-#        # DEPRECATED
-#        defaults['pcatype'] = 'pixel'
-#        options['pcatype'] = TraceSlitsPar.valid_pca_types()
-#        dtypes['pcatype'] = str
-#        descr['pcatype'] = 'Select to perform the PCA using the pixel position (pcatype=pixel) ' \
-#                           'or by spectral order (pcatype=order).  Pixel positions can be used ' \
-#                           'for multi-object spectroscopy where the gap between slits is ' \
-#                           'irregular.  Order is used for echelle spectroscopy or for slits ' \
-#                           'with separations that are a smooth function of the slit number.'
-#
-#        # DEPRECATED
-#        defaults['pcapar'] = [3, 2, 1, 0]
-#        dtypes['pcapar'] = list
-#        descr['pcapar'] = 'Order of the polynomials to be used to fit the principle ' \
-#                          'components.  The list length must be equal to or less than ' \
-#                          'polyorder+1. TODO: Provide more explanation'
-
-        defaults['pcaextrap'] = [0, 0]
-        dtypes['pcaextrap'] = list
-        descr['pcaextrap'] = 'The number of extra orders to predict in the negative (first ' \
-                             'number) and positive (second number) direction.  Must be two ' \
-                             'numbers in the list and they must be integers.'
-
-        # Instantiate the parameter set
-        super(TraceSlitsPar, self).__init__(list(pars.keys()),
-                                            values=list(pars.values()),
-                                            defaults=list(defaults.values()),
-                                            options=list(options.values()),
-                                            dtypes=list(dtypes.values()),
-                                            descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = ['function', 'medrep', 'number', 'trim', 'maxgap', 'maxshift', 'pad',
-                   'sigdetect', 'min_slit_width', 'diffpolyorder', 'sobel_mode',
-                   'pcaextrap', 'add_slits', 'rm_slits', 'smash_range', 'trace_npoly',
-                   'mask_frac_thresh']
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    @staticmethod
-    def valid_functions():
-        """
-        Return the list of valid functions to use for slit tracing.
-        """
-        return [ 'polynomial', 'legendre', 'chebyshev' ]
-
-    @staticmethod
-    def valid_sobel_modes():
-        """Return the valid sobel modes."""
-        return [ 'nearest', 'constant' ]
-
-    @staticmethod
-    def valid_pca_types():
-        """
-        Return the valid PCA types.
-        """
-        return ['pixel', 'order']
-
-    def validate(self):
-        if self.data['number'] == 0:
-            raise ValueError('Number of slits must be -1 for automatic identification or '
-                             'greater than 0')
-        if len(self.data['pcaextrap']) != 2:
-            raise ValueError('PCA extrapolation parameters must be a list with two values.')
-        for e in self.data['pcaextrap']:
-            if not isinstance(e, int):
-                raise ValueError('PCA extrapolation values must be integers.')
 
 
 class EdgeTracePar(ParSet):
@@ -1914,6 +1699,16 @@ class EdgeTracePar(ParSet):
         dtypes['pad'] = int
         descr['pad'] = 'Integer number of pixels to consider beyond the slit edges.'
 
+#        defaults['single'] = []
+#        dtypes['single'] = list
+#        descr['single'] = 'Add a single, user-defined slit based on its location on each ' \
+#                          'detector.  Syntax is a list of values, 2 per detector, that define ' \
+#                          'the slit according to column values.  The second value (for the ' \
+#                          'right edge) must be greater than 0 to be applied.  LRISr example: ' \
+#                          'setting single = -1, -1, 7, 295 means the code will skip the ' \
+#                          'user-definition for the first detector but adds one for the second. ' \
+#                          ' None means no user-level slits defined.'
+
         dtypes['add_slits'] = [str, list]
         descr['add_slits'] = 'Add one or more user-defined slits.  The syntax to define a ' \
                              'slit to add is: \'det:spec:spat_left:spat_right\' where ' \
@@ -2000,8 +1795,8 @@ class WaveTiltsPar(ParSet):
     """
     def __init__(self, idsonly=None, tracethresh=None, sig_neigh=None, nfwhm_neigh=None,
                  maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
-                 func2d=None, maxdev2d=None, sigrej2d=None):
-
+                 func2d=None, maxdev2d=None, sigrej2d=None, rm_continuum=None, cont_rej=None):
+#                 cont_function=None, cont_order=None,
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2025,7 +1820,7 @@ class WaveTiltsPar(ParSet):
         defaults['idsonly'] = False
         dtypes['idsonly'] = bool
         descr['idsonly'] = 'Only use the arc lines that have an identified wavelength to trace ' \
-                           'tilts'
+                           'tilts (CURRENTLY NOT USED!)'
 
         defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
@@ -2083,6 +1878,25 @@ class WaveTiltsPar(ParSet):
         descr['sigrej2d'] = 'Outlier rejection significance determining which pixels on a fit to an arc line tilt ' \
                             'are rejected by the global 2D fit'
 
+        defaults['rm_continuum'] = False
+        dtypes['rm_continuum'] = bool
+        descr['rm_continuum'] = 'Before tracing the line center at each spatial position, ' \
+                                'remove any low-order continuum in the 2D spectra.'
+
+        # TODO: Replace these with relevant parameters from
+        # arc.iter_continuum
+#        defaults['cont_function'] = 'legendre'
+#        dtypes['cont_function'] = str
+#        descr['cont_function'] = 'Function type used to fit the continuum to be removed.'
+#
+#        defaults['cont_order'] = 3
+#        dtypes['cont_order'] = int
+#        descr['cont_order'] = 'Order of the function used to fit the continuum to be removed.'
+
+        defaults['cont_rej'] = [3, 1.5]
+        dtypes['cont_rej'] = [int, float, list, numpy.ndarray]
+        descr['cont_rej'] = 'The sigma threshold for rejection.  Can be a single number or two ' \
+                            'numbers that give the low and high sigma rejection, respectively.'
 
         # Right now this is not used the fits are hard wired to be legendre for the individual fits.
         #defaults['function'] = 'legendre'
@@ -2109,18 +1923,19 @@ class WaveTiltsPar(ParSet):
 
         # Instantiate the parameter set
         super(WaveTiltsPar, self).__init__(list(pars.keys()),
-                                            values=list(pars.values()),
-                                            defaults=list(defaults.values()),
-                                            options=list(options.values()),
-                                            dtypes=list(dtypes.values()),
-                                            descr=list(descr.values()))
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           options=list(options.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
-                   'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d']
+                   'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
+                   'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order',
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2128,7 +1943,10 @@ class WaveTiltsPar(ParSet):
 
 
     def validate(self):
-        pass
+        if hasattr(self.data['cont_rej'], '__len__'):
+            if len(self.data['cont_rej']) != 2:
+                raise ValueError('Continuum rejection threshold must be a single number or a '
+                                 'two-element list/array.')
 
     #@staticmethod
     #def valid_methods():
@@ -2739,7 +2557,7 @@ class PypeItPar(ParSet):
 
         # Coadd2D
         defaults['coadd2d'] = Coadd2DPar()
-        dtypes['fluxcalib'] = [ParSet, dict]
+        dtypes['coadd2d'] = [ParSet, dict]
         descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
 
         # Instantiate the parameter set
@@ -2884,7 +2702,7 @@ class PypeItPar(ParSet):
         """
         # Get the base parameters in a ConfigObj instance
         cfg = ConfigObj(PypeItPar().to_config() if cfg_lines is None else cfg_lines)
-        
+
         # Merge in additional parameters
         if merge_with is not None:
             cfg.merge(ConfigObj(merge_with))

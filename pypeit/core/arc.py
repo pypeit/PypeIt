@@ -433,68 +433,68 @@ def resize_spec(spec_from, nspec_to):
     return spec_to
 
 
-def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
-                nonlinear_counts=1e10):
+def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10):
     """
     Extract a boxcar spectrum down the center of the slit
 
     Args:
-        slit_cen (np.ndarray):
+
+        slit_cen (`numpy.ndarray`):
             Trace down the center of the slit
-        slitmask (np.ndarray):
-        arcimg (np.ndarray):
-            Image to extract the arc from. This should be an arcimage or perhaps a frame with night sky lines.
-        gpm (np.ndarray, optional):
-            Input mask image with same shape as arcimg. Convention True = good and False = bad. The default is None.
-        box_rad (float, optional):
-            Size of boxcar window in pixels (as a floating point number) in the spatial direction used to extract the arc.
-        nonlinear_counts (float, optional):
-            Values exceeding this input value are masked as bad
+        slitmask (`numpy.ndarray`):
+            Image where pixel values identify its parent slit,
+            starting with 0. Pixels with -1 are not part of any slit.
+            Shape must match `arcimg`.
+        arcimg (`numpy.ndarray`):
+            Image to extract the arc from. This should be an arcimage
+            or perhaps a frame with night sky lines.
+        gpm (`numpy.ndarray`, optional):
+            Input mask image with same shape as arcimg. Convention
+            True = good and False = bad. If None, all pixels are
+            considered good.
+        box_rad (:obj:`float`, optional):
+            Half-width of the boxcar (floating-point pixels) in the
+            spatial direction used to extract the arc.
+        nonlinear_counts (:obj:`float`, optional):
+            Values exceeding this input value are masked as bad.
 
     Returns:
-        tuple:
-            A tuple containing the (arc_spec, maskslit)
-
-            arc_spec: float ndarray with shape (nspec, nslits)
-                Array containing the extracted arc spectrum for each slit.
-
-            maskslit: int ndarray with shape (nslits)
-               output mask indicating whether a slit is good or bad. 0 = good, 1 = bad.
-
+        Returns three numpy.ndarray objects:
+            - Array containing the extracted arc spectrum for each
+              slit. Shape is (nspec, nslits)
+            - Bad-pixel mask for the spectra. Shape is (nspec,
+              nslits).
+            - Bad-slit mask, True means the entire spectrum is bad.
+              Shape is (nslits,).
     """
-    if gpm is None:
-        gpm = slitmask > -1
-
+    # Initialize the good pixel mask
+    _gpm = slitmask > -1 if gpm is None else gpm & (slitmask > -1)
     # Mask saturated parts of the arc image for the extraction
-    gpm = gpm & (arcimg < nonlinear_counts)
+    _gpm = _gpm & (arcimg < nonlinear_counts)
 
+    # Inialize output
+    arc_spec = np.zeros(slit_cen.shape, dtype=float)
+
+    # Iterate over slits
     nslits = slit_cen.shape[1]
-    (nspec, nspat) = arcimg.shape
-
-    maskslit = np.zeros(nslits, dtype=np.int)
-    arc_spec = np.zeros((nspec, nslits))
-    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
-
+    nspat = arcimg.shape[1]
+    spat = np.arange(nspat)
     for islit in range(nslits):
-        msgs.info("Extracting an approximate arc spectrum at the centre of slit {:d}".format(islit))
+        msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit))
         # Create a mask for the pixels that will contribue to the arc
-        slit_img = np.outer(slit_cen[:,islit], np.ones(nspat))  # central trace replicated spatially
-        arcmask = (slitmask > -1) & gpm & (spat_img > (slit_img - box_rad)) & (spat_img < (slit_img + box_rad))
+        arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
-        left = np.fmax(spat_img[arcmask].min() - 4,0)
-        righ = np.fmin(spat_img[arcmask].max() + 5,nspat)
+        indx = np.nonzero(np.any(arcmask, axis=0))[0]
+        left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix. 
-        this_mean, this_med, this_sig = stats.sigma_clipped_stats(
-            arcimg[:,left:righ], mask=np.invert(arcmask[:,left:righ]), sigma=3.0, axis=1)
-        imask = np.isnan(this_med)
-        this_med[imask]=0.0
-        arc_spec[:,islit] = this_med
-        if not np.any(arc_spec[:,islit]):
-            maskslit[islit] = 1
+        arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
+                                                      mask=np.invert(arcmask[:,left:right]),
+                                                      sigma=3.0, axis=1)[1]
 
-    return arc_spec, maskslit
-
-
+    # Get the mask, set the masked values to 0, and return
+    arc_spec_bpm = np.isnan(arc_spec)
+    arc_spec[arc_spec_bpm] = 0.0
+    return arc_spec, arc_spec_bpm, np.all(arc_spec_bpm, axis=0)
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
@@ -778,9 +778,10 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     return cont_now, cont_mask
 
 
-def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None, cont_subtract=True,
-                 cont_frac_fwhm=1.0, max_frac_fwhm=3.0, min_pkdist_frac_fwhm = 0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3, nfind=None,
-                 verbose=False, debug=False, debug_peak_find=False):
+def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thresh=None,
+                 cont_subtract=True, cont_frac_fwhm=1.0, max_frac_fwhm=3.0,
+                 min_pkdist_frac_fwhm=0.75, cont_samp=30, nonlinear_counts=1e10, niter_cont=3,
+                 nfind=None, bpm=None, verbose=False, debug=False, debug_peak_find=False):
     """
     Extract an arc down the center of the chip and identify
     statistically significant lines for analysis.
@@ -790,55 +791,72 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     censpec : ndarray
       A 1D spectrum to be searched for significant detections
 
-    Optional Parameters
-    -------------------
-    sigdetect: float, default=20.
-       Sigma threshold above fluctuations for arc-line detection. Arcs are continuum subtracted and the fluctuations are
+    sigdetect: float, default=20., optional
+       Sigma threshold above fluctuations for arc-line detection.
+       Arcs are continuum subtracted and the fluctuations are
        computed after continuum subtraction.
 
-    input_thresh: float, str, default= None
-       Optionally the user can specify the threhsold that peaks must be above to be kept. In this case the sigdetect parameter
-       will be ignored. This is most useful for example for cases where cont_subtract =False, and the user prefers to determine
-       the significance  threhsold outside of this routine, rather than using this routines defaults to determine the
-       continuum level and standard deviation of the continuum subtracted spetrum. If a string input of 'None' is set then
-       the code will simply return all peaks irrespective of any threshold. This is equivalent to setting the mph parameter
-       to None in the detect_peaks code.
+    input_thresh: float, str, default= None, optional
+       Optionally the user can specify the threhsold that peaks must
+       be above to be kept. In this case the sigdetect parameter will
+       be ignored. This is most useful for example for cases where
+       cont_subtract =False, and the user prefers to determine the
+       significance threhsold outside of this routine, rather than
+       using this routines defaults to determine the continuum level
+       and standard deviation of the continuum subtracted spetrum. If
+       a string input of 'None' is set then the code will simply
+       return all peaks irrespective of any threshold. This is
+       equivalent to setting the mph parameter to None in the
+       detect_peaks code.
 
-    fwhm:  float, default = 4.0
+    fwhm:  float, default = 4.0, optional
        Number of pixels per fwhm resolution element.
 
-    fit_frac_fwhm: float, default 0.5
-       Number of pixels that are used in the fits for Gaussian arc line centroiding expressed as a fraction of the fwhm parameter
+    fit_frac_fwhm: float, default 0.5, optional
+       Number of pixels that are used in the fits for Gaussian arc
+       line centroiding expressed as a fraction of the fwhm parameter
 
-    max_frac_fwhm:  float, default = 2.5
-       maximum width allowed for usable arc lines expressed relative to the fwhm.
+    max_frac_fwhm:  float, default = 2.5, optional
+       maximum width allowed for usable arc lines expressed relative
+       to the fwhm.
 
-    min_pkdist_frac_fwhm: float, default = 0.75
-       minimum allowed separation between peaks expressed relative to the fwhm.
+    min_pkdist_frac_fwhm: float, default = 0.75, optional
+       minimum allowed separation between peaks expressed relative to
+       the fwhm.
 
-    cont_frac_fwhm float, default = 1.0
-       width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
-       parameter
+    cont_frac_fwhm float, default = 1.0, optional
+       width used for masking peaks in the spectrum when the
+       continuum is being defined. Expressed as a fraction of the
+       fwhm parameter
 
-    cont_subtract: bool, default = True
-       If true, the code will continuum subtract the input array by iteratively determining the continuum
+    cont_subtract: bool, default = True, optional
+       If true, the code will continuum subtract the input array by
+       iteratively determining the continuum
 
-    cont_samp: float, default = 30.0
-       The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
-       median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
-       (i.e. that don't have peaks).
+    cont_samp: float, default = 30.0, optional
+       The number of samples across the spectrum used for continuum
+       subtraction. Continuum subtraction is done via median
+       filtering, with a width of ngood/cont_samp, where ngood is the
+       number of good pixels for estimating the continuum (i.e. that
+       don't have peaks).
 
-    niter_cont: int, default = 3
-       Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
+    niter_cont: int, default = 3, optional
+       Number of iterations of peak finding, masking, and continuum
+       fitting used to define the continuum.
 
+    nonlinear_counts: float, default = 1e10, optional
+       Value above which to mask saturated arc lines. This should be
+       nonlinear_counts= nonlinear*saturation according to pypeit
+       parsets. Default is 1e10 which is to not mask.
 
-    nonlinear_counts: float, default = 1e10
-       Value above which to mask saturated arc lines. This should be nonlinear_counts= nonlinear*saturation according to pypeit parsets.
-       Default is 1e10 which is to not mask.
+    nfind: int, default = None, optional
+       Return only the nfind highest significance lines. The default
+       is None, which means the code will return all the lines above
+       the significance threshold.
 
-    nfind: int, default = None
-       Return only the nfind highest significance lines. The default is None, which means the code will
-       return all the lines above the significance threshold.
+    bpm: numpy.ndarray, optional
+        Bad-pixel mask for input spectrum. If None, all pixels
+        considered good.
 
     verbose: bool, default = False
        Output more stuff to the screen.
@@ -863,14 +881,18 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     arc : ndarray
       The continuum sutracted arc used to find detections.
     nsig : ndarray
-      The significance of each line detected relative to the 1sigma variation in the continuum subtracted arc in the
-      the line free region. Bad lines are assigned a significance of -1, since they don't have an amplitude fit
+      The significance of each line detected relative to the 1sigma
+      variation in the continuum subtracted arc in the the line free
+      region. Bad lines are assigned a significance of -1, since they
+      don't have an amplitude fit
     """
 
     # Detect the location of the arc lines
     if verbose:
         msgs.info("Detecting lines...isolating the strongest, nonsaturated lines")
 
+    # TODO: Why is this here? Can't the calling function be required to
+    # pass a single spectrum?  This is not reflected in the docstring.
     if len(censpec.shape) == 3:
         detns = censpec[:, 0].flatten()
     else:
@@ -879,7 +901,8 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     xrng = np.arange(detns.size, dtype=np.float)
 
     if cont_subtract:
-        cont_now, cont_mask = iter_continuum(detns, fwhm=fwhm, niter_cont=niter_cont, cont_samp=cont_samp,
+        cont_now, cont_mask = iter_continuum(detns, inmask=None if bpm is None else np.invert(bpm),
+                                             fwhm=fwhm, niter_cont=niter_cont, cont_samp=cont_samp,
                                              cont_frac_fwhm=cont_frac_fwhm)
     else:
         cont_mask = np.ones(detns.size, dtype=bool)
@@ -899,26 +922,42 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
         else:
             msgs.error('Unrecognized value for thresh')
         stddev = 1.0
+
+    # Find the peak locations
     pixt = detect_peaks(arc, mph=thresh, mpd=fwhm*min_pkdist_frac_fwhm, show=debug_peak_find)
+
+    # Peak up the centers and determine the widths using a Gaussian fit
     nfitpix = np.round(fit_frac_fwhm*fwhm).astype(int)
     fwhm_max = max_frac_fwhm*fwhm
     tampl_fit, tcent, twid, centerr = fit_arcspec(xrng, arc, pixt, nfitpix)
-    # This is the amplitude of the lines in the actual detns spectrum not continuum subtracted
+
+    # Set the amplitudes using the spectra directly for both the input
+    # and continuum-subtracted spectrum.
+    # TODO: Why does this interpolate to pixt and not tcent?
     tampl_true = np.interp(pixt, xrng, detns)
     tampl = np.interp(pixt, xrng, arc)
-    #         width is fine & width > 0.0 & width < FWHM/2.35 &  center positive  &  center on detector
-    #        & amplitude not nonlinear
-    good = (np.invert(np.isnan(twid))) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) & (tcent < xrng[-1]) & \
-           (tampl_true < nonlinear_counts) & (np.abs(tcent-pixt) < fwhm*0.75)
+
+    # Find the lines that meet the following criteria:
+    #   - Amplitude is in the linear regime of the detector response
+    #   - Center is within the limits of the spectrum
+    #   - The Gaussian-fitted center and the center from `detect_lines`
+    #     are not different by more than 0.75*FWHM
+    #   - Width is finite, greater than 0, and less than FWHM_MAX/2.35
+    good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
+                & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
+                & (np.abs(tcent-pixt) < fwhm*0.75)
+
+    # Get the indices of the good measurements
     ww = np.where(good)
     # Compute the significance of each line, set the significance of bad lines to be -1
     nsig = (tampl - med)/stddev
 
-    # If the user requested the nfind most significant peaks have been requested, then grab and return only these lines
+    # If the user requested the nfind most significant peaks have been
+    # requested, then grab and return only these lines
     if nfind is not None:
         if nfind > len(nsig):
-            msgs.warn('Requested nfind = {:}'.format(nfind) + ' peaks but only npeak = {:}'.format(len(tampl)) +
-                      ' were found. Returning all the peaks found.')
+            msgs.warn('Requested {0} peaks but only found {1}.  '.format(nfind, len(tampl)) +
+                      ' Returning all the peaks found.')
         else:
             ikeep = (nsig.argsort()[::-1])[0:nfind]
             tampl_true = tampl_true[ikeep]
@@ -931,23 +970,54 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
             good = good[ikeep]
 
     if debug:
-        plt.figure(figsize=(14, 6))
-        plt.plot(xrng, arc, color='black', drawstyle = 'steps-mid', lw=3, label = 'arc', linewidth = 1.0)
-        plt.plot(tcent[np.invert(good)], tampl[np.invert(good)],'r+', markersize =6.0, label = 'bad peaks')
-        plt.plot(tcent[good], tampl[good],'g+', markersize =6.0, label = 'good peaks')
-        if thresh is not None:
-            plt.hlines(thresh, xrng.min(), xrng.max(), color='cornflowerblue', linestyle=':', linewidth=2.0,
-                       label='threshold', zorder=10)
-        if nonlinear_counts < 1e9:
-            plt.hlines(nonlinear_counts,xrng.min(), xrng.max(), color='orange', linestyle='--',linewidth=2.0,
-                       label='nonlinear', zorder=10)
-        plt.title('Good Lines = {:d}'.format(np.sum(good)) + ',  Bad Lines = {:d}'.format(np.sum(~good)))
-        plt.ylim(arc.min(), 1.5*arc.max())
-        plt.legend()
-        plt.show()
+        # NOTE: Uses pixt because apparently tcent can be set to -1 in fit_arcspec
+        # TODO: Replace any values of tcent that are -1 with the value of pixt?
+        find_lines_qa(arc, pixt, tampl, good, bpm=bpm, thresh=thresh, nonlinear=nonlinear_counts)
 
+    # TODO: Change this to return `good` instead of `ww`
     return tampl_true, tampl, tcent, twid, centerr, ww, arc, nsig
 
+def find_lines_qa(spec, cen, amp, good, bpm=None, thresh=None, nonlinear=None):
+    """
+    Show a QA plot for the line detection.
+
+    Args:
+        spec (`numpy.ndarray`):
+            Spectrum used to detect lines
+        cen (`numpy.ndarray`):
+            Identified line peaks
+        amp (`numpy.ndarray`):
+            Amplitude of the identified lines.
+        good (`numpy.ndarray`):
+            Boolean array selecting the good line detections.
+        bpm (`numpy.ndarray`, optional):
+            The bad-pixel mask for the spectrum. If None, all pixels
+            are assumed to be valid.
+        thresh (:obj:`float`, optional):
+            Threshold value for line detection
+        nonlinear (:obj:`float`, optional):
+            Threshold for nonlinear detector response.
+    """
+    # TODO: Could just pull `amp` directly from the spectrum
+    # If bpm is provided, the masked pixels are *not* shown
+    _spec = np.ma.MaskedArray(spec, mask=np.zeros(spec.size, dtype=bool) if bpm is None else bpm)
+    pix = np.arange(_spec.size)
+    plt.figure(figsize=(14, 6))
+    plt.step(pix, _spec, color='k', where='mid', label='arc', lw=1.0)
+    plt.scatter(cen[np.invert(good)], amp[np.invert(good)], marker='+', color='C3', s=50,
+                label='bad for tilts')
+    plt.scatter(cen[good], amp[good], color='C2', marker='+', s=50, label='good for tilts')
+    if thresh is not None:
+        plt.axhline(thresh, color='cornflowerblue', linestyle=':', linewidth=2.0,
+                    label='threshold', zorder=10)
+    if nonlinear is not None and nonlinear < 1e9:
+        plt.axhline(nonlinear, color='orange', linestyle='--', linewidth=2.0, label='nonlinear',
+                    zorder=10)
+    ngood = np.sum(good)
+    plt.title('Good Lines = {0},  Bad Lines = {1}'.format(ngood, len(good)-ngood))
+    plt.ylim(np.amin(spec), 1.5 * np.amax(spec))
+    plt.legend()
+    plt.show()
 
 def fit_arcspec(xarray, yarray, pixt, fitp):
     """
@@ -970,11 +1040,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    b      = -1.0*np.ones(sz_p, dtype=np.float)
-    ampl   = -1.0*np.ones(sz_p, dtype=np.float)
-    cent   = -1.0*np.ones(sz_p, dtype=np.float)
-    widt   = -1.0*np.ones(sz_p, dtype=np.float)
-    centerr = -1.0*np.ones(sz_p, dtype=np.float)
+    b      = np.full(sz_p, -999.0, dtype=float)
+    ampl   = np.full(sz_p, -999.0, dtype=float)
+    cent   = np.full(sz_p, -999.0, dtype=float)
+    widt   = np.full(sz_p, -999.0, dtype=float)
+    centerr =np.full(sz_p, -999.0, dtype=float)
 
     for p in range(sz_p):
         # This interval is always symmetric about the peak
@@ -1053,10 +1123,10 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     tcent = tcent[icut]
 
     # IDs were input by hand
-    # Check that there are at least 5 values
+    # Check that there are at least 4 values
     pixels = np.array(IDpixels) # settings.argflag['arc']['calibrate']['IDpixels'])
     if np.sum(pixels > 0.) < 4:
-        msgs.error("Need to give at least 5 pixel values!")
+        msgs.error("Need to give at least 4 pixel values!")
     #
     msgs.info("Using input lines to seed the wavelength solution")
     # Calculate median offset
@@ -1074,7 +1144,6 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
     for jj,pix in enumerate(pixels):
         diff = np.abs(tcent-pix-med_poff)
         if np.min(diff) > 2.:
-            embed(header='1076 of arc.py')
             msgs.error("No match with input pixel {:g}!".format(pix))
         else:
             imn = np.argmin(diff)

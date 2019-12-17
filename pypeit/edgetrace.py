@@ -903,7 +903,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
                                           sigdetect=self.par['edge_thresh'])
-
         # Empty out the images prepared for left and right tracing
         # until they're needed.
         self.sobel_sig_left = None
@@ -1050,7 +1049,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   - Add the tracing parameters
         self.par.to_header(prihdr)
         #   - List the completed methods, if there are any
-        if self.log is not None:
+        if self.log is not None and len(self.log) > 0:
             ndig = int(np.log10(len(self.log)))+1
             for i,m in enumerate(self.log):
                 prihdr['LOG{0}'.format(str(i+1).zfill(ndig))] \
@@ -1110,11 +1109,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
             else:
-                try:  # Crashing for GMOS data on FRB 191001
-                    hdu += [self.pca.to_hdu()]
-                except:
-                    embed(header='1116 of edgetrace')
-        if self.design is not None: 
+                hdu += [self.pca.to_hdu()]
+        if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
             hdu += [fits.BinTableHDU(data=self.objects, name='OBJECTS')]
@@ -1339,6 +1335,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     else np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
                                                     for b in np.unique(self.spat_msk)])).tolist()
 
+    ## TODO It is confusing that this show routine shows images flipped from the PypeIt convention.
+    ## It should be rewritten to show images with spectral direction vertical like all our other QA.
     def show(self, traceid=None, include_error=False, thin=1, in_ginga=False, include_img=False,
              include_sobel=False, img_buffer=100, flag=None, idlabel=False):
         """
@@ -1831,6 +1829,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         # TODO: Get rid of this when convinced it won't
                         # get tripped...
                         msgs.error('Traces remain but could not select good starting position.')
+
+                    ## TODO row and column should not be used here in the output. Adopt the PypeIt convention spec, spat
                     msgs.info('Following {0} {1} edge(s) '.format(np.sum(to_trace), side)
                               + 'from row {0}; '.format(_start_indx)
                               + '{0} trace(s) remain.'.format(np.sum(untraced)-np.sum(to_trace)))
@@ -4158,6 +4158,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Stop-gap function to construct the old tslits_dict object.
         """
+        # To construct at tslits_dict, the traces must be left-right
+        # synchronized.
         if not self.is_synced:
             msgs.error('Edges must be synced to construct tslits_dict.')
 
@@ -4198,6 +4200,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict.
         """
 
+        #JFH This is massively memory inefficient. We just created like 5 bogus images filled with zeros
+        # from one set of slit boundaries? Can we just set these things which do not exist to None?
         # Caveats:
         #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
         par = EdgeTracePar()
@@ -4212,12 +4216,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   file, but just set it to 1 for now.
         this.det = 1
         this.binning = '{0},{1}'.format(tslits_dict['binspectral'], tslits_dict['binspatial'])
-
         #   - Build the trace data
-        nleft = tslits_dict['slit_left'].shape[1]
-        nright = tslits_dict['slit_righ'].shape[1]
-        this.traceid = np.append(-np.arange(nleft)-1, np.arange(nright)+1)
+        nslits = tslits_dict['slit_left'].shape[1]
+        #       - Force the input traces to be synced
+        if nslits != tslits_dict['slit_righ'].shape[1]:
+            msgs.error('Input dictionary has different number of left and right traces.')
+        #       - Initialize the trace arrays
+        this.traceid = np.append(-np.arange(nslits)-1, np.arange(nslits)+1)
         this.spat_cen = np.hstack((tslits_dict['slit_left'], tslits_dict['slit_righ']))
+        #       - Resort them into synced pairs; assumes left and right
+        #         slits are correctly ordered in the input dictionary
+        srt = np.arange(2*nslits).reshape(2,-1).T.ravel()
+        this.traceid = this.traceid[srt]
+        this.spat_cen = this.spat_cen[:,srt]
+        # - Dummy data to produce a complete object
+        #   TODO: Refactor so that the object can be put in a
+        #   "read-only" state.  Then these attributes wouldn't need to
+        #   be defined, but this state would prohibit the execution of
+        #   some methods.
         this.spat_fit = this.spat_cen.copy()
         this.spat_fit_type = 'legendre'
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())

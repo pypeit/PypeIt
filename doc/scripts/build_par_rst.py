@@ -41,7 +41,7 @@ def par_hierarchy(p, indent_level=0, key=''):
 #-----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    t = time.clock()
+    t = time.perf_counter()
 
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     with open(output_rst, 'w') as f:
         f.write('\n'.join(lines))
     
-    print('Elapsed time: {0} seconds'.format(time.clock() - t))
+    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 
 
 

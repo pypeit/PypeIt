@@ -660,7 +660,6 @@ class Calibrations(object):
                                                     files=self.trace_image_files, det=self.det,
                                                     par=self.par['traceframe'],
                                                     bias=self.msbias)
-
             self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             try:
@@ -853,6 +852,7 @@ class Calibrations(object):
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
                                              qa_path=self.qa_path, msbpm=self.msbpm)
+
         # Master
         self.tilts_dict = self.waveTilts.load()
         if self.tilts_dict is None:

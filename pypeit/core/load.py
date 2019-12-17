@@ -311,58 +311,6 @@ def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
     # Return
     return spectra
 
-#def load_1dspec(fname, exten=None, extract='OPT', objname=None, flux=False):
-#    """
-#    Parameters
-#    ----------
-#    fname : str
-#      Name of the file
-#    exten : int, optional
-#      Extension of the spectrum
-#      If not given, all spectra in the file are loaded
-#    extract : str, optional
-#      Extraction type ('opt', 'box')
-#    objname : str, optional
-#      Identify extension based on input object name
-#    flux : bool, optional
-#      Return fluxed spectra?
-#
-#    Returns
-#    -------
-#    spec : XSpectrum1D
-#
-#    """
-#
-#    # Identify extension from objname?
-#    if objname is not None:
-#        hdulist = fits.open(fname)
-#        hdu_names = [hdu.name for hdu in hdulist]
-#        exten = hdu_names.index(objname)
-#        if exten < 0:
-#            msgs.error("Bad input object name: {:s}".format(objname))
-#
-#    # Keywords for Table
-#    rsp_kwargs = {}
-#    if flux:
-#        rsp_kwargs['flux_tag'] = '{:s}_FLAM'.format(extract)
-#        rsp_kwargs['sig_tag'] = '{:s}_FLAM_SIG'.format(extract)
-#    else:
-#        rsp_kwargs['flux_tag'] = '{:s}_COUNTS'.format(extract)
-#        rsp_kwargs['sig_tag'] = '{:s}_COUNTS_SIG'.format(extract)
-#
-#    # Use the WAVE_GRID (for 2d coadds) if it exists, otherwise use WAVE
-#    rsp_kwargs['wave_tag'] = '{:s}_WAVE_GRID'.format(extract)
-#    # Load
-#    try:
-#        spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
-#    except ValueError:
-#        rsp_kwargs['wave_tag'] = '{:s}_WAVE'.format(extract)
-#        spec = XSpectrum1D.from_file(fname, exten=exten, **rsp_kwargs)
-#
-#    # Return
-#    return spec
-
-
 def load_sens_dict(filename):
     """
     Load a full (all slit) wv_calib dict

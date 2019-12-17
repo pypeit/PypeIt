@@ -607,13 +607,6 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         ]
         self.numhead = 7
 
-    #def init_meta(self):
-    #    """
-    #    Generate the meta data dictionary.
-    #    """
-    #    super(GeminiGMOSNE2VSpectrograph, self).init_meta()
-    #    self.meta['exptime'] = dict(ext=0, card='EXPOSURE')
-
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
