@@ -173,8 +173,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     return
 
 
-def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img,
-                           box_radius, specobj):
+def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
     # Setup
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
