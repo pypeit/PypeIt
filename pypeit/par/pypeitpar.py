@@ -848,7 +848,7 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extrap_blu=None, extrap_red=None, multi_spec_det=None, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
                  star_dec=None, mask_abs_lines=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -858,7 +858,6 @@ class SensFuncPar(ParSet):
         defaults = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
-
 
         defaults['extrap_blu'] = 0.2
         dtypes['extrap_blu'] = float
@@ -875,6 +874,10 @@ class SensFuncPar(ParSet):
                               'cuts off at wave_max, the sensfunc will be extrapolated to cover up to ' \
                               ' (1.0 + extrap_red)*wave_max'
 
+        defaults['samp_fact'] = 1.5
+        dtypes['samp_fact'] = float
+        descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
+                             'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
         defaults['polyorder'] = 5
         dtypes['polyorder'] = int
         descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
@@ -940,7 +943,7 @@ class SensFuncPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['extrap_blu', 'extrap_red', 'multi_spec_det', 'algorithm', 'UVIS', 'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
+        parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm', 'UVIS', 'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

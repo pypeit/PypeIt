@@ -114,19 +114,22 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                         std_dict['wave'] = std_spec['col1'] * units.AA
                         std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
                                            units.erg / units.s / units.cm ** 2 / units.AA
-                        msgs.info("Fluxes are flambda, normalized to 1e-17")
                     elif sset == 'calspec':
                         std_dict['std_source'] = sset
                         std_spec = fits.open(fil)[1].data
                         std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
                         std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
                                            * units.erg / units.s / units.cm ** 2 / units.AA
-                        msgs.info("Fluxes are flambda, normalized to 1e-17")
                     elif sset == 'esofil':
-                        
+                        # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                        std_spec = Table.read(fil, format='ascii')
+                        std_dict['std_source'] = sset
+                        std_dict['wave'] = std_spec['col1'] * units.AA
+                        std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
+                                           units.erg / units.s / units.cm ** 2 / units.AA
+                    msgs.info("Fluxes are flambda, normalized to 1e-17")
                 else:
                     msgs.error("No standard star file found: {:s}".format(star_file))
-                embed()
                 return std_dict
         else:
             # Save closest found so far

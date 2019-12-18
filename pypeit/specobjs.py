@@ -185,7 +185,8 @@ class SpecObjs(object):
             wave[:, iorddet] = self[iorddet].OPT_WAVE
             flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
             detector[iorddet] = self[iorddet].DET
-            ech_order[iorddet] = self[iorddet].ECH_ORDER
+            if self[0].PYPELINE == 'Echelle':
+                ech_order[iorddet] = self[iorddet].ECH_ORDER
             if ret_flam:
                 flux[:, iorddet] = self[iorddet].OPT_FLAM
                 flux_ivar[:, iorddet] = self[iorddet].OPT_FLAM_IVAR
@@ -194,7 +195,6 @@ class SpecObjs(object):
                 flux_ivar[:, iorddet] = self[iorddet].OPT_COUNTS_IVAR
 
         # Populate meta data
-        pypeline = self[0].PYPELINE
         try:
             spectrograph = load_spectrograph(self.header['PYP_SPEC'])
         except:
@@ -211,9 +211,9 @@ class SpecObjs(object):
         # Add the pyp spec.
         # TODO JFH: Make this an atribute of the specobj by default.
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
-        meta_spec['PYPELINE'] = pypeline
+        meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
-        if pypeline == 'MultiSlit' and self.nobj == 1:
+        if self[0].PYPELINE == 'MultiSlit' and self.nobj == 1:
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
                    flux_gpm.reshape(nspec), meta_spec, self.header
         else:

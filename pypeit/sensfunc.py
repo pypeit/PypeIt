@@ -74,9 +74,13 @@ class SensFunc(object):
     def load(cls, sensfile):
         # Write to outfile
         msgs.info('Reading sensitivity function from file: {:}'.format(sensfile))
-        meta_table = table.Table.read(sensfile, hdu=1)
-        out_table = table.Table.read(sensfile, hdu=2)
-        return meta_table, out_table
+        hdulist = fits.open(sensfile)
+        header = hdulist[0].header
+        wave = hdulist['WAVE'].data
+        sensfunc = hdulist['SENSFUNC'].data
+        meta_table = table.Table(hdulist['METADATA'].data)
+        out_table  = table.Table(hdulist['OUT_TABLE'].data)
+        return wave, sensfunc, meta_table, out_table, header
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
         # Arguments
@@ -155,7 +159,7 @@ class SensFunc(object):
         #   - List the completed steps
         hdr['STEPS'] = (','.join(self.steps), 'Completed sensfunc steps')
         #   - Provide the file names
-        hdr['SPEC1DFILE'] = self.spec1dfile
+        hdr['SPC1DFIL'] = self.spec1dfile
 
         # Write the fits file
         data = [self.wave, self.sensfunc]
@@ -183,14 +187,12 @@ class SensFunc(object):
             nspec_now = np.ceil(samp_fact * (wave_extrap_max[idet] - wave_extrap_min[idet]) / dwave_data).astype(int)
             nspec_extrap = np.max([nspec_now, nspec_extrap])
         # Create the wavelength grid
-        wave_extrap = np.outer((wave_extrap_max - wave_extrap_min) / samp_fact / (nspec_extrap - 1),
-                               np.arange(nspec_extrap)) + \
-                      np.outer(wave_extrap_min, np.ones(nspec_extrap))
+        wave_extrap = np.outer(np.arange(nspec_extrap), (wave_extrap_max - wave_extrap_min) / samp_fact / (nspec_extrap - 1)) + \
+                      np.outer(np.ones(nspec_extrap), wave_extrap_min)
         sensfunc_extrap = np.zeros_like(wave_extrap)
         # Evaluate extrapolated sensfunc for all orders detectors
         for iorddet in range(self.norderdet):
-            sensfunc_extrap[iorddet, :] = self.eval_sensfunc(wave_extrap[iorddet, :], iorddet)
-
+            sensfunc_extrap[:, iorddet] = self.eval_sensfunc(wave_extrap[:,iorddet], iorddet)
 
         self.steps.append(inspect.stack()[0][3])
 
@@ -201,7 +203,7 @@ class SensFunc(object):
         msgs.info('Merging sensfunc for {:d} detectors {:}'.format(self.norderdet, self.par['multi_spec_det']))
         wave_splice_min = wave.min()
         wave_splice_max = wave.max()
-        wave_splice, _, _ = coadd1d.get_wave_grid(wave.T, wave_method='linear', wave_grid_min=wave_splice_min,
+        wave_splice, _, _ = coadd1d.get_wave_grid(wave, wave_method='linear', wave_grid_min=wave_splice_min,
                                                   wave_grid_max=wave_splice_max, samp_fact=1.0)
         sensfunc_splice = np.zeros_like(wave_splice)
         for idet in range(self.norderdet):
