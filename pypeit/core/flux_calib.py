@@ -68,7 +68,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             - 'dec': str -- DEC(J2000)
     """
     # Priority
-    std_sets = ['xshooter', 'calspec']
+    std_sets = ['xshooter', 'calspec','esofil']
 
     # SkyCoord
     try:
@@ -122,9 +122,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                         std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
                                            * units.erg / units.s / units.cm ** 2 / units.AA
                         msgs.info("Fluxes are flambda, normalized to 1e-17")
+                    elif sset == 'esofil':
+                        
                 else:
                     msgs.error("No standard star file found: {:s}".format(star_file))
-
+                embed()
                 return std_dict
         else:
             # Save closest found so far
