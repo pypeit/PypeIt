@@ -5,6 +5,7 @@ import inspect
 import numpy as np
 import scipy
 from IPython import embed
+import inspect
 
 from pypeit import msgs
 from pypeit import ginga
@@ -16,6 +17,9 @@ from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
 from astropy import table
 from pypeit.core import coadd1d
+from pypeit.core.wavecal import wvutils
+from pypeit import utils
+from pypeit.io import initialize_header
 
 
 # TODO Add the data model up here as a standard thing, which is an astropy table.
@@ -75,16 +79,19 @@ class SensFunc(object):
         return meta_table, out_table
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
+        # Arguments
         self.spec1dfile = spec1dfile
         self.sensfile = sensfile
         self.par = par
         self.debug = debug
-
-        # Are we splicing together multiple detectors?
-        self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
         # Core attributes that will be output to file
         self.meta_table = None
         self.out_table = None
+        self.wave = None
+        self.sensfunc = None
+        self.steps = []
+        # Are we splicing together multiple detectors?
+        self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
 
         # Read in the Standard star data
         sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=self.par['multi_spec_det'])
@@ -118,54 +125,105 @@ class SensFunc(object):
         return None, None
 
     def run(self):
-        meta_table, out_table = self.compute_sensfunc()
+        # Compute the sensitivity function
+        self.meta_table, self.out_table = self.compute_sensfunc()
+        # Extrapolate the sensfunc based on par['extrap_blu'], par['extrap_red']
+        self.wave, self.sensfunc = self.extrapolate(samp_fact = self.par['samp_fact'])
         if self.splice_multi_det:
-            self.meta_table, self.out_table = self.splice_sensfunc(meta_table, out_table)
-        else:
-            self.meta_table, self.out_table = meta_table, out_table
-        return self.meta_table, self.out_table
+            self.wave, self.sensfunc = self.splice(self.wave)
+
+        return
+
+    def eval_sensfunc(self, wave, iorddet):
+        """
+        Dummy method, overloaded by subclasses
+
+        Returns:
+        """
+        pass
 
     def save(self):
 
         # Write to outfile
         msgs.info('Writing sensitivity function results to file: {:}'.format(self.sensfile))
+
+        # Standard init
+        hdr = initialize_header()
+
+        hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+        hdr['PYPELINE'] = self.spectrograph.pypeline
+        #   - List the completed steps
+        hdr['STEPS'] = (','.join(self.steps), 'Completed sensfunc steps')
+        #   - Provide the file names
+        hdr['SPEC1DFILE'] = self.spec1dfile
+
+        # Write the fits file
+        data = [self.wave, self.sensfunc]
+        extnames = ['WAVE', 'SENSFUNC']
+        # Write the fits file
+        hdulist = fits.HDUList([fits.PrimaryHDU(header=hdr)] + [fits.ImageHDU(data=d, name=n) for d, n in zip(data, extnames)])
         hdu_meta = fits.table_to_hdu(self.meta_table)
         hdu_meta.name = 'METADATA'
         hdu_out = fits.table_to_hdu(self.out_table)
         hdu_out.name = 'OUT_TABLE'
-        hdulist = fits.HDUList()
         hdulist.append(hdu_meta)
         hdulist.append(hdu_out)
-        hdulist.writeto(self.sensfile, overwrite=True)
+        hdulist.writeto(self.sensfile, overwrite=True, checksum=True)
 
-    def splice_sensfunc(self, meta_table, out_table):
 
-        # splice the sensitivity functions together, and add the splice as a key in the meta_table
-        # (since we cannot pack the splice into the output table since it has a different shape). Otherwise just return the
-        # input arguments unchanged
+    def extrapolate(self, samp_fact=1.5):
+
+        # Create a new set of oversampled and padded wavelength grids for the extrapolation
+        wave_extrap_min = self.out_table['WAVE_MIN'].data * (1.0 - self.par['extrap_blu'])
+        wave_extrap_max = self.out_table['WAVE_MAX'].data * (1.0 + self.par['extrap_red'])
+        nspec_extrap = 0
+        # Find the maximum size of the wavewlength grids, since we want everything to have the same
+        for idet in range(self.norderdet):
+            dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(self.out_table['WAVE'][idet])
+            nspec_now = np.ceil(samp_fact * (wave_extrap_max[idet] - wave_extrap_min[idet]) / dwave_data).astype(int)
+            nspec_extrap = np.max([nspec_now, nspec_extrap])
+        # Create the wavelength grid
+        wave_extrap = np.outer((wave_extrap_max - wave_extrap_min) / samp_fact / (nspec_extrap - 1),
+                               np.arange(nspec_extrap)) + \
+                      np.outer(wave_extrap_min, np.ones(nspec_extrap))
+        sensfunc_extrap = np.zeros_like(wave_extrap)
+        # Evaluate extrapolated sensfunc for all orders detectors
+        for iorddet in range(self.norderdet):
+            sensfunc_extrap[iorddet, :] = self.eval_sensfunc(wave_extrap[iorddet, :], iorddet)
+
+
+        self.steps.append(inspect.stack()[0][3])
+
+        return wave_extrap, sensfunc_extrap
+
+    def splice(self, wave):
+
         msgs.info('Merging sensfunc for {:d} detectors {:}'.format(self.norderdet, self.par['multi_spec_det']))
-        # TODO Can add some logic here to slightly extrapolate on both ends by say 10%
-        wave_splice_min = out_table['WAVE_MIN'].min()
-        wave_splice_max = out_table['WAVE_MAX'].max()
-        wave_splice, _, _ = coadd1d.get_wave_grid(
-            out_table['WAVE'].T, wave_method='linear',wave_grid_min=wave_splice_min, wave_grid_max=wave_splice_max,
-            samp_fact=1.0)
+        wave_splice_min = wave.min()
+        wave_splice_max = wave.max()
+        wave_splice, _, _ = coadd1d.get_wave_grid(wave.T, wave_method='linear', wave_grid_min=wave_splice_min,
+                                                  wave_grid_max=wave_splice_max, samp_fact=1.0)
         sensfunc_splice = np.zeros_like(wave_splice)
         for idet in range(self.norderdet):
-            wave_min = out_table['WAVE_MIN'][idet]
-            wave_max = out_table['WAVE_MAX'][idet]
-            splice_wave_mask = (wave_splice >= wave_min) & (wave_splice <= wave_max)
-            sensfunc_splice[splice_wave_mask] = scipy.interpolate.interp1d(
-            out_table['WAVE'][idet], out_table['SENSFUNC'][idet], kind='cubic', bounds_error=False,
-            fill_value=0.0)(wave_splice[splice_wave_mask])
+            wave_min = self.out_table['WAVE_MIN'][idet]
+            wave_max = self.out_table['WAVE_MAX'][idet]
+            if idet == 0:
+                # If this is the bluest detector, extrapolate to wave_extrap_min
+                wave_mask_min = wave_splice_min
+                wave_mask_max = wave_max
+            elif idet == (self.norderdet - 1):
+                # If this is the reddest detector, extrapolate to wave_extrap_max
+                wave_mask_min = wave_min
+                wave_mask_max = wave_splice_max
+            else:
+                wave_mask_min = wave_min
+                wave_mask_max = wave_max
+            splice_wave_mask = (wave_splice >= wave_mask_min) & (wave_splice <= wave_mask_max)
+            sensfunc_splice[splice_wave_mask] = self.eval_sensfunc(wave_splice[splice_wave_mask], idet)
 
-        #sensfunc_splice_mask  = sensfunc_splice > 0.0
-        # Add the spliced information to the meta_table, since the size of the outpt table is fixed
-        meta_table['SPLICE_MULTI_DET'] = True
-        meta_table['WAVE_SPLICE'] = [wave_splice]
-        meta_table['SENSFUNC_SPLICE'] = [sensfunc_splice]
-        return meta_table, out_table
+        self.steps.append(inspect.stack()[0][3])
 
+        return wave_splice, sensfunc_splice
 
     def show(self):
         pass
@@ -195,9 +253,19 @@ class IR(SensFunc):
             disp=self.par['IR']['disp'], debug=self.debug)
         # Add the algorithm to the meta_table
         meta_table['ALGORITHM'] = self.par['algorithm']
+        self.steps.append(inspect.stack()[0][3])
 
         return meta_table, out_table
 
+    def eval_sensfunc(self, wave, iorddet):
+        # Put this stuff in a function called eval_sensfunc for each algorithm
+        wave_min = self.out_table[iorddet]['WAVE_MIN']
+        wave_max = self.out_table[iorddet]['WAVE_MAX']
+        polyorder_vec = self.meta_table['POLYORDER_VEC'][0]
+        func = self.meta_table['FUNC'][0]
+        coeff = self.out_table[iorddet]['OBJ_THETA'][0:polyorder_vec[iorddet] + 2]
+        sensfunc = np.exp(utils.func_val(coeff, wave, func, minx=wave_min, maxx=wave_max))
+        return sensfunc
 
 
 class UVIS(SensFunc):
@@ -222,6 +290,14 @@ class UVIS(SensFunc):
                                                               polycorrect=True, debug=self.debug)
         # Add the algorithm to the meta_table
         meta_table['ALGORITHM'] = self.par['algorithm']
+
+        self.steps.append(inspect.stack()[0][3])
+
         return meta_table, out_table
 
 
+    def eval_sensfunc(self, wave, iorddet):
+        # This routine can extrapolate
+        sensfunc = scipy.interpolate.interp1d(self.out_table['WAVE'][iorddet,:], self.out_table['SENSFUNC'][iorddet,:],
+                                              bounds_error = False, fill_value='extrapolate')(wave)
+        return sensfunc

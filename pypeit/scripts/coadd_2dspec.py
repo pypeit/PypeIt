@@ -204,7 +204,7 @@ def main(args):
         sci_dict[det] = {}
 
         # Instantiate Coadd2d
-        coadd = coadd2d.Coadd2d.get_instance(spec2d_files, spectrograph, parset, det=det,
+        coadd = coadd2d.CoAdd2d.get_instance(spec2d_files, spectrograph, parset, det=det,
                                              offsets=parset['coadd2d']['offsets'],
                                              weights=parset['coadd2d']['weights'],
                                              ir_redux=ir_redux,
