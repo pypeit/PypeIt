@@ -406,7 +406,8 @@ class SpecObj(object):
         # Return
         return new_sky
 
-    def apply_flux_calib(self, sens_dict, exptime, telluric_correct=False, extinct_correct=False,
+    # TODO This should be a wrapper calling a core algorithm.
+    def apply_flux_calib(self, sens_dict, exptime, telluric=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None):
         """
         Apply a sensitivity function to our spectrum
@@ -432,23 +433,25 @@ class SpecObj(object):
             if attr+'_WAVE' not in self._data.keys():
                 continue
             msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
-            #
-            #try:
-            #    wave = np.copy(np.array(extract['WAVE_GRID']))
-            #except KeyError:
+
             wave = self[attr+'_WAVE']
             wave_sens = sens_dict['wave']
             sensfunc = sens_dict['sensfunc'].copy()
 
-            # Did the user request a telluric correction from the same file?
-            if telluric_correct and 'telluric' in sens_dict.keys():
+            # TODO Telluric corrections via this method are deprecated
+            # Did the user request a telluric correction?
+            if telluric is not None:
                 # This assumes there is a separate telluric key in this dict.
-                telluric = sens_dict['telluric']
                 msgs.info('Applying telluric correction')
                 sensfunc = sensfunc * (telluric > 1e-10) / (telluric + (telluric < 1e-10))
 
-            sensfunc_obs = interpolate.interp1d(wave_sens, sensfunc, bounds_error=False,
-                                                      fill_value='extrapolate')(wave)
+            try:
+                sensfunc_obs = interpolate.interp1d(wave_sens, sensfunc, bounds_error=True)(wave)
+            except ValueError:
+                msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                           "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
+                           "further and recreate your sensfunc.")
+
             if extinct_correct:
                 if longitude is None or latitude is None:
                     msgs.error('You must specify longitude and latitude if we are extinction correcting')

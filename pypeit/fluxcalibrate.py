@@ -22,15 +22,15 @@ class FluxCalibrate(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfiles, sensfiles, par, debug=False):
-        meta_table = table.Table.read(sensfiles[0], hdu=1)
-        algorithm = meta_table['ALGORITHM']
-        return next(c for c in cls.__subclasses__() if c.__name__ == algorithm)(spec1dfiles, sensfiles, par, debug=debug)
+    def get_instance(cls, spec1dfiles, sensfiles, spectrograph, par, debug=False):
+        return next(c for c in cls.__subclasses__() if c.__name__ == spectrograph.pypeline)(
+            spec1dfiles, sensfiles, spectrograph, par, debug=debug)
 
-    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False):
+    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
 
         self.spec1dfiles = spec1dfiles
         self.sensfiles = sensfiles
+        self.spectrograph = spectrograph
         self.par = par
         self.debug = debug
 
@@ -39,12 +39,3 @@ class FluxCalibrate(object):
         sobjs = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std()
         # Put spectrograph info into meta
         self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs.unpack_object(ret_flam=False)
-        # Set spectrograph
-        self.spectrograph = load_spectrograph(self.meta_spec['PYP_SPEC'])
-
-        # If the user provided RA and DEC use those instead of what is in meta
-        star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
-        star_dec = self.meta_spec['DEC'] if self.par['star_dec'] is None else self.par['star_dec']
-        # Read in standard star dictionary
-        self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'], star_mag=self.par['star_mag'],
-                                                         ra=star_ra, dec=star_dec)

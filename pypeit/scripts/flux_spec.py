@@ -7,6 +7,14 @@ import numpy as np
 from pypeit import par, msgs
 from pypeit.spectrographs.util import load_spectrograph
 import argparse
+import os
+from pypeit import fluxcalibrate
+from pypeit.par import pypeitpar
+from pypeit.spectrographs.util import load_spectrograph
+from astropy.io import fits
+
+from IPython import embed
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Echelle examples:
@@ -46,29 +54,27 @@ def read_fluxfile(ifile):
 
 
     # Parse the fluxing block
-    flux_dict = {}
     s, e = par.util._find_pypeit_block(lines, 'flux')
     if s >= 0 and e < 0:
         msgs.error("Missing 'flux end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
         msgs.warn("No flux block, you must be making the sensfunc only..")
     else:
-        flux_dict['spec1d_files'] = []
-        flux_dict['flux_files'] = []
+        spec1dfiles = []
         for line in lines[s:e]:
             prs = line.split(' ')
-            flux_dict['spec1d_files'].append(prs[0])
-            flux_dict['flux_files'].append(prs[1])
+            spec1dfiles.append(prs[0])
+            #flux_dict['flux_files'].append(prs[1])
         is_config[s-1:e+1] = False
 
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
     cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name)
+    #spectrograph_name = cfg['rdx']['spectrograph']
+    #spectrograph = load_spectrograph(spectrograph_name)
 
     # Return
-    return spectrograph, cfg_lines, flux_dict
+    return cfg_lines, spec1dfiles
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
@@ -84,40 +90,28 @@ def parser(options=None):
     return args
 
 
+
 def main(args, unit_test=False):
     """ Runs fluxing steps
     """
-    import os
-    import numpy as np
-
-    from pypeit import fluxspec
-    from pypeit.par import pypeitpar
-
-    from IPython import embed
-
-
     # Load the file
-    spectrograph, config_lines, flux_dict = read_fluxfile(args.flux_file)
+    config_lines, spec1dfiles = read_fluxfile(args.flux_file)
+
+    # Read in spectrograph from spec1dfile header
+    header = fits.getheader(spec1dfiles[0])
+    spectrograph = load_spectrograph(header['PYP_SPEC'])
 
     # Parameters
     spectrograph_def_par = spectrograph.default_pypeit_par()
     par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                              merge_with=config_lines)
 
-    # TODO: Remove this.  Put this in the unit test itself.
-    if unit_test:
-        path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
-        par['fluxcalib']['std_file'] = os.path.join(path, par['fluxcalib']['std_file'])
-        for kk, spec1d_file, flux_file in zip(np.arange(len(flux_dict['spec1d_files'])), flux_dict['spec1d_files'], flux_dict['flux_files']):
-            flux_dict['spec1d_files'][kk] = os.path.join(path, spec1d_file)
-            flux_dict['flux_files'][kk] = os.path.join(path, flux_file)
-
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
     par.to_config(args.par_outfile)
 
     # Instantiate
-    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'], debug=args.debug)
+    FxSpec = fluxcalibrate.get_instance(spectrograph, par['fluxcalib'], debug=args.debug)
 
     # Generate sensfunc??
     if par['fluxcalib']['std_file'] is not None:
@@ -140,8 +134,118 @@ def main(args, unit_test=False):
         for spec1d_file, flux_file in zip(flux_dict['spec1d_files'], flux_dict['flux_files']):
             FxSpec.flux_science(spec1d_file)
             FxSpec.write_science(flux_file)
+#
+#
+# def read_fluxfile(ifile):
+#     """
+#     Read a PypeIt flux file, akin to a standard PypeIt file
+#
+#     The top is a config block that sets ParSet parameters
+#       The spectrograph is required
+#
+#     Args:
+#         ifile: str
+#           Name of the flux file
+#
+#     Returns:
+#         spectrograph: Spectrograph
+#         cfg_lines: list
+#           Config lines to modify ParSet values
+#         flux_dict: dict
+#           Contains spec1d_files and flux_files
+#           Empty if no flux block is specified
+#
+#     """
+#     # Read in the pypeit reduction file
+#     msgs.info('Loading the fluxcalib file')
+#     lines = par.util._read_pypeit_file_lines(ifile)
+#     is_config = np.ones(len(lines), dtype=bool)
+#
+#
+#     # Parse the fluxing block
+#     flux_dict = {}
+#     s, e = par.util._find_pypeit_block(lines, 'flux')
+#     if s >= 0 and e < 0:
+#         msgs.error("Missing 'flux end' in {0}".format(ifile))
+#     elif (s < 0) or (s==e):
+#         msgs.warn("No flux block, you must be making the sensfunc only..")
+#     else:
+#         flux_dict['spec1d_files'] = []
+#         flux_dict['flux_files'] = []
+#         for line in lines[s:e]:
+#             prs = line.split(' ')
+#             flux_dict['spec1d_files'].append(prs[0])
+#             flux_dict['flux_files'].append(prs[1])
+#         is_config[s-1:e+1] = False
+#
+#     # Construct config to get spectrograph
+#     cfg_lines = list(lines[is_config])
+#     cfg = ConfigObj(cfg_lines)
+#     spectrograph_name = cfg['rdx']['spectrograph']
+#     spectrograph = load_spectrograph(spectrograph_name)
+#
+#     # Return
+#     return spectrograph, cfg_lines, flux_dict
 
-
-
+#
+# def main(args, unit_test=False):
+#     """ Runs fluxing steps
+#     """
+#     import os
+#     import numpy as np
+#
+#     from pypeit import fluxspec
+#     from pypeit.par import pypeitpar
+#
+#     from IPython import embed
+#
+#
+#     # Load the file
+#     spectrograph, config_lines, flux_dict = read_fluxfile(args.flux_file)
+#
+#     # Parameters
+#     spectrograph_def_par = spectrograph.default_pypeit_par()
+#     par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+#                                              merge_with=config_lines)
+#
+#     # TODO: Remove this.  Put this in the unit test itself.
+#     if unit_test:
+#         path = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
+#         par['fluxcalib']['std_file'] = os.path.join(path, par['fluxcalib']['std_file'])
+#         for kk, spec1d_file, flux_file in zip(np.arange(len(flux_dict['spec1d_files'])), flux_dict['spec1d_files'], flux_dict['flux_files']):
+#             flux_dict['spec1d_files'][kk] = os.path.join(path, spec1d_file)
+#             flux_dict['flux_files'][kk] = os.path.join(path, flux_file)
+#
+#     # Write the par to disk
+#     print("Writing the parameters to {}".format(args.par_outfile))
+#     par.to_config(args.par_outfile)
+#
+#     # Instantiate
+#     FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'], debug=args.debug)
+#
+#     # Generate sensfunc??
+#     if par['fluxcalib']['std_file'] is not None:
+#         # Load standard
+#         _,_ = FxSpec.load_objs(par['fluxcalib']['std_file'], std=True)
+#         ## For echelle, the code will deal with the standard star in the ech_fluxspec.py
+#         #if not spectrograph.pypeline == 'Echelle':
+#         # Find the star
+#         _ = FxSpec.find_standard()
+#         # Sensitivity
+#         _ = FxSpec.generate_sensfunc()
+#         # Output
+#         _ = FxSpec.save_sens_dict(FxSpec.sens_dict, par['fluxcalib']['sensfunc'])
+#         # Show
+#         if args.plot:
+#             FxSpec.show_sensfunc()
+#
+#     # Flux?
+#     if len(flux_dict) > 0:
+#         for spec1d_file, flux_file in zip(flux_dict['spec1d_files'], flux_dict['flux_files']):
+#             FxSpec.flux_science(spec1d_file)
+#             FxSpec.write_science(flux_file)
+#
+#
+#
 
 
