@@ -427,7 +427,7 @@ The tagging process is as follows:
 
 ----
 
-This document was developed and mutually agreed upon by: Kyle Westfall
+This document was developed and mutually agreed upon by: Kyle Westfall, J. Xavier Prochaska
 
 *Last Modified: 19 Nov 2019*
 
