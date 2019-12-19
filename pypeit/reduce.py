@@ -254,7 +254,7 @@ class Reduce(object):
                 self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                     self.local_skysub_extract(self.caliBrate.mswave, self.global_sky, self.sobjs_obj,
                                               model_noise=(not self.ir_redux), std=self.std_redux,
-                                              maskslits=self.maskslits, show_profile=self.reduce_show,
+                                              show_profile=self.reduce_show,
                                               show=self.reduce_show)
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -457,7 +457,7 @@ class Reduce(object):
         return self.global_sky
 
     def local_skysub_extract(self, waveimg, global_sky, sobjs,
-                             maskslits=None, model_noise=True, std=False,
+                             model_noise=True, std=False,
                              show_profile=False, show_resids=False, show=False):
 
         """
@@ -744,7 +744,7 @@ class MultiSlit(Reduce):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, waveimg, global_sky, sobjs,
-                             spat_pix=None, maskslits=None, model_noise=True, std = False,
+                             spat_pix=None, model_noise=True, std = False,
                              show_profile=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -769,7 +769,6 @@ class MultiSlit(Reduce):
         self.global_sky = global_sky
 
         # get the good slits and assign self.maskslits
-        self.maskslits = self.maskslits if maskslits is None else maskslits
         gdslits = np.where(np.invert(self.maskslits))[0]
 
         # Allocate the images that are needed
@@ -852,7 +851,7 @@ class Echelle(Reduce):
 
     def find_objects_pypeline(self, image, std=False, std_trace=None,
                               show=False, show_peaks=False, show_fits=False,
-                              show_trace = False, debug=False,
+                              show_trace = False, debug=False, maskslits=None,
                               manual_extract_dict=None):
         """
 
@@ -869,6 +868,8 @@ class Echelle(Reduce):
         Returns:
 
         """
+        self.maskslits = self.maskslits if maskslits is None else maskslits
+
         # For echelle orders
         slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
 
@@ -884,11 +885,10 @@ class Echelle(Reduce):
         #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'],
-            self.tslits_dict['slit_righ'],
+            self.tslits_dict['slit_righ'], self.order_vec, self.maskslits,
             spec_min_max=np.vstack((self.tslits_dict['spec_min'],
                                     self.tslits_dict['spec_max'])),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.findobj_par['trace_npoly'],
-            order_vec=self.order_vec,
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,sig_thresh=self.findobj_par['sig_thresh'],
@@ -934,7 +934,6 @@ class Echelle(Reduce):
         Returns:
             global_sky: (numpy.ndarray) image of the the global sky model
         """
-
         self.waveimg = waveimg
         self.global_sky = global_sky
 

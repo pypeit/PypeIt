@@ -37,6 +37,7 @@ def main(pargs):
 
     from pypeit import pypeit
     from pypeit import pypeitsetup
+    from pypeit.core import framematch
 
 
     # Setup
@@ -44,7 +45,10 @@ def main(pargs):
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name='keck_nires')
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
-    ps.fitstbl.set_frame_types(np.array([32]*2))  # 1=arc, 32=science
+    bm = framematch.FrameTypeBitMask()
+    bits = [bm.bits[iftype] for iftype in ['arc', 'science', 'tilt']]
+    #ps.fitstbl.set_frame_types(np.array([32]*2))  # 1=arc, 32=science
+    ps.fitstbl.set_frame_types(np.array([2**bits[0]+2**bits[1] + 2**bits[2]]*2))
     ps.fitstbl.set_combination_groups()
     # Extras
     ps.fitstbl['setup'] = 'A'
