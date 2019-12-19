@@ -36,6 +36,25 @@ class FluxCalibrate(object):
 
 
         # Read in the data
-        sobjs = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std()
+        #sobjs = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std()
         # Put spectrograph info into meta
-        self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs.unpack_object(ret_flam=False)
+        #self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs.unpack_object(ret_flam=False)
+
+
+class MultiSlit(FluxCalibrate):
+    """
+    Child of FluxSpec for Multislit and Longslit reductions
+    """
+
+    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
+        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)
+
+
+
+class Echelle(FluxCalibrate):
+    """
+    Child of FluxSpec for Echelle reductions
+    """
+
+    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
+        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)

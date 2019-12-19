@@ -101,7 +101,7 @@ class SensFunc(object):
         sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=self.par['multi_spec_det'])
         # Put spectrograph info into meta
         self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
-        self.norderdet = self.wave.shape[1]
+        self.norderdet = 1 if self.wave.ndim == 1 else self.wave.shape[1]
         # Set spectrograph
         self.spectrograph = load_spectrograph(self.meta_spec['PYP_SPEC'])
 
