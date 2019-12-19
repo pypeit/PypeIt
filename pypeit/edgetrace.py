@@ -1174,8 +1174,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
     def exists(self):
         """
         Check if the output file already exists.
+
+        Returns:
+            bool
         """
-        return os.path.isfile(self.master_file_path)
+        if os.path.isfile(self.master_file_path):
+            return True
+        else:
+            msgs.info("No master file: {}".format(self.master_file_path))
+            return False
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=False):
