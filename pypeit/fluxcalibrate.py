@@ -128,11 +128,12 @@ class Echelle(FluxCalibrate):
         # for applying to data for cases where not all orders are present in the data as in the sensfunc, etc.,
         # i.e. X-shooter with the K-band blocking filter.
         ech_orders = meta_table['ECH_ORDERS'].data
-        norders = ech_orders.size
-        for iord in range(norders):
-            for sci_obj in sobjs:
-                indx = sci_obj.ECH_ORDER == ech_orders
-                sci_obj.apply_flux_calib(wave[:, indx],sensfunction[:,indx],
+        #norders = ech_orders.size
+        for sci_obj in sobjs:
+            # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
+            indx = np.where(sci_obj.ECH_ORDER == ech_orders)[0]
+            if np.any(indx):
+                sci_obj.apply_flux_calib(wave[:, indx[0]],sensfunction[:,indx[0]],
                                          sobjs.header['EXPTIME'],
                                          extinct_correct=self.par['extinct_correct'],
                                          longitude=self.spectrograph.telescope['longitude'],

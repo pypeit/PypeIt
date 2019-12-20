@@ -787,9 +787,8 @@ class FluxCalibratePar(ParSet):
         """
         Check the parameters are valid for the provided method.
         """
-        if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
-            raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
-                             self.data['sensfunc']))
+        pass
+
 
 class SensFuncPar(ParSet):
     """
