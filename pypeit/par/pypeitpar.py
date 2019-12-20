@@ -733,8 +733,7 @@ class Coadd2DPar(ParSet):
         """
         pass
 
-# TODO  JFH: This is deprecated, replaced by SensFuncPar
-class FluxCalibrationPar(ParSet):
+class FluxCalibratePar(ParSet):
     """
     A parameter set holding the arguments for how to perform the flux
     calibration.
@@ -742,9 +741,7 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, star_type=None, star_mag=None, multi_det=None, telluric=None,
-                 poly_norder=None, polycorrect=None):
+    def __init__(self, extinct_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -757,59 +754,14 @@ class FluxCalibrationPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        defaults['balm_mask_wid'] = 5.
-        dtypes['balm_mask_wid'] = float
-        descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
-
-        dtypes['std_file'] = str
-        descr['std_file'] = 'Standard star file to generate sensfunc'
-
-        dtypes['std_obj_id'] = [str, int]
-        descr['std_obj_id'] = 'Specifies object in spec1d file to use as standard.' \
-            ' The brightest object found is used otherwise.'
-
-        dtypes['multi_det'] = list
-        descr['multi_det'] = 'List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)' \
-                        ' They are assumed to be in order of increasing wavelength' \
-                        ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
-
-        dtypes['sensfunc'] = str
-        descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
-
-
         defaults['extinct_correct'] = True
         dtypes['extinct_correct'] = bool
         descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
                                    'extinction correct the data below 10000A. Note that this correction makes no ' \
                                    'sense if one is telluric correcting and this shold be set to False'
 
-
-        defaults['telluric_correct'] = False
-        dtypes['telluric_correct'] = bool
-        descr['telluric_correct'] = "If telluric_correct=True the code will grab the sens_dict['telluric'] tag from the " \
-                                    "sensfunc dictionary and apply it to the data."
-
-        defaults['telluric'] = False
-        dtypes['telluric'] = bool
-        descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
-            'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
-
-        dtypes['star_type'] = str
-        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
-
-        dtypes['star_mag'] = float
-        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
-
-        defaults['poly_norder'] = 5
-        dtypes['poly_norder'] = int
-        descr['poly_norder'] = 'Polynomial order for sensfunc fitting'
-
-        defaults['polycorrect'] = True
-        dtypes['polycorrect'] = bool
-        descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
-
         # Instantiate the parameter set
-        super(FluxCalibrationPar, self).__init__(list(pars.keys()),
+        super(FluxCalibratePar, self).__init__(list(pars.keys()),
                                                  values=list(pars.values()),
                                                  defaults=list(defaults.values()),
                                                  dtypes=list(dtypes.values()),
@@ -819,12 +771,11 @@ class FluxCalibrationPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
-                   'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect']
+        parkeys = ['extinct_correct']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for FluxCalibrationPar.'.format(
+            raise ValueError('{0} not recognized key(s) for FluxCalibratePar.'.format(
                              k[badkeys]))
 
         kwargs = {}
@@ -3047,9 +2998,9 @@ class PypeItPar(ParSet):
 
         # Allow flux calibration to be turned on using cfg['rdx']
         pk = 'fluxcalib'
-        default = FluxCalibrationPar() \
+        default = FluxCalibratePar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
-        kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else default
+        kwargs[pk] = FluxCalibratePar.from_dict(cfg[pk]) if pk in k else default
 
         pk = 'coadd2d'
         default = Coadd2DPar()

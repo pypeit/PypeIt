@@ -599,8 +599,9 @@ def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=T
       Used for extinction correction
     """
 
-def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, mask_abs_lines=True,
-             telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
+def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, ech_orders=None,
+             mask_abs_lines=True, telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,
+             trans_thresh=0.9,polycorrect=True, debug=False):
     """
     Function to generate the sensitivity function. This function fits a bspline to the 2.5*log10(flux_std/flux_counts).
     The break points spacing, which determines the scale of variation of the sensitivity function is determined by the
@@ -609,13 +610,13 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     Args:
        wave (ndarray):
-         Wavelength of the star. Shape (nspec,)
+         Wavelength of the star. Shape (nspec,) or (nspec, norders)
        counts (ndarray):
-         Flux (in counts) of the star. Shape (nspec,)
+         Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
        counts_ivar (ndarray):
-         Inverse variance of the star counts. Shape (nspec,)
+         Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
        counts_mask (ndarray):
-         Good pixel mask for the counts.
+         Good pixel mask for the counts. Shape (nspec,) or (nspec, norders)
        exptime (float):
          Exposure time in seconds
        airmass (float):
@@ -629,6 +630,9 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
        telluric (bool):
          If True attempts to fit telluric absorption. This feature is deprecated, as one should instead
          use telluric.sensfunc_telluric. Default=False
+       ech_orders = (ndarray, int):
+         If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
+         with the shape (norders,) giving the order numbers
        mask_abs_lines (bool):
          If True, mask stellar absorption lines before fitting sensitivity function. Default = True
        balm_mask_wid (float):
@@ -679,6 +683,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     meta_table['STD_DEC'] = [std_dict['std_dec']]
     meta_table['STD_NAME'] = [std_dict['name']]
     meta_table['CAL_FILE'] = [std_dict['cal_file']]
+    if ech_orders is not None:
+        meta_table['ECH_ORDERS'] = [ech_orders]
     # Allocate the output table, ext=2
     out_table = table.Table(meta={'name': 'Sensitivity Function'})
     # These are transposed because we need to store them in an astropy table, with number of rows = norders

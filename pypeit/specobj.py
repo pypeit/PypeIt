@@ -407,7 +407,7 @@ class SpecObj(object):
         return new_sky
 
     # TODO This should be a wrapper calling a core algorithm.
-    def apply_flux_calib(self, sens_dict, exptime, telluric=None, extinct_correct=False,
+    def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None):
         """
         Apply a sensitivity function to our spectrum
@@ -435,8 +435,7 @@ class SpecObj(object):
             msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
 
             wave = self[attr+'_WAVE']
-            wave_sens = sens_dict['wave']
-            sensfunc = sens_dict['sensfunc'].copy()
+            # Interpolate the sensitivity function onto the wavelength grid of the data
 
             # TODO Telluric corrections via this method are deprecated
             # Did the user request a telluric correction?

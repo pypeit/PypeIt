@@ -180,13 +180,13 @@ class SpecObjs(object):
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
         detector = np.zeros(norddet, dtype=int)
-        ech_order = np.zeros(norddet, dtype=int)
+        ech_orders = np.zeros(norddet, dtype=int)
         for iorddet in range(norddet):
             wave[:, iorddet] = self[iorddet].OPT_WAVE
             flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
             detector[iorddet] = self[iorddet].DET
             if self[0].PYPELINE == 'Echelle':
-                ech_order[iorddet] = self[iorddet].ECH_ORDER
+                ech_orders[iorddet] = self[iorddet].ECH_ORDER
             if ret_flam:
                 flux[:, iorddet] = self[iorddet].OPT_FLAM
                 flux_ivar[:, iorddet] = self[iorddet].OPT_FLAM_IVAR
@@ -214,10 +214,11 @@ class SpecObjs(object):
         meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
         if self[0].PYPELINE == 'MultiSlit' and self.nobj == 1:
+            meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
                    flux_gpm.reshape(nspec), meta_spec, self.header
         else:
-            meta_spec['ECH_ORDER'] = ech_order
+            meta_spec['ECH_ORDERS'] = ech_orders
             return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
 
 
@@ -459,15 +460,50 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def write_to_fits(self, outfile, header=None, spectrograph=None, overwrite=True,
-                      update_det=None):
+    def build_header(self, head_fitstbl, spectrograph):
+        """
+        Builds the spec1d file header from the fitstbl meta data and meta data from spectrograph
+        Args:
+            head_fitstbl (header):
+               Header from fitstbl
+            spectrograph (object):
+               Spectrograph object
+
+        Returns:
+
+        """
+        header = fits.PrimaryHDU().header
+        try:
+            header['MJD-OBS'] = head_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
+        except KeyError:
+            header['MJD-OBS'] = head_fitstbl['MJD-OBS']
+        core_keys = spectrograph.header_cards_for_spec()
+        for key in core_keys:
+            # Allow for fitstbl vs. header
+            try:
+                header[key.upper()] = header[key.upper()]
+            except KeyError:
+                header[key.upper()] = header[key]
+        # Specify which pipeline created this file
+        header['PYPELINE'] = spectrograph.pypeline
+        header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+        # Observatory
+        telescope = spectrograph.telescope
+        header['LON-OBS'] = telescope['longitude']
+        header['LAT-OBS'] = telescope['latitude']
+        header['ALT-OBS'] = telescope['elevation']
+        _ = initialize_header(header)
+        return header
+
+
+
+    def write_to_fits(self, header, outfile, overwrite=True, update_det=None):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
         Args:
             outfile (str):
             header:
-            spectrograph:
             overwrite (bool, optional):
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update
@@ -487,29 +523,7 @@ class SpecObjs(object):
             # Build up the Header
             prihdu = fits.PrimaryHDU()
             hdus = [prihdu]
-            # Add to the header from input header
-            if header is not None:
-                try:
-                    prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
-                except KeyError:
-                    prihdu.header['MJD-OBS'] = header['MJD-OBS']
-                if spectrograph is not None:
-                    core_keys = spectrograph.header_cards_for_spec()
-                    for key in core_keys:
-                        # Allow for fitstbl vs. header
-                        try:
-                            prihdu.header[key.upper()] = header[key.upper()]
-                        except KeyError:
-                            prihdu.header[key.upper()] = header[key]
-            if spectrograph is not None:
-                # Specify which pipeline created this file
-                prihdu.header['PYPELINE'] = spectrograph.pypeline
-                prihdu.header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
-                # Observatory
-                telescope = spectrograph.telescope
-                prihdu.header['LON-OBS'] = telescope['longitude']
-                prihdu.header['LAT-OBS'] = telescope['latitude']
-                prihdu.header['ALT-OBS'] = telescope['elevation']
+            prihdu.header = header
 
         ext = len(hdus)-1
         # Loop on the SpecObj objects
@@ -531,7 +545,7 @@ class SpecObjs(object):
         prihdu.header['NSPEC'] = len(hdus) - 1
         #prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
         # Code versions
-        _ = initialize_header(prihdu.header)
+        #_ = initialize_header(prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)

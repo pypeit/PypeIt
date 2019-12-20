@@ -844,6 +844,9 @@ class Telluric(object):
 
             Where obj_dict is one of the return values from the init_obj_model above. See eval_star_model above for a
             detailed explanation of these paramaters and return values.
+        ech_orders = (ndarray, int):
+            If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
+            with the shape (norders,) giving the order numbers
         sn_clip (float): default = 30.0
             This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars,
             bright objects) using the function utils.clip_ivar. A small erorr is added to the input ivar so that the
@@ -923,6 +926,7 @@ class Telluric(object):
             which block execution.
     """
     def __init__(self, wave, flux, ivar, mask, telgridfile, obj_params, init_obj_model, eval_obj_model,
+                 ech_orders=None,
                  sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
                  resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  maxiter=3, sticky=True, lower=3.0, upper=3.0,
@@ -942,6 +946,8 @@ class Telluric(object):
         self.init_obj_model = init_obj_model
         self.airmass_guess = airmass_guess
         self.eval_obj_model = eval_obj_model
+        self.ech_orders = ech_orders
+        self.sn_clip = sn_clip
         self.resln_frac_bounds = resln_frac_bounds
         self.pix_shift_bounds = pix_shift_bounds
         self.maxiter = maxiter
@@ -982,7 +988,7 @@ class Telluric(object):
             self.wave_grid, self.wave_in_arr, np.ones_like(self.flux_in_arr), np.ones_like(self.ivar_in_arr),
             (self.wave_in_arr > 1.0).astype(float))
         # Clip the ivar if that is requested (sn_clip = None simply returns the ivar otherwise)
-        self.ivar_arr = utils.clip_ivar(self.flux_arr, self.ivar_arr, sn_clip, mask=self.mask_arr)
+        self.ivar_arr = utils.clip_ivar(self.flux_arr, self.ivar_arr, self.sn_clip, mask=self.mask_arr)
 
         # 5) Loop over orders to initialize object models, and determine index range of fits
         # sort the orders by the strength of their telluric absorption
@@ -1143,6 +1149,8 @@ class Telluric(object):
         if 'output_meta_keys' in self.obj_params:
             for key in self.obj_params['output_meta_keys']:
                 meta_table[key.upper()] = [self.obj_params[key]]
+        if self.ech_orders is not None:
+            meta_table['ECH_ORDERS'] = [self.ech_orders]
 
         # Allocate the output table, ext=2
         out_table = table.Table(meta={'name': 'Object Model and Telluric Correction'})
@@ -1382,6 +1390,7 @@ def mask_star_lines(wave_star, mask_width=10.0):
     return mask_star
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, telgridfile,
+                      ech_orders=None,
                       polyorder=8, mask_abs_lines=True,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True,
@@ -1450,7 +1459,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # parameters lowered for testing
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model,  sn_clip=sn_clip, tol=tol, popsize=popsize, recombination=recombination,
+                      init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, tol=tol, popsize=popsize, recombination=recombination,
                       polish=polish, disp=disp, debug=debug)
 
     TelObj.run(only_orders=only_orders)

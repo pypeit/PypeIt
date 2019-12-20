@@ -246,6 +246,7 @@ class IR(SensFunc):
         meta_table, out_table = telluric.sensfunc_telluric(
             self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec['EXPTIME'],
             self.meta_spec['AIRMASS'], self.std_dict, self.par['IR']['telgridfile'], polyorder=self.par['polyorder'],
+            ech_orders = self.meta_spec['ECH_ORDERS'],
             sn_clip=self.par['IR']['sn_clip'], mask_abs_lines=self.par['mask_abs_lines'],
             # JFH Implement thease in parset?
             #delta_coeff_bounds=self.par['IR']['delta_coeff_bounds'],
@@ -284,6 +285,7 @@ class UVIS(SensFunc):
         meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                                               self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
                                                               self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
+                                                              self.meta_spec['ECH_ORDERS'], 
                                                               telluric=False, polyorder=self.par['polyorder'],
                                                               balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
                                                               nresln=self.par['UVIS']['nresln'],

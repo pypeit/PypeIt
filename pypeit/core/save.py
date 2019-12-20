@@ -78,7 +78,9 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     if len(all_specobjs) == 0:
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
-        all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
+        # Build the spec1d output header.
+        header = all_specobjs.build_header(head1d, spectrograph)
+        all_specobjs.write_to_fits(header, outfile1d, update_det=update_det)
         # Txt file
         # TODO JFH: Make this a method in the specobjs class.
         save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
