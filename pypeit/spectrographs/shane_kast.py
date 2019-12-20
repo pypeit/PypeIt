@@ -319,11 +319,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
-        specific instrument configurations.
-
-        .. todo::
-            Document the changes made!
+        Modify the PypeIt parameters to specific instrument configurations.
 
         Args:
             scifile (str):
