@@ -130,8 +130,8 @@ def parser(options=None):
                              "create a two column list of spec1dfiles and corresponding sensfiles\n"
                              "\n")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+    parser.add_argument("--par_outfile", default='fluxing.par', action="store_true", help="Output to save the parameters")
 #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
-#    parser.add_argument("--par_outfile", default='fluxing.par', action="store_true", help="Output to save the parameters")
 
     if options is None:
         args = parser.parse_args()
@@ -141,7 +141,7 @@ def parser(options=None):
 
 
 
-def main(args, unit_test=False):
+def main(args):
     """ Runs fluxing steps
     """
     # Load the file
@@ -152,20 +152,15 @@ def main(args, unit_test=False):
 
     # Parameters
     spectrograph_def_par = spectrograph.default_pypeit_par()
-    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                             merge_with=config_lines)
+    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), merge_with=config_lines)
 
     # Write the par to disk
-    #print("Writing the parameters to {}".format(args.par_outfile))
-    #par.to_config(args.par_outfile)
+    print("Writing the parameters to {}".format(args.par_outfile))
+    par.to_config(args.par_outfile)
 
     # Instantiate
     FxCalib = fluxcalibrate.FluxCalibrate.get_instance(spec1dfiles, sensfiles, spectrograph, par['fluxcalib'], debug=args.debug)
-    # Flux Calibrate
-    if len(flux_dict) > 0:
-        for spec1d_file, flux_file in zip(flux_dict['spec1d_files'], flux_dict['flux_files']):
-            FxSpec.flux_science(spec1d_file)
-            FxSpec.write_science(flux_file)
+    msgs.info('Flux calibration complete')
 #
 #
 # def read_fluxfile(ifile):

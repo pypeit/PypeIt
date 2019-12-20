@@ -127,15 +127,20 @@ class Echelle(FluxCalibrate):
         # Flux calibrate the orders that are mutually in the meta_table and in the sobjs. This allows flexibility
         # for applying to data for cases where not all orders are present in the data as in the sensfunc, etc.,
         # i.e. X-shooter with the K-band blocking filter.
-        ech_orders = meta_table['ECH_ORDERS'].data
+        ech_orders = np.array(meta_table['ECH_ORDERS']).flatten()
         #norders = ech_orders.size
         for sci_obj in sobjs:
             # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
-            indx = np.where(sci_obj.ECH_ORDER == ech_orders)[0]
-            if np.any(indx):
+            indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
+            if indx.size==1:
                 sci_obj.apply_flux_calib(wave[:, indx[0]],sensfunction[:,indx[0]],
                                          sobjs.header['EXPTIME'],
                                          extinct_correct=self.par['extinct_correct'],
                                          longitude=self.spectrograph.telescope['longitude'],
                                          latitude=self.spectrograph.telescope['latitude'],
                                          airmass=float(sobjs.header['AIRMASS']))
+            elif indx.size == 0:
+                msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
+                          'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
+            else:
+                msgs.error('This should not happen')
