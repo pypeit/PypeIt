@@ -355,27 +355,12 @@ The tagging process is as follows:
    merged into ``develop``.  This "grace" period can be circumvented for
    critical hotfixes to ``master``.
 
- * If the intent is to merge ``develop`` into ``master``, a new branch
-   is created that stages the development code for tagging and merging:
-
-   .. code-block:: bash
-
-        cd $PYPEIT_DIR
-        git checkout develop
-        git pull
-        git checkout -b staged
-
-   At this point, additional development can continue by performing PRs
-   to the existing ``develop`` branch; however, ``staged`` should be
-   considered frozen except for the normal activities associated with a
-   PR.
-
  * A `PR <https://github.com/pypeit/PypeIt/compare>`_ is then issued to
-   merge ``staged`` into ``master`` and must meet the same `Pull Request
-   Acceptance Requirements`_ when merging new branches into ``develop``.
-   For these merges, particular attention should be paid to the accuracy
-   of the `documentation`_ and isolation of any code that is
-   "unsupported."
+   merge ``develop`` or the hotfix into ``master`` and must meet the
+   same `Pull Request Acceptance Requirements`_ when merging new
+   branches into ``develop``.  For these merges, particular attention
+   should be paid to the accuracy of the `documentation`_ and isolation
+   of any code that is "unsupported."
 
  * Once the PR is accepted *but before being merged into master*, the
    code is tagged as follows (uses `bumpversion`_):
@@ -396,7 +381,9 @@ The tagging process is as follows:
         git push
         git push --tags
 
- * The PR is accepted and ``staged`` is merged into ``master``.
+ * The PR is accepted and ``develop`` or the hotfix is merged into
+   ``master``.  Hotfix branches are deleted, but the ``develop`` branch
+   should not be.
 
  * The tag is released for `pip`_ installation.
 
@@ -429,6 +416,6 @@ The tagging process is as follows:
 
 This document was developed and mutually agreed upon by: Kyle Westfall, J. Xavier Prochaska, Joseph Hennawi
 
-*Last Modified: 19 Nov 2019*
+*Last Modified: 20 Dec 2019*
 
 
