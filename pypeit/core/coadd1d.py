@@ -1943,19 +1943,19 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
              maxrej=None, qafile=None, title='', debug=False, debug_scale=False, show_scale=False, show=False):
 
     '''
-    Driver routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
+    Driver routine for coadding longslit/multi-slit spectra.
 
     Args:
         waves, fluxes, ivars: (nspec, nexp) arrays
         sn_smooth_npix (int):
            Numbe of pixels to median filter by when computing S/N used to decide how to scale and weight spectra
-        wave_method: str, default=pixel
-           method for generating new wavelength grid with get_wave_grid. Deafult is 'pixel' which creates a uniformly
-           space grid in lambda
-        A_pix: float,
+        wave_method (str)
+           method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
+           space grid in lambda. See docuementation on get_wave_grid for description of the options.
+        dwave: float,
            dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
            median spacing from the data.
-        v_pix: float,
+        dv: float,
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
         samp_fact: float, default=1.0
@@ -1984,8 +1984,6 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
             maximum SNR for perforing median scaling
         sn_min_medscale: float, default = 0.5
             minimum SNR for perforing median scaling
-        sn_smooth_npix: float, 10000.0
-            Velocity smoothing used for determining smoothly varying S/N ratio weights by sn_weights
         const_weights: ndarray, (nexp,)
              Constant weight factors specif
         maxiter_reject: int, default=5
@@ -2064,6 +2062,108 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None, nmaskedge=2, phot_scale_dicts=None,
                    qafile=None, outfile = None, debug=False, debug_scale=False, show_scale=False, show=False):
+
+    '''
+    Routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
+
+    Args:
+        fnames (list):
+           List of spec1d files. TODO This needs to be generalized to also work on generic coadd spectral format.
+        objids (list):
+           List of object identifiers in the spec1d files.
+        sn_smooth_npix (int):
+           Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
+           set to None, the code will determine the effective number of good pixels per spectrum
+           in the stack that is being co-added and use 10% of this neff.
+        ex_value (str):
+           The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'
+        flux_value (bool):
+           If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the spec1d files. If False,
+           it will coadd the counts.
+        wave_method: str, default=pixel
+           method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
+           space grid in lambda. See docuementation on get_wave_grid for description of the options.
+        dwave (float):
+           dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
+           median spacing from the data.
+        dv (float)
+           Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
+           otherwise a median value is computed from the data.
+        samp_fact (float):
+           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
+           samp_fact < 1.0 undersamples (coarser). Default=1.0
+        wave_grid_min (float)
+           In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
+        wave_grid_max (float):
+           In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
+        maxiter_reject (int):
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached. Default=5.
+        ref_percentile (float):
+            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio. Should be a number between
+            0 and 100, default = 70.0
+        maxiter_scale (int):
+            Maximum number of iterations performed for rescaling spectra. Default=5.
+        sigrej_scale (float):
+            Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec. Default=3.0
+        scale_method (str):
+            Options are poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default=None will let the
+            code determine this automitically which works well.
+        hand_scale: ndarray,
+            Array of hand scale factors, not well tested
+        sn_max_medscale: float, default = 2.0,
+            maximum SNR for perforing median scaling
+        sn_min_medscale: float, default = 0.5
+            minimum SNR for perforing median scaling
+        const_weights: ndarray, (nexp,)
+             Constant weight factors specif
+        maxiter_reject: int, default=5
+            maximum number of iterations for stacking and rejection. The code stops iterating either when
+            the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
+        sn_clip: float, default=30.0,
+            Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection
+            in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+            systematics.
+        lower: float, default=3.0,
+            lower rejection threshold for djs_reject
+        upper: float: default=3.0,
+            upper rejection threshold for djs_reject
+        maxrej: int, default=None,
+            maximum number of pixels to reject in each iteration for djs_reject.
+        phot_scale_dicts: dict,
+            Dictionary for rescaling spectra to match photometry. Not yet implemented.
+        nmaskedge: int, default=2
+            Number of edge pixels to mask. This should be removed/fixed.
+        qafile: str, default=None
+            Root name for QA, if None, it will be determined from the outfile
+        outfile: str, default=None,
+            Root name for QA, if None, it will come from the target name from the fits header.
+        debug: bool, default=False,
+            Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
+        debug_scale (bool): default=False
+            show interactive QA plots for the rescaling of the spectra
+        show: bool, default=False,
+             Show key QA plots or not
+
+        Returns:
+            wave_stack, flux_stack, ivar_stack, mask_stack
+
+        wave_stack: ndarray, (ngrid,)
+             Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
+             of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
+             elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
+             wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
+        flux_stack: ndarray, (ngrid,)
+             Final stacked spectrum on wave_stack wavelength grid
+        ivar_stack: ndarray, (ngrid,)
+             Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
+             masking.
+        mask_stack: ndarray, bool, (ngrid,)
+             Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
+    '''
+
+
 
     # Loading Echelle data
     waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
@@ -2414,4 +2514,91 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
 
     return wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack
 
+
+class CoAdd1d(object):
+
+    # Superclass factory method generates the subclass instance
+    @classmethod
+    def get_instance(cls, spec1dfiles, objids, pypeline, par, sensfile=None, debug=False):
+
+        return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
+            spec1dfiles, objids, par, sensfile=sensfile, debug=debug)
+
+    def __init__(self, spec1dfiles, objids, par, sensfile=None, debug=False):
+
+        self.spec1dfiles = spec1dfiles
+        self.objids = objids
+        self.sensfile = sensfile
+        self.par = par
+        self.debug = debug
+        self.wave, self.flux, self.ivar, self.mask = self.coadd()
+        self.save()
+
+    def coadd(self):
+        pass
+
+    def save(self):
+        pass
+
+class MultiSlit(CoAdd1d):
+    """
+    Child of FluxSpec for Multislit and Longslit reductions
+    """
+
+    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
+        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)
+
+    def coadd(self):
+        passlo
+
+
+
+
+class Echelle(CoAdd1d):
+    """
+    Child of FluxSpec for Echelle reductions
+    """
+
+    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
+        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)
+
+
+    def flux_calib(self, sobjs, wave, sensfunction, meta_table):
+        """
+        Apply sensitivity function to all the spectra in an sobjs object.
+
+        Args:
+            sobjs (object):
+               SpecObjs object
+            wave (ndarray):
+               wavelength array for sensitivity function (nspec,)
+            sensfunction (ndarray):
+               sensitivity function
+            meta_table (table):
+               astropy table containing meta data for sensitivity function
+
+        Returns:
+
+        """
+
+        # Flux calibrate the orders that are mutually in the meta_table and in the sobjs. This allows flexibility
+        # for applying to data for cases where not all orders are present in the data as in the sensfunc, etc.,
+        # i.e. X-shooter with the K-band blocking filter.
+        ech_orders = np.array(meta_table['ECH_ORDERS']).flatten()
+        #norders = ech_orders.size
+        for sci_obj in sobjs:
+            # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
+            indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
+            if indx.size==1:
+                sci_obj.apply_flux_calib(wave[:, indx[0]],sensfunction[:,indx[0]],
+                                         sobjs.header['EXPTIME'],
+                                         extinct_correct=self.par['extinct_correct'],
+                                         longitude=self.spectrograph.telescope['longitude'],
+                                         latitude=self.spectrograph.telescope['latitude'],
+                                         airmass=float(sobjs.header['AIRMASS']))
+            elif indx.size == 0:
+                msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
+                          'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
+            else:
+                msgs.error('This should not happen')
 

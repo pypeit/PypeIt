@@ -176,10 +176,11 @@ def stellar_model(V, sptype):
     sk82_file = resource_filename('pypeit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
     sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
 
-    # Match input type
+    # TODO, currently this only works on select stellar types. Add ability to interpolate across types. 
+    # Match input type.
     mti = np.where(sptype == sk82_tab['Sp'])[0]
     if len(mti) != 1:
-        raise ValueError('Not ready to interpolate yet.')
+        raise ValueError('Not ready to stellar type yet.')
 
     # Calculate final quantities
     # Relation between radius, temp, and bolometric luminosity

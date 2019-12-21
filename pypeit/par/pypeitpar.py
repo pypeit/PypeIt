@@ -675,6 +675,78 @@ class FlexurePar(ParSet):
 #                             self.data['spectrum']))
 
 
+
+
+class Coadd1DPar(ParSet):
+    """
+    A parameter set holding the arguments for how to perform 2D coadds
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, sn_smooth_npix=None, wave_method=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Offsets
+        defaults['sn_smooth_npix'] = None
+        dtypes['sn_smooth_npix'] = [int, float]
+        descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
+                                  'and weight spectra. If set to None (default), the code will determine the effective ' \
+                                  'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
+                                  'this neff.'
+
+
+        # Offsets
+        defaults['wave_method'] = 'linear'
+        dtypes['wave_method'] = str
+        descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
+                               "the wavelength is coadd1d.get_wave_grid. The options are:" \
+                               " "\
+                               "'iref' -- Use the first wavelength array" \
+                               "'velocity' -- Grid is uniform in velocity" \
+                               "'log10' -- Grid is uniform in log10(wave).This is the same as velocity." \
+                               "'linear' -- Grid is uniform in lamba." \
+                               "'concatenate' -- Meld the input wavelength arrays"
+
+        # Instantiate the parameter set
+        super(Coadd1DPar, self).__init__(list(pars.keys()),
+                                         values=list(pars.values()),
+                                         defaults=list(defaults.values()),
+                                         dtypes=list(dtypes.values()),
+                                         descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['sn_smooth_npix', 'wave_method']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for Coadd2DPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+
+
 class Coadd2DPar(ParSet):
     """
     A parameter set holding the arguments for how to perform 2D coadds
@@ -809,7 +881,7 @@ class SensFuncPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        defaults['extrap_blu'] = 0.2
+        defaults['extrap_blu'] = 0.1
         dtypes['extrap_blu'] = float
         descr['extrap_blu'] = 'Fraction of minimum wavelength coverage to grow the wavelength coverage of the ' \
                               'sensitivitity function in the blue direction, i.e. if the standard star spectrum' \
@@ -817,7 +889,7 @@ class SensFuncPar(ParSet):
                               ' (1.0-extrap_blu)*wave_min'
 
 
-        defaults['extrap_red'] = 0.2
+        defaults['extrap_red'] = 0.1
         dtypes['extrap_red'] = float
         descr['extrap_red'] = 'Fraction of maximum wavelength coverage to grow the wavelength coverage of the ' \
                               'sensitivitity function in the red direction, i.e. if the standard star spectrum' \
@@ -2707,7 +2779,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
-                 flexure=None, fluxcalib=None, coadd2d=None, sensfunc=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2753,12 +2825,20 @@ class PypeItPar(ParSet):
                            'default flexure-correction parameters.'
 
         # Flux calibration is turned OFF by default
+        defaults['fluxcalib'] = FluxCalibratePar()
         dtypes['fluxcalib'] = [ParSet, dict]
         descr['fluxcalib'] = 'Parameters used by the flux-calibration procedure.  Flux ' \
                              'calibration is not performed by default.  To turn on, either ' \
                              'set the parameters in the \'fluxcalib\' parameter group or set ' \
                              '\'fluxcalib = True\' in the \'rdx\' parameter group to use the ' \
                              'default flux-calibration parameters.'
+
+
+        # Coadd1D
+        defaults['coadd1d'] = Coadd1DPar()
+        dtypes['coadd1d'] = [ParSet, dict]
+        descr['coadd1d'] = 'Par set to control 1D coadds.  Only used in the after-burner script.'
+
 
         # Coadd2D
         defaults['coadd2d'] = Coadd2DPar()
@@ -2971,7 +3051,7 @@ class PypeItPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib',
-                   'coadd2d', 'sensfunc', 'baseprocess']
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))

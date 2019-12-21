@@ -444,8 +444,10 @@ class SpecObj(object):
                 msgs.info('Applying telluric correction')
                 sensfunc = sensfunc * (telluric > 1e-10) / (telluric + (telluric < 1e-10))
 
+            sensfunc_obs = np.zeros_like(wave)
+            wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
             try:
-                sensfunc_obs = interpolate.interp1d(wave_sens, sensfunc, bounds_error=True)(wave)
+                sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=True)(wave[wave_mask])
             except ValueError:
                 msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "

@@ -1677,6 +1677,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     if inmask is None:
         inmask = np.ones(ydata.size, dtype=bool)
 
+    nin_good = np.sum(inmask)
     iter = 0
     qdone = False
     thismask = np.copy(inmask)
@@ -1699,7 +1700,8 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         nrej = np.sum(thismask_iter & np.invert(thismask))
         nrej_tot = np.sum(inmask & np.invert(thismask))
         msgs.info(
-            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections'.format(iter, nrej, nrej_tot))
+            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
+            'total pixels'.format(iter, nrej, nrej_tot, nin_good))
         iter += 1
 
     if (iter == maxiter) & (maxiter != 0):

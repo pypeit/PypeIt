@@ -37,9 +37,9 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        #par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Flux calibration parset
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
         # Set the default exposure time ranges for the frame typing

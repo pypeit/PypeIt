@@ -68,7 +68,6 @@ def get_sampling(waves, pix_per_R=3.0):
     #dloglam = np.median(dloglam_ord)
     resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
     pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
-
     return dwave, dloglam, resln_guess, pix_per_sigma
 
 

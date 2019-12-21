@@ -28,22 +28,8 @@ from pypeit.io import initialize_header
 
 #TODO Should this be a master frame? I think not.
 #TODO Standard output location for sensfunc?
-#TODO What if the user wants to coadd exposures first for say a multi-detector instrument where detector runs in the wavelength
-# dimension, then compute a single sensfunc, rather than one for each detector? In that case this routine would need to run
-# on co-added data written in a different format? That is easy enough to do, but we need to require that that file
-# have certain meta data in its header.
 
-
-# TODO How do we deal with cases of multiple-detectors where detector runs in the spectral direction? This code currently
-# knows nothing about detectors. This is a tricky case. The options are:
-# 1) Flux calibrate each detector separately, and then apply detector specific sensfuncs. This works for longslit, but
-# but will fail for multislit, since different slits have different wavelength coverage.
-# 2) Co-add the standard star spectra in counts, and compute one global sensfunc for the data. This would work well for
-# multislit, but it will fail in cases where the detectors have different througphut, since there will be jumps in the
-# co-added spectrum across detector boundaries, making the sensunc discontinouus.
-
-# TODO Define sensfunc data model here.
-
+# TODO Add some QA plots, and plots to the screen if show is set.
 
 
 class SensFunc(object):
@@ -132,10 +118,13 @@ class SensFunc(object):
         # Compute the sensitivity function
         self.meta_table, self.out_table = self.compute_sensfunc()
         # Extrapolate the sensfunc based on par['extrap_blu'], par['extrap_red']
-        self.wave, self.sensfunc = self.extrapolate(samp_fact = self.par['samp_fact'])
+        self.wave_sens, self.sensfunc = self.extrapolate(samp_fact = self.par['samp_fact'])
         if self.splice_multi_det:
-            self.wave, self.sensfunc = self.splice(self.wave)
-
+            self.wave_sens, self.sensfunc = self.splice(self.wave_sens)
+        # If the sensfunc has just one order, or detectors were spliced, flatten the output
+        if self.wave_sens.shape[1] == 1:
+            self.wave_sens = self.wave_sens.flatten()
+            self.sensfunc = self.sensfunc.flatten()
         return
 
     def eval_sensfunc(self, wave, iorddet):
@@ -162,7 +151,7 @@ class SensFunc(object):
         hdr['SPC1DFIL'] = self.spec1dfile
 
         # Write the fits file
-        data = [self.wave, self.sensfunc]
+        data = [self.wave_sens, self.sensfunc]
         extnames = ['WAVE', 'SENSFUNC']
         # Write the fits file
         hdulist = fits.HDUList([fits.PrimaryHDU(header=hdr)] + [fits.ImageHDU(data=d, name=n) for d, n in zip(data, extnames)])
@@ -187,7 +176,7 @@ class SensFunc(object):
             nspec_now = np.ceil(samp_fact * (wave_extrap_max[idet] - wave_extrap_min[idet]) / dwave_data).astype(int)
             nspec_extrap = np.max([nspec_now, nspec_extrap])
         # Create the wavelength grid
-        wave_extrap = np.outer(np.arange(nspec_extrap), (wave_extrap_max - wave_extrap_min) / samp_fact / (nspec_extrap - 1)) + \
+        wave_extrap = np.outer(np.arange(nspec_extrap), (wave_extrap_max - wave_extrap_min)/ (nspec_extrap - 1)) + \
                       np.outer(np.ones(nspec_extrap), wave_extrap_min)
         sensfunc_extrap = np.zeros_like(wave_extrap)
         # Evaluate extrapolated sensfunc for all orders detectors
@@ -195,7 +184,6 @@ class SensFunc(object):
             sensfunc_extrap[:, iorddet] = self.eval_sensfunc(wave_extrap[:,iorddet], iorddet)
 
         self.steps.append(inspect.stack()[0][3])
-
         return wave_extrap, sensfunc_extrap
 
     def splice(self, wave):
