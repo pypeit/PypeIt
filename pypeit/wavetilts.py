@@ -1,8 +1,8 @@
 """
 Module for guiding Arc/Sky line tracing
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import copy
@@ -454,9 +454,9 @@ class WaveTilts(masterframe.MasterFrame):
         """
         Main driver for tracing arc lines
 
-        Code flow::
-            1.  Extract an arc spectrum down the center of each slit/order
-            2.  Loop on slits/orders
+        Code flow:
+            1. Extract an arc spectrum down the center of each slit/order
+            2. Loop on slits/orders
                 i. Trace and fit the arc lines (This is done twice, once
                    with trace_crude as the tracing crutch, then again
                    with a PCA model fit as the crutch).
@@ -464,7 +464,7 @@ class WaveTilts(masterframe.MasterFrame):
                 iii.  2D Fit to the offset from slitcen
                 iv. Save
 
-        Keyword Args:
+        Args:
             maskslits (`numpy.ndarray`_, optional):
                 Boolean array to ignore slits.
             doqa (bool):
@@ -473,6 +473,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         Returns:
             dict, ndarray:  Tilts dict and maskslits array
+
         """
 
         if maskslits is None:
@@ -703,16 +704,23 @@ class WaveTilts(masterframe.MasterFrame):
         Parameters
         ----------
         attr : str
-          'fweight'  -- Show the msarc image and the tilts traced by fweight
-          'model'    -- Show the msarc image and the poylynomial model fits to the individual arc lines that
-                        were traced by fweight.
-          'arcmodel -- This illustrates the global final 2-d model fit to the indivdiaul models of each traced fweight arc line
-                       tilts evaluated at the location of the specific arclines that wered use for the fit.
-          'final_tilts' -- Show the final 2-d tilt model for all the slits that were fit.
+            Options are:
+                - ``'fweight'``: Show the msarc image and the tilts
+                  traced by fweight
+                - ``'model'``: Show the msarc image and the poylynomial
+                  model fits to the individual arc lines that were
+                  traced by fweight.
+                - ``'arcmodel'``: This illustrates the global final 2-d
+                  model fit to the indivdiaul models of each traced
+                  fweight arc line tilts evaluated at the location of
+                  the specific arclines that wered use for the fit.
+                - ``'final_tilts'``: Show the final 2-d tilt model for
+                  all the slits that were fit.
         slit : int, optional
-                    -- The slit to plot. This needs to be an integer between 1 and nslit
+            The slit to plot. This needs to be an integer between 1 and nslit
         display : str (optional)
-          'ginga' -- Display to an RC Ginga
+            Use 'ginga' to display to an RC Ginga.
+
         """
 
         viewer, ch = ginga.show_image(self.arcimg*(self.slitmask == slit), chname='Tilts')

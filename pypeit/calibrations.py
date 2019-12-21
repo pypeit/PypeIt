@@ -1,8 +1,8 @@
 """
 Class for guiding calibration object generation in PypeIt
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 
@@ -52,7 +52,7 @@ class Calibrations(object):
         caldir (:obj:`str`, optional):
             Path to write the output calibrations.  If None, calibration
             data are not saved.
-        qadir (:obj:`str, optional):
+        qadir (:obj:`str`, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
         save_masters (:obj:`bool`, optional):
