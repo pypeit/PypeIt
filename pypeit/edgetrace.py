@@ -3792,7 +3792,28 @@ class EdgeTraceSet(masterframe.MasterFrame):
     @staticmethod
     def _get_fully_masked_traces(mask, bm, flag=None, exclude=None):
         """
-        Helper function
+        Helper function for :func:`fully_masked_traces`, allowing for
+        the masking to be performed by :func:`load_to_tslits_dict`.
+
+        Args:
+            mask (`numpy.ndarray`_):
+                Integer array with bitmask values.
+            bm (:class:`pypeit.bitmask.BitMask`):
+                Object used to interpret the bitmask array values.
+            flag (:obj:`str`, :obj:`list`, optional):
+                The bit mask flags to select. If None, any flags are
+                used. See :func:`pypeit.bitmask.Bitmask.flagged`.
+            exclude (:obj:`str`, :obj:`list`, optional):
+                A set of flags to explicitly exclude from
+                consideration as a masked trace. I.e., if any
+                spectral pixel in the trace is flagged with one of
+                these flags, it will not be considered a fully masked
+                trace. This is typically used to exclude inserted
+                traces from being considered as a bad trace.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array selecting traces that are
+            flagged at all spectral pixels.
         """
         bpm = np.all(bm.flagged(mask, flag=flag), axis=0)
         if exclude is not None:

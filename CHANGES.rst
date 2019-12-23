@@ -67,6 +67,8 @@
 - Include a mask in the line detection in extracted central arc spectrum
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
+- Adds a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
+  construces a ``tslits_dict`` object directly from the Master file.
 
 0.11.0.1
 ---------
