@@ -19,6 +19,6 @@ Module contents
 ---------------
 
 .. automodule:: pypeit.core.wavecal
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

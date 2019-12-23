@@ -2,14 +2,29 @@
 # -*- coding: utf-8 -*-
 """
 Provides a set of I/O routines.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
+import sys
+import warnings
 import gzip
 import shutil
+from packaging import version
+
 import numpy
 
 from astropy.io import fits
 
+# These imports are largely just to make the versions available for
+# writing to the header. See `initialize_header`
+import scipy
+import astropy
+import sklearn
+import pypeit
+import time
+from IPython import embed
 
 def init_record_array(shape, dtype):
     r"""
@@ -75,7 +90,7 @@ def rec_to_fits_col_dim(rec_element):
     return None if len(rec_element[0].shape) == 1 else str(rec_element[0].shape[::-1])
 
 
-def rec_to_bintable(arr, name=None):
+def rec_to_bintable(arr, name=None, hdr=None):
     """
     Construct an `astropy.io.fits.BinTableHDU` from a record array.
 
@@ -84,6 +99,8 @@ def rec_to_bintable(arr, name=None):
             The data array to write to a binary table.
         name (:obj:`str`, optional):
             The name for the binary table extension.
+        hdr (`astropy.io.fits.Header`, optional):
+            Header for the BinTableHDU extension.
     
     Returns:
         `astropy.io.fits.BinTableHDU`: The binary fits table that can be
@@ -93,7 +110,7 @@ def rec_to_bintable(arr, name=None):
                                                       format=rec_to_fits_type(arr[n]),
                                                       dim=rec_to_fits_col_dim(arr[n]),
                                                       array=arr[n])
-                                            for n in arr.dtype.names], name=name)
+                                            for n in arr.dtype.names], name=name, header=hdr)
 
 
 def compress_file(ifile, overwrite=False, rm_original=True):
@@ -142,7 +159,7 @@ def parse_hdr_key_group(hdr, prefix='F'):
 
     If the prefix is 'F', the header keywords are expected to be, e.g.,
     'F1', 'F2', 'F3', etc.  The list of values returned are then, e.g.,
-    [ hdr['F1'], hdr['F2'], hdr['F3'], ... ].  The function performs not
+    [ hdr['F1'], hdr['F2'], hdr['F3'], ... ].  The function performs no
     retyping, so the values in the returned list have whatever type they
     had in the fits header.
 
@@ -174,6 +191,98 @@ def parse_hdr_key_group(hdr, prefix='F'):
 
     # Convert from dictionary with integer keys to an appropriately
     # sorted list
-    return [values[i] for i in range(max(values.keys())+1)]
+    # JFH try/except added to deal with cases where no header cards were found with the desired
+    # prefix. I'm not sure returning an empty list is the desired behavior, but None will cause
+    # downstream things to crash.
+    try:
+        return [values[i] for i in range(max(values.keys())+1)]
+    except:
+        return []
 
+
+def initialize_header(hdr=None):
+    """
+    Initialize a FITS header.
+
+    Args:
+        hdr (`astropy.io.fits.Header`, optional):
+            Header object to update with basic summary
+            information. The object is modified in-place and also
+            returned. If None, an empty header is instantiated,
+            edited, and returned.
+
+    Returns:
+        `astropy.io.fits.Header`: The initialized (or edited)
+        fits header.
+    """
+    # Add versioning; this hits the highlights but should it add
+    # the versions of all packages included in the requirements.txt
+    # file?
+    if hdr is None:
+        hdr = fits.Header()
+    hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
+    hdr['VERSNPY'] = (numpy.__version__, 'Numpy version')
+    hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
+    hdr['VERSAST'] = (astropy.__version__, 'Astropy version')
+    hdr['VERSSKL'] = (sklearn.__version__, 'Scikit-learn version')
+    hdr['VERSPYP'] = (pypeit.__version__, 'PypeIt version')
+
+    # Save the date of the reduction
+    hdr['DATE'] = (time.strftime('%Y-%m-%d',time.gmtime()), 'UTC date created')
+
+    # TODO: Anything else?
+
+    # Return
+    return hdr
+
+def header_version_check(hdr, warning_only=True):
+    """
+    Check the package versions in the header match the system versions.
+
+    .. note::
+        The header must contain the keywords written by
+        :func:`initialize_header`.
+
+    Args:
+        hdr (`astropy.io.fits.Header`):
+            The header to check
+        warning_only (:obj:`bool`, optional):
+            If the versions are discrepant, only throw a warning
+            instead of raising an exception.
+
+    Returns:
+        :obj:`bool`: Returns True if the check was successful, False
+        otherwise. If `warning_only` is False, the method will either
+        raise an exception or return True.
+
+    Raises:
+        ValueError:
+            Raised if `warning_only` is False and the system versions
+            are different from those logged in the header.
+    """
+    # Compile the packages and versions to check
+    packages = ['python', 'numpy', 'scipy', 'astropy', 'sklearn', 'pypeit']
+    hdr_versions = [hdr['VERSPYT'], hdr['VERSNPY'], hdr['VERSSCI'], hdr['VERSAST'], hdr['VERSSKL'],
+                    hdr['VERSPYP']]
+    sys_versions = ['.'.join([ str(v) for v in sys.version_info[:3]]), numpy.__version__,
+                    scipy.__version__, astropy.__version__, sklearn.__version__,
+                    pypeit.__version__]
+
+    # Run the check and either issue warnings or exceptions
+    all_identical = True
+    for package, hdr_version, sys_version in zip(packages, hdr_versions, sys_versions):
+        if version.parse(hdr_version) != version.parse(sys_version):
+            all_identical = False
+            msg = '{0} version used to create the file ({1}) '.format(package, hdr_version) \
+                        + 'does not match the current system version ({0})!'.format(sys_version)
+            if warning_only:
+                # TODO: I had to change pypeit/__init__.py to get these
+                # to show up. We eventually need to make pypmsgs play
+                # nice with warnings and other logging, or just give up
+                # on pypmsgs...
+                warnings.warn(msg)
+            else:
+                raise ValueError(msg)
+    # Return if all versions are identical
+    return all_identical
 

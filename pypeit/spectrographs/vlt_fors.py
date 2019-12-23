@@ -51,9 +51,9 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
                 par['calibrations'][key]['process']['overscan'] = 'median'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slits']['trace_npoly'] = 3
-        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 3
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] = 25.0
@@ -272,28 +272,5 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     def configuration_keys(self):
         #return ['dispname', 'dispangle', 'decker', 'detector']
         return ['dispname', 'dispangle', 'decker', 'detector']
-
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
-        """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
-
 
 

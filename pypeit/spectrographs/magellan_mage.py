@@ -24,7 +24,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(MagellanMAGESpectrograph, self).__init__()
         self.spectrograph = 'magellan_mage'
-        self.camera = 'magellan_mage'
+        self.camera = 'MagE'
         self.telescope = telescopes.MagellanTelescopePar()
         self.numhead = 1
         self.detector = [
@@ -50,7 +50,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
                             oscansec        = '[1:1024, 2049:2176]',
                             )]
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
-        self.norders = 15   # 20-6
+        #self.norders = 15
+        # 20-6
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -94,10 +95,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['tracethresh'] = [10]*self.norders
-        par['calibrations']['slits']['trace_npoly'] = 5
-        par['calibrations']['slits']['maxshift'] = 3.
-        #par['calibrations']['slits']['pcatype'] = 'order'
-        par['calibrations']['slits']['sigdetect'] = 10.  # Tough to get the bluest orders
+        par['calibrations']['slitedges']['fit_order'] = 5
+        par['calibrations']['slitedges']['max_shift_adj'] = 3.
+        par['calibrations']['slitedges']['edge_thresh'] = 10.  # Tough to get the bluest orders
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3  # Allow for a short detected blue order
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         par['scienceimage']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
@@ -128,7 +130,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         meta['dec'] = dict(ext=0, card='DEC')
         meta['target'] = dict(ext=0, card='OBJECT')
         #TODO: Check decker is correct
-        meta['decker'] = dict(ext=0, card='SLITENC')
+        meta['decker'] = dict(ext=0, card='SLITNAME')
         meta['binning'] = dict(card=None, compound=True)
 #        self.meta['binning'] = dict(ext=0, card='BINNING')
         meta['mjd'] = dict(ext=0, card=None, compound=True)
@@ -182,7 +184,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             return (fitstbl['idname'] == 'Object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -202,16 +204,16 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         """
         msgs.info("Custom bad pixel mask for MAGE")
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         # Get the binning
         hdu = fits.open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()
         # Do it
-        self.bpm_img[:, :10//binspatial] = 1.
-        self.bpm_img[:, 1020//binspatial:] = 1.
+        bpm_img[:, :10//binspatial] = 1.  # Setting BPM on the edge of the detector often leads to false edges
+        bpm_img[:, 1020//binspatial:] = 1.
         # Return
-        return self.bpm_img
+        return bpm_img
 
     @staticmethod
     def slitmask(tslits_dict, pad=None, binning=None):
@@ -245,61 +247,26 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
         return slitmask
 
-    def slit_minmax(self, nfound, binspectral=1):
-        """
-        These are the order boundaries determined by eye JXP.
+    @property
+    def norders(self):
+        return 15   # 20-6
 
-        Args:
-            nfound (int):
-              Number of orders found on the detector
-              Assumed to capture all of the reddest but maybe not all of the blue
-            binspectral (nt, optional):
-
-        Returns:
-
-        """
-        # Here is the info for all the orders for a good flat
-        all_spec_min = np.full(self.norders, -np.inf)
-        all_spec_max = np.full(self.norders, np.inf)
-
-        # If the number of slits is less than expected, then take the reddest
-        spec_min = all_spec_min[-nfound:]
-        spec_max = all_spec_max[-nfound:]
-
-        return spec_min, spec_max
-
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
-
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
-
-        Returns:
-            int: order number
-
-        """
-        msgs.warn("This will need to be updated with the remaining 3 orders")
-        #
-        order_spat_pos = np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos =  np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
                0.77448156, 0.82253604, 0.86875753, 0.91512689, 0.96524312])
-        orders = np.arange(17, 5, -1, dtype=int)
+        return ord_spat_pos
 
-        # Find closest
-        iorder = np.argmin(np.abs(slit_spat_pos-order_spat_pos))
-
-
-        # Check
-        if np.abs(order_spat_pos[iorder] - slit_spat_pos) > 0.05:
-            msgs.warn("Bad echelle format for Magellan-MAGE or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return orders[iorder]
-        else:
-            return orders[iorder]
+    @property
+    def orders(self):
+        return  np.arange(17, 5, -1, dtype=int)
 
 
+    @property
+    def spec_min_max(self):
+        spec_max = np.full(self.norders, np.inf)
+        spec_min = np.full(self.norders, -np.inf)
+        return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
         """

@@ -1,8 +1,6 @@
-.. highlight:: rest
-
-==============
+===============
 PypeIt Cookbook
-==============
+===============
 
 This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
@@ -82,6 +80,7 @@ following is for one instrument in one working directory.
   - Examine the output as described in the :doc:`qa` documentation
 
 8. Examine spectra
+
   - Examine the extracted 1D spectra with :ref:`pypeit-1dspec`
   - Examine the extracted 2D spectra with :ref:`pypeit-2dspec`
 

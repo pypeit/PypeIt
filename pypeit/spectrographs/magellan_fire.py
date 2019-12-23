@@ -50,10 +50,14 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
                             datasec         = '[1:2048,1:2048]',
                             oscansec        = '[:,:4]'
                             )]
-        self.norders = 22
+#        self.norders = 22
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
+
+    @property
+    def norders(self):
+        return 22
 
     @property
     def pypeline(self):
@@ -98,12 +102,11 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
 
         # Set slits and tilts parameters
-#        par['calibrations']['tilts']['order'] = 2
         par['calibrations']['tilts']['tracethresh'] = [10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 10]
-        par['calibrations']['slits']['trace_npoly'] = 5
-        par['calibrations']['slits']['sigdetect'] = 50
-        par['calibrations']['slits']['maxshift'] = 0.5
-#        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slitedges']['fit_order'] = 5
+        par['calibrations']['slitedges']['edge_thresh'] = 50
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
@@ -228,6 +231,10 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
         slitmask[order7bad] = -1
         return slitmask
+
+    @property
+    def norders(self):
+        return 22
 
     @staticmethod
     def slit2order(islit):

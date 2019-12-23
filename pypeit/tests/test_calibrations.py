@@ -13,6 +13,7 @@ import numpy as np
 from pypeit import calibrations
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
+from IPython import embed
 
 from pypeit.tests.tstutils import dev_suite_required, dummy_fitstbl
 
@@ -53,6 +54,7 @@ def multi_caliBrate(fitstbl):
     calib_par = par['calibrations']
     calib_par['badpix'] = False
     calib_par['biasframe']['useframe'] = 'none' # Only use overscan
+    calib_par['slitedges']['sync_predict'] = 'nearest'
 
     multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph)
     return reset_calib(multi_caliBrate)
@@ -74,6 +76,10 @@ def multi_caliBrate_reuse(multi_caliBrate):
     multi_caliBrate.save_masters = True
     return multi_caliBrate
 
+###################################################
+# TESTS BEGIN HERE
+
+
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
@@ -92,7 +98,12 @@ def test_bias(multi_caliBrate):
 
 def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
-    assert arc.shape == (2048,350)
+    assert arc.image.shape == (2048,350)
+
+
+def test_tiltimg(multi_caliBrate):
+    tilt = multi_caliBrate.get_tiltimg()
+    assert tilt.image.shape == (2048,350)
 
 def test_bpm(multi_caliBrate):
     # Prep
@@ -139,6 +150,7 @@ def test_tilts(multi_caliBrate):
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_tiltimg()
     multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     # Run
@@ -154,6 +166,7 @@ def test_flat(multi_caliBrate):
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_tiltimg()
     multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()
@@ -170,6 +183,7 @@ def test_waveimg(multi_caliBrate):
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     multi_caliBrate.get_arc()
+    multi_caliBrate.get_tiltimg()
     multi_caliBrate.get_slits(write_qa=False)
     multi_caliBrate.get_wv_calib()
     multi_caliBrate.get_tilts()
@@ -200,25 +214,28 @@ def test_reuse(multi_caliBrate_reuse):
     msarc = multi_caliBrate_reuse.get_arc()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) == ['bpm', 'arc'], \
                 'Incorrect list of master types in memory'
+    msarc = multi_caliBrate_reuse.get_tiltimg()
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) == ['bpm', 'arc', 'tiltimg'], \
+                'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_slits(write_qa=False)
-    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) == ['bpm', 'arc', 'trace'], \
+    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) == ['bpm', 'arc', 'tiltimg', 'trace'], \
                 'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_wv_calib()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask'], \
+                == ['bpm', 'arc', 'tiltimg','trace', 'wavecalib', 'wvmask'], \
                 'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_tilts()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask'], \
+                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask'], \
                 'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_flats()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask',
+                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask',
                     'pixelflat', 'illumflat'], \
                 'Incorrect list of master types in memory'
     mswave = multi_caliBrate_reuse.get_wave()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask',
+                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'tilts_dict', 'wtmask',
                     'pixelflat', 'illumflat', 'wave'], \
                 'Incorrect list of master types in memory'
     assert mswave.shape == (2048,350)
@@ -237,7 +254,10 @@ def test_reuse(multi_caliBrate_reuse):
     _msarc = multi_caliBrate_reuse.get_arc()
     assert multi_caliBrate_reuse._cached('arc',
                     multi_caliBrate_reuse.master_key_dict['arc']), 'Should find cached data.'
-    assert os.path.isfile(multi_caliBrate_reuse.arcImage.file_path), \
+    _msarc = multi_caliBrate_reuse.get_tiltimg()
+    assert multi_caliBrate_reuse._cached('tiltimg',
+                    multi_caliBrate_reuse.master_key_dict['arc']), 'Should find cached data.'
+    assert os.path.isfile(multi_caliBrate_reuse.arcImage.master_file_path), \
             'Should find master file.'
     assert multi_caliBrate_reuse.arcImage.load() is not None, \
             'Load should not return None'
@@ -253,3 +273,4 @@ def test_reuse(multi_caliBrate_reuse):
 
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)
+

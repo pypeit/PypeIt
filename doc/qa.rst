@@ -1,8 +1,8 @@
 .. highlight:: rest
 
-********
+*********
 PypeIt QA
-********
+*********
 
 As part of the standard reduction, PypeIt generates a series
 of Quality Assurance (QA) files. This documentation describes

@@ -11,6 +11,7 @@ Submodules
    pypeit.spectrographs.keck_deimos
    pypeit.spectrographs.keck_hires
    pypeit.spectrographs.keck_lris
+   pypeit.spectrographs.keck_mosfire
    pypeit.spectrographs.keck_nires
    pypeit.spectrographs.keck_nirspec
    pypeit.spectrographs.lbt_mods
@@ -31,6 +32,6 @@ Module contents
 ---------------
 
 .. automodule:: pypeit.spectrographs
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -79,6 +79,15 @@ where path is to wherever `pip` installed the code.  Or you can download the
 `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`_ file
 and run on it directly.
 
+However, if you are going to work on development branches then you
+will need to install via GitHub::
+
+    git clone https://github.com/pypeit/PypeIt.git
+
+And we then recommend you install with::
+
+    python setup.py develop
+
 Tests
 =====
 In order to assess whether PypeIt has been properly installed,

@@ -2,211 +2,12 @@
 """
 import numpy as np
 
-from IPython import embed
+from astropy import stats
+
 from pypeit import msgs
+from pypeit import utils
 
-def comb_frames(frames_arr, saturation=None,
-                     maskvalue=1048577, method='weightmean', satpix='reject', cosmics=None,
-                     n_lohi=[0,0], sig_lohi=[3.,3.], replace='maxnonsat'):
-    """
-    Combine several frames
-
-    .. todo::
-        - Make better use of np.ma.MaskedArray objects throughout?
-        - More testing of replacement code necessary?
-        - Improve docstring...
-
-    Parameters
-    ----------
-    frames_arr : ndarray (3D)
-      Array of frames to be combined
-    weights : str, or None (optional)
-      How should the frame combination by weighted (not currently
-      implemented)
-    maskvalue : int (optional)
-      What should the masked values be set to (should be greater than
-      the detector's saturation value -- Default = 1 + 2**20)
-    reject : dict, optional
-      Set the rejection parameters:  cosmics, lowhigh, level, replace
-      Perhaps these should be called out separately
-    satpix : str, optional
-      Method for handling saturated pixels
-    saturation : float, optional
-      Saturation value;  only required for some choices of reject['replace']
-
-    Returns
-    -------
-    comb_frame : ndarray
-    """
-    ###########
-    # FIRST DO SOME CHECKS ON THE INPUT
-    ###########
-    # Was printtype specified
-    if frames_arr is None:
-        msgs.error("No frames were given to comb_frames to combine")
-    (sz_x, sz_y, num_frames) = np.shape(frames_arr)
-    if num_frames == 1:
-        msgs.info("Only one frame to combine!")
-        msgs.info("Returning input frame")
-        return frames_arr[:, :, 0]
-    else:
-        msgs.info("Combining {0:d} frames".format(num_frames))
-
-    # Check if the user has allowed the combination of long and short
-    # frames (e.g. different exposure times)
-    msgs.work("lscomb feature has not been included here yet...")
-    # Check the user hasn't requested to reject more frames than available
-    if n_lohi[0] > 0 and n_lohi[1] > 0 and n_lohi[0] + n_lohi[1] >= num_frames:
-        msgs.error('You cannot reject more frames than are available with \'n_lohi\'.'
-                   + msgs.newline() + 'There are {0:d} frames '.format(num_frames)
-                   + 'and n_lohi will reject {0:d} low and {1:d} high values.'.format(
-                                                                n_lohi[0], n_lohi[1]))
-
-    # Calculate the values to be used if all frames are rejected in some pixels
-    if replace == 'min':
-        allrej_arr = np.amin(frames_arr, axis=2)
-    elif replace == 'max':
-        allrej_arr = np.amax(frames_arr, axis=2)
-    elif replace == 'mean':
-        allrej_arr = np.mean(frames_arr, axis=2)
-    elif replace == 'median':
-        allrej_arr = np.median(frames_arr, axis=2)
-    elif replace == 'weightmean':
-        msgs.work("No weights are implemented yet")
-        allrej_arr = frames_arr.copy()
-        allrej_arr = masked_weightmean(allrej_arr, maskvalue)
-    elif replace == 'maxnonsat':
-        allrej_arr = frames_arr.copy()
-        allrej_arr = maxnonsat(allrej_arr, saturation)
-    else:
-        msgs.error("You must specify what to do in case all pixels are rejected")
-
-    ################
-    # Saturated Pixels
-    msgs.info("Finding saturated and non-linear pixels")
-    if satpix == 'force':
-        # If a saturated pixel is in one of the frames, force them to
-        # all have saturated pixels
-#		satw = np.zeros_like(frames_arr)
-#		satw[np.where(frames_arr > settings.spect['det']['saturation']*settings.spect['det']['nonlinear'])] = 1.0
-#		satw = np.any(satw,axis=2)
-#		del satw
-        setsat = np.zeros_like(frames_arr)
-        setsat[frames_arr > saturation] = 1
-    elif satpix == 'reject':
-        # Ignore saturated pixels in frames if possible
-        frames_arr[frames_arr > saturation] = maskvalue
-    elif satpix == 'nothing':
-        # Don't do anything special for saturated pixels (Hopefully the
-        # user has specified how to deal with them below!)
-        pass
-    else:
-        msgs.error('Option \'{0}\' '.format(satpix)
-                   + 'for dealing with saturated pixels was not recognised.')
-
-    ################
-    # Cosmic Rays
-    if cosmics > 0.0:
-        msgs.info("Rejecting cosmic rays")  # Use a robust statistic
-        masked_fa = np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue)
-        medarr = np.ma.median(masked_fa, axis=2)
-        stdarr = 1.4826*np.ma.median(np.ma.absolute(masked_fa - medarr[:,:,None]), axis=2)
-        indx = (frames_arr != maskvalue) \
-                    & (frames_arr > (medarr.data + cosmics * stdarr.data)[:,:,None])
-        frames_arr[indx] = maskvalue
-        # Delete unecessary arrays
-        del medarr, stdarr
-    else:
-        msgs.info("Not rejecting cosmic rays")
-
-    ################
-    # Low and High pixel rejection --- Masks *additional* pixels
-    rejlo, rejhi = n_lohi
-    if n_lohi[0] > 0 or n_lohi[1] > 0:
-
-        # First reject low pixels
-        frames_arr = np.sort(frames_arr, axis=2)
-        if n_lohi[0] > 0:
-            msgs.info("Rejecting {0:d} deviant low pixels".format(n_lohi[0]))
-            while rejlo > 0:
-                xi, yi = np.indices(sz_x, sz_y)
-                frames_arr[xi, yi, np.argmin(frames_arr, axis=2)] = maskvalue
-                del xi, yi
-                rejlo -= 1
-
-        # Now reject high pixels
-        if n_lohi[1] > 0:
-            msgs.info("Rejecting {0:d} deviant high pixels".format(n_lohi[1]))
-            frames_arr[np.where(frames_arr == maskvalue)] *= -1
-            while rejhi > 0:
-                xi, yi = np.indices(sz_x, sz_y)
-                frames_arr[xi, yi, np.argmax(frames_arr, axis=2)] = -maskvalue
-                del xi, yi
-                rejhi -= 1
-            frames_arr[np.where(frames_arr) == -maskvalue] *= -1
-
-# TODO: Do we need this?
-# The following is an example of *not* masking additional pixels
-#		if reject['lowhigh'][1] > 0:
-#			msgs.info("Rejecting {0:d} deviant high pixels".format(reject['lowhigh'][1]))
-#			masktemp[:,:,-reject['lowhigh'][0]:] = True
-    else:
-        msgs.info("Not rejecting any low/high pixels")
-
-    ################
-    # Deviant Pixels
-    # TODO: sig_lohi (what was level) is not actually used, instead this
-    # just selects if cosmics should be used.  Is this intentional?  Why
-    # not just do: `if cosmics > 0:`?
-    if sig_lohi[0] > 0.0 or sig_lohi[1] > 0.0:
-        msgs.info("Rejecting deviant pixels")  # Use a robust statistic
-
-        masked_fa = np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue)
-        medarr = np.ma.median(masked_fa, axis=2)
-        stdarr = 1.4826*np.ma.median(np.ma.absolute(masked_fa - medarr[:,:,None]), axis=2)
-        indx = (frames_arr != maskvalue) \
-                    & ( (frames_arr > (medarr.data + cosmics*stdarr.data)[:,:,None])
-                        | (frames_arr < (medarr.data - cosmics*stdarr.data)[:,:,None]))
-        frames_arr[indx] = maskvalue
-
-        # Delete unecessary arrays
-        del medarr, stdarr
-    else:
-        msgs.info("Not rejecting deviant pixels")
-
-    ##############
-    # Combine the arrays
-    msgs.info("Combining frames with a {0:s} operation".format(method))
-    if method == 'mean':
-        comb_frame = np.ma.mean(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
-    elif method == 'median':
-        comb_frame = np.ma.median(np.ma.MaskedArray(frames_arr, mask=frames_arr==maskvalue), axis=2)
-    elif method == 'weightmean':
-        comb_frame = frames_arr.copy()
-        comb_frame = masked_weightmean(comb_frame, maskvalue)
-    else:
-        msgs.error("Combination type '{0:s}' is unknown".format(method))
-
-    ##############
-    # If any pixels are completely masked, apply user-specified function
-    msgs.info("Replacing completely masked pixels with the {0:s} value of the input frames".format(replace))
-    indx = comb_frame == maskvalue
-    comb_frame[indx] = allrej_arr[indx]
-    # Delete unecessary arrays
-    del allrej_arr
-
-    ##############
-    # Apply the saturated pixels:
-    if satpix == 'force':
-        msgs.info("Applying saturated pixels to final combined image")
-        comb_frame[setsat] = saturation # settings.spect[dnum]['saturation']
-
-    ##############
-    # And return a 2D numpy array
-    msgs.info("{0:d} frames combined successfully!".format(num_frames))
-    # Make sure the returned array is the correct type
-    comb_frame = np.array(comb_frame, dtype=np.float)
-    return comb_frame
+from IPython import embed
 
 
 def masked_weightmean(a, maskvalue):
@@ -233,4 +34,219 @@ def maxnonsat(array, saturated):
     maximum = np.ma.amax(_array, axis=2)
     maximum[maximum.mask] = minimum[maximum.mask]
     return maximum.data
+
+
+
+# TODO make weights optional and do uniform weighting without.
+def weighted_combine(weights, sci_list, var_list, inmask_stack,
+                     sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
+    """
+
+    Args:
+        weights (ndarray):
+            Weights to use. Options for the shape of weights are:
+
+                - (nimgs,) -- a single weight per image in the stack
+                - (nimgs, nspec) -- wavelength dependent weights per
+                  image in the stack
+                - (nimgs, nspec, nspat) -- weights input with the shape
+                  of the image stack
+
+             Note that the weights are distinct from the mask which is
+             dealt with via inmask_stack argument so there should not be
+             any weights that are set to zero (although in principle
+             this would still work).
+
+        sci_list: list
+            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
+        var_list: list
+            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with proper erorr propagation, i.e.
+            using the  weights**2, inmask_stack, and possibly sigma clipping
+        inmask_stack: ndarray, boolean, shape (nimgs, nspec, nspat)
+            Array of input masks for the images. True = Good, False=Bad
+        sigma_clip: bool, default = False
+            Combine with a mask by sigma clipping the image stack. Only valid if nimgs > 2
+        sigma_clip_stack: ndarray, float, shape (nimgs, nspec, nspat), default = None
+            The image stack to be used for the sigma clipping. For example if
+            if the list of images to be combined with the weights is [sciimg_stack, waveimg_stack, tilts_stack] you
+            would be sigma clipping with sciimg_stack, and would set sigma_clip_stack = sciimg_stack
+        sigrej: int or float, default = None
+            Rejection threshold for sigma clipping. Code defaults to determining this automatically based
+            on the numberr of images provided.
+        maxiters:
+            Maximum number of iterations for sigma clipping using astropy.stats.SigmaClip
+
+    Returns:
+        tuple: Returns the following:
+            - sci_list_out: list: The list of ndarray float combined
+              images with shape (nspec, nspat)
+            - var_list_out: list: The list of ndarray propagated
+              variance images with shape (nspec, nspat)
+            - outmask: bool ndarray, shape (nspec, nspat): Mask for
+              combined image. True=Good, False=Bad
+            - nused: int ndarray, shape (nspec, nspat): Image of
+              integers indicating the number of images that contributed
+              to each pixel
+    """
+
+    shape = img_list_error_check(sci_list, var_list)
+
+    nimgs = shape[0]
+    img_shape = shape[1:]
+    #nspec = shape[1]
+    #nspat = shape[2]
+
+    if nimgs == 1:
+        # If only one image is passed in, simply return the input lists of images, but reshaped
+        # to be (nspec, nspat)
+        msgs.warn('Cannot combine a single image. Returning input images')
+        sci_list_out = []
+        for sci_stack in sci_list:
+            sci_list_out.append(sci_stack.reshape(img_shape))
+        var_list_out = []
+        for var_stack in var_list:
+            var_list_out.append(var_stack.reshape(img_shape))
+        outmask = inmask_stack.reshape(img_shape)
+        nused = outmask.astype(int)
+        return sci_list_out, var_list_out, outmask, nused
+
+    if sigma_clip and nimgs >= 3:
+        if sigma_clip_stack is None:
+            msgs.error('You must specify sigma_clip_stack, i.e. which quantity to use for sigma clipping')
+        if sigrej is None:
+            if nimgs <= 2:
+                sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
+            elif nimgs == 3:
+                sigrej = 1.1
+            elif nimgs == 4:
+                sigrej = 1.3
+            elif nimgs == 5:
+                sigrej = 1.6
+            elif nimgs == 6:
+                sigrej = 1.9
+            else:
+                sigrej = 2.0
+        # sigma clip if we have enough images
+        # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
+        data = np.ma.MaskedArray(sigma_clip_stack, np.invert(inmask_stack))
+        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
+        data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
+        mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
+    else:
+        if sigma_clip and nimgs < 3:
+            msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
+                      'Proceeding without sigma clipping')
+        mask_stack = inmask_stack  # mask_stack = True are good values
+
+    nused = np.sum(mask_stack, axis=0)
+    weights_stack = broadcast_weights(weights, shape)
+    weights_mask_stack = weights_stack*mask_stack
+
+    weights_sum = np.sum(weights_mask_stack, axis=0)
+    sci_list_out = []
+    for sci_stack in sci_list:
+        sci_list_out.append(np.sum(sci_stack*weights_mask_stack, axis=0)/(weights_sum + (weights_sum == 0.0)))
+    var_list_out = []
+    for var_stack in var_list:
+        var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) / (weights_sum + (weights_sum == 0.0))**2)
+    # Was it masked everywhere?
+    outmask = np.any(mask_stack, axis=0)
+
+    return sci_list_out, var_list_out, outmask, nused
+
+
+def img_list_error_check(sci_list, var_list):
+    """
+    Utility routine for dealing dealing with lists of image stacks for rebin2d and weigthed_combine routines below. This
+    routine checks that the images sizes are correct and routines the shape of the image stacks.
+
+    Args:
+        sci_list: list
+            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
+        var_list: list
+            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
+            which are to be combined with proper erorr propagation, i.e.
+            using the  weights**2, inmask_stack, and possibly sigma clipping
+
+    Returns:
+        tuple: The shapes of the image stacks, (nimgs, nspec, nspat)
+
+    """
+    shape_sci_list = []
+    for img in sci_list:
+        shape_sci_list.append(img.shape)
+        if img.ndim < 2:
+            msgs.error('Dimensionality of an image in sci_list is < 2')
+
+    shape_var_list = []
+    for img in var_list:
+        shape_var_list.append(img.shape)
+        if img.ndim < 2:
+            msgs.error('Dimensionality of an image in var_list is < 2')
+
+    for isci in shape_sci_list:
+        if isci != shape_sci_list[0]:
+            msgs.error('An image in sci_list have different dimensions')
+        for ivar in shape_var_list:
+            if ivar != shape_var_list[0]:
+                msgs.error('An image in var_list have different dimensions')
+            if isci != ivar:
+                msgs.error('An image in sci_list had different dimensions than an image in var_list')
+
+    shape = shape_sci_list[0]
+
+    return shape
+
+
+def broadcast_weights(weights, shape):
+    """
+    Utility routine to broadcast weights to be the size of image stacks specified by shape
+
+    Args:
+        weights (ndarray):
+            Weights to use. Options for the shape of weights are:
+
+                - (nimgs,) -- a single weight per image in the stack
+                - (nimgs, nspec) -- wavelength dependent weights per
+                  image
+                - (nimgs, nspec, nspat) -- weights already have the
+                  shape of the image stack and are simply returned
+        shape: tuple of integers
+            Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
+            (nimgs, nspec, nspat) for 2d spectrum images
+
+    Returns:
+        np.ndarray:
+
+    """
+    # Create the weights stack images from the wavelength dependent weights, i.e. propagate these
+    # weights to the spatial direction
+    if weights.ndim == 1:
+        # One float per image
+        if len(shape) == 2:
+            weights_stack = np.einsum('i,ij->ij', weights, np.ones(shape))
+        elif len(shape) == 3:
+            weights_stack = np.einsum('i,ijk->ijk', weights, np.ones(shape))
+        else:
+            msgs.error('Image shape is not supported')
+    elif weights.ndim == 2:
+        # Wavelength dependent weights per image
+        if len(shape) == 2:
+            if weights.shape != shape:
+                msgs.error('The shape of weights does not match the shape of the image stack')
+            weights_stack = weights
+        elif len(shape) == 3:
+            weights_stack = np.einsum('ij,k->ijk', weights, np.ones(shape[2]))
+    elif weights.ndim == 3:
+        # Full image stack of weights
+        if weights.shape != shape:
+            msgs.error('The shape of weights does not match the shape of the image stack')
+        weights_stack = weights
+    else:
+        msgs.error('Unrecognized dimensionality for weights')
+
+    return weights_stack
 
