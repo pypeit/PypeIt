@@ -125,7 +125,7 @@ Line Lists
 ==========
 
 Without exception, arc line wavelengths are taken from
-the `NIST database <http://physics.nist.gov/PhysRefData`_,
+the `NIST database <http://physics.nist.gov/PhysRefData>`_,
 *in vacuum*. These data are stored as ASCII tables in the
 `arclines` repository. Here are the available lamps:
 

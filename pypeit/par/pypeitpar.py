@@ -210,11 +210,11 @@ class ProcessImagesPar(ParSet):
         defaults['bias'] = 'as_available'
         options['bias'] = ProcessImagesPar.valid_bias()
         dtypes['bias'] = str
-        descr['bias'] = 'Parameter for bias subtraction. Options are:\n' \
-                        '    `as_available`: Bias subtract if bias frames were provided\n' \
-                        '    `force`: Require bias subtraction; exception raised if no ' \
-                        'biases available.\n' \
-                        '    `skip`: Skip bias subtraction even if bias frames were provided'
+        descr['bias'] = 'Parameter for bias subtraction. Options are: ' \
+                        '(1) \'as_available\' -- Bias subtract if bias frames were provided;  ' \
+                        '(2) \'force\' -- Require bias subtraction; exception raised if no ' \
+                        'biases available;  ' \
+                        '(3) \'skip\' -- Skip bias subtraction even if bias frames were provided.'
 
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
@@ -607,7 +607,8 @@ class FlexurePar(ParSet):
         dtypes['maxshift'] = [int, float]
         descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
 
-        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'), 'paranal_sky.fits')
+        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                            'paranal_sky.fits')
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -908,7 +909,7 @@ class ManualExtractionParOld(ParSet):
             must go through, 500 is the spectral location that the trace
             must go through, and the last two numbers (10,10) are the
             widths around the stated (spatial,spectral) location that
-            should also be in the trace.'
+            should also be in the trace.
     """
     def __init__(self, frame=None, params=None):
 
@@ -2587,13 +2588,13 @@ class PypeItPar(ParSet):
                 config file from a previous run that was constructed and
                 output by pypeit.  This has to contain the full set of
                 parameters, not just the subset you want to change.  For
-                the latter, use :arg:`merge_with` to provide one or more
+                the latter, use `merge_with` to provide one or more
                 config files to merge with the defaults to construct the
                 full parameter set.
             merge_with (:obj:`str`, :obj:`list`, optional):
                 One or more config files with the modifications to
-                either default parameters (:arg:`cfg_file` is None) or
-                the parameters provided by :arg:`cfg_file`.  The
+                either default parameters (`cfg_file` is None) or
+                the parameters provided by `cfg_file`.  The
                 modifications are performed in series so the list order
                 of the config files is important.
             evaluate (:obj:`bool`, optional):
@@ -2605,7 +2606,7 @@ class PypeItPar(ParSet):
                 
         .. warning::
 
-            When :arg:`evaluate` is true, the function runs `eval()` on
+            When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
             :func:`_recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally
@@ -2664,7 +2665,7 @@ class PypeItPar(ParSet):
                 constructed and output by pypeit.  This has to contain
                 the full set of parameters, not just the subset to
                 change.  For the latter, leave this as the default value
-                (None) and use :arg:`merge_with` to provide a set of
+                (None) and use `merge_with` to provide a set of
                 lines to merge with the defaults to construct the full
                 parameter set.
             merge_with (:obj:`list`, optional):
@@ -2681,7 +2682,7 @@ class PypeItPar(ParSet):
                 
         .. warning::
 
-            When :arg:`evaluate` is true, the function runs `eval()` on
+            When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
             :func:`_recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally
@@ -2731,7 +2732,7 @@ class PypeItPar(ParSet):
                 
         .. warning::
 
-            When :arg:`evaluate` is true, the function runs `eval()` on
+            When `evaluate` is true, the function runs `eval()` on
             all the entries in the `ConfigObj` dictionary, done using
             :func:`_recursive_dict_evaluate`.  This has the potential to
             go haywire if the name of a parameter unintentionally

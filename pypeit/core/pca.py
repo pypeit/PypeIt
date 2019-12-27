@@ -1,8 +1,8 @@
 """
 Implement principle-component-analysis tools.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 from IPython import embed
 
@@ -177,13 +177,11 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         lower (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **below** the mean residual. If None, no rejection is
-            *performed. See
-            :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`utils.robust_polyfit_djs`.
         upper (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **above** the mean residual. If None, no rejection is
-            *performed. See
-            :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`utils.robust_polyfit_djs`.
         maxrej (:obj:`int`, optional):
             Maximum number of points to reject during fit iterations.
             See :func:`utils.robust_polyfit_djs`.
@@ -206,15 +204,15 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     Returns:
         Returns four objects:
             - A boolean `numpy.ndarray`_ masking data (`coeff`) that
-            were rejected during the polynomial fitting. Shape is the
-            same as the input `coeff`.
+              were rejected during the polynomial fitting. Shape is the
+              same as the input `coeff`.
             - A `list` of `numpy.ndarray`_ objects (or a single
-            `numpy.ndarray`_), one per PCA component where the length
-            of the 1D array is the number of coefficients fit to the
-            PCA-component coefficients. The number of function
-            coefficients is typically :math:`N_{\rm coeff} = o+1`.
-            - The minimum and maximum coordinate values used to
-            rescale the abscissa during the fitting.
+              `numpy.ndarray`_), one per PCA component where the length
+              of the 1D array is the number of coefficients fit to the
+              PCA-component coefficients. The number of function
+              coefficients is typically :math:`N_{\rm coeff} = o+1`.
+            - The minimum and maximum coordinate values used to rescale
+              the abscissa during the fitting.
     """
     # Check the input
     #   - Get the shape of the input data to fit

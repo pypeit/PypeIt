@@ -33,14 +33,19 @@ class PypeIt(object):
     """
     This class runs the primary calibration and extraction in PypeIt
 
+    .. todo::
+        Fill in list of attributes!
+
     Args:
         pypeit_file (:obj:`str`):
             PypeIt filename.
         verbosity (:obj:`int`, optional):
-            Verbosity level of system output.  Can be::
+            Verbosity level of system output.  Can be:
+
                 - 0: No output
                 - 1: Minimal output (default)
                 - 2: All output
+
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
         reuse_masters (:obj:`bool`, optional):
@@ -51,17 +56,17 @@ class PypeIt(object):
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via "ginga --modules=RC &"
+            remote control ginga session via ``ginga --modules=RC &``
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
 
     Attributes:
-        TODO: Come back to this...
         pypeit_file (:obj:`str`):
-            Name of the pypeit file to read.  PypeIt files have a specific
-            set of valid formats. A description can be found `here`_
-            (include doc link).
+            Name of the pypeit file to read.  PypeIt files have a
+            specific set of valid formats. A description can be found
+            :ref:`pypeit_file`.
         fitstbl (:obj:`pypit.metadata.PypeItMetaData`): holds the meta info
+
     """
 #    __metaclass__ = ABCMeta
 

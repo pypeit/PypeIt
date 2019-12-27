@@ -50,7 +50,7 @@ Here are some of the standard ones::
   * Common check or match rules to update include
 
     * arc match decker any -- One frequently uses a narrow slit for arcs
-    * xxx match dispangle |<=## -- Add if your disperser has a variable angle
+    * xxx match dispangle ``|<=##`` -- Add if your disperser has a variable angle
 
   * If a keyword is specified in science/pixflat/blzflat/trace/bias/arc frames
     it must also appear in the Keyword identifiers list.
@@ -62,14 +62,13 @@ Here are some of the standard ones::
      indicates the delimiter text, '1' indicates you're interested
      in the 1st argument (0-indexed), '<60' is an example criteria.
      Each of these should be specified in this order, separated by
-     commas, so the final string would be:
-     %,:,1,<60
+     commas, so the final string would be: ``%,:,1,<60``.
      If you want to split on multiple delimiters, separate them with
      a logical or operator. For example, if you want to split a string
      at the characters ':' and '.', you would use the expression
-     %,:|.,1,<60
+     ``%,:|.,1,<60``.
   *  If the text '|' appears in the match condition, the absolute
-     value will be taken. For example '|<=0.05' means that a given
+     value will be taken. For example ``|<=0.05`` means that a given
      keyword's value for a calibration frame must be within 0.05 of
      a science frame's value, in order to be matched.
   *  If a keyword's value contains spaces, replace all spaces with
@@ -86,3 +85,5 @@ Here are some of the standard ones::
   * Edit README
 
 * Add test suite
+
+
