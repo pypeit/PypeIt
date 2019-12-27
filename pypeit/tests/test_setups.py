@@ -207,7 +207,7 @@ def test_setup_keck_nirspec():
     # Clean-up
     shutil.rmtree(setup_dir)
 
-'''
+
 @dev_suite_required
 def test_setup_wht_isis_blue():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/WHT_ISIS_blue/long_R300B_d5300')
@@ -227,7 +227,6 @@ def test_setup_wht_isis_blue():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-'''
 
 @dev_suite_required
 def test_setup_vlt_xshooter_uvb():

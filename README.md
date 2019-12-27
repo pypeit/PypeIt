@@ -21,7 +21,7 @@ https://github.com/pypeit/PypeIt/issues/676)
 
 # Instruments Served
 * Gemini/GNIRS
-* Gemini/GMOS (soon)
+* Gemini/GMOS 
 * Lick/Kast 
 * Lick/APF (planned)
 * Magellan/MagE

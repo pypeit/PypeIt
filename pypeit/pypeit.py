@@ -71,7 +71,7 @@ class PypeIt(object):
 #    __metaclass__ = ABCMeta
 
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
-                 show=False):
+                 show=False, redux_path=None):
 
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
@@ -101,6 +101,9 @@ class PypeIt(object):
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
+        # Enable after-market reduction path
+        if redux_path is not None:
+            self.par['rdx']['redux_path'] = redux_path
         # TODO: Write the full parameter set here?
         # --------------------------------------------------------------
 

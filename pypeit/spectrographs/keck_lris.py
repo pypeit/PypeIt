@@ -581,8 +581,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['tilts']['maxdev_tracefit'] = 1.0
         par['calibrations']['tilts']['sigrej2d'] = 5.0
 
-        # Scienceimage
-        par['scienceimage']['bspline_spacing'] = 0.8
+        #  Sky Subtraction
+        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
 
         # Defaults for anything other than 1,1 binning
         #  Rest config_specific_par below if binning is (1,1)

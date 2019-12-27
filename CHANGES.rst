@@ -2,6 +2,12 @@
 0.12.1dev
 ---------
 
+- Introduces quick look scripts for Kast and NIRES
+- Bumps dependencies
+- Modest refactoring of reduce/extraction/skysub codes
+- Refactor of ScienceImage Par into pieces
+- Finally dealt with 'random' windowing of Shane_kast_red
+
 0.12.0 (23 Dec 2019)
 --------------------
 
