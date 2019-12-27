@@ -337,7 +337,7 @@ def gen_mf_html(pypeit_file, qa_path):
     # Read calib file
     calib_file = pypeit_file.replace('.pypeit', '.calib')
     with open(calib_file, 'r') as infile:
-        calib_dict = yaml.load(infile)
+        calib_dict = yaml.load(infile, Loader=yaml.FullLoader)
     # Parse
     setup = list(calib_dict.keys())[0]
     dets, cbsets = [], []
