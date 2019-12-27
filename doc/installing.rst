@@ -23,7 +23,7 @@ PypeIt depends on the following list of Python packages.
 
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
-* `python <http://www.python.org/>`_ version 3.6 or later
+* `python <http://www.python.org/>`_ version 3.7 or later
 * `numpy <http://www.numpy.org/>`_ version 1.16.0 or later
 * `astropy <http://www.astropy.org/>`_ version 3.2 or later
 * `scipy <http://www.scipy.org/>`_ version 1.2 or later

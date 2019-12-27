@@ -3,7 +3,7 @@
 ---------
 
 - Introduces quick look scripts for Kast and NIRES
-- Bumps dependencies
+- Bumps dependencies including Python 3.7
 - Modest refactoring of reduce/extraction/skysub codes
 - Refactor of ScienceImage Par into pieces
 - Finally dealt with 'random' windowing of Shane_kast_red
