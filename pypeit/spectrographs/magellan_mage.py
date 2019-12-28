@@ -102,7 +102,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3  # Allow for a short detected blue order
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
-        par['scienceimage']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
+        par['scienceimage']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
