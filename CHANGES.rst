@@ -2,7 +2,7 @@
 0.12.1dev
 ---------
 
-- Introduces quick look scripts for Kast and NIRES
+- Introduces quick look scripts for MOS and NIRES
 - Bumps dependencies including Python 3.7
 - Modest refactoring of reduce/extraction/skysub codes
 - Refactor of ScienceImage Par into pieces

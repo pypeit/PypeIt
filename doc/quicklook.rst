@@ -11,23 +11,22 @@ We describe each in turn.
 
 .. _run-calcheck:
 
-pypeit_ql_shane_kast
-====================
+pypeit_ql_mos
+=============
 
-This script performs a boxcar extraction of a long slit
-observation taken with the Kast spectrograph on the
-Shane 3m telescope at Lick Observatory.
+This script performs a boxcar extraction of a long
+or multi-slit observation taken with one of PypeIt's
+spectrographs
 
 Here is the usage::
 
-    pypeit_ql_shane_kast -h
-    usage: pypeit_ql_shane_kast [-h] [-b BOX_RADIUS]
-                                camera full_rawpath arc flat science
+    usage: pypeit_ql_mos [-h] [-b BOX_RADIUS]
+                         spectrograph full_rawpath arc flat science
 
-    Script to run PypeIt on a set of Kast files
+    Script to run PypeIt in QuickLook on a set of MOS files
 
     positional arguments:
-      camera                blue or red
+      spectrograph          Name of spectograph, e.g. shane_kast_blue
       full_rawpath          Full path to the raw files
       arc                   Arc frame
       flat                  Flat frame
@@ -38,10 +37,9 @@ Here is the usage::
       -b BOX_RADIUS, --box_radius BOX_RADIUS
                             Set the radius for the boxcar extraction (arcsec)
 
-
 And here is a sample call on files from the Development suite::
 
-    pypeit_ql_shane_kast blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
+    pypeit_ql_mos shane_kast_blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
 
 This generates a `shane_kast_blue_A` folder with the standard
 calibration (Masters), QA, and Science outputs.

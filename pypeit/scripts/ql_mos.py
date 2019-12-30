@@ -4,7 +4,7 @@
 #
 # -*- coding: utf-8 -*-
 """
-This script runs PypeIt on a set of Kast images
+This script runs PypeIt on a set of MultiSlit images
 """
 import argparse
 
@@ -14,8 +14,8 @@ import warnings
 
 def parser(options=None):
 
-    parser = argparse.ArgumentParser(description='Script to run PypeIt on a set of Kast files')
-    parser.add_argument('camera', type=str, help='blue or red')
+    parser = argparse.ArgumentParser(description='Script to run PypeIt in QuickLook on a set of MOS files')
+    parser.add_argument('spectrograph', type=str, help='Name of spectograph, e.g. shane_kast_blue')
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
     parser.add_argument('arc', type=str, help='Arc frame')
     parser.add_argument('flat', type=str, help='Flat frame')
@@ -32,23 +32,15 @@ def parser(options=None):
 def main(pargs):
 
     import os
-    import sys
     import numpy as np
 
     from IPython import embed
-
-    from astropy.io import fits
 
     from pypeit import pypeit
     from pypeit import pypeitsetup
     from pypeit.core import framematch
 
-    if pargs.camera == 'blue':
-        spec = 'shane_kast_blue'
-    elif pargs.camera == 'red':
-        spec = 'shane_kast_red'
-    else:
-        msgs.error("Camera needs to be blue or red")
+    spec = pargs.spectrograph
 
     # Setup
     data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
@@ -88,7 +80,7 @@ def main(pargs):
     # Instantiate the main pipeline reduction object
     pypeIt = pypeit.PypeIt(ofiles[0], verbosity=2,
                            reuse_masters=True, overwrite=True,
-                           logname='kast.log', show=False)
+                           logname='mos.log', show=False)
     # Run
     pypeIt.reduce_all()
     msgs.info('Data reduction complete')
