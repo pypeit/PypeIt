@@ -44,6 +44,9 @@ And here is a sample call on files from the Development suite::
 This generates a `shane_kast_blue_A` folder with the standard
 calibration (Masters), QA, and Science outputs.
 
+This script has been tested successfully on the following instruments:
+shane_kast_blue, shane_kast_red.
+
 pypeit_ql_keck_nires
 ====================
 
