@@ -21,6 +21,9 @@ def parser(options=None):
     parser.add_argument('flat', type=str, help='Flat frame')
     parser.add_argument('science', type=str, help='Science frame')
     parser.add_argument('-b', '--box_radius', type=float, help='Set the radius for the boxcar extraction (arcsec)')
+    parser.add_argument('-d', '--det', type=int, default=1, help='Detector number')
+    parser.add_argument("--ignore_headers", default=False, action="store_true",
+                        help="Ignore bad headers?")
 
     if options is None:
         pargs = parser.parse_args()
@@ -42,24 +45,13 @@ def main(pargs):
 
     spec = pargs.spectrograph
 
-    # Setup
-    data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
-                  os.path.join(pargs.full_rawpath,pargs.flat),
-                  os.path.join(pargs.full_rawpath,pargs.science)]
-    ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec)
-    ps.build_fitstbl()
-    # TODO -- Get the type_bits from  'science'
-    bm = framematch.FrameTypeBitMask()
-    bits = [bm.bits[iftype] for iftype in ['arc', 'pixelflat', 'trace', 'science', 'tilt']]
-    ps.fitstbl.set_frame_types(np.array([2**bits[0]+2**bits[4], 2**bits[1] + 2**bits[2], 2**bits[3]]))  # 1=arc, 16=pixelflat, 32=science, trace=128
-    ps.fitstbl.set_combination_groups()
-    # Extras
-    ps.fitstbl['setup'] = 'A'
-
     # Config the run
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
     cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
+    cfg_lines += ['    detnum = {0}'.format(pargs.det)]
+    if pargs.ignore_headers:
+        cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    [[scienceframe]]']
     cfg_lines += ['        [[process]]']
@@ -71,6 +63,21 @@ def main(pargs):
         cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['         skip_second_find = True']
+
+    # Setup
+    data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
+                  os.path.join(pargs.full_rawpath,pargs.flat),
+                  os.path.join(pargs.full_rawpath,pargs.science)]
+    ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec,
+                                 cfg_lines=cfg_lines)
+    ps.build_fitstbl()
+    # TODO -- Get the type_bits from  'science'
+    bm = framematch.FrameTypeBitMask()
+    bits = [bm.bits[iftype] for iftype in ['arc', 'pixelflat', 'trace', 'science', 'tilt']]
+    ps.fitstbl.set_frame_types(np.array([2**bits[0]+2**bits[4], 2**bits[1] + 2**bits[2], 2**bits[3]]))  # 1=arc, 16=pixelflat, 32=science, trace=128
+    ps.fitstbl.set_combination_groups()
+    # Extras
+    ps.fitstbl['setup'] = 'A'
 
     # Write
     ofiles = ps.fitstbl.write_pypeit('', configs=['A'], write_bkg_pairs=True, cfg_lines=cfg_lines)
