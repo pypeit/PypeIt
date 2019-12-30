@@ -1,7 +1,6 @@
 """
 Module to create models of arc lines.
 """
-
 import astropy
 import re
 import scipy
@@ -10,14 +9,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pkg_resources import resource_filename
+
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
 from astropy.table import Table
+from astropy import units
 
 from pypeit import msgs
 from pypeit.core import arc
 from pypeit import utils
+from pypeit.core.wave import airtovac
 
+from IPython import embed
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -573,6 +576,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
 
     msgs.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
     gauss_kernel = Gaussian1DKernel(px_sigma)
+
     flux_convolved = convolve(flux, gauss_kernel)
 
     if debug:
@@ -645,7 +649,7 @@ def iraf_datareader(database_dir, id_file):
 
 def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
                     cont_samp=10., line_name=None, file_root_name=None,
-                    iraf_frmt=False, debug=False):
+                    iraf_frmt=False, debug=False, vacuum=True):
     """ Create list of lines detected in a spectrum in a PypeIt
     compatible format. The name of the output file is
     file_root_name+'_lines.dat'.
@@ -674,6 +678,8 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     iraf_frmt : bool
         if True, the file is written in the IRAF format (i.e. wavelength,
         ion name, amplitude).
+    vacuum (bool):
+        If True, write the wavelengths in vacuum
     """
 
     msgs.info("Searching for peaks {} sigma above background".format(sigdetec))
@@ -686,6 +692,11 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
     # convert from pixel location to wavelength
     pixvec = np.arange(spec.size)
     wave_peak = scipy.interpolate.interp1d(pixvec, wavelength, bounds_error=False, fill_value='extrapolate')(peaks_good)
+    # Vacuum?
+    if vacuum:
+        msgs.info("Writing wavelengths in vacuum")
+        wave_peak = airtovac(wave_peak * units.AA).value
+
     npeak = len(wave_peak)
     ion = npeak*[str(line_name)]
     NIST = npeak*[1]
@@ -779,7 +790,7 @@ def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, ni
 
 def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=True, thar_outfile=None,
                         fwhm=None, sigdetec=3., line_name='ThAr', file_root_name=None, iraf_frmt=False,
-                        debug=False):
+                        debug=False, vacuum=True):
     """Create a syntetic ThAr spectrum at a given resolution, extract significant lines, and
     store them in a PypeIt compatibile file. This is based on the Murphy et al. ThAr spectrum.
     Detailed information are here: http://astronomy.swin.edu.au/~mmurphy/thar/index.html
@@ -822,6 +833,8 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         ion name, amplitude).
     debug : boolean
         If True will show debug plots
+    vacuum (bool):
+        If True, write the wavelengths in vacuum
     """
 
     wavelength, spec = optical_modelThAr(resolution, waveminmax=waveminmax, dlam=dlam,
@@ -847,5 +860,5 @@ def create_ThArlinelist(resolution, waveminmax=(3000.,10500.), dlam=40.0, flgd=T
         file_root_name = 'ThAr'
 
     create_linelist(wavelength, spec, fwhm=fwhm, sigdetec=sigdetec, line_name=line_name,
-                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug)
+                    file_root_name=file_root_name, iraf_frmt=iraf_frmt, debug=debug, vacuum=vacuum)
 

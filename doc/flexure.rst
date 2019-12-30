@@ -1,4 +1,4 @@
-.. _flexure
+.. _flexure:
 
 .. highlight:: rest
 
@@ -32,13 +32,20 @@ Algorithm
 The basic algorithm may be summarized as follows:
 
 1. Identify the overlapping wavelength range between data and archived sky.
+
 2. Rebin the archived sky spectrum onto the overlapping wavelength range.
+
 3. Smooth the sky spectrum to the resolution of the data, if the archive
-has higher spectral resolution (preferred).
+   has higher spectral resolution (preferred).
+
 4. Normalize each spectrum to unit average sky counts
+
 5. Subtract a bspline continuum from each
+
 6. Perform a cross-correlation
+
 7. Fit the cross-correlation with a parabola to find center
+
 8. Apply shift
 
 
@@ -91,15 +98,19 @@ following line under the ''Reduce'' block in your .pypeit file::
 
 The models supplied with PypeIt are,
 
-================================   ===========
-Filename                           Description
-================================   ===========
-paranal_sky.fits                   Description to come 
-sky_LRISb_400.fits                 Mauna Kea sky observed with LRISb and the 400/3400 grism
-sky_LRISb_600.fits                 Mauna Kea sky observed with LRISb and the 600/4000 grism [Default for lris_blue]
-sky_kastb_600.fits                 Mt. Hamilton sky observed with Kastb and the 600 grism [Default for kast_blue]
-sky_LRISr_600_7500_5460_7950.fits  Description to come
-=================================  ===========
++-----------------------------------+-----------------------------------------------------------------------------------+
+| Filename                          | Description                                                                       |
++===================================+===================================================================================+
+| paranal_sky.fits                  |  Description to come                                                              |
++-----------------------------------+-----------------------------------------------------------------------------------+
+| sky_LRISb_400.fits                |  Mauna Kea sky observed with LRISb and the 400/3400 grism                         |
++-----------------------------------+-----------------------------------------------------------------------------------+
+| sky_LRISb_600.fits                |  Mauna Kea sky observed with LRISb and the 600/4000 grism [Default for lris_blue] |
++-----------------------------------+-----------------------------------------------------------------------------------+
+| sky_kastb_600.fits                |  Mt. Hamilton sky observed with Kastb and the 600 grism [Default for kast_blue]   |
++-----------------------------------+-----------------------------------------------------------------------------------+
+| sky_LRISr_600_7500_5460_7950.fits |  Description to come                                                              |
++-----------------------------------+-----------------------------------------------------------------------------------+
 
 Other
 =====

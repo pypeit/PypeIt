@@ -1,12 +1,8 @@
-.. _wavetilts:
-
 .. highlight:: rest
 
 ****************
 Wavelength Tilts
 ****************
-
-.. index:: wave_tilts
 
 Overview
 ========
@@ -19,12 +15,17 @@ This process is organized by the WaveTilts class which
 is primarily a wrapper to methods in the artracewave.py module.
 Here is the code flow:
 
-  1.  Extract an arc spectrum down the center of each slit/order
-  2.  Loop on slits/orders
-    i.   Trace the arc lines (fweight is the default)
-    ii.  Fit the individual arc lines
-    iii.  2D Fit to the offset from pixcen
-    iv. Save
+    1. Extract an arc spectrum down the center of each slit/order
+
+    2. Loop on slits/orders
+
+        i.   Trace the arc lines (fweight is the default)
+
+        ii.  Fit the individual arc lines
+
+        iii.  2D Fit to the offset from pixcen
+
+        iv. Save
 
 See this `WaveTilts <https://github.com/pypeit/pypeit/blob/master/doc/nb/WaveCalib.ipynb>`_
 Notebook for some examples.
@@ -39,7 +40,7 @@ Scripts
 =======
 
 pypeit_chk_tilts
----------------
+----------------
 
 This script displays several aspects of the tilts solution
 on the Arc frame.  Here is the usage::

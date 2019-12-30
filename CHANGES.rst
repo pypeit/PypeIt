@@ -1,7 +1,117 @@
-0.10.2dev
+
+0.12.1dev
 ---------
 
+0.12.0 (23 Dec 2019)
+--------------------
 
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band
+  spectroscopy. 
+- Fixed bug in coadd2d.
+- Add VLT/FORS filters to our database
+- Improved DEIMOS frame typing
+- Brings Gemini/GMOS into the suite (R400)
+- Also an important change for autoid.full_template()
+- Fixed trace extrapolation, to fix bugs in object finding. Tweaks to
+  object finding algorithm.
+- Major improvements to echelle object finding.
+- Improved outlier rejection and coefficient fitting in pca_trace
+- Major improvements to coadd routines in coadd1d
+- Introduced telluric module and telluric correction routines
+- Implemented tilt image type which is now a required frame type
+- Streamlined and abstracted echelle properties and echelle routine in
+  spectrograph classes.
+- Revamped 2-d coadding routines and introduced 2-d coadding of
+  MultiSlit data
+- Improved ginga plotting routines.
+- Fixed bug associated with astropy.stats.sigma_clipped_stats when
+  astropy.stats.mad_std is used.
+- Refactor BPM generation
+- Merge raw_image loading with datasec_img and oscansec_img generation
+- Sync datasec_img to image in ProcessRawImage
+- Started (barely) on a path to having calibration images in counts and
+  not ADU
+- Refactors GMOS for get_rawimage method
+- Enables GMOS overscan subtraction
+- Adds R400 wavelength solution for old E2V chip
+- Revises simple_calib() method for quick and dirty wavelength
+  calibration
+- Adds a related show_wvcalib script
+- Changes to ech_combspec to better treat filenames
+- Fixed bug when bias was set to 'force' which was not bias subtracting
+- Implemented changes to vlt_xshooter_nir to now require darks taken
+  between flats
+- Made flat fielding code a bit more robust against hot pixels at edge
+  of orders
+- Added pypeit_chk_flat script to view flat images
+- Refactored image objects into RawImage, ProcessRawImage, PypeItImage,
+  BuildImage
+- Moved load() and save() methods from MasterFrame to the individual
+  calibration objects
+- Converted ArcImage and FlatImages into counts
+- Added code to allow for IVAR and RN2 image generation for calibs
+- Added several from_master_file() instantiation methods
+- Use coadd2d.weighted_combine() to stack calibration images
+- Major refactor of slit edge tracing
+- Added 'Identify' tool to allow manual identification and calibration
+  of an arc spectrum
+- Added support for WHT/ISIS
+- Added 'Object Tracing' tool to allow interactive object tracing
+- Added code of conduct
+- Deprecated previous tracing code: `pypeit.traceslits` and
+  `pypeit.core.trace_slits`, as well as some functions in
+  `pypeit.core.extract` that were replaced by
+  `pypeit.core.moment.moment1d` and functions in `pypeit.core.trace`.
+- PCA now saved to MasterEdges file; added I/O methods
+- Improved CuAr linelists and archives for Gemini wavelength solutions
+- New data model for specobj and specobsj objects (spec1d)
+- Started some improvements to Coadd2D, TBC
+- Allow for the continuum of the arc image to be modeled and subtracted
+  when tracing the line-centroid tilts
+- Include a mask in the line detection in extracted central arc spectrum
+  of each slit/order.  For VLT XShooter NIR, this was needed to ensure
+  the sigma calculation didn't include the off-order spectral positions.
+- Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
+  construces a ``tslits_dict`` object directly from the Master file.
+
+0.11.0.1
+---------
+
+- Add DOI
+
+0.11.0 (22 Jun 2019)
+--------------------
+
+- Add magellan_mage, including a new ThAr linelist and an archived
+  solution
+- Polish several key echelle methods
+- Modify create_linelist to default to vacuum
+- Update Xshooter, NIRES, and GNIRS
+- Refactor ProcessImages into ProcessRawImage, PypeItImage,
+  CalibrationImage, ScienceImage, and ImageMask
+- Refactor ScienceImage into SciImgStack
+- Fix arc tilts bug
+- Started an X-Shooter doc and introduced a [process][bias] parameter
+- Modified processing steps for bias + overscan subtraction
+- Started notes on how to generate a new spectrograph in PypeIt
+- Refactoring of reduce to take a ScienceImage object for the images and
+  the mask
+- Updates to many spectrograph files to put datasec, oscansec in the raw
+  frame
+- Add find_trim_edge and std_prof_nsigma parameters
+- A bit of tuning for MagE
+- Fixes for Echelle in fluxspec
+- Writes a chosen set of header cards to the spec1D and coadd files
+- Updates for FORS2
+- Introduced new coadd1d module and some new coadd functinality.
+- modified interface to robust_polyfit_djs, robust_optimize, and
+  djs_reject.
+- Added utility routine cap_ivar for capping the noise level.
+- Fixed a bug in optimal extraction which was causing hot pixels when a
+  large fraction of the pixels on the object profile were masked.
+- Major bug fixes and improvements to echelle object finding. Orders
+  which did not cover the entire detector were not being treated
+  properly.
 
 0.10.1 (22 May 2019)
 --------------------

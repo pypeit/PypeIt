@@ -6,12 +6,25 @@ that can be imported by submodules.
 """
 
 # Imports for signal and log handling
+import os
 import sys
 import signal
 import warnings
 
+def short_warning(message, category, filename, lineno, file=None, line=None):
+    """
+    Return the format for a short warning message.
+    """
+    return ' %s: %s (%s:%s)\n' % (category.__name__, message, os.path.split(filename)[1], lineno)
+
+warnings.formatwarning = short_warning
+
+
 # Set version
-__version__ = '0.10.2dev'
+__version__ = '0.12.1dev'
+
+# Report current coverage
+__coverage__ = 0.55
 
 # Import and instantiate the logger
 from pypeit import pypmsgs
@@ -39,8 +52,8 @@ signal.signal(signal.SIGINT, signal_handler)
 # Ignore all warnings given by python
 # TODO: I'd rather we not do this.  Is there a way we can redirect
 # warnings to pypeit.msgs ?
-warnings.resetwarnings()
-warnings.simplefilter('ignore')
+#warnings.resetwarnings()
+#warnings.simplefilter('ignore')
 
 # TODO: Need some way of selectively doing this.  Once you import
 # pypeit, this affects the behavior of pyplot for *anything* else you

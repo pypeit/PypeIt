@@ -2,6 +2,6 @@ pypeit.pypeitsetup module
 =========================
 
 .. automodule:: pypeit.pypeitsetup
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

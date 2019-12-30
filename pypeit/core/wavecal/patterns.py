@@ -13,12 +13,13 @@ def detect_2Dpeaks(image):
     Parameters
     ----------
     image : ndarray
-      2D image
+        2D image
 
     Returns
     -------
     pimage : ndarray
-      boolean mask of the peaks (1 when the pixel's value is the neighborhood maximum, 0 otherwise)
+        boolean mask of the peaks (1 when the pixel's value is the
+        neighborhood maximum, 0 otherwise)
 
     """
     # Define an 8-connected neighborhood
@@ -45,16 +46,16 @@ def match_quad_to_list(spec_lines, line_list, wv_guess, dwv_guess,
     Parameters
     ----------
     spec_lines : ndarray
-      pixel space
-    line_list
-    tol
+        pixel space
+    line_list :
+    tol :
     min_ftol : float, optional
-      Minimum tolerance for matching 
+        Minimum tolerance for matching 
 
     Returns
     -------
     possible_matches : list
-      list of indices of matching quads
+        list of indices of matching quads
 
     """
     # Setup spec
@@ -98,20 +99,20 @@ def run_quad_match(tcent, twave, llist_wv, disp, swv_uncertainty=250., pix_tol=1
     Parameters
     ----------
     tcent : ndarray
-      Pixel positions of arc lines
+        Pixel positions of arc lines
     twave : ndarray
-      Crude guess at wavelength solution, e.g. from wvcen, disp
+        Crude guess at wavelength solution, e.g. from wvcen, disp
     llist_wv : ndarray
-      Lines to match against (from a line list)
+        Lines to match against (from a line list)
     pix_tol : float
-      Tolerance in units of pixels to match to
+        Tolerance in units of pixels to match to
 
     Returns
     -------
     match_idx : dict
-      Record of matches
+        Record of matches
     scores : ndarray
-      str array of scores
+        str array of scores
     """
 
     # Init
@@ -152,10 +153,15 @@ def run_quad_match(tcent, twave, llist_wv, disp, swv_uncertainty=250., pix_tol=1
 def scan_for_matches(wvcen, disp, npix, cut_tcent, wvdata, best_dict=None,
                      swv_uncertainty=350., wvoff=1000., pix_tol=2., ampl=None):
     """
+
+    .. warning::
+
+        best_dict is updated in place
+
     Parameters
     ----------
     wvcen : float
-      Guess at central wavelength
+        Guess at central wavelength
     disp : float
     npix
     cut_tcent
@@ -165,9 +171,6 @@ def scan_for_matches(wvcen, disp, npix, cut_tcent, wvdata, best_dict=None,
     wvoff
     pix_tol
 
-    Returns
-    -------
-    best_dict is updated in place
     """
 
     # Setup
@@ -217,7 +220,9 @@ def scan_for_matches(wvcen, disp, npix, cut_tcent, wvdata, best_dict=None,
 
 
 def score_quad_matches(fidx):
-    """  Grades quad_match results
+    """
+    Grades quad_match results
+
     Parameters
     ----------
     fidx
@@ -261,47 +266,51 @@ def score_quad_matches(fidx):
 
 @nb.jit(nopython=True, cache=True)
 def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
-    """ Brute force pattern recognition using triangles. A triangle contains
-        (for either detlines or linelist):
-          (1) a starting point (s),
-          (2) an end point (e), and
-          (3) something in between (b)
+    """
 
+    Brute force pattern recognition using triangles. A triangle contains
+    (for either detlines or linelist):
 
-                        |
-                        |      |
-        |               |      |
-        |               |      |
-        s               b      e
+        1. a starting point (s),
+        2. an end point (e), and
+        3. something in between (b)
 
-        Then, the value (b-s)/(e-s) is in the same coordinate system
-        for both detlines and linelist.
+    Something like this::
+
+        >                    |
+        >                    |      |
+        >    |               |      |
+        >    |               |      |
+        >    s               b      e
+
+    Then, the value (b-s)/(e-s) is in the same coordinate system for
+    both detlines and linelist.
 
     Parameters
     ----------
     detlines : ndarray
-      list of detected lines in pixels (sorted, increasing)
+        list of detected lines in pixels (sorted, increasing)
     linelist : ndarray
-      list of lines that should be detected (sorted, increasing)
+        list of lines that should be detected (sorted, increasing)
     npixels : float
-      Number of pixels along the dispersion direction
+        Number of pixels along the dispersion direction
     detsrch : int
-      Number of consecutive elements in detlines to use to create a pattern (-1 means all lines in detlines)
+        Number of consecutive elements in detlines to use to create a pattern (-1 means all lines in detlines)
     lstsrch : int
-      Number of consecutive elements in linelist to use to create a pattern (-1 means all lines in detlines)
+        Number of consecutive elements in linelist to use to create a pattern (-1 means all lines in detlines)
     pixtol : float
-      tolerance that is used to determine if a match is successful (in units of pixels)
+        tolerance that is used to determine if a match is successful (in units of pixels)
 
     Returns
     -------
     dindex : ndarray
-      Index array of all detlines used in each triangle
+        Index array of all detlines used in each triangle
     lindex : ndarray
-      Index array of the assigned line to each index in dindex
+        Index array of the assigned line to each index in dindex
     wvcen : ndarray
-      central wavelength of each triangle
+        central wavelength of each triangle
     disps : ndarray
-      Dispersion of each triangle (angstroms/pixel)
+        Dispersion of each triangle (angstroms/pixel)
     """
 
     nptn = 3  # Number of lines used to create a pattern
@@ -376,47 +385,51 @@ def triangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
 
 @nb.jit(nopython=True, cache=True)
 def quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
-    """ Brute force pattern recognition using quadrangles. A quadrangle contains
-        (for either detlines or linelist):
-          (1) a left line (l),
-          (2) a right line (r), and
-          (3) two lines in between (a, b)
+    """
 
+    Brute force pattern recognition using quadrangles. A quadrangle
+    contains (for either detlines or linelist):
 
-                        |
-                  |     |      |
-        |         |     |      |
-        |         |     |      |
-        l         a     b      r
+        1. a left line (l),
+        2. a right line (r), and
+        3. two lines in between (a, b)
 
-        Then, the values (a-ll)/(r-ll) and (b-ll)/(r-ll) are in the same
-        coordinate system for both detlines and linelist.
+    Something like this::
+
+        >                   |
+        >             |     |      |
+        >   |         |     |      |
+        >   |         |     |      |
+        >   l         a     b      r
+
+    Then, the values (a-ll)/(r-ll) and (b-ll)/(r-ll) are in the same
+    coordinate system for both detlines and linelist.
 
     Parameters
     ----------
     detlines : ndarray
-      list of detected lines in pixels (sorted, increasing)
+        list of detected lines in pixels (sorted, increasing)
     linelist : ndarray
-      list of lines that should be detected (sorted, increasing)
+        list of lines that should be detected (sorted, increasing)
     npixels : float
-      Number of pixels along the dispersion direction
+        Number of pixels along the dispersion direction
     detsrch : int
-      Number of consecutive elements in detlines to use to create a pattern (-1 means all lines in detlines)
+        Number of consecutive elements in detlines to use to create a pattern (-1 means all lines in detlines)
     lstsrch : int
-      Number of consecutive elements in linelist to use to create a pattern (-1 means all lines in detlines)
+        Number of consecutive elements in linelist to use to create a pattern (-1 means all lines in detlines)
     pixtol : float
-      tolerance that is used to determine if a match is successful (in units of pixels)
+        tolerance that is used to determine if a match is successful (in units of pixels)
 
     Returns
     -------
     dindex : ndarray
-      Index array of all detlines used in each triangle
+        Index array of all detlines used in each triangle
     lindex : ndarray
-      Index array of the assigned line to each index in dindex
+        Index array of the assigned line to each index in dindex
     wvcen : ndarray
-      central wavelength of each triangle
+        central wavelength of each triangle
     disps : ndarray
-      Dispersion of each triangle (angstroms/pixel)
+        Dispersion of each triangle (angstroms/pixel)
     """
 
     nptn = 4  # Number of lines used to create a pattern
@@ -479,48 +492,52 @@ def quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
 
 @nb.jit(nopython=True, cache=True)
 def curved_quadrangles(detlines, linelist, npixels, detsrch=5, lstsrch=10, pixtol=1.0):
-    """ Brute force pattern recognition using curved quadrangles.
-        A curved quadrangle contains (for either detlines or linelist):
-          (1) a left line (l),
-          (2) a right line (r),
-          (3) a mid line (m), and
-          (4) one line in between (c; c != m)
+    """
 
+    Brute force pattern recognition using curved quadrangles.  A curved
+    quadrangle contains (for either detlines or linelist):
 
-                        |
-                  |     |      |
-        |         |     |      |
-        |         |     |      |
-        l         c     m      r
+        1. a left line (l),
+        2. a right line (r),
+        3. a mid line (m), and
+        4. one line in between (c; c != m)
 
-        Then, the values (c-r)/(r-l) are in the same
-        coordinate system for both detlines and linelist.
+    Something like this:
+
+        >                   |
+        >             |     |      |
+        >   |         |     |      |
+        >   |         |     |      |
+        >   l         c     m      r
+
+    Then, the values (c-r)/(r-l) are in the same coordinate system for
+    both detlines and linelist.
 
     Parameters
     ----------
     detlines : ndarray
-      list of detected lines in pixels (sorted, increasing)
+        list of detected lines in pixels (sorted, increasing)
     linelist : ndarray
-      list of lines that should be detected (sorted, increasing)
+        list of lines that should be detected (sorted, increasing)
     npixels : float
-      Number of pixels along the dispersion direction
+        Number of pixels along the dispersion direction
     detsrch : int
-      Number of consecutive elements in detlines to use to create a pattern (-1 means all lines in detlines)
+        Number of consecutive elements in detlines to use to create a pattern (-1 means all lines in detlines)
     lstsrch : int
-      Number of consecutive elements in linelist to use to create a pattern (-1 means all lines in detlines)
+        Number of consecutive elements in linelist to use to create a pattern (-1 means all lines in detlines)
     pixtol : float
-      tolerance that is used to determine if a match is successful (in units of pixels)
+        tolerance that is used to determine if a match is successful (in units of pixels)
 
     Returns
     -------
     dindex : ndarray
-      Index array of all detlines used in each triangle
+        Index array of all detlines used in each triangle
     lindex : ndarray
-      Index array of the assigned line to each index in dindex
+        Index array of the assigned line to each index in dindex
     wvcen : ndarray
-      central wavelength of each triangle
+        central wavelength of each triangle
     disps : ndarray
-      Dispersion of each triangle (angstroms/pixel)
+        Dispersion of each triangle (angstroms/pixel)
     """
 
     nptn = 4  # Number of lines used to create a pattern
@@ -589,12 +606,12 @@ def empty_patt_dict(nlines):
     Parameters
     ----------
     nlines:
-      Number of lines for creating the mask.
+        Number of lines for creating the mask.
 
     Returns
     -------
     patt_dict: dict
-       An empty pattern dictionary
+        An empty pattern dictionary
 
     """
     patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sign=1, mask=np.zeros(nlines, dtype=np.bool))
@@ -607,34 +624,28 @@ def solve_xcorr(detlines, linelist, dindex, lindex, line_cc, nreid_min = 4, cc_l
     Parameters
     ----------
     detlines : ndarray
-      list of detected lines in pixels (sorted, increasing)
+        list of detected lines in pixels (sorted, increasing)
     linelist : ndarray
-      list of lines that should be detected (sorted, increasing)
+        list of lines that should be detected (sorted, increasing)
     dindex : ndarray
-      Index array of all detlines (pixels) used in each triangle
+        Index array of all detlines (pixels) used in each triangle
     lindex : ndarray
-      Index array of the assigned line (wavelengths)to each index in dindex
+        Index array of the assigned line (wavelengths)to each index in dindex
 
     Returns
     -------
     patt_dict : dict
-       Contains all relevant details of the IDs.
-       Keys are:
-          acceptable: bool,
-             flag indicating success or failure
-          mask: ndarray, dtype =bool
-              mask indicating which lines are good
-          nmatch: int
-              Number of matching lines
-          scores: ndarray, str
-              Scores of the lines
-          IDs: ndarray, float
-              Wavelength IDs of the lines
-          cc_avg: ndarray, float
-              Average local zero-lag cross-correlation (over all the spectra for which a match was obtained) for the
-              most often occuring wavlength ID
+       Contains all relevant details of the IDs.  Keys are:
 
-
+          - acceptable: bool: flag indicating success or failure
+          - mask: ndarray, dtype =bool: mask indicating which lines are
+            good
+          - nmatch: int: Number of matching lines
+          - scores: ndarray, str: Scores of the lines
+          - IDs: ndarray, float: Wavelength IDs of the lines
+          - cc_avg: ndarray, float: Average local zero-lag
+            cross-correlation (over all the spectra for which a match
+            was obtained) for the most often occuring wavlength ID
 
     """
     nlines = detlines.size
@@ -690,20 +701,20 @@ def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):
     Parameters
     ----------
     counts : ndarray
-      Each element is a counter, representing a wavelength that is attributed to a given detected line.
-      The more times that a wavelength is attributed to a detected line, the higher the counts. The more
-      different wavelengths that are attributed to the same detected line (i.e. not ideal) the longer
-      the counts list will be.
-
-    Optional Parameters
-    -----------
-    nmin_match: int, default = 4
-       Minimum number of slits/solutions that have to have been matched to receive a score of 'Perfect' or 'Very Good'
+        Each element is a counter, representing a wavelength that is
+        attributed to a given detected line.  The more times that a
+        wavelength is attributed to a detected line, the higher the
+        counts. The more different wavelengths that are attributed to
+        the same detected line (i.e. not ideal) the longer the counts
+        list will be.
+    nmin_match: int, default = 4, optional
+        Minimum number of slits/solutions that have to have been matched
+        to receive a score of 'Perfect' or 'Very Good'
 
     Returns
     -------
     score : str
-      A string indicating the relative quality of the ID
+        A string indicating the relative quality of the ID
     """
     ncnt = counts.size
     max_counts = np.max(counts)
@@ -726,23 +737,21 @@ def score_xcorr(counts, cc_avg, nreid_min = 4, cc_local_thresh = -1.0):
 
 
 def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
-    """  Given a starting solution, find the best match for all detlines
+    """
+    Given a starting solution, find the best match for all detlines
 
     Parameters
     ----------
     detlines : ndarray
-      list of detected lines in pixels (sorted, increasing)
+        list of detected lines in pixels (sorted, increasing)
     linelist : ndarray
-      list of lines that should be detected (sorted, increasing)
+        list of lines that should be detected (sorted, increasing)
     dindex : ndarray
-      Index array of all detlines (pixels) used in each triangle
+        Index array of all detlines (pixels) used in each triangle
     lindex : ndarray
-      Index array of the assigned line (wavelengths)to each index in dindex
+        Index array of the assigned line (wavelengths)to each index in dindex
     patt_dict : dict
-      Contains all relevant details of the fit
-
-    Returns
-    -------
+        Contains all relevant details of the fit
 
     """
     nlines = detlines.size
@@ -778,24 +787,27 @@ def solve_triangles(detlines, linelist, dindex, lindex, patt_dict=None):
         patt_dict['nmatch'] = ngd_match
         patt_dict['scores'] = scores
         patt_dict['IDs'] = detids
-    return
 
 
 def score_triangles(counts):
-    """  Grades for the triangle results
+    """
+    Grades for the triangle results
 
     Parameters
     ----------
     counts : ndarray
-      Each element is a counter, representing a wavelength that is attributed to a given detected line.
-      The more times that a wavelength is attributed to a detected line, the higher the counts. The more
-      different wavelengths that are attributed to the same detected line (i.e. not ideal) the longer
-      the counts list will be.
+        Each element is a counter, representing a wavelength that is
+        attributed to a given detected line.  The more times that a
+        wavelength is attributed to a detected line, the higher the
+        counts. The more different wavelengths that are attributed to
+        the same detected line (i.e. not ideal) the longer the counts
+        list will be.
 
     Returns
     -------
     score : str
-      A string indicating the relative quality of the ID
+        A string indicating the relative quality of the ID
+
     """
     ncnt = counts.size
     max_counts = np.max(counts)
@@ -815,3 +827,4 @@ def score_triangles(counts):
         score = 'Ambitious'
     # Return
     return score
+

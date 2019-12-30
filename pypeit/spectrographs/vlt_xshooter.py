@@ -15,6 +15,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
+from IPython import embed
 
 from pkg_resources import resource_filename
 
@@ -67,6 +68,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card=None, default='default')
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+        meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
 
         # Ingest
         self.meta = meta
@@ -96,50 +98,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
-        return []
+        return ['arm']
 
-    def pypeit_file_keys(self):
-        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys
-
-#    def parse_binning(self, inp, **kwargs):
-#        """
-#        Get the pixel binning for an image.
-#
-#        Args:
-#            inp (:obj:`str`, `astropy.io.fits.Header`):
-#                String providing the file name to read, or the relevant
-#                header object.
-#
-#        Returns:
-#            str: String representation of the binning.  The ordering is
-#            as provided in the header, regardless of which axis is
-#            designated as the dispersion axis.  It is expected that this
-#            be used with :func:`pypeit.core.parse.sec2slice` to setup
-#            the data and overscane sections of the image data.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if `inp` is not one of the accepted types.
-#        """
-#        # Get the header
-#        if isinstance(inp, str):
-#            hdu = fits.open(inp)
-#            hdr = hdu[0].header
-#        elif isinstance(inp, fits.Header):
-#            hdr = inp
-#        else:
-#            msgs.error('Input must be a filename or fits.Header object')
-#
-#        # TODO: This is a hack.  These two keywords don't exist for the
-#        # test NIR file in tests/test_load_images.py.  Can the NIR data
-#        # be binned?  What are the appropriate keywords?
-#        try:
-#            return '{0},{1}'.format(hdr['HIERARCH ESO DET WIN1 BINX'],
-#                                    hdr['HIERARCH ESO DET WIN1 BINY'])
-#        except:
-#            return '1,1'
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -176,13 +136,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     def norders(self):
         return None
 
-    def slit2order(self, islit):
-        pass
-
-    def order_vec(self):
-        return self.slit2order(np.arange(self.norders))
-
-
 
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     """
@@ -209,19 +162,15 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 2.12, #
                             ronoise         = 8.0, # ?? more precise value? #TODO the read noise is exposure time  dependent and should be grabbed from header
-                            datasec         = '[4:,4:2044]', # These are all unbinned pixels
+                            datasec         = '[4:2044,4:]', # These are all unbinned pixels
                             # EMA: No real overscan for XSHOOTER-NIR: 
                             # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
                             # The overscan region below contains only zeros
                             # ToDo should we just set it as empty?
-                            oscansec        = '[1:3,4:2044]', # These are all unbinned pixels.
+                            oscansec        = '[4:2044,1:3]', # These are all unbinned pixels.
                             suffix          = '_NIR'
                             )]
         self.numhead = 1
-
-    @property
-    def norders(self):
-        return 16
 
 
     def default_pypeit_par(self):
@@ -232,11 +181,16 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 120.
-        par['calibrations']['slits']['trace_npoly'] = 8
-        par['calibrations']['slits']['maxshift'] = 0.5
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
 
         # Tilt parameters
+        par['calibrations']['tilts']['rm_continuum'] = True
         par['calibrations']['tilts']['tracethresh'] =  25.0
         par['calibrations']['tilts']['maxdev_tracefit'] =  0.04
         par['calibrations']['tilts']['maxdev2d'] =  0.04
@@ -252,7 +206,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_nir.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -280,12 +234,21 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['scienceimage']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         par['scienceimage']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
         par['scienceimage']['trace_npoly'] = 8
+        par['scienceimage']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
+        par['scienceimage']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
 
-        # Do not bias subtract
-        par['scienceframe']['useframe'] ='none'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'none'
+        # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
+        # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
+        # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
+        # images.
+        par['calibrations']['biasframe']['useframe'] = 'bias'
+        par['calibrations']['traceframe']['process']['bias'] = 'force'
+        par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        par['scienceframe']['process']['bias'] = 'skip'
+
 
         return par
 
@@ -306,14 +269,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
                                                               expected_values=expected_values)
 
-    '''
-    def header_keys(self):
-        hdr_keys = super(VLTXShooterNIRSpectrograph, self).header_keys()
-        hdr_keys[0]['decker'] = 'HIERARCH ESO INS OPTI5 NAME'
-        hdr_keys[0]['utc'] = 'HIERARCH ESO DET EXP UTC'
-        return hdr_keys
-    '''
-
     def init_meta(self):
         """
         Meta data specific to VLT NIR
@@ -328,8 +283,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
 
+    def pypeit_file_keys(self):
+        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-ShooterNIR.
 
@@ -349,7 +308,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         """
 
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
             bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
             try :
@@ -374,37 +333,36 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 bpm_loc = np.array([y_bpm,x_bpm]).T
                 np.savetxt(bpm_dir+'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
             finally :
-                self.bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
+                bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
-    def slit2order(self, islit):
 
-        """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
+    @property
+    def norders(self):
+        return 16
 
-        Returns
-        -------
-        order: int
-        """
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
+                                   0.33141317, 0.38813936, 0.44310197, 0.49637422,
+                                   0.54839496, 0.59948157, 0.65005956, 0.70074477,
+                                   0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
+        return ord_spat_pos
 
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
+    @property
+    def orders(self):
+        return np.arange(26, 10, -1, dtype=int)
 
-        orders = np.arange(26,10,-1, dtype=int)
-        return orders[islit]
 
-    def order_platescale(self, binning=None):
+    @property
+    def spec_min_max(self):
+        spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
+        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
+        return np.vstack((spec_min, spec_max))
+
+
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the spatial plate scale in arcseconds for each order
 
@@ -427,61 +385,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
 
         # Right now I just assume a simple linear trend
-        slit_vec = np.arange(self.norders)
-        order_vec = self.slit2order(slit_vec)
         plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
         return plate_scale
-
-    def slit_minmax(self, nslits, binspectral=1):
-
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
-        spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
-
-        return spec_min, spec_max
-
-
-    def slitmask(self, tslits_dict, pad=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        nslits = tslits_dict['lcen'].shape[1]
-        if nslits != self.norders:
-            msgs.error('There is a problem with your slit bounadries. You have nslits={:d} orders, whereas NIR has norders={:d}'.format(nslits,self.norders))
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        order_max = [1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000]
-        order_min = [420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0]
-        for islit in range(nslits):
-            orderbad = (slitmask == islit) & ((spec_img < order_min[islit]) | (spec_img > order_max[islit]))
-            slitmask[orderbad] = -1
-        return slitmask
 
 
     @property
@@ -521,16 +426,13 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 0.595, # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
                             ronoise         = 3.1, # raw unbinned images are (4000,2106) (spec, spat)
-                            datasec='[11:2058,1:]',  # pre and oscan are in the spatial direction
-                            oscansec='[2059:2106,1:]',
+                            datasec='[:,11:2058]',  # pre and oscan are in the spatial direction
+                            oscansec='[:,2059:2106]',
                             suffix          = '_VIS'
                             )]
         self.numhead = 1
 
 
-    @property
-    def norders(self):
-        return 15
 
     def default_pypeit_par(self):
         """
@@ -541,18 +443,18 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to parameters for VIS
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        # X-SHOOTER arcs/tilts are also have different binning with bias frames
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
-        par['calibrations']['arcframe']['useframe']= 'overscan'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
-        par['calibrations']['traceframe']['useframe']= 'overscan'
-        par['calibrations']['biasframe']['useframe']= 'overscan'
-        # TODO THIS IS STUPID. biasframe currently determines behvior for everyone. See Issue # 554
 
-        par['calibrations']['slits']['sigdetect'] = 8.0
-        par['calibrations']['slits']['trace_npoly'] = 8
-        par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = -1
-        #par['calibrations']['slits']['fracignore'] = 0.01
+        par['calibrations']['slitedges']['edge_thresh'] = 8.0
+        par['calibrations']['slitedges']['fit_order'] = 8
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
@@ -569,7 +471,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
         par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -586,8 +489,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Extraction
         par['scienceimage']['bspline_spacing'] = 0.5
-        par['calibrations']['slits']['trace_npoly'] = 8
         par['scienceimage']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['scienceimage']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
+        par['scienceimage']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
+        par['scienceimage']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
+        par['scienceimage']['global_sky_std'] = False
+
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
@@ -608,52 +515,41 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
 
-    def slit2order(self, islit):
+    @property
+    def norders(self):
+        return 15
 
-        """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
+                                 0.41289127, 0.4733839 , 0.53072208, 0.58509916,
+                                 0.63671413, 0.685754, 0.73236772, 0.77676367,
+                                 0.8191196 , 0.85968302, 0.89877932])
+        return ord_spat_pos
 
-        Returns
-        -------
-        order: int
-        """
+    @property
+    def orders(self):
+        return np.arange(30, 15, -1, dtype=int)
 
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
-
-        orders = np.arange(30,15,-1, dtype=int)
-
-        return orders[islit]
+    @property
+    def spec_min_max(self):
+        spec_max = np.asarray([4000]*14 + [3000])
+        spec_min = np.asarray([2000,1000] + [0]*13)
+        return np.vstack((spec_min, spec_max))
 
 
-    def order_platescale(self, binning=None):
+    def order_platescale(self, order_vec, binning=None):
         """
         Returns the plate scale in arcseconds for each order
 
-        Parameters
-        ----------
-        None
+        Args:
+            order_vec (np.ndarray): Order numbers
+            binning (optional):
 
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
+        Returns:
+            np.ndarray: Platescale
 
         """
-
         # VIS has no binning, but for an instrument with binning we would do this
         binspectral, binspatial = parse.parse_binning(binning)
 
@@ -662,64 +558,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # VIS: 65.9 pixels (0.167"/pix) at order 17 to 72.0 pixels (0.153"/pix) at order 30.
 
         # Right now I just assume a simple linear trend
-        slit_vec = np.arange(self.norders)
-        order_vec = self.slit2order(slit_vec)
         plate_scale = 0.153 + (order_vec - 30)*(0.153-0.167)/(30 - 17)
         return plate_scale*binspatial
 
 
-    def slit_minmax(self, nslits, binspectral=1):
-
-        spec_max = np.asarray([4000]*14 + [3000])//binspectral
-        spec_min = np.asarray([2000,1000] + [0]*13)//binspectral
-
-        return spec_min, spec_max
-
-    def slitmask(self, tslits_dict, pad=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        nslits = tslits_dict['lcen'].shape[1]
-        if nslits != self.norders:
-            msgs.error('Not all the orders were identified!')
-
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        binning = tslits_dict['binning']
-        binspectral, binspatial = parse.parse_binning(binning)
-        # These are the order boundaries determined by eye by JFH.
-        order_max = np.asarray([4000]*14 + [3000])//binspectral
-        order_min = np.asarray([2000,1000] + [0]*13)//binspectral
-        # TODO add binning adjustments to these
-        for iorder in range(self.norders):
-            orderbad = (slitmask == iorder) & ((spec_img < order_min[iorder]) | (spec_img > order_max[iorder]))
-            slitmask[orderbad] = -1
-
-        return slitmask
 
     @property
     def dloglam(self):
@@ -732,7 +574,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(5000.0), np.log10(11000)
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -751,6 +593,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+        shape = bpm_img.shape
+        #
         # ToDo Ema: This is just a workaround to deal with
         # different binning. I guess binspatial and binspectral
         # should be passed in.
@@ -763,10 +608,9 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         else:
             binspatial_bpm=1
 
-        self.empty_bpm(shape=shape, filename=filename, det=det)
         if det == 1:
-            self.bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
-        return self.bpm_img
+            bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
+        return bpm_img
 
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
@@ -796,8 +640,8 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
                             numamplifiers   = 1,
                             gain            = 1.61,
                             ronoise         = 2.60,
-                            datasec         = '[49:2096,1:]', # '[49:2000,1:2999]',
-                            oscansec        = '[1:48,1:]', # '[1:48, 1:2999]',
+                            datasec         = '[:,49:2096]', # '[49:2000,1:2999]',
+                            oscansec        = '[:,1:48]', # '[1:48, 1:2999]',
                             suffix          = '_UVB'
                             )]
         self.numhead = 1
@@ -812,16 +656,17 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
 
         # Adjustments to slit and tilts for UVB
-        par['calibrations']['slits']['sigdetect'] = 8.
-#        par['calibrations']['slits']['pcatype'] = 'pixel'
-        # TODO: polyorder disappeared; check that this doesn't cause
-        # problems.
-#        par['calibrations']['slits']['polyorder'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
-        par['calibrations']['slits']['number'] = -1
+        par['calibrations']['slitedges']['edge_thresh'] = 8.
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['left_right_pca'] = True
+        par['calibrations']['slitedges']['length_range'] = 0.3
 
         par['calibrations']['arcframe']['process']['overscan'] = 'median'
         par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        # X-SHOOTER UVB arcs/tilts have different binning with bias frames
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
@@ -860,7 +705,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI3 NAME')
 
-    def slit2order(self, islit):
+    def slit2order(self, islit, nslit):
 
         """
         Parameters
@@ -871,6 +716,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         -------
         order: int
         """
+        msgs.error("Refactor to use slit_spat_pos!!")
 
         if isinstance(islit, str):
             islit = int(islit)
@@ -885,7 +731,6 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         orders = np.arange(24,12,-1, dtype=int)
         return orders[islit]
-
 
 
     def order_platescale(self, binning = None):
@@ -905,6 +750,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         order_platescale: ndarray, float
 
         """
+        msgs.error("REFACTOR")
 
         binspectral, binspatial = parse.parse_binning(binning)
 
@@ -915,7 +761,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Right now I just took the average
         return np.full(self.norders, 0.161)*binspatial
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter UVB.
 
@@ -934,13 +780,13 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
           0 = ok; 1 = Mask
 
         """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning
-            self.bpm_img[:2369,1326:1328] = 1.
+            bpm_img[:2369,1326:1328] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
 
 

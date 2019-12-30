@@ -87,7 +87,7 @@ Source Identifiers
 
 PypeIt reduces each detector separately and associates identified
 slits and objects to that detector.  Therefore, sources are 
-uniquely identified by a combination of these :ref:`source-id-values`.  
+uniquely identified by a combination of these `source-id-values` (out of date!).  
 If requested (:ref:`outputs-compactness-explode`), the Spec1D files
 can be exploded to yield one FITS file per source.  In this
 case, the filenames are appended by the source identifiers::

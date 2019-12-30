@@ -91,8 +91,9 @@ def main(args, unit_test=False):
     import numpy as np
 
     from pypeit import fluxspec
-    from pypeit.core import flux
     from pypeit.par import pypeitpar
+
+    from IPython import embed
 
 
     # Load the file

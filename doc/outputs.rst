@@ -20,7 +20,6 @@ Contents
    out_redux
    out_spec1D
    out_spec2D
-   out_QA
 
 .. _standard-products:
 

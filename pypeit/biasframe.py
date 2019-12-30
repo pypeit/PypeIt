@@ -1,17 +1,21 @@
 """
 Module for guiding Bias subtraction including generating a Bias image as desired
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import numpy as np
+import os
+from IPython import embed
 
 from pypeit import msgs
-from pypeit import processimages
 from pypeit import masterframe
 from pypeit.par import pypeitpar
+from pypeit.images import calibrationimage
+from pypeit.images import pypeitimage
 
-class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
+
+class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
     Class to generate/load the Bias image or instructions on how to deal
     with the bias.
@@ -48,6 +52,33 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
     frametype = 'bias'
     master_type = 'Bias'
 
+    @classmethod
+    def from_master_file(cls, master_file, par=None):
+        """
+        Instantiate from a master file
+
+        Args:
+            master_file (str):
+            par (:class:`pypeit.par.pypeitpar.FrameGroupPar`, optional):
+
+        Returns:
+            biasframe.BiasFrame:
+                The PypeItImage is loaded into self.pypeitImage
+
+        """
+        # Spectrograph
+        spectrograph, extras = masterframe.items_from_master_file(master_file)
+        head0 = extras[0]
+        # Master info
+        master_dir = head0['MSTRDIR']
+        master_key = head0['MSTRKEY']
+        # Instantiate
+        slf = cls(spectrograph, par=par, master_dir=master_dir, master_key=master_key,
+                  reuse_masters=True)
+        slf.pypeitImage = slf.load(ifile=master_file)
+        # Return
+        return slf
+
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False):
@@ -56,13 +87,19 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
-                                             files=files, det=det)
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
+
+        # Processing steps
+        self.process_steps = []
+        if self.par['process']['overscan'].lower() != 'none':
+            self.process_steps.append('subtract_overscan')
+        self.process_steps += ['trim']
+        self.process_steps += ['orient']
 
     def build_image(self, overwrite=False, trim=True):
         """
@@ -71,16 +108,25 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
 
         Args:
             overwrite: (:obj: `bool`, optional):
-                Regenerate the stack image
+                Regenerate the combined image
             trim (:obj:`bool`, optional):
                 If True, trim the image
 
         Returns:
             `numpy.ndarray`_: Combined, processed image.
         """
-        if self.par['useframe'] == 'none':
+        # Nothing?
+        if self.par['useframe'].lower() == 'none':
+            msgs.info("Bias image subtraction not activated.")
             return None
-        return self.process(bias_subtract=None, trim=trim, overwrite=overwrite)
+        if self.nfiles == 0:
+            msgs.info("No bias frames provided.  No bias image will be generated or used")
+            return None
+        # Build
+        self.pypeItImage = super(BiasFrame, self).build_image(ignore_saturation=True)
+        self.pypeitImage.ivar = None  # Zero this out as it non-sensical
+        # Return
+        return self.pypeItImage
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -93,58 +139,58 @@ class BiasFrame(processimages.ProcessImages, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        if self.stack is None:
+        # Some checks
+        if self.pypeitImage is None:
             msgs.warn('No MasterBias to save!')
             return
-        if not isinstance(self.stack, np.ndarray):
-            msgs.warn('MasterBias is not an image.')
+        if not self.pypeitImage.validate():
+            msgs.warn('MasterBias is not a proper image.')
             return
-        super(BiasFrame, self).save(self.stack, 'BIAS', outfile=outfile, overwrite=overwrite,
-                                    raw_files=self.files, steps=self.steps)
+        # Proceed
+        _outfile = self.master_file_path if outfile is None else outfile
+        # Check if it exists
+        if os.path.exists(_outfile) and not overwrite:
+            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+                      + 'Set overwrite=True to overwrite it.')
+            return
+        # Save
+        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
+        self.pypeitImage.write(_outfile, hdr=hdr, iext='BIAS')
+        msgs.info('Master frame written to {0}'.format(_outfile))
+        #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
+        #                            raw_files=self.file_list, steps=self.process_steps)
 
-    # TODO: it would be better to have this instantiate the full class
-    # as a classmethod.
-    def load(self, ifile=None, return_header=False):
+    def load(self, ifile=None):
         """
-        Load the bias frame.
+        Load the bias frame according to how par['useframe'] is set.
         
-        This overwrites :func:`pypeit.masterframe.MasterFrame.load` so
-        that the bias can be returned as a string as necessary.
-
-        The bias mode to use in this reduction is either
-          - None -- No bias subtraction
-          - 'overscan' -- Overscan subtract
-          - stack -- Use a generated bias image
-
-        The result is *not* saved internally.
-
         Args:
             ifile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
                 :attr:`file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header
 
         Returns:
-            Returns either the `numpy.ndarray`_ with the bias image, a
-            string specifying that the bias should be subtracted using
-            the overscan, or None if no bias is to be subtracted.
+            Returns either the `numpy.ndarray`_ with the bias image
+            or None if no bias is to be subtracted.
         """
-        # Check input
-        if self.par['useframe'].lower() in ['none', 'overscan'] and return_header:
-            msgs.warn('No image data to read.  Header returned as None.')
-
         # How are we treating biases?
         # 1) No bias subtraction
         if self.par['useframe'].lower() == 'none':
             msgs.info("Will not perform bias/dark subtraction")
-            return (None,None) if return_header else None
+            return None
 
         # 2) Use overscan
         if self.par['useframe'] == 'overscan':
-            return ('overscan', None) if return_header else 'overscan'
+            msgs.error("useframe=overscan was Deprecated. Remove it from your pypeit file")
 
-        # 3) User wants bias subtractions, use a Master biasframe?
+        # 3) User wants bias subtractions
         if self.par['useframe'] in ['bias', 'dark']:
-            return super(BiasFrame, self).load('BIAS', ifile=ifile, return_header=return_header)
+            # Check on whether to reuse and whether the file exists
+            master_file = self.chk_load_master(ifile)
+            if master_file is None:
+                return
+            else:  # Load
+                self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file)
+                return self.pypeitImage
+            #return super(BiasFrame, self).load('BIAS', ifile=ifile, is_pypeitImage=True)
 

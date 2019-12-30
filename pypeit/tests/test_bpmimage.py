@@ -18,17 +18,6 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-
-def test_dummy_image():
-    # Simple
-    shape=(2048,2048)
-    spectrograph = util.load_spectrograph('shane_kast_blue')
-    bpm = spectrograph.bpm(shape=shape)#, trim=False)
-    assert isinstance(bpm, np.ndarray)
-    assert bpm.shape == shape
-    assert np.sum(bpm) == 0
-
-
 @dev_suite_required
 def test_keck_lris_red():
     # Spectrograph
@@ -37,10 +26,9 @@ def test_keck_lris_red():
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     # Get the shape
-    dsec_img = spectrograph.get_datasec_img(example_file, det=2)
-    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    det = 2
     # Simple
-    bpm = spectrograph.bpm(shape=shape, filename=example_file, det=2)
+    bpm = spectrograph.bpm(example_file, det)
     assert np.sum(bpm) > 0
 
 
@@ -50,9 +38,8 @@ def test_keck_deimos():
     example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
                                 'd0914_0002.fits.gz')
     # Get the shape
-    dsec_img = spectrograph.get_datasec_img(example_file, det=2)
-    shape = procimg.trim_frame(dsec_img, dsec_img < 1).shape
+    det = 4
     # Simple
-    bpm = spectrograph.bpm(shape=shape,det=4)
+    bpm = spectrograph.bpm(example_file, det)
     assert bpm[0,0] == 1
 

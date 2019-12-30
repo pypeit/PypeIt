@@ -8,11 +8,11 @@ import pytest
 import glob
 import numpy as np
 
-
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.images import pypeitimage
 
 # TODO: Bring this test back in some way?
 #def test_step_by_step():
@@ -43,16 +43,15 @@ from pypeit.spectrographs.util import load_spectrograph
 def test_run():
     # Masters
     spectrograph = load_spectrograph('shane_kast_blue')
-    tslits_dict, mstrace, tilts_dict, datasec_img \
-                = load_kast_blue_masters(tslits=True, tilts=True, datasec=True)
+    edges, tilts_dict = load_kast_blue_masters(edges=True, tilts=True)
     # Instantiate
     frametype = 'pixelflat'
     par = pypeitpar.FrameGroupPar(frametype)
     flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
-                                    tslits_dict=tslits_dict.copy())
+                                    tslits_dict=edges.convert_to_tslits_dict())
 
-    # Use mstrace
-    flatField.rawflatimg = mstrace.copy()
+    # Use the trace image
+    flatField.rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
     mspixelflatnrm, msillumflat = flatField.run()
     assert np.isclose(np.median(mspixelflatnrm), 1.0)
 

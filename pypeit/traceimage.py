@@ -1,17 +1,15 @@
 """
 Module for generating the Trace image
 """
-import inspect
 import numpy as np
 
 from pypeit import msgs
-from pypeit import processimages
 from pypeit.par import pypeitpar
+from pypeit.images import calibrationimage
+from pypeit.core import procimg
+from IPython import embed
 
-from pypeit import debugger
-
-
-class TraceImage(processimages.ProcessImages):
+class TraceImage(calibrationimage.CalibrationImage):
     """
     Generate the image for tracing the slits/orders, typically from a
     set of flat-field or twilight sky exposures
@@ -28,12 +26,21 @@ class TraceImage(processimages.ProcessImages):
             The parameters used to type and process the arc frames.
     """
     # Frametype is a class attribute
-    # TODO: Why is this not trace
     frametype = 'trace_image'
 
-    def __init__(self, spectrograph, files=None, det=1, par=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None, bias=None):
         self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
-        processimages.ProcessImages.__init__(self, spectrograph, self.par['process'],
-                                             files=files, det=det)
-
+        # Start us up
+        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
+                                                   files=files)
+        # Processing steps
+        self.process_steps = procimg.init_process_steps(bias, self.par['process'])
+        self.process_steps += ['trim']
+        self.process_steps += ['apply_gain']
+        self.process_steps += ['orient']
+        # TODO: CR masking for the trace images causes major issues with
+        # the edge tracing because it identifies the edges of the slits
+        # as cosmic rays.  CR parameters need to be optimized for this
+        # to work.
+#        self.process_steps += ['crmask']
 

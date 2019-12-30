@@ -6,11 +6,10 @@ Subpackages
 
 .. toctree::
 
-    pypeit.core
-    pypeit.par
-    pypeit.scripts
-    pypeit.spectrographs
-    pypeit.tests
+   pypeit.core
+   pypeit.images
+   pypeit.par
+   pypeit.spectrographs
 
 Submodules
 ----------
@@ -23,23 +22,25 @@ Submodules
    pypeit.calibrations
    pypeit.check_requirements
    pypeit.debugger
+   pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxspec
    pypeit.ginga
    pypeit.io
    pypeit.masterframe
    pypeit.metadata
-   pypeit.processimages
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.reduce
-   pypeit.scienceimage
+   pypeit.sampling
    pypeit.setup_package
+   pypeit.specobj
    pypeit.specobjs
    pypeit.telescopes
+   pypeit.tiltimage
    pypeit.traceimage
-   pypeit.traceslits
+   pypeit.tracepca
    pypeit.utils
    pypeit.wavecalib
    pypeit.waveimage
@@ -50,6 +51,6 @@ Module contents
 ---------------
 
 .. automodule:: pypeit
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

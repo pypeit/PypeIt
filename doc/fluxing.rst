@@ -49,6 +49,7 @@ To flux one or more spec1d files, generate a `flux read`, e.g.::
 
 The first entry of each row is the spec1d file to be fluxed
 and the second provides the output filename.
+One separates the two entries by *a single space*!
 
 .. _fluxspec-script:
 
@@ -162,15 +163,22 @@ Things sometimes go wrong the fluxing and it commonly has to do with
 the bspline algorithm. If you reach a stop in the code with a message
 that says "Problem with bspline knot" there are a couple things to check:
 
-    - There are instances where there isn't data 
-      between the knots. You can change the knot spacing by including 
-      the following in your .pypeit file under the Reduce block::
-        reduce skysub bspline everyn NUM
+    - There are instances where there isn't data between the knots. You
+      can change the knot spacing by including the following in your
+      pypeit file under the Reduce block::
+
+            reduce skysub bspline everyn NUM
+
       where you adjust NUM. 
-    - If your observation of the standard star is taken with a setup that 
-      goes beyond the wavelength range of the version in data/standards/calspec.
-    - If the wavelength solution is really bad it can manifest as problem in 
-      bspline knot. If the issue isn't the spacing or wavelength coverage check
-      the QA files to see if there is an issue in the wavelength solution. If 
-      this is the case, check the :doc:`wave_calib` page for Troubleshooting 
-      or open an issue on the GitHub repo.
+
+    - If your observation of the standard star is taken with a setup
+      that goes beyond the wavelength range of the version in
+      data/standards/calspec.
+
+    - If the wavelength solution is really bad it can manifest as
+      problem in bspline knot. If the issue isn't the spacing or
+      wavelength coverage check the QA files to see if there is an issue
+      in the wavelength solution. If this is the case, check the
+      :doc:`wave_calib` page for Troubleshooting or open an issue on the
+      GitHub repo.
+

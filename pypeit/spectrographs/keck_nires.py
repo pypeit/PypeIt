@@ -39,10 +39,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
                             numamplifiers   = 1,
                             gain            = 3.8,
                             ronoise         = 5.0,
-                            datasec         = '[1:2048,1:1024]',
-                            oscansec        = '[1:2048,980:1024]'
+                            datasec         = '[:,:]',
+                            oscansec        = '[980:1024,:]'  # Is this a hack??
                             )]
-        self.norders = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file = ?
@@ -57,12 +56,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_nires'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 1
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
@@ -73,13 +66,17 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # Reidentification parameters
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.json'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
         par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
+
+        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+        par['calibrations']['slitedges']['left_right_pca'] = True
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] =  10.0
@@ -99,13 +96,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
-        # Do not bias subtract
-        par['scienceframe']['useframe'] ='overscan'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'overscan'
-
-
+        # Overscan but not bias
+        #  This seems like a kludge of sorts
+        par['calibrations']['biasframe']['useframe'] = 'none'
 
 
         # Set the default exposure time ranges for the frame typing
@@ -164,7 +157,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return (fitstbl['idname'] == 'object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -184,109 +177,50 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         """
         msgs.info("Custom bad pixel mask for NIRES")
-        self.empty_bpm(shape=shape, filename=filename, det=det)
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
         if det == 1:
-            self.bpm_img[:, :20] = 1.
-            self.bpm_img[:, 1000:] = 1.
+            bpm_img[:, :20] = 1.
+            bpm_img[:, 1000:] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
-    def slit_minmax(self, nslits, binspectral=1):
 
-        # These are the order boundaries determined by eye by JFH. 2025 is used as the maximum as the upper bit is not illuminated
-        spec_max = np.asarray([np.inf, np.inf, np.inf, np.inf, np.inf, np.inf])
-        spec_min = np.asarray([1024, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf])
 
-        return spec_min, spec_max
+    @property
+    def norders(self):
+        return 5
 
-    def slitmask(self, tslits_dict, pad=None):
+    @property
+    def order_spat_pos(self):
+        ord_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
+                                   0.70260714, 0.86335914])
+        return ord_spat_pos
+
+    @property
+    def orders(self):
+        return np.arange(7, 2, -1, dtype=int)
+
+
+    @property
+    def spec_min_max(self):
+        spec_max = np.asarray([np.inf]*self.norders)
+        spec_min = np.asarray([1024, -np.inf, -np.inf, -np.inf, -np.inf])
+        return np.vstack((spec_min, spec_max))
+
+    def order_platescale(self, order_vec, binning=None):
         """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
+        NIRES has no binning
 
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
+        Args:
+            order_vec (np.ndarray):
+            binning (optional):
 
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        spec_img = np.outer(np.arange(tslits_dict['nspec'], dtype=int), np.ones(tslits_dict['nspat'], dtype=int))  # spectral position everywhere along image
-
-        order7bad = (slitmask == 0) & (spec_img < tslits_dict['nspec']/2)
-        slitmask[order7bad] = -1
-        return slitmask
-
-    def slit2order(self, islit):
+        Returns:
+            np.ndarray:
 
         """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
-
-        orders = np.arange(7, 2, -1, dtype=int)
-        return orders[islit]
-
-    def order_vec(self):
-        return self.slit2order(np.arange(self.norders))
-
-
-    def order_platescale(self, binning=None):
-
-
-        """
-        Returns the plate scale in arcseconds for each order
-
-        Parameters
-        ----------
-        None
-
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
-
-        """
-
-        # NIRES has no binning, but for an instrument with binning we would do this
-        #binspatial, binspectral = parse.parse_binning(binning)
-        return np.full(5, 0.15)
+        norders = order_vec.size
+        return np.full(norders, 0.15)
 
 
     @property

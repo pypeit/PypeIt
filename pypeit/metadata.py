@@ -16,14 +16,13 @@ from astropy import table, coordinates, time
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import framematch
-from pypeit.core import flux
+from pypeit.core import flux_calib
 from pypeit.core import parse
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
-
-from pypeit import debugger
+from IPython import embed
 
 # Initially tried to subclass this from astropy.table.Table, but that
 # proved too difficult.
@@ -148,18 +147,24 @@ class PypeItMetaData:
     def define_core_meta():
         """
         Define the core set of meta data that must be defined
-        to run PypeIt
+        to run PypeIt.
 
-        Each meta entry is a dict with keys
-           dtype: str, float, int
-           comment: str
-           rtol: float, optional
-             Sets the relative tolerance for float meta when used to set a configuration
+        .. warning::
+
+            The keys should all be <= 8 length as they are all written
+            to the Header.
+
+        Each meta entry is a dict with the following keys:
+           - dtype: str, float, int
+           - comment: str
+           - rtol: float, optional -- Sets the relative tolerance for
+             float meta when used to set a configuration
 
         Each meta dtype must be scalar or str.  No tuple, list, ndarray, etc.
 
         Returns:
-            core_meta: dict
+            dict: core_meta
+
         """
         core_meta = OrderedDict()  # Mainly to format output to PypeIt file
         # Filename
@@ -181,6 +186,10 @@ class PypeItMetaData:
         core_meta['airmass'] = dict(dtype=float, comment='Airmass')
         core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
 
+        # Test me
+        for key in core_meta.keys():
+            assert len(key) <= 8
+
         # Return
         return core_meta
 
@@ -196,8 +205,7 @@ class PypeItMetaData:
         the relative tolerance for a match
 
         Returns:
-            additional_meta: dict
-              Describes the additional meta data used in PypeIt
+            dict: Describes the additional meta data used in PypeIt
 
         """
         additional_meta = {}
@@ -209,6 +217,8 @@ class PypeItMetaData:
         additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
         additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
         additional_meta['detector'] = dict(dtype=str, comment='Name of detector')
+        additional_meta['arm'] = dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)')
+        additional_meta['datasec'] = dict(dtype=str, comment='Data section (windowing)')
 
         # Calibration lamps
         for kk in range(20):
@@ -285,13 +295,12 @@ class PypeItMetaData:
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(ifile, meta_key, headarr=headarr,
-                                                         required=strict, usr_row=usr_row,
+                value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
                 data[meta_key].append(value)
             msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
-        # JFH Changed the below to now crash if some files have None in their MJD. This is the desired behavior
+        # JFH Changed the below to not crash if some files have None in their MJD. This is the desired behavior
         # since if there are empty or corrupt files we still want this to run.
 
         # Validate, print out a warning if there is problem
@@ -689,13 +698,15 @@ class PypeItMetaData:
         Args:
             ignore (:obj:`list`, optional):
                 Ignore configurations in the provided list.
-            return_index (:obj:`bool, optional):
+            return_index (:obj:`bool`, optional):
                 Return row indices with the first occurence of these
                 configurations.
             configs (:obj:`list`, optional):
-                Only pass back those matching this set of input configs
-                if ['all'], pass back all
-                Otherwise, a list like ['A','C'] is expected
+                A list of strings used to select the configurations
+                to include in the returned objects. If ['all'], pass
+                back all configurations. Otherwise, only return the
+                configurations matched to this provided list (e.g.,
+                ['A','C']).
 
         Returns:
             numpy.array: The list of unique setup names.  A second
@@ -719,6 +730,9 @@ class PypeItMetaData:
             indx = indx[rm]
 
         # Restrict
+        # TODO: Why do we need to specify 'all' here? Can't `configs is
+        # None` mean that you want all the configurations? Or can we
+        # make the default 'all'?
         if configs is not None:
             if configs[0] == 'all':
                 pass
@@ -1304,7 +1318,7 @@ class PypeItMetaData:
     
                 # If an object exists within 20 arcmins of a listed standard,
                 # then it is probably a standard star
-                foundstd = flux.find_standard_file(ra, dec, check=True)
+                foundstd = flux_calib.find_standard_file(ra, dec, check=True)
                 b = self.type_bitmask.turn_off(b, flag='science' if foundstd else 'standard')
     
         # Find the files without any types
@@ -1390,9 +1404,9 @@ class PypeItMetaData:
 
     def write_setups(self, ofile, overwrite=True, ignore=None):
         """
-        Write the *.setups file.
+        Write the setups file.
 
-        The *.setups file lists all the unique instrument configurations
+        The setups file lists all the unique instrument configurations
         (setups).
 
         .. todo::
@@ -1418,9 +1432,9 @@ class PypeItMetaData:
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, write_bkg_pairs=False):
         """
-        Write the *.sorted file.
+        Write the sorted file.
 
-        The *.sorted file lists all the unique instrument configurations
+        The sorted file lists all the unique instrument configurations
         (setups) and the frames associated with each configuration.  The
         output data table is identical to the pypeit file output.
 
@@ -1473,9 +1487,9 @@ class PypeItMetaData:
 
     def write_calib(self, ofile, overwrite=True, ignore=None):
         """
-        Write the *.calib file.
+        Write the calib file.
 
-        The *.calib file provides the unique instrument configurations
+        The calib file provides the unique instrument configurations
         (setups) and the association of each frame from that
         configuration with a given calibration group.
 
@@ -1551,9 +1565,9 @@ class PypeItMetaData:
     def write_pypeit(self, ofile, ignore=None, cfg_lines=None, write_bkg_pairs=False,
                      configs=None):
         """
-        Write a *.pypeit file in data-table format.
+        Write a pypeit file in data-table format.
 
-        The *.pypeit file is the main configuration file for PypeIt,
+        The pypeit file is the main configuration file for PypeIt,
         configuring the control-flow and algorithmic parameters and
         listing the data files to read.  This function writes the
         columns selected by the
@@ -1576,12 +1590,18 @@ class PypeItMetaData:
                 :class:`pypeit.metadata.PypeItMetaData` object, include
                 two columns called `comb_id` and `bkg_id` that identify
                 object and background frame pairs.  The string indicates
-                how these these columns should be added::
-                    - `empty`: The columns are added but their values
-                      are all originally set to -1.  **This is
+                how these these columns should be added:
+
+                    - ``'empty'``: The columns are added but their
+                      values are all originally set to -1.  **This is
                       currently the only option.**
+
             configs (str, optional):
-                Configs to
+                A list of strings used to select the configurations
+                to include in the returned objects. If ['all'], pass
+                back all configurations. Otherwise, only return the
+                configurations matched to this provided list (e.g.,
+                ['A','C']).  See :func:`get_configuration_names`.
 
         Raises:
             PypeItError:
@@ -1591,7 +1611,11 @@ class PypeItMetaData:
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
 
         # Unique configurations
-        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True, configs=configs)
+        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True,
+                                                    configs=configs)
+
+        # TODO: The output directory and file name are too obscure here
+        # given the input arguments.
 
         for setup,i in zip(setups, indx):
             # Create the output directory
@@ -1651,13 +1675,12 @@ class PypeItMetaData:
             raise FileExistsError('File {0} already exists.'.format(ofile) 
                                     + '  Change file name or set overwrite=True.')
 
-        msgs.info('Writing fits file metadata to {0}.'.format(ofile))
+        msgs.info('Writing fits file metadata to {0}'.format(ofile))
     
         # Set the columns to include and check that they are unique
         _columns = list(self.keys()) if columns is None else columns
         if len(np.unique(_columns)) != len(_columns):
-            # TODO: A warning may suffice...
-            raise ValueError('Column names must be unique!')
+            msgs.warn('Column names are not unique!')
 
         # Force the filename and frametype columns to go first
         col_order = [ 'filename', 'frametype' ]

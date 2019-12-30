@@ -4,13 +4,16 @@ from astropy.table import Table
 
 # TODO: This doesn't belong here.
 def instruments():
-    """ Dict to convert instrument to bitwise flag
-    WARNING: Modifying any of the following is a *bad* idea
-      Adding is ok
+    """ 
+    Dict to convert instrument to bitwise flag
+
+    .. warning::
+
+        Modifying any of the following is a *bad* idea.  Adding is ok
 
     Returns
     -------
-    instr_dict : Table
+    instr_dict : dict
 
     """
     instr_dict = {}
@@ -22,15 +25,17 @@ def instruments():
     instr_dict['DEIMOS'] = 2**4
     instr_dict['NIRSPEC'] = 2**5
     instr_dict['GMOS'] = 2**6
-
     #
     return instr_dict
 
 
 def lines():
-    """ Dict of lines included in this database
-    WARNING: Modifying any of the following is a *bad* idea
-      Adding is ok
+    """
+    Dict of lines included in this database
+
+    .. warning::
+
+        Modifying any of the following is a *bad* idea.  Adding is ok
 
     Returns
     -------
@@ -57,6 +62,7 @@ def lines():
     line_dict['ThAr_XSHOOTER_VIS'] = 2**15
     line_dict['OH_GMOS'] = 2**16
     line_dict['OH_MODS'] = 2**17
+    line_dict['ThAr_MagE'] = 2**18  # R=4100
 
 
     #
@@ -64,8 +70,12 @@ def lines():
 
 
 def str_len():
-    """ Hard-codes length of strings in the database
-    WARNING: Modifying any of the following is a *bad* idea
+    """
+    Hard-codes length of strings in the database
+
+    .. warning::
+
+        Modifying any of the following is a *bad* idea.
 
     Returns
     -------
@@ -79,3 +89,4 @@ def str_len():
     strlen_dict['Source'] = 30
     # Return
     return strlen_dict
+

@@ -126,7 +126,7 @@ def test_setup_shane_kast_blue():
 
 @dev_suite_required
 def test_setup_shane_kast_red():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_red/600_7500_d55')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_red/600_7500_d55_ret')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'shane_kast_red'])
     setup.main(pargs)
@@ -189,7 +189,7 @@ def test_setup_keck_nires():
 
 @dev_suite_required
 def test_setup_keck_nirspec():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRSPEC/LOW_NIRSPEC-1')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'keck_nirspec_low'])
     setup.main(pargs)
@@ -207,6 +207,7 @@ def test_setup_keck_nirspec():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+'''
 @dev_suite_required
 def test_setup_wht_isis_blue():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/WHT_ISIS_blue/long_R300B_d5300')
@@ -226,6 +227,7 @@ def test_setup_wht_isis_blue():
 
     # Clean-up
     shutil.rmtree(setup_dir)
+'''
 
 @dev_suite_required
 def test_setup_vlt_xshooter_uvb():
