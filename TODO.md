@@ -1,6 +1,6 @@
 The following is a list of items that are currently in development
 
-** All items in the code with msgs.work("message") need to be implemented
+* All items in the code with msgs.work("message") need to be implemented
 
 * Write sorted files to fits table (let the user pick which method)
 * Store master calibrations for each master frame (to save recalculating the solutions -- including slit trace, tilts, and wavelength)
