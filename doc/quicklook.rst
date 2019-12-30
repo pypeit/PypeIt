@@ -54,7 +54,7 @@ shane_kast_blue::
 
     pypeit_ql_mos shane_kast_blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
 
-keck_lris_red::
+keck_lris_red (longslit)::
 
     pypeit_ql_mos keck_lris_red /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Keck_LRIS_red/long_600_7500_d560 LR.20160216.05709.fits.gz LR.20160216.13991.fits.gz LR.20160216.40478.fits.gz --det 2 --ignore_headers
 

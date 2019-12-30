@@ -31,7 +31,7 @@ def valid_spectrographs():
             #'keck_hires_blue', 'mmt_binospec']
 
 
-def load_spectrograph(spectrograph):
+def load_spectrograph(spectrograph, ifile=None):
     """
     Instantiate a :class:`spectrographs.spectrograph.Spectrograph`, if
     possible.
@@ -44,6 +44,9 @@ def load_spectrograph(spectrograph):
             instance, the instance is simply returned.  If a string, the
             string is used to select the spectrograph to instantiate.
             If None, None is returned.
+        ifile (str, optional):
+            Intended to be a scifile to guide components of the
+            Spectrograph object at instantiation
 
     Returns:
         :class:`spectrographs.spectrograph.Spectrograph`: The
@@ -66,7 +69,7 @@ def load_spectrograph(spectrograph):
         return spectrographs.keck_lris.KeckLRISBSpectrograph()
 
     if spectrograph == 'keck_lris_red':
-        return spectrographs.keck_lris.KeckLRISRSpectrograph()
+        return spectrographs.keck_lris.KeckLRISRSpectrograph(ifile=ifile)
 
     if spectrograph == 'keck_lris_red_longonly':
         return spectrographs.keck_lris.KeckLRISRLSpectrograph()

@@ -7,6 +7,7 @@
 - Modest refactoring of reduce/extraction/skysub codes
 - Refactor of ScienceImage Par into pieces
 - Finally dealt with 'random' windowing of Shane_kast_red
+- Dynamic namp setting for LRISr when instantiating Spectrograph
 
 0.12.0 (23 Dec 2019)
 --------------------

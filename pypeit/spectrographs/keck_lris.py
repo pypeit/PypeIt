@@ -85,10 +85,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         # Ignore PCA if longslit
-        #  This is a little risk as a user could put long into their maskname
+        #  This is a little risky as a user could put long into their maskname
         #  But they would then need to over-ride in their PypeIt file
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+            # This might only be required for det=2, but we'll see..
+            if self.spectrograph == 'keck_lris_red':
+                par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
         return par
 
@@ -512,17 +515,30 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
     """
-    def __init__(self):
+    def __init__(self, ifile=None):
         # Get it started
         super(KeckLRISRSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_red'
         self.camera = 'LRISr'
+        # Allow for variable namps
+        if ifile is not None:
+            hdu = fits.open(ifile)
+            head0 = hdu[0].header
+            if head0['AMPPSIZE'] == '[1:1024,1:4096]':
+                namps = 2
+            elif head0['AMPPSIZE'] == '[1:2048,1:4096]':
+                namps = 1
+            else:
+                msgs.error("Bad amp size (windowed??)!!")
+        else: # Default
+            namps = 2
+        #
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         =1,
                             specaxis        =0,
-                            specflip        = False,
+                            specflip        =False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -556,8 +572,17 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             oscansec        = ['',''],
                             suffix          ='_02red'
                             )]
-        self.numhead = 5
-        # Uses default timeunit
+        # Now deal with namps
+        if namps == 1:
+            for idx in [0,1]:
+                self.detector[idx]['numamplifiers'] = 1
+                self.detector[idx]['gain'] = [self.detector[idx]['gain'][0]]
+                self.detector[idx]['ronoise'] = [self.detector[idx]['ronoise'][0]]
+            self.numhead = 3
+        elif namps == 2:
+            self.numhead = 5
+        else:
+            msgs.error("Bad namps value: {}".format(namps))
 
     def default_pypeit_par(self):
         """
