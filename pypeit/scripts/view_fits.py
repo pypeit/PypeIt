@@ -64,6 +64,7 @@ def main(args):
         # Need to figure out the number of amps
         gen_gmos = gemini_gmos.GeminiGMOSSpectrograph()
         img, _, _, _, _ = gen_gmos.get_rawimage(args.file, args.det)
+    # DESI
     elif 'desi' in args.spectrograph:
         hdu = fits.open(args.file)
         if args.camera is None:
