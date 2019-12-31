@@ -1273,7 +1273,8 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     fluxes_flat = fluxes[ubermask].flatten()
     ivars_flat = ivars[ubermask].flatten()
     vars_flat = utils.inverse(ivars_flat)
-    weights_flat = np.float64(weights[ubermask].flatten())
+    #weights_flat = np.float64(weights[ubermask].flatten())
+    weights_flat = weights[ubermask].flatten()
 
     # Counts how many pixels in each wavelength bin
     nused, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False)
@@ -2077,6 +2078,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
               spectrum on wave_stack wavelength grid. True=Good.
     '''
 
+    waves = np.float64(waves)
+    fluxes = np.float64(fluxes)
+    ivars = np.float64(ivars)
 
     # Generate a giant wave_grid
     wave_grid, _, _ = get_wave_grid(waves, masks = masks, wave_method=wave_method, wave_grid_min=wave_grid_min,
