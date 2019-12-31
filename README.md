@@ -25,6 +25,7 @@ https://github.com/pypeit/PypeIt/issues/676)
 * Lick/Kast 
 * Lick/APF (planned)
 * Magellan/MagE
+* MDM/OSMOS
 * Keck/DEIMOS
 * Keck/LRIS 
 * Keck/MOSFIRE (soon)
