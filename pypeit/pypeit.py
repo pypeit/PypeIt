@@ -33,14 +33,19 @@ class PypeIt(object):
     """
     This class runs the primary calibration and extraction in PypeIt
 
+    .. todo::
+        Fill in list of attributes!
+
     Args:
         pypeit_file (:obj:`str`):
             PypeIt filename.
         verbosity (:obj:`int`, optional):
-            Verbosity level of system output.  Can be::
+            Verbosity level of system output.  Can be:
+
                 - 0: No output
                 - 1: Minimal output (default)
                 - 2: All output
+
         overwrite (:obj:`bool`, optional):
             Flag to overwrite any existing files/directories.
         reuse_masters (:obj:`bool`, optional):
@@ -51,22 +56,22 @@ class PypeIt(object):
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via "ginga --modules=RC &"
+            remote control ginga session via ``ginga --modules=RC &``
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
 
     Attributes:
-        TODO: Come back to this...
         pypeit_file (:obj:`str`):
-            Name of the pypeit file to read.  PypeIt files have a specific
-            set of valid formats. A description can be found `here`_
-            (include doc link).
+            Name of the pypeit file to read.  PypeIt files have a
+            specific set of valid formats. A description can be found
+            :ref:`pypeit_file`.
         fitstbl (:obj:`pypit.metadata.PypeItMetaData`): holds the meta info
+
     """
 #    __metaclass__ = ABCMeta
 
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
-                 show=False):
+                 show=False, redux_path=None):
 
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
@@ -76,7 +81,7 @@ class PypeIt(object):
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
-        self.spectrograph = load_spectrograph(spectrograph_name)
+        self.spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[0])
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
 
         # --------------------------------------------------------------
@@ -96,6 +101,9 @@ class PypeIt(object):
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
+        # Enable after-market reduction path
+        if redux_path is not None:
+            self.par['rdx']['redux_path'] = redux_path
         # TODO: Write the full parameter set here?
         # --------------------------------------------------------------
 
@@ -651,8 +659,7 @@ class PypeIt(object):
         # Determine the paths/filenames
         save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
                       self.spectrograph, head1d, head2d, self.science_path, basename,
-                      update_det=self.par['rdx']['detnum'])
-                      #binning=self.fitstbl['binning'][frame])
+                      update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
     def msgs_reset(self):
         """

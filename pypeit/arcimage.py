@@ -1,8 +1,8 @@
 """
 Module for generating the Arc image.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import inspect
@@ -54,6 +54,8 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     frametype = 'arc'
     master_type = 'Arc'
 
+    #JFH TODO: files should be a reqiured argument for this class. save and load should be class methods
+    # which do not require an instance of the class.
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False, msbias=None):
     

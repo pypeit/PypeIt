@@ -7,6 +7,7 @@ from warnings import warn
 from pypeit import msgs
 from pypeit import debugger
 from pypeit import utils
+from IPython import embed
 import copy
 
 """This module corresponds to the image directory in idlutils.
@@ -31,10 +32,9 @@ def djs_maskinterp1(yval, mask, xval=None, const=False):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`numpy.ndarray`:
         The `yval` array with masked values replaced by interpolated values.
     """
-    import numpy as np
     good = mask == 0
     if good.all():
         return yval
@@ -91,7 +91,6 @@ def djs_maskinterp(yval, mask, xval=None, axis=None, const=False):
     :class:`numpy.ndarray`
         The interpolated array.
     """
-    import numpy as np
     if mask.shape != yval.shape:
         raise ValueError('mask must have the same shape as yval.')
     if xval is not None:
@@ -652,7 +651,11 @@ class bspline(object):
         if self.npoly > 1:
             goodcoeff = self.coeff[:, coeffbk]
         else:
-            goodcoeff = self.coeff[coeffbk]
+            try:
+                goodcoeff = self.coeff[coeffbk]
+            except:
+                msgs.warn('No good coefficients in bspline evaluation. All breakpoints were rejected. Something is probably wrong')
+                embed()
         # maskthis = np.zeros(xwork.shape,dtype=xwork.dtype)
         for i in range(n-self.nord+1):
             ict = upper[i] - lower[i] + 1
@@ -752,12 +755,11 @@ class bspline(object):
 
         Returns
         -------
-        :func:`tuple` (success, yfit)
-            A tuple containing an boolean error code, and the evaluation of the b-spline yfit at the input values.  The error codes are as follows:
-
-                 0 is good
-                -1 is dropped breakpoints, try again
-                -2 is failure, should abort
+        :func:`tuple` (success, yfit):
+            A tuple containing an boolean error code, and the evaluation
+            of the b-spline yfit at the input values.  The error codes
+            are as follows: 0 is good; -1 is dropped breakpoints, try
+            again; -2 is failure, should abort.
 
         """
         goodbk = self.mask[self.nord:]
@@ -978,6 +980,9 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
         #        if 'fullbkpt' in kwargs:
         #            fullbkpt = kwargs['fullbkpt']
         else:
+
+
+        
             sset = bspline(xdata[xsort[maskwork]], nord = nord, bkpt = bkpt, fullbkpt = fullbkpt, **kwargs_bspline)
             if maskwork.sum() < sset.nord:
                 print('Number of good data points fewer than nord.')
@@ -1123,7 +1128,6 @@ def flegendre(x, m):
     -------
     :class:`numpy.ndarray`
     """
-    import numpy as np
     from scipy.special import legendre
     if isinstance(x, np.ndarray):
         n = x.size
@@ -1198,7 +1202,6 @@ def fchebyshev_split(x, m):
     -------
     :class:`numpy.ndarray`
     """
-    import numpy as np
     if isinstance(x, np.ndarray):
         n = x.size
     else:
@@ -1732,7 +1735,7 @@ def djs_reject(data, model, outmask=None, inmask=None,
     groupdim: class: `int`
         Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
         If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
-        In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
+        In either case, there are 200 groups, specified by ``[*,i]``. NOT WELL TESTED IN PYTHON!
     groupsize: class: `int`
         If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points, where the grouping is performed in the
         along the dimension of the data vector. (For use in curve fitting, one probably wants to make sure that data is sorted according to the indpeendent
@@ -1752,20 +1755,20 @@ def djs_reject(data, model, outmask=None, inmask=None,
         the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
         and also pass in values invvar, and the code will return an error if this is done.
 
-
-
     Returns
     -------
-    (tuple): tuple containing:
-        outmask(np.ndarray, boolean): mask where rejected data values are ``False``
-
-        qdone(boolean): a value set to "True" if  `djs_reject` believes there is no
-        further rejection to be done. This will be set to "False" if the points marked as rejected in the outmask
-        have changed. It will be set to "True" when the same points are rejected in outmask as from a previous call.
-        It will also be set to "False" if model is set to None. Recall that outmask is also an optional input parameter. If it is
-        not set, then qdone will simply return true, so outmask needs to be input from the previous iteration for the routine
-        to do something meaningful.
-
+    outmask (np.ndarray, boolean):
+        mask where rejected data values are ``False``
+    qdone (boolean):
+        a value set to "True" if  `djs_reject` believes there is no
+        further rejection to be done. This will be set to "False" if the
+        points marked as rejected in the outmask have changed. It will
+        be set to "True" when the same points are rejected in outmask as
+        from a previous call.  It will also be set to "False" if model
+        is set to None. Recall that outmask is also an optional input
+        parameter. If it is not set, then qdone will simply return true,
+        so outmask needs to be input from the previous iteration for the
+        routine to do something meaningful.
 
     Raises
     ------

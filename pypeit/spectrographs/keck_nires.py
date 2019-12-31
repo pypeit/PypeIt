@@ -87,15 +87,15 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = False
 
         # Extraction
-        par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['sn_gauss'] = 4.0
+        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
+        par['scienceimage']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-        par['scienceimage']['boxcar_radius'] = 0.75  # arcsec
+        par['scienceimage']['extraction']['boxcar_radius'] = 0.75  # arcsec
 
         # Overscan but not bias
         #  This seems like a kludge of sorts

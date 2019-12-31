@@ -17,7 +17,8 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit import edgetrace
 from pypeit.core import arc, qa, pixels
-from pypeit.core.wavecal import autoid, waveio, identify, templates
+from pypeit.core.wavecal import autoid, waveio, templates
+from pypeit.core.gui import identify as gui_identify
 
 
 
@@ -45,26 +46,23 @@ class WaveCalib(masterframe.MasterFrame):
 
     Attributes:
         frametype : str
-          Hard-coded to 'wv_calib'
+            Hard-coded to 'wv_calib'
         steps : list
-          List of the processing steps performed
+            List of the processing steps performed
         wv_calib : dict
-          Primary output
-          Keys
-            0, 1, 2, 3 -- Solution for individual slit
-            steps
+            Primary output.  Keys 0, 1, 2, 3 are solution for individual
+            slit steps
         arccen (ndarray):
             (nwave, nslit) Extracted arc(s) down the center of the slit(s)
         maskslits : ndarray (nslit); bool
-          Slits to ignore because they were not extracted
-          WARNING: Outside of this Class, it is best to regenerate
-          the mask using  make_maskslits()
+            Slits to ignore because they were not extracted. WARNING:
+            Outside of this Class, it is best to regenerate the mask
+            using  make_maskslits()
         gpm (np.ndarray):
             Good pixel mask
             Eventually, we might attach this to self.msarc although that would then
             require that we write it to disk with self.msarc.image
     """
-
     # Frametype is a class attribute
     frametype = 'wv_calib'
     master_type = 'WaveCalib'
@@ -210,7 +208,7 @@ class WaveCalib(masterframe.MasterFrame):
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
             # Todo : Generalise to multislit case
-            arcfitter = identify.initialise(arccen, par=self.par)
+            arcfitter = gui_identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
             slit = 0
             if final_fit[str(slit)] is not None:
@@ -321,15 +319,15 @@ class WaveCalib(masterframe.MasterFrame):
         Args:
 
         Returns:
-            (self.arccen, self.arc_maskslit_
-           self.arccen: ndarray, (nspec, nslit)
-              arc spectrum for all slits
-            self.arc_maskslit: ndarray, bool (nsit)
-              boolean array containing a mask indicating which slits are good
+            tuple: Returns the following:
+                - self.arccen: ndarray, (nspec, nslit): arc spectrum for
+                  all slits
+                - self.arc_maskslit: ndarray, bool (nsit): boolean array
+                  containing a mask indicating which slits are good
 
         """
         # Do it
-        arccen, arc_maskslit = arc.get_censpec(
+        arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
             self.slitcen, self.slitmask, self.msarc.image,
             gpm=self.gpm)  #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
         # Step

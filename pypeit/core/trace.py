@@ -8,9 +8,12 @@ TODO: Add object and wavelength tracing routines here?
 TODO: Is there a way that we could define this link so that it's
 accessible by the docstring of all modules?
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 from collections import Counter
+
+from IPython import embed
 
 import numpy as np
 from scipy import ndimage, signal, interpolate
@@ -152,7 +155,7 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
     # Check the input
     if edge_img.ndim > 2:
         msgs.error('Provided edge image must be 2D.')
-    if not np.array_equal(np.unique(edge_img), [-1,0,1]):
+    if not np.all(np.isin(np.unique(edge_img), [-1,0,1])):
         msgs.error('Edge image must only have -1, 0, or 1 values.')
 
     # Find the left and right coordinates
@@ -515,7 +518,13 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
     dependency.
 
     .. note::
-        This is an adaptation of trace_crude from idlspec2d.
+        - This is an adaptation of ``trace_crude`` from ``idlspec2d``.
+        - You should consider smoothing the input ``flux`` array
+          before passing it to this function. See
+          :func:`pypeit.utils.boxcar_smooth_rows`. For example::
+
+            smimg = utils.boxcar_smooth_rows(img, nave, wgt=inmask)
+            cen, cene, cenm = trace.follow_centroid(smimg, ...)
 
     Args:
         flux (`numpy.ndarray`_):
@@ -523,7 +532,10 @@ def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, 
             recentering. For example, when tracing slit edges, this
             should typically be the Sobel-filtered trace image after
             adjusting for the correct side and performing any
-            smoothing; see :func:`prepare_sobel_for_trace`.
+            smoothing; see :func:`prepare_sobel_for_trace`. In any
+            case, consider that this image may need to be smoothed
+            for robust output from this function. See
+            :func:`pypeit.utils.boxcar_smooth_rows`.
         start_row (:obj:`int`):
             Row at which to start the calculation. The function
             begins with this row and then continues first to higher
@@ -726,6 +738,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
         fill (:obj:`str`, optional):
             A string keyword specifying how flagged centroids should
             be replaced. Options are:
+
                 - 'input': Replace the flagged centroids with their
                   input value.
                 - 'bound': *Only* for the case where the
@@ -734,6 +747,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
                   positive or negative boundary edge. In all other
                   cases, the centroid is still replaced with the
                   input value. See replacement cases above.
+
         fill_error (:obj:`float`, optional):
             For flagged centroids, this error is replaced with this
             dummy value.
@@ -814,8 +828,9 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     `niter`. There is no convergence test, meaning that this number
     of iterations is *always* performed.
 
-    History:
-        23-June-2018  Written by J. Hennawi
+    Notes:
+        Revision History:
+            - 23-June-2018  Written by J. Hennawi
 
     Args:
         flux (`numpy.ndarray`_):
@@ -890,15 +905,17 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             Default is to use the image size in nspec direction
 
     Returns:
-        Returns four `numpy.ndarray`_ objects all with the same shape
-        as the input positions (`trace_cen`) and provide:
-            - The best-fitting positions of each trace determined by
-              the polynomial fit.
-            - The centroids of the trace determined by either flux-
-              or Gaussian-weighting, to which the polynomial is fit.
+        tuple: Returns four `numpy.ndarray`_ objects all with the same
+        shape as the input positions (`trace_cen`) and provide:
+
+            - The best-fitting positions of each trace determined by the
+              polynomial fit.
+            - The centroids of the trace determined by either flux- or
+              Gaussian-weighting, to which the polynomial is fit.
             - The errors in the centroids.
             - Boolean flags for each centroid measurement (see
               :func:`pypeit.core.moment.moment1d`).
+
     """
     # Ensure setup is correct
     if flux.ndim != 2:
@@ -1309,17 +1326,19 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
     Returns:
         Returns four `numpy.ndarray`_ objects and the number of peak
         traces. The number of peak traces should be used to separate
-        peak from trough traces; if `trough` is False, this will just
-        be the total number of traces. The four
-        `numpy.ndarray`_ objects provide:
-            - The best-fitting positions of each trace determined by
-              the polynomial fit.
+        peak from trough traces; if `trough` is False, this will just be
+        the total number of traces.  The four `numpy.ndarray`_ objects
+        provide:
+
+            - The best-fitting positions of each trace determined by the
+              polynomial fit.
             - The centroids of the trace determined by the
-              Gaussian-weighting iteration, to which the polynomial
-              is fit.
+              Gaussian-weighting iteration, to which the polynomial is
+              fit.
             - The errors in the Gaussian-weighted centroids.
             - Boolean flags for each centroid measurement (see
               :func:`pypeit.core.moment.moment1d`).
+
     """
     # Setup and ensure input is correct
     if flux.ndim != 2:

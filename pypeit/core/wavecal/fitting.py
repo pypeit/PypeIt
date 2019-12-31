@@ -6,6 +6,8 @@ from pypeit import utils
 from pypeit.core.wavecal import autoid
 from pypeit import msgs
 
+from IPython import embed
+
 
 def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
              func='legendre', n_first=2,sigrej_first=2.0,n_final=4,sigrej_final=3.0,verbose=False):
@@ -163,9 +165,13 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     # Fit
     n_order = n_first
-    flg_quit = False
+    flg_continue = True
+    flg_penultimate = False
     fmin, fmax = 0.0, 1.0
-    while (n_order <= n_final) and (flg_quit is False):
+    # Note the number of parameters is actually n_order and not n_order+1
+    while flg_continue:
+        if flg_penultimate:
+            flg_continue = False
         # Fit with rejection
         xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
         mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_first,
@@ -193,12 +199,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                 ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit, dtype=int))
-        # Increment order
+        # Increment order?
         if n_order < n_final:
             n_order += 1
         else:
-            # This does 2 iterations at the final order
-            flg_quit = True
+            flg_penultimate = True
 
     # Final fit (originals can now be rejected)
     #fmin, fmax = 0., 1.

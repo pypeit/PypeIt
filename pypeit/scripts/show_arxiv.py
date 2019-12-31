@@ -9,11 +9,7 @@ def parser(options=None):
     parser.add_argument("file", type=str, help="WaveCalib JSON file")
     parser.add_argument('--det', default=1, type=int, help='Detector number')
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(pargs):

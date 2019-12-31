@@ -21,8 +21,6 @@ naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[skey.lower()] = skey
 
-# TODO -- The following needs to be parsed into our docs so that the user
-#  can view it all.  A solution like the ParSets would be ideal.
 # Data model -- Put here to be able to reach it without instantiating the class
 #  These are outward facing items, i.e. items that the user will receive and use.
 #  These are upper case to distinguish them from internal attributes
@@ -48,6 +46,10 @@ data_model = {
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
+    'OPT_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Optimal wavelengths in COADD2D grid'),
+    'OPT_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimal wavelengths in COADD2D grid'),
+    'OPT_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum optimal wavelengths in COADD2D grid'),
+    'OPT_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum optimal wavelengths in COADD2D grid'),
     #
     'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Boxcar Wavelengths (Angstroms)'),
     'BOX_FLAM': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (erg/s/cm^2/Ang)'),
@@ -67,22 +69,34 @@ data_model = {
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
+    'BOX_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Boxcar wavelengths in COADD2D grid'),
+    'BOX_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for boxcar wavelengths in COADD2D grid'),
+    'BOX_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum boxcar wavelengths in COADD2D grid'),
+    'BOX_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum boxcar wavelengths in COADD2D grid'),
+    #
     'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
     #
     'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
     'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
     'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
     #
-    'DET': dict(otype=(int,np.int64), desc='Detector number'),
+    'DET': dict(otype=(int,np.integer), desc='Detector number'),
     'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
     'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
     'SPAT_PIXPOS': dict(otype=(float,np.float32), desc='Spatial location of the trace on detector (pixel)'),
     'SPAT_FRACPOS': dict(otype=(float,np.float32), desc='Fractional location of the object on the slit'),
     #
-    'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
+    'SLITID': dict(otype=(int,np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
+    'OBJID': dict(otype=(int, np.integer), desc='Object ID for multislit data. Each object is given an index for the slit '
+                                                  'it appears increasing from from left to right. These are one based.'),
     #
+    'ECH_OBJID': dict(otype=(int, np.integer),
+                      desc='Object ID for echelle data. Each object is given an index in the order '
+                           'it appears increasing from from left to right. These are one based.'),
+    'ECH_ORDERINDX': dict(otype=(int, np.integer), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
     'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
-    'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
+    'ECH_ORDER': dict(otype=(int, np.integer), desc='Physical echelle order'),
+
 }
 
 
@@ -92,11 +106,22 @@ class SpecObj(object):
     finding routine, and then all spectral extraction information for the object are assigned as attributes
 
     Args:
+        pypeline (str): Name of the PypeIt pypeline method
+            Allowed options are:  MultiSlit, Echelle
         det (int): Detector number
+        copy_dict (dict, optional): Used to set the entire internal dict of the object.
+            Only used in the copy() method so far.
         objtype (str, optional)
            Type of object ('unknown', 'standard', 'science')
         slitid (int, optional):
-           Identifier for the slit (max=9999)
+           Identifier for the slit (max=9999).
+           Multislit only
+        specobj_dict (dict, optional):
+           Uswed in the objfind() method of extract.py to Instantiate
+        orderindx (int, optional):
+           Running index for the order
+        ech_order (int, optional):
+           Physical order number
 
     Attributes:
         slitcen (float): Center of slit in fraction of total (trimmed) detector size at ypos
@@ -115,14 +140,14 @@ class SpecObj(object):
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     @classmethod
-    def from_table(cls, table, indict=None):
+    def from_table(cls, table, copy_dict=None):
         if table.meta['PYPELINE'] == 'MultiSlit':
             # Instantiate
             slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      slitid=table.meta['SLITID'], indict=indict)
+                      slitid=table.meta['SLITID'], copy_dict=copy_dict)
         else:
             slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      indict=indict, ech_order=table.meta['ECH_ORDER'])
+                      copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'], orderindx=table.meta['ECH_ORDERINDX'])
         # Pop a few that land in standard FITS header
         # Loop me -- Do this to deal with checking the data model
         for key in table.keys():
@@ -138,31 +163,36 @@ class SpecObj(object):
         # Return
         return slf
 
+    # TODO I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
+    # done via the copy method as it was before.
     def __init__(self, pypeline, det, objtype='unknown',
-                 indict=None,
+                 copy_dict=None,
                  slitid=None,
                  ech_order=None,
-                 orderindx=None):
+                 orderindx=None,
+                 specobj_dict=None):
 
         self._data = Table()
 
         # For copying the object
-        if indict is not None:
-            if '_SpecObj_initialised' in indict:
-                indict.pop('_SpecObj_initialised')
-            self.__dict__ = indict
+        if copy_dict is not None:
+            if '_SpecObj_initialised' in copy_dict:
+                copy_dict.pop('_SpecObj_initialised')
+            self.__dict__ = copy_dict
         else:
             # set any attributes here - before initialisation
             # these remain as normal attributes
             # We may wish to eliminate *all* of these
 
-            self.objid = 999
+
+            #self.objid = 999
             self.name = None
 
             # Object finding
             self.smash_peakflux = None
             self.smash_nsig = None
             self.maskwidth = None
+            self.hand_extract_flag = False
 
             # Object profile
             self.prof_nsigma = None
@@ -174,29 +204,42 @@ class SpecObj(object):
             self.trace_spec = None  # Only for debuggin, internal plotting
 
             # Echelle
-            self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
-            self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
-            self.ech_frac_was_fit = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
-            self.ech_snr = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+            #self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
+            #self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+            self.ech_frac_was_fit = None #
+            self.ech_snr = None #
 
         # after initialisation, setting attributes is the same as setting an item
         self.__initialised = True
 
-        # Initialize a few, if we aren't copying
-        if indict is None:
-            self.FLEX_SHIFT = 0.
-            self.OBJTYPE = objtype
-            self.DET = det
-            self.PYPELINE = pypeline
+        # TODO: JFH This is not very elegant and error prone. Perhaps we should loop over the copy dict keys
+        # and populate whatever keys are actually there. For instance, if the user does not pass in a copy dict,
+        # and forgets to pass in ech_order, the code is going to crash becuase ech_order cannot be None.
 
-            # pypeline specific
-            if self.PYPELINE == 'MultiSlit':
-                self.SLITID = slitid
-            elif self.PYPELINE == 'Echelle':
-                self.ECH_ORDER = ech_order
-                self.ech_orderindx = orderindx
+        # Initialize a few, if we aren't copying
+        if copy_dict is None:
+            self.DET = det
+            if specobj_dict is not None:
+                self.PYPELINE = specobj_dict['pypeline']
+                self.OBJTYPE = specobj_dict['objtype']
+                if self.PYPELINE == 'MultiSlit':
+                    self.SLITID = specobj_dict['slitid']
+                elif self.PYPELINE == 'Echelle':
+                    self.ECH_ORDER = specobj_dict['order']
+                    self.ECH_ORDERINDX = specobj_dict['orderindx']
             else:
-                msgs.error("Uh oh")
+                self.PYPELINE = pypeline
+                self.OBJTYPE = objtype
+                # pypeline specific
+                if self.PYPELINE == 'MultiSlit':
+                    self.SLITID = slitid
+                elif self.PYPELINE == 'Echelle':
+                    self.ECH_ORDER = ech_order
+                    self.ECH_ORDERINDX = orderindx
+                else:
+                    msgs.error("Uh oh")
+
+            self.FLEX_SHIFT = 0.
 
         # Name
         self.set_name()
@@ -205,6 +248,16 @@ class SpecObj(object):
     def slit_order(self):
         if self.PYPELINE == 'Echelle':
             return self.ECH_ORDER
+        elif self.PYPELINE == 'MultiSlit':
+            return self.SLITID
+        else:
+            msgs.error("Uh oh")
+
+
+    @property
+    def slit_orderindx(self):
+        if self.PYPELINE == 'Echelle':
+            return self.ECH_ORDERINDX
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
         else:
@@ -248,6 +301,20 @@ class SpecObj(object):
         else:
             raise KeyError
 
+    # TODO: JFH Can we change this functio name to data_model, and have a separate function called
+    # keys which returns sobjs._dict__.keys() which is the list of attributes of the actual object
+    # excluding the data model. Or even better, use keys for both, but append the two lists with one set uppercase and
+    # the other set lowercase
+    def keys(self):
+        """
+        Simple method to return the keys of _data
+
+        Returns:
+            list
+        """
+        return self._data.keys()
+
+    # TODO JFH Please describe the naming model somewhere in this module.
     def set_name(self):
         """
         Generate a unique index for this spectrum based on the
@@ -256,7 +323,7 @@ class SpecObj(object):
         Sets self.name internally
 
         Returns:
-            str: :attr:`self.name`
+            str
 
         """
         if 'Echelle' in self.PYPELINE:
@@ -265,11 +332,12 @@ class SpecObj(object):
             if 'ECH_FRACPOS' not in self._data.meta.keys():
                 self.name += '----'
             else:
+                # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 self.name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
             # Order
             self.name += '-'+naming_model['order']
             self.name += '{:04d}'.format(self.ECH_ORDER)
-        else:
+        elif 'MultiSlit' in self.PYPELINE:
             # Spat
             self.name = naming_model['spat']
             if 'SPAT_PIXPOS' not in self._data.meta.keys():
@@ -279,6 +347,8 @@ class SpecObj(object):
             # Slit
             self.name += '-'+naming_model['slit']
             self.name += '{:04d}'.format(self.SLITID)
+        else:
+            msgs.error("Bad PYPELINE")
         # Detector
         sdet = parse.get_dnum(self.DET, prefix=False)
         self.name += '-{:s}{:s}'.format(naming_model['det'], sdet)
@@ -294,8 +364,12 @@ class SpecObj(object):
             SpecObj
 
         """
+        #sobj_copy = SpecObj(self.PYPELINE, self.DET,
+        #                    copy_dict=self.__dict__.copy())
+        # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
+        # copy changes the original object which wreaks havoe. That is why it was deepcopy before (I think).
         sobj_copy = SpecObj(self.PYPELINE, self.DET,
-                            indict=self.__dict__.copy())
+                            copy_dict=copy.deepcopy(self.__dict__))
         # Return
         return sobj_copy
 

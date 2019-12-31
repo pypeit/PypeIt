@@ -56,6 +56,8 @@ def main(args):
     from pypeit.pypeit import PypeIt
     from pypeit.core import parse
 
+    from IPython import embed
+
     if args.pypeit_file is not None:
         pypeit_file = args.pypeit_file
         if not os.path.isfile(pypeit_file):
@@ -125,14 +127,16 @@ def main(args):
                                             master_key=master_key, master_dir=master_dir)
             msbias = biasFrame.build_image()
 
+        msbpm = spec.bpm(files[0], det)
+
         # Build the trace image
         traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
-        traceImage.build_image(bias=msbias)
+        traceImage.build_image(bias=msbias, bpm=msbpm)
 
         # Trace the slit edges
         t = time.perf_counter()
         edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                       master_dir=master_dir, img=traceImage, det=det,
+                                       master_dir=master_dir, img=traceImage, det=det, bpm=msbpm,
                                        auto=True, debug=args.debug, show_stages=args.show,
                                        qa_path=qa_path)
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))

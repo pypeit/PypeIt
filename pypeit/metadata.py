@@ -147,21 +147,24 @@ class PypeItMetaData:
     def define_core_meta():
         """
         Define the core set of meta data that must be defined
-        to run PypeIt
+        to run PypeIt.
 
-        Warning:  The keys should all be <= 8 length as they are
-        all written to the Header
+        .. warning::
 
-        Each meta entry is a dict with keys
-           dtype: str, float, int
-           comment: str
-           rtol: float, optional
-             Sets the relative tolerance for float meta when used to set a configuration
+            The keys should all be <= 8 length as they are all written
+            to the Header.
+
+        Each meta entry is a dict with the following keys:
+           - dtype: str, float, int
+           - comment: str
+           - rtol: float, optional -- Sets the relative tolerance for
+             float meta when used to set a configuration
 
         Each meta dtype must be scalar or str.  No tuple, list, ndarray, etc.
 
         Returns:
-            core_meta: dict
+            dict: core_meta
+
         """
         core_meta = OrderedDict()  # Mainly to format output to PypeIt file
         # Filename
@@ -202,8 +205,7 @@ class PypeItMetaData:
         the relative tolerance for a match
 
         Returns:
-            additional_meta: dict
-              Describes the additional meta data used in PypeIt
+            dict: Describes the additional meta data used in PypeIt
 
         """
         additional_meta = {}
@@ -215,7 +217,7 @@ class PypeItMetaData:
         additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
         additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
         additional_meta['detector'] = dict(dtype=str, comment='Name of detector')
-        additional_meta['arm'] = dict(dtype=str, comment='Name of arm (e.g. X-Shooter)')
+        additional_meta['arm'] = dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)')
         additional_meta['datasec'] = dict(dtype=str, comment='Data section (windowing)')
 
         # Calibration lamps
@@ -696,7 +698,7 @@ class PypeItMetaData:
         Args:
             ignore (:obj:`list`, optional):
                 Ignore configurations in the provided list.
-            return_index (:obj:`bool, optional):
+            return_index (:obj:`bool`, optional):
                 Return row indices with the first occurence of these
                 configurations.
             configs (:obj:`list`, optional):
@@ -1402,9 +1404,9 @@ class PypeItMetaData:
 
     def write_setups(self, ofile, overwrite=True, ignore=None):
         """
-        Write the *.setups file.
+        Write the setups file.
 
-        The *.setups file lists all the unique instrument configurations
+        The setups file lists all the unique instrument configurations
         (setups).
 
         .. todo::
@@ -1430,9 +1432,9 @@ class PypeItMetaData:
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, write_bkg_pairs=False):
         """
-        Write the *.sorted file.
+        Write the sorted file.
 
-        The *.sorted file lists all the unique instrument configurations
+        The sorted file lists all the unique instrument configurations
         (setups) and the frames associated with each configuration.  The
         output data table is identical to the pypeit file output.
 
@@ -1485,9 +1487,9 @@ class PypeItMetaData:
 
     def write_calib(self, ofile, overwrite=True, ignore=None):
         """
-        Write the *.calib file.
+        Write the calib file.
 
-        The *.calib file provides the unique instrument configurations
+        The calib file provides the unique instrument configurations
         (setups) and the association of each frame from that
         configuration with a given calibration group.
 
@@ -1563,9 +1565,9 @@ class PypeItMetaData:
     def write_pypeit(self, ofile, ignore=None, cfg_lines=None, write_bkg_pairs=False,
                      configs=None):
         """
-        Write a *.pypeit file in data-table format.
+        Write a pypeit file in data-table format.
 
-        The *.pypeit file is the main configuration file for PypeIt,
+        The pypeit file is the main configuration file for PypeIt,
         configuring the control-flow and algorithmic parameters and
         listing the data files to read.  This function writes the
         columns selected by the
@@ -1589,10 +1591,12 @@ class PypeItMetaData:
                 :class:`pypeit.metadata.PypeItMetaData` object, include
                 two columns called `comb_id` and `bkg_id` that identify
                 object and background frame pairs.  The string indicates
-                how these these columns should be added::
-                    - `empty`: The columns are added but their values
-                      are all originally set to -1.  **This is
+                how these these columns should be added:
+
+                    - ``'empty'``: The columns are added but their
+                      values are all originally set to -1.  **This is
                       currently the only option.**
+
             configs (str, optional):
                 A list of strings used to select the configurations
                 to include in the returned objects. If ['all'], pass

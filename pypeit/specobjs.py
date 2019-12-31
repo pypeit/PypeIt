@@ -19,29 +19,20 @@ class SpecObjs(object):
     """
     Object to hold a set of SpecObj objects
 
+    Note that this class overloads:
+
+        - ``__getitem__`` to allow one to pull an attribute or a portion
+          of the SpecObjs list
+        - ``__setattr__`` to force a custom assignment method
+        - ``__getattr__`` to generate an array of attribute 'k' from the
+          specobjs.
+
     Args:
         specobjs (ndarray or list, optional):  One or more SpecObj objects
 
-    Internals:
+    Attributes:
         summary (astropy.table.Table):
-
-
-    __getitem__ is overloaded to allow one to pull an attribute or a
-                portion of the SpecObjs list
-        Args:
-            item (str or int (or slice)
-        Returns:
-            item (object, SpecObj or SpecObjs):  Depends on input item..
-
-    __setitem__ is over-loaded using our custom set() method
-        Args:
-            name (str):  Item to set
-            value (anything) : Value of the item
-        Returns:
-    __getattr__ is overloaded to generate an array of attribute 'k' from the specobjs
-        First attempts to grab data from the Summary table, then the list
     """
-
     @classmethod
     def from_fitsfile(cls, fits_file):
         """
@@ -68,6 +59,24 @@ class SpecObjs(object):
             tbl = fits.connect.read_table_fits(hdul, hdu=kk)
             sobj = specobj.SpecObj.from_table(tbl)
             slf.add_sobj(sobj)
+
+        # JFH I'm commenting this out below. I prefer to just directly write out attributes and reinstantiate them
+        # from files. Doing things like this just leads to errors
+        # since it is not in touch with the code that actually determined what these attributes should be.
+
+        # PYPELINE specific
+        #if slf[0].PYPELINE == 'Echelle':
+        #    # Set ech_objid
+        #    uni_frac = np.unique(slf.ECH_FRACPOS)
+        #    for ii, ufrac in enumerate(uni_frac):
+        #        idx = np.isclose(slf.ECH_FRACPOS, ufrac)
+        #        slf[idx].ECH_OBJID = ii
+        #    # Set ech_orderindx
+        #    uni_order = np.unique(slf.ECH_ORDER)
+        #    for ii, uorder in enumerate(uni_order):
+        #        idx = slf.ECH_ORDER == uorder
+        #        slf[idx].ech_orderindx = ii
+
         # Return
         return slf
 
@@ -89,7 +98,16 @@ class SpecObjs(object):
         self.__initialised = True
 
     def __setattr__(self, item, value):
+        """
+        Define a custom assignment method.
 
+        Args:
+            item (str):
+                Item to set
+            value (object):
+                Value of the item
+
+        """
         if not '_SpecObjs__initialised' in self.__dict__:  # this test allows attributes to be set in the __init__ method
             return dict.__setattr__(self, item, value)
         elif item in self.__dict__:  # any normal attributes are handled normally
@@ -170,12 +188,15 @@ class SpecObjs(object):
             sobjs_neg (SpecObjs):
 
         """
+        if sobjs_neg.nobj == 0:
+            msgs.warn("No negative objects found...")
+            return
         # Assign the sign and the objids
         sobjs_neg.sign = -1.0
         if sobjs_neg[0].PYPELINE == 'Echelle':
-            sobjs_neg.ech_objid = -1*sobjs_neg.ech_objid
+            sobjs_neg.ECH_OBJID = -1*sobjs_neg.ECH_OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
-            sobjs_neg.objid = -sobjs_neg.objid
+            sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
             msgs.error("Should not get here")
         self.add_sobj(sobjs_neg)
@@ -191,8 +212,41 @@ class SpecObjs(object):
         """
         # Assign the sign and the objids
         if self.nobj > 0:
-            index = (self.objid < 0) | (self.ech_objid < 0)
+            if self[0].PYPELINE == 'Echelle':
+                index = self.ECH_OBJID < 0
+            elif self[0].PYPELINE == 'MultiSlit':
+                index = self.OBJID < 0
+            else:
+                msgs.error("Should not get here")
             self.remove_sobj(index)
+
+
+    def slitorder_indices(self, slitorder):
+        """
+        Return the set of indices matching the input slit/order
+        """
+        if self[0].PYPELINE == 'Echelle':
+            indx = self.ECH_ORDERINDX == slitorder
+        elif self[0].PYPELINE == 'MultiSlit':
+            indx = self.SLITID == slitorder
+        else:
+            msgs.error("Should not get here")
+        #
+        return indx
+
+
+    def slitorder_objid_indices(self, slitorder, objid):
+        """
+        Return the set of indices matching the input slit/order and the input objid
+        """
+        if self[0].PYPELINE == 'Echelle':
+            indx = (self.ECH_ORDERINDX == slitorder) & (self.ECH_OBJID == objid)
+        elif self[0].PYPELINE == 'MultiSlit':
+            indx = (self.SLITID == slitorder) & (self.OBJID == objid)
+        else:
+            msgs.error("Should not get here")
+        #
+        return indx
 
     def set_names(self):
         for sobj in self.specobjs:
@@ -249,18 +303,33 @@ class SpecObjs(object):
         # In development
         pass
 
-    def set_idx(self):
-        """
-        Set the idx in all the SpecObj
-        Update the summary Table
 
-        Returns:
-
-        """
-        for sobj in self.specobjs:
-            sobj.set_idx()
+#    JFH This function is deprecated
+#    def set_idx(self):
+#        """
+#        Set the idx in all the SpecObj
+#        Update the summary Table
+#
+#        Returns:
+#
+#        """
+#        for sobj in self.specobjs:
+#            sobj.set_idx()
 
     def __getitem__(self, item):
+        """
+        Overload to allow one to pull an attribute or a portion of the
+        SpecObjs list
+         
+        Args:
+            item (:obj:`str`, :obj:`int`, :obj:`slice`)
+
+        Returns:
+            The selected items as either an object,
+            :class:`pypeit.specobj.SpecObj`, or
+            :class:`pypeit.specobjs.SpecObjs`, depending on the input
+            item.
+        """
         if isinstance(item, str):
             return self.__getattr__(item)
         elif isinstance(item, (int, np.integer)):
@@ -275,6 +344,12 @@ class SpecObjs(object):
             return SpecObjs(specobjs=self.specobjs[item])
 
     def __getattr__(self, k):
+        """
+        Overloaded to generate an array of attribute 'k' from the
+        :class:`pypeit.specobj.SpecObj` objects.
+
+        First attempts to grab data from the Summary table, then the list
+        """
         if len(self.specobjs) == 0:
             raise ValueError("Empty specobjs")
         try:

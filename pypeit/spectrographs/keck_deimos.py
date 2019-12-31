@@ -411,21 +411,25 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read a raw DEIMOS data frame (one or more detectors)
-        Packed in a multi-extension HDU
-        Based on pypeit.arlris.read_lris...
-           Based on readmhdufits.pro
+        Read a raw DEIMOS data frame (one or more detectors).
+
+        Data are unpacked from the multi-extension HDU.  Function is
+        based :func:`pypeit.spectrographs.keck_lris.read_lris`, which
+        was based on the IDL procedure ``readmhdufits.pro``.
+
         Parameters
         ----------
         raw_file : str
-          Filename
+            Filename
+
         Returns
         -------
         array : ndarray
-          Combined image
+            Combined image
         hdu: HDUList
         sections : tuple
-          List of datasec, oscansec sections
+            List of datasec, oscansec sections
+
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
