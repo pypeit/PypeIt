@@ -40,7 +40,7 @@ class Calibrations(object):
     holds that info in self.calib_dict
 
     Args:
-        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData` or None):
             The class holding the metadata for all the frames in this
             PypeIt run.
         par (:class:`pypeit.par.pypeitpar.PypeItPar`):
@@ -92,7 +92,7 @@ class Calibrations(object):
                  reuse_masters=False, show=False):
 
         # Check the types
-        if not isinstance(fitstbl, PypeItMetaData):
+        if isinstance(fitstbl, PypeItMetaData) and (not fitstbl is None):
             msgs.error('fitstbl must be an PypeItMetaData object')
         if not isinstance(par, pypeitpar.CalibrationsPar):
             msgs.error('Input parameters must be a CalibrationsPar instance.')
@@ -932,6 +932,11 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.  See :class:`pypeit.calibrations.Calibrations` for
     arguments.
+
+    NOTE: Echelle uses this same class.  It had been possible there would be
+    a different order of the default_steps
+
+    ..todo.. Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
                  show=False, steps=None):

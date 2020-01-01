@@ -31,6 +31,7 @@ from pypeit.core import parse
 from pypeit.core import combine
 from pypeit.images import scienceimage
 from pypeit.spectrographs import util
+from pypeit import calibrations
 
 
 #def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
@@ -668,6 +669,9 @@ class Coadd2d(object):
 
 
     def create_psuedo_image(self, coadd_list):
+        """ THIS UNDOCUMENTED CODE PROBABLY SHOULD GENERATE AND RETURN
+        STANDARD PYPEIT OBJCTS INSTEAD OF SOME UNDEFINED DICT"""
+
 
 
         nspec_vec = np.zeros(self.nslits,dtype=int)
@@ -788,17 +792,27 @@ class Coadd2d(object):
 
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
-        parcopy['scienceimage']['trace_npoly'] = 3        # Low order traces since we are rectified
+        parcopy['scienceimage']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
-        redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], parcopy, psuedo_dict['tilts'],
-                                      ir_redux=self.ir_redux, objtype = 'science_coadd2d', det=self.det, binning=self.binning)
+        # Instantiate Calibrations class
+        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph)
+        caliBrate.tslits_dict = psuedo_dict['tslits_dict']
+        caliBrate.tilts_dict = dict(tilts=psuedo_dict['tilts'])
+        caliBrate.mswave = psuedo_dict['waveimg']
+        #
+        # redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], parcopy, psuedo_dict['tilts'],
+        redux=reduce.instantiate_me(sciImage, self.spectrograph, parcopy, caliBrate,
+                                    ir_redux=self.ir_redux, objtype='science_coadd2d',
+                                    det=self.det, binning=self.binning, show=show)
 
         if show:
             redux.show('image', image=psuedo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
         # Object finding
-        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, ir_redux=self.ir_redux, show_peaks=show_peaks, show=show)
+        #sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks)
+        sobjs_obj, nobj, skymask_init = redux.find_objects(show_peaks=show_peaks)
         # Local sky-subtraction
         global_sky_psuedo = np.zeros_like(psuedo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
+        embed(header='798 of coadd2d')
         skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs = redux.local_skysub_extract(
             psuedo_dict['waveimg'], global_sky_psuedo, sobjs_obj, spat_pix=psuedo_dict['spat_img'], model_noise=False,
             show_profile=show, show=show)
@@ -1160,11 +1174,11 @@ class MultiSlitCoadd2d(Coadd2d):
         for iexp in range(self.nexp):
             sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], ir_redux=self.ir_redux,
-                                           fwhm=self.par['scienceimage']['find_fwhm'],
-                                           trim_edg=self.par['scienceimage']['find_trim_edge'],
-                                           npoly_cont=self.par['scienceimage']['find_npoly_cont'],
-                                           maxdev=self.par['scienceimage']['find_maxdev'],
-                                           ncoeff=3, sig_thresh=self.par['scienceimage']['sig_thresh'], nperslit=1,
+                                           fwhm=self.par['scienceimage']['findobj']['find_fwhm'],
+                                           trim_edg=self.par['scienceimage']['findobj']['find_trim_edge'],
+                                           npoly_cont=self.par['scienceimage']['findobj']['find_npoly_cont'],
+                                           maxdev=self.par['scienceimage']['findobj']['find_maxdev'],
+                                           ncoeff=3, sig_thresh=self.par['scienceimage']['findobj']['sig_thresh'], nperslit=1,
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT

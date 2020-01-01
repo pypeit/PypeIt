@@ -17,12 +17,10 @@ class Reduce(object):
      a Science or Standard star exposure
 
      Args:
-         file_list : list
-           List of raw files to produce the flat field
+         sciImg (pypeit.images.scienceimage.ScienceImage):
          spectrograph : str
-         tslits_dict : dict
-           dict from TraceSlits class
-         par :
+         par (pypeit.par.pyepeitpar.PypeItPar):
+         caliBrate (pypeit.calibrations.Calibrations):
          tilts : ndarray
            tilts from WaveTilts class
            used for sky subtraction and object finding
@@ -259,7 +257,7 @@ class Reduce(object):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def find_objects(self, std_trace=None, manual_extract_dict=None):
+    def find_objects(self, std_trace=None, manual_extract_dict=None, show_peaks=False):
         """
         Main driver for finding objects in a set of slits/orders
         of the current Science Image
@@ -278,7 +276,7 @@ class Reduce(object):
         # Do one iteration of object finding, and sky subtract to get initial sky model
         self.sobjs_obj, self.nobj, skymask_init = \
             self._single_find_objects(self.sciImg.image,
-                                     std_trace=std_trace,
+                                     std_trace=std_trace, show_peaks=show_peaks,
                                      show=self.reduce_show & (not self.std_redux),
                                      manual_extract_dict=manual_extract_dict)
 
@@ -292,7 +290,7 @@ class Reduce(object):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self._single_find_objects(self.sciImg.image - self.initial_sky,
                                         std_trace=std_trace,
-                                        show=self.reduce_show,
+                                        show=self.reduce_show, show_peaks=show_peaks,
                                         manual_extract_dict=manual_extract_dict)
         else:
             msgs.info("Skipping 2nd run of finding objects")
@@ -968,14 +966,12 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     the description of the valid keyword arguments.
 
     Args:
+        sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph
             (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The instrument used to collect the data to be reduced.
-
-        tslits_dict (dict):
-            dictionary containing slit/order boundary information
-        par:
-        tilts (np.ndarray):
+        par (pypeit.par.pyepeitpar.PypeItPar):
+        caliBrate (pypeit.calibrations.Calibrations):
         **kwargs
             Passed to Parent init
 
