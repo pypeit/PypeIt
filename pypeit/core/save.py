@@ -90,7 +90,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
 
     return
 
-
+# JFH This routine is deprecated. The preferred way to write out 1d coadds is now in the coadd1d class.
 def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
                          header=None, ex_value='OPT', overwrite=True):
     '''

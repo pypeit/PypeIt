@@ -684,7 +684,9 @@ class Coadd1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, sn_smooth_npix=None, wave_method=None):
+    def __init__(self, sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
+                 sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
+                 lower=None, upper=None, maxrej=None, sn_clip=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -718,6 +720,71 @@ class Coadd1DPar(ParSet):
                                "'linear' -- Grid is uniform in lamba." \
                                "'concatenate' -- Meld the input wavelength arrays"
 
+        defaults['samp_fact'] = 1.0
+        dtypes['samp_fact'] = float
+        descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
+                             'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
+
+        defaults['ref_percentile'] = 70.0
+        dtypes['ref_percentile'] = [int, float]
+        descr['ref_percentile'] = 'Percentile used for selecting the minimum SNR cut from a reference spectrum used to ' \
+                                  'robustly determine the median ratio between spectra. This parameter is used by ' \
+                                  'coadd1d.robust_median_ratio as part of the automatic rescaling procedure. Pixels ' \
+                                  'above this percentile cut are deemed the "good" pixels and are used to compute the ' \
+                                  'ratio of two spectra.  This must be a number between 0 and 100.'
+
+        defaults['maxiter_scale'] = 5
+        dtypes['maxiter_scale'] = int
+        descr['maxiter_scale'] = 'Maximum number of iterations performed for rescaling spectra.'
+
+        defaults['sigrej_scale'] = 3.0
+        dtypes['sigrej_scale'] = [int, float]
+        descr['sigrej_scale'] = 'Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.'
+
+        defaults['scale_method'] = 'auto'
+        dtypes['scale_method'] = str
+        descr['scale_method'] = "Method used to rescale the spectra prior to coadding. The options are:" \
+                                " " \
+                                "'auto' -- Determine the scaling method automatically based on the S/N ratio which works well" \ 
+                                "'poly' -- Polynomial rescaling." \
+                                "'median' -- Median rescaling" \
+                                "'none' -- Do not rescale." \
+                                "'hand' -- Pass in hand scaling factors. This option is not well tested."
+
+        defaults['sn_min_medscale'] = 0.5
+        dtypes['sn_min_medscale'] = [int, float]
+        descr['sn_min_medscale'] = "For scale method set to 'auto', this sets the minimum SNR for which median scaling is attempted"
+
+        defaults['sn_min_polyscale'] = 2.0
+        dtypes['sn_min_polyscale'] = [int, float]
+        descr['sn_min_polyscale'] = "For scale method set to 'auto', this sets the minimum SNR for which polynomial scaling is attempted. " \
+
+
+        defaults['maxiter_reject'] = 5
+        dtypes['maxiter_reject'] = int
+        descr['maxiter_reject'] = 'maximum number of iterations for stacking and rejection. The code stops iterating ' \
+                                  'either when the output mask does not change betweeen successive iterations or when ' \
+                                  'maxiter_reject is reached.'
+        defaults['lower'] = 3.0
+        dtypes['lower'] = [int, float]
+        descr['lower'] = 'Lower rejection threshold used for rejecting pixels when combining spectra in units of sigma.'
+
+        defaults['upper'] = 3.0
+        dtypes['upper'] = [int, float]
+        descr['upper'] = 'Upper rejection threshold used for rejecting pixels when combining spectra in units of sigma.'
+
+        defaults['maxrej'] = None
+        dtypes['maxrej'] = int
+        descr['maxrej'] = 'Coadding performs iterative rejection by comparing each exposure to a preliminary stack of ' \
+                          'all the exposures. If this parameter is set then it will not reject more than maxrej pixels ' \
+                          'per iteration of this rejection. The default is None, which means no maximum on rejected pixels.'
+
+        defaults['sn_clip'] = 30.0
+        dtypes['sn_clip'] = [int, float]
+        descr['sn_clip'] = 'Errors are capped during rejection so that the S/N is never greater than sn_clip. This ' \
+                           'prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ ' \
+                           'at a level greater than the formal S/N due to systematics.'
+
         # Instantiate the parameter set
         super(Coadd1DPar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -729,7 +796,9 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['sn_smooth_npix', 'wave_method']
+        parkeys = ['sn_smooth_npix', 'wave_method' 'samp_fact', 'ref_percentile', 'maxiter_scale',
+                   'sigrej_scale', 'scale_method', 'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject',
+                   'lower', 'upper', 'maxrej', 'sn_clip']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

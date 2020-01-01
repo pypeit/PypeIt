@@ -1057,9 +1057,9 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
     return fluxes_new, ivars_new, order_ratios
 
 
-def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, mask_ref=None, scale_method=None, min_good=0.05,
+def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, mask_ref=None, scale_method='auto', min_good=0.05,
                ref_percentile=70.0, maxiters=5, sigrej=3, max_median_factor=10.0,
-               npoly=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
+               npoly=None, hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
     '''
     Routine for solving for the best way to rescale an input spectrum flux to match a reference spectrum flux_ref.
     The code will work best if you choose the reference
@@ -1098,12 +1098,13 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     npoly: int, default=None
        order for the poly ratio scaling if polynomial rescaling is the method used. Default is to automatically compute
        this based on S/N ratio of data.
-    scale_method: scale method, str, default=None. Options are poly, median, none, or hand. Hand is not well tested.
-                  User can optionally specify the rescaling method. Default is to let the
-                  code determine this automitically which works well.
+    scale_method (str):
+       scale method, str, default='auto'. Options are auto, poly, median, none, or hand. Hand is not well tested.
+       User can optionally specify the rescaling method. Default is to let the
+       code determine this automitically which works well.
     hand_scale: ndarray, (nexp,)
         array of hand scale factors, not well tested
-    sn_max_medscale: float, default=2.0
+    sn_min_polyscale: float, default=2.0
        maximum SNR for perforing median scaling
     sn_min_medscale: float, default=0.5
        minimum SNR for perforing median scaling
@@ -1130,16 +1131,18 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     #rms_sn, weights = sn_weights(wave, flux, ivar, mask, sn_smooth_npix)
     #sn = np.sqrt(np.mean(rms_sn**2))
 
-    if scale_method is None:
-        if sn > sn_max_medscale:
-            scale_method = 'poly'
-        elif ((sn <= sn_max_medscale) and (sn > sn_min_medscale)):
-            scale_method = 'median'
+    if scale_method is 'auto':
+        if sn > sn_min_polyscale:
+            method_used = 'poly'
+        elif ((sn <= sn_min_polyscale) and (sn > sn_min_medscale)):
+            method_used = 'median'
         else:
-            scale_method = 'none'
+            method_used = 'none'
+    else:
+        method_used = scale_method
 
     # Estimate the scale factor
-    if scale_method == 'poly':
+    if method_used == 'poly':
         # Decide on the order of the polynomial rescaling
         if npoly is None:
             if sn > 25.0:
@@ -1153,7 +1156,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         scale, fit_tuple, flux_scale, ivar_scale, outmask = solve_poly_ratio(
             wave, flux, ivar, flux_ref_int, ivar_ref_int, npoly,mask=mask, mask_ref=mask_ref_int,
             ref_percentile=ref_percentile, debug=debug)
-    elif scale_method == 'median':
+    elif method_used == 'median':
         # Median ratio (reference to spectrum)
         med_scale = robust_median_ratio(flux, ivar, flux_ref_int, ivar_ref_int,ref_percentile=ref_percentile,min_good=min_good,
                                         mask=mask, mask_ref=mask_ref_int, maxiters=maxiters,
@@ -1162,14 +1165,14 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         flux_scale = flux * med_scale
         ivar_scale = ivar * 1.0/med_scale**2
         scale = np.full_like(flux,med_scale)
-    elif scale_method == 'hand':
+    elif method_used == 'hand':
         # Input?
         if hand_scale is None:
             msgs.error("Need to provide hand_scale parameter, single value")
         flux_scale = flux * hand_scale
         ivar_scale = ivar * 1.0 / hand_scale ** 2
         scale = np.full(flux.size, hand_scale)
-    elif scale_method == 'none':
+    elif method_used == 'none':
         flux_scale = flux.copy()
         ivar_scale = ivar.copy()
         scale = np.ones_like(flux)
@@ -1177,10 +1180,10 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         msgs.error("Scale method not recognized! Check documentation for available options")
     # Finish
     if show:
-        scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, scale, scale_method, mask = mask, mask_ref=mask_ref,
+        scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, scale, method_used, mask = mask, mask_ref=mask_ref,
                       title='Scaling Applied to the Data')
 
-    return flux_scale, ivar_scale, scale, scale_method
+    return flux_scale, ivar_scale, scale, method_used
 
 
 def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
@@ -1799,8 +1802,9 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
     return wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused
 
 
-def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_percentile=70.0, maxiter_scale=5, sigrej_scale=3,
-                     scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
+def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_percentile=70.0, maxiter_scale=5,
+                     sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
+                     debug=False, show=False):
 
     '''
     Routine for optimally combining long or multi-slit spectra or echelle spectra of individual orders. It will
@@ -1860,14 +1864,14 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
         maxiter_scale: int, default=5
             Maximum number of iterations performed for rescaling spectra.
-        scale_method: scale method, str, default=None. Options are poly, median, none, or hand. Hand is not well tested.
+        scale_method: scale method, str, default='auto'. Options are auto, poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default is to let the
             code determine this automitically which works well.
         sn_smooth_npix: float, 10000.0
             Velocity smoothing used for determining smoothly varying S/N ratio weights by sn_weights
         hand_scale:
             array of hand scale factors, not well tested
-        sn_max_medscale (float): default=2.0
+        sn_min_polyscale (float): default=2.0
             maximum SNR for perforing median scaling
         sn_min_medscale (float): default=0.5
             minimum SNR for perforing median scaling
@@ -1927,18 +1931,17 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
         fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp], scale_method_iexp = scale_spec(
             waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], sn[iexp], wave_stack, flux_stack, ivar_stack,
             mask=masks[:, iexp], mask_ref=mask_stack, ref_percentile=ref_percentile, maxiters=maxiter_scale,
-            sigrej=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale_iexp, sn_max_medscale=sn_max_medscale,
+            sigrej=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale_iexp, sn_min_polyscale=sn_min_polyscale,
             sn_min_medscale=sn_min_medscale, debug=debug, show=show)
         scale_method_used.append(scale_method_iexp)
 
     return fluxes_scale, ivars_scale, scales, scale_method_used
 
 
-#Todo: This should probaby take a parset?
 def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
              wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
              ref_percentile=70.0, maxiter_scale=5,
-             sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
+             sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
              maxrej=None, qafile=None, title='', debug=False, debug_scale=False, show_scale=False, show=False):
 
@@ -1974,13 +1977,13 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
             Maximum number of iterations performed for rescaling spectra.
         sigrej_scale: flaot, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
-        scale_method: scale method, str, default=None.
+        scale_method (str):
             Options are poly, median, none, or hand. Hand is not well tested.
-            User can optionally specify the rescaling method. Default is to let the
+            User can optionally specify the rescaling method. Default is 'auto' will let the
             code determine this automitically which works well.
         hand_scale: ndarray,
             Array of hand scale factors, not well tested
-        sn_max_medscale: float, default = 2.0,
+        sn_min_polyscale: float, default = 2.0,
             maximum SNR for perforing median scaling
         sn_min_medscale: float, default = 0.5
             minimum SNR for perforing median scaling
@@ -2042,7 +2045,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
         wave_grid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
         sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
-        sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
+        sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale, show=show_scale)
 
     # Rejecting and coadding
     wave_stack, flux_stack, ivar_stack, mask_stack, outmask, nused = spec_reject_comb(
@@ -2055,22 +2058,20 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
 #TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
-def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_value=True,
+def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
                    wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
-                   sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
+                   sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
-                   maxrej=None, nmaskedge=2, phot_scale_dicts=None,
-                   qafile=None, outfile = None, debug=False, debug_scale=False, show_scale=False, show=False):
+                   maxrej=None, phot_scale_dicts=None,
+                   qafile=None, debug=False, debug_scale=False, show_scale=False, show=False):
 
     '''
     Routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
 
     Args:
-        fnames (list):
-           List of spec1d files. TODO This needs to be generalized to also work on generic coadd spectral format.
-        objids (list):
-           List of object identifiers in the spec1d files.
+        waves, fluxes, ivars, masks (ndarray):
+            Arrays with shape (nspec, nexp) containing the spectra to be coadded.
         sn_smooth_npix (int):
            Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
            set to None, the code will determine the effective number of good pixels per spectrum
@@ -2107,12 +2108,12 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
         sigrej_scale (float):
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec. Default=3.0
         scale_method (str):
-            Options are poly, median, none, or hand. Hand is not well tested.
-            User can optionally specify the rescaling method. Default=None will let the
+            Options are auto, poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default='auto' will let the
             code determine this automitically which works well.
         hand_scale: ndarray,
             Array of hand scale factors, not well tested
-        sn_max_medscale: float, default = 2.0,
+        sn_min_polyscale: float, default = 2.0,
             maximum SNR for perforing median scaling
         sn_min_medscale: float, default = 0.5
             minimum SNR for perforing median scaling
@@ -2164,11 +2165,6 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
     '''
 
 
-
-    # Loading Echelle data
-    waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
-                                                                    flux_value=flux_value, nmaskedge=nmaskedge)
-
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:
         nspec, nexp = waves.shape
@@ -2181,26 +2177,25 @@ def multi_combspec(fnames, objids, sn_smooth_npix=None, ex_value='OPT', flux_val
         waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         samp_fact=samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
-        sn_max_medscale=sn_min_medscale, sn_min_medscale=sn_max_medscale, sn_smooth_npix=sn_smooth_npix,
+        sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
         const_weights=const_weights, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
         maxrej=maxrej,  qafile=qafile, title='multi_combspec', debug=debug, debug_scale=debug_scale, show_scale=show_scale,
         show=show)
 
     # Write to disk?
-    if outfile is not None:
-        save.save_coadd1d_to_fits(outfile, wave_stack, flux_stack, ivar_stack, mask_stack, header=header,
-                                  ex_value=ex_value, overwrite=True)
+    #if outfile is not None:
+    #    save.save_coadd1d_to_fits(outfile, wave_stack, flux_stack, ivar_stack, mask_stack, header=header,
+    #                              ex_value=ex_value, overwrite=True)
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
-def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux_value=True, wave_method='log10',
+def ech_combspec(waves, fluxes, ivars, masks, sensfile=None, nbest=None, wave_method='log10',
                  dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
-                 ref_percentile=70.0, maxiter_scale=5,
-                 niter_order_scale=3, sigrej_scale=3, scale_method=None, hand_scale=None, sn_max_medscale=2.0, sn_min_medscale=0.5,
+                 ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0, scale_method='auto',
+                 hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
-                 maxrej=None, max_factor=10.0, maxiters=5, min_good=0.05, phot_scale_dicts=None, nmaskedge=2,
-                 qafile=None, outfile = None, order_scale=False,
-                 merge_stack=False, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False, show_exp=False, show=False):
+                 maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
+                 show_exp=False, show=False):
     '''
     Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
     three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
@@ -2208,10 +2203,8 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
     In most cases, you should use spec1d_stack_XX.fits for your scientific analyses since it reject most outliers.
 
     Args:
-        fnames: list
-           a list of spec1d fits file names
-        objids: list
-           objids (e.g. 'OBJ0001') you want to combine of that spectrum in the spec1d fits files
+        waves, fluxes, ivars, masks (ndarray):
+           Arrays with shape (nspec, nexp) containing the spectra to be coadded.
         sensfile: str, default = None for a smoothed ivar weighting when sticking different orders
         ex_value: str, default = 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
         flux_value: bool, default=True
@@ -2241,12 +2234,12 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
         sigrej_scale: flaot, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
         scale_method: scale method, str, default=None.
-            Options are poly, median, none, or hand. Hand is not well tested.
-            User can optionally specify the rescaling method. Default is to let the
+            Options are auto, poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default 'auto' is to let the
             code determine this automitically which works well.
         hand_scale: ndarray,
             Array of hand scale factors, not well tested
-        sn_max_medscale: float, default = 2.0,
+        sn_min_polyscale: float, default = 2.0,
             maximum SNR for perforing median scaling
         sn_min_medscale: float, default = 0.5
             minimum SNR for perforing median scaling
@@ -2314,22 +2307,15 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
              Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
     '''
 
-    # Loading Echelle data
-    waves, fluxes, ivars, masks, header = load.load_1dspec_to_array(fnames, gdobj=objids, order=None, ex_value=ex_value,
-                                                                    flux_value=flux_value, nmaskedge=nmaskedge)
-    # output name root for fits and QA plots
-    if outfile is None:
-        outfile = header['TARGET']+'.fits'
-    elif len(outfile.split('.'))==1:
-        outfile = outfile+'.fits'
+    # output filenams for fits and QA plots
+    #outfile_order = outfile.replace('.fits', '_order.fits') if outfile is not None else None
 
-    outfile_order = outfile.replace('.fits', '_order.fits')
-    #outfile_stack = 'spec1d_stack_{:}'.format(outfile)
-
-    if qafile is None:
-        qafile = outfile.replace('.fits', '.pdf')
-    qafile_stack = qafile.replace('.pdf', '_stack.pdf')
-    qafile_chi = qafile.replace('.pdf', '_chi.pdf')
+    if qafile is not None:
+        qafile_stack = qafile.replace('.pdf', '_stack.pdf')
+        qafile_chi = qafile.replace('.pdf', '_chi.pdf')
+    else:
+        qafile_stack = None
+        qafile_chi = None
 
     # data shape
     nspec, norder, nexp = waves.shape
@@ -2384,9 +2370,9 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
         fluxes_scl_interord[:, iord], ivars_scl_interord[:,iord], scales_interord[:,iord], scale_method_used = \
             scale_spec_stack(wave_grid, waves[:, iord, :], fluxes[:, iord, :], ivars[:, iord, :], masks[:, iord, :],
                              rms_sn[iord, :], weights[:, iord, :], ref_percentile=ref_percentile,
-                             maxiter_scale=maxiter_scale,sigrej_scale=sigrej_scale, scale_method=scale_method,
+                             maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method,
                              hand_scale=hand_scale,
-                             sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale, debug=debug_scale)
+                             sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale, debug=debug_scale)
 
     # Arrays to store rescaled spectra. Need Fortran like order reshaping to create a (nspec, norder*nexp) stack of spectra.
     # The order of the reshaping in the second dimension is such that blocks norder long for each exposure are stacked
@@ -2411,7 +2397,7 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
         fluxes_scale_2d, ivars_scale_2d, scales_iter, scale_method_used = scale_spec_stack(
             wave_grid, waves_2d, fluxes_pre_scale, ivars_pre_scale, masks_2d, rms_sn_2d, weights_2d, ref_percentile=ref_percentile,
             maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method_iter[iter], hand_scale=hand_scale,
-            sn_max_medscale=sn_max_medscale, sn_min_medscale=sn_min_medscale,
+            sn_min_polyscale=sn_min_polyscale, sn_min_medscale=sn_min_medscale,
             show=(show_order_scale & (iter == (niter_order_scale-1))))
         scales_2d *= scales_iter
         fluxes_pre_scale = fluxes_scale_2d.copy()
@@ -2445,16 +2431,6 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
             coadd_qa(waves_stack_orders[:, iord], fluxes_stack_orders[:, iord], ivars_stack_orders[:, iord], nused_iord,
                      mask=masks_stack_orders[:, iord], tell=tell_iord,
                      title='Coadded spectrum of order {:d}/{:d}'.format(iord, norder))
-
-    ## Stack with an altnernative method: combine the stacked individual order spectra directly
-    if merge_stack:
-        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug)
-        wave_merge, flux_merge, ivar_merge, mask_merge, nused_merge = compute_stack(
-            wave_grid, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders, order_weights)
-        if show_order_stacks:
-            qafile_merge = 'spec1d_merge_{:}'.format(qafile)
-            coadd_qa(wave_merge, flux_merge, ivar_merge, nused_merge, mask=mask_merge, tell = None,
-                     title='Straight combined spectrum of the stacked individual orders', qafile=qafile_merge)
 
     # Now compute the giant stack
     wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack, outmask_giant_stack, nused_giant_stack = \
@@ -2502,103 +2478,169 @@ def ech_combspec(fnames, objids, sensfile=None, nbest=None, ex_value='OPT', flux
         coadd_qa(wave_giant_stack, flux_giant_stack, ivar_giant_stack, nused_giant_stack, mask=mask_giant_stack,
                  title='Final stacked spectrum', qafile=qafile_stack)
 
-    # Save stacked individual order spectra
-    save.save_coadd1d_to_fits(outfile_order, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
-                              header=header, ex_value = ex_value, overwrite=True)
-    save.save_coadd1d_to_fits(outfile, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
-                              header=header, ex_value=ex_value, overwrite=True)
+    ## Stack with an altnernative method: combine the stacked individual order spectra directly. This is deprecated
+    merge_stack = False
     if merge_stack:
-        outfile_merge = outfile.replace('.fits', '_merge.fits')
-        save.save_coadd1d_to_fits(outfile_merge, wave_merge, flux_merge, ivar_merge, mask_merge, header=header,
-                                  ex_value=ex_value, overwrite=True)
+        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug)
+        wave_merge, flux_merge, ivar_merge, mask_merge, nused_merge = compute_stack(
+            wave_grid, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders, order_weights)
+        if show_order_stacks:
+            qafile_merge = 'spec1d_merge_{:}'.format(qafile)
+            coadd_qa(wave_merge, flux_merge, ivar_merge, nused_merge, mask=mask_merge, tell = None,
+                     title='Straight combined spectrum of the stacked individual orders', qafile=qafile_merge)
+        #if outfile is not None:
+        #    outfile_merge = outfile.replace('.fits', '_merge.fits')
+        #    save.save_coadd1d_to_fits(outfile_merge, wave_merge, flux_merge, ivar_merge, mask_merge, header=header,
+        #                              ex_value=ex_value, overwrite=True)
 
-    return wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack
+    # Save stacked individual order spectra
+    #save.save_coadd1d_to_fits(outfile_order, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,
+    #                          header=header, ex_value = ex_value, overwrite=True)
+    #save.save_coadd1d_to_fits(outfile, wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack,
+    #                          header=header, ex_value=ex_value, overwrite=True)
+
+
+    return (wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack), \
+           (waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,)
 
 
 class CoAdd1d(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, pypeline, par, sensfile=None, debug=False):
-
+    def get_instance(cls, spec1dfiles, objids, coaddfile, par, sensfile=None, debug=False, show=False):
+        pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, par, sensfile=sensfile, debug=debug)
+            spec1dfiles, objids, coaddfile, par, sensfile=sensfile, debug=debug, show=show)
 
-    def __init__(self, spec1dfiles, objids, par, sensfile=None, debug=False):
+    def __init__(self, spec1dfiles, objids, coaddfile, par, sensfile=None, debug=False, show=False):
 
+        # Instantiate attributes
         self.spec1dfiles = spec1dfiles
         self.objids = objids
+        self.coaddfile = coaddfile
         self.sensfile = sensfile
         self.par = par
         self.debug = debug
-        self.wave, self.flux, self.ivar, self.mask = self.coadd()
-        self.save()
+        self.show= show
 
-    def coadd(self):
-        pass
+        self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
+        self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
+        self.save(ex_value=self.par['ex_value'])
 
-    def save(self):
-        pass
+    def load(self):
+        return load.load_1dspec_to_array(self.spec1dfiles, gdobj=self.objids,
+                                         ex_value=self.par['ex_value'],
+                                         flux_value=self.par['flux_value'],
+                                         nmaskedge=self.par['nmaskedge'])
 
-class MultiSlit(CoAdd1d):
-    """
-    Child of FluxSpec for Multislit and Longslit reductions
-    """
-
-    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
-        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)
-
-    def coadd(self):
-        passlo
-
-
-
-
-class Echelle(CoAdd1d):
-    """
-    Child of FluxSpec for Echelle reductions
-    """
-
-    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
-        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)
-
-
-    def flux_calib(self, sobjs, wave, sensfunction, meta_table):
+    def save(self, telluric=None, obj_model=None, ex_value='OPT', overwrite=True):
         """
-        Apply sensitivity function to all the spectra in an sobjs object.
+        Routine to save 1d coadds to a fits file. This replaces save.save_coadd1d_to_fits
 
         Args:
-            sobjs (object):
-               SpecObjs object
-            wave (ndarray):
-               wavelength array for sensitivity function (nspec,)
-            sensfunction (ndarray):
-               sensitivity function
-            meta_table (table):
-               astropy table containing meta data for sensitivity function
+            telluric:
+            obj_model:
+            ex_value:
+            overwrite:
 
         Returns:
 
         """
 
-        # Flux calibrate the orders that are mutually in the meta_table and in the sobjs. This allows flexibility
-        # for applying to data for cases where not all orders are present in the data as in the sensfunc, etc.,
-        # i.e. X-shooter with the K-band blocking filter.
-        ech_orders = np.array(meta_table['ECH_ORDERS']).flatten()
-        #norders = ech_orders.size
-        for sci_obj in sobjs:
-            # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
-            indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
-            if indx.size==1:
-                sci_obj.apply_flux_calib(wave[:, indx[0]],sensfunction[:,indx[0]],
-                                         sobjs.header['EXPTIME'],
-                                         extinct_correct=self.par['extinct_correct'],
-                                         longitude=self.spectrograph.telescope['longitude'],
-                                         latitude=self.spectrograph.telescope['latitude'],
-                                         airmass=float(sobjs.header['AIRMASS']))
-            elif indx.size == 0:
-                msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '
-                          'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
-            else:
-                msgs.error('This should not happen')
+        # Estimate sigma from ivar
+        sig = np.sqrt(utils.inverse(self.ivar_coadd))
 
+        if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
+            hdulist = fits.open(self.coaddfile)
+            msgs.info("Reading primary HDU from existing file: {:s}".format(self.coaddfile))
+        else:
+            msgs.info("Creating a new primary HDU.")
+            prihdu = fits.PrimaryHDU()
+            if self.header is None:
+                msgs.warn('The primary header is none')
+            else:
+                prihdu.header = self.header
+            hdulist = fits.HDUList([prihdu])
+
+        wave_mask = self.wave_coadd > 1.0
+        # Add Spectrum Table
+        cols = []
+        cols += [fits.Column(array=self.wave_coadd[wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
+        cols += [fits.Column(array=self.flux_coadd[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
+        cols += [fits.Column(array=self.ivar_coadd[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
+        cols += [fits.Column(array=sig[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
+        cols += [fits.Column(array=self.mask_coadd[wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
+        if telluric is not None:
+            cols += [fits.Column(array=telluric[wave_mask], name='TELLURIC', format='D')]
+        if obj_model is not None:
+            cols += [fits.Column(array=obj_model[wave_mask], name='OBJ_MODEL', format='D')]
+
+        coldefs = fits.ColDefs(cols)
+        tbhdu = fits.BinTableHDU.from_columns(coldefs)
+        tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
+        hdulist.append(tbhdu)
+
+        if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
+            hdulist.writeto(self.coaddfile, overwrite=True)
+            msgs.info("Appending 1D spectra to existing file {:s}".format(self.coaddfile))
+        else:
+            hdulist.writeto(self.coaddfile, overwrite=overwrite)
+            msgs.info("Wrote 1D spectra to {:s}".format(self.coaddfile))
+
+
+
+    def coadd(self):
+        """
+        Dummy method overloaded by sub-classes
+
+        Returns:
+
+        """
+        return [None]*4
+
+
+class MultiSlit(CoAdd1d):
+    """
+    Child of CoAdd1d for Multislit and Longslit reductions
+    """
+
+    def __init__(self, spec1dfiles, objids, coaddfile, par, debug=False, show=False):
+        super().__init__(spec1dfiles, objids, coaddfile, par, debug=debug, show=show)
+
+    def coadd(self):
+        wave_coadd, flux_coadd, ivar_coadd, mask_coadd = multi_combspec(
+            self.waves, self.fluxes, self.ivars, self.masks,
+            sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
+            samp_fact=self.par['samp_fact'], ref_percentile=self.par['ref_percentile'],
+            maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
+            scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
+            sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
+            lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
+            debug=self.debug, show=self.show)
+
+        return wave_coadd, flux_coadd, ivar_coadd, mask_coadd
+
+
+
+class Echelle(CoAdd1d):
+    """
+    Child of CoAdd1d for Echelle reductions
+    """
+
+    def __init__(self, spec1dfiles, objids, coaddfile, par, sensfile=None, debug=False, show=False):
+        super().__init__(spec1dfiles, objids, coaddfile, par, sensfile=sensfile, debug=debug, show=show)
+
+    def coadd(self):
+        (wave_coadd, flux_coadd, ivar_coadd, mask_coadd), order_stacks = ech_combspec(
+            self.waves, self.fluxes, self.ivars, self.masks,
+            sensfile=self.sensfile, nbest=self.par['nbest'],
+            sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
+            samp_fact=self.par['samp_fact'], ref_percentile=self.par['ref_percentile'],
+            maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
+            scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
+            sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
+            lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
+            debug = self.debug, show = self.show)
+
+        return wave_coadd, flux_coadd, ivar_coadd, mask_coadd
