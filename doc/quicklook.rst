@@ -11,23 +11,22 @@ We describe each in turn.
 
 .. _run-calcheck:
 
-pypeit_ql_shane_kast
-====================
+pypeit_ql_mos
+=============
 
-This script performs a boxcar extraction of a long slit
-observation taken with the Kast spectrograph on the
-Shane 3m telescope at Lick Observatory.
+This script performs a boxcar extraction of a long
+or multi-slit observation taken with one of PypeIt's
+spectrographs
 
 Here is the usage::
 
-    pypeit_ql_shane_kast -h
-    usage: pypeit_ql_shane_kast [-h] [-b BOX_RADIUS]
-                                camera full_rawpath arc flat science
+    usage: pypeit_ql_mos [-h] [-b BOX_RADIUS]
+                         spectrograph full_rawpath arc flat science
 
-    Script to run PypeIt on a set of Kast files
+    Script to run PypeIt in QuickLook on a set of MOS files
 
     positional arguments:
-      camera                blue or red
+      spectrograph          Name of spectograph, e.g. shane_kast_blue
       full_rawpath          Full path to the raw files
       arc                   Arc frame
       flat                  Flat frame
@@ -38,13 +37,33 @@ Here is the usage::
       -b BOX_RADIUS, --box_radius BOX_RADIUS
                             Set the radius for the boxcar extraction (arcsec)
 
-
 And here is a sample call on files from the Development suite::
 
-    pypeit_ql_shane_kast blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
+    pypeit_ql_mos shane_kast_blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
 
 This generates a `shane_kast_blue_A` folder with the standard
 calibration (Masters), QA, and Science outputs.
+
+This script has been tested successfully on the following instruments:
+shane_kast_blue, shane_kast_red.
+
+Examples
+++++++++
+
+shane_kast_blue::
+
+    pypeit_ql_mos shane_kast_blue /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Shane_Kast_blue/600_4310_d55 b1.fits.gz b10.fits.gz b27.fits.gz
+
+keck_lris_red (longslit)::
+
+    pypeit_ql_mos keck_lris_red /home/xavier/local/Python/PypeIt-development-suite/RAW_DATA/Keck_LRIS_red/long_600_7500_d560 LR.20160216.05709.fits.gz LR.20160216.13991.fits.gz LR.20160216.40478.fits.gz --det 2 --ignore_headers
+
+keck_lris_blue (longslit + archived pixel flat)::
+
+    pypeit_ql_mos keck_lris_blue /home/xavier/scratch/FRB190714/Raw b191228_1020.fits b191228_1066.fits b191228_1051.fits --det 2 --user_pixflat=/home/xavier/local/Python/PypeIt-development-suite//CALIBS/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
+
+It is possible all of the MOS instruments will work.
+Give it a shot!
 
 pypeit_ql_keck_nires
 ====================

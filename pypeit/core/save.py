@@ -206,7 +206,7 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
 
         # Optimal profile (FWHM)
         # S2N -- default to boxcar
-        if specobj.FWHMFIT is not None:
+        if hasattr(specobj, 'FWHMFIT'):
             opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
             # S2N -- optimal
             ivar = specobj.OPT_COUNTS_IVAR

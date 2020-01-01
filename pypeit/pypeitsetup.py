@@ -18,7 +18,7 @@ from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit import debugger
+from IPython import embed
 
 class PypeItSetup(object):
     """
@@ -132,7 +132,7 @@ class PypeItSetup(object):
             msgs.error('Must provide spectrograph name directly or using configuration lines.')
        
         # Instantiate the spectrograph
-        self.spectrograph = load_spectrograph(_spectrograph_name)
+        self.spectrograph = load_spectrograph(_spectrograph_name, ifile=file_list[0])
 
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
