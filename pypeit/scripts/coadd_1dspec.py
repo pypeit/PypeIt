@@ -25,6 +25,7 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
+# TODO This is basically the exact same code as read_fluxfile in the fluxing script. Consolidate them?
 def read_coaddfile(ifile):
     """
     Read a PypeIt .coadd1d file, akin to a standard PypeIt file
@@ -54,7 +55,7 @@ def read_coaddfile(ifile):
 
     # Parse the fluxing block
     spec1dfiles = []
-    objids = []
+    objids_in = []
     s, e = par.util._find_pypeit_block(lines, 'coadd1d')
     if s >= 0 and e < 0:
         msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
@@ -63,22 +64,27 @@ def read_coaddfile(ifile):
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
-            if len(prs) != 2:
-                msgs.error('Invalid format for .coadd1d file.' + msgs.newline() +
-                               'You must have specify a spec1dfile and objid on each line of the coadd1d block')
-
             spec1dfiles.append(prs[0])
-            objids.append(prs[1])
+            if ctr == 0 and len(prs) != 2:
+                msgs.error('Invalid format for .coadd1d file.' + msgs.newline() +
+                           'You must have specify a spec1dfile and objid on the first line of the coadd1d block')
+            if len(prs) > 1:
+                objids_in.append(prs[1])
         is_config[s-1:e+1] = False
 
     # Chck the sizes of the inputs
-    if len(spec1dfiles) != len(objids):
-        msgs.error('Problem with your .coadd1d file input')
+    nspec = len(spec1dfiles)
+    if len(objids_in) == 1:
+        objids = nspec*objids_in
+    elif len(objids_in) == nspec:
+        objids = objids_in
+    else:
+        msgs.error('Invalid format for .flux file.' + msgs.newline() +
+                   'You must specify a single objid on the first line of the coadd1d block,' + msgs.newline() +
+                   'or specify am objid for every spec1dfile in the coadd1d block.' + msgs.newline() +
+                   'Run pypeit_coadd_1dspec --help for information on the format')
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
-    #cfg = ConfigObj(cfg_lines)
-    #spectrograph_name = cfg['rdx']['spectrograph']
-    #spectrograph = load_spectrograph(spectrograph_name)
 
     # Return
     return cfg_lines, spec1dfiles, objids
@@ -89,6 +95,10 @@ def parser(options=None):
     parser.add_argument("coadd1d_file", type=str,
                         help="R|File to guide coadding process. This file must have the following format: \n"
                              "\n"
+                             "[coadd1d]\n"
+                             "   coaddfile='output_filename.fits'\n"
+                             "   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
+                             "\n"
                              "   coadd1d read\n"
                              "     spec1dfile1 objid1\n"
                              "     spec1dfile2 objid2\n"
@@ -96,8 +106,23 @@ def parser(options=None):
                              "        ...    \n"
                              "   coadd1d end\n"
                              "\n"
-                             "Where a spec1dfile is the path to a PypeIt spec1dfile, and objid is the object identifier.\n"
-                             "To determine the objids inspect the spec1d_*.txt files or run pypeit_show_1dspec --list\n"
+                             "         OR the coadd1d read/end block can look like \n"
+                             "\n"
+                             "  coadd1d read\n"
+                             "     spec1dfile1 objid \n"
+                             "     spec1dfile2 \n"
+                             "     spec1dfile3 \n"
+                             "     ...    \n"
+                             "  coadd1d end\n"
+                             "\n"
+                             "That is the coadd1d block must either be a two column list of spec1dfiles and objids,\n"
+                             "or you can specify a single objid for all spec1dfiles on the first line\n"
+                             "\n"
+                             "Where: \n"
+                             "\n"
+                             "   spec1dfile -- full path to a PypeIt spec1dfile\n"
+                             "   objid      -- is the object identifier. To determine the objids inspect the \n"
+                             "                 spec1d_*.txt files or run pypeit_show_1dspec spec1dfile --list\n"
                              "\n")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--show", default=False, action="store_true", help="show QA during coadding process")
@@ -128,6 +153,7 @@ def main(args):
     par.to_config(args.par_outfile)
     sensfile = par['coadd1d']['sensfuncfile']
     coaddfile = par['coadd1d']['coaddfile']
+
     if spectrograph.pypeline is 'Echelle' and sensfile is None:
         msgs.error('You must specifiy set the sensfuncfile in the .coadd1d file for Echelle coadds')
 

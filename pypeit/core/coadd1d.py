@@ -13,6 +13,7 @@ from pypeit.spectrographs.util import load_spectrograph
 
 from pkg_resources import resource_filename
 from pypeit import utils
+from pypeit import specobjs
 from pypeit import msgs
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
@@ -1133,7 +1134,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     #rms_sn, weights = sn_weights(wave, flux, ivar, mask, sn_smooth_npix)
     #sn = np.sqrt(np.mean(rms_sn**2))
 
-    if scale_method is 'auto':
+    if scale_method == 'auto':
         if sn > sn_min_polyscale:
             method_used = 'poly'
         elif ((sn <= sn_min_polyscale) and (sn > sn_min_medscale)):
@@ -2206,7 +2207,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile=None, nbest=None, wave_me
 
     Args:
         waves, fluxes, ivars, masks (ndarray):
-           Arrays with shape (nspec, nexp) containing the spectra to be coadded.
+           Arrays with shape (nspec, norders, nexp) containing the spectra to be coadded.
         sensfile: str, default = None for a smoothed ivar weighting when sticking different orders
         ex_value: str, default = 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
         flux_value: bool, default=True
@@ -2534,15 +2535,35 @@ class CoAdd1d(object):
         self.debug = debug
         self.show= show
 
+        self.nexp = len(self.spec1dfiles) # Number of exposures
         self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
         self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
         self.save(ex_value=self.par['ex_value'])
 
     def load(self):
-        return load.load_1dspec_to_array(self.spec1dfiles, gdobj=self.objids,
-                                         ex_value=self.par['ex_value'],
-                                         flux_value=self.par['flux_value'],
-                                         nmaskedge=self.par['nmaskedge'])
+        """
+        Load the arrays we need for performing coadds.
+
+        Returns:
+          waves, fluxes, ivars, masks, header
+        """
+
+        for iexp in range(self.nexp):
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp])
+            indx = sobjs.name_indices(self.objids[iexp])
+            wave_iexp, flux_iexp, ivar_iexp, mask_iexp, meta_spec, header = \
+                sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
+            # Allocate arrays on first iteration
+            if iexp == 0:
+                waves = np.zeros(wave_iexp.shape + (self.nexp,))
+                fluxes = np.zeros_like(waves)
+                ivars = np.zeros_like(waves)
+                masks = np.zeros_like(waves, dtype=bool)
+                header_out = header
+
+            waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], masks[...,iexp] = wave_iexp, flux_iexp, ivar_iexp, mask_iexp
+
+        return waves, fluxes, ivars, masks, header_out
 
     def save(self, telluric=None, obj_model=None, ex_value='OPT', overwrite=True):
         """
@@ -2560,7 +2581,6 @@ class CoAdd1d(object):
 
         # Estimate sigma from ivar
         sig = np.sqrt(utils.inverse(self.ivar_coadd))
-
         if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
             hdulist = fits.open(self.coaddfile)
             msgs.info("Reading primary HDU from existing file: {:s}".format(self.coaddfile))

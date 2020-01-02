@@ -65,14 +65,14 @@ def read_fluxfile(ifile):
 
 
     # Parse the fluxing block
+    spec1dfiles = []
+    sensfiles_in = []
     s, e = par.util._find_pypeit_block(lines, 'flux')
     if s >= 0 and e < 0:
         msgs.error("Missing 'flux end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
         msgs.error("Missing flux block in in {0}. Check the input format for the .flux file".format(ifile))
     else:
-        spec1dfiles = []
-        sensfiles_in = []
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
             spec1dfiles.append(prs[0])
@@ -81,7 +81,6 @@ def read_fluxfile(ifile):
                            'You must have specify a sensfile on the first line of the flux block')
             if len(prs) > 1:
                 sensfiles_in.append(prs[1])
-            #flux_dict['flux_files'].append(prs[1])
         is_config[s-1:e+1] = False
 
     # Chck the sizes of the inputs
@@ -97,9 +96,6 @@ def read_fluxfile(ifile):
                    'Run pypeit_flux_calib --help for information on the format')
     # Construct config to get spectrograph
     cfg_lines = list(lines[is_config])
-    #cfg = ConfigObj(cfg_lines)
-    #spectrograph_name = cfg['rdx']['spectrograph']
-    #spectrograph = load_spectrograph(spectrograph_name)
 
     # Return
     return cfg_lines, spec1dfiles, sensfiles

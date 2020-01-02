@@ -831,14 +831,14 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method' 'samp_fact',
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'samp_fact',
                    'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method', 'sn_min_medscale',
                    'sn_min_polyscale', 'maxiter_reject',
                    'lower', 'upper', 'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for Coadd2DPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for Coadd1DPar.'.format(k[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
@@ -3186,12 +3186,22 @@ class PypeItPar(ParSet):
                         if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
         kwargs[pk] = FluxCalibratePar.from_dict(cfg[pk]) if pk in k else default
 
+        # Allow coadd1d  to be turned on using cfg['rdx']
+        pk = 'coadd1d'
+        default = Coadd1DPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['coadd1d'] else None
+        kwargs[pk] = Coadd1DPar.from_dict(cfg[pk]) if pk in k else default
+
+        # Allow coadd2d  to be turned on using cfg['rdx']
         pk = 'coadd2d'
-        default = Coadd2DPar()
+        default = Coadd2DPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['coadd2d'] else None
         kwargs[pk] = Coadd2DPar.from_dict(cfg[pk]) if pk in k else default
 
+        # Allow coadd2d  to be turned on using cfg['rdx']
         pk = 'sensfunc'
-        default = SensFuncPar()
+        default = SensFuncPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['sensfunc'] else None
         kwargs[pk] = SensFuncPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:

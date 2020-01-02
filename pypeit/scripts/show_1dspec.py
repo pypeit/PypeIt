@@ -41,7 +41,7 @@ def main(args, unit_test=False):
     if args.list:
         print("Showing object names for input file...")
         for ii in range(len(sobjs)):
-            name = sobjs[ii].name
+            name = sobjs[ii].NAME
             print("EXT{:07d} = {}".format(ii+1, name))
         return
 

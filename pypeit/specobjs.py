@@ -90,9 +90,7 @@ class SpecObjs(object):
         # Return
         return slf
 
-    # JFH TODO This init from specobjs does not attach the header. I think we probalby need a header argument or we
-    # we need to do some kind of copy.
-    def __init__(self, specobjs=None):
+    def __init__(self, specobjs=None, header=None):
 
         # Only one attribute is allowed for this Object -- specobjs
         if specobjs is None:
@@ -102,8 +100,7 @@ class SpecObjs(object):
                 specobjs = np.array(specobjs)
             self.specobjs = specobjs
 
-        # Other attributes
-        self.header = None
+        self.header = header if header is not None else None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -248,7 +245,7 @@ class SpecObjs(object):
             SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
             # For multiple detectors grab the requested detectors
             if multi_spec_det is not None:
-                sobjs_std = SpecObjs()
+                sobjs_std = SpecObjs(header=self.header)
                 # Now append the maximum S/N object on each detector
                 for idet in multi_spec_det:
                     this_det = self.DET == idet
@@ -257,7 +254,7 @@ class SpecObjs(object):
             else: # For normal multislit take the brightest object
                 istd = SNR.argmax()
                 # Return
-                sobjs_std = SpecObjs(specobjs=[self[istd]])
+                sobjs_std = SpecObjs(specobjs=[self[istd]], header=self.header)
             sobjs_std.header = self.header
             return sobjs_std
         elif 'Echelle' in pypeline:
@@ -278,7 +275,7 @@ class SpecObjs(object):
             # Finish
             indx = self.ECH_FRACPOS == objid_std
             # Return
-            sobjs_std = SpecObjs(specobjs=self[indx])
+            sobjs_std = SpecObjs(specobjs=self[indx], header=self.header)
             sobjs_std.header = self.header
             return sobjs_std
         else:
@@ -337,6 +334,18 @@ class SpecObjs(object):
         else:
             msgs.error("Should not get here")
         #
+        return indx
+
+    def name_indices(self, name):
+        """
+        Return the set of indices matching the input slit/order
+        """
+        if self[0].PYPELINE == 'Echelle':
+            indx = self.ECH_NAME == name
+        elif self[0].PYPELINE == 'MultiSlit':
+            indx = self.NAME == name
+        else:
+            msgs.error("Should not get here")
         return indx
 
 
@@ -399,7 +408,7 @@ class SpecObjs(object):
             SpecObjs
 
         """
-        sobj_copy = SpecObjs()
+        sobj_copy = SpecObjs(header=self.header)
         for sobj in self.specobjs:
             sobj_copy.add_sobj(sobj.copy())
         return sobj_copy
@@ -433,7 +442,7 @@ class SpecObjs(object):
             # here for the many ways to give a slice; a tuple of ndarray
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
-            return SpecObjs(specobjs=self.specobjs[item])
+            return SpecObjs(specobjs=self.specobjs[item], header=self.header)
 
     def __getattr__(self, k):
         if len(self.specobjs) == 0:
@@ -481,9 +490,9 @@ class SpecObjs(object):
         for key in core_keys:
             # Allow for fitstbl vs. header
             try:
-                header[key.upper()] = header[key.upper()]
+                header[key.upper()] = head_fitstbl[key.upper()]
             except KeyError:
-                header[key.upper()] = header[key]
+                header[key.upper()] = head_fitstbl[key]
         # Specify which pipeline created this file
         header['PYPELINE'] = spectrograph.pypeline
         header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
@@ -533,11 +542,11 @@ class SpecObjs(object):
             ext += 1
             # Add header keyword
             keywd = 'EXT{:04d}'.format(ext)
-            prihdu.header[keywd] = sobj.name
+            prihdu.header[keywd] = sobj.NAME
 
             # Table
             shdu = fits.table_to_hdu(sobj._data)
-            shdu.name = sobj.name
+            shdu.name = sobj.NAME
             # Append
             hdus += [shdu]
 

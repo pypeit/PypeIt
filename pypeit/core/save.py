@@ -190,13 +190,15 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
         if specobj is None:
             continue
         # Append
-        names.append(specobj.name)
         spat_pixpos.append(specobj.SPAT_PIXPOS)
-        slits.append(specobj.slit_orderindx)
         if spectrograph.pypeline == 'MultiSlit':
             spat_fracpos.append(specobj.SPAT_FRACPOS)
+            slits.append(specobj.SLITID)
+            names.append(specobj.NAME)
         elif spectrograph.pypeline == 'Echelle':
             spat_fracpos.append(specobj.ECH_FRACPOS)
+            slits.append(specobj.ECH_ORDER)
+            names.append(specobj.ECH_NAME)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.keys():
             slit_pix = 2.0*specobj.BOX_RADIUS
@@ -224,8 +226,8 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             obj_tbl['slit'] = slits
             obj_tbl['slit'].format = 'd'
         elif spectrograph.pypeline == 'Echelle':
-            obj_tbl['orderindx'] = slits
-            obj_tbl['orderindx'].format = 'd'
+            obj_tbl['order'] = slits
+            obj_tbl['order'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'

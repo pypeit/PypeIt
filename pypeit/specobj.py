@@ -89,6 +89,7 @@ data_model = {
     'SLITID': dict(otype=(int,np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
     'OBJID': dict(otype=(int, np.integer), desc='Object ID for multislit data. Each object is given an index for the slit '
                                                   'it appears increasing from from left to right. These are one based.'),
+    'NAME': dict(otype=str, desc='Name of the object following the naming model'),
     #
     'ECH_OBJID': dict(otype=(int, np.integer),
                       desc='Object ID for echelle data. Each object is given an index in the order '
@@ -96,7 +97,8 @@ data_model = {
     'ECH_ORDERINDX': dict(otype=(int, np.integer), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
     'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
     'ECH_ORDER': dict(otype=(int, np.integer), desc='Physical echelle order'),
-    'NAME': dict(otype=str, desc='Name of the object following the naming model')
+    'ECH_NAME': dict(otype=str, desc='Name of the object for echelle data. Same as NAME above but order numbers are '
+                                     'omitted giving a unique name per object.')
 }
 
 
@@ -158,7 +160,8 @@ class SpecObj(object):
                 continue
             #
             setattr(slf, key, table.meta[key])
-        # JFH It is a really bad idea to dynamically generate the name when you already wrote it to a file.
+        # JFH It is a really bad idea to dynamically generate the name when you already wrote it to a file. Just read
+        # in what you wrote out.
         # Name
         #slf.set_name()
         # Return
@@ -330,14 +333,21 @@ class SpecObj(object):
         if 'Echelle' in self.PYPELINE:
             # ObjID
             name = naming_model['obj']
+            ech_name = naming_model['obj']
             if 'ECH_FRACPOS' not in self._data.meta.keys():
                 name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-            # Order
+                ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
+            sdet = parse.get_dnum(self.DET, prefix=False)
+            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            ech_name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            # Order number
             name += '-'+naming_model['order']
             name += '{:04d}'.format(self.ECH_ORDER)
+            self.ECH_NAME = ech_name
+            self.NAME = name
         elif 'MultiSlit' in self.PYPELINE:
             # Spat
             name = naming_model['spat']
@@ -348,13 +358,11 @@ class SpecObj(object):
             # Slit
             name += '-'+naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
+            sdet = parse.get_dnum(self.DET, prefix=False)
+            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            self.NAME = name
         else:
             msgs.error("Bad PYPELINE")
-        # Detector
-        sdet = parse.get_dnum(self.DET, prefix=False)
-        name += '-{:s}{:s}'.format(naming_model['det'], sdet)
-        # Return
-        self.NAME = name
 
 
     def copy(self):
