@@ -790,8 +790,13 @@ def sensfunc_weights(sensfile, waves, debug=False):
     for iord in range(norder):
         for iexp in range(nexp):
             wave_mask = waves_stack[:, iord, iexp] > 1.0
-            sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
-                                                       bounds_error=True)(waves_stack[wave_mask, iord, iexp])
+            try:
+                sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
+                                                           bounds_error=True)(waves_stack[wave_mask, iord, iexp])
+            except ValueError:
+                msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                           "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
+                           "further and recreate your sensfunc.")
             weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:
