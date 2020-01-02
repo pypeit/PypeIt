@@ -8,12 +8,12 @@ from astropy import convolution
 from IPython import embed
 from astropy.table import Table
 from astropy import constants
-from pypeit.spectrographs.util import load_spectrograph
-
-
 from pkg_resources import resource_filename
+
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
 from pypeit import specobjs
+from pypeit import sensfunc
 from pypeit import msgs
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
@@ -769,11 +769,7 @@ def sensfunc_weights(sensfile, waves, debug=False):
             sensfunc weights evaluated on the input waves wavelength grid
     '''
 
-    sens_meta= Table.read(sensfile, 1)
-    sens_table = Table.read(sensfile, 2)
-    func = sens_meta['FUNC'][0]
-    polyorder_vec = sens_meta['POLYORDER_VEC'][0]
-
+    wave_sens, sens, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
 
     if waves.ndim == 2:
         nspec, norder = waves.shape
@@ -788,17 +784,14 @@ def sensfunc_weights(sensfile, waves, debug=False):
 
     weights_stack = np.zeros_like(waves_stack)
 
-    if norder != len(sens_table):
+    if norder != sens.shape[1]:
         msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
 
     for iord in range(norder):
-        # Get sensfunc from the sens_table
-        coeff = sens_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        wave_min = sens_table[iord]['WAVE_MIN']
-        wave_max = sens_table[iord]['WAVE_MAX']
         for iexp in range(nexp):
             wave_mask = waves_stack[:, iord, iexp] > 1.0
-            sensfunc_iord = np.exp(utils.func_val(coeff, waves_stack[wave_mask, iord, iexp], func, minx=wave_min, maxx=wave_max))
+            sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
+                                                       bounds_error=True)(waves_stack[wave_mask, iord, iexp])
             weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:
@@ -2192,7 +2185,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
-def ech_combspec(waves, fluxes, ivars, masks, sensfile=None, nbest=None, wave_method='log10',
+def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method='log10',
                  dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0, scale_method='auto',
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
@@ -2356,10 +2349,12 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile=None, nbest=None, wave_me
         weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
         weights = weights_exp*weights_sens
     else:
+        msgs.error('Using ivar weights is deprecated.')
         msgs.warn('No sensfunc is available for weighting, using smoothed ivar weights which is not optimal!')
         _, weights_ivar = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights,
                                      ivar_weights=True, verbose=True)
         weights = weights_exp*weights_ivar
+
     if debug:
         weights_qa(waves, weights, masks, title='ech_combspec')
 
