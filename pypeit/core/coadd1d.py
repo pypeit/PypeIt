@@ -2514,17 +2514,16 @@ class CoAdd1d(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, coaddfile, par=par, sensfile=sensfile, debug=debug, show=show)
+            spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
-    def __init__(self, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
 
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
         self.objids = objids
-        self.coaddfile = coaddfile
         self.sensfile = sensfile
         # Load the spectrograph only if par was not passed in to get default parset
         if par is None:
@@ -2534,12 +2533,16 @@ class CoAdd1d(object):
         else:
             self.par = par
         self.debug = debug
-        self.show= show
-
+        self.show = show
         self.nexp = len(self.spec1dfiles) # Number of exposures
+        self.coaddfile = None
+
+    def run(self):
+
+        # Load the data
         self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
+        # Coadd the data
         self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
-        self.save(ex_value=self.par['ex_value'])
 
     def load(self):
         """
@@ -2566,7 +2569,7 @@ class CoAdd1d(object):
 
         return waves, fluxes, ivars, masks, header_out
 
-    def save(self, telluric=None, obj_model=None, ex_value='OPT', overwrite=True):
+    def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
         Routine to save 1d coadds to a fits file. This replaces save.save_coadd1d_to_fits
 
@@ -2580,6 +2583,8 @@ class CoAdd1d(object):
 
         """
 
+        self.coaddfile = coaddfile
+        ex_value = self.par['ex_value']
         # Estimate sigma from ivar
         sig = np.sqrt(utils.inverse(self.ivar_coadd))
         if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
@@ -2636,8 +2641,8 @@ class MultiSlit(CoAdd1d):
     Child of CoAdd1d for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
-        super().__init__(spec1dfiles, objids, coaddfile, par=par, sensfile=sensfile, debug=debug, show=show)
+    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
         wave_coadd, flux_coadd, ivar_coadd, mask_coadd = multi_combspec(
@@ -2659,14 +2664,13 @@ class Echelle(CoAdd1d):
     Child of CoAdd1d for Echelle reductions
     """
 
-    def __init__(self, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
-        super().__init__(spec1dfiles, objids, coaddfile, par=par, sensfile=sensfile, debug=debug, show=show)
+    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
         (wave_coadd, flux_coadd, ivar_coadd, mask_coadd), order_stacks = ech_combspec(
-            self.waves, self.fluxes, self.ivars, self.masks,
-            sensfile=self.sensfile, nbest=self.par['nbest'],
-            sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
+            self.waves, self.fluxes, self.ivars, self.masks, self.sensfile,
+            nbest=self.par['nbest'], sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
             samp_fact=self.par['samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
