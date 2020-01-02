@@ -2,18 +2,13 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from astropy import units
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.core import flux_calib
-from pypeit.core import load
-from pypeit.core import save
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit import sensfunc
 from pypeit import specobjs
 from astropy import table
-from pypeit import debugger
-
 from IPython import embed
 
 
@@ -22,16 +17,20 @@ class FluxCalibrate(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfiles, sensfiles, spectrograph, par, debug=False):
-        return next(c for c in cls.__subclasses__() if c.__name__ == spectrograph.pypeline)(
-            spec1dfiles, sensfiles, spectrograph, par, debug=debug)
+    def get_instance(cls, spec1dfiles, sensfiles, par=None, debug=False):
+        pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
+        return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
+            spec1dfiles, sensfiles, par=par, debug=debug)
 
-    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
+    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False):
 
         self.spec1dfiles = spec1dfiles
         self.sensfiles = sensfiles
-        self.spectrograph = spectrograph
-        self.par = par
+
+        # Load the spectrograph
+        header = fits.getheader(spec1dfiles[0])
+        self.spectrograph = load_spectrograph(header['PYP_SPEC'])
+        self.par = self.spectrograph.default_pypeit_par()['fluxcalib'] if par is None else par
         self.debug = debug
 
         sens_last = None
@@ -63,8 +62,8 @@ class MultiSlit(FluxCalibrate):
     Child of FluxSpec for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
-        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)
+    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False):
+        super().__init__(spec1dfiles, sensfiles, par=par, debug=debug)
 
 
     def flux_calib(self, sobjs, wave, sensfunction, meta_table):
@@ -102,8 +101,8 @@ class Echelle(FluxCalibrate):
     Child of FluxSpec for Echelle reductions
     """
 
-    def __init__(self, spec1dfiles, sensfiles, spectrograph, par, debug=False):
-        super().__init__(spec1dfiles, sensfiles, spectrograph, par, debug=debug)
+    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False):
+        super().__init__(spec1dfiles, sensfiles, par=par, debug=debug)
 
 
     def flux_calib(self, sobjs, wave, sensfunction, meta_table):

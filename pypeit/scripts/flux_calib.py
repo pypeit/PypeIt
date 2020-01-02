@@ -69,7 +69,7 @@ def read_fluxfile(ifile):
     if s >= 0 and e < 0:
         msgs.error("Missing 'flux end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
-        msgs.warn("No flux block, you must be making the sensfunc only..")
+        msgs.error("Missing flux block in in {0}. Check the input format for the .flux file".format(ifile))
     else:
         spec1dfiles = []
         sensfiles_in = []
@@ -158,6 +158,6 @@ def main(args):
     par.to_config(args.par_outfile)
 
     # Instantiate
-    FxCalib = fluxcalibrate.FluxCalibrate.get_instance(spec1dfiles, sensfiles, spectrograph, par['fluxcalib'], debug=args.debug)
+    FxCalib = fluxcalibrate.FluxCalibrate.get_instance(spec1dfiles, sensfiles, par=par['fluxcalib'], debug=args.debug)
     msgs.info('Flux calibration complete')
 

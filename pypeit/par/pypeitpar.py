@@ -686,7 +686,7 @@ class Coadd1DPar(ParSet):
     """
     def __init__(self, sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
-                 lower=None, upper=None, maxrej=None, sn_clip=None):
+                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -744,8 +744,8 @@ class Coadd1DPar(ParSet):
         defaults['scale_method'] = 'auto'
         dtypes['scale_method'] = str
         descr['scale_method'] = "Method used to rescale the spectra prior to coadding. The options are:" \
-                                " " \
-                                "'auto' -- Determine the scaling method automatically based on the S/N ratio which works well" \ 
+                                " "\
+                                "'auto' -- Determine the scaling method automatically based on the S/N ratio which works well"\
                                 "'poly' -- Polynomial rescaling." \
                                 "'median' -- Median rescaling" \
                                 "'none' -- Do not rescale." \
@@ -785,6 +785,12 @@ class Coadd1DPar(ParSet):
                            'prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ ' \
                            'at a level greater than the formal S/N due to systematics.'
 
+        defaults['nbest'] = None
+        dtypes['nbest'] = int
+        descr['nbest'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
+                         'which will just use one fourth of the total number of orders.'
+
+
         # Instantiate the parameter set
         super(Coadd1DPar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -798,7 +804,7 @@ class Coadd1DPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['sn_smooth_npix', 'wave_method' 'samp_fact', 'ref_percentile', 'maxiter_scale',
                    'sigrej_scale', 'scale_method', 'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject',
-                   'lower', 'upper', 'maxrej', 'sn_clip']
+                   'lower', 'upper', 'maxrej', 'sn_clip', 'nbest']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

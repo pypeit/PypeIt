@@ -11,6 +11,7 @@ from pypeit import msgs
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import specobjs
+from pypeit.par import pypeitpar
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.spectrographs.util import load_spectrograph
@@ -53,8 +54,9 @@ class SensFunc(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfile, sensfile, par, debug=False):
-        return next(c for c in cls.__subclasses__() if c.__name__ == par['algorithm'])(spec1dfile, sensfile, par, debug=debug)
+    def get_instance(cls, spec1dfile, sensfile, par=None, debug=False):
+        return next(c for c in cls.__subclasses__() if c.__name__ == par['algorithm'])(
+            spec1dfile, sensfile, par=par, debug=debug)
 
     @classmethod
     def load(cls, sensfile):
@@ -72,7 +74,11 @@ class SensFunc(object):
         # Arguments
         self.spec1dfile = spec1dfile
         self.sensfile = sensfile
-        self.par = par
+        # Set spectrograph
+        header = fits.getheader(self.spec1dfile)
+        self.spectrograph = load_spectrograph(header['PYP_SPEC'])
+        self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
+
         self.debug = debug
         # Core attributes that will be output to file
         self.meta_table = None
@@ -85,11 +91,9 @@ class SensFunc(object):
 
         # Read in the Standard star data
         sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=self.par['multi_spec_det'])
-        # Put spectrograph info into meta
+        # Unpack standard
         self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
         self.norderdet = 1 if self.wave.ndim == 1 else self.wave.shape[1]
-        # Set spectrograph
-        self.spectrograph = load_spectrograph(self.meta_spec['PYP_SPEC'])
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -224,8 +228,8 @@ class SensFunc(object):
 
 class IR(SensFunc):
 
-    def __init__(self, spec1dfile, sensfile, par, debug=False):
-        super().__init__(spec1dfile, sensfile, par, debug=debug)
+    def __init__(self, spec1dfile, sensfile, par=None, debug=False):
+        super().__init__(spec1dfile, sensfile, par=par, debug=debug)
 
         self.TelObj = None
 
@@ -260,8 +264,8 @@ class IR(SensFunc):
 
 
 class UVIS(SensFunc):
-    def __init__(self, spec1dfile, sensfile, par, debug=False):
-        super().__init__(spec1dfile, sensfile, par, debug=debug)
+    def __init__(self, spec1dfile, sensfile, par=None, debug=False):
+        super().__init__(spec1dfile, sensfile, par=par, debug=debug)
 
         # Add some cards to the meta spec. These should maybe just be added already in unpack object
         self.meta_spec['LATITUDE'] = self.spectrograph.telescope['latitude']

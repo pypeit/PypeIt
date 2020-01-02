@@ -8,6 +8,8 @@ from astropy import convolution
 from IPython import embed
 from astropy.table import Table
 from astropy import constants
+from pypeit.spectrographs.util import load_spectrograph
+
 
 from pkg_resources import resource_filename
 from pypeit import utils
@@ -2282,7 +2284,9 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile=None, nbest=None, wave_me
         merge_stack: bool, default=False,
             Compute an experimental combine of the high S/N combined orders in addition to the default algorithm,
             which is to compute one giant stack using all order overlaps
-
+        nbest (int):
+            Number of orders to use for estimating the per exposure weights. Default is nbest=None,
+            which will just use one fourth of the orders.
         debug: bool, default=False,
             Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
         debug_scale (bool): default=False
@@ -2508,19 +2512,25 @@ class CoAdd1d(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, coaddfile, par, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, coaddfile, par, sensfile=sensfile, debug=debug, show=show)
+            spec1dfiles, objids, coaddfile, par=par, sensfile=sensfile, debug=debug, show=show)
 
-    def __init__(self, spec1dfiles, objids, coaddfile, par, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
 
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
         self.objids = objids
         self.coaddfile = coaddfile
         self.sensfile = sensfile
-        self.par = par
+        # Load the spectrograph only if par was not passed in to get default parset
+        if par is None:
+            header = fits.getheader(spec1dfiles[0])
+            spectrograph = load_spectrograph(header['PYP_SPEC'])
+            self.par = spectrograph.default_pypeit_par()['coadd1d']
+        else:
+            self.par = par
         self.debug = debug
         self.show= show
 
@@ -2605,8 +2615,8 @@ class MultiSlit(CoAdd1d):
     Child of CoAdd1d for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, objids, coaddfile, par, debug=False, show=False):
-        super().__init__(spec1dfiles, objids, coaddfile, par, debug=debug, show=show)
+    def __init__(self, spec1dfiles, objids, coaddfile, par=None, debug=False, show=False):
+        super().__init__(spec1dfiles, objids, coaddfile, par=par, debug=debug, show=show)
 
     def coadd(self):
         wave_coadd, flux_coadd, ivar_coadd, mask_coadd = multi_combspec(
@@ -2628,8 +2638,8 @@ class Echelle(CoAdd1d):
     Child of CoAdd1d for Echelle reductions
     """
 
-    def __init__(self, spec1dfiles, objids, coaddfile, par, sensfile=None, debug=False, show=False):
-        super().__init__(spec1dfiles, objids, coaddfile, par, sensfile=sensfile, debug=debug, show=show)
+    def __init__(self, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
+        super().__init__(spec1dfiles, objids, coaddfile, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
         (wave_coadd, flux_coadd, ivar_coadd, mask_coadd), order_stacks = ech_combspec(

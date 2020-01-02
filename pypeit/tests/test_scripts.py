@@ -13,7 +13,7 @@ import pytest
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
+from pypeit.scripts import setup, show_1dspec, coadd_1dspec_old, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
@@ -152,10 +152,10 @@ def test_chk_flat():
 
 def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
-    args = coadd_1dspec.parser([coadd_file])
+    args = coadd_1dspec_old.parser([coadd_file])
     # Main
     gparam, ex_value, flux_value, iobj, outfile, files, local_kwargs \
-            = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+            = coadd_1dspec_old.main(args, unit_test=True, path=data_path('./'))
     # Test
     assert len(gparam) == 2
     assert isinstance(gparam, dict)
@@ -173,17 +173,17 @@ def test_coadd2():
     """ Test using a list of object names
     """
     coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
-    args = coadd_1dspec.parser([coadd_file])
+    args = coadd_1dspec_old.parser([coadd_file])
     # Main
     gparam, ex_value, flux_value, iobj, outfile, files, obj_kwargs \
-            = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+            = coadd_1dspec_old.main(args, unit_test=True, path=data_path('./'))
     # Test
     assert len(iobj) == len(files)
     # Crash it
     coadd_file = data_path('coadd_UGC3672A_red_badlist.yaml')
-    args = coadd_1dspec.parser([coadd_file])
+    args = coadd_1dspec_old.parser([coadd_file])
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
-                = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+                = coadd_1dspec_old.main(args, unit_test=True, path=data_path('./'))
 
 

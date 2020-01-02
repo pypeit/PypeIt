@@ -83,8 +83,8 @@ def parser(options=None):
                         help="R|List of detector numbers to splice together for instruments with multiple detectors\n"
                              "arranged in the spectral direction, e.g. --multi = '3,7'\n"
                              "Note that it is not possible to set --multi and \n"
-                             "simultaneously use a .sens file with the --sens_file option. If you are using a .sens file\n"
-                             "set the algorithm there via:\n"
+                             "simultaneously use a .sens file with the --sens_file option.\n"
+                             "If you are using a .sens file set the multi_spec_det param there via:\n"
                              "\n"
                              "         [sensfunc]\n"
                              "              multi_spec_det = 3,7\n"
@@ -162,7 +162,7 @@ def main(args):
     # Parse the output filename
     outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') if args.outfile is None else args.outfile
     # Instantiate the relevant class for the requested algorithm
-    sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'], debug=args.debug)
+    sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par=par['sensfunc'], debug=args.debug)
     # Generate the sensfunc
     sensobj.run()
     # Write it out to a file
