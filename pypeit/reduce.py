@@ -455,7 +455,7 @@ class Reduce(object):
         return self.global_sky
 
     def local_skysub_extract(self, waveimg, global_sky, sobjs,
-                             model_noise=True, std=False,
+                             model_noise=True, std=False, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
 
         """

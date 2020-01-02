@@ -812,9 +812,8 @@ class Coadd2d(object):
         sobjs_obj, nobj, skymask_init = redux.find_objects(show_peaks=show_peaks)
         # Local sky-subtraction
         global_sky_psuedo = np.zeros_like(psuedo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-        embed(header='798 of coadd2d')
         skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs = redux.local_skysub_extract(
-            psuedo_dict['waveimg'], global_sky_psuedo, sobjs_obj, spat_pix=psuedo_dict['spat_img'], model_noise=False,
+            caliBrate.mswave, global_sky_psuedo, sobjs_obj, spat_pix=psuedo_dict['spat_img'], model_noise=False,
             show_profile=show, show=show)
 
         if self.ir_redux:
