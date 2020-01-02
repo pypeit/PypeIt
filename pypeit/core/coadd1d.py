@@ -1273,7 +1273,6 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     fluxes_flat = fluxes[ubermask].flatten()
     ivars_flat = ivars[ubermask].flatten()
     vars_flat = utils.inverse(ivars_flat)
-    #weights_flat = np.float64(weights[ubermask].flatten())
     weights_flat = weights[ubermask].flatten()
 
     # Counts how many pixels in each wavelength bin
@@ -2078,6 +2077,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
               spectrum on wave_stack wavelength grid. True=Good.
     '''
 
+    # We cast to float64 because of a bug in np.histogram
     waves = np.float64(waves)
     fluxes = np.float64(fluxes)
     ivars = np.float64(ivars)
