@@ -92,7 +92,7 @@ class Calibrations(object):
                  reuse_masters=False, show=False):
 
         # Check the types
-        if isinstance(fitstbl, PypeItMetaData) and (not fitstbl is None):
+        if not isinstance(fitstbl, PypeItMetaData) and (not fitstbl is None):
             msgs.error('fitstbl must be an PypeItMetaData object')
         if not isinstance(par, pypeitpar.CalibrationsPar):
             msgs.error('Input parameters must be a CalibrationsPar instance.')
