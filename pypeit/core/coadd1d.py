@@ -2428,11 +2428,12 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
             sn_clip=sn_clip, lower=lower, upper=upper, maxrej=maxrej, maxiter_reject=maxiter_reject, debug=debug,
             title='order_stacks')
         if show_order_stacks:
-            # TODO can we make this bit below more modular for the telluric?
-            if sensfile is not None:
-                tell_iord = get_tell_from_file(sensfile, waves_stack_orders[:, iord], masks_stack_orders[:, iord], iord=iord)
-            else:
-                tell_iord = None
+            # TODO This will probably crash since sensfile is not guarnetted to have telluric.
+            #if sensfile is not None:
+            #    tell_iord = get_tell_from_file(sensfile, waves_stack_orders[:, iord], masks_stack_orders[:, iord], iord=iord)
+            #else:
+            #    tell_iord = None
+            tell_iord=None
             coadd_qa(waves_stack_orders[:, iord], fluxes_stack_orders[:, iord], ivars_stack_orders[:, iord], nused_iord,
                      mask=masks_stack_orders[:, iord], tell=tell_iord,
                      title='Coadded spectrum of order {:d}/{:d}'.format(iord, norder))
