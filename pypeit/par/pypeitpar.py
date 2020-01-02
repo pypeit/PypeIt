@@ -684,9 +684,10 @@ class Coadd1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
+    def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
+                 sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
-                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None):
+                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -698,6 +699,23 @@ class Coadd1DPar(ParSet):
         defaults = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
+
+        # Extraction to use
+        defaults['ex_value'] = 'OPT'
+        dtypes['ex_value'] = str
+        descr['ex_value'] = "The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'"
+
+        # Fluxed?
+        defaults['flux_value'] = True
+        dtypes['flux_value'] = bool
+        descr['flux_value'] = 'If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the ' \
+                              'spec1d files. If False, it will coadd the counts.'
+
+
+        # Mask edge pixels?
+        defaults['nmaskedge'] = 2
+        dtypes['nmaskedge'] = int
+        descr['nmaskedge'] = 'Number of edge pixels to mask. This should be removed/fixed.'
 
         # Offsets
         defaults['sn_smooth_npix'] = None
@@ -788,8 +806,19 @@ class Coadd1DPar(ParSet):
         defaults['nbest'] = None
         dtypes['nbest'] = int
         descr['nbest'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
-                         'which will just use one fourth of the total number of orders.'
+                         'which will just use one fourth of the total number of orders. This is only used for Echelle'
 
+
+        # JFH These last two are actually arguments and not parameters that are only here because there is no other easy
+        # way to parse .coadd1d files except with parsets. I would like to separate arguments from parameters.
+        defaults['sensfuncfile'] = None
+        dtypes['sensfuncfile'] = str
+        descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
+                            'This is only used for Echelle'
+
+        defaults['coaddfile'] = None
+        dtypes['coaddfile'] = str
+        descr['coaddfile'] = 'Output filename'
 
         # Instantiate the parameter set
         super(Coadd1DPar, self).__init__(list(pars.keys()),
@@ -802,9 +831,10 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['sn_smooth_npix', 'wave_method' 'samp_fact', 'ref_percentile', 'maxiter_scale',
-                   'sigrej_scale', 'scale_method', 'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject',
-                   'lower', 'upper', 'maxrej', 'sn_clip', 'nbest']
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method' 'samp_fact',
+                   'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method', 'sn_min_medscale',
+                   'sn_min_polyscale', 'maxiter_reject',
+                   'lower', 'upper', 'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

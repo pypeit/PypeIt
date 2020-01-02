@@ -2615,8 +2615,8 @@ class MultiSlit(CoAdd1d):
     Child of CoAdd1d for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, objids, coaddfile, par=None, debug=False, show=False):
-        super().__init__(spec1dfiles, objids, coaddfile, par=par, debug=debug, show=show)
+    def __init__(self, spec1dfiles, objids, coaddfile, par=None, sensfile=None, debug=False, show=False):
+        super().__init__(spec1dfiles, objids, coaddfile, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
         wave_coadd, flux_coadd, ivar_coadd, mask_coadd = multi_combspec(

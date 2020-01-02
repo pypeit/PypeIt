@@ -96,7 +96,7 @@ data_model = {
     'ECH_ORDERINDX': dict(otype=(int, np.integer), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
     'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
     'ECH_ORDER': dict(otype=(int, np.integer), desc='Physical echelle order'),
-
+    'NAME': dict(otype=str, desc='Name of the object following the naming model')
 }
 
 
@@ -158,8 +158,9 @@ class SpecObj(object):
                 continue
             #
             setattr(slf, key, table.meta[key])
+        # JFH It is a really bad idea to dynamically generate the name when you already wrote it to a file.
         # Name
-        slf.set_name()
+        #slf.set_name()
         # Return
         return slf
 
@@ -186,7 +187,7 @@ class SpecObj(object):
 
 
             #self.objid = 999
-            self.name = None
+            #self.name = None
 
             # Object finding
             self.smash_peakflux = None
@@ -320,7 +321,7 @@ class SpecObj(object):
         Generate a unique index for this spectrum based on the
         slit/order, its position and for multi-slit the detector.
 
-        Sets self.name internally
+        Sets name
 
         Returns:
             str
@@ -328,32 +329,32 @@ class SpecObj(object):
         """
         if 'Echelle' in self.PYPELINE:
             # ObjID
-            self.name = naming_model['obj']
+            name = naming_model['obj']
             if 'ECH_FRACPOS' not in self._data.meta.keys():
-                self.name += '----'
+                name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
-                self.name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
+                name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
             # Order
-            self.name += '-'+naming_model['order']
-            self.name += '{:04d}'.format(self.ECH_ORDER)
+            name += '-'+naming_model['order']
+            name += '{:04d}'.format(self.ECH_ORDER)
         elif 'MultiSlit' in self.PYPELINE:
             # Spat
-            self.name = naming_model['spat']
+            name = naming_model['spat']
             if 'SPAT_PIXPOS' not in self._data.meta.keys():
-                self.name += '----'
+                name += '----'
             else:
-                self.name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
             # Slit
-            self.name += '-'+naming_model['slit']
-            self.name += '{:04d}'.format(self.SLITID)
+            name += '-'+naming_model['slit']
+            name += '{:04d}'.format(self.SLITID)
         else:
             msgs.error("Bad PYPELINE")
         # Detector
         sdet = parse.get_dnum(self.DET, prefix=False)
-        self.name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+        name += '-{:s}{:s}'.format(naming_model['det'], sdet)
         # Return
-        return self.name
+        self.NAME = name
 
 
     def copy(self):
@@ -392,7 +393,7 @@ class SpecObj(object):
         for attr in ['BOX', 'OPT']:
             if attr+'_WAVE' in self._data.keys():
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
-                          msgs.newline() + "{0:s}".format(str(self.name)))
+                          msgs.newline() + "{0:s}".format(str(self.NAME)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
                 self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
         # Shift sky spec too
@@ -502,7 +503,7 @@ class SpecObj(object):
             if attr+'_WAVE' in self._data.keys():
                 msgs.info('Applying {0} correction to '.format(refframe)
                           + '{0} extraction for object:'.format(attr)
-                          + msgs.newline() + "{0}".format(str(self.name)))
+                          + msgs.newline() + "{0}".format(str(self.NAME)))
                 self[attr+'_WAVE'] *= vel_corr
                 # Record
                 self['VEL_TYPE'] = refframe
@@ -569,6 +570,6 @@ class SpecObj(object):
 
 
     def __repr__(self):
-        txt = '<{:s}: {:s}'.format(self.__class__.__name__, self.name)
+        txt = '<{:s}: {:s}'.format(self.__class__.__name__, self.NAME)
         txt += '>'
         return txt

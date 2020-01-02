@@ -6,7 +6,7 @@ from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs
 import argparse
-from pypeit import coadd1d
+from pypeit.core import coadd1d
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
@@ -55,7 +55,6 @@ def read_coaddfile(ifile):
     # Parse the fluxing block
     spec1dfiles = []
     objids = []
-    sensfile = None
     s, e = par.util._find_pypeit_block(lines, 'coadd1d')
     if s >= 0 and e < 0:
         msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
@@ -64,20 +63,10 @@ def read_coaddfile(ifile):
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
-            if ctr == 0:
-                # First line can have two or three entries, where third line is sensfile
-                if ((len(prs) != 2) or (len(prs) != 3)):
-                    msgs.error('Invalid format for .coadd1d file. First line of the coadd1d block must have format' +  msgs.newline()
-                    +   'spec1dfile1 objid1' + msgs.newline()
-                    +   '     OR' + msgs.newline()
-                    +   'spec1dfile1 objid1 sensfile')
-                elif len(prs) == 3:
-                    sensfile = prs[3]
-            else:
-                # All other lines must have two entries
-                if len(prs) != 2:
-                    msgs.error('Invalid format for .coadd1d file.' + msgs.newline() +
+            if len(prs) != 2:
+                msgs.error('Invalid format for .coadd1d file.' + msgs.newline() +
                                'You must have specify a spec1dfile and objid on each line of the coadd1d block')
+
             spec1dfiles.append(prs[0])
             objids.append(prs[1])
         is_config[s-1:e+1] = False
@@ -92,36 +81,24 @@ def read_coaddfile(ifile):
     #spectrograph = load_spectrograph(spectrograph_name)
 
     # Return
-    return cfg_lines, spec1dfiles, objids, sensfile
+    return cfg_lines, spec1dfiles, objids
 
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("coadd1d_file", type=str,
-                        help="R|File to guide coadding process.\n"
-                             "This file must have the following format: \n"
+                        help="R|File to guide coadding process. This file must have the following format: \n"
                              "\n"
-                             "For MultiSlit:"
+                             "   coadd1d read\n"
+                             "     spec1dfile1 objid1\n"
+                             "     spec1dfile2 objid2\n"
+                             "     spec1dfile3 objid3\n"
+                             "        ...    \n"
+                             "   coadd1d end\n"
                              "\n"
-                             "coadd1d read\n"
-                             "  spec1dfile1 objid1\n"
-                             "  spec1dfile2 objid2\n"
-                             "  spec1dfile3 objid3\n"
-                             "     ...    \n"
-                             "coadd1d end\n"
-                             "\n"
-                             "For Echelle:"
-                             "\n"
-                             "  spec1dfile1 objid1 sensfile\n"
-                             "  spec1dfile2 objid2\n"
-                             "  spec1dfile3 objid3\n"
-                             "     ...    \n"
                              "Where a spec1dfile is the path to a PypeIt spec1dfile, and objid is the object identifier.\n"
                              "To determine the objids inspect the spec1d_*.txt files or run pypeit_show_1dspec --list\n"
-                             " For Echelle coadds, the file containing the sensitivity function must be passed on the first line"
                              "\n")
-    parser.add_argument("--sensfile", default=None, action="store_true", help="Sensitivity function file "
-                                                                              "must be passed in for Echelle coadds")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--show", default=False, action="store_true", help="show QA during coadding process")
     parser.add_argument("--par_outfile", default='coadd1d.par', action="store_true", help="Output to save the parameters")
@@ -138,7 +115,7 @@ def main(args):
     """ Runs the 1d coadding steps
     """
     # Load the file
-    config_lines, spec1dfiles, objids = read_coaddfile(args.flux_file)
+    config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
     # Read in spectrograph from spec1dfile header
     header = fits.getheader(spec1dfiles[0])
     spectrograph = load_spectrograph(header['PYP_SPEC'])
@@ -149,8 +126,18 @@ def main(args):
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
     par.to_config(args.par_outfile)
+    sensfile = par['coadd1d']['sensfuncfile']
+    coaddfile = par['coadd1d']['coaddfile']
+    if spectrograph.pypeline is 'Echelle' and sensfile is None:
+        msgs.error('You must specifiy set the sensfuncfile in the .coadd1d file for Echelle coadds')
+
+    # TODO JFH I really dislike that the parsets are used to hold actually run time specific information and not
+    # i.e. parameter defaults, or values of parameters. The problem is there is no other easy way to pass this information
+    # in via a .coadd1d file, since the parsets parse in a simply way. Otherwise I have to waste time trying to parse
+    # text files, whereas there are things like yaml and json that do this well already.
 
     # Instantiate
-    coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, sensfiles, spectrograph, par['coadd1d'], debug=args.debug, show=args.show)
+    coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, objids, coaddfile, sensfile=sensfile, par=par['coadd1d'],
+                                         debug=args.debug, show=args.show)
     msgs.info('Coadding complete')
 
