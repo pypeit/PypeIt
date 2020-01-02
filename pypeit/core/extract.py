@@ -1418,11 +1418,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 idx=sobjs.name, debug=show_fits)[0]
+                                 idx=sobjs.NAME, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
         xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.name, debug=show_fits)[0]
+                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -1502,7 +1502,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             close = np.abs(sobjs[reg_ind].SPAT_PIXPOS - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
                 # Print out a warning
-                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].name) +
+                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].NAME) +
                           ' because it collides with a user specified hand_extract aperture')
                 #for ihand in range(len(close)):
                 #    if close[ihand] is True:
@@ -1548,7 +1548,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                 color = 'orange'
             else:
                 color = 'blue'
-            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].name, color=color)
+            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
 
 
     return sobjs, skymask[thismask]
@@ -2040,7 +2040,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         for spec in sobjs_trim:
             color = 'red' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
-            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
+            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
 
         for iobj in range(nobj_trim):
@@ -2048,7 +2048,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
                 ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
                 ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
                 ## Showing the final traces from this routine
-                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.name, color='cyan')
+                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.NAME, color='cyan')
 
 
         # Labels for the points
