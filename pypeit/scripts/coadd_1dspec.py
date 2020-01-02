@@ -163,7 +163,10 @@ def main(args):
     # text files, whereas there are things like yaml and json that do this well already.
 
     # Instantiate
-    coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, objids, coaddfile, sensfile=sensfile, par=par['coadd1d'],
+    coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
                                          debug=args.debug, show=args.show)
+    # Run
+    coadd.run()
+    coadd.save(coaddfile)
     msgs.info('Coadding complete')
 
