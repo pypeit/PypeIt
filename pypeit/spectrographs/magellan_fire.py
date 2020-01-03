@@ -10,6 +10,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pkg_resources import resource_filename
 
 
 class MagellanFIRESpectrograph(spectrograph.Spectrograph):
@@ -185,7 +186,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing
@@ -195,8 +196,11 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['scienceframe']['exprng'] = [20, None]
 
         # Sensitivity function parameters
+        # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
+        # place holder for telgrid file
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
 
         return par
