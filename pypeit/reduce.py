@@ -21,6 +21,8 @@ class Reduce(object):
          spectrograph : str
          par (pypeit.par.pyepeitpar.PypeItPar):
          caliBrate (pypeit.calibrations.Calibrations):
+            This is only used as a container and it must contain the main products
+            of WaveTilts, WaveImage, and EdgeTrace
          tilts : ndarray
            tilts from WaveTilts class
            used for sky subtraction and object finding
@@ -102,6 +104,7 @@ class Reduce(object):
         self.sciImg = sciImg
         self.spectrograph = spectrograph
         self.caliBrate = caliBrate
+        # TODO -- Remove this unnecessary parsing
         self.tslits_dict = self.caliBrate.tslits_dict
         self.tilts = self.caliBrate.tilts_dict['tilts']
 
@@ -967,9 +970,7 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
 
     Args:
         sciImg (pypeit.images.scienceimage.ScienceImage):
-        spectrograph
-            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The instrument used to collect the data to be reduced.
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
         par (pypeit.par.pyepeitpar.PypeItPar):
         caliBrate (pypeit.calibrations.Calibrations):
         **kwargs
