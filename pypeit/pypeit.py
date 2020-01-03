@@ -16,9 +16,7 @@ from pypeit.core import wave
 from pypeit.core import save
 from pypeit import specobjs
 from pypeit.core import pixels
-from pypeit.core import extract
 from pypeit.spectrographs.util import load_spectrograph
-from linetools import utils as ltu
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -101,9 +99,10 @@ class PypeIt(object):
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
-        # Enable after-market reduction path
-        if redux_path is not None:
-            self.par['rdx']['redux_path'] = redux_path
+        # Check the output paths are ready
+        #  This was over-writing what we may have input!!
+        self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+
         # TODO: Write the full parameter set here?
         # --------------------------------------------------------------
 
@@ -130,9 +129,6 @@ class PypeIt(object):
         self.reuse_masters = reuse_masters
         self.show = show
 
-        # Check the output paths are ready
-        #  This was over-writing what we may have input!!
-        #self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
 
         # Set paths
         if self.par['calibrations']['caldir'] == 'default':
@@ -280,7 +276,7 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
+                    std_dict = self.reduce_exposure(frames, bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_dict, self.basename)
                 else:
@@ -310,7 +306,7 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
+                    sci_dict = self.reduce_exposure(frames, bg_frames, std_outfile=std_outfile)
                     science_basename[j] = self.basename
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_dict, self.basename)
@@ -345,7 +341,7 @@ class PypeIt(object):
             return np.arange(1, ndet+1).tolist()
         return [detnum] if isinstance(detnum, int) else detnum
 
-    def reduce_exposure(self, frames, bg_frames=[], std_outfile=None):
+    def reduce_exposure(self, frames, bg_frames, std_outfile=None):
         """
         Reduce a single exposure
 
@@ -353,8 +349,9 @@ class PypeIt(object):
             frame (:obj:`int`):
                 0-indexed row in :attr:`fitstbl` with the frame to
                 reduce.
-            bg_frames (:obj:`list`, optional):
+            bg_frames (:obj:`list`):
                 List of frame indices for the background.
+                Can be empty
             std_outfile (:obj:`str`, optional):
                 File with a previously reduced standard spectrum from
                 PypeIt.

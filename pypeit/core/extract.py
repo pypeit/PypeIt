@@ -174,7 +174,32 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     return
 
 
-def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+    """
+    Perform boxcar extraction for a single SpecObj
+
+    SpecObj is filled in place
+
+    Args:
+        sciimg (np.ndarray):
+            Science image
+        ivar (np.ndarray):
+            inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray):
+            mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg (np.ndarray):
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray):
+            Image containing our model of the sky
+        rn2_img (np.ndarray):
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (pypeit.specobj.SpecObj):
+            This is the container that holds object, trace,
+            and extraction information for the object in question.
+            This routine operates one object at a time.
+    """
     # Setup
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
@@ -223,8 +248,7 @@ def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_rad
     spec.BOX_COUNTS_RN = rn_box
     spec.BOX_RADIUS = box_radius
 
-    # TODO: Why is the returning None? It doesn't have to, right?
-    return None
+    return
 
 
 def findfwhm(model, sig_x):

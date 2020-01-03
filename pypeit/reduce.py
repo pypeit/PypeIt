@@ -234,7 +234,7 @@ class Reduce(object):
                     thismask = (self.slitmask == iord)  # pixels for this slit
                     inmask = (self.sciImg.mask == 0) & thismask
                     # Do it
-                    extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar,
+                    extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
                                                    inmask, self.caliBrate.mswave,
                                                    self.initial_sky, self.sciImg.rn2img,
                                                    self.par['scienceimage']['extraction']['boxcar_radius']/plate_scale,
@@ -799,7 +799,7 @@ class MultiSlit(Reduce):
                         plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
                     else:
                         plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
-                    extract.extract_specobj_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
+                    extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
                                                    self.caliBrate.mswave, self.initial_sky, self.sciImg.rn2img,
                                                    self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
                 else:

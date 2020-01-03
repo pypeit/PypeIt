@@ -716,28 +716,33 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
                     # TODO -- Use extract_specobj_boxcar to avoid code duplication
-                    flux = moment1d(img_minsky * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
-                                    row=sobjs[iobj].trace_spec)[0]
-                    mvarimg = 1.0 / (modelivar + (modelivar == 0))
-                    mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
-                                        row=sobjs[iobj].trace_spec)[0]
-                    pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
-                                      row=sobjs[iobj].trace_spec)[0]
-                    mask_box = moment1d(np.invert(outmask), sobjs[iobj].TRACE_SPAT, 2*box_rad,
-                                        row=sobjs[iobj].trace_spec)[0] != pixtot
-                    box_denom = moment1d(waveimg > 0.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
-                                         row=sobjs[iobj].trace_spec)[0]
-                    wave = moment1d(waveimg, sobjs[iobj].TRACE_SPAT, 2*box_rad,
-                                    row=sobjs[iobj].trace_spec)[0] \
-                                / (box_denom + (box_denom == 0.0))
-                    fluxivar = mask_box / (mvar_box + (mvar_box == 0.0))
+                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg,
+                                           skyimage, rn2_img, box_rad, sobjs[iobj])
+                    flux = sobjs[iobj].BOX_COUNTS
+                    fluxivar = sobjs[iobj].BOX_COUNTS_IVAR * sobjs[iobj].BOX_MASK
+                    wave = sobjs[iobj].BOX_WAVE
+                    #flux = moment1d(img_minsky * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
+                    #                row=sobjs[iobj].trace_spec)[0]
+                    #mvarimg = 1.0 / (modelivar + (modelivar == 0))
+                    #mvar_box = moment1d(mvarimg * outmask, sobjs[iobj].TRACE_SPAT, 2*box_rad,
+                    #                    row=sobjs[iobj].trace_spec)[0]
+                    #pixtot = moment1d(0 * mvarimg + 1.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
+                    #                  row=sobjs[iobj].trace_spec)[0]
+                    #mask_box = moment1d(np.invert(outmask), sobjs[iobj].TRACE_SPAT, 2*box_rad,
+                    #                    row=sobjs[iobj].trace_spec)[0] != pixtot
+                    #box_denom = moment1d(waveimg > 0.0, sobjs[iobj].TRACE_SPAT, 2*box_rad,
+                    #                     row=sobjs[iobj].trace_spec)[0]
+                    #wave = moment1d(waveimg, sobjs[iobj].TRACE_SPAT, 2*box_rad,
+                    #                row=sobjs[iobj].trace_spec)[0] \
+                    #            / (box_denom + (box_denom == 0.0))
+                    #fluxivar = mask_box / (mvar_box + (mvar_box == 0.0))
                 else:
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
                     trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
                     objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
                     # Boxcar
-                    extract.extract_specobj_boxcar(sciimg, modelivar, (outmask & objmask),
+                    extract.extract_boxcar(sciimg, modelivar, (outmask & objmask),
                                                    waveimg, skyimage, rn2_img, box_rad,
                                                    sobjs[iobj])
                     # Optimal
@@ -869,7 +874,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask & objmask), waveimg, skyimage, rn2_img, thismask, this_profile,
                             box_rad, sobjs[iobj])
             # Boxcar
-            extract.extract_specobj_boxcar(sciimg, modelivar*thismask, (outmask & objmask),
+            extract.extract_boxcar(sciimg, modelivar*thismask, (outmask & objmask),
                                            waveimg, skyimage, rn2_img, box_rad, sobjs[iobj])
             sobjs[iobj].min_spat = min_spat
             sobjs[iobj].max_spat = max_spat
