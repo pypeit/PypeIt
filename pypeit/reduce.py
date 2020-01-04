@@ -871,9 +871,6 @@ class Echelle(Reduce):
         """
         self.maskslits = self.maskslits if maskslits is None else maskslits
 
-        # For echelle orders
-        slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
-
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 

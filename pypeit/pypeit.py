@@ -586,6 +586,30 @@ class PypeIt(object):
                                            setup=self.setup,
                                            show=self.show,
                                            det=det, binning=self.binning)
+        #self.redux = reduce.Reduce(self.sciImg, self.spectrograph, self.par,
+        #                           self.caliBrate, self.ir_redux, self.std_redux,
+        #                           self.objtype, show=self.show)
+        #self.redux = reduce.Reduce(self.sciImg.image,
+        #                           self.sciImg.ivar,
+        #                           self.sciImg.mask,
+        #                           self.sciImg.bpm,
+        #                           self.sciImg.rn2img,
+        #                           self.sciImg.crmask,
+        #                           self.par['scienceimage']['findobj'],
+        #                           self.par['scienceimage']['skysub'],
+        #                           self.par['scienceimage']['extraction'],
+        #                           self.par['calibrations']['wavelengths'],
+        #                           self.par['flexure'],
+        #                           self.caliBrate.tslits_dict,
+        #                           self.caliBrate.tilts_dict['tilts'],
+        #                           self.caliBrate.mswave,
+        #                           maskslits=self.maskslits,
+        #                           ir_redux=self.ir_redux,
+        #                           std_redux=self.std_redux,
+        #                           objtype=self.objtype,
+        #                           setup=self.setup,
+        #                           show=self.show,
+        #                           det=det, binning=self.binning)
 
         if self.show:
             self.redux.show('image', image=self.sciImg.image, chname='processed', slits=True,clear=True)
