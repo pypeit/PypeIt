@@ -25,6 +25,8 @@ for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
 #  These are outward facing items, i.e. items that the user will receive and use.
 #  These are upper case to distinguish them from internal attributes
 data_model = {
+    'FLAVOR': 'PypeItImage',
+    'VERSION': '1.0',
     'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
     'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
     'FWHMFIT': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),

@@ -1,6 +1,5 @@
 """ Simple object to hold + process a single image.
-To keep it simple, save and load method are provided
-separately in the module.  """
+"""
 
 from pypeit import msgs
 from pypeit import ginga
@@ -15,6 +14,20 @@ from pypeit.io import initialize_header
 
 from IPython import embed
 
+data_model = {
+    'FLAVOR': 'PypeItImage',
+    'VERSION': '1.0',
+    'IMAGE': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
+    'IVAR': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
+    'RN2IMG': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
+    'BPM': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
+    'CRMASK': dict(otype=np.ndarray, atype=np.integer, desc='CR mask image'),
+    'MASK': dict(otype=np.ndarray, atype=np.integer, desc='Full mask'),
+    'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
+    'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
+    'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
+}
+
 
 class PypeItImage(maskimage.ImageMask):
     """
@@ -24,13 +37,12 @@ class PypeItImage(maskimage.ImageMask):
     Oriented in its spec,spat format
 
     The intent is to keep this object as light-weight as possible.
-    Therefore methods to generate, save, load, etc. are all outside the Class
 
     Args:
         image (np.ndarray):
         ivar (np.ndarray, optional):
         rn2img (np.ndarray, optional):
-        bpm (np.ndarray):
+        bpm (np.ndarray, optional):
         binning (tuple, optional):
         crmask (np.ndarray, optional):
         mask (np.ndarray, optional):
@@ -59,20 +71,21 @@ class PypeItImage(maskimage.ImageMask):
 
         # Instantiate
         pypeitImage = cls(hdul[1].data)
-        pypeitImage.head0 = head0
+        pypeitImage.HEAD0 = head0
         if hdul[1].name != 'IMAGE':
             msgs.warn("Badly formated PypeItImage.  I hope this is an old calibration frame for compatibility")
-            # TODO This warninig is printed to the screen when from_file is used to read in the MasterArc. I think
+            # TODO This warning is printed to the screen when from_file is used to read in the MasterArc. I think
             # there is an inconsistenc with the headers written to the MasterArc.
 
         # Load up the other extensions, as present
         for kk in range(2,len(hdul)):
             # Check
-            if hdul[kk].name.lower() not in pypeitImage.allowed_attributes:
+            if hdul[kk].name.upper() not in data_model.keys(): #allowed_attributes:
                 msgs.warn('Badly formatted PypeItImage')
-                msgs.error('Extenstion {} is not an allowed attribute of {}'.format(hdul[kk].name, pypeitImage.allowed_attributes))
+                msgs.error('Extension {} is not an allowed attribute of {}'.format(
+                    hdul[kk].name, data_model.keys()))
             # Continue
-            setattr(pypeitImage, hdul[kk].name.lower(), hdul[kk].data)
+            setattr(pypeitImage, hdul[kk].name.upper(), hdul[kk].data)
 
         # Return
         return pypeitImage
@@ -82,21 +95,74 @@ class PypeItImage(maskimage.ImageMask):
 
         maskimage.ImageMask.__init__(self, bpm)
 
+        # Data -- If there are no Internal attributes, we can just use the internal dict
+        self._data = {}
+        self.binning = binning
+
+        # after initialisation, setting attributes is the same as setting an item
+        self.__initialised = True
+
         # Required parameters
-        self.image = image
+        self.IMAGE = image
 
         # Optional Attributes
-        self.ivar = ivar
-        self.rn2img = rn2img
-        self.binning = binning
-        self.head0 = None
+        if ivar is not None:
+            self.IVAR = ivar
+        if rn2img is not None:
+            self.RN2IMG = rn2img
+        #self.head0 = None
 
         # Mask attributes
-        self.crmask = crmask
-        self.mask = mask
+        if crmask is not None:
+            self.CRMASK = crmask
+        if mask is not None:
+            self.MASK = mask
 
         # Data model
-        self.allowed_attributes = ('image', 'ivar', 'rn2img') + self.mask_attributes
+        #self.allowed_attributes = ('image', 'ivar', 'rn2img') + self.mask_attributes
+
+    # TODO -- Instantiate these methods by making a DataModel class
+    #   Have a child for data as a Table instead of a dict
+    def __getattr__(self, item):
+        """Maps values to attributes.
+        Only called if there *isn't* an attribute with this name
+        """
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            raise AttributeError(item)
+
+    def __setattr__(self, item, value):
+
+        if not '_PypeItImage__initialised' in self.__dict__:  # this test allows attributes to be set in the __init__ method
+            return dict.__setattr__(self, item, value)
+        elif item in self.__dict__:       # any normal attributes are handled normally
+            dict.__setattr__(self, item, value)
+        else:
+            self.__setitem__(item, value)
+
+    def __setitem__(self, item, value):
+        if item not in data_model.keys():
+            raise IOError("Cannot set {} attribute.  It is not in the data model".format(item))
+        if not isinstance(value, data_model[item]['otype']):
+            print("Wrong data type for attribute: {}".format(item))
+            print("Allowed type(s) are: {}".format(data_model[item]['otype']))
+            raise IOError("Try again")
+        # Array?
+        if 'atype' in data_model[item].keys():
+            if not isinstance(value.flat[0], data_model[item]['atype']):
+                print("Wrong data type for array: {}".format(item))
+                print("Allowed type(s) for the array are: {}".format(data_model[item]['atype']))
+                raise IOError("Try again")
+        # Set
+        self._data[item] = value
+
+    def __getitem__(self, item):
+        if item in self._data.keys():
+            return self._data[item]
+        else:
+            raise KeyError
+
 
     @property
     def shape(self):
@@ -124,26 +190,31 @@ class PypeItImage(maskimage.ImageMask):
                 The header to write
 
         """
+        # TODO -- Should we use the internal HEAD0 if that exists??
         if hdr is None:
             hdr = initialize_header()
 
         # Chk
-        if not self.validate():
+        if not hasattr(self, 'IMAGE'):
             msgs.warn("Image is not ready to save.")
             return
 
         # Save whatever is available
-        data = [self.image]
+        data = [self.IMAGE]
         if iext is None:
             ext = ['IMAGE']
         else:
             ext = [iext]
 
         # Work on the rest
-        for item in ['ivar', 'mask']:
-            if getattr(self, item) is not None:
+        for item in ['IVAR', 'MASK']:
+            if hasattr(self, item):
                 data.append(getattr(self, item))
-                ext.append(item.upper())
+                ext.append(item)#.upper())
+
+        # A few more bits
+        hdr['FLAVOR'] = data_model['FLAVOR']
+        hdr['VERSDM'] = data_model['VERSION']
 
         # TODO -- Default to float32 for float images?
         # Write the fits file
@@ -159,33 +230,16 @@ class PypeItImage(maskimage.ImageMask):
             return
         ginga.show_image(self.image, chname='image')
 
-    def validate(self):
-        """
-        Simple validation of image attribute
-
-        Returns True if self.image is an np.ndarray
-
-        Returns:
-            bool:
-
-        """
-        if self.image is None:
-            return False
-        return isinstance(self.image, np.ndarray)
-
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)
         # Image
         rdict = {}
         for attr in ['image', 'ivar', 'rn2img', 'crmask', 'mask']:
-            if getattr(self, attr) is not None:
-                rdict[attr] = True
+            if hasattr(self, attr.upper()):
+                rdict[attr.upper()] = True
             else:
-                rdict[attr] = False
+                rdict[attr.upper()] = False
         repr += ' images={}'.format(rdict)
         repr = repr + '>'
         return repr
-
-def save_images():
-    pass
 
