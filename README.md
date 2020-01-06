@@ -12,6 +12,13 @@ and/or join our PypeIt Users Slack
 (the invite is recorded in this Issue:
 https://github.com/pypeit/PypeIt/issues/676)
 
+# Please cite:
+
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3506873.svg)](https://doi.org/10.5281/zenodo.3506873)
+
+
+
 # Instruments Served
 * Gemini/GNIRS
 * Gemini/GMOS (soon)
@@ -25,6 +32,7 @@ https://github.com/pypeit/PypeIt/issues/676)
 * Keck/NIRSPEC (low-dispersion)
 * VLT/X-Shooter
 * VLT/FORS2
+* WHT/ISIS
 
 # Requirements
 
@@ -40,6 +48,9 @@ https://github.com/pypeit/PypeIt/issues/676)
 * future
 * PyYAML
 * linetools
+
+# Code of Conduct
+(see `./doc/codeconduct.rst`)
 
 # License
 This program is free software: you can redistribute it and/or modify

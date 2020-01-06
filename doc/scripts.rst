@@ -1,8 +1,6 @@
-.. highlight:: rest
-
-*************
+**************
 PypeIt scripts
-*************
+**************
 
 PypeIt is packaged with several scripts that should have
 been installed directly into your path (e.g. ~/anaconda/bin).
@@ -13,12 +11,12 @@ Pipeline Scripts
 .. _pypeit-setup:
 
 pypeit_setup
-===========
+============
 
 This setups files for data reduction.  See :doc:`setup` for details
 
 run_pypeit
-=========
+==========
 
 This is the main executable for PypeIt.  See :doc:`running` for details.
 
@@ -31,7 +29,7 @@ produced by PypeIt.
 .. _pypeit-1dspec:
 
 pypeit_show_1dspec
-=================
+==================
 
 Wrapper around the linetools XSpecGUI.  Grabs a single
 1D spectrum from the PypeIt spec1d output and runs::
@@ -55,7 +53,7 @@ Wrapper around the linetools XSpecGUI.  Grabs a single
 .. _pypeit-2dspec:
 
 pypeit_show_2dspec
-=================
+==================
 
 This script displays the sky-subtracted 2D image for a single
 detector in a Ginga RC viewer.  It also overlays the slits and
@@ -80,7 +78,7 @@ The script can be called multiple times to load multiple detectors
 into one Ginga viewer.
 
 pypeit_view_fits
-===============
+================
 
 This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
 in that it writes a dummy tmp.fits file to the harddrive and sends
@@ -104,7 +102,7 @@ Data Processing Scripts
 +++++++++++++++++++++++
 
 pypeit_coadd_1dspec
-==================
+===================
 
 See :doc:`coadding` for further details.
 
@@ -112,7 +110,7 @@ Calibration Scripts
 +++++++++++++++++++
 
 pypeit_arcid_plot
-================
+=================
 
 Generate a PDF plot from a MasterFrame_WaveCalib.json file.
 This may be useful to ID lines in other data.::
@@ -143,4 +141,42 @@ Convert a LowRedux pixel flat into a PypeIt ready file::
     optional arguments:
       -h, --help   show this help message and exit
 
+
+pypeit_chk_edges
+================
+
+Inspect the slit/order edges identified by PypeIt in a RC Ginga
+window::
+
+    wolverine> pypeit_chk_edges -h
+    usage: pypeit_chk_edges [-h] [--chname CHNAME] [--dumb_ids] root
+
+    Display MasterTrace image in a previously launched RC Ginga viewer
+
+    positional arguments:
+      root             PYPIT Master Trace file root [e.g.
+                       MasterTrace_A_01_aa.fits]
+
+    optional arguments:
+      -h, --help       show this help message and exit
+      --chname CHNAME  Channel name for image in Ginga (default: MTrace)
+      --dumb_ids       Slit ID just by order? (default: False)
+
+pypeit_chk_flats
+================
+
+Inspect the flat field images produced by PypeIt in a RC Ginga
+window.  This includes the stacked 'raw' image, the pixel flat,
+the illumination flat, and the flat model::
+
+    wolverine> pypeit_chk_flats -h
+    usage: pypeit_chk_flats [-h] master_file
+
+    Display MasterFlat images in a previously launched RC Ginga viewer
+
+    positional arguments:
+      master_file  PYPIT MasterFlat file [e.g. MasterFlat_A_1_01.fits]
+
+    optional arguments:
+      -h, --help   show this help message and exit
 

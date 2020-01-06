@@ -49,8 +49,8 @@ def test_process(kast_blue_bias_files):
     bias_frame = biasframe.BiasFrame(shane_kast_blue, files=kast_blue_bias_files)
     # Run
     bias_img = bias_frame.build_image()
-    assert isinstance(bias_img, np.ndarray)
-    assert isinstance(bias_frame.image, np.ndarray)
+    assert isinstance(bias_img.image, np.ndarray)
+    assert isinstance(bias_frame.pypeitImage.image, np.ndarray)
     #assert bias_frame.steps[-1] == 'combine'
 
 
@@ -61,18 +61,21 @@ def test_io(kast_blue_bias_files):
                                      master_dir=data_root(), master_key='A_01_1', 
                                      reuse_masters=True)
     # In case of previous test failure
-    if os.path.isfile(bias_frame.file_path):
-        os.remove(bias_frame.file_path)
+    if os.path.isfile(bias_frame.master_file_path):
+        os.remove(bias_frame.master_file_path)
     # Run
     bias_frame.build_image()
     # Save as a master frame
     bias_frame.save()
-    assert os.path.isfile(bias_frame.file_path), 'Error writing MasterBias'
+    assert os.path.isfile(bias_frame.master_file_path), 'Error writing MasterBias'
     # Load master frame
-    img = bias_frame.load()
-    assert np.array_equal(img, bias_frame.image)
+    pypeitImage = bias_frame.load()
+    assert np.array_equal(pypeitImage.image, bias_frame.pypeitImage.image)
+    # Instantiate from master frame
+    bias_frame2 = biasframe.BiasFrame.from_master_file(bias_frame.master_file_path)
+    assert np.array_equal(pypeitImage.image, bias_frame2.pypeitImage.image)
     # Clean up
-    os.remove(bias_frame.file_path)
+    os.remove(bias_frame.master_file_path)
 
 
 @dev_suite_required
@@ -82,8 +85,8 @@ def test_run_and_master(kast_blue_bias_files):
                                      master_key='A_1_01', master_dir=data_root())
     assert bias_frame.frametype == 'bias'
     # In case of previous test failure
-    if os.path.isfile(bias_frame.file_path):
-        os.remove(bias_frame.file_path)
+    if os.path.isfile(bias_frame.master_file_path):
+        os.remove(bias_frame.master_file_path)
 
     # Run
     msbias = bias_frame.build_image()
@@ -95,12 +98,12 @@ def test_run_and_master(kast_blue_bias_files):
     bias_frame2 = biasframe.BiasFrame(shane_kast_blue, master_key='A_1_01',
                                       master_dir=data_root(), reuse_masters=True)
     bias2 = bias_frame2.load()
-    assert isinstance(bias2, np.ndarray)
-    assert len(bias_frame2.process_steps) == 2
-    assert np.array_equal(bias2, bias_frame.image)
+    assert isinstance(bias2.image, np.ndarray)
+    assert len(bias_frame2.process_steps) == 3
+    assert np.array_equal(bias2.image, bias_frame.pypeitImage.image)
 
     # Clean up
-    os.remove(bias_frame.file_path)
+    os.remove(bias_frame.master_file_path)
 
 # Should probably test overscan
 

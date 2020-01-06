@@ -151,7 +151,7 @@ Scripts
 .. _trace-slit-script:
 
 pypeit_chk_edges
----------------
+----------------
 
 PypeIt includes a simple script to show the processed
 Trace image and the slit/order edges defined by the
@@ -203,8 +203,7 @@ well-defined and uniformly illuminated slits
 (usually the case with cross-dispersed data,
 for example).
 
-.. _trace-slit-add:
-
+.. _trace-slit-threshold:
 
 Detection Threshold
 -------------------
@@ -229,7 +228,7 @@ On the flip side, if slit defects (common) are being
 mistaken as slit edges then *increase* sigdetect
 and hope for the best.
 
-.. _trace-slit-mask_frac_thresh
+.. _trace-slit-mask_frac_thresh:
 
 Fraction Threshold
 ------------------
@@ -251,7 +250,7 @@ on too few edges for the PCA::
 You may also need to adjust the :ref:`trace-slit-smash_range`
 parameter.
 
-.. _trace-slit-smash_range
+.. _trace-slit-smash_range:
 
 Smash Range
 -----------

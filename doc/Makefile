@@ -57,9 +57,9 @@ clean:
 
 apirst:
 	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
-	$(SPHINXAPI) --separate -o ./api ../pypeit
-	rm -rf ./api/pypeit.tests.*
+	$(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/scripts/*
 	python3 ./scripts/build_par_rst.py
+	python3 ./scripts/build_specobj_rst.py
 
 html:
 	make apirst

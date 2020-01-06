@@ -4,10 +4,13 @@ Wrapper to the linetools XSpecGUI
 """
 import argparse
 
+
+
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Script to coadd a set of spec1D files and 1 or more slits and 1 or more objects. Current defaults use Optimal + Fluxed extraction. [v1.1]')
     parser.add_argument("infile", type=str, help="Input file (YAML)")
     parser.add_argument("--debug", default=False, action='store_true', help="Turn debugging on")
+    parser.add_argument("--show", default=False, action='store_true', help="Show the coadded spectra")
 
     if options is None:
         args = parser.parse_args()
@@ -24,14 +27,15 @@ def main(args, unit_test=False, path=''):
 
     import glob
     import yaml
+    import IPython
 
+    import numpy as np
     from numpy import isnan
-    import pdb as debugger
 
     from astropy.io import fits
 
     from pypeit import msgs
-    from pypeit.core import coadd
+    from pypeit.core import coadd1d
     from pypeit import specobjs
     from pypeit.spectrographs import util
 
@@ -61,8 +65,13 @@ def main(args, unit_test=False, path=''):
         pypeline = header0['PYPELINE']
         # also need norder for Echelle data
         if pypeline == 'Echelle':
+            #ext_final = fits.getheader(files[0], -1)
+            #norder = ext_final['ECHORDER'] + 1
+            ext_first = fits.getheader(files[0], 1)
             ext_final = fits.getheader(files[0], -1)
-            norder = ext_final['ECHORDER'] + 1
+            norder = abs(ext_final['ECHORDER'] - ext_first['ECHORDER']) + 1
+            order_vec = np.arange(np.fmax(ext_first['ECHORDER'],ext_final['ECHORDER']),
+                                  np.fmin(ext_first['ECHORDER'],ext_final['ECHORDER'])-1,-1)
     fdict = {}
     for ifile in files:
         # Open file
@@ -78,6 +87,8 @@ def main(args, unit_test=False, path=''):
         gparam = {}
     if args.debug:
         gparam['debug'] = True
+    if args.show:
+        gparam['show'] = True
     sv_gparam = gparam.copy()
     # Extraction
     if 'extract' in coadd_dict.keys():
@@ -90,6 +101,11 @@ def main(args, unit_test=False, path=''):
         flux_value = coadd_dict.pop('flux')
     else:
         flux_value = True
+    # sensfunc weight
+    if 'sensfile' in coadd_dict.keys():
+        sensfile = coadd_dict.pop('sensfile')
+    else:
+        sensfile = None
 
     # Loop on sources
     for key in coadd_dict.keys():
@@ -184,6 +200,7 @@ def main(args, unit_test=False, path=''):
         exten = outfile.split('.')[-1]  # Allow for hdf or fits or whatever
         qafile = outfile.replace(exten, 'pdf')
 
+        ## The following part will be replaced with the new coadd code
         if pypeline == 'Echelle':
 
             # Check whether the scale_dict is in the right shape.
@@ -196,13 +213,11 @@ def main(args, unit_test=False, path=''):
                 if len(scale_dict) != norder:
                     raise IOError("You need to specifiy the photometric information for every order.")
 
-            spec1d = coadd.ech_coadd(gdfiles, objids=gdobj, extract=ex_value, flux=flux_value, phot_scale_dicts=scale_dict,
-                                     outfile=outfile, qafile=qafile,**gparam)
+            wave_stack, flux_stack, ivar_stack, mask_stack = coadd1d.ech_combspec(
+                gdfiles, gdobj, sensfile=sensfile, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
+                outfile=outfile, qafile=qafile, **gparam)
 
         else:
-            spectra = coadd.load_spec(gdfiles, iextensions=extensions,
-                                        extract=ex_value, flux=flux_value)
-            # Coadd!
-            coadd.coadd_spectra(spectrograph, gdfiles, spectra, qafile=qafile, outfile=outfile,
-                                flux_scale=scale_dict, **gparam)
-
+            wave_stack, flux_stack, ivar_stack, mask_stack = coadd1d.multi_combspec(
+                gdfiles, gdobj, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
+                outfile=outfile, qafile=qafile, **gparam)

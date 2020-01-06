@@ -8,10 +8,7 @@ import pytest
 from linetools.spectra import xspectrum1d
 
 import pypeit
-from pypeit import metadata
 from pypeit.core import arc
-
-from pypeit.spectrographs.util import load_spectrograph
 
 import pkg_resources
 

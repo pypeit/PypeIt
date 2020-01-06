@@ -5,10 +5,8 @@ import numpy as np
 from pypeit import msgs
 from pypeit import debugger
 
-try:
-    from pypeit import ginga
-except ImportError:
-    pass
+from IPython import embed
+
 
 
 def gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):

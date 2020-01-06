@@ -64,6 +64,9 @@ class ImageMask(object):
         # Internals
         self.mask = None
 
+        # Data model
+        self.mask_attributes = ('bpm', 'crmask', 'mask')
+
     def build_crmask(self, spectrograph, det, par, image, rawvarframe, subtract_img=None):
         """
         Generate the CR mask frame
@@ -124,10 +127,10 @@ class ImageMask(object):
         Args:
             image (np.ndarray):
                 Image
-            ivar (np.ndarray):
+            ivar (np.ndarray or None):
                 Inverse variance of the input image
             saturation (float, optional):
-                Saturation limit in ADU
+                Saturation limit in counts or ADU (needs to match the input image)
             slitmask (np.ndarray, optional):
                 Slit mask image;  Pixels not in a slit are masked
             mincounts (float, optional):
@@ -143,8 +146,9 @@ class ImageMask(object):
         mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
 
         # Cosmic rays
-        indx = self.crmask.astype(bool)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
+        if self.crmask is not None:
+            indx = self.crmask.astype(bool)
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
 
         # Saturated pixels
         indx = image >= saturation
@@ -158,13 +162,14 @@ class ImageMask(object):
         indx = np.invert(np.isfinite(image))
         mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
 
-        # Bad inverse variance values
-        indx = np.invert(ivar > 0.0)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
+        if ivar is not None:
+            # Bad inverse variance values
+            indx = np.invert(ivar > 0.0)
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
 
-        # Undefined inverse variances
-        indx = np.invert(np.isfinite(ivar))
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
+            # Undefined inverse variances
+            indx = np.invert(np.isfinite(ivar))
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
 
         if slitmask is not None:
             indx = slitmask == -1

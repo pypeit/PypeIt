@@ -8,6 +8,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.tests.tstutils import cooked_required
+from IPython import embed
 
 
 @cooked_required
@@ -19,5 +20,6 @@ def test_cooked_version():
     v_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'version')
     with open(v_file) as f:
         tmp = f.readlines()
-    assert tmp[-1].strip() == '0.11.0'
+    assert tmp[-1].strip() == '0.13.1'
+
 

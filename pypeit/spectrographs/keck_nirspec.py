@@ -45,43 +45,112 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         # Uses default primary_hdrext
         # self.sky_file = ?
 
-    @staticmethod
-    def default_pypeit_par():
+
+    def default_pypeit_par(self):
         """
-        Set default parameters for NIRSPEC reductions
+        Set default parameters for Keck/NIRSPEC
         """
         par = pypeitpar.PypeItPar()
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 1
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
-        # Do not flux calibrate
-        # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
-        par['flexure'] = pypeitpar.FlexurePar()
-        par['flexure']['method'] = 'skip'
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['arcframe']['exprng'] = [1, None]
-        par['calibrations']['biasframe']['exprng'] = [None, 2]
-        par['calibrations']['darkframe']['exprng'] = [None, 5]
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
-        par['calibrations']['traceframe']['exprng'] = [0, None]
-        par['calibrations']['standardframe']['exprng'] = [None,5]
-        par['scienceframe']['exprng'] = [1, None]
-        # Lower the default threshold for tilts
-        par['calibrations']['tilts']['tracethresh'] = 10.
-        # Slits
-        par['calibrations']['slits']['sigdetect'] = 200.
+        par['rdx']['spectrograph'] = 'keck_nirspec_low'
+        # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
-        par['calibrations']['wavelengths']['sigdetect'] = 5.      # Good for NIRSPEC-1
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['sigdetect']=5.0
+        par['calibrations']['wavelengths']['fwhm']= 5.0
+        par['calibrations']['wavelengths']['n_final']= 4
+        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        # Reidentification parameters
+        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
+        par['calibrations']['slitedges']['edge_thresh'] = 200.
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Flats
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
+        par['calibrations']['flatfield']['illumflatten'] = True
+
+        # Extraction
+        par['scienceimage']['bspline_spacing'] = 0.8
+        par['scienceimage']['sn_gauss'] = 4.0
+
+        # Flexure
+        par['flexure']['method'] = 'skip'
+
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] ='nothing'
+
+
+        # Overscan but not bias
+        #  This seems like a kludge of sorts
+        par['calibrations']['biasframe']['useframe'] = 'none'
+        # No overscan
+        par['scienceframe']['process']['overscan'] ='none'
+        for key in par['calibrations'].keys():
+            if 'frame' in key:
+                par['calibrations'][key]['process']['overscan'] = 'none'
+
+
+        # The settings below enable NIRSPEC dark subtraction from the traceframe and pixelflatframe, but enforce
+        # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
+        # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
+        # images.
+        par['calibrations']['biasframe']['useframe'] = 'bias'
+        par['calibrations']['traceframe']['process']['bias'] = 'force'
+        par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        par['scienceframe']['process']['bias'] = 'skip'
+
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['standardframe']['exprng'] = [None, 20]
+        par['calibrations']['arcframe']['exprng'] = [20, None]
+        par['calibrations']['darkframe']['exprng'] = [20, None]
+        par['scienceframe']['exprng'] = [20, None]
         return par
+
+    # JFH Replaced with updated values based on experienced with MOSFIRE above.
+    #
+    # @staticmethod
+    # def default_pypeit_par():
+    #     """
+    #     Set default parameters for NIRSPEC reductions
+    #     """
+    #     par = pypeitpar.PypeItPar()
+    #     # Frame numbers
+    #     par['calibrations']['standardframe']['number'] = 1
+    #     par['calibrations']['biasframe']['number'] = 0
+    #     par['calibrations']['pixelflatframe']['number'] = 5
+    #     par['calibrations']['traceframe']['number'] = 5
+    #     par['calibrations']['arcframe']['number'] = 1
+    #     # Scienceimage default parameters
+    #     par['scienceimage'] = pypeitpar.ScienceImagePar()
+    #     # Do not flux calibrate
+    #     # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
+    #     par['flexure'] = pypeitpar.FlexurePar()
+    #     par['flexure']['method'] = 'skip'
+    #     # Set the default exposure time ranges for the frame typing
+    #     par['calibrations']['arcframe']['exprng'] = [1, None]
+    #     par['calibrations']['biasframe']['exprng'] = [None, 2]
+    #     par['calibrations']['darkframe']['exprng'] = [None, 5]
+    #     par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+    #     par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+    #     par['calibrations']['traceframe']['exprng'] = [0, None]
+    #     par['calibrations']['standardframe']['exprng'] = [None,5]
+    #     par['scienceframe']['exprng'] = [1, None]
+    #     # Lower the default threshold for tilts
+    #     par['calibrations']['tilts']['tracethresh'] = 10.
+    #     # Slits
+    #     par['calibrations']['slitedges']['edge_thresh'] = 200.
+    #     # 1D wavelength solution
+    #     par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
+    #     par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
+    #     par['calibrations']['wavelengths']['sigdetect'] = 5.      # Good for NIRSPEC-1
+    #
+    #     return par
+    #
 
     '''
     def check_headers(self, headers):
@@ -244,7 +313,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
     # TODO: This function is unstable to shape...
-    def bpm(self, shape=None, **null_kwargs):
+    def bpm(self, filename, det, shape=None):
         """ Generate a BPM
         Parameters
         ----------
@@ -253,15 +322,13 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         -------
         badpix : ndarray
         """
-        if shape is None:
-            raise ValueError('Must provide shape for Keck NIRSPEC bpm.')
+        bpm_img = self.empty_bpm(filename, det)
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRSPEC")
-        self.bpm_img = np.zeros(shape, dtype=np.int8)
-        self.bpm_img[:, :20] = 1.
-        self.bpm_img[:, 1000:] = 1.
+        bpm_img[:, :20] = 1.
+        bpm_img[:, 1000:] = 1.
 
-        return self.bpm_img
+        return bpm_img
 
 class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     """

@@ -44,7 +44,7 @@ Note that by default, the code reuses any MasterFrames already in memory,
 i.e. those produced during the course of the reductions.
 
 ReUse
-+++++
+-----
 
 The softer approach (recommended) is to ReUse any existing
 MasterFrames in the folder and to generate new calibration
@@ -53,32 +53,36 @@ the raw calibration files exist and have been properly
 identified by the code.
 
 Command Line
-------------
+~~~~~~~~~~~~
 
 When executing run_pypeit, call with -m or --use_masters, e.g.::
 
     run_pypeit pypeit_file.pypeit -m
 
 PypeIt file
-----------
+~~~~~~~~~~~
 
 Alternatively, you can add `reduce masters reuse True` to your
 PypeIt file.
 
 Force
-+++++
+-----
 
 There may be cases where you wish to use only MasterFrame files
 that have been previously generated, e.g. on a previous night.
 In this case, take the following steps:
 
 1. Generate the properly named MF directory (e.g. MF_lris_red).
+
 2. Copy all the necessary MasterFrame files into this directory
+
 3. Add `reduce masters force True` to the PypeIt file
+
 4. Add `reduce masters setup SETUP_NAME` to the PypeIt file, where
-SETUP_NAME needs to match the setup used in the MasterFrames, e.g.
-C_01_aa or A_02_ab.  Note that the detector number is not used
-but should be 2 digits.
+   SETUP_NAME needs to match the setup used in the MasterFrames, e.g.
+   C_01_aa or A_02_ab.  Note that the detector number is not used but
+   should be 2 digits.
+
 5. Run
 
 You will note that this can only be performed on a single, specific
@@ -106,3 +110,4 @@ loaded ??    ??
 reuse  bool  Flag to specify whether to use MasterFrames
 setup  str   Name of setup, e.g. '01'
 ====== ===== ============================================
+

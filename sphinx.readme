@@ -1,0 +1,19 @@
+# Buiding the docs:
+
+# ./update_docs
+# cd doc
+# make html
+
+
+We use Sphinx to build our documentation:
+https://www.sphinx-doc.org/en/master/index.html
+
+Dostrings should be in rst format:
+http://docutils.sourceforge.net/rst.html
+
+Google format example (preferred):
+https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google
+
+Numpy format example:
+https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html#example-numpy
+
