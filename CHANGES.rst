@@ -1,8 +1,12 @@
 
-0.11.1dev
+0.12.1dev
 ---------
 
-- Implemented MOSFIRE and further implemented NIRSPEC for Y-band spectroscopy. 
+0.12.0 (23 Dec 2019)
+--------------------
+
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band
+  spectroscopy. 
 - Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
@@ -67,6 +71,8 @@
 - Include a mask in the line detection in extracted central arc spectrum
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
+- Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
+  construces a ``tslits_dict`` object directly from the Master file.
 
 0.11.0.1
 ---------

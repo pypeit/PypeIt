@@ -3786,9 +3786,38 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             return None
-        bpm = np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
+        return self._get_fully_masked_traces(self.spat_msk, self.bitmask, flag=flag,
+                                             exclude=exclude)
+
+    @staticmethod
+    def _get_fully_masked_traces(mask, bm, flag=None, exclude=None):
+        """
+        Helper function for :func:`fully_masked_traces`, allowing for
+        the masking to be performed by :func:`load_to_tslits_dict`.
+
+        Args:
+            mask (`numpy.ndarray`_):
+                Integer array with bitmask values.
+            bm (:class:`pypeit.bitmask.BitMask`):
+                Object used to interpret the bitmask array values.
+            flag (:obj:`str`, :obj:`list`, optional):
+                The bit mask flags to select. If None, any flags are
+                used. See :func:`pypeit.bitmask.Bitmask.flagged`.
+            exclude (:obj:`str`, :obj:`list`, optional):
+                A set of flags to explicitly exclude from
+                consideration as a masked trace. I.e., if any
+                spectral pixel in the trace is flagged with one of
+                these flags, it will not be considered a fully masked
+                trace. This is typically used to exclude inserted
+                traces from being considered as a bad trace.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array selecting traces that are
+            flagged at all spectral pixels.
+        """
+        bpm = np.all(bm.flagged(mask, flag=flag), axis=0)
         if exclude is not None:
-            bpm &= np.invert(np.any(self.bitmask.flagged(self.spat_msk, flag=exclude), axis=0))
+            bpm &= np.invert(np.any(bm.flagged(mask, flag=exclude), axis=0))
         return bpm
     
     def mask_refine(self, design_file=None, allow_resync=False, debug=False):
@@ -4201,15 +4230,70 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         return tslits_dict
 
+    @staticmethod
+    def load_to_tslits_dict(filename): 
+        """
+        Use the saved master file to construct the ``tslits_dict``
+        dictionary.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the master file
+        
+        Returns:
+            dict: The nominal tslits_dict object.
+        """
+        if not os.path.isfile(filename):
+            raise FileNotFoundError('{0} does not exist.'.format(filename))
+
+        with fits.open(filename) as hdu:
+
+            # Find the traces that are *not* fully masked. This will
+            # catch slits that are masked as too short but not clipped
+            # because of par['sync_clip'] = False.
+            gpm = EdgeTraceSet._get_fully_masked_traces(hdu['CENTER_MASK'].data, EdgeTraceSet.bitmask,
+                                                        flag=EdgeTraceSet.bitmask.bad_flags,
+                                                        exclude=EdgeTraceSet.bitmask.exclude_flags)
+            is_left = hdu['TRACEID'].data < 0
+            is_right = hdu['TRACEID'].data > 0
+
+            tslits_dict = {}
+            tslits_dict['slit_left_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
+            tslits_dict['slit_righ_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
+
+            tslits_dict['slit_left'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
+            tslits_dict['slit_righ'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
+            tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
+
+            nslits = tslits_dict['slit_left'].shape[1]
+            tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
+
+            tslits_dict['nspec'], tslits_dict['nspat'] = hdu['TRACEIMG'].data.shape
+            tslits_dict['nslits'] = nslits
+            tslits_dict['binspectral'], tslits_dict['binspatial'] \
+                    = parse.parse_binning(hdu[0].header['BINNING'])
+
+            spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
+            tslits_dict['spectrograph'] = spec.spectrograph
+            tslits_dict['spec_min'], tslits_dict['spec_max'] \
+                    = spec.slit_minmax(slit_spat_pos(tslits_dict),
+                                       binspectral=tslits_dict['binspectral'])
+
+            indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
+            if not np.any(indx):
+                raise ValueError('Could not find padding parameter in header.')
+            if np.sum(indx) != 1:
+                raise ValueError('More than one header includes "EdgeTracePar: pad" in comment.')
+            tslits_dict['pad'] = hdu[0].header[int(np.where(indx)[0][0])]
+
+            return tslits_dict
+
     @classmethod
     def from_tslits_dict(cls, tslits_dict, master_key, master_dir):
         """
         Stop-gap function to instantiate insofar as it can from a
         tslits_dict.
         """
-
-        #JFH This is massively memory inefficient. We just created like 5 bogus images filled with zeros
-        # from one set of slit boundaries? Can we just set these things which do not exist to None?
         # Caveats:
         #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
         par = EdgeTracePar()
