@@ -79,7 +79,7 @@ Setup
 
 Before running this script, you will need to
 
-- Download the folder of `NIRES Master calibration frames <https://tinyurl.com/pypeit-nires-masters>`_.
+- Download the folder of `NIRES Master calibration frames <https://drive.google.com/open?id=1_m3Y9xz2jEiTsWjVqej6UgARyTlApLGy>`_.
 - You may place this folder anywhere.
 - Point the Environmental variable *NIRES_MASTERS* at this folder.
    - e.g. export NIRES_MASTERS=/data/Keck_NIRES/Masters_NIRES

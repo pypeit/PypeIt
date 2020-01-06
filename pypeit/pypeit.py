@@ -99,9 +99,10 @@ class PypeIt(object):
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
+
         # Check the output paths are ready
-        #  This was over-writing what we may have input!!
-        self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
+        if redux_path is not None:
+            self.par['rdx']['redux_path'] = redux_path
 
         # TODO: Write the full parameter set here?
         # --------------------------------------------------------------
