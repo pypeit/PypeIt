@@ -35,27 +35,36 @@ def main(args, unit_test=False):
     from pypeit import specobjs
     from pypeit import msgs
 
-    sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+    try:
+        sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
 
-    # List only?
-    if args.list:
-        print("Showing object names for input file...")
-        for ii in range(len(sobjs)):
-            name = sobjs[ii].NAME
-            print("EXT{:07d} = {}".format(ii+1, name))
-        return
+        # List only?
+        if args.list:
+            print("Showing object names for input file...")
+            for ii in range(len(sobjs)):
+                name = sobjs[ii].NAME
+                print("EXT{:07d} = {}".format(ii+1, name))
+            return
 
-    # Load spectrum
-    #spec = load.load_1dspec(args.file, exten=args.exten, extract=args.extract,
-    #                          objname=args.obj, flux=args.flux)
-    if args.obj is not None:
-        exten = sobjs.name.index(args.obj)
-        if exten < 0:
-            msgs.error("Bad input object name: {:s}".format(args.obj))
-    else:
-        exten = args.exten-1 # 1-index in FITS file
+        # Load spectrum
+        #spec = load.load_1dspec(args.file, exten=args.exten, extract=args.extract,
+        #                          objname=args.obj, flux=args.flux)
+        if args.obj is not None:
+            exten = sobjs.name.index(args.obj)
+            if exten < 0:
+                msgs.error("Bad input object name: {:s}".format(args.obj))
+        else:
+            exten = args.exten-1 # 1-index in FITS file
 
-    spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+        spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+    except:
+        # place holder for coadd data model
+        import numpy as np
+        from pypeit import utils
+        from linetools.spectra.xspectrum1d import XSpectrum1D
+        from pypeit.core.telluric import general_spec_reader
+        wave, counts, counts_ivar, counts_mask, meta_spec, head = general_spec_reader(args.file, ret_flam=False)
+        spec = XSpectrum1D.from_tuple((wave, counts, np.sqrt(utils.inverse(counts_ivar))), masking='none')
 
     if unit_test is False:
         app = QApplication(sys.argv)
