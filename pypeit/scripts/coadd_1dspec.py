@@ -167,7 +167,7 @@ def main(args):
                                          debug=args.debug, show=args.show)
     # Run
     coadd.run()
-    # Save to file 
+    # Save to file
     coadd.save(coaddfile)
     msgs.info('Coadding complete')
 
