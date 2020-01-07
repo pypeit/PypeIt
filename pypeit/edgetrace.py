@@ -120,6 +120,7 @@ from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
+from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
@@ -127,6 +128,113 @@ from pypeit.traceimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
+
+
+class SlitTraceSet(DataContainer):
+    """
+    Defines a generic class for holding and manipulating image traces
+    organized into left-right slit pairs.
+
+    Instantiation arguments map directly to the object
+    :attr:`datamodel`.
+    """
+    # Define the data model
+    datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
+                 'nspec': dict(otype=int,
+                               descr='Number of pixels in the image spectral direction.'),
+                 'nspat': dict(otype=int,
+                               descr='Number of pixels in the image spatial direction.'),
+                 'binspec': dict(otype=int,
+                                 descr='Number of pixels binned in the spectral direction.'),
+                 'binspat': dict(otype=int,
+                                 descr='Number of pixels binned in the spatial direction.'),
+                 'pad': dict(otype=int,
+                             descr='Integer number of pixels to consider beyond the slit edges.'),
+                 'nslits': dict(otype=int, descr='Number of slits.'),
+                 'left_orig': dict(otype=np.ndarray, atype=float,
+                                   descr='The original spatial coordinates (pixel indices) of all '
+                                         'left edges, one per slit.  Shape is Nspec by Nslits.'),
+                 'right_orig': dict(otype=np.ndarray, atype=float,
+                                   descr='The original spatial coordinates (pixel indices) of all '
+                                         'right edges, one per slit.  Shape is Nspec by Nslits.'),
+                 'left': dict(otype=np.ndarray, atype=float,
+                              descr='Spatial coordinates (pixel indices) of all left edges, one '
+                                    'per slit.  Shape is Nspec by Nslits.'),
+                 'right': dict(otype=np.ndarray, atype=float,
+                              descr='Spatial coordinates (pixel indices) of all right edges, one '
+                                    'per slit.  Shape is Nspec by Nslits.'),
+                 'center': dict(otype=np.ndarray, atype=float,
+                               descr='Spatial coordinates of the slit centers.  Shape is Nspec '
+                                     'by Nslits.'),
+                 'mask': dict(otype=np.ndarray, atype=bool,
+                              descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
+                 'specmin': dict(otype=np.ndarray, atype=float,
+                                 descr='Minimum spectral position allowed for each slit/order.  '
+                                       'Shape is Nslits.'),
+                 'specmax': dict(otype=np.ndarray, atype=float,
+                                 descr='Maximum spectral position allowed for each slit/order.  '
+                                       'Shape is Nslits.')} 
+    """Provides the class data model."""
+    # NOTE: The docstring above is for the ``datamodel`` attribute.
+
+    def __init__(self, left, right, nspat=None, spectrograph=None, left_orig=None, right_orig=None,
+                 mask=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        super(SlitTraceSet, self).__init__({k: values[k] for k in args[1:]})
+
+    def _validate(self):
+        """
+        Validate the slit traces.
+        """
+        if self.left.shape != self.right.shape:
+            raise ValueError('Input left and right traces should have the same shape.')
+        self.nspec, self.nslits = self.left.shape
+        self.center = (self.left+self.right)/2
+        
+        if self.nspat is None:
+            self.nspat = np.amax(np.append(self.left, self.right))
+        if self.spectrograph is None:
+            self.spectrograph = 'unknown'
+        if self.left_orig is None:
+            self.left_orig = self.left.copy()
+        if self.right_orig is None:
+            self.right_orig = self.right.copy()
+        if self.mask is None:
+            self.mask = np.zeros(self.nslits, dtype=bool)
+        if self.specmin is None:
+            self.specmin = np.full(self.nslits, -1, dtype=float)
+        if self.specmax is None:
+            self.specmax = np.full(self.nslits, self.nspec, dtype=float)
+        
+
+        # tslits_dict = {}
+        # tslits_dict['slit_left_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
+        # tslits_dict['slit_righ_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
+
+        # tslits_dict['slit_left'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
+        # tslits_dict['slit_righ'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
+        # tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
+
+        # nslits = tslits_dict['slit_left'].shape[1]
+        # tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
+
+        # tslits_dict['nspec'], tslits_dict['nspat'] = hdu['TRACEIMG'].data.shape
+        # tslits_dict['nslits'] = nslits
+        # tslits_dict['binspectral'], tslits_dict['binspatial'] \
+                # = parse.parse_binning(hdu[0].header['BINNING'])
+
+        # spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
+        # tslits_dict['spectrograph'] = spec.spectrograph
+        # tslits_dict['spec_min'], tslits_dict['spec_max'] \
+                # = spec.slit_minmax(slit_spat_pos(tslits_dict),
+                                   # binspectral=tslits_dict['binspectral'])
+
+        # indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
+        # if not np.any(indx):
+            # raise ValueError('Could not find padding parameter in header.')
+        # if np.sum(indx) != 1:
+            # raise ValueError('More than one header includes "EdgeTracePar: pad" in comment.')
+        # tslits_dict['pad'] = hdu[0].header[int(np.where(indx)[0][0])]
 
 
 class EdgeTraceBitMask(BitMask):

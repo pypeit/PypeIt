@@ -112,3 +112,9 @@ def test_chk_deimos_slits():
     assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
 
+#>>> from pypeit.edgetrace import SlitTraceSet
+#>>> import numpy
+#>>> t = SlitTraceSet(numpy.zeros((1000,3)), numpy.ones((1000,3)))
+#>>> hdu = t.to_hdu()
+#>>> _t = SlitTraceSet.from_hdu(hdu)
+

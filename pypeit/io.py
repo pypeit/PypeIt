@@ -50,44 +50,72 @@ def init_record_array(shape, dtype):
     """
     return numpy.zeros(shape, dtype=dtype).view(numpy.recarray)
 
-
-def rec_to_fits_type(rec_element):
+# TODO: Should probably rename this since it's no longer only used for
+# record arrays.
+def rec_to_fits_type(col_element, single_row=False):
     """
     Return the string representation of a fits binary table data type
-    based on the provided record array element.
+    based on the provided column element.
+
+    Args:
+        col_element (`numpy.ndarray`_):
+            The example data to write to a
+            `astropy.io.fits.BinTableHDU`_ used to determine the
+            column format.
+        single_row (:obj:`bool`, optional):
+            Flag that the provided object is the data written to a
+            single row for the `astropy.io.fits.BinTableHDU`_ column.
+
+    Returns:
+        str: String representation of the format for the column.
     """
-    n = 1 if len(rec_element[0].shape) == 0 else rec_element[0].size
-    if rec_element.dtype == numpy.bool:
+    _col_element = col_element if single_row else col_element[0]
+    n = 1 if len(_col_element.shape) == 0 else _col_element.size
+    if col_element.dtype == numpy.bool:
         return '{0}L'.format(n)
-    if rec_element.dtype == numpy.uint8:
+    if col_element.dtype == numpy.uint8:
         return '{0}B'.format(n)
-    if rec_element.dtype == numpy.int16 or rec_element.dtype == numpy.uint16:
+    if col_element.dtype == numpy.int16 or col_element.dtype == numpy.uint16:
         return '{0}I'.format(n)
-    if rec_element.dtype == numpy.int32 or rec_element.dtype == numpy.uint32:
+    if col_element.dtype == numpy.int32 or col_element.dtype == numpy.uint32:
         return '{0}J'.format(n)
-    if rec_element.dtype == numpy.int64 or rec_element.dtype == numpy.uint64:
+    if col_element.dtype == numpy.int64 or col_element.dtype == numpy.uint64:
         return '{0}K'.format(n)
-    if rec_element.dtype == numpy.float32:
+    if col_element.dtype == numpy.float32:
         return '{0}E'.format(n)
-    if rec_element.dtype == numpy.float64:
+    if col_element.dtype == numpy.float64:
         return '{0}D'.format(n)
     
     # If it makes it here, assume its a string
-    l = int(rec_element.dtype.str[rec_element.dtype.str.find('U')+1:])
+    l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])
 #    return '{0}A'.format(l) if n==1 else '{0}A{1}'.format(l*n,l)
     return '{0}A'.format(l*n)
 
 
-def rec_to_fits_col_dim(rec_element):
+def rec_to_fits_col_dim(col_element, single_row=False):
     """
     Return the string representation of the dimensions for the fits
-    table column based on the provided record array element.
+    table column based on the provided column element.
 
     The shape is inverted because the first element is supposed to be
     the most rapidly varying; i.e. the shape is supposed to be written
     as row-major, as opposed to the native column-major order in python.
+
+    Args:
+        col_element (`numpy.ndarray`_):
+            The example data to write to a
+            `astropy.io.fits.BinTableHDU`_ used to determine the
+            column dimension.
+        single_row (:obj:`bool`, optional):
+            Flag that the provided object is the data written to a
+            single row for the `astropy.io.fits.BinTableHDU`_ column.
+
+    Returns:
+        str: String representation of the column dimensions. Return
+        None if the object is not multidimensional.
     """
-    return None if len(rec_element[0].shape) == 1 else str(rec_element[0].shape[::-1])
+    _col_element = col_element if single_row else col_element[0]
+    return None if len(_col_element.shape) == 1 else str(_col_element.shape[::-1])
 
 
 def rec_to_bintable(arr, name=None, hdr=None):
