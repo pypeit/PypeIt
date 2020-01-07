@@ -111,6 +111,10 @@ matrix:
         #  env: NUMPY_VERSION=1.14
 
         - os: linux
+          env: NUMPY_VERSION=1.16 ASTROPY_VERSION=3.2
+          
+        # Try numpy pre-release
+        - os: linux
           env: NUMPY_VERSION=1.16
         # Try numpy pre-release
         - os: linux
