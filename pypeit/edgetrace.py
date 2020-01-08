@@ -155,8 +155,8 @@ class SlitTraceSet(DataContainer):
                                    descr='The original spatial coordinates (pixel indices) of all '
                                          'left edges, one per slit.  Shape is Nspec by Nslits.'),
                  'right_orig': dict(otype=np.ndarray, atype=float,
-                                   descr='The original spatial coordinates (pixel indices) of all '
-                                         'right edges, one per slit.  Shape is Nspec by Nslits.'),
+                                    descr='The original spatial coordinates (pixel indices) of all '
+                                          'right edges, one per slit.  Shape is Nspec by Nslits.'),
                  'left': dict(otype=np.ndarray, atype=float,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
                                     'per slit.  Shape is Nspec by Nslits.'),
@@ -205,37 +205,14 @@ class SlitTraceSet(DataContainer):
             self.specmin = np.full(self.nslits, -1, dtype=float)
         if self.specmax is None:
             self.specmax = np.full(self.nslits, self.nspec, dtype=float)
+
+    def to_hdu(self):
+        return super(SlitTraceSet, self).to_hdu(name='SLITS')
+
+    @classmethod
+    def from_file(cls, ifile):
+        return super(SlitTraceSet, cls).from_file(ifile, 'SLITS')
         
-
-        # tslits_dict = {}
-        # tslits_dict['slit_left_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
-        # tslits_dict['slit_righ_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
-
-        # tslits_dict['slit_left'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
-        # tslits_dict['slit_righ'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
-        # tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
-
-        # nslits = tslits_dict['slit_left'].shape[1]
-        # tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
-
-        # tslits_dict['nspec'], tslits_dict['nspat'] = hdu['TRACEIMG'].data.shape
-        # tslits_dict['nslits'] = nslits
-        # tslits_dict['binspectral'], tslits_dict['binspatial'] \
-                # = parse.parse_binning(hdu[0].header['BINNING'])
-
-        # spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
-        # tslits_dict['spectrograph'] = spec.spectrograph
-        # tslits_dict['spec_min'], tslits_dict['spec_max'] \
-                # = spec.slit_minmax(slit_spat_pos(tslits_dict),
-                                   # binspectral=tslits_dict['binspectral'])
-
-        # indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
-        # if not np.any(indx):
-            # raise ValueError('Could not find padding parameter in header.')
-        # if np.sum(indx) != 1:
-            # raise ValueError('More than one header includes "EdgeTracePar: pad" in comment.')
-        # tslits_dict['pad'] = hdu[0].header[int(np.where(indx)[0][0])]
-
 
 class EdgeTraceBitMask(BitMask):
     """
@@ -498,6 +475,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # number to be inconsistent...
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, file_format='fits.gz')
+
+        # TODO: Should make file_format a class attribute
 
         # TODO: Add type-checking for spectrograph and par
         self.spectrograph = spectrograph    # Spectrograph used to take the data
@@ -1123,7 +1102,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
             checksum (:obj:`bool`, optional):
-                Passed to `astropy.io.fits.HDUList.writeto` to add
+                Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
             float_dtype (:obj:`str`, optional):
                 Convert floating-point data to this data type before
@@ -1213,8 +1192,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                           name='CENTER_ERR'),
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
-                                          name='CENTER_FIT')
-                            ])
+                                          name='CENTER_FIT'),
+                            self.get_slits().to_hdu()])
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
@@ -4299,6 +4278,35 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
 
+    def get_slits(self):
+        """
+        Use the data to construct and return a :class:`SlitTraceSet`
+        object.
+        """
+        if not self.is_synced:
+            msgs.error('Edges must be synced to construct SlitTraceSet object.')
+
+        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                 exclude=self.bitmask.exclude_flags))
+
+        left = self.spat_fit[:,gpm & self.is_left]
+        right = self.spat_fit[:,gpm & self.is_right]
+        binspec, binspat = parse.parse_binning(self.binning)
+        slitspat = slit_spat_pos(left, right, self.nspec, self.nspat)
+        specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
+
+        return SlitTraceSet(left, right, nspat=self.nspat,
+                            spectrograph=self.spectrograph.spectrograph, specmin=specmin,
+                            specmax=specmax, binspec=binspec, binspat=binspat, pad=self.par['pad'])
+
+    def load_slits(self):
+        """
+        Load the slit data from the master file.
+        """
+        if not self.exists():
+            msgs.error('File does not exit: {0}'.format(self.master_file_path))
+        return SlitTraceSet.from_file(self.master_file_path)
+
     def convert_to_tslits_dict(self):
         """
         Stop-gap function to construct the old tslits_dict object.
@@ -4499,17 +4507,14 @@ def get_slitid(shape, lordloc, rordloc, islit, ypos=0.5):
 
 
 # TODO: This needs to be integrated into EdgeTraceSet
-def slit_spat_pos(tslits_dict):
+def slit_spat_pos(left, right, nspec, nspat):
     """
     Generate an array of the slit spat positions
     from the tslits_dict
 
     Args:
-        tslits_dict (:obj:`dict`):
-            Trace slits dict
 
     Returns:
         np.ndarray
     """
-    return (tslits_dict['slit_left'][tslits_dict['nspec']//2, :] +
-            tslits_dict['slit_righ'][tslits_dict['nspec']//2,:]) /2/tslits_dict['nspat']
+    return (left[nspec//2,:] + right[nspec//2,:])/2/nspat

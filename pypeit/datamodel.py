@@ -212,6 +212,31 @@ class DataContainer:
         super(cls, self).__init__(d)
         return self
 
+    def to_file(self, ofile, ext=None, overwrite=False, checksum=True):
+        """
+        Write the data to a file.
+
+        This is a convenience wrapper for :func:`to_hdu`. The output
+        is always placed in the 2nd extension; the first (primary)
+        extension is always empty.
+
+        Args:
+            ofile (:obj:`str`):
+                Fits file for the data
+            ext (:obj:`str`, optional):
+                Name for the fits extension with the data. If None,
+                no name is used.
+            overwrite (:obj:`bool`, optional):
+                Flag to overwrite any existing file.
+            checksum (:obj:`bool`, optional):
+                Passed to `astropy.io.fits.HDUList.writeto`_ to add
+                the DATASUM and CHECKSUM keywords fits header(s). 
+        """
+        if os.path.exists(ofile) and not overwrite:
+            raise FileExistsError('File exists: {0}'.format(o)
+                                  + 'Set overwrite=True to overwrite it.')
+        fits.HDUList([PrimaryHDU(), self.to_hdu(name=ext)]).writeto(ofile, checksum=checksum)
+
     @classmethod
     def from_file(cls, ifile, ext):
         """
