@@ -4345,7 +4345,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Update the slit edges using a tslits_dict. This is a stop-gap
         to allow for adjusting the slit traces based on the
         flat-field.
+
+        Args:
+            tslits_dict (dict):
         """
+        # If traces are updated, the PCA is no longer valid
+        self.pca = None
         # Find the traces that are *not* fully masked
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
         self.spat_fit[:, gpm & self.is_left] = tslits_dict['slit_left']
