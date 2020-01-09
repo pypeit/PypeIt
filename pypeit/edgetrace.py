@@ -177,6 +177,9 @@ class SlitTraceSet(DataContainer):
     """Provides the class data model."""
     # NOTE: The docstring above is for the ``datamodel`` attribute.
 
+    ext = 'SLITS'
+    """Data always written to the SLITS extension."""
+
     def __init__(self, left, right, nspat=None, spectrograph=None, left_orig=None, right_orig=None,
                  mask=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -206,13 +209,10 @@ class SlitTraceSet(DataContainer):
         if self.specmax is None:
             self.specmax = np.full(self.nslits, self.nspec, dtype=float)
 
-    def to_hdu(self):
-        return super(SlitTraceSet, self).to_hdu(name='SLITS')
+    def _bundle(self):
 
-    @classmethod
-    def from_file(cls, ifile):
-        return super(SlitTraceSet, cls).from_file(ifile, 'SLITS')
-        
+    def _parse(self):
+
 
 class EdgeTraceBitMask(BitMask):
     """

@@ -25,10 +25,14 @@ class DataContainer:
 
     This abstract class should only be used as a base class.
 
+    Derived classes must do the following:
+        - Define a datamodel
+
     Args:
         d (:obj:`dict`):
             Dictionary to copy to the internal attribute dictionary.
     """
+
     # Define the data model
     datamodel = None
     """
@@ -37,6 +41,13 @@ class DataContainer:
 
     .. note::
         Data model elements should *not* be dicts themselves.
+    """
+
+    # Define the HDU extension that holds the data
+    ext = None
+    """
+    Provides the name of the HDU extension when written to a fits
+    table.
     """
 
     def __init__(self, d):
@@ -74,8 +85,15 @@ class DataContainer:
         """
         Validate the data container.
 
+        The purpose of this function is to check the input data
+        provided by the instantiation and flesh out any details of
+        the object.
+
         Derived classes should override this function, unless there
         is nothing to validate.
+
+        Attributes can be added to the object in this function
+        because it is called before the datamodel is frozen.
         """
         pass
 
@@ -142,7 +160,7 @@ class DataContainer:
         """
         return self.datamodel.keys()
 
-    def to_hdu(self, name=None):
+    def to_hdu(self):
         """
         Construct an `astropy.io.fits.BinTableHDU`_ with the data.
 
@@ -156,14 +174,11 @@ class DataContainer:
             - Objects with individual values (int, float, str, etc.)
             are written to the extension header.
 
-        Args:
-            name (:obj:`str`, optional):
-                Extension name given to the
-                `astropy.io.fits.BinTableHDU`_ object.
-
         Returns:
             `astropy.io.fits.BinTableHDU`_: HDU with the data.
         """
+        if self.ext is None:
+            raise ValueError('HDU name for {0} is undefined!'.format(self.__class__.__name__))
         cols = []
         hdr = fits.Header()
         for key in self.keys():
@@ -180,7 +195,7 @@ class DataContainer:
             else:
                 hdr[key.upper()] = (self[key], self.datamodel[key]['descr'])
 
-        return fits.BinTableHDU.from_columns(cols, header=hdr, name=name)
+        return fits.BinTableHDU.from_columns(cols, header=hdr, name=self.ext)
 
     @classmethod
     def from_hdu(cls, hdu):
@@ -212,7 +227,7 @@ class DataContainer:
         super(cls, self).__init__(d)
         return self
 
-    def to_file(self, ofile, ext=None, overwrite=False, checksum=True):
+    def to_file(self, ofile, overwrite=False, checksum=True):
         """
         Write the data to a file.
 
@@ -223,22 +238,24 @@ class DataContainer:
         Args:
             ofile (:obj:`str`):
                 Fits file for the data
-            ext (:obj:`str`, optional):
-                Name for the fits extension with the data. If None,
-                no name is used.
             overwrite (:obj:`bool`, optional):
                 Flag to overwrite any existing file.
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
-                the DATASUM and CHECKSUM keywords fits header(s). 
+                the DATASUM and CHECKSUM keywords fits header(s).
+
+        Raises:
+            FileExistsError:
+                Raised if the file to write already exists and
+                ``overwrite`` is False.
         """
         if os.path.exists(ofile) and not overwrite:
             raise FileExistsError('File exists: {0}'.format(o)
                                   + 'Set overwrite=True to overwrite it.')
-        fits.HDUList([PrimaryHDU(), self.to_hdu(name=ext)]).writeto(ofile, checksum=checksum)
+        fits.HDUList([PrimaryHDU(), self.to_hdu()]).writeto(ofile, checksum=checksum)
 
     @classmethod
-    def from_file(cls, ifile, ext):
+    def from_file(cls, ifile):
         """
         Instantiate the object from an extension in the specified fits file.
 
@@ -247,9 +264,6 @@ class DataContainer:
         Args:
             ifile (:obj:`str`):
                 Fits file with the data to read
-            ext (:obj:`str`, :obj:`int`):
-                Name or index of the extension in the fits file with
-                the data.
 
         Raises:
             FileNotFoundError:
@@ -257,6 +271,8 @@ class DataContainer:
         """
         if not os.path.isfile(ifile):
             raise FileNotFoundError('{0} does not exist!'.format(ifile))
+        if self.ext is None:
+            raise ValueError('HDU name for {0} is undefined!'.format(self.__class__.__name__))
         with fits.open(ifile) as hdu:
-            return cls.from_hdu(hdu[ext])
+            return cls.from_hdu(hdu[self.ext])
 
