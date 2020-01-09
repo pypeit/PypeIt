@@ -162,8 +162,10 @@ class SpecObj(object):
             setattr(slf, key, table.meta[key])
         # JFH It is a really bad idea to dynamically generate the name when you already wrote it to a file. Just read
         # in what you wrote out.
+        # JXP -- It is only written to the extensions as EXTNAME.
+        # JXP    Also, this allows the naming convention to change (which it has).
         # Name
-        #slf.set_name()
+        slf.set_name()
         # Return
         return slf
 
