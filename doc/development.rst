@@ -387,6 +387,29 @@ The tagging process is as follows:
 
  * The tag is released for `pip`_ installation.
 
+    .. code-block:: bash
+
+        # Make sure you have twine installed
+        pip install twine
+        # Construct the pip distribution
+        python setup.py sdist bdist_wheel
+        # Test the upload
+        twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+        # Upload, this time it's for keeps
+        twine upload dist/*
+
+    For the uploading, you need a ``~/.pypirc`` file that looks like this:
+
+    .. code-block:: ini
+
+        [distutils]
+        index-servers = pypi
+
+        [pypi]
+        repository = https://upload.pypi.org/legacy/
+        username = pypeit
+        password = [ask for this]
+
  * A branch is created to advance the version of the code to a
    development version string and to update ``develop`` with the new
    master:

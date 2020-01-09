@@ -185,7 +185,7 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     lag0 = corr.size//2
     #mxshft = settings.argflag['reduce']['flexure']['maxshift']
     max_corr = np.argmax(corr[lag0-mxshft:lag0+mxshft]) + lag0-mxshft
-    subpix_grid = np.linspace(max_corr-3., max_corr+3., 7.)
+    subpix_grid = np.linspace(max_corr-3., max_corr+3., 7)
 
     #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
     if np.any(np.isfinite(corr[subpix_grid.astype(np.int)])):
