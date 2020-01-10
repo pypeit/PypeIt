@@ -277,7 +277,7 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    std_dict = self.reduce_exposure(frames, bg_frames)
+                    std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_dict, self.basename)
                 else:
@@ -307,7 +307,8 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    sci_dict = self.reduce_exposure(frames, bg_frames, std_outfile=std_outfile)
+                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames,
+                                                    std_outfile=std_outfile)
                     science_basename[j] = self.basename
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_dict, self.basename)
@@ -342,7 +343,7 @@ class PypeIt(object):
             return np.arange(1, ndet+1).tolist()
         return [detnum] if isinstance(detnum, int) else detnum
 
-    def reduce_exposure(self, frames, bg_frames, std_outfile=None):
+    def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure
 
@@ -350,9 +351,8 @@ class PypeIt(object):
             frame (:obj:`int`):
                 0-indexed row in :attr:`fitstbl` with the frame to
                 reduce.
-            bg_frames (:obj:`list`):
+            bg_frames (:obj:`list`, optional):
                 List of frame indices for the background.
-                Can be empty
             std_outfile (:obj:`str`, optional):
                 File with a previously reduced standard spectrum from
                 PypeIt.
@@ -373,9 +373,11 @@ class PypeIt(object):
             # TODO: Put this in a try/except block?
             ginga.clear_all()
 
+        has_bg = if bg_frames is not None and len(bg_frames) > 0
+
         # Is this an IR reduction?
         # TODO: Why specific to IR?
-        self.ir_redux = True if len(bg_frames) > 0 else False
+        self.ir_redux = True if has_bg else False
 
         # TODO: JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
@@ -390,7 +392,7 @@ class PypeIt(object):
         for iframe in frames:
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
         msgs.info(msgs_string)
-        if len(bg_frames) > 0:
+        if has_bg:
             bg_msgs_string = ''
             for iframe in bg_frames:
                 bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
@@ -427,6 +429,7 @@ class PypeIt(object):
         # Return
         return sci_dict
 
+    # TODO: Is this defunct?
     def flexure_correct(self, sobjs, maskslits):
         """
         Correct for flexure
