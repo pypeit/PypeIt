@@ -2013,10 +2013,16 @@ class ScienceImagePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = cfg.keys()
-        parkeys = ['findobj', 'skysub', 'extraction']
         kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
+
+        # Keywords that are ParSets
+        pk = 'findobj'
+        kwargs[pk] = FindObjPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'skysub'
+        kwargs[pk] = SkySubPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'extraction'
+        kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     def validate(self):
@@ -2295,7 +2301,7 @@ class ExtractionPar(ParSet):
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma',
                    'sn_gauss', 'model_full_slit',
-                   'manual', 'boxcar_only'
+                   'manual', 'skip_optimal'
                    ]
         kwargs = {}
         for pk in parkeys:

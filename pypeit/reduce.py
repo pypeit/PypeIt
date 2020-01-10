@@ -156,8 +156,7 @@ class Reduce(object):
         # This holds the objects, pre-extraction
         self.sobjs_obj = sobjs_obj
 
-        # Boxcar only??
-        if self.par['scienceimage']['extraction']['skip_optimal']:
+        if self.par['scienceimage']['extraction']['skip_optimal']:  # Boxcar only with global sky subtraction
             msgs.info("Skipping optimal extraction")
 
             # This will hold the extracted objects
@@ -181,7 +180,7 @@ class Reduce(object):
             self.ivarmodel = np.copy(self.sciImg.ivar)
             self.outmask = self.sciImg.mask
             self.skymodel = global_sky.copy()
-        else:  # Full extraction
+        else:  # Local sky subtraction and optimal extraction.
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(self.caliBrate.mswave, global_sky, self.sobjs_obj,
                                           model_noise=(not self.ir_redux),
@@ -250,7 +249,7 @@ class Reduce(object):
         self.initial_sky = \
             self.global_skysub(skymask=skymask_init).copy()
 
-        # Second pass object finding
+        # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['scienceimage']['findobj']['skip_second_find']):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.find_objects(self.sciImg.image - self.initial_sky,
