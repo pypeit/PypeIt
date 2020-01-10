@@ -2227,7 +2227,7 @@ class ExtractionPar(ParSet):
     def __init__(self,
                  boxcar_radius=None, std_prof_nsigma=None,
                  sn_gauss=None, model_full_slit=None, manual=None,
-                 boxcar_only=None,
+                 skip_optimal=None,
                  ):
         # Grab the parameter names and values from the function
         # arguments
@@ -2256,9 +2256,9 @@ class ExtractionPar(ParSet):
         dtypes['boxcar_radius'] = [int, float]
         descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
 
-        defaults['boxcar_only'] = False
-        dtypes['boxcar_only'] = bool
-        descr['boxcar_only'] = 'Perform boxcar extraction only (i.e. skip Optimal)'
+        defaults['skip_optimal'] = False
+        dtypes['skip_optimal'] = bool
+        descr['skip_optimal'] = 'Perform boxcar extraction only (i.e. skip Optimal and local skysub)'
 
         defaults['std_prof_nsigma'] = 30.
         dtypes['std_prof_nsigma'] = float

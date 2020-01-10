@@ -128,8 +128,8 @@ class Reduce(object):
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract
         if self.sobjs_obj.nobj > 0:
             # Boxcar only??
-            if self.par['scienceimage']['extraction']['boxcar_only']:
-                msgs.info("Performing boxcar extraction only")
+            if self.par['scienceimage']['extraction']['skip_optimal']:
+                msgs.info("Skipping optimal extraction")
 
                 # This will hold the extracted objects
                 self.sobjs = self.sobjs_obj.copy()
@@ -230,7 +230,7 @@ class Reduce(object):
 
         if self.sobjs_obj.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
-            if (self.std_redux or self.par['scienceimage']['extraction']['boxcar_only'] or
+            if (self.std_redux or self.par['scienceimage']['extraction']['skip_optimal'] or
                     self.par['scienceimage']['findobj']['skip_second_find']):
                 self.global_sky = self.initial_sky.copy()
             else:

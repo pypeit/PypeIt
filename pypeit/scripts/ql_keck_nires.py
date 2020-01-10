@@ -71,11 +71,12 @@ def main(pargs):
     cfg_lines += ['        [[process]]']
     cfg_lines += ['              cr_reject = False']
     cfg_lines += ['[scienceimage]']
-    cfg_lines += ['    boxcar_only = True']
-    cfg_lines += ['    skip_second_find = True']
-    # Boxcar radius
-    if pargs.box_radius is not None:
-        cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
+    cfg_lines += ['    [[extraction]]']
+    cfg_lines += ['        skip_optimal = True']
+    if pargs.box_radius is not None: # Boxcar radius
+        cfg_lines += ['        boxcar_radius = {0}'.format(pargs.box_radius)]
+    cfg_lines += ['    [[findobj]]']
+    cfg_lines += ['        skip_second_find = True']
 
     # Write
     ofiles = ps.fitstbl.write_pypeit('', configs=['A'], write_bkg_pairs=True, cfg_lines=cfg_lines)
