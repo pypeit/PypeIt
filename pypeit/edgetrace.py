@@ -1180,11 +1180,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Returns:
             bool
         """
-        if os.path.isfile(self.master_file_path):
-            return True
-        else:
-            msgs.info("No master file: {}".format(self.master_file_path))
-            return False
+        return os.path.isfile(self.master_file_path)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=False):
