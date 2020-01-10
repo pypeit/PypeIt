@@ -598,7 +598,8 @@ class PypeIt(object):
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.run(
-            std_trace=std_trace, manual_extract_dict=manual_extract_dict)
+            std_trace=std_trace, manual_extract_dict=manual_extract_dict,
+            show_peaks=self.show)
 
         '''
         # Find objects
@@ -610,7 +611,7 @@ class PypeIt(object):
         '''
 
         # Finish up
-        if self.sobjs_obj.nobj == 0:
+        if self.sobjs.nobj == 0:
             # Print status message
             msgs_string = 'No objects to extract for file {:s}'.format(
                 self.fitstbl['target'][frames[0]]) + msgs.newline()
@@ -619,11 +620,7 @@ class PypeIt(object):
                 msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
             msgs.warn(msgs_string)
         else:
-            # Purge out the negative objects if this was a near-IR reduction.
-            # TODO should we move this purge call to local_skysub_extract?? Yes.
-            if self.ir_redux:
-                self.sobjs.purge_neg()
-
+            # TODO -- Should we move these to redux.run()?
             # Flexure correction if this is not a standard star
             if not self.std_redux:
                 self.redux.flexure_correct(self.sobjs, self.basename)
