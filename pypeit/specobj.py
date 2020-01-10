@@ -162,6 +162,7 @@ class SpecObj(object):
             setattr(slf, key, table.meta[key])
         # JFH It is a really bad idea to dynamically generate the name when you already wrote it to a file. Just read
         # in what you wrote out.
+        # Name
         #slf.set_name()
         # Return
         return slf
