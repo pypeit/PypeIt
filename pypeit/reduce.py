@@ -283,7 +283,7 @@ class Reduce(object):
 
         # Purge out the negative objects if this was a near-IR reduction.
         if self.ir_redux:
-            self.sobjs_obj.purge_neg()
+            self.sobjs.purge_neg()
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
