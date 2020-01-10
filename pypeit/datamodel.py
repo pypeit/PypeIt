@@ -103,19 +103,27 @@ class DataContainer:
               to be written.
 
             - a single item (object) to be written, which will be
-              written in order without any extension names (although
-              see the caveat in :func:`pypeit.io.dict_to_hdu` for
-              dictionaries with single array items).
+              written in the provided order without any extension
+              names (although see the caveat in
+              :func:`pypeit.io.dict_to_hdu` for dictionaries with
+              single array or `astropy.table.Table`_ items).
 
         The item to be written can be a single array for an ImageHDU,
-        or it can be a dictionary or astropy.table.Table for a
-        BinTableHDU. For how these objects parsed into the HDUs, see
+        an `astropy.table.Table`_ for a BinTableHDU, or a dictionary;
+        see :func:`pypeit.io.write_to_hdu`.
+
+        For how these objects parsed into the HDUs, see
         :func:`to_hdu`.
 
         The default behavior implemented by this base class just
-        parses the attributes into a dictionary based on the
+        parses the attributes into a single dictionary based on the
         datamodel and is returned such that it all is written to a
-        single fits extension.
+        single fits extension.  Note that this will fault if the datamodel contains:
+
+            - a dictionary object
+            - more than one `astropy.table.Table`_,
+            - an `astropy.table.Table`_ and an array-like object
+              (:obj:`list` or `numpy.ndarray`_), or
 
         Certain **restrictions** apply to how the data can be bundled
         for the general parser implementation (:func:`_parse`) to
@@ -124,14 +132,15 @@ class DataContainer:
             - The shape and orientation of any input arrays are
               assumed to be correct.
 
-            - Datamodel keys for arrays written to an ImageHDU should
-              match the HDU extension name. Otherwise, the HDU
-              extension name **cannot** match any of the datamodel
-              keys.
+            - Datamodel keys for arrays or `astropy.table.Table`_
+              objects written to an HDU should match the HDU
+              extension name. Otherwise, the set of HDU extension
+              names and datamodel keys **must** be unique.
 
-            - Datamodel keys can be matched to header values:
-              :func:`to_hdu` will write any items in a dictionary is
-              not a list or an array to the header. This means header
+            - Datamodel keys will be matched to header values:
+              :func:`to_hdu` will write any items in a dictionary
+              that is an integer, float, or string (specific numpy
+              types or otherwise) to the header. This means header
               keys in **all** extensions should be unique and should
               not be the same as any extension name.
 
@@ -141,6 +150,9 @@ class DataContainer:
                 given.
             transpose_arrays (:obj:`bool`, optional):
                 Transpose the arrays before writing them to the HDU.
+                This option is mostly meant to correct orientation of
+                arrays meant for tables so that the number of rows
+                match.
             
         Returns:
             :obj:`list`: A list of dictionaries, each list element is
@@ -173,7 +185,8 @@ class DataContainer:
                 data into the datamodel.
             transpose_table_arrays (:obj:`bool`, optional):
                 Tranpose *all* the arrays read from any binary
-                tables.
+                tables. This is meant to invert the use of
+                ``transpose_arrays`` in :func:`_bound`.
 
         Returns:
             :obj:`dict`: Dictionary used to instantiate the object.
@@ -302,7 +315,7 @@ class DataContainer:
         """
         return self.datamodel.keys()
 
-    def to_hdu(self):
+    def to_hdu(self, add_primary=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -315,9 +328,26 @@ class DataContainer:
         item is passed to :func:`pypeit.io.write_to_hdu` to construct
         the HDU.
 
+        Args:
+            add_primary (:obj:`bool`, optional):
+                If False, the returned object is a simple
+                :obj:`list`, with a list of HDU objects (either
+                `astropy.io.fits.ImageHDU`_ or
+                `astropy.io.fits.BinTableHDU`_). If true, the method
+                constructs an `astropy.io.fits.HDUList` with a
+                primary HDU, such that this call::
+
+                    hdu = fits.HDUList([fits.PrimaryHDU()] + self.to_hdu())
+
+                and this call::
+
+                    hdu = self.to_hdu(add_primary=True)
+
+                are identical.
+
         Returns:
-            :obj:`list`: A list of HDUs, but not an
-            `astropy.io.fits.HDUList`.
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
+            where the type depends on the value of ``add_primary``.
         """
         # Bundle the data
         data = self._bundle()
@@ -330,7 +360,7 @@ class DataContainer:
                 hdu += [io.write_to_hdu(d[ext], name=ext)]
             else:
                 hdu += [io.write_to_hdu(d)]
-        return hdu
+        return fits.HDUList([fits.PrimaryHDU()] + hdu) if add_primary else hdu
 
     @classmethod
     def from_hdu(cls, hdu):

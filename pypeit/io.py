@@ -321,20 +321,38 @@ def dict_to_hdu(d, name=None):
     """
     Write a dictionary to a fits HDU.
 
-    Elements in the dictionary that are (numpy or otherwise)
-    integers, floats, or strings are written to the HDU header.
+    Elements in the dictionary that are integers, floats, or strings
+    (specific numpy types or otherwise) are written to the HDU
+    header. The header keywords are identical to the dictionary keys.
+
+    If any of the elements in the dictionary are an
+    `astropy.table.Table`_, that dictionary can *only* contain that
+    table and single values that will be written to the extension
+    header. That is, there can be only one `astropy.table.Table`_
+    element, and none of the elements can be a :obj:`list` or
+    `numpy.ndarray`_. By default the extension name is the dictionary
+    key for the `astropy.table.Table`_ item; this can be overridden
+    using the ``name`` argument.
 
     Elements in the dictionary that are a list or a `numpy.ndarray`_
     are written as either an image (if there is only one array) or a
     series of table columns. The lists are assumed to be
     interpretable as the ``array`` argument of
-    `astropy.io.fits.Column` or the ``data`` argument of
-    `astropy.io.fits.ImageHDU`_.
+    `astropy.io.fits.Column` (for a table) or the ``data`` argument of
+    `astropy.io.fits.ImageHDU`_ (for an image).
 
-    If a table is to be written, the method checks that the relevant
-    arrays have a consistent number of rows. The format and
-    dimensions are set so that the arrays contained in a single table
-    row.
+        - If an image is to be written, the extension name, by
+          default, is the dictionary key for the array item; this can
+          be overridden using the ``name`` argument.
+
+        - If a table is to be written, the method checks that the
+          relevant arrays have a consistent number of rows. If they
+          do not, the format and dimensions of the table written are
+          set so that the arrays are contained in a single row. The
+          column names in the table are identical to the dictionary
+          keywords. In this case, ``name`` must be provided if you
+          want the extension to have a name; there is no default
+          name.
 
     Args:
         d (:obj:`dict`):
@@ -342,9 +360,14 @@ def dict_to_hdu(d, name=None):
             `astropy.io.fits.BinTableHDU`_.
         name (:obj:`str`, optional):
             Name to give the HDU extension. If None and the input is
-            a dictionary with a single array to write, the name of
-            the (`astropy.io.fits.ImageHDU`_) extension is the
-            relevant dictionary keywowrd; otherwise, no name is used.
+            a dictionary with a single array or
+            `astropy.table.Table`_ to write, the name of the
+            extension is the relevant dictionary keyword. Any
+            provided value for ``name`` will override this behavior.
+            If the provided dictionary is used to construct a table,
+            where the dictionary keys are used for the table column
+            names, there is no default name for the extension (i.e.,
+            no extension name is used if ``name is None``).
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -355,12 +378,33 @@ def dict_to_hdu(d, name=None):
 
     Raises:
         TypeError:
-            Raised if the method cannot interpret how to use an
-            element of the dictionary.
+            Raised if the input object is not a dictionary or the
+            method cannot interpret how to use an element of the
+            dictionary.
+        ValueError:
+            Raised if dictionary contains another dictionary, more
+            than one `astropy.table.Table`_ object, or both an
+            `astropy.table.Table`_ and an array-like object
+            (:obj:`list` or `numpy.ndarray`_).
     """
-    # Write any header data and find any arrays
+    # Check the input is a dictionary (not very pythonic...)
+    if not isinstance(d, dict):
+        raise TypeError('Input must be a dictionary.')
+    # Check the dictionary contents
+    ndict = numpy.sum([isinstance(d[key], dict) for key in d.keys()])
+    if ndict > 0:
+        raise ValueError('Cannot write nested dictionaries.')
+    ntab = numpy.sum([isinstance(d[key], Table) for key in d.keys()])
+    if ntab > 1:
+        raise ValueError('Cannot write dictionaries with more than one astropy.table.Table.')
+    narr = numpy.sum([isinstance(d[key], (list, np.ndarray)) for key in d.keys()])
+    if ntab > 0 and narr > 0:
+        raise ValueError('Cannot write dictionaries with both arrays and Tables.')
+
+    # Write any header data and find arrays and Tables
     hdr = fits.Header()
     array_keys = []
+    table_keys = []
     for key in d.keys():
         if d[key] is None:
             continue
@@ -369,15 +413,31 @@ def dict_to_hdu(d, name=None):
         # This ignores the defined otype...
         if isinstance(d[key], (list, numpy.ndarray)):
             array_keys += [key]
+        elif isinstance(d[key], Table):
+            table_keys += [key]
         elif isinstance(d[key], (int, numpy.integer, float, numpy.floating, str)):
             hdr[key.upper()] = d[key]
         else:
             raise TypeError('Do not know how to write object with type {0}'.format(type(d[key])))
 
-    # If there aren't any arrays, return an empty table.
-    if len(array_keys) < 2:
-        return fits.ImageHDU(data=None if len(array_keys) == 0 else d[array_keys[0]], header=hdr,
+    # If there aren't any arrays or tables, return an empty ImageHDU with just the header data.
+    if len(array_keys) < 1 and len(table_keys) < 1:
+        return fits.ImageHDU(header=hdr, name=name)
+
+    # If there's only a single array, return it in an ImageHDU
+    if len(array_keys) == 1:
+        return fits.ImageHDU(data=d[array_keys[0]], header=hdr,
                              name=array_keys[0] if name is None else name)
+
+    # If there's only a single Table, return it in a BinTableHDU
+    if len(table_keys) == 1:
+        # TODO: If we pass hdr directly, does this call include any
+        # table meta?
+        return fits.BinTableHDU(data=d[table_keys[0]], header=hdr,
+                                name=table_keys[0] if name is None else name)
+
+    # Only remaining option is to build a BinTableHDU based on the
+    # dictionary contents.
 
     # Do all arrays have the same number of rows?
     single_row = len(numpy.unique([numpy.asarray(d[key]).shape[0] for key in array_keys])) > 1
@@ -396,11 +456,10 @@ def write_to_hdu(d, name=None):
     """
     Write the input to an astropy.io.fits HDU extension.
 
-    Array or list items are written as an ImageHDU, and dictionary
-    and astropy.table.Table items are written as a BinTableHDU.
-    Tables are written directly, and dictionaries are written using
-    :func:`pypeit.io.dict_to_hdu`.
-
+    List and numpy.ndarray items are written as an ImageHDU,
+    `astropy.table.Table`_ items are written as a BinTableHDU, and
+    dictionaries are passed to :func:`dict_to_hdu`.
+    
     .. warning::
         If ``d`` is a list, the method assumes that the list is
         essentially an array that can be sensibly converted to a
@@ -413,8 +472,13 @@ def write_to_hdu(d, name=None):
             Name for the HDU extension.
 
     Returns:
-        `astropy.fits.ImageHDU`, `astropy.fits.BinTableHDU`: HDU with
-        the data.
+        `astropy.fits.ImageHDU`_, `astropy.fits.BinTableHDU`_: HDU
+        with the data.
+
+    Raises:
+        TypeError:
+            Raised if the input object is not one of the allowed
+            types.
     """
     if isinstance(d, dict):
         return dict_to_hdu(d, name=name)
@@ -423,3 +487,66 @@ def write_to_hdu(d, name=None):
     if isinstance(d, (numpy.ndarray, list)):
         return fits.ImageHDU(data=numpy.asarray(d), name=name)
     raise TypeError('Input must be a dictionary, astropy.table.Table, list, or numpy.ndarray.')
+
+
+def write_to_fits(d, ofile, name=None, overwrite=False, checksum=True):
+    """
+    Write the provided object to a fits file.
+
+    This is either a convenience wrapper for :func:`write_to_hdu`
+    that adds a primary HDU and writes the result to the provided
+    file, or a convenience wrapper for an already formed
+    `astropy.io.fits.HDUList`_ passed as (``d``).
+
+    If the provided file name includes the '.gz' extension, the file
+    is first written using `astropy.io.fits.HDUList.writeto`_ and
+    then compressed using :func:`compress_file`.
+    
+    .. note::
+
+        Compressing the file is generally slow, but following the
+        two-step process of running
+        `astropy.io.fits.HDUList.writeto`_ and then
+        :func:`compress_file` is generally faster than having
+        `astropy.io.fits.HDUList.writeto`_ do the compression,
+        particularly for files with many extensions (or at least this
+        was true in the past).
+
+    Args:
+        d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_,
+            `astropy.table.Table`_, `astropy.io.fits.HDUList`_):
+            Object to write to the HDU. See :func:`write_to_hdu`.
+        ofile (:obj:`str`):
+            File name (path) for the fits file.
+        name (:obj:`str`, optional):
+            Name for the extension with the data. If None, the
+            extension is not given a name. However, if the input
+            object is a dictionary, see :func:`dict_to_hdu` for how
+            the name will overwrite any dictionary keyword associated
+            with the data to write.
+        overwrite (:obj:`bool`, optional):
+            Overwrite any existing file.
+        checksum (:obj:`bool`, optional):
+            Passed to `astropy.io.fits.HDUList.writeto`_ to add the
+            DATASUM and CHECKSUM keywords fits header(s).
+    """
+    if os.path.isfile(ofile) and not overwrite:
+        raise FileExistsError('File already exists; to overwrite, set overwrite=True.')
+
+    # Determine if the file should be compressed
+    _ofile = ofile[:ofile.rfind('.')] if ofile.split('.')[-1] == 'gz' else ofile
+
+    # Construct the hdus and write the fits file.
+    fits.HDUList(d if isinstance(d, fits.HDUList) else
+                 [fits.PrimaryHDU] + [write_to_hdu(d, name=name)]).writeto(_ofile, overwrite=True,
+                                                                           checksum=checksum)
+
+    # Compress the file if the output filename has a '.gz' extension;
+    # this is slow but still faster than if you have astropy.io.fits do
+    # it directly
+    if _ofile is not ofile:
+        msgs.info('Compressing file to: {0}'.format(ofile))
+        io.compress_file(_ofile, overwrite=True)
+    else:
+        msgs.info('File written to: {0}'.format(ofile))
+
