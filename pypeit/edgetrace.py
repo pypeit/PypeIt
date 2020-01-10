@@ -177,9 +177,6 @@ class SlitTraceSet(DataContainer):
     """Provides the class data model."""
     # NOTE: The docstring above is for the ``datamodel`` attribute.
 
-    ext = 'SLITS'
-    """Data always written to the SLITS extension."""
-
     def __init__(self, left, right, nspat=None, spectrograph=None, left_orig=None, right_orig=None,
                  mask=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -210,8 +207,23 @@ class SlitTraceSet(DataContainer):
             self.specmax = np.full(self.nslits, self.nspec, dtype=float)
 
     def _bundle(self):
+        """
+        Bundle the data in preparation for writing to a fits file.
 
-    def _parse(self):
+        See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
+        always written to a 'SLITS' extension.
+        """
+        return super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
+
+    @classmethod
+    def _parse(cls, hdu):
+        """
+        Parse the data that was previously written to a fits file.
+
+        See :func:`pypeit.datamodel.DataContainer._parse`. Data is
+        always read from the 'SLITS' extension.
+        """
+        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
 
 class EdgeTraceBitMask(BitMask):
@@ -1181,8 +1193,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # the most recent release. If it is, building the hdu can be
         # done in one go, where the binary tables will just be empty if
         # no design/object data is avialable.
-        hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr),
-                            fits.ImageHDU(data=self.img.astype(float_dtype), name='TRACEIMG'),
+        hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr)] + self.get_slits().to_hdu() +
+                           [fits.ImageHDU(data=self.img.astype(float_dtype), name='TRACEIMG'),
                             fits.ImageHDU(data=self.bpm.astype(np.int16), name='TRACEBPM'),
                             fits.ImageHDU(data=self.sobel_sig.astype(float_dtype),
                                           name='SOBELSIG'),
@@ -1192,8 +1204,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                           name='CENTER_ERR'),
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
-                                          name='CENTER_FIT'),
-                            self.get_slits().to_hdu()])
+                                          name='CENTER_FIT')])
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]

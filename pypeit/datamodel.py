@@ -6,6 +6,7 @@ Implements classes and function for the PypeIt data model.
 """
 import os
 import copy
+import warnings
 
 from IPython import embed
 
@@ -42,14 +43,6 @@ class DataContainer:
     .. note::
         Data model elements should *not* be dicts themselves.
     """
-
-    # Define the HDU extension that holds the data
-    ext = None
-    """
-    Provides the name of the HDU extension when written to a fits
-    table.
-    """
-
     def __init__(self, d):
         # Data model must be defined
         if self.datamodel is None:
@@ -97,6 +90,155 @@ class DataContainer:
         """
         pass
 
+    def _bundle(self, ext=None, transpose_arrays=False):
+        """
+        Bundle the data into a series of objects to be written to
+        fits HDU extensions.
+
+        The returned object must be a list. The list items should be
+        one of the following:
+
+            - a dictionary with a single key/item pair, where the key
+              is the name for the extension and the item is the data
+              to be written.
+
+            - a single item (object) to be written, which will be
+              written in order without any extension names (although
+              see the caveat in :func:`pypeit.io.dict_to_hdu` for
+              dictionaries with single array items).
+
+        The item to be written can be a single array for an ImageHDU,
+        or it can be a dictionary or astropy.table.Table for a
+        BinTableHDU. For how these objects parsed into the HDUs, see
+        :func:`to_hdu`.
+
+        The default behavior implemented by this base class just
+        parses the attributes into a dictionary based on the
+        datamodel and is returned such that it all is written to a
+        single fits extension.
+
+        Certain **restrictions** apply to how the data can be bundled
+        for the general parser implementation (:func:`_parse`) to
+        work correctly. These restriction are:
+
+            - The shape and orientation of any input arrays are
+              assumed to be correct.
+
+            - Datamodel keys for arrays written to an ImageHDU should
+              match the HDU extension name. Otherwise, the HDU
+              extension name **cannot** match any of the datamodel
+              keys.
+
+            - Datamodel keys can be matched to header values:
+              :func:`to_hdu` will write any items in a dictionary is
+              not a list or an array to the header. This means header
+              keys in **all** extensions should be unique and should
+              not be the same as any extension name.
+
+        Args:
+            ext (:obj:`str`, optional):
+                Name for the HDU extension. If None, no name is
+                given.
+            transpose_arrays (:obj:`bool`, optional):
+                Transpose the arrays before writing them to the HDU.
+            
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension. See the description
+            above.
+
+        Raises:
+            TypeError:
+                Raised if the provided ``ext`` is not a string.
+        """
+        d = {key: self[key].T if transpose_arrays and self.datamodel[key]['otype'] == np.ndarray
+                                 else self[key] for key in self.keys()}
+        return [d] if ext is None else [{ext:d}]
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False):
+        """
+        Parse data read from a set of HDUs into the dictionary that
+        can be used to instantiate the object.
+
+        This is the counter-part to :func:`_bundle`.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_,
+                 `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) to parse into the instantiation dictionary.
+            ext (:obj:`int`, :obj:`str`, :obj:`list`, optional):
+                One or more extensions with the data. If None, the
+                function trolls through the HDU(s) and parses the
+                data into the datamodel.
+            transpose_table_arrays (:obj:`bool`, optional):
+                Tranpose *all* the arrays read from any binary
+                tables.
+
+        Returns:
+            :obj:`dict`: Dictionary used to instantiate the object.
+
+        Raises:
+            TypeError:
+                Raised if ``ext``, or any of its elements if it's a
+                :obj:`list`, are not either strings or integers.
+        """
+        # Get the (list of) extension(s) to parse
+        if ext is not None:
+            if not isinstance(ext, (str, int, list)):
+                raise TypeError('Provided ext object must be a str, int, or list.')
+            if isinstance(ext, list):
+                for e in ext:
+                    if not isinstance(ext, (str, int)):
+                        raise TypeError('Provided ext elements  must be a str or int.')
+        if ext is None and isinstance(hdu, fits.HDUList):
+            ext = [h.name for h in hdu]
+
+        # Allow user to provide single HDU
+        if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
+            if ext is not None:
+                warnings.warn('Only one HDU provided; extension number/name is irrelevant.')
+            ext = [0]
+            _hdu = [hdu]
+        else:
+            _hdu = hdu
+
+        _ext = np.atleast_1d(ext)
+
+        # Construct instantiation dictionary
+        d = dict.fromkeys(cls.datamodel.keys())
+
+        # NOTE: The extension and keyword comparisons are complicated
+        # because the fits standard is to force these all to be
+        # capitalized, while the datamodel doesn't (currently)
+        # implement this restriction.
+
+        # ImageHDUs can have dictionary elements directly.
+        keys = np.array(list(d.keys()))
+        indx = np.isin([key.upper() for key in keys], _ext)
+        if np.any(indx):
+            for e in keys[indx]:
+                d[e] = hdu[e.upper()].data
+
+        for e in _ext:
+            # Check for header elements
+            indx = np.isin([key.upper() for key in keys], list(hdu[e].header.keys()))
+            if np.any(indx):
+                for key in keys[indx]:
+                    d[key] = hdu[e].header[key.upper()]
+            # Parse BinTableHDUs
+            if isinstance(hdu[e], fits.BinTableHDU):
+                # If the length of the table is 1, assume the table
+                # data had to be saved as a single row because of shape
+                # differences.
+                single_row = len(hdu[e].data) == 1
+                for key in hdu[e].columns.names:
+                    if key in cls.datamodel.keys():
+                        d[key] = hdu[e].data[key][0] if single_row else hdu[e].data[key]
+                        if transpose_table_arrays:
+                            d[key] = d[key].T
+        return d
+                
 #    @classmethod
 #    def _init_key(cls):
 #        """
@@ -162,69 +304,55 @@ class DataContainer:
 
     def to_hdu(self):
         """
-        Construct an `astropy.io.fits.BinTableHDU`_ with the data.
+        Construct one or more HDU extensions with the data.
 
-        The function uses the datamodel to construct an
-        `astropy.io.fits.BinTableHDU`_ with a single row that
-        contains the data:
-
-            - Any array-like objects are written as columns in the
-              table, with the column names set by the datamodel keys.
-
-            - Objects with individual values (int, float, str, etc.)
-            are written to the extension header.
+        The organization of the data into separate HDUs is performed
+        by :func:`_bundle`, which returns a list of objects. The type
+        of each element in the list determines how it is handled. If
+        the object is a dictionary with a single key/item pair, the
+        key is used as the extension header. Otherwise, the objects
+        are written to unnamed extensions. The object or dictionary
+        item is passed to :func:`pypeit.io.write_to_hdu` to construct
+        the HDU.
 
         Returns:
-            `astropy.io.fits.BinTableHDU`_: HDU with the data.
+            :obj:`list`: A list of HDUs, but not an
+            `astropy.io.fits.HDUList`.
         """
-        if self.ext is None:
-            raise ValueError('HDU name for {0} is undefined!'.format(self.__class__.__name__))
-        cols = []
-        hdr = fits.Header()
-        for key in self.keys():
-            if self[key] is None:
-                continue
-            # TODO: may be better to do this
-            #   isinstance(self[key], (collections.Sequence, np.ndarray)):
-            # This ignores the defined otype...
-            if isinstance(self[key], (list, np.ndarray)):
-                cols += [fits.Column(name=key,
-                                     format=io.rec_to_fits_type(self[key], single_row=True),
-                                     dim=io.rec_to_fits_col_dim(self[key], single_row=True),
-                                     array=np.expand_dims(self[key], 0))]
-            else:
-                hdr[key.upper()] = (self[key], self.datamodel[key]['descr'])
+        # Bundle the data
+        data = self._bundle()
 
-        return fits.BinTableHDU.from_columns(cols, header=hdr, name=self.ext)
+        # Construct the list of HDUs
+        hdu = []
+        for d in data:
+            if isinstance(d, dict) and len(d) == 1:
+                ext = list(d.keys())[0]
+                hdu += [io.write_to_hdu(d[ext], name=ext)]
+            else:
+                hdu += [io.write_to_hdu(d)]
+        return hdu
 
     @classmethod
     def from_hdu(cls, hdu):
         """
-        Instantiate the object from an `astropy.io.fits.BinTableHDU`_.
+        Instantiate the object from an HDU extension.
+
+        This is primarily a wrapper for :func:`_parse`.
 
         Args:
-            hdu (`astropy.io.fits.BinTableHDU`_):
-                HDU containing the data to read.
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_,
+                 `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
         """
-        d = dict.fromkeys(cls.datamodel.keys())
-        for key in cls.datamodel.keys():
-            if key.upper() in hdu.header.keys():
-                d[key] = hdu.header[key.upper()]
-                continue
-            if key in hdu.columns.names:
-                # NOTE: 0 is because all data are saved in a single row
-                d[key] = hdu.data[key][0]
-                continue
-
-        # NOTE: We can't use `cls(d)` here because this will call the
-        # `__init__` method of the derived class and we need to use the
-        # `__init__` of the base class instead. So below, I get an
-        # empty instance of the derived class using `__new__`, call the
-        # parent `__init__`, and then return the result. This is the
-        # first time I've used `__new__` so we may want to tread
-        # carefully, but it seems to work.
+        # NOTE: We can't use `cls(cls._parse(hdu))` here because this
+        # will call the `__init__` method of the derived class and we
+        # need to use the `__init__` of the base class instead. So
+        # below, I get an empty instance of the derived class using
+        # `__new__`, call the parent `__init__`, and then return the
+        # result. This is the first time I've used `__new__` so we may
+        # want to tread carefully, but it seems to work.
         self = super().__new__(cls)
-        super(cls, self).__init__(d)
+        super(cls, self).__init__(cls._parse(hdu))
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True):
@@ -252,7 +380,7 @@ class DataContainer:
         if os.path.exists(ofile) and not overwrite:
             raise FileExistsError('File exists: {0}'.format(o)
                                   + 'Set overwrite=True to overwrite it.')
-        fits.HDUList([PrimaryHDU(), self.to_hdu()]).writeto(ofile, checksum=checksum)
+        fits.HDUList([PrimaryHDU()] + self.to_hdu()).writeto(ofile, checksum=checksum)
 
     @classmethod
     def from_file(cls, ifile):
@@ -271,8 +399,6 @@ class DataContainer:
         """
         if not os.path.isfile(ifile):
             raise FileNotFoundError('{0} does not exist!'.format(ifile))
-        if self.ext is None:
-            raise ValueError('HDU name for {0} is undefined!'.format(self.__class__.__name__))
         with fits.open(ifile) as hdu:
-            return cls.from_hdu(hdu[self.ext])
+            return cls.from_hdu(hdu)
 

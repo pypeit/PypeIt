@@ -16,6 +16,7 @@ from packaging import version
 import numpy
 
 from astropy.io import fits
+from astropy.table import Table
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -263,6 +264,7 @@ def initialize_header(hdr=None):
     # Return
     return hdr
 
+
 def header_version_check(hdr, warning_only=True):
     """
     Check the package versions in the header match the system versions.
@@ -314,3 +316,110 @@ def header_version_check(hdr, warning_only=True):
     # Return if all versions are identical
     return all_identical
 
+
+def dict_to_hdu(d, name=None):
+    """
+    Write a dictionary to a fits HDU.
+
+    Elements in the dictionary that are (numpy or otherwise)
+    integers, floats, or strings are written to the HDU header.
+
+    Elements in the dictionary that are a list or a `numpy.ndarray`_
+    are written as either an image (if there is only one array) or a
+    series of table columns. The lists are assumed to be
+    interpretable as the ``array`` argument of
+    `astropy.io.fits.Column` or the ``data`` argument of
+    `astropy.io.fits.ImageHDU`_.
+
+    If a table is to be written, the method checks that the relevant
+    arrays have a consistent number of rows. The format and
+    dimensions are set so that the arrays contained in a single table
+    row.
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary with data to write to the
+            `astropy.io.fits.BinTableHDU`_.
+        name (:obj:`str`, optional):
+            Name to give the HDU extension. If None and the input is
+            a dictionary with a single array to write, the name of
+            the (`astropy.io.fits.ImageHDU`_) extension is the
+            relevant dictionary keywowrd; otherwise, no name is used.
+
+    Returns:
+        `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
+        HDU with the data. An `astropy.io.fits.ImageHDU`_ object is
+        returned if there is 1 (or fewer) array-like objects in the
+        dictionary. Otherwise, an `astropy.io.fits.BinTableHDU`_
+        object is returned with the data.
+
+    Raises:
+        TypeError:
+            Raised if the method cannot interpret how to use an
+            element of the dictionary.
+    """
+    # Write any header data and find any arrays
+    hdr = fits.Header()
+    array_keys = []
+    for key in d.keys():
+        if d[key] is None:
+            continue
+        # TODO: may be better to do this
+        #   isinstance(d[key], (collections.Sequence, numpy.ndarray)):
+        # This ignores the defined otype...
+        if isinstance(d[key], (list, numpy.ndarray)):
+            array_keys += [key]
+        elif isinstance(d[key], (int, numpy.integer, float, numpy.floating, str)):
+            hdr[key.upper()] = d[key]
+        else:
+            raise TypeError('Do not know how to write object with type {0}'.format(type(d[key])))
+
+    # If there aren't any arrays, return an empty table.
+    if len(array_keys) < 2:
+        return fits.ImageHDU(data=None if len(array_keys) == 0 else d[array_keys[0]], header=hdr,
+                             name=array_keys[0] if name is None else name)
+
+    # Do all arrays have the same number of rows?
+    single_row = len(numpy.unique([numpy.asarray(d[key]).shape[0] for key in array_keys])) > 1
+
+    # If the number of rows is inconsistent, save the data in a single
+    # row. Otherwise, save the data as a multi-row table.
+    cols = []
+    for key in array_keys:
+        cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
+                                 dim=rec_to_fits_col_dim(d[key], single_row=single_row),
+                                 array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
+    return fits.BinTableHDU.from_columns(cols, header=hdr, name=name)
+
+
+def write_to_hdu(d, name=None):
+    """
+    Write the input to an astropy.io.fits HDU extension.
+
+    Array or list items are written as an ImageHDU, and dictionary
+    and astropy.table.Table items are written as a BinTableHDU.
+    Tables are written directly, and dictionaries are written using
+    :func:`pypeit.io.dict_to_hdu`.
+
+    .. warning::
+        If ``d`` is a list, the method assumes that the list is
+        essentially an array that can be sensibly converted to a
+        `numpy.ndarray`_.
+
+    Args:
+        d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_, `astropy.table.Table`_):
+            Object to write to the HDU.
+        name (:obj:`str`, optional):
+            Name for the HDU extension.
+
+    Returns:
+        `astropy.fits.ImageHDU`, `astropy.fits.BinTableHDU`: HDU with
+        the data.
+    """
+    if isinstance(d, dict):
+        return dict_to_hdu(d, name=name)
+    if isinstance(d, Table):
+        return fits.BinTableHDU(data=d, name=name)
+    if isinstance(d, (numpy.ndarray, list)):
+        return fits.ImageHDU(data=numpy.asarray(d), name=name)
+    raise TypeError('Input must be a dictionary, astropy.table.Table, list, or numpy.ndarray.')
