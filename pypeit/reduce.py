@@ -641,6 +641,8 @@ class MultiSlitReduce(Reduce):
     """
     Child of Reduce for Multislit and Longslit reductions
 
+    See parent doc string for Args and Attributes
+
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
         super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
@@ -844,7 +846,7 @@ class EchelleReduce(Reduce):
     """
     Child of Reduce for Echelle reductions
 
-    See Reduce doc string for more
+    See parent doc string for Args and Attributes
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
