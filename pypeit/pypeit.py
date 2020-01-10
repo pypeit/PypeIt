@@ -373,7 +373,7 @@ class PypeIt(object):
             # TODO: Put this in a try/except block?
             ginga.clear_all()
 
-        has_bg = if bg_frames is not None and len(bg_frames) > 0
+        has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
 
         # Is this an IR reduction?
         # TODO: Why specific to IR?
