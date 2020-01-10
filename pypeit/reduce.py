@@ -205,16 +205,6 @@ class Reduce(object):
         """
         # Init outputs
         # set to first pass global sky
-        self.skymodel = self.initial_sky
-        self.objmodel = np.zeros_like(self.sciImg.image)
-        # Set to sciivar. Could create a model but what is the point?
-        self.ivarmodel = np.copy(self.sciImg.ivar)
-        # Set to the initial mask in case no objects were found
-        self.outmask = self.sciImg.mask
-        # empty specobjs object from object finding
-        if self.ir_redux:
-            self.sobjs_obj.purge_neg()
-        self.sobjs = self.sobjs_obj
 
 
         # If there are objects, do 2nd round of global_skysub, local_skysub_extract
@@ -222,8 +212,12 @@ class Reduce(object):
             # Boxcar only??
             if self.par['scienceimage']['extraction']['boxcar_only']:
                 msgs.info("Performing boxcar extraction only")
+
                 # Quick loop over the objects
                 for iord in range(self.nobj):
+                    sobj = self.get_obj(iord)
+                    plate_scale = self.get_plate(iord)
+                    '''
                     if self.spectrograph.pypeline == 'Echelle':
                         thisobj = (self.sobjs_obj.ech_orderindx == iord) & (
                                     self.sobjs_obj.ech_objid > 0)  # pos indices of objects for this slit
@@ -233,6 +227,7 @@ class Reduce(object):
                         thisobj = iord
                         sobj = self.sobjs_obj[thisobj]
                         plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+                    '''
                     # True  = Good, False = Bad for inmask
                     thismask = (self.slitmask == iord)  # pixels for this slit
                     inmask = (self.sciImg.mask == 0) & thismask
@@ -247,10 +242,12 @@ class Reduce(object):
                 self.ivarmodel = np.copy(self.sciImg.ivar)
                 self.outmask = self.sciImg.mask
             else:
+                '''
                 # Global sky subtraction second pass. Uses skymask from object finding
                 self.global_sky = self.initial_sky if self.std_redux else \
                     self.global_skysub(skymask=self.skymask, maskslits=self.maskslits,
                                        show=self.reduce_show)
+                '''
 
                 self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                     self.local_skysub_extract(self.caliBrate.mswave, self.global_sky, self.sobjs_obj,
@@ -260,7 +257,56 @@ class Reduce(object):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def find_objects(self, std_trace=None, manual_extract_dict=None, show_peaks=False):
+    def run(self, std_trace=None, manual_extract_dict=None):
+
+        # First pass object finding
+        self.sobjs_obj, self.nobj, skymask_init = \
+            self.find_objects(self.sciImg.image,
+                                  std_trace=std_trace, show_peaks=self.show,
+                                  show=self.reduce_show & (not self.std_redux),
+                                  manual_extract_dict=manual_extract_dict)
+
+        # Global sky subtract
+        self.initial_sky = \
+            self.global_skysub(skymask=skymask_init)
+
+        # Second pass object finding
+        if (not self.std_redux) and (not self.par['scienceimage']['findobj']['skip_second_find']):
+            self.sobjs_obj, self.nobj, self.skymask = \
+                self.find_objects(self.sciImg.image - self.initial_sky,
+                                      std_trace=std_trace,
+                                      show=self.reduce_show, show_peaks=self.show,
+                                      manual_extract_dict=manual_extract_dict)
+        else:
+            msgs.info("Skipping 2nd run of finding objects")
+
+        if self.sobjs_obj.nobj > 0:
+            # Global sky subtraction second pass. Uses skymask from object finding
+            # TODO -- Need a check on boxcar_only here
+            self.global_sky = self.initial_sky if self.std_redux else \
+                self.global_skysub(skymask=self.skymask, maskslits=self.maskslits,
+                               show=self.reduce_show)
+            # Extract + Return
+            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.extract(self.global_sky,
+                                                                                                  self.sobjs_obj)
+        else:  # No objects, pass back what we have
+            self.skymodel = self.initial_sky
+            self.objmodel = np.zeros_like(self.sciImg.image)
+            # Set to sciivar. Could create a model but what is the point?
+            self.ivarmodel = np.copy(self.sciImg.ivar)
+            # Set to the initial mask in case no objects were found
+            self.outmask = self.sciImg.mask
+            # empty specobjs object from object finding
+            self.sobjs = self.sobjs_obj
+
+        # Purge out the negative objects if this was a near-IR reduction.
+        if self.ir_redux:
+            self.sobjs_obj.purge_neg()
+
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
+    # TODO -- BREAK THIS UP
+    def break_this_up(self, std_trace=None, manual_extract_dict=None, show_peaks=False):
         """
         Main driver for finding objects in a set of slits/orders
         of the current Science Image
@@ -300,7 +346,7 @@ class Reduce(object):
         # Return
         return self.sobjs_obj, self.nobj, self.skymask
 
-    def _single_find_objects(self, image, std_trace=None,
+    def find_objects(self, image, std_trace=None,
                             show_peaks=False, show_fits=False,
                             show_trace=False, show=False, manual_extract_dict=None,
                             debug=False):
@@ -791,32 +837,21 @@ class MultiSlit(Reduce):
         for slit in gdslits:
             msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit))
             thisobj = (self.sobjs.SLITID == slit) # indices of objects for this slit
-            sobj = self.sobjs[thisobj]
             if np.any(thisobj):
                 thismask = (self.slitmask == slit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
                 inmask = (self.sciImg.mask == 0) & thismask
-                if self.extraction_par['boxcar_only']:
-                    # TODO -- Make plate_scale an sobj method
-                    if self.spectrograph.pypeline == 'Echelle':
-                        plate_scale = self.spectrograph.order_platescale(sobj.ech_order, binning=self.binning)[0]
-                    else:
-                        plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
-                    extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask,
-                                                   self.caliBrate.mswave, self.initial_sky, self.sciImg.rn2img,
-                                                   self.par['scienceimage']['boxcar_radius']/plate_scale, sobj)
-                else:
-                    # Local sky subtraction and extraction
-                    self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
-                        self.extractmask[thismask] = skysub.local_skysub_extract(
-                        self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.sciImg.rn2img,
-                        thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
-                        sobj, spat_pix=spat_pix,
-                        model_full_slit=self.extraction_par['model_full_slit'],
-                        box_rad=self.extraction_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
-                        sigrej=self.skysub_par['sky_sigrej'],
-                        model_noise=model_noise, std=std, bsp=self.skysub_par['bspline_spacing'],
-                        sn_gauss=self.extraction_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
+                # Local sky subtraction and extraction
+                self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
+                    self.extractmask[thismask] = skysub.local_skysub_extract(
+                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.sciImg.rn2img,
+                    thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
+                    self.sobjs[thisobj], spat_pix=spat_pix,
+                    model_full_slit=self.extraction_par['model_full_slit'],
+                    box_rad=self.extraction_par['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
+                    sigrej=self.skysub_par['sky_sigrej'],
+                    model_noise=model_noise, std=std, bsp=self.skysub_par['bspline_spacing'],
+                    sn_gauss=self.extraction_par['sn_gauss'], inmask=inmask, show_profile=show_profile)
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
