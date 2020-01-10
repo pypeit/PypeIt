@@ -121,7 +121,6 @@ Orphaned Docs
    mask
    masters
    metadata
-   pyp_twine
    rawdata
    standards
    xshooter

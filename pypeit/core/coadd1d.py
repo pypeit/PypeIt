@@ -2077,6 +2077,10 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
               spectrum on wave_stack wavelength grid. True=Good.
     '''
 
+    # We cast to float64 because of a bug in np.histogram
+    waves = np.float64(waves)
+    fluxes = np.float64(fluxes)
+    ivars = np.float64(ivars)
 
     # Generate a giant wave_grid
     wave_grid, _, _ = get_wave_grid(waves, masks = masks, wave_method=wave_method, wave_grid_min=wave_grid_min,

@@ -1,5 +1,5 @@
 
-0.12.1dev
+0.12.2dev
 ---------
 
 - Introduces quick look scripts for MOS and NIRES
@@ -8,6 +8,13 @@
 - Refactor of ScienceImage Par into pieces
 - Finally dealt with 'random' windowing of Shane_kast_red
 - Dynamic namp setting for LRISr when instantiating Spectrograph
+
+
+0.12.1 (07 Jan 2019)
+--------------------
+
+- Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using
+  float number of steps in core/wave.py, and sets numpy version to 1.16
 
 0.12.0 (23 Dec 2019)
 --------------------
