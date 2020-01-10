@@ -47,7 +47,7 @@ class WaveTilts(masterframe.MasterFrame):
         reuse_masters (:obj:`bool`, optional):
             Load master files from disk, if possible.
         qa_path (:obj:`str`, optional):
-            Directory foruoutput.
+            Directory for QA output.
         msbpm (`numpy.ndarray`_, optional):
             Bad pixel mask.  If not provided, a dummy array with no
             masking is generated.

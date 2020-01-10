@@ -54,7 +54,7 @@ class Reduce(object):
             Final output mask
         extractmask (np.ndarray):
             Extraction mask
-        sobjs_obj (SpecObjs):
+        sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
         sobjs (SpecObsj):
             Final extracted object list with trace corrections applied
@@ -150,7 +150,7 @@ class Reduce(object):
         Args:
             global_sky (ndarray):
                 Sky estimate
-            sobjs_obj (SpecObjs):
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
         """
         # This holds the objects, pre-extraction
@@ -184,7 +184,7 @@ class Reduce(object):
         else:  # Full extraction
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(self.caliBrate.mswave, global_sky, self.sobjs_obj,
-                                          model_noise=(not self.ir_redux), std=self.std_redux,
+                                          model_noise=(not self.ir_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
         # Return
@@ -213,12 +213,12 @@ class Reduce(object):
         Over-loaded by the children
 
         Args:
-            specobjs (SpecObjs):
+            specobjs (:class:`pypeit.specobjs.SpecObjs`):
             index (int):
                 Echelle order index or object index
 
         Returns:
-            SpecObj:
+            :class:`pypeit.specobj.SpecObj`:
 
         """
         pass
@@ -310,7 +310,8 @@ class Reduce(object):
             debug (bool, optional):
 
         Returns:
-            SpecObjs, int, ndarray:  Objects found,  number of objects found, skymask
+            specobjs (:class:`pypeit.specobjs.SpecObjs`), int, np.ndarray:
+               Objects found,  number of objects found, skymask
 
         """
 
@@ -453,7 +454,7 @@ class Reduce(object):
         Wrapper to wave.flexure_obj()
 
         Args:
-            sobjs (SpecObjs):
+            sobjs (:class:`pypeit.specobjs.SpecObjs`):
             basename (str):
 
         """
@@ -475,7 +476,7 @@ class Reduce(object):
         Input objects are modified in place
 
         Args:
-            sobjs (SpecObjs):
+            sobjs (:class:`pypeit.specobjs.SpecObjs`):
             radec (astropy.coordiantes.SkyCoord):
             obstime (:obj:`astropy.time.Time`):
 
@@ -668,12 +669,12 @@ class MultiSlitReduce(Reduce):
         Return the SpecObj object from the list of SpecObjs
 
         Args:
-            specobjs (SpecObjs):
+            specobjs (:class:`pypeit.specobjs.SpecObjs`):
             iobj (int):
                 Object index
 
         Returns:
-            SpecObj
+            :class:`pypeit.specobj.SpecObj`:
 
         """
         return specobjs[iobj]
@@ -772,7 +773,7 @@ class MultiSlitReduce(Reduce):
         Args:
             waveimg (np.ndarray):
             global_sky (np.ndarray):
-            sobjs (SpecObjs):
+            sobjs (:class:`pypeit.specobjs.SpecObjs`):
             spat_pix (np.ndarray, optional):
             model_noise (bool, optional):
             show_resids (bool, optional):
@@ -889,7 +890,7 @@ class EchelleReduce(Reduce):
                 Echelle order index
 
         Returns:
-            SpecObj:
+            :class:`pypeit.specobj.SpecObj`:
 
         """
         thisobj = (self.sobjs_obj.ech_orderindx == iord) & (
@@ -978,7 +979,7 @@ class EchelleReduce(Reduce):
         Args:
             waveimg (np.ndarray):
             global_sky (np.ndarray):
-            sobjs (SpecObjs):
+            sobjs (:class:`pypeit.specobjs.SpecObjs`):
             spat_pix (np.ndarray, optional):
             model_noise (bool, optional):
             show_resids (bool, optional):

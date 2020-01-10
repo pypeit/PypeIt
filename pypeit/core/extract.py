@@ -52,7 +52,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
         Image containing the profile of the object that we are extracting
     box_radius: float
         Size of boxcar window in floating point pixels in the spatial direction.
-    spec: SpecObj object (from the SpecObj class in specobj.py).
+    spec (:class:`pypeit.specobj.SpecObj`):
          This is the container that holds object, trace,
          and extraction information for the object in question. This routine operates one object at a time.
     min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
@@ -195,7 +195,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
             Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
         box_radius (float):
             Size of boxcar window in floating point pixels in the spatial direction.
-        spec (pypeit.specobj.SpecObj):
+        spec (:class:`pypeit.specobj.SpecObj`):
             This is the container that holds object, trace,
             and extraction information for the object in question.
             This routine operates one object at a time.
@@ -238,6 +238,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
+    # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
     spec.BOX_COUNTS_IVAR = ivar_box*mask_box
@@ -247,8 +248,6 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_RN = rn_box
     spec.BOX_RADIUS = box_radius
-
-    return
 
 
 def findfwhm(model, sig_x):
@@ -1025,7 +1024,7 @@ def create_skymask_fwhm(sobjs, thismask):
     Creates a skymask from a SpecObjs object using the fwhm of each object
 
     Args:
-        sobjs: SpecObjs object
+        sobjs (:clas:`pypeit.specobjs.SpecObjs`):
             Objects for which you would like to create the mask
         thismask: ndarray, bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit

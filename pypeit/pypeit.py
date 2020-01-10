@@ -554,7 +554,6 @@ class PypeIt(object):
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
-        #self.sciImg = scienceimage.ScienceImage.from_file_list(
         self.sciImg = scienceimage.build_from_file_list(
             self.spectrograph, det, self.par['scienceframe']['process'],
             self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
@@ -600,15 +599,6 @@ class PypeIt(object):
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.run(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict,
             show_peaks=self.show)
-
-        '''
-        # Find objects
-        self.sobjs_obj, self.nobj, self.skymask = self.redux.find_objects(
-            std_trace=std_trace, manual_extract_dict=manual_extract_dict)
-
-        # Extract (if nobj==0, this passes back 'dummy' arrays required for spec2d outputs)
-        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.extract()
-        '''
 
         # Finish up
         if self.sobjs.nobj == 0:

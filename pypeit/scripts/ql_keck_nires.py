@@ -65,8 +65,6 @@ def main(pargs):
     cfg_lines += ['    spectrograph = {0}'.format('keck_nires')]
     cfg_lines += ['    redux_path = {0}'.format(os.path.join(os.getcwd(),'keck_nires_A'))]
     cfg_lines += ['[calibrations]']
-    cfg_lines += ['    caldir = {0}'.format(master_dir)]
-    # Skip CR
     cfg_lines += ['    [[scienceframe]]']
     cfg_lines += ['        [[process]]']
     cfg_lines += ['              cr_reject = False']

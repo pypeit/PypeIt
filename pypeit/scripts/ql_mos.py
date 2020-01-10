@@ -81,10 +81,12 @@ def main(pargs):
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
     bm = framematch.FrameTypeBitMask()
-    bits = [bm.bits[iftype] for iftype in ['arc', 'pixelflat', 'trace', 'science', 'tilt']]
-    bits_flat = 2 ** bits[1] + 2 ** bits[2] if pargs.user_pixflat is None else 2**bits[2]
-    file_bits = np.array([2 ** bits[0] + 2 ** bits[4], bits_flat,
-              2 ** bits[3]])  # 1=arc, 16=pixelflat, 32=science, trace=128
+    file_bits = np.zeros(3, dtype=bm.minimum_dtype())
+    file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'tilt'])
+    file_bits[1] = bm.turn_on(file_bits[1],
+                              ['pixelflat', 'trace'] if pargs.user_pixflat is None else 'trace')
+    file_bits[2] = bm.turn_on(file_bits[2], 'science')
+
     ps.fitstbl.set_frame_types(file_bits[asrt])
     ps.fitstbl.set_combination_groups()
     # Extras

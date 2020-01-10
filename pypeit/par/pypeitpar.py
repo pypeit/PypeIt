@@ -2038,7 +2038,7 @@ class FindObjPar(ParSet):
                  find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None,
                  ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 skip_second_find=None,
+                 skip_second_find=None
                  ):
         # Grab the parameter names and values from the function
         # arguments
@@ -2153,7 +2153,7 @@ class SkySubPar(ParSet):
 
     def __init__(self,
                  bspline_spacing=None, sky_sigrej=None,
-                 global_sky_std=None, no_poly=None,
+                 global_sky_std=None, no_poly=None
                  ):
         # Grab the parameter names and values from the function
         # arguments
@@ -2204,7 +2204,7 @@ class SkySubPar(ParSet):
 
         # Basic keywords
         parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std',
-                   'no_poly',
+                   'no_poly'
                    ]
         kwargs = {}
         for pk in parkeys:
@@ -2227,7 +2227,7 @@ class ExtractionPar(ParSet):
     def __init__(self,
                  boxcar_radius=None, std_prof_nsigma=None,
                  sn_gauss=None, model_full_slit=None, manual=None,
-                 skip_optimal=None,
+                 skip_optimal=None
                  ):
         # Grab the parameter names and values from the function
         # arguments
@@ -2339,7 +2339,7 @@ class CalibrationsPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['caldir'] = 'default'
         dtypes['caldir'] = str
-        descr['caldir'] = 'Directory relative to calling directory to write master files.'
+        descr['caldir'] = 'If provided, it must be the full path to calling directory to write master files.'
 
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
