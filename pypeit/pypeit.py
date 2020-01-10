@@ -84,17 +84,17 @@ class PypeIt(object):
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
-        #   - Grab a science file for configuration specific parameters
-        sci_file = None
+        #   - Grab a science or standard file for configuration specific parameters
+        scistd_file = None
         for idx, row in enumerate(usrdata):
-            if 'science' in row['frametype']:
-                sci_file = data_files[idx]
+            if ('science' in row['frametype']) or ('standard' in row['frametype']):
+                scistd_file = data_files[idx]
                 break
         #   - Configuration specific parameters for the spectrograph
-        if sci_file is not None:
+        if scistd_file is not None:
             msgs.info('Setting configuration-specific parameters using {0}'.format(
-                      os.path.split(sci_file)[1]))
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
+                      os.path.split(scistd_file)[1]))
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)

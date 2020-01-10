@@ -47,7 +47,7 @@ class WaveTilts(masterframe.MasterFrame):
         reuse_masters (:obj:`bool`, optional):
             Load master files from disk, if possible.
         qa_path (:obj:`str`, optional):
-            Directory for QA output.
+            Directory foruoutput.
         msbpm (`numpy.ndarray`_, optional):
             Bad pixel mask.  If not provided, a dummy array with no
             masking is generated.
@@ -512,7 +512,7 @@ class WaveTilts(masterframe.MasterFrame):
                 plt.show()
 
         # maskslit
-        self.mask = maskslits & (self.arc_maskslit==1)
+        self.mask = np.any([maskslits, self.arc_maskslit==1], axis=0)
         gdslits = np.where(np.invert(self.mask))[0]
 
         # Final tilts image
