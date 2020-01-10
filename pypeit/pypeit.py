@@ -429,6 +429,7 @@ class PypeIt(object):
         # Return
         return sci_dict
 
+    # TODO: Is this defunct?
     def flexure_correct(self, sobjs, maskslits):
         """
         Correct for flexure
