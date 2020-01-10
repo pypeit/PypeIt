@@ -11,31 +11,55 @@ from pypeit.core import skysub, extract, pixels, wave
 
 from IPython import embed
 
+
 class Reduce(object):
     """
-     This class will organize and run actions related to
-     a Science or Standard star exposure
+    This class will organize and run actions related to
+    finding objects, sky subtraction, and extraction for
+    a Science or Standard star exposure
 
-     Args:
-         sciImg (pypeit.images.scienceimage.ScienceImage):
-         spectrograph (pypeit.spectrograph.Spectrograph):
-         par (pypeit.par.pyepeitpar.PypeItPar):
-         caliBrate (pypeit.calibrations.Calibrations):
-            This is only used as a container and it must contain the main products
-            of WaveTilts, WaveImage, and EdgeTrace
-         det (int, optional):
-            Detector indice
-         setup (str, optional):
-            Used for naming
-         maskslits (ndarray, optional):
-           Specifies masked out slits
-           True = Masked
-         objtype (str, optional):
-            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-         show (bool, optional):
-            Show plots along the way?
+    Args:
+        sciImg (pypeit.images.scienceimage.ScienceImage):
+        spectrograph (pypeit.spectrograph.Spectrograph):
+        par (pypeit.par.pyepeitpar.PypeItPar):
+        caliBrate (pypeit.calibrations.Calibrations):
+           This is only used as a container and it must contain the main products
+           of WaveTilts, WaveImage, and EdgeTrace
+        det (int, optional):
+           Detector indice
+        setup (str, optional):
+           Used for naming
+        maskslits (ndarray, optional):
+          Specifies masked out slits
+          True = Masked
+        objtype (str, optional):
+           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
+        show (bool, optional):
+           Show plots along the way?
 
-     """
+    Attributes:
+        ivarmodel (np.ndarray):
+            Model of inverse variance
+        objimage (np.ndarray):
+            Model of object
+        skyimage (np.ndarray):
+            Final model of sky
+        initial_sky (np.ndarray):
+            Initial sky model after first pass with global_skysub()
+        global_sky (np.ndarray):
+            Fit to global sky
+        skymask (np.ndarray):
+            Mask of the sky fit
+        outmask (np.ndarray):
+            Final output mask
+        extractmask (np.ndarray):
+            Extraction mask
+        sobjs_obj (SpecObjs):
+            Only object finding but no extraction
+        sobjs (SpecObsj):
+            Final extracted object list with trace corrections applied
+
+    """
 
     __metaclass__ = ABCMeta
 
@@ -76,6 +100,7 @@ class Reduce(object):
         self.ivarmodel = None
         self.objimage = None
         self.skyimage = None
+        self.initial_sky = None
         self.global_sky = None
         self.skymask = None
         self.outmask = None
@@ -121,43 +146,47 @@ class Reduce(object):
     def extract(self, global_sky, sobjs_obj):
         """
         Main method to extract spectra from the ScienceImage
+
+        Args:
+            global_sky (ndarray):
+                Sky estimate
+            sobjs_obj (SpecObjs):
+                List of SpecObj that have been found and traced
         """
         # This holds the objects, pre-extraction
         self.sobjs_obj = sobjs_obj
 
-        # If there are objects, do 2nd round of global_skysub, local_skysub_extract
-        if self.sobjs_obj.nobj > 0:
-            # Boxcar only??
-            if self.par['scienceimage']['extraction']['skip_optimal']:
-                msgs.info("Skipping optimal extraction")
+        # Boxcar only??
+        if self.par['scienceimage']['extraction']['skip_optimal']:
+            msgs.info("Skipping optimal extraction")
 
-                # This will hold the extracted objects
-                self.sobjs = self.sobjs_obj.copy()
+            # This will hold the extracted objects
+            self.sobjs = self.sobjs_obj.copy()
 
-                # Quick loop over the objects
-                for iord in range(self.nobj):
-                    sobj = self.get_sobj(self.sobjs, iord)
-                    plate_scale = self.get_platescale(iord)
-                    # True  = Good, False = Bad for inmask
-                    thismask = (self.slitmask == iord)  # pixels for this slit
-                    inmask = (self.sciImg.mask == 0) & thismask
-                    # Do it
-                    extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                                   inmask, self.caliBrate.mswave,
-                                                   global_sky, self.sciImg.rn2img,
-                                                   self.par['scienceimage']['extraction']['boxcar_radius']/plate_scale,
-                                                   sobj)
-                # Fill me up
-                self.objmodel = np.zeros_like(self.sciImg.image)
-                self.ivarmodel = np.copy(self.sciImg.ivar)
-                self.outmask = self.sciImg.mask
-                self.skymodel = global_sky.copy()
-            else: # Full extraction
-                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                    self.local_skysub_extract(self.caliBrate.mswave, global_sky, self.sobjs_obj,
-                                              model_noise=(not self.ir_redux), std=self.std_redux,
-                                              show_profile=self.reduce_show,
-                                              show=self.reduce_show)
+            # Quick loop over the objects
+            for iord in range(self.nobj):
+                sobj = self.get_sobj(self.sobjs, iord)
+                plate_scale = self.get_platescale(iord)
+                # True  = Good, False = Bad for inmask
+                thismask = (self.slitmask == iord)  # pixels for this slit
+                inmask = (self.sciImg.mask == 0) & thismask
+                # Do it
+                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
+                                               inmask, self.caliBrate.mswave,
+                                               global_sky, self.sciImg.rn2img,
+                                               self.par['scienceimage']['extraction']['boxcar_radius']/plate_scale,
+                                               sobj)
+            # Fill up extra bits and pieces
+            self.objmodel = np.zeros_like(self.sciImg.image)
+            self.ivarmodel = np.copy(self.sciImg.ivar)
+            self.outmask = self.sciImg.mask
+            self.skymodel = global_sky.copy()
+        else:  # Full extraction
+            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
+                self.local_skysub_extract(self.caliBrate.mswave, global_sky, self.sobjs_obj,
+                                          model_noise=(not self.ir_redux), std=self.std_redux,
+                                          show_profile=self.reduce_show,
+                                          show=self.reduce_show)
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
@@ -184,6 +213,7 @@ class Reduce(object):
         Over-loaded by the children
 
         Args:
+            specobjs (SpecObjs):
             index (int):
                 Echelle order index or object index
 
@@ -198,36 +228,39 @@ class Reduce(object):
         Primary code flow for PypeIt reductions
 
         Args:
-            std_trace:
-            manual_extract_dict (dict):
+            std_trace (ndarray, optional):
+                Trace of the standard star
+            manual_extract_dict (dict, optional):
             show_peaks (bool, optional):
+                Show peaks in find_objects methods
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs)
+               outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
 
         """
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
-            self.find_objects(self.sciImg.image,
-                                  std_trace=std_trace, show_peaks=show_peaks,
-                                  show=self.reduce_show & (not self.std_redux),
-                                  manual_extract_dict=manual_extract_dict)
+            self.find_objects(self.sciImg.image, std_trace=std_trace,
+                              show_peaks=show_peaks,
+                              show=self.reduce_show & (not self.std_redux),
+                              manual_extract_dict=manual_extract_dict)
 
         # Global sky subtract
         self.initial_sky = \
-            self.global_skysub(skymask=skymask_init)
+            self.global_skysub(skymask=skymask_init).copy()
 
         # Second pass object finding
         if (not self.std_redux) and (not self.par['scienceimage']['findobj']['skip_second_find']):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.find_objects(self.sciImg.image - self.initial_sky,
-                                      std_trace=std_trace,
-                                      show=self.reduce_show, show_peaks=show_peaks,
-                                      manual_extract_dict=manual_extract_dict)
+                                  std_trace=std_trace, show=self.reduce_show,
+                                  show_peaks=show_peaks,
+                                  manual_extract_dict=manual_extract_dict)
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
+        # Do we have any objects to proceed with?
         if self.sobjs_obj.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             if (self.std_redux or self.par['scienceimage']['extraction']['skip_optimal'] or
@@ -235,7 +268,6 @@ class Reduce(object):
                 self.global_sky = self.initial_sky.copy()
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask,
-                                                     maskslits=self.maskslits,
                                                      show=self.reduce_show)
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.extract(self.global_sky,
@@ -257,48 +289,6 @@ class Reduce(object):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    '''
-    def break_this_up(self, std_trace=None, manual_extract_dict=None, show_peaks=False):
-        """
-        Main driver for finding objects in a set of slits/orders
-        of the current Science Image
-
-        Args:
-            std_trace:
-            manual_extract_dict (dict, optional):
-
-        Returns:
-            tuple:
-                pypeit.specobjs.SpecObjs
-                int
-                np.ndarray
-        """
-
-        # Do one iteration of object finding, and sky subtract to get initial sky model
-        self.sobjs_obj, self.nobj, skymask_init = \
-            self._single_find_objects(self.sciImg.image,
-                                     std_trace=std_trace, show_peaks=show_peaks,
-                                     show=self.reduce_show & (not self.std_redux),
-                                     manual_extract_dict=manual_extract_dict)
-
-        # Global sky subtraction, first pass. Uses skymask from object finding step above
-        self.initial_sky = \
-            self.global_skysub(skymask=skymask_init)
-
-        # Second pass of object finding
-        if (not self.std_redux) and (not self.par['scienceimage']['findobj']['skip_second_find']):
-            # Object finding, second pass on frame *with* sky subtraction. Show here if requested
-            self.sobjs_obj, self.nobj, self.skymask = \
-                self._single_find_objects(self.sciImg.image - self.initial_sky,
-                                        std_trace=std_trace,
-                                        show=self.reduce_show, show_peaks=show_peaks,
-                                        manual_extract_dict=manual_extract_dict)
-        else:
-            msgs.info("Skipping 2nd run of finding objects")
-        # Return
-        return self.sobjs_obj, self.nobj, self.skymask
-    '''
-
     def find_objects(self, image, std_trace=None,
                             show_peaks=False, show_fits=False,
                             show_trace=False, show=False, manual_extract_dict=None,
@@ -306,17 +296,21 @@ class Reduce(object):
         """
         Single pass at finding objects in the input image
 
+        If self.ir_redux is True, do a search for negative objects too
+
         Args:
             image (np.ndarray):
-            std_trace:
-            show_peaks:
-            show_fits:
-            show_trace:
-            show:
-            manual_extract_dict:
-            debug:
+                Input image
+            std_trace (ndarray, optional):
+            show_peaks (bool, optional):
+            show_fits (bool, optional):
+            show_trace (bool, optional):
+            show (bool, optional):
+            manual_extract_dict (dict, optional):
+            debug (bool, optional):
 
         Returns:
+            SpecObjs, int, ndarray:  Objects found,  number of objects found, skymask
 
         """
 
@@ -366,35 +360,28 @@ class Reduce(object):
          """
         return None, None, None
 
-    def global_skysub(self, std=False, skymask=None, update_crmask=True, maskslits=None, show_fit=False,
-                      show=False, show_objs=False):
+    def global_skysub(self, skymask=None, update_crmask=True,
+                      show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
 
         Wrapper to skysub.global_skysub
 
-        Parameters
-        ----------
-        tslits_dict: dict
-           Dictionary containing information on the slits traced for this image
-
-        Optional Parameters
-        -------------------
-        bspline_spaceing: (float):
-           Break-point spacing for bspline
-
-        use_skymask: (bool, optional):
-           Mask objects using self.skymask if object finding has been run
-           (This requires they were found previously, i.e. that find_objects was already run)
+        Args:
+            skymask (np.ndarray):
+            update_crmask (bool, optional):
+            show_fit (bool, optional):
+            show (bool, optional):
+            show_objs (bool, optional):
 
         Returns:
-            global_sky: (numpy.ndarray) image of the the global sky model
+            numpy.ndarray: image of the the global sky model
+
         """
-
-
         # Prep
         self.global_sky = np.zeros_like(self.sciImg.image)
-        if std:
+        # Parameters for a standard star
+        if self.std_redux:
             sigrej = 7.0
             update_crmask = False
             if not self.par['scienceimage']['skysub']['global_sky_std']:
@@ -403,12 +390,12 @@ class Reduce(object):
         else:
             sigrej = 3.0
 
-        self.maskslits = self.maskslits if maskslits is None else maskslits
+        #self.maskslits = self.maskslits if maskslits is None else maskslits
         gdslits = np.where(np.invert(self.maskslits))[0]
-
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
+
         # Loop on slits
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
@@ -424,7 +411,7 @@ class Reduce(object):
                                                              sigrej=sigrej,
                                                              bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
                                                              no_poly=self.par['scienceimage']['skysub']['no_poly'],
-                                                             pos_mask = (not self.ir_redux),
+                                                             pos_mask=(not self.ir_redux),
                                                              show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
@@ -439,33 +426,35 @@ class Reduce(object):
         if show:
             sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', slits=True, sobjs =sobjs_show, clear=False)
+            self.show('global', slits=True, sobjs=sobjs_show, clear=False)
 
         # Return
         return self.global_sky
 
     def local_skysub_extract(self, waveimg, global_sky, sobjs,
-                             model_noise=True, std=False, spat_pix=None,
+                             model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
+        """
+        Dummy method for locak skysubtraction and extraction.
+
+        Overloaded by class specific skysub and extraction.
+
+        Returns:
 
         """
-         Dummy method for locak skysubtraction and extraction. Overloaded by class specific skysub and extraction.
-
-         Returns:
-
-         """
 
         return None, None, None, None, None
-
 
     def flexure_correct(self, sobjs, basename):
         """ Correct for flexure
 
         Spectra are modified in place (wavelengths are shifted)
 
+        Wrapper to wave.flexure_obj()
+
         Args:
-            sobjs: SpecObjs object
-            maskslits: ndarray
+            sobjs (SpecObjs):
+            basename (str):
 
         """
 
@@ -478,9 +467,19 @@ class Reduce(object):
         else:
             msgs.info('Skipping flexure correction.')
 
-
     def helio_correct(self, sobjs, radec, obstime):
-        """ Perform a heliocentric correction """
+        """ Perform a heliocentric correction
+
+        Wrapper to wave.geomotion_correct()
+
+        Input objects are modified in place
+
+        Args:
+            sobjs (SpecObjs):
+            radec (astropy.coordiantes.SkyCoord):
+            obstime (:obj:`astropy.time.Time`):
+
+        """
         # Helio, correct Earth's motion
         if (self.par['calibrations']['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
@@ -497,18 +496,17 @@ class Reduce(object):
 
         return
 
-
-
     def _get_goodslits(self, maskslits):
         """
         Return the slits to be reduce by going through the maskslits
         logic below. If the input maskslits is None it uses previously
         assigned maskslits
 
-        Returns
-        -------
-        gdslits
-            numpy array of slit numbers to be reduced
+        Args:
+            maskslits (np.ndarray or None):
+
+        Returns:
+            np.ndarray: slit numbers to be reduced
         """
 
         # Identify the slits that we want to consider.
@@ -524,8 +522,8 @@ class Reduce(object):
                 self.maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
                 return self.maskslits
 
-
-    def show(self, attr, image=None, showmask=False, sobjs=None, chname=None, slits=False,clear=False):
+    def show(self, attr, image=None, showmask=False, sobjs=None,
+             chname=None, slits=False,clear=False):
         """
         Show one of the internal images
 
@@ -639,8 +637,6 @@ class Reduce(object):
         return txt
 
 
-
-
 class MultiSlitReduce(Reduce):
     """
     Child of Reduce for Multislit and Longslit reductions
@@ -652,7 +648,7 @@ class MultiSlitReduce(Reduce):
     def get_platescale(self, dummy):
         """
         Return the platescale for multislit.
-        The input argument is ignored (it is not for Echelle)
+        The input argument is ignored
 
         Args:
             dummy (int):
@@ -680,36 +676,36 @@ class MultiSlitReduce(Reduce):
         """
         return specobjs[iobj]
 
-    def find_objects_pypeline(self, image, std_trace=None, maskslits=None,
+    def find_objects_pypeline(self, image, std_trace=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, debug=False):
         """
+        Pipeline specific find objects routine
 
         Args:
-            image:
-            std_trace:
-            manual_extract_dict:
-            show_peaks:
+            image (np.ndarray):
+            std_trace (np.ndarray, optional):
+            manual_extract_dict (dict, optional):
+            show_peaks (bool, optional):
               Generate QA showing peaks identified by object finding
-            show_fits:
+            show_fits (bool, optional):
               Generate QA  showing fits to traces
-            show_trace:
+            show_trace (bool, optional):
               Generate QA  showing traces identified. Requires an open ginga RC modules window
-            show:
-            debug:
+            show (bool, optional):
+            debug (bool, optional):
 
         Returns:
             tuple:
                 specobjs : Specobjs object
                     Container holding Specobj objects
-                nobj:
+                nobj (int):
                     Number of objects identified
-                self.skymask : ndarray
+                skymask : ndarray
                     Boolean image indicating which pixels are useful for global sky subtraction
 
         """
-        self.maskslits = self.maskslits if self.maskslits is None else self.maskslits
         gdslits = np.where(np.invert(self.maskslits))[0]
 
         # create the ouptut image for skymask
@@ -763,26 +759,27 @@ class MultiSlitReduce(Reduce):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, waveimg, global_sky, sobjs,
-                             spat_pix=None, model_noise=True, std = False,
+                             spat_pix=None, model_noise=True,
+                             show_resids=False,
                              show_profile=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
         Wrapper to skysub.local_skysub_extract
 
-        Parameters
-        ----------
-        sobjs: object
-           Specobjs object containing Specobj objects containing information about objects found.
-        waveimg: ndarray, shape (nspec, nspat)
-           Wavelength map
-
-        Optional Parameters
-        -------------------
-
+        Args:
+            waveimg (np.ndarray):
+            global_sky (np.ndarray):
+            sobjs (SpecObjs):
+            spat_pix (np.ndarray, optional):
+            model_noise (bool, optional):
+            show_resids (bool, optional):
+            show_profile (bool, optional):
+            show (bool, optional):
 
         Returns:
-            global_sky: (numpy.ndarray) image of the the global sky model
+            tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
+
         """
         self.waveimg = waveimg
         self.global_sky = global_sky
@@ -820,10 +817,12 @@ class MultiSlitReduce(Reduce):
                     thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix,
                     model_full_slit=self.par['scienceimage']['extraction']['model_full_slit'],
-                    box_rad=self.par['scienceimage']['extraction']['boxcar_radius']/self.spectrograph.detector[self.det-1]['platescale'],
+                    box_rad=self.par['scienceimage']['extraction']['boxcar_radius']/self.get_platescale(0), #self.spectrograph.detector[self.det-1]['platescale'],
                     sigrej=self.par['scienceimage']['skysub']['sky_sigrej'],
-                    model_noise=model_noise, std=std, bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
-                    sn_gauss=self.par['scienceimage']['extraction']['sn_gauss'], inmask=inmask, show_profile=show_profile)
+                    model_noise=model_noise, std=self.std_redux,
+                    bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
+                    sn_gauss=self.par['scienceimage']['extraction']['sn_gauss'],
+                    inmask=inmask, show_profile=show_profile)
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
@@ -896,27 +895,36 @@ class EchelleReduce(Reduce):
         sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
         return sobj
 
-    def find_objects_pypeline(self, image, std=False, std_trace=None,
+    def find_objects_pypeline(self, image, std_trace=None,
                               show=False, show_peaks=False, show_fits=False,
-                              show_trace = False, debug=False, maskslits=None,
+                              show_trace=False, debug=False,
                               manual_extract_dict=None):
         """
+         Pipeline specific find objects routine
 
-        Args:
-            image:
-            std_trace:
-            show:
-            show_peaks:
-            show_fits:
-            show_trace:
-            debug:
-            manual_extract_dict:
+         Args:
+             image (np.ndarray):
+             std_trace (np.ndarray, optional):
+             manual_extract_dict (dict, optional):
+             show_peaks (bool, optional):
+               Generate QA showing peaks identified by object finding
+             show_fits (bool, optional):
+               Generate QA  showing fits to traces
+             show_trace (bool, optional):
+               Generate QA  showing traces identified. Requires an open ginga RC modules window
+             show (bool, optional):
+             debug (bool, optional):
 
-        Returns:
+         Returns:
+             tuple:
+                 specobjs : Specobjs object
+                     Container holding Specobj objects
+                 nobj (int):
+                     Number of objects identified
+                 skymask : ndarray
+                     Boolean image indicating which pixels are useful for global sky subtraction
 
-        """
-        self.maskslits = self.maskslits if maskslits is None else maskslits
-
+         """
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 
@@ -958,25 +966,26 @@ class EchelleReduce(Reduce):
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, waveimg, global_sky, sobjs,
-                             spat_pix=None, model_noise=True, min_snr=2.0, std = False, fit_fwhm=False,
+                             spat_pix=None, model_noise=True, min_snr=2.0, fit_fwhm=False,
                              show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
         Wrapper to skysub.local_skysub_extract
 
-        Parameters
-        ----------
-        sobjs: object
-           Specobjs object containing Specobj objects containing information about objects found.
-        waveimg: ndarray, shape (nspec, nspat)
-           Wavelength map
-
-        Optional Parameters
-        -------------------
+        Args:
+            waveimg (np.ndarray):
+            global_sky (np.ndarray):
+            sobjs (SpecObjs):
+            spat_pix (np.ndarray, optional):
+            model_noise (bool, optional):
+            show_resids (bool, optional):
+            show_profile (bool, optional):
+            show (bool, optional):
 
         Returns:
-            global_sky: (numpy.ndarray) image of the the global sky model
+            tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
+
         """
         self.waveimg = waveimg
         self.global_sky = global_sky
@@ -985,7 +994,7 @@ class EchelleReduce(Reduce):
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciImg.image, self.sciImg.ivar, self.sciImg.mask, self.tilts, self.waveimg, self.global_sky,
             self.sciImg.rn2img, self.tslits_dict, sobjs, self.order_vec, spat_pix=spat_pix,
-            std=std, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
+            std=self.std_redux, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
             box_rad_order=self.par['scienceimage']['extraction']['boxcar_radius']/plate_scale,
             sigrej=self.par['scienceimage']['skysub']['sky_sigrej'],
             sn_gauss=self.par['scienceimage']['extraction']['sn_gauss'],
@@ -1025,7 +1034,6 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     indx = [c.__name__ == spectrograph.pypeline+'Reduce' for c in Reduce.__subclasses__()]
     if not np.any(indx):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
-    #return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph, tslits_dict, par, tilts, **kwargs)
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
                                                          par, caliBrate, **kwargs)
 
