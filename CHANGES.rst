@@ -2,6 +2,10 @@
 0.12.2dev
 ---------
 
+- Implemented DataContainer
+- Added fits I/O methods
+- Implemented SlitTraceSet
+
 0.12.1 (07 Jan 2019)
 --------------------
 
