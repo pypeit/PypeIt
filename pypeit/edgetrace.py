@@ -4351,9 +4351,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict['pad'] = self.par['pad']
         tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
         tslits_dict['spectrograph'] = self.spectrograph.spectrograph
+        slitspat = slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'], self.nspec,
+                                 self.nspat)
         tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
-                                          binspectral=tslits_dict['binspectral'])
+            self.spectrograph.slit_minmax(slitspat, binspectral=tslits_dict['binspectral'])
 
         return tslits_dict
 
@@ -4402,9 +4403,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
             spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
             tslits_dict['spectrograph'] = spec.spectrograph
+            slitspat = slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'],
+                                     self.nspec, self.nspat)
             tslits_dict['spec_min'], tslits_dict['spec_max'] \
-                    = spec.slit_minmax(slit_spat_pos(tslits_dict),
-                                       binspectral=tslits_dict['binspectral'])
+                    = spec.slit_minmax(slitspat, binspectral=tslits_dict['binspectral'])
 
             indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
             if not np.any(indx):

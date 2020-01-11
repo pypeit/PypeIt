@@ -730,8 +730,9 @@ class Echelle(Reduce):
         if 'coadd2d' in self.objtype:
             self.order_vec = spectrograph.orders
         else:
-            slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
-            self.order_vec = self.spectrograph.order_vec(slit_spat_pos)
+            slitspat = edgetrace.slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'],
+                                               tslits_dict['nspec'], tslits_dict['nspat'])
+            self.order_vec = self.spectrograph.order_vec(slitspat)
 
 
     def find_objects_pypeline(self, image, std=False, ir_redux=False, std_trace = None, maskslits=None,
