@@ -125,8 +125,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     #     par['calibrations']['pixelflatframe']['number'] = 5
     #     par['calibrations']['traceframe']['number'] = 5
     #     par['calibrations']['arcframe']['number'] = 1
-    #     # Scienceimage default parameters
-    #     par['scienceimage'] = pypeitpar.ScienceImagePar()
     #     # Do not flux calibrate
     #     # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
     #     par['flexure'] = pypeitpar.FlexurePar()

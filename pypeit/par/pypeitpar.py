@@ -963,9 +963,7 @@ class ManualExtractionParOld(ParSet):
                                     self.data['frame']))
 
 
-# TODO The name of this should be changed to PypeItPar so that ReducePar can be used for what is now ScienceImagePar which
-# governs the ReduceClass
-class ReducePar(ParSet):
+class ReduxPar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
     to the overal reduction of the the data.
@@ -994,7 +992,7 @@ class ReducePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        options['spectrograph'] = ReducePar.valid_spectrographs()
+        options['spectrograph'] = ReduxPar.valid_spectrographs()
         dtypes['spectrograph'] = str
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
@@ -1033,7 +1031,7 @@ class ReducePar(ParSet):
                               'current working directory.'
 
         # Instantiate the parameter set
-        super(ReducePar, self).__init__(list(pars.keys()),
+        super(ReduxPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
                                         defaults=list(defaults.values()),
                                         options=list(options.values()),
@@ -1963,10 +1961,10 @@ class WaveTiltsPar(ParSet):
 #        pass
 
 
-class ScienceImagePar(ParSet):
+class ReducePar(ParSet):
     """
     The parameter set used to hold arguments for sky subtraction, object
-    finding and extraction in the ScienceImage class
+    finding and extraction in the Reduce class
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
@@ -2002,7 +2000,7 @@ class ScienceImagePar(ParSet):
         descr['extraction'] = 'Parameters for extraction algorithms'
 
         # Instantiate the parameter set
-        super(ScienceImagePar, self).__init__(list(pars.keys()),
+        super(ReducePar, self).__init__(list(pars.keys()),
                                               values=list(pars.values()),
                                               defaults=list(defaults.values()),
                                               options=list(options.values()),
@@ -2524,7 +2522,7 @@ class PypeItPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['rdx'] = ReducePar()
+        defaults['rdx'] = ReduxPar()
         dtypes['rdx'] = [ ParSet, dict ]
         descr['rdx'] = 'PypIt reduction rules.'
 
@@ -2540,7 +2538,7 @@ class PypeItPar(ParSet):
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
-        defaults['scienceimage'] = ScienceImagePar()
+        defaults['scienceimage'] = ReducePar()
         dtypes['scienceimage'] = [ParSet, dict]
         descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and ' \
                                 'extraction'
@@ -2766,7 +2764,7 @@ class PypeItPar(ParSet):
         kwargs = {}
 
         pk = 'rdx'
-        kwargs[pk] = ReducePar.from_dict(cfg[pk]) if pk in k else None
+        kwargs[pk] = ReduxPar.from_dict(cfg[pk]) if pk in k else None
 
         pk = 'calibrations'
         kwargs[pk] = CalibrationsPar.from_dict(cfg[pk]) if pk in k else None
@@ -2774,8 +2772,9 @@ class PypeItPar(ParSet):
         pk = 'scienceframe'
         kwargs[pk] = FrameGroupPar.from_dict('science', cfg[pk]) if pk in k else None
 
+        # Migrate this key to be reduce instead of scienceimage
         pk = 'scienceimage'
-        kwargs[pk] = ScienceImagePar.from_dict(cfg[pk]) if pk in k else None
+        kwargs[pk] = ReducePar.from_dict(cfg[pk]) if pk in k else None
 
         # Allow flexure to be turned on using cfg['rdx']
         pk = 'flexure'
