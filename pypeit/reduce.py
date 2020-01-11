@@ -730,8 +730,10 @@ class Echelle(Reduce):
         if 'coadd2d' in self.objtype:
             self.order_vec = spectrograph.orders
         else:
-            slitspat = edgetrace.slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'],
-                                               tslits_dict['nspec'], tslits_dict['nspat'])
+            slitspat = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
+                                               self.tslits_dict['slit_righ'],
+                                               self.tslits_dict['nspec'],
+                                               self.tslits_dict['nspat'])
             self.order_vec = self.spectrograph.order_vec(slitspat)
 
 
