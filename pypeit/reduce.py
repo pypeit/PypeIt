@@ -5,12 +5,13 @@ import numpy as np
 from astropy import stats
 from abc import ABCMeta
 
+from linetools import utils as ltu
+
 from pypeit import specobjs
 from pypeit import ginga, msgs, edgetrace
 from pypeit.core import skysub, extract, pixels, wave
 
 from IPython import embed
-
 
 class Reduce(object):
     """
@@ -161,13 +162,28 @@ class Reduce(object):
 
             # This will hold the extracted objects
             self.sobjs = self.sobjs_obj.copy()
+            # Only extract positive objects
+            self.sobjs.purge_neg()
 
             # Quick loop over the objects
-            for iord in range(self.nobj):
-                sobj = self.get_sobj(self.sobjs, iord)
-                plate_scale = self.get_platescale(iord)
+            for iobj in range(self.sobjs.nobj):
+                sobj = self.sobjs[iobj]
+                plate_scale = self.get_platescale(sobj)
+                '''
+                if self.pypeline == 'Echelle':
+                    # Grab the positive object only
+                    thisobj = (self.sobjs.ech_orderindx == iord) & (
+                            self.sobjs.ech_objid > 0)  # pos indices of objects for this slit
+                    sobj = self.sobjs[np.where(thisobj)[0][0]]
+                    # Plate scale
+                    plate_scale = self.spectrograph.order_platescale(sobj.ECH_ORDER,
+                                                                 binning=self.binning)[0]
+                else:
+                    sobj = self.sobjs[iord]
+                    plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+                '''
                 # True  = Good, False = Bad for inmask
-                thismask = (self.slitmask == iord)  # pixels for this slit
+                thismask = (self.slitmask == iobj)  # pixels for this slit
                 inmask = (self.sciImg.mask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
@@ -189,15 +205,14 @@ class Reduce(object):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-    def get_platescale(self, index):
+    def get_platescale(self, sobj):
         """
         Return the platescale for the current detector/echelle order
 
         Over-loaded by the children
 
         Args:
-            index (int):
-                Echelle order index or object index
+            sobj (:class:`pypeit.specobj.SpecObj`):
 
         Returns:
             float:
@@ -205,29 +220,21 @@ class Reduce(object):
         """
         pass
 
-    def get_sobj(self, specobjs, index):
-        """
-        Return the current object from specobjs
-
-        Over-loaded by the children
-
-        Args:
-            specobjs (:class:`pypeit.specobjs.SpecObjs`):
-            index (int):
-                Echelle order index or object index
-
-        Returns:
-            :class:`pypeit.specobj.SpecObj`:
-
-        """
-        pass
-
-    def run(self, std_trace=None, manual_extract_dict=None, show_peaks=False):
+    def run(self, basename=None, ra=None, dec=None, obstime=None,
+            std_trace=None, manual_extract_dict=None, show_peaks=False):
         """
         Primary code flow for PypeIt reductions
 
         Args:
-            std_trace (ndarray, optional):
+            basename (str, optional):
+                Required if flexure correction is to be applied
+            ra (str, optional):
+                Required if helio-centric correction is to be applied
+            dec (str, optional):
+                Required if helio-centric correction is to be applied
+            obstime (:obj:`astropy.time.Time`, optional):
+                Required if helio-centric correction is to be applied
+            std_trace (np.ndarray, optional):
                 Trace of the standard star
             manual_extract_dict (dict, optional):
             show_peaks (bool, optional):
@@ -259,8 +266,8 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
-        # Do we have any objects to proceed with?
-        if self.sobjs_obj.nobj > 0:
+        # Do we have any positive objects to proceed with?
+        if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             if (self.std_redux or self.par['scienceimage']['extraction']['skip_optimal'] or
                     self.par['scienceimage']['findobj']['skip_second_find']):
@@ -284,6 +291,18 @@ class Reduce(object):
         # Purge out the negative objects if this was a near-IR reduction.
         if self.ir_redux:
             self.sobjs.purge_neg()
+
+        # Finish up
+        if self.sobjs.nobj == 0:
+            msgs.warn('No objects to extract!')
+        else:
+            # TODO -- Should we move these to redux.run()?
+            # Flexure correction if this is not a standard star
+            if not self.std_redux:
+                self.flexure_correct(self.sobjs, basename)
+            # Heliocentric
+            radec = ltu.radec_to_coord((ra, dec))
+            self.helio_correct(self.sobjs, radec, obstime)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
@@ -653,7 +672,7 @@ class MultiSlitReduce(Reduce):
         The input argument is ignored
 
         Args:
-            dummy (int):
+            dummy (:class:`pypeit.specobj.SpecObj`):
                 ignored
 
         Returns:
@@ -662,21 +681,6 @@ class MultiSlitReduce(Reduce):
         """
         plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
         return plate_scale
-
-    def get_sobj(self, specobjs, iobj):
-        """
-        Return the SpecObj object from the list of SpecObjs
-
-        Args:
-            specobjs (:class:`pypeit.specobjs.SpecObjs`):
-            iobj (int):
-                Object index
-
-        Returns:
-            :class:`pypeit.specobj.SpecObj`:
-
-        """
-        return specobjs[iobj]
 
     def find_objects_pypeline(self, image, std_trace=None,
                               manual_extract_dict=None,
@@ -859,28 +863,25 @@ class EchelleReduce(Reduce):
             slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
             self.order_vec = self.spectrograph.order_vec(slit_spat_pos)
 
-    def get_platescale(self, iord):
+    def get_platescale(self, sobj):
         """
         Return the plate scale for the given current echelle order
         based on the order index
 
         Args:
-            iord (int):
-                Echelle order index
+            sobj (:class:`pypeit.specobj.SpecObj`):
 
         Returns:
             float:
 
         """
-        # sobj first
-        sobj = self.get_sobj(self.sobjs_obj, iord)
         # Now the plate_scale
-        plate_scale = self.spectrograph.order_platescale(sobj.ech_order,
+        plate_scale = self.spectrograph.order_platescale(sobj.ECH_ORDER,
                                                          binning=self.binning)[0]
         # Return
         return plate_scale
 
-    def get_sobj(self, specobjs, iord):
+    def get_positive_sobj(self, specobjs, iord):
         """
         Return the current object from self.sobjs_obj
 

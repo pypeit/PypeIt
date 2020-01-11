@@ -23,8 +23,6 @@ from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
 
-from linetools import utils as ltu
-
 from IPython import embed
 
 class PypeIt(object):
@@ -429,30 +427,6 @@ class PypeIt(object):
         # Return
         return sci_dict
 
-    # TODO: Is this defunct?
-    def flexure_correct(self, sobjs, maskslits):
-        """
-        Correct for flexure
-
-        Spectra are modified in place (wavelengths are shifted)
-
-        Args:
-            sobjs (SpecObjs):
-            maskslits (ndarray): Mask of SpecObjs
-
-        """
-
-        if self.par['flexure']['method'] != 'skip':
-            flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
-                                         self.par['flexure']['spectrum'],
-                                         mxshft=self.par['flexure']['maxshift'])
-            # QA
-            # TODO: Need to fix these QA paths...
-            wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
-                            out_dir=self.par['rdx']['redux_path'])
-        else:
-            msgs.info('Skipping flexure correction.')
-
     def get_sci_metadata(self, frame, det):
         """
         Grab the meta data for a given science frame and specific detector
@@ -600,28 +574,11 @@ class PypeIt(object):
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.run(
-            std_trace=std_trace, manual_extract_dict=manual_extract_dict,
-            show_peaks=self.show)
+            std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
+            basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+            obstime=self.obstime)
 
-        # Finish up
-        if self.sobjs.nobj == 0:
-            # Print status message
-            msgs_string = 'No objects to extract for file {:s}'.format(
-                self.fitstbl['target'][frames[0]]) + msgs.newline()
-            msgs_string += 'On frames:' + msgs.newline()
-            for iframe in frames:
-                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
-            msgs.warn(msgs_string)
-        else:
-            # TODO -- Should we move these to redux.run()?
-            # Flexure correction if this is not a standard star
-            if not self.std_redux:
-                self.redux.flexure_correct(self.sobjs, self.basename)
-
-            # Heliocentric
-            radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
-            self.redux.helio_correct(self.sobjs, radec, self.obstime)
-
+        # Return
         return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
     # TODO: Why not use self.frame?
