@@ -1,6 +1,417 @@
 """
 Implements classes and function for the PypeIt data model.
 
+.. data-container:
+
+DataContainer
+-------------
+
+:class:`DataContainer` objects provide a utility for
+enforcing a specific datamodel on an object, and provides convenience
+routines for writing data to fits files. The class itself is an
+abstract base class that cannot be directly instantiated. As a base
+class, :class:`DataContainer` objects are versitile, but they have
+their limitations.
+
+Derived classes must do the following:
+
+    - Define a class attribute called ``datamodel``. See the examples
+      below for their format.
+    - Provide an :func:`__init__` method that defines the
+      instantiation calling sequence and passes the relevant
+      dictionary to this base-class instantiation.
+    - Provide a :func:`_validate` method, if necessary, that
+      processes the data provided in the `__init__` into a complete
+      instantiation of the object. This method and the
+      :func:`__init__` method are the *only* places where attributes
+      can be added to the class.
+    - Provide a :func:`_bundle` method that reorganizes the datamodel
+      into partitions that can be written to one or more fits
+      extensions. More details are provided in the description of
+      :func:`DataContainer._bundle`.
+    - Provide a :func:`_parse` method that parses information in one
+      or more fits extensions into the appropriate datamodel. More
+      details are provided in the description of
+      :func:`DataContainer._parse`.
+
+Here are some examples of how to and how not to use them.
+
+Basic container
++++++++++++++++
+
+Here's how to create a derived class for a basic container that
+holds two arrays and a metadata parameter::
+
+    import numpy as np
+    import inspect
+
+    from pypeit.datamodel import DataContainer
+
+    class BasicContainer(DataContainer):
+        datamodel = {'vec1': dict(otype=np.ndarray, atype=float, descr='Test'),
+                     'meta1': dict(otype=str, decr='test'),
+                     'arr1': dict(otype=np.ndarray, atype=float, descr='test')}
+
+        def __init__(self, vec1, meta1, arr1):
+            # All arguments are passed directly to the container
+            # instantiation
+            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            super(BasicContainer, self).__init__({k: values[k] for k in args[1:]}) 
+
+        def _bundle(self):
+            # Use the base class _bundle Specify the extension
+            return super(BasicContainer, self)._bundle(ext='basic')
+
+With this implementation:
+
+    - You can instantiate the container so that number of data table
+      rows would be the same (10)::
+
+        data = BasicContainer(np.arange(10), 'length=10', np.arange(30).reshape(10,3))
+
+    - After instantiating, access the data like this::
+
+        # Get the data model keys
+        keys = list(data.keys())
+
+        # Access the datamodel as attributes ...
+        print(data.vec1)
+        # ... or as items
+        print(data['meta1'])
+
+    - Attributes and items are case-sensitive::
+
+        # Faults because of case-sensitive attributes/items
+        print(data.Vec1)
+        print(data['MeTa1'])
+
+    - The attributes of the container can only be part of the
+      datamodel or added in either the :func:`DataContainer.__init__`
+      or :func:`DataContainer._validate` methods::
+
+        # Faults with KeyError
+        data['newvec'] = np.arange(10)
+        test = data['newvec']
+
+        # Faults with AttributeError
+        data.newvec = np.arange(10)
+        test = data.newvec
+
+    - The :class:`DataContainer` also enforces strict types for
+      members of the datamodel::
+
+        # Faults with TypeError
+        data.vec1 = 3
+        data.meta1 = 4.
+
+    - Read/Write the data from/to a fits file. In this instantiation,
+      the data is written to a `astropy.io.fits.BinTableHDU` object;
+      the table has 10 rows because the shape of the arrays match
+      this. The file I/O routines look like this::
+
+        # Write to a file
+        ofile = 'test.fits'
+        data.to_file(ofile)
+
+        # Write to a gzipped file
+        ofile = 'test.fits.gz'
+        data.to_file(ofile)
+
+        # Test written data against input
+        with fits.open(ofile) as hdu:
+            print(len(hdu))
+            # 2: The primary extension and a binary table with the data
+
+            print(hdu[1].name)
+            # BASIC: As set by the _bundle method
+            
+            print(len(hdu['BASIC'].data))
+            # 10: The length of the data table
+            
+            print(hdu['BASIC'].columns.names)
+            # ['vec1', 'arr1']: datamodel elements written to the table columns
+            
+            print(hdu['BASIC'].header['meta1'])
+            # 'length=10': int, float, or string datamodel components are written to headers
+
+    - If the shape of the first axis of the arrays (number of rows)
+      do not match, the arrays are written as single elements of a
+      table with one row::
+
+        # Number of rows are mismatched 
+        data = BasicContainer(np.arange(10), 'length=1', np.arange(30).reshape(3,10))
+        data.to_file(ofile)
+
+        with fits.open(ofile) as hdu:
+            print(len(hdu))
+            # 2: The primary extension and a binary table with the data
+            print(len(hdu['BASIC'].data))
+            # 1: All of the data is put into a single row
+
+Mixed Object Containers
++++++++++++++++++++++++
+
+:class:`DataContainer` objects can also contain multiple arrays
+and/or `astropy.table.Table`_ objects. However, multiple Tables or
+combinations of arrays and Tables cannot be bundled into individual
+extensions. Here are two implementations of a mixed container, a good
+one and a bad one::
+
+    import numpy as np
+    import inspect
+
+    from astropy.table import Table
+
+    from pypeit.datamodel import DataContainer
+
+    class GoodMixedTypeContainer(DataContainer):
+        datamodel = {'tab1': dict(otype=Table, descr='Test'),
+                     'tab1len': dict(otype=int, descr='test'),
+                     'arr1': dict(otype=np.ndarray, descr='test'),
+                     'arr1shape': dict(otype=tuple, descr='test')}
+
+        def __init__(self, tab1, arr1):
+            # All arguments are passed directly to the container
+            # instantiation, but the list is incomplete
+            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            super(GoodMixedTypeContainer, self).__init__({k: values[k] for k in args[1:]}) 
+
+        def _validate(self):
+            # Complete the instantiation
+            self.tab1len = len(self.tab1)
+            # NOTE: DataContainer does allow for tuples, but beware because
+            # they have to saved to the fits files by converting them to strings
+            # and writing them to the fits header.  So the tuples should be
+            # short!  See _bundle below, and in DataContainer.
+            self.arr1shape = self.arr1.shape
+
+        def _bundle(self):
+            # Bundle so there's only one Table and one Image per extension
+            return [{'tab1len': self.tab1len, 'tab1': self.tab1},
+                    {'arr1shape': str(self.arr1shape), 'arr1': self.arr1}]
+
+
+    class BadMixedTypeContainer(GoodMixedTypeContainer):
+        def _bundle(self):
+            # Use default _bundle method, which will try to put both tables
+            # in the same extension.  NOTE: Can't use super here because
+            # GoodMixedTypeContainer doesn't have an 'ext' argument
+            return DataContainer._bundle(self, ext='bad')
+
+With this implementation:
+
+    - To instantiate::
+
+        x = np.arange(10)
+        y = np.arange(10)+5
+        z = np.arange(30).reshape(10,3)
+
+        arr1 = np.full((3,3,3), -1)
+        tab1 = Table(data=({'x':x,'y':y,'z':z}), meta={'test':'this'})
+
+        data = GoodMixedTypeContainer(tab1, arr1)
+
+    - Data access::
+
+        print(data.tab1.keys())
+        # ['x', 'y', 'z']
+        print(assert data.tab1.meta['test'])
+        # 'this'
+        print(data.arr1shape)
+        # (3,3,3)
+
+    - Construct an `astropy.io.fits.HDUList`::
+
+        hdu = data.to_hdu(add_primary=True)
+
+        print(len(hdu))
+        # 3: Includes the primary HDU, one with the table, and one with the array
+
+        print([h.name for h in hdu])
+        # ['PRIMARY', 'TAB1', 'ARR1']
+
+    - Tuples are converted to strings::
+
+        print(hdu['ARR1'].header['ARR1SHAPE'])
+        # '(3,3,3)'
+
+    - The tuples are converted back from strings when they're read
+      from the HDU::
+
+        _data = GoodMixedTypeContainer.from_hdu(hdu)
+        print(_data.arr1shape)
+        # (3,3,3)
+
+    - Table metadata is also written to the header, which can be
+      accessed with case-insensitive keys::
+
+        print(hdu['TAB1'].header['TEST'])
+        print(hdu['TAB1'].header['TesT'])
+        # Both print: 'this'
+
+    - However, it's important to note that the keyword case gets
+      mangled when you read it back in. This has to do with the
+      Table.read method and I'm not sure there's anything we can do
+      about it without the help of the astropy folks. We recommend
+      table metadata use keys that are in all caps::
+
+        # Fails because of the string case
+        print(_data.tab1.meta['test'])
+        # This is okay
+        print(_data.tab1.meta['TEST'])
+
+    - The difference between the implementation of
+      ``BadMixedTypeContainer`` and ``GoodMixedTypeContainer`` has to
+      do with how the data is bundled into HDU extensions. The
+      ``BadMixedTypeContainer`` will instantiate fine::
+
+        data = BadMixedTypeContainer(tab1, arr1)
+        print(data.tab1.keys())
+        # ['x', 'y', 'z']
+        print(data.tab1.meta['test'])
+        # 'this'
+
+    - But it will barf when you try to reformat/write the data
+      because you can't write both a Table and an array to a single
+      HDU::
+
+        # Fails
+        hdu = data.to_hdu()
+
+Complex Instantiation Methods
++++++++++++++++++++++++++++++
+
+All of the :class:`DataContainer` above have had simple instatiation
+methods. :class:`DataContainer` can have more complex instantiation
+methods, but there are significant limitations to keep in made.
+Consider::
+
+    class BadInitContainer(DataContainer):
+        datamodel = {'inp1': dict(otype=np.ndarray, descr='Test'),
+                     'inp2': dict(otype=np.ndarray, descr='test'),
+                     'out': dict(otype=np.ndarray, descr='test'),
+                     'alt': dict(otype=np.ndarray, descr='test')}
+
+        def __init__(self, inp1, inp2, func='add'):
+            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            super(BadInitContainer, self).__init__({k: values[k] for k in args[1:]}) 
+
+
+    class DubiousInitContainer(DataContainer):
+        datamodel = {'inp1': dict(otype=np.ndarray, descr='Test'),
+                     'inp2': dict(otype=np.ndarray, descr='test'),
+                     'out': dict(otype=np.ndarray, descr='test'),
+                     'alt': dict(otype=np.ndarray, descr='test')}
+
+        def __init__(self, inp1, inp2, func='add'):
+            # If any of the arguments of the init method aren't actually
+            # part of the datamodel, you can't use the nominal two lines
+            # used in all the other examples above.  You have to be specific
+            # about what gets passed to super.__init__.  See the
+            # BadInitContainer example above and the test below.  WARNING:
+            # I'm not sure you would ever want to do this because it can
+            # lead to I/O issues; see the _validate function.
+            self.func = func
+            super(DubiousInitContainer, self).__init__({'inp1': inp1, 'inp2':inp2})
+
+        def _validate(self):
+            # Because func isn't part of the data model, it won't be part of
+            # self if the object is instantiated from a file.  So I have to
+            # add it here.  But I don't know what the value of the attribute
+            # was for the original object that was written to disk.  This is
+            # why you likely always want anything that's critical to setting
+            # up the object to be part of the datamodel so that it gets
+            # written to disk.  See the testing examples for when this will
+            # go haywire.
+            if not hasattr(self, 'func'):
+                self.func = None
+            if self.func not in [None, 'add', 'sub']:
+                raise ValueError('Function must be either \'add\' or \'sub\'.')
+
+            # This is here because I don't want to overwrite something that
+            # might have been read in from an HDU, particularly given that
+            # func will be None if reading from a file!
+            if self.out is None:
+                print('Assigning out!')
+                if self.func is None:
+                    raise ValueError('Do not know how to construct out attribute!')
+                self.out = self.inp1 + self.inp2 if self.func == 'add' else self.inp1 - self.inp2
+
+        # I'm not going to overwrite _bundle, so that the nominal approach
+        # is used.
+
+
+    class ComplexInitContainer(DataContainer):
+        datamodel = {'inp1': dict(otype=np.ndarray, descr='Test'),
+                     'inp2': dict(otype=np.ndarray, descr='test'),
+                     'out': dict(otype=np.ndarray, descr='test'),
+                     'alt': dict(otype=np.ndarray, descr='test'),
+                     'func': dict(otype=str, descr='test')}
+
+        def __init__(self, inp1, inp2, func='add'):
+            # Since func is part of the datamodel now, we can use the normal
+            # two intantiation lines.
+            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            super(ComplexInitContainer, self).__init__({k: values[k] for k in args[1:]}) 
+
+        def _validate(self):
+            if self.func not in ['add', 'sub']:
+                raise ValueError('Function must be either \'add\' or \'sub\'.')
+            # This is here because I don't want to overwrite something that
+            # might have been read in from an HDU, even though they should
+            # nominally be the same!
+            if self.out is None:
+                print('Assigning out!')
+                if self.func is None:
+                    raise ValueError('Do not know how to construct out attribute!')
+                self.out = self.inp1 + self.inp2 if self.func == 'add' else self.inp1 - self.inp2
+
+
+With this implementation:
+
+    - The instantiation of the ``BadInitContainer`` will fail because
+      the init arguments all need to be part of the datamodel for it
+      to work::
+
+        x = np.arange(10)
+        y = np.arange(10)+5
+
+        data = BadInitContainer(x,y)
+        # Fails with AttributeError
+
+    - The following instantiation is fine because
+      ``DubiousInitContainer`` handles the fact that some of the
+      arguments to :func:`__init__` are not part of the datamodel::
+
+        data = DubiousInitContainer(x,y)
+        print(np.array_equal(data.out, data.inp1+data.inp2))
+        # True
+
+    - One component of the data model wasn't instantiated, so it will
+      be None::
+        
+        print(data.alt is None)
+        # True
+
+    - The problem with ``DubiousInitContainer`` is that it has
+      attributes that cannot be reinstantiated from what's written to
+      disk. That is, :class:`DataContainers` aren't really fully
+      formed objects unless all of its relevant attributes are
+      components of the data model::
+
+        _data = DubiousInitContainer.from_hdu(hdu)
+        print(_data.func == DubiousInitContainer(x,y).func)
+        # False
+    
+    - This is solved by adding func to the datamodel::
+    
+        data = ComplexInitContainer(x,y)
+        _data = ComplexInitContainer.from_hdu(data.to_hdu(add_primary=True))
+        print(data.func == _data.func)
+        # True
+
+----
+
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
@@ -360,19 +771,6 @@ class DataContainer:
                 # Raise attribute error instead of key error
                 raise AttributeError(e)
 
-#        # TODO: It seems like it would be faster to check a boolean
-#        # attribute. Is that possible?
-#        if '_DataContainer__initialised' not in self.__dict__:
-#            # Allow new attributes to be added before object is
-#            # initialized
-#            dict.__setattr__(self, item, value)
-#        elif item in self.__dict__:
-#            # Only set attributes that already exist
-#            dict.__setattr__(self, item, value)
-#        else:
-#            # Otherwise, set as an item
-#            self.__setitem__(item, value)
-
     def __setitem__(self, item, value):
         """
         Access and set an attribute identically to a dictionary item.
@@ -387,6 +785,7 @@ class DataContainer:
         self.__dict__[item] = value
 
     def __getitem__(self, item):
+        """Get an item directly from the internal dict."""
         return self.__dict__[item]
 
     def keys(self):

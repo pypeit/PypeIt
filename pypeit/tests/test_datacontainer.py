@@ -215,7 +215,6 @@ class ComplexInitContainer(DataContainer):
                 raise ValueError('Do not know how to construct out attribute!')
             self.out = self.inp1 + self.inp2 if self.func == 'add' else self.inp1 - self.inp2
 
-
 #-----------------------------------------------------------------------
 
 def test_basic():
@@ -439,7 +438,7 @@ def test_init():
     with pytest.raises(AttributeError):
         data = BadInitContainer(x,y)
 
-    # This instantiation is fine because ComplexInitContainer handles
+    # This instantiation is fine because DubiousInitContainer handles
     # the fact that some of the arguments to __init__ are not part of
     # the datamodel.
     data = DubiousInitContainer(x,y)
