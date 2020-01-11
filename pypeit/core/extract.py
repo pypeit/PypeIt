@@ -1703,6 +1703,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         slit_righ:  float ndarray
             Left boundary of orders to be extracted (given as floating
             pt pixels). This a 2-d array with shape (nspec, norders)
+        order_vec (np.ndarray):
+            Echelle orders.  This is written to the SpecObj objects.
+            It is ok, but not recommended to provide np.arange(norders)
         inmask: ndarray, bool, shape (nspec, nspat), default = None
             Input mask for the input image.
         fwhm: float, default = 3.0
