@@ -5,7 +5,6 @@ Implements classes and function for the PypeIt data model.
 .. include:: ../links.rst
 """
 import os
-import copy
 import warnings
 
 from IPython import embed
@@ -13,6 +12,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import io
 
@@ -27,7 +27,24 @@ class DataContainer:
     This abstract class should only be used as a base class.
 
     Derived classes must do the following:
+
         - Define a datamodel
+        - Provide an :func:`__init__` method that defines the
+          instantiation calling sequence and passes the relavant
+          dictionary to this base-class instantiation.
+        - Provide a :func:`_validate` method, if necessary, that
+          processes the data provided in the `__init__` into a
+          complete instantiation of the object. This method and the
+          :func:`__init__` method are the *only* places where
+          attributes can be added to the class.
+        - Provide a :func:`_bundle` method that reorganizes the
+          datamodel into partitions that can be written to one or
+          more fits extensions. More details are provided in the
+          description of :func:`_bundle`.
+        - Provide a :func:`_parse` method that parses information in
+          one or more fits extensions into the appropriate datamodel.
+          More details are provided in the description of
+          :func:`_parse`.
 
     Args:
         d (:obj:`dict`):
@@ -54,9 +71,14 @@ class DataContainer:
             raise AttributeError('Coding error: Initialization arguments do not match data model!')
 
         # Copy the dictionary
-        self.__dict__ = copy.deepcopy(d)
+#        self.__dict__ = copy.deepcopy(d)
+        # Ensure the dictionary has all the expected keys
+        self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
+        # Assign the values provided by the input dictionary
+        self.__dict__.update(d)
 
         # Validate the object
+        # TODO: _validate isn't the greatest name for this method...
         self._validate()
 
         # TODO: Confirm elements have otype and atypes consistent with
@@ -144,6 +166,10 @@ class DataContainer:
               keys in **all** extensions should be unique and should
               not be the same as any extension name.
 
+            - Datamodels can contain tuples, but these must be
+              reasonably converted to strings such they are included
+              in (one of) the HDU header(s).
+
         Args:
             ext (:obj:`str`, optional):
                 Name for the HDU extension. If None, no name is
@@ -163,17 +189,59 @@ class DataContainer:
             TypeError:
                 Raised if the provided ``ext`` is not a string.
         """
-        d = {key: self[key].T if transpose_arrays and self.datamodel[key]['otype'] == np.ndarray
-                                 else self[key] for key in self.keys()}
+        d = {}
+        for key in self.keys():
+            if transpose_arrays and self.datamodel[key]['otype'] == np.ndarray:
+                d[key] = self[key].T
+            elif self.datamodel[key]['otype'] == tuple:
+                d[key] = str(self[key])
+            else:
+                d[key] = self[key]
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False):
         """
-        Parse data read from a set of HDUs into the dictionary that
-        can be used to instantiate the object.
+        Parse data read from a set of HDUs.
 
-        This is the counter-part to :func:`_bundle`.
+        This method is the counter-part to :func:`_bundle`, and
+        parses data from the HDUs into a dictionary that can be used
+        to instantiate the object.
+
+        .. warning::
+
+            - Beware that this may read data from the provided HDUs
+              that could then be changed by :func:`_validate`.
+              Construct your :func:`_validate` methods carefully!
+
+            - Although :func:`_bundle` methods will likely need to be
+              written for each derived class, this parsing method is
+              very general to what :class:`DataContainer` can do.
+              Before overwriting this function in a derived class,
+              make sure and/or test that this method doesn't meet
+              your needs, and then tread carefully regardless.
+
+            - Because the `astropy.table.Table`_ methods are used
+              directly, any metadata associated with the Table will
+              also be included in the HDUs construced by
+              :func:`to_hdu`. However, the
+              `astropy.table.Table.read`_ method always returns the
+              metadata with capitalized keys. This means that,
+              regardless of the capitalization of the metadata
+              keywords when the data is written, **they will be
+              upper-case when read by this function**!
+
+        .. note::
+
+            Currently, the only test for the object type (``otype``)
+            given explicitly by the class datamodel is to check if
+            the type should be a tuple. If it is, the parser reads
+            the string from the header and evaluates it so that it's
+            converted to a tuple on output. See the restrictions
+            listed for :func:`_bundle`.
+
+            All the other type conversions are implicit or based on
+            the HDU type.
 
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_,
@@ -226,19 +294,21 @@ class DataContainer:
         # capitalized, while the datamodel doesn't (currently)
         # implement this restriction.
 
-        # ImageHDUs can have dictionary elements directly.
+        # HDUs can have dictionary elements directly.
         keys = np.array(list(d.keys()))
         indx = np.isin([key.upper() for key in keys], _ext)
         if np.any(indx):
             for e in keys[indx]:
-                d[e] = hdu[e.upper()].data
+                d[e] = hdu[e.upper()].data if isinstance(hdu[e.upper()], fits.ImageHDU) \
+                        else Table.read(hdu[e.upper()])
 
         for e in _ext:
             # Check for header elements
             indx = np.isin([key.upper() for key in keys], list(hdu[e].header.keys()))
             if np.any(indx):
                 for key in keys[indx]:
-                    d[key] = hdu[e].header[key.upper()]
+                    d[key] = hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
+                                else eval(hdu[e].header[key.upper()])
             # Parse BinTableHDUs
             if isinstance(hdu[e], fits.BinTableHDU):
                 # If the length of the table is 1, assume the table
@@ -264,7 +334,6 @@ class DataContainer:
         """Maps values to attributes.
         Only called if there *isn't* an attribute with this name
         """
-        # TODO: Not sure this is needed in this implementation
         try:
             return self.__getitem__(item)
         except KeyError:
@@ -283,12 +352,26 @@ class DataContainer:
             # Allow new attributes to be added before object is
             # initialized
             dict.__setattr__(self, item, value)
-        elif item in self.__dict__:
-            # Only set attributes that already exist
-            dict.__setattr__(self, item, value)
         else:
             # Otherwise, set as an item
-            self.__setitem__(item, value)
+            try:
+                self.__setitem__(item, value)
+            except KeyError as e:
+                # Raise attribute error instead of key error
+                raise AttributeError(e)
+
+#        # TODO: It seems like it would be faster to check a boolean
+#        # attribute. Is that possible?
+#        if '_DataContainer__initialised' not in self.__dict__:
+#            # Allow new attributes to be added before object is
+#            # initialized
+#            dict.__setattr__(self, item, value)
+#        elif item in self.__dict__:
+#            # Only set attributes that already exist
+#            dict.__setattr__(self, item, value)
+#        else:
+#            # Otherwise, set as an item
+#            self.__setitem__(item, value)
 
     def __setitem__(self, item, value):
         """
@@ -297,7 +380,7 @@ class DataContainer:
         Items are restricted to those defined by the datamodel.
         """
         if item not in self.datamodel.keys():
-            raise AttributeError('Attribute {0} not part of the data model'.format(item))
+            raise KeyError('Key {0} not part of the data model'.format(item))
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError('Incorrect data type for {0}!'.format(item) + 
                             'Allowed type(s) are: {0}'.format(self.datamodel[item]['otype']))
@@ -389,28 +472,24 @@ class DataContainer:
         """
         Write the data to a file.
 
-        This is a convenience wrapper for :func:`to_hdu`. The output
-        is always placed in the 2nd extension; the first (primary)
-        extension is always empty.
+        This is a convenience wrapper for :func:`to_hdu` and
+        :func:`pypeit.io.write_to_fits`. The output is always placed
+        in the 2nd extension; the first (primary) extension is always
+        empty.
 
         Args:
             ofile (:obj:`str`):
-                Fits file for the data
+                Fits file for the data. File names with '.gz'
+                extensions will be gzipped; see
+                :func:`pypeit.io.write_to_fits`.
             overwrite (:obj:`bool`, optional):
                 Flag to overwrite any existing file.
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
-
-        Raises:
-            FileExistsError:
-                Raised if the file to write already exists and
-                ``overwrite`` is False.
         """
-        if os.path.exists(ofile) and not overwrite:
-            raise FileExistsError('File exists: {0}'.format(o)
-                                  + 'Set overwrite=True to overwrite it.')
-        fits.HDUList([PrimaryHDU()] + self.to_hdu()).writeto(ofile, checksum=checksum)
+        io.write_to_fits(self.to_hdu(add_primary=True), ofile, overwrite=overwrite,
+                         checksum=checksum)
 
     @classmethod
     def from_file(cls, ifile):

@@ -397,7 +397,7 @@ def dict_to_hdu(d, name=None):
     ntab = numpy.sum([isinstance(d[key], Table) for key in d.keys()])
     if ntab > 1:
         raise ValueError('Cannot write dictionaries with more than one astropy.table.Table.')
-    narr = numpy.sum([isinstance(d[key], (list, np.ndarray)) for key in d.keys()])
+    narr = numpy.sum([isinstance(d[key], (list, numpy.ndarray)) for key in d.keys()])
     if ntab > 0 and narr > 0:
         raise ValueError('Cannot write dictionaries with both arrays and Tables.')
 
@@ -538,15 +538,15 @@ def write_to_fits(d, ofile, name=None, overwrite=False, checksum=True):
 
     # Construct the hdus and write the fits file.
     fits.HDUList(d if isinstance(d, fits.HDUList) else
-                 [fits.PrimaryHDU] + [write_to_hdu(d, name=name)]).writeto(_ofile, overwrite=True,
+                 [fits.PrimaryHDU()] + [write_to_hdu(d, name=name)]).writeto(_ofile, overwrite=True,
                                                                            checksum=checksum)
 
     # Compress the file if the output filename has a '.gz' extension;
     # this is slow but still faster than if you have astropy.io.fits do
     # it directly
+    # TODO: use pypmsgs?
     if _ofile is not ofile:
-        msgs.info('Compressing file to: {0}'.format(ofile))
-        io.compress_file(_ofile, overwrite=True)
-    else:
-        msgs.info('File written to: {0}'.format(ofile))
+        print('Compressing file: {0}'.format(_ofile))
+        compress_file(_ofile, overwrite=True)
+    print('File written to: {0}'.format(ofile))
 
