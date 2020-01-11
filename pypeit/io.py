@@ -461,6 +461,7 @@ def write_to_hdu(d, name=None):
     dictionaries are passed to :func:`dict_to_hdu`.
     
     .. warning::
+
         If ``d`` is a list, the method assumes that the list is
         essentially an array that can be sensibly converted to a
         `numpy.ndarray`_.
@@ -472,13 +473,14 @@ def write_to_hdu(d, name=None):
             Name for the HDU extension.
 
     Returns:
-        `astropy.fits.ImageHDU`_, `astropy.fits.BinTableHDU`_: HDU
-        with the data.
+        `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
+        HDU with the data.
 
     Raises:
         TypeError:
             Raised if the input object is not one of the allowed
             types.
+
     """
     if isinstance(d, dict):
         return dict_to_hdu(d, name=name)
@@ -513,8 +515,7 @@ def write_to_fits(d, ofile, name=None, overwrite=False, checksum=True):
         was true in the past).
 
     Args:
-        d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_,
-            `astropy.table.Table`_, `astropy.io.fits.HDUList`_):
+        d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_, `astropy.table.Table`_, `astropy.io.fits.HDUList`_):
             Object to write to the HDU. See :func:`write_to_hdu`.
         ofile (:obj:`str`):
             File name (path) for the fits file.

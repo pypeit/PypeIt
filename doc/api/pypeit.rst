@@ -21,6 +21,7 @@ Submodules
    pypeit.bitmask
    pypeit.calibrations
    pypeit.check_requirements
+   pypeit.datamodel
    pypeit.debugger
    pypeit.edgetrace
    pypeit.flatfield

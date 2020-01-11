@@ -453,8 +453,7 @@ class DataContainer:
         This is primarily a wrapper for :func:`_parse`.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_,
-                 `astropy.io.fits.BinTableHDU`_):
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
         """
         # NOTE: We can't use `cls(cls._parse(hdu))` here because this
