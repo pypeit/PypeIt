@@ -42,6 +42,7 @@
 .. _astropy.io.fits.BinTableHDU: https://docs.astropy.org/en/stable/io/fits/api/tables.html#bintablehdu
 .. _astropy.io.fits.Column: https://docs.astropy.org/en/stable/io/fits/api/tables.html#column
 .. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
+.. _astropy.table.Table.read: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.read
 .. _astropy.wcs.wcs.WCS: http://docs.astropy.org/en/stable/api/astropy.wcs.WCS.html
 .. _astropy.modeling: http://docs.astropy.org/en/stable/modeling/index.html
 .. _astropy.modeling.polynomial.Legendre1D: http://docs.astropy.org/en/stable/api/astropy.modeling.polynomial.Legendre1D.html

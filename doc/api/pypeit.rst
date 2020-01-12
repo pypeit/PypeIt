@@ -53,5 +53,6 @@ Module contents
 
 .. automodule:: pypeit
    :members:
+   :private-members:
    :undoc-members:
    :show-inheritance:
