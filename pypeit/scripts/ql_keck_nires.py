@@ -47,8 +47,9 @@ def main(pargs):
     # TODO -- Get the type_bits from  'science'
     bm = framematch.FrameTypeBitMask()
     bits = [bm.bits[iftype] for iftype in ['arc', 'science', 'tilt']]
-    #ps.fitstbl.set_frame_types(np.array([32]*2))  # 1=arc, 32=science
-    ps.fitstbl.set_frame_types(np.array([2**bits[0]+2**bits[1] + 2**bits[2]]*2))
+
+    file_bits = np.array(bits)
+    ps.fitstbl.set_frame_types(file_bits)
     ps.fitstbl.set_combination_groups()
     # Extras
     ps.fitstbl['setup'] = 'A'

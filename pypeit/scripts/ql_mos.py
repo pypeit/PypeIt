@@ -72,11 +72,9 @@ def main(pargs):
     data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
                   os.path.join(pargs.full_rawpath, pargs.flat),
                   os.path.join(pargs.full_rawpath,pargs.science)]
-    # Damn JFH sorting
-    asrt = np.argsort(np.array(data_files))
 
     # Setup
-    ps = pypeitsetup.PypeItSetup(np.array(data_files)[asrt].tolist(), path='./', spectrograph_name=spec,
+    ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec,
                                  cfg_lines=cfg_lines)
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
@@ -87,6 +85,16 @@ def main(pargs):
                               ['pixelflat', 'trace'] if pargs.user_pixflat is None else 'trace')
     file_bits[2] = bm.turn_on(file_bits[2], 'science')
 
+    # PypeItSetup sorts according to MJD
+    #   Deal with this
+    asrt = []
+    for ifile in data_files:
+        bfile = os.path.basename(ifile)
+        idx = ps.fitstbl['filename'].data.tolist().index(bfile)
+        asrt.append(idx)
+    asrt = np.array(asrt)
+
+    # Set bits
     ps.fitstbl.set_frame_types(file_bits[asrt])
     ps.fitstbl.set_combination_groups()
     # Extras
