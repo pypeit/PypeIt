@@ -24,7 +24,7 @@ PypeIt depends on the following list of Python packages.
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
 * `python <http://www.python.org/>`_ version 3.6 or later
-* `numpy <http://www.numpy.org/>`_ version 1.15.4 or later
+* `numpy <http://www.numpy.org/>`_ version 1.16 or later
 * `astropy <http://www.astropy.org/>`_ version 3.1 or later
 * `scipy <http://www.scipy.org/>`_ version 1.1 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.0 or later
@@ -137,7 +137,9 @@ To run the test::
 
 The test takes a while to run but should run without issue if all the packages have been properly installed. 
 
-PIP
-===
+Developers
+==========
 
-For the developers, see :doc:`pyp_twine` for details on how to push a new build to PyPI.
+For developers, see :doc:`development`.
+
+

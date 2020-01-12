@@ -1,9 +1,8 @@
 """
 Module to define the SlitMask class
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-.. _scipy.optimize.least_squares: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 from collections import OrderedDict
 import warnings

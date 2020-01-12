@@ -1,8 +1,8 @@
 """
 Implements HIRES-specific functions, including reading in slitmask design files.
 
-.. _astropy.io.fits.Header: http://docs.astropy.org/en/stable/io/fits/api/headers.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import glob
 import re

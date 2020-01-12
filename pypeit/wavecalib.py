@@ -17,7 +17,8 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit import edgetrace
 from pypeit.core import arc, qa, pixels
-from pypeit.core.wavecal import autoid, waveio, identify, templates
+from pypeit.core.wavecal import autoid, waveio, templates
+from pypeit.core.gui import identify as gui_identify
 
 
 
@@ -124,7 +125,10 @@ class WaveCalib(masterframe.MasterFrame):
             #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
                 self.gpm &= self.msarc.image < self.nonlinear_counts
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
+            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
+                                                         self.tslits_dict['slit_righ'],
+                                                         self.tslits_dict['nspec'],
+                                                         self.tslits_dict['nspat'])
 
         else:
             self.slitmask_science = None
@@ -207,7 +211,7 @@ class WaveCalib(masterframe.MasterFrame):
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
             # Todo : Generalise to multislit case
-            arcfitter = identify.initialise(arccen, par=self.par)
+            arcfitter = gui_identify.initialise(arccen, par=self.par)
             final_fit = arcfitter.get_results()
             slit = 0
             if final_fit[str(slit)] is not None:

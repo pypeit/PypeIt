@@ -8,8 +8,6 @@ This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
 """
 import argparse
-from IPython import embed
-
 import os
 
 import numpy as np
@@ -40,6 +38,9 @@ def parser(options=None):
     parser.add_argument('--det', default=1, type=int, help='Detector number')
     parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
                         action='store_true')
+    parser.add_argument('--removetrace', default=False, help="Do not overplot traces in the skysub, "
+                                                             "sky_resid and resid channels",
+                        action = "store_true")
     parser.add_argument('--embed', default=False, help='Upon completion embed in ipython shell',
                         action='store_true')
 
@@ -158,6 +159,7 @@ def main(args):
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg, bitmask=mask_in, clear=True)
                                   #, cuts=(cut_min, cut_max), wcs_match=True)
+    show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                      #, args.det)
 
@@ -171,32 +173,29 @@ def main(args):
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
                                   bitmask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
-
-    if sobjs is not None:
-        show_trace(sobjs, args.det, viewer, ch)
+    if not args.removetrace and sobjs is not None:
+            show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
-                    #, args.det)
+
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (mask == 0)  # sky residual map
     viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
                                   cuts=(-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
-    if sobjs is not None:
-        show_trace(sobjs, args.det, viewer, ch)
+    if not args.removetrace and sobjs is not None:
+            show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
-                    #, args.det)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
     image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (mask == 0)
     viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
-                                  cuts = (-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
-    if sobjs is not None:
-        show_trace(sobjs, args.det, viewer, ch)
+                                  cuts = (-5.0, 5.0), bitmask = mask_in)
+    if not args.removetrace and sobjs is not None:
+            show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
-                    #, args.det)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

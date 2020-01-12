@@ -1,8 +1,8 @@
 """
 Class for guiding calibration object generation in PypeIt
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 
@@ -181,11 +181,12 @@ class Calibrations(object):
                 :attr:`master_key_dict`.
             master_type (:obj:`str`, :obj:`tuple`):
                 One or more keywords setting the type of master frame
-                being saved to :attr:`calib_dict`.  E.g.
-                `master_type=bpm` for the data saved to
-                `self.calib_dict['A_01_1']['bpm'].
+                being saved to :attr:`calib_dict`. E.g.
+                ``master_type=bpm`` for the data saved to
+                ``self.calib_dict['A_01_1']['bpm']``.
             data (object, :obj:`tuple`):
                 One or more data objects to save to :attr:`calib_dict`.
+
         """
         # Handle a single entry
         _master_type = master_type if isinstance(master_type, tuple) else (master_type,)
@@ -660,7 +661,6 @@ class Calibrations(object):
                                                     files=self.trace_image_files, det=self.det,
                                                     par=self.par['traceframe'],
                                                     bias=self.msbias)
-
             self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             try:

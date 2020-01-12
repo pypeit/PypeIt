@@ -70,7 +70,7 @@ def test_load_nires():
 
 @dev_suite_required
 def test_load_nirspec():
-    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRSPEC', 'NIRSPEC-1',
+    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRSPEC', 'LOW_NIRSPEC-1',
                          'NS.20160414.02604.fits.gz')
     try:
         # First amplifier
@@ -124,7 +124,7 @@ def test_load_vlt_xshooter_nir():
 
 @dev_suite_required
 def test_load_gnirs():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/GNIRS/',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/32_SB_SXD/',
                          'cN20170331S0206.fits')
     try:
         data_img = grab_img('gemini_gnirs', ifile)

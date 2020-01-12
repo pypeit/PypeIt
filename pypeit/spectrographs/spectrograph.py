@@ -23,10 +23,8 @@ provide instrument-specific:
     - default parameters for PypeIt's algorithms
     - method to access an archival sky spectrum
 
-.. _astropy.io.fits: http://docs.astropy.org/en/stable/io/fits/
-.. _astropy.io.fits.Header: http://docs.astropy.org/en/stable/io/fits/api/headers.html
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import warnings
@@ -306,7 +304,7 @@ class Spectrograph(object):
         # Return
         return bpm_img
 
-    def bpm(self, filename, det, shape=None, msbias=None):
+    def bpm(self, filename, det, shape=None):
         """
         Generate a default bad-pixel mask.
 

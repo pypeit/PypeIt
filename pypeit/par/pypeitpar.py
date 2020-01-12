@@ -230,6 +230,7 @@ class ProcessImagesPar(ParSet):
                                 'order, window size ; for \'median\', set overscan_par = ' \
                                 'None or omit the keyword.'
 
+        # TODO I don't think this option is implemented? Deprecate?
         defaults['match'] = -1
         dtypes['match'] = [int, float]
         descr['match'] = '(Deprecate?) Match frames with pixel counts that are within N-sigma ' \
@@ -657,8 +658,7 @@ class FlexurePar(ParSet):
 
 class Coadd2DPar(ParSet):
     """
-    A parameter set holding the arguments for how to perform the flux
-    calibration.
+    A parameter set holding the arguments for how to perform 2D coadds
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
@@ -909,7 +909,7 @@ class ManualExtractionParOld(ParSet):
             must go through, 500 is the spectral location that the trace
             must go through, and the last two numbers (10,10) are the
             widths around the stated (spatial,spectral) location that
-            should also be in the trace.'
+            should also be in the trace.
     """
     def __init__(self, frame=None, params=None):
 
@@ -1062,7 +1062,7 @@ class ReducePar(ParSet):
         # be rethought.
         return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
                 'keck_nires', 'keck_hires_red', 'keck_hires_blue', 'mmt_binospec',
-                'keck_nirspec_low', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
+                'keck_nirspec_low', 'keck_mosfire', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
                 'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
                 'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
                 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
@@ -1255,7 +1255,7 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['n_final'] = 4
         dtypes['n_final'] = [int, float, list, numpy.ndarray]
-        descr['n_final'] = 'Order of final fit to the wavelength solution. This can be a single number or a list/array providing the value for each slit'
+        descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit'
 
 
         defaults['sigrej_final'] = 3.0
@@ -1976,8 +1976,7 @@ class ScienceImagePar(ParSet):
                  find_trim_edge=None, find_cont_fit=None, find_npoly_cont=None,
                  find_fwhm=None, find_maxdev=None, find_extrap_npoly=None, ech_find_max_snr=None,
                  ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 std_prof_nsigma=None,
-                 model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
+                 std_prof_nsigma=None, model_full_slit=None, no_poly=None, manual=None, sky_sigrej=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2382,7 +2381,7 @@ class PypeItPar(ParSet):
 
         # Coadd2D
         defaults['coadd2d'] = Coadd2DPar()
-        dtypes['fluxcalib'] = [ParSet, dict]
+        dtypes['coadd2d'] = [ParSet, dict]
         descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
 
         # Instantiate the parameter set
@@ -2527,7 +2526,7 @@ class PypeItPar(ParSet):
         """
         # Get the base parameters in a ConfigObj instance
         cfg = ConfigObj(PypeItPar().to_config() if cfg_lines is None else cfg_lines)
-        
+
         # Merge in additional parameters
         if merge_with is not None:
             cfg.merge(ConfigObj(merge_with))

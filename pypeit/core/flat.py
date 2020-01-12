@@ -210,7 +210,8 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     # Demand at least 10 pixels per row (on average) per degree of the polynomial
     if npoly is None:
         npoly_in = 7
-        npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
+        npoly  = np.clip(npoly_in, 1, np.ceil(npercol/10.).astype(int))
+        #npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
 
     ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
@@ -469,6 +470,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     # ToDo Add some code here to treat the edges and places where fits go bad?
     # Set the pixelflat to 1.0 wherever the flat was nonlinear
     pixelflat[flat >= nonlinear_counts] = 1.0
+    # Do not apply pixelflat field corrections that are greater than 100% to avoid creating edge effects, etc.
+    # TODO Should we do the same for the illumflat??
+    #pixelflat = np.fmax(np.fmin(pixelflat, 2.0), 0.5)
+    pixelflat = np.clip(pixelflat, 0.5, 2.0)
 
     return pixelflat, illumflat, flat_model, tilts, thismask_out, slit_left_out, slit_righ_out
 

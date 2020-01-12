@@ -6,6 +6,7 @@ Subpackages
 
 .. toctree::
 
+   pypeit.core.gui
    pypeit.core.wavecal
 
 Submodules
@@ -42,5 +43,6 @@ Module contents
 
 .. automodule:: pypeit.core
    :members:
+   :private-members:
    :undoc-members:
    :show-inheritance:

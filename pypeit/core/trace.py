@@ -8,10 +8,8 @@ TODO: Add object and wavelength tracing routines here?
 TODO: Is there a way that we could define this link so that it's
 accessible by the docstring of all modules?
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
-.. _scipy.ndimage.sobel: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.sobel.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 from collections import Counter
 

@@ -1,32 +1,4 @@
-.. _bumpversion: https://pypi.org/project/bumpversion/
-
-.. _repo: https://github.com/pypeit/PypeIt
-
-.. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite
-
-.. _Sphinx: https://www.sphinx-doc.org/en/master/index.html
-
-.. _reStructuredText: http://docutils.sourceforge.net/rst.html
-
-.. _Google-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google
-
-.. _Numpy-format docstrings: https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html#example-numpy
-
-.. _rclone: https://rclone.org/
-
-.. _pip: https://pip.pypa.io/en/stable/
-
-.. _pdb: https://docs.python.org/3/library/pdb.html
-
-.. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
-
-.. _pytest: https://docs.pytest.org/en/latest/
-
-.. _documentation: https://pypeit.readthedocs.io/en/latest/
-
-.. _Joe Hennawi: joe@physics.ucsb.edu
-
-.. _X Prochaska: xavier@ucolick.org
+.. include:: links.rst
 
 .. _development:
 
@@ -179,8 +151,9 @@ To test PypeIt using the data from the Google TeamDrive:
 
    .. warning::
 
-        The ``RAW_DATA`` directory currently contains about 20 GB of
-        data.
+        The ``RAW_DATA`` directory currently contains about 22 Gb of
+        data, and running the develop test below produces about 26 Gb of
+        reduced data.
 
  * Run the test suite on the setups designated for development purposes:
 
@@ -382,27 +355,12 @@ The tagging process is as follows:
    merged into ``develop``.  This "grace" period can be circumvented for
    critical hotfixes to ``master``.
 
- * If the intent is to merge ``develop`` into ``master``, a new branch
-   is created that stages the development code for tagging and merging:
-
-   .. code-block:: bash
-
-        cd $PYPEIT_DIR
-        git checkout develop
-        git pull
-        git checkout -b staged
-
-   At this point, additional development can continue by performing PRs
-   to the existing ``develop`` branch; however, ``staged`` should be
-   considered frozen except for the normal activities associated with a
-   PR.
-
  * A `PR <https://github.com/pypeit/PypeIt/compare>`_ is then issued to
-   merge ``staged`` into ``master`` and must meet the same `Pull Request
-   Acceptance Requirements`_ when merging new branches into ``develop``.
-   For these merges, particular attention should be paid to the accuracy
-   of the `documentation`_ and isolation of any code that is
-   "unsupported."
+   merge ``develop`` or the hotfix into ``master`` and must meet the
+   same `Pull Request Acceptance Requirements`_ when merging new
+   branches into ``develop``.  For these merges, particular attention
+   should be paid to the accuracy of the `documentation`_ and isolation
+   of any code that is "unsupported."
 
  * Once the PR is accepted *but before being merged into master*, the
    code is tagged as follows (uses `bumpversion`_):
@@ -423,9 +381,34 @@ The tagging process is as follows:
         git push
         git push --tags
 
- * The PR is accepted and ``staged`` is merged into ``master``.
+ * The PR is accepted and ``develop`` or the hotfix is merged into
+   ``master``.  Hotfix branches are deleted, but the ``develop`` branch
+   should not be.
 
  * The tag is released for `pip`_ installation.
+
+    .. code-block:: bash
+
+        # Make sure you have twine installed
+        pip install twine
+        # Construct the pip distribution
+        python setup.py sdist bdist_wheel
+        # Test the upload
+        twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+        # Upload, this time it's for keeps
+        twine upload dist/*
+
+    For the uploading, you need a ``~/.pypirc`` file that looks like this:
+
+    .. code-block:: ini
+
+        [distutils]
+        index-servers = pypi
+
+        [pypi]
+        repository = https://upload.pypi.org/legacy/
+        username = pypeit
+        password = [ask for this]
 
  * A branch is created to advance the version of the code to a
    development version string and to update ``develop`` with the new
@@ -454,8 +437,8 @@ The tagging process is as follows:
 
 ----
 
-This document was developed and mutually agreed upon by: Kyle Westfall
+This document was developed and mutually agreed upon by: Kyle Westfall, J. Xavier Prochaska, Joseph Hennawi
 
-*Last Modified: 19 Nov 2019*
+*Last Modified: 20 Dec 2019*
 
 

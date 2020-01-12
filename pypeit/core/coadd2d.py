@@ -1,8 +1,8 @@
 """
 Module for performing two-dimensional coaddition of spectra.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import copy
@@ -33,78 +33,111 @@ from pypeit.images import scienceimage
 from pypeit.spectrographs import util
 
 
-def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
+#def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
+#    """
+#    Utility function for determining the reference trace about which 2d coadds are performed.
+#    There are two modes of operation to determine the reference trace for the 2d coadd of a given slit/order:
+#
+#     1) offsets: we stack about the center of the slit for the slit in question with the input offsets added
+#     2) ojbid: we stack about the trace ofa reference object for this slit given for each exposure by the input objid
+#
+#    Either offsets or objid must be provided, but the code will raise an exception if both are provided.
+#
+#    Args:
+#        slitid (int):
+#           The slit or order that we are currently considering
+#        stack_dict (dict):
+#           Dictionary containing all the images and keys required for perfomring 2d coadds.
+#        offsets (list or np.ndarray):
+#           An array of offsets with the same dimensionality as the nexp, the numer of images being coadded.
+#        objid: (list or np.ndarray):
+#           An array of objids with the same dimensionality as the nexp, the number of images being coadded.
+#
+#    Returns:
+#        ref_trace_stack
+#
+#        ref_trace_stack (np.ndarray):
+#            An array with shape (nspec, nexp) containing the reference trace for each of the nexp exposures.
+#
+#    """
+#
+#    if offsets is not None and objid is not None:
+#        msgs.errror('You can only input offsets or an objid, but not both')
+#    nexp = len(offsets) if offsets is not None else len(objid)
+#    if offsets is not None:
+#        tslits_dict_list = stack_dict['tslits_dict_list']
+#        nspec, nslits = tslits_dict_list[0]['slit_left'].shape
+#        ref_trace_stack = np.zeros((nspec, nexp))
+#        for iexp, tslits_dict in enumerate(tslits_dict_list):
+#            ref_trace_stack[:, iexp] = (tslits_dict[:, slitid]['slit_left'] + tslits_dict[:, slitid]['slit_righ'])/2.0 + offsets[iexp]
+#    elif objid is not None:
+#        specobjs_list = stack_dict['specobjs_list']
+#        nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
+#        # Grab the traces, flux, wavelength and noise for this slit and objid.
+#        ref_trace_stack = np.zeros((nspec, nexp), dtype=float)
+#        for iexp, sobjs in enumerate(specobjs_list):
+#            # TODO Should be as in optimal_weights
+#            ithis = (sobjs.SLITID == slitid) & (sobjs.OBJID == objid[iexp])
+#            ref_trace_stack[:, iexp] = sobjs[ithis].TRACE_SPAT
+#    else:
+#        msgs.error('You must input either offsets or an objid to determine the stack of reference traces')
+#
+#    return ref_trace_stack
 
-    if offsets is not None and objid is not None:
-        msgs.errror('You can only input offsets or an objid, but not both')
-    nexp = len(offsets) if offsets is not None else len(objid)
-    # There are two modes of operation to determine the reference trace for the 2d coadd of a given slit/order
-    # --------------------------------------------------------------------------------------------------------
-    # 1) offsets: we stack about the central trace for the slit in question with the input offsets added
-    # 2) ojbid: we stack about the trace of reference object for this slit given for each exposure by the input objid
-    if offsets is not None:
-        tslits_dict_list = stack_dict['tslits_dict_list']
-        nspec, nslits = tslits_dict_list[0]['slit_left'].shape
-        ref_trace_stack = np.zeros((nspec, nexp))
-        for iexp, tslits_dict in enumerate(tslits_dict_list):
-            ref_trace_stack[:, iexp] = (tslits_dict[:, slitid]['slit_left'] + tslits_dict[:, slitid]['slit_righ'])/2.0 + offsets[iexp]
-    elif objid is not None:
-        specobjs_list = stack_dict['specobjs_list']
-        nspec = specobjs_list[0][0].trace_spat.shape[0]
-        # Grab the traces, flux, wavelength and noise for this slit and objid.
-        ref_trace_stack = np.zeros((nspec, nexp), dtype=float)
-        for iexp, sobjs in enumerate(specobjs_list):
-            ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
-            ref_trace_stack[:, iexp] = sobjs[ithis].trace_spat
-    else:
-        msgs.error('You must input either offsets or an objid to determine the stack of reference traces')
-
-    return ref_trace_stack
-
-def optimal_weights(specobjs_list, slitid, objid, sn_smooth_npix, const_weights=False):
-    """
-    Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
-    object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
-    each exposure. This routine will also pass back the trace and the wavelengths (optimally extracted) for each
-    exposure.
-
-    Args:
-        specobjs_list: list
-           list of SpecObjs objects contaning the objects that were extracted from each frame that will contribute
-           to the coadd.
-        slitid: int
-           The slitid that has the brightest object whose S/N will be used to determine the weight for each frame.
-        objid: int
-           The objid index of the brightest object whose S/N will be used to determine the weight for each frame.
-
-    Returns:
-        tuple: Returns the following:
-            - rms_sn : ndarray, shape = (len(specobjs_list),): Root mean
-              square S/N value for each input spectra
-            - weights : ndarray, shape (len(specobjs_list),): Weights to
-              be applied to the spectra. These are signal-to-noise
-              squared weights.
-    """
-
-    nexp = len(specobjs_list)
-    nspec = specobjs_list[0][0].trace_spat.shape[0]
-    # Grab the traces, flux, wavelength and noise for this slit and objid.
-    flux_stack = np.zeros((nspec, nexp), dtype=float)
-    ivar_stack = np.zeros((nspec, nexp), dtype=float)
-    wave_stack = np.zeros((nspec, nexp), dtype=float)
-    mask_stack = np.zeros((nspec, nexp), dtype=bool)
-
-    for iexp, sobjs in enumerate(specobjs_list):
-        ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
-        flux_stack[:,iexp] = sobjs[ithis][0].optimal['COUNTS']
-        ivar_stack[:,iexp] = sobjs[ithis][0].optimal['COUNTS_IVAR']
-        wave_stack[:,iexp] = sobjs[ithis][0].optimal['WAVE']
-        mask_stack[:,iexp] = sobjs[ithis][0].optimal['MASK']
-
-    # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-    rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, sn_smooth_npix,
-                                         const_weights=const_weights)
-    return rms_sn, weights.T
+#def optimal_weights(specobjs_list, slitid, objid, sn_smooth_npix, const_weights=False):
+#    """
+#    Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
+#    object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
+#    each exposure.
+#
+#    Args:
+#        specobjs_list (list):
+#           list of SpecObjs objects contaning the objects that were extracted from each frame that will contribute
+#           to the coadd.
+#        slitid (int):
+#           The slitid that has the brightest object whose S/N will be used to determine the weight for each frame.
+#        objid (int):
+#           The objid index of the brightest object whose S/N will be used to determine the weight for each frame.
+#        sn_smooth_npix (float):
+#           Number of pixels used for determining smoothly varying S/N ratio weights.
+#        const_weights (bool):
+#           Use constant weights for coadding the exposures. Default=False
+#
+#    Returns:
+#        rms_sn, weights
+#
+#        rms_sn : ndarray, shape = (len(specobjs_list),)
+#            Root mean square S/N value for each input spectra
+#        weights : ndarray, shape (len(specobjs_list),)
+#            Weights to be applied to the spectra. These are signal-to-noise squared weights.
+#    """
+#
+#    nexp = len(specobjs_list)
+#    nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
+#    # Grab the traces, flux, wavelength and noise for this slit and objid.
+#    flux_stack = np.zeros((nspec, nexp), dtype=float)
+#    ivar_stack = np.zeros((nspec, nexp), dtype=float)
+#    wave_stack = np.zeros((nspec, nexp), dtype=float)
+#    mask_stack = np.zeros((nspec, nexp), dtype=bool)
+#
+#    for iexp, sobjs in enumerate(specobjs_list):
+#        embed()
+#        try:
+#            ithis = (sobjs.SLITID == slitid) & (sobjs.OBJID == objid[iexp])
+#        except AttributeError:
+#            ithis = (sobjs.ECH_ORDERINDX == slitid) & (sobjs.ECH_OBJID == objid[iexp])
+#        try:
+#            flux_stack[:,iexp] = sobjs[ithis][0].OPT_COUNTS
+#        except:
+#            embed(header='104')
+#        ivar_stack[:,iexp] = sobjs[ithis][0].OPT_COUNTS_IVAR
+#        wave_stack[:,iexp] = sobjs[ithis][0].OPT_WAVE
+#        mask_stack[:,iexp] = sobjs[ithis][0].OPT_MASK
+#
+#    # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
+#    rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, sn_smooth_npix,
+#                                         const_weights=const_weights)
+#    return rms_sn, weights.T
 
 def det_error_msg(exten, sdet):
     # Print out error message if extension is not found
@@ -306,7 +339,6 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
             = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
                       inmask_stack, sci_list, var_list)
-
     # Now compute the final stack with sigma clipping
     sigrej = 3.0
     maxiters = 10
@@ -562,6 +594,77 @@ class Coadd2d(object):
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
+    def optimal_weights(self, slitorderid, objid, const_weights=False):
+        """
+        Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
+        object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
+        each exposure.
+
+        Args:
+            slitorderid (int):
+               The slit or order id that has the brightest object whose S/N will be used to determine the weight for each frame.
+            objid (np.ndarray):
+               Array of object indices with  shape = (nexp,) of the brightest object whose S/N will be used to determine the weight for each frame.
+            const_weights (bool):
+               Use constant weights for coadding the exposures. Default=False
+
+        Returns:
+            rms_sn : ndarray, shape = (len(specobjs_list),)
+                Root mean square S/N value for each input spectra
+            weights : ndarray, shape (len(specobjs_list),)
+                Weights to be applied to the spectra. These are signal-to-noise squared weights.
+        """
+
+        nexp = len(self.stack_dict['specobjs_list'])
+        nspec = self.stack_dict['specobjs_list'][0][0].TRACE_SPAT.shape[0]
+        # Grab the traces, flux, wavelength and noise for this slit and objid.
+        flux_stack = np.zeros((nspec, nexp), dtype=float)
+        ivar_stack = np.zeros((nspec, nexp), dtype=float)
+        wave_stack = np.zeros((nspec, nexp), dtype=float)
+        mask_stack = np.zeros((nspec, nexp), dtype=bool)
+
+        for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
+            ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
+            flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS
+            ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR
+            wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE
+            mask_stack[:, iexp] = sobjs[ithis].OPT_MASK
+
+        # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
+        rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
+                                             const_weights=const_weights)
+        return rms_sn, weights.T
+
+
+    def coadd(self, only_slits=None):
+
+        only_slits = [only_slits] if (only_slits is not None and
+                                      isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
+        good_slits = np.arange(self.nslits) if only_slits is None else only_slits
+
+        coadd_list = []
+        for islit in good_slits:
+            msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(islit, self.nslits - 1))
+            ref_trace_stack = self.reference_trace_stack(islit, offsets=self.offsets, objid=self.objid_bri)
+            thismask_stack = self.stack_dict['slitmask_stack'] == islit
+            # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
+            # (nslit, nexp) array?
+            # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
+            # would need to copy this method twice in the subclasses
+            if 'auto_echelle' in self.use_weights:
+                rms_sn, weights = self.optimal_weights(islit, self.objid_bri)
+            else:
+                weights = self.use_weights
+            # Perform the 2d coadd
+            coadd_dict = compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
+                                           self.stack_dict['sciivar_stack'],
+                                           self.stack_dict['skymodel_stack'], self.stack_dict['mask_stack'] == 0,
+                                           self.stack_dict['tilts_stack'], thismask_stack,
+                                           self.stack_dict['waveimg_stack'],
+                                           self.wave_grid, weights=weights)
+            coadd_list.append(coadd_dict)
+
+        return coadd_list
 
 
     def create_psuedo_image(self, coadd_list):
@@ -688,7 +791,7 @@ class Coadd2d(object):
         parcopy['scienceimage']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
         redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], parcopy, psuedo_dict['tilts'],
-                                      ir_redux=self.ir_redux, objtype = 'science', det=self.det, binning=self.binning)
+                                      ir_redux=self.ir_redux, objtype = 'science_coadd2d', det=self.det, binning=self.binning)
 
         if show:
             redux.show('image', image=psuedo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
@@ -705,10 +808,12 @@ class Coadd2d(object):
 
         # Add the information about the fixed wavelength grid to the sobjs
         for spec in sobjs:
-            spec.boxcar['WAVE_GRID_MASK'], spec.optimal['WAVE_GRID_MASK'] =  [psuedo_dict['wave_mask'][:,spec.slitid]]*2
-            spec.boxcar['WAVE_GRID'], spec.optimal['WAVE_GRID'] =  [psuedo_dict['wave_mid'][:,spec.slitid]]*2
-            spec.boxcar['WAVE_GRID_MIN'], spec.optimal['WAVE_GRID_MIN'] = [psuedo_dict['wave_min'][:,spec.slitid]]*2
-            spec.boxcar['WAVE_GRID_MAX'], spec.optimal['WAVE_GRID_MAX']= [psuedo_dict['wave_max'][:,spec.slitid]]*2
+            idx = spec.slit_orderindx
+            # Fill
+            spec.BOX_WAVE_GRID_MASK, spec.OPT_WAVE_GRID_MASK = [psuedo_dict['wave_mask'][:,idx]]*2
+            spec.BOX_WAVE_GRID, spec.OPT_WAVE_GRID = [psuedo_dict['wave_mid'][:,idx]]*2
+            spec.BOX_WAVE_GRID_MIN, spec.OPT_WAVE_GRID_MIN = [psuedo_dict['wave_min'][:,idx]]*2
+            spec.BOX_WAVE_GRID_MAX, spec.OPT_WAVE_GRID_MAX = [psuedo_dict['wave_max'][:,idx]]*2
 
         # Add the rest to the psuedo_dict
         psuedo_dict['skymodel'] = skymodel_psuedo
@@ -766,39 +871,33 @@ class Coadd2d(object):
         ref_trace_stack = np.zeros((nspec, nexp))
         for iexp, tslits_dict in enumerate(tslits_dict_list):
             ref_trace_stack[:, iexp] = (tslits_dict['slit_left'][:, slitid] +
-                                        tslits_dict['slit_righ'][:, slitid])/2.0 + offsets[iexp]
+                                        tslits_dict['slit_righ'][:, slitid])/2.0 - offsets[iexp]
         return ref_trace_stack
 
-    def coadd(self, only_slits=None):
-
-        only_slits = [only_slits] if (only_slits is not None and
-                                      isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
-        good_slits = np.arange(self.nslits) if only_slits is None else only_slits
-
-        coadd_list = []
-        for islit in good_slits:
-            msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(islit, self.nslits - 1))
-            ref_trace_stack = self.reference_trace_stack(islit, offsets=self.offsets, objid=self.objid_bri)
-            thismask_stack = self.stack_dict['slitmask_stack'] == islit
-            # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
-            # would need to copy this method twice in the subclasses
-            if 'auto_echelle' in self.use_weights:
-                rms_sn, weights = optimal_weights(self.stack_dict['specobjs_list'], islit, self.objid_bri,
-                                                  self.sn_smooth_npix)
-            else:
-                weights = self.use_weights
-            # Perform the 2d coadd
-            coadd_dict = compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
-                                           self.stack_dict['sciivar_stack'],
-                                           self.stack_dict['skymodel_stack'], self.stack_dict['mask_stack'] == 0,
-                                           self.stack_dict['tilts_stack'], thismask_stack,
-                                           self.stack_dict['waveimg_stack'],
-                                           self.wave_grid, weights=weights)
-            coadd_list.append(coadd_dict)
-
-        return coadd_list
-
     def get_wave_grid(self, **kwargs_wave):
+        """
+        Routine to create a wavelength grid for 2d coadds using all
+        of the wavelengths of the extracted objects. Calls
+        coadd1d.get_wave_grid.
+
+        Args:
+            **kwargs_wave (dict):
+                Optional argumments for coadd1d.get_wve_grid function
+
+        Returns:
+            tuple: Returns the following:
+                - wave_grid (np.ndarray): New wavelength grid, not
+                  masked
+                - wave_grid_mid (np.ndarray): New wavelength grid
+                  evaluated at the centers of the wavelength bins, that
+                  is this grid is simply offset from wave_grid by
+                  dsamp/2.0, in either linear space or log10 depending
+                  on whether linear or (log10 or velocity) was
+                  requested.  For iref or concatenate the linear
+                  wavelength sampling will be calculated.
+                - dsamp (float): The pixel sampling for wavelength grid
+                  created.
+        """
 
         nobjs_tot = np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum()
         waves = np.zeros((self.nspec, nobjs_tot))
@@ -806,8 +905,8 @@ class Coadd2d(object):
         indx = 0
         for spec_this in self.stack_dict['specobjs_list']:
             for spec in spec_this:
-                waves[:, indx] = spec.optimal['WAVE']
-                masks[:, indx] = spec.optimal['MASK']
+                waves[:, indx] = spec.OPT_WAVE
+                masks[:, indx] = spec.OPT_MASK
                 indx += 1
 
         wave_grid, wave_grid_mid, dsamp = coadd1d.get_wave_grid(waves, masks=masks, **kwargs_wave)
@@ -816,6 +915,7 @@ class Coadd2d(object):
 
     def load_coadd2d_stacks(self, spec2d_files):
         """
+        Routine to read in required images for 2d coadds given a list of spec2d files.
 
         Args:
             spec2d_files: list
@@ -872,13 +972,9 @@ class Coadd2d(object):
         waveimgfile, tiltfile, tracefile = None, None, None
         for ifile in range(nfiles):
             # Load up the calibs, if needed
-            if waveimgfiles[ifile] == waveimgfile:
-                pass
-            else:
+            if waveimgfiles[ifile] != waveimgfile:
                 waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
-            if tiltfile == tiltfiles[ifile]:
-                pass
-            else:
+            if tiltfile != tiltfiles[ifile]:
                 tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
             # Save
             waveimgfile = waveimgfiles[ifile]
@@ -924,10 +1020,7 @@ class Coadd2d(object):
                 slitmask_stack = np.zeros(shape_sci, dtype=float)
 
             # Slit Traces and slitmask
-#            tslits_dict, _ = TraceSlits.load_from_file(tracefiles[ifile])
-            if tracefile == tracefiles[ifile]:
-                pass
-            else:
+            if tracefile != tracefiles[ifile]:
                 tslits_dict \
                     = edgetrace.EdgeTraceSet.from_file(tracefiles[ifile]).convert_to_tslits_dict()
             tracefile = tracefiles[ifile]
@@ -946,7 +1039,7 @@ class Coadd2d(object):
             if os.path.isfile(spec1d_files[ifile]):
                 sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
                 head1d_list.append(sobjs.header)
-                this_det = sobjs.DET == self.DET
+                this_det = sobjs.DET == self.det
                 specobjs_list.append(sobjs[this_det])
 
         # slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
@@ -1021,8 +1114,7 @@ class MultiSlitCoadd2d(Coadd2d):
     def parse_weights(self, weights):
 
         if 'auto' in weights:
-            rms_sn, use_weights = optimal_weights(self.stack_dict['specobjs_list'], self.slitid_bri, self.objid_bri,
-                                                  self.sn_smooth_npix, const_weights=True)
+            rms_sn, use_weights = self.optimal_weights(self.slitid_bri, self.objid_bri, const_weights=True)
             return use_weights
         elif 'uniform' in weights:
             return 'uniform'
@@ -1033,6 +1125,8 @@ class MultiSlitCoadd2d(Coadd2d):
         else:
             msgs.error('Unrecognized format for weights')
 
+    # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
+    # and another time to weighted_combine the images in compute2d. This could be sped up
     def compute_offsets(self):
 
         objid_bri, slitid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits)
@@ -1050,6 +1144,7 @@ class MultiSlitCoadd2d(Coadd2d):
         sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
         var_list = []
 
+        msgs.info('Rebinning Images')
         sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = rebin2d(
             wave_bins, dspat_bins, self.stack_dict['waveimg_stack'], dspat_stack, thismask_stack,
             (self.stack_dict['mask_stack'] == 0), sci_list, var_list)
@@ -1069,10 +1164,10 @@ class MultiSlitCoadd2d(Coadd2d):
                                            trim_edg=self.par['scienceimage']['find_trim_edge'],
                                            npoly_cont=self.par['scienceimage']['find_npoly_cont'],
                                            maxdev=self.par['scienceimage']['find_maxdev'],
-                                           ncoeff=3, sig_thresh=10.0, nperslit=1,
+                                           ncoeff=3, sig_thresh=self.par['scienceimage']['sig_thresh'], nperslit=1,
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
-            traces_rect[:, iexp] = sobjs_exp.trace_spat
+            traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
         med_traces_rect = np.median(traces_rect,axis=0)
         offsets = med_traces_rect[0] - med_traces_rect
@@ -1117,26 +1212,26 @@ class MultiSlitCoadd2d(Coadd2d):
                   S/N over all the orders for this object
         """
         nexp = len(specobjs_list)
-        nspec = specobjs_list[0][0].shape[0]
+        nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
 
         slit_snr_max = np.full((nslits, nexp), -np.inf)
         objid_max = np.zeros((nslits, nexp), dtype=int)
         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
             for islit in range(nslits):
-                ithis = sobjs.slitid == islit
+                ithis = sobjs.SLITID == islit
                 nobj_slit = np.sum(ithis)
                 if np.any(ithis):
-                    objid_this = sobjs[ithis].objid
+                    objid_this = sobjs[ithis].OBJID
                     flux = np.zeros((nspec, nobj_slit))
                     ivar = np.zeros((nspec, nobj_slit))
                     wave = np.zeros((nspec, nobj_slit))
                     mask = np.zeros((nspec, nobj_slit), dtype=bool)
                     for iobj, spec in enumerate(sobjs[ithis]):
-                        flux[:, iobj] = spec.optimal['COUNTS']
-                        ivar[:, iobj] = spec.optimal['COUNTS_IVAR']
-                        wave[:, iobj] = spec.optimal['WAVE']
-                        mask[:, iobj] = spec.optimal['MASK']
+                        flux[:, iobj] = spec.OPT_COUNTS
+                        ivar[:, iobj] = spec.OPT_COUNTS_IVAR
+                        wave[:, iobj] = spec.OPT_WAVE
+                        mask[:, iobj] = spec.OPT_MASK
                     rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
                     imax = np.argmax(rms_sn)
                     slit_snr_max[islit, iexp] = rms_sn[imax]
@@ -1155,6 +1250,8 @@ class MultiSlitCoadd2d(Coadd2d):
 
         return objid, slitid, snr_bar
 
+    # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
+    # single slit???
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
 
         return self.offset_slit_cen(slitid, offsets)
@@ -1205,7 +1302,7 @@ class EchelleCoadd2d(Coadd2d):
 
     def get_brightest_obj(self, specobjs_list, nslits):
         """
-        Utility routine to find the brightest object in each exposure given a specobjs_list for echelle reductions.
+        Utility routine to find the brightest object in each exposure given a specobjs_list for Echelle reductions.
 
         Args:
             specobjs_list: list
@@ -1221,22 +1318,21 @@ class EchelleCoadd2d(Coadd2d):
                   S/N over all the orders for this object
         """
         nexp = len(specobjs_list)
-        nspec = specobjs_list[0][0].shape[0]
 
         objid = np.zeros(nexp, dtype=int)
         snr_bar = np.zeros(nexp)
         # norders = specobjs_list[0].ech_orderindx.max() + 1
         for iexp, sobjs in enumerate(specobjs_list):
-            uni_objid = np.unique(sobjs.ech_objid)
+            uni_objid = np.unique(sobjs.ECH_OBJID)
             nobjs = len(uni_objid)
             order_snr = np.zeros((nslits, nobjs))
             for iord in range(nslits):
                 for iobj in range(nobjs):
-                    ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
-                    flux = sobjs[ind][0].optimal['COUNTS']
-                    ivar = sobjs[ind][0].optimal['COUNTS_IVAR']
-                    wave = sobjs[ind][0].optimal['WAVE']
-                    mask = sobjs[ind][0].optimal['MASK']
+                    ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
+                    flux = sobjs[ind][0].OPT_COUNTS
+                    ivar = sobjs[ind][0].OPT_COUNTS_IVAR
+                    wave = sobjs[ind][0].OPT_WAVE
+                    mask = sobjs[ind][0].OPT_MASK
                     rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
                     order_snr[iord, iobj] = rms_sn
 
@@ -1250,11 +1346,32 @@ class EchelleCoadd2d(Coadd2d):
         return objid, None, snr_bar
 
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
+        """
+        Utility function for determining the reference trace about which 2d coadds are performed.
+        There are two modes of operation to determine the reference trace for the 2d coadd of a given slit/order:
 
-        # There are two modes of operation to determine the reference trace for the Echelle 2d coadd of a given order
-        # --------------------------------------------------------------------------------------------------------
-        # 1) offsets: we stack about the central trace for the slit in question with the input offsets added
-        # 2) ojbid: we stack about the trace of reference object for this slit given for each exposure by the input objid
+         1) offsets: we stack about the center of the slit for the slit in question with the input offsets added
+         2) ojbid: we stack about the trace ofa reference object for this slit given for each exposure by the input objid
+
+        Either offsets or objid must be provided, but the code will raise an exception if both are provided.
+
+        Args:
+            slitid (int):
+               The slit or order that we are currently considering
+            stack_dict (dict):
+               Dictionary containing all the images and keys required for perfomring 2d coadds.
+            offsets (list or np.ndarray):
+               An array of offsets with the same dimensionality as the nexp, the numer of images being coadded.
+            objid: (list or np.ndarray):
+               An array of objids with the same dimensionality as the nexp, the number of images being coadded.
+
+        Returns:
+            ref_trace_stack
+
+            ref_trace_stack (np.ndarray):
+                An array with shape (nspec, nexp) containing the reference trace for each of the nexp exposures.
+
+        """
 
         if offsets is not None and objid is not None:
             msgs.errror('You can only input offsets or an objid, but not both')
@@ -1263,12 +1380,12 @@ class EchelleCoadd2d(Coadd2d):
             return self.offset_slit_cen(slitid, offsets)
         elif objid is not None:
             specobjs_list = self.stack_dict['specobjs_list']
-            nspec = specobjs_list[0][0].trace_spat.shape[0]
+            nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
             # Grab the traces, flux, wavelength and noise for this slit and objid.
             ref_trace_stack = np.zeros((nspec, nexp), dtype=float)
             for iexp, sobjs in enumerate(specobjs_list):
-                ithis = (sobjs.slitid == slitid) & (sobjs.objid == objid[iexp])
-                ref_trace_stack[:, iexp] = sobjs[ithis].trace_spat
+                ithis = (sobjs.ECH_ORDERINDX == slitid) & (sobjs.ECH_OBJID == objid[iexp])
+                ref_trace_stack[:, iexp] = sobjs[ithis].TRACE_SPAT
             return ref_trace_stack
         else:
             msgs.error('You must input either offsets or an objid to determine the stack of reference traces')

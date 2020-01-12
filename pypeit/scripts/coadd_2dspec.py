@@ -83,7 +83,7 @@ def parser(options=None):
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
     parser.add_argument("--debug_offsets", default=False, action="store_true",
-                        help="Not sure what this does")
+                        help="Show QA plots useful for debugging automatic offset determination")
     parser.add_argument("--peaks", default=False, action="store_true",
                         help="Show the peaks found by the object finding algorithm.")
     parser.add_argument("--basename", type=str, default=None,
@@ -115,10 +115,13 @@ def main(args):
         # TODO: Shouldn't this reinstantiate the same parameters used in
         # the PypeIt run that extracted the objects?  Why are we not
         # just passing the pypeit file?
+        # JFH: The reason is that the coadd2dfile may want different reduction parameters
         spectrograph_def_par = spectrograph.default_pypeit_par()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=config_lines)
     elif args.obj is not None:
+        # TODO: We should probably be reading the pypeit file and using those parameters here rather than using the
+        # default parset.
         # TODO: This needs to define the science path
         spec2d_files = glob.glob('./Science/spec2d_*' + args.obj + '*')
         head0 = fits.getheader(spec2d_files[0])
@@ -139,6 +142,7 @@ def main(args):
     for spec1d_file in spec1d_files:
         if os.path.isfile(spec1d_file):
             head1d = fits.getheader(spec1d_file)
+            break
     if head1d is None:
         msgs.warn("No 1D spectra so am generating a dummy header for output")
         head1d = io.initialize_header()
@@ -146,7 +150,7 @@ def main(args):
     head2d = fits.getheader(spec2d_files[0])
     if args.basename is None:
         filename = os.path.basename(spec2d_files[0])
-        basename = filename.split('_')[1]
+        basename = filename.split('_')[2]
     else:
         basename = args.basename
 
@@ -208,6 +212,7 @@ def main(args):
         # Create the psuedo images
         psuedo_dict = coadd.create_psuedo_image(coadd_dict_list)
         # Reduce
+        msgs.info('Running the extraction')
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
             psuedo_dict, show = args.show, show_peaks = args.peaks)
@@ -223,7 +228,7 @@ def main(args):
 
     # Save the results
     save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
-                  head2d, scipath, basename, binning=coadd.binning)
+                  head2d, scipath, basename)#, binning=coadd.binning)
 
 
 

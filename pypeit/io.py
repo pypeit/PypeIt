@@ -3,8 +3,8 @@
 """
 Provides a set of I/O routines.
 
-.. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import sys
@@ -16,6 +16,7 @@ from packaging import version
 import numpy
 
 from astropy.io import fits
+from astropy.table import Table
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -24,6 +25,7 @@ import astropy
 import sklearn
 import pypeit
 import time
+from IPython import embed
 
 def init_record_array(shape, dtype):
     r"""
@@ -49,44 +51,72 @@ def init_record_array(shape, dtype):
     """
     return numpy.zeros(shape, dtype=dtype).view(numpy.recarray)
 
-
-def rec_to_fits_type(rec_element):
+# TODO: Should probably rename this since it's no longer only used for
+# record arrays.
+def rec_to_fits_type(col_element, single_row=False):
     """
     Return the string representation of a fits binary table data type
-    based on the provided record array element.
+    based on the provided column element.
+
+    Args:
+        col_element (`numpy.ndarray`_):
+            The example data to write to a
+            `astropy.io.fits.BinTableHDU`_ used to determine the
+            column format.
+        single_row (:obj:`bool`, optional):
+            Flag that the provided object is the data written to a
+            single row for the `astropy.io.fits.BinTableHDU`_ column.
+
+    Returns:
+        str: String representation of the format for the column.
     """
-    n = 1 if len(rec_element[0].shape) == 0 else rec_element[0].size
-    if rec_element.dtype == numpy.bool:
+    _col_element = col_element if single_row else col_element[0]
+    n = 1 if len(_col_element.shape) == 0 else _col_element.size
+    if col_element.dtype == numpy.bool:
         return '{0}L'.format(n)
-    if rec_element.dtype == numpy.uint8:
+    if col_element.dtype == numpy.uint8:
         return '{0}B'.format(n)
-    if rec_element.dtype == numpy.int16 or rec_element.dtype == numpy.uint16:
+    if col_element.dtype == numpy.int16 or col_element.dtype == numpy.uint16:
         return '{0}I'.format(n)
-    if rec_element.dtype == numpy.int32 or rec_element.dtype == numpy.uint32:
+    if col_element.dtype == numpy.int32 or col_element.dtype == numpy.uint32:
         return '{0}J'.format(n)
-    if rec_element.dtype == numpy.int64 or rec_element.dtype == numpy.uint64:
+    if col_element.dtype == numpy.int64 or col_element.dtype == numpy.uint64:
         return '{0}K'.format(n)
-    if rec_element.dtype == numpy.float32:
+    if col_element.dtype == numpy.float32:
         return '{0}E'.format(n)
-    if rec_element.dtype == numpy.float64:
+    if col_element.dtype == numpy.float64:
         return '{0}D'.format(n)
     
     # If it makes it here, assume its a string
-    l = int(rec_element.dtype.str[rec_element.dtype.str.find('U')+1:])
+    l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])
 #    return '{0}A'.format(l) if n==1 else '{0}A{1}'.format(l*n,l)
     return '{0}A'.format(l*n)
 
 
-def rec_to_fits_col_dim(rec_element):
+def rec_to_fits_col_dim(col_element, single_row=False):
     """
     Return the string representation of the dimensions for the fits
-    table column based on the provided record array element.
+    table column based on the provided column element.
 
     The shape is inverted because the first element is supposed to be
     the most rapidly varying; i.e. the shape is supposed to be written
     as row-major, as opposed to the native column-major order in python.
+
+    Args:
+        col_element (`numpy.ndarray`_):
+            The example data to write to a
+            `astropy.io.fits.BinTableHDU`_ used to determine the
+            column dimension.
+        single_row (:obj:`bool`, optional):
+            Flag that the provided object is the data written to a
+            single row for the `astropy.io.fits.BinTableHDU`_ column.
+
+    Returns:
+        str: String representation of the column dimensions. Return
+        None if the object is not multidimensional.
     """
-    return None if len(rec_element[0].shape) == 1 else str(rec_element[0].shape[::-1])
+    _col_element = col_element if single_row else col_element[0]
+    return None if len(_col_element.shape) == 1 else str(_col_element.shape[::-1])
 
 
 def rec_to_bintable(arr, name=None, hdr=None):
@@ -158,7 +188,7 @@ def parse_hdr_key_group(hdr, prefix='F'):
 
     If the prefix is 'F', the header keywords are expected to be, e.g.,
     'F1', 'F2', 'F3', etc.  The list of values returned are then, e.g.,
-    [ hdr['F1'], hdr['F2'], hdr['F3'], ... ].  The function performs not
+    [ hdr['F1'], hdr['F2'], hdr['F3'], ... ].  The function performs no
     retyping, so the values in the returned list have whatever type they
     had in the fits header.
 
@@ -190,7 +220,13 @@ def parse_hdr_key_group(hdr, prefix='F'):
 
     # Convert from dictionary with integer keys to an appropriately
     # sorted list
-    return [values[i] for i in range(max(values.keys())+1)]
+    # JFH try/except added to deal with cases where no header cards were found with the desired
+    # prefix. I'm not sure returning an empty list is the desired behavior, but None will cause
+    # downstream things to crash.
+    try:
+        return [values[i] for i in range(max(values.keys())+1)]
+    except:
+        return []
 
 
 def initialize_header(hdr=None):
@@ -227,6 +263,7 @@ def initialize_header(hdr=None):
 
     # Return
     return hdr
+
 
 def header_version_check(hdr, warning_only=True):
     """
@@ -278,4 +315,239 @@ def header_version_check(hdr, warning_only=True):
                 raise ValueError(msg)
     # Return if all versions are identical
     return all_identical
+
+
+def dict_to_hdu(d, name=None):
+    """
+    Write a dictionary to a fits HDU.
+
+    Elements in the dictionary that are integers, floats, or strings
+    (specific numpy types or otherwise) are written to the HDU
+    header. The header keywords are identical to the dictionary keys.
+
+    If any of the elements in the dictionary are an
+    `astropy.table.Table`_, that dictionary can *only* contain that
+    table and single values that will be written to the extension
+    header. That is, there can be only one `astropy.table.Table`_
+    element, and none of the elements can be a :obj:`list` or
+    `numpy.ndarray`_. By default the extension name is the dictionary
+    key for the `astropy.table.Table`_ item; this can be overridden
+    using the ``name`` argument.
+
+    Elements in the dictionary that are a list or a `numpy.ndarray`_
+    are written as either an image (if there is only one array) or a
+    series of table columns. The lists are assumed to be
+    interpretable as the ``array`` argument of
+    `astropy.io.fits.Column` (for a table) or the ``data`` argument of
+    `astropy.io.fits.ImageHDU`_ (for an image).
+
+        - If an image is to be written, the extension name, by
+          default, is the dictionary key for the array item; this can
+          be overridden using the ``name`` argument.
+
+        - If a table is to be written, the method checks that the
+          relevant arrays have a consistent number of rows. If they
+          do not, the format and dimensions of the table written are
+          set so that the arrays are contained in a single row. The
+          column names in the table are identical to the dictionary
+          keywords. In this case, ``name`` must be provided if you
+          want the extension to have a name; there is no default
+          name.
+
+    Args:
+        d (:obj:`dict`):
+            Dictionary with data to write to the
+            `astropy.io.fits.BinTableHDU`_.
+        name (:obj:`str`, optional):
+            Name to give the HDU extension. If None and the input is
+            a dictionary with a single array or
+            `astropy.table.Table`_ to write, the name of the
+            extension is the relevant dictionary keyword. Any
+            provided value for ``name`` will override this behavior.
+            If the provided dictionary is used to construct a table,
+            where the dictionary keys are used for the table column
+            names, there is no default name for the extension (i.e.,
+            no extension name is used if ``name is None``).
+
+    Returns:
+        `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
+        HDU with the data. An `astropy.io.fits.ImageHDU`_ object is
+        returned if there is 1 (or fewer) array-like objects in the
+        dictionary. Otherwise, an `astropy.io.fits.BinTableHDU`_
+        object is returned with the data.
+
+    Raises:
+        TypeError:
+            Raised if the input object is not a dictionary or the
+            method cannot interpret how to use an element of the
+            dictionary.
+        ValueError:
+            Raised if dictionary contains another dictionary, more
+            than one `astropy.table.Table`_ object, or both an
+            `astropy.table.Table`_ and an array-like object
+            (:obj:`list` or `numpy.ndarray`_).
+    """
+    # Check the input is a dictionary (not very pythonic...)
+    if not isinstance(d, dict):
+        raise TypeError('Input must be a dictionary.')
+    # Check the dictionary contents
+    ndict = numpy.sum([isinstance(d[key], dict) for key in d.keys()])
+    if ndict > 0:
+        raise ValueError('Cannot write nested dictionaries.')
+    ntab = numpy.sum([isinstance(d[key], Table) for key in d.keys()])
+    if ntab > 1:
+        raise ValueError('Cannot write dictionaries with more than one astropy.table.Table.')
+    narr = numpy.sum([isinstance(d[key], (list, numpy.ndarray)) for key in d.keys()])
+    if ntab > 0 and narr > 0:
+        raise ValueError('Cannot write dictionaries with both arrays and Tables.')
+
+    # Write any header data and find arrays and Tables
+    hdr = fits.Header()
+    array_keys = []
+    table_keys = []
+    for key in d.keys():
+        if d[key] is None:
+            continue
+        # TODO: may be better to do this
+        #   isinstance(d[key], (collections.Sequence, numpy.ndarray)):
+        # This ignores the defined otype...
+        if isinstance(d[key], (list, numpy.ndarray)):
+            array_keys += [key]
+        elif isinstance(d[key], Table):
+            table_keys += [key]
+        elif isinstance(d[key], (int, numpy.integer, float, numpy.floating, str)):
+            hdr[key.upper()] = d[key]
+        else:
+            raise TypeError('Do not know how to write object with type {0}'.format(type(d[key])))
+
+    # If there aren't any arrays or tables, return an empty ImageHDU with just the header data.
+    if len(array_keys) < 1 and len(table_keys) < 1:
+        return fits.ImageHDU(header=hdr, name=name)
+
+    # If there's only a single array, return it in an ImageHDU
+    if len(array_keys) == 1:
+        return fits.ImageHDU(data=d[array_keys[0]], header=hdr,
+                             name=array_keys[0] if name is None else name)
+
+    # If there's only a single Table, return it in a BinTableHDU
+    if len(table_keys) == 1:
+        # TODO: If we pass hdr directly, does this call include any
+        # table meta?
+        return fits.BinTableHDU(data=d[table_keys[0]], header=hdr,
+                                name=table_keys[0] if name is None else name)
+
+    # Only remaining option is to build a BinTableHDU based on the
+    # dictionary contents.
+
+    # Do all arrays have the same number of rows?
+    single_row = len(numpy.unique([numpy.asarray(d[key]).shape[0] for key in array_keys])) > 1
+
+    # If the number of rows is inconsistent, save the data in a single
+    # row. Otherwise, save the data as a multi-row table.
+    cols = []
+    for key in array_keys:
+        cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
+                                 dim=rec_to_fits_col_dim(d[key], single_row=single_row),
+                                 array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
+    return fits.BinTableHDU.from_columns(cols, header=hdr, name=name)
+
+
+def write_to_hdu(d, name=None):
+    """
+    Write the input to an astropy.io.fits HDU extension.
+
+    List and numpy.ndarray items are written as an ImageHDU,
+    `astropy.table.Table`_ items are written as a BinTableHDU, and
+    dictionaries are passed to :func:`dict_to_hdu`.
+    
+    .. warning::
+
+        If ``d`` is a list, the method assumes that the list is
+        essentially an array that can be sensibly converted to a
+        `numpy.ndarray`_.
+
+    Args:
+        d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_, `astropy.table.Table`_):
+            Object to write to the HDU.
+        name (:obj:`str`, optional):
+            Name for the HDU extension.
+
+    Returns:
+        `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
+        HDU with the data.
+
+    Raises:
+        TypeError:
+            Raised if the input object is not one of the allowed
+            types.
+
+    """
+    if isinstance(d, dict):
+        return dict_to_hdu(d, name=name)
+    if isinstance(d, Table):
+        return fits.BinTableHDU(data=d, name=name)
+    if isinstance(d, (numpy.ndarray, list)):
+        return fits.ImageHDU(data=numpy.asarray(d), name=name)
+    raise TypeError('Input must be a dictionary, astropy.table.Table, list, or numpy.ndarray.')
+
+
+def write_to_fits(d, ofile, name=None, overwrite=False, checksum=True):
+    """
+    Write the provided object to a fits file.
+
+    This is either a convenience wrapper for :func:`write_to_hdu`
+    that adds a primary HDU and writes the result to the provided
+    file, or a convenience wrapper for an already formed
+    `astropy.io.fits.HDUList`_ passed as (``d``).
+
+    If the provided file name includes the '.gz' extension, the file
+    is first written using `astropy.io.fits.HDUList.writeto`_ and
+    then compressed using :func:`compress_file`.
+    
+    .. note::
+
+        Compressing the file is generally slow, but following the
+        two-step process of running
+        `astropy.io.fits.HDUList.writeto`_ and then
+        :func:`compress_file` is generally faster than having
+        `astropy.io.fits.HDUList.writeto`_ do the compression,
+        particularly for files with many extensions (or at least this
+        was true in the past).
+
+    Args:
+        d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_, `astropy.table.Table`_, `astropy.io.fits.HDUList`_):
+            Object to write to the HDU. See :func:`write_to_hdu`.
+        ofile (:obj:`str`):
+            File name (path) for the fits file.
+        name (:obj:`str`, optional):
+            Name for the extension with the data. If None, the
+            extension is not given a name. However, if the input
+            object is a dictionary, see :func:`dict_to_hdu` for how
+            the name will overwrite any dictionary keyword associated
+            with the data to write.
+        overwrite (:obj:`bool`, optional):
+            Overwrite any existing file.
+        checksum (:obj:`bool`, optional):
+            Passed to `astropy.io.fits.HDUList.writeto`_ to add the
+            DATASUM and CHECKSUM keywords fits header(s).
+    """
+    if os.path.isfile(ofile) and not overwrite:
+        raise FileExistsError('File already exists; to overwrite, set overwrite=True.')
+
+    # Determine if the file should be compressed
+    _ofile = ofile[:ofile.rfind('.')] if ofile.split('.')[-1] == 'gz' else ofile
+
+    # Construct the hdus and write the fits file.
+    fits.HDUList(d if isinstance(d, fits.HDUList) else
+                 [fits.PrimaryHDU()] + [write_to_hdu(d, name=name)]).writeto(_ofile, overwrite=True,
+                                                                           checksum=checksum)
+
+    # Compress the file if the output filename has a '.gz' extension;
+    # this is slow but still faster than if you have astropy.io.fits do
+    # it directly
+    # TODO: use pypmsgs?
+    if _ofile is not ofile:
+        print('Compressing file: {0}'.format(_ofile))
+        compress_file(_ofile, overwrite=True)
+    print('File written to: {0}'.format(ofile))
 

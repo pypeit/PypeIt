@@ -1,7 +1,7 @@
 """ Module for sky subtraction
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import sys
 import os
@@ -643,6 +643,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         #sigrej_ceil = 1e10
         sigrej = 50.0  # 25 wasn't enough for MagE 2x2 binning (probably undersampled)
     else:
+        # TODO Why is this not an input parameter
         chi2_sigrej = 6.0
         #sigrej_ceil = 10.0
     # We will use this number later
@@ -711,7 +712,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     # If this is the first iteration, print status message. Initiate profile fitting with a simple
                     # boxcar extraction.
                     msgs.info("----------------------------------- PROFILE FITTING --------------------------------------------------------")
-                    msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].objid) + " of {:}".format(nobj))
+                    msgs.info("Fitting profile for obj # " + "{:}".format(sobjs[iobj].OBJID) + " of {:}".format(nobj))
                     msgs.info("At x = {:5.2f}".format(sobjs[iobj].SPAT_PIXPOS) + " on slit # {:}".format(sobjs[iobj].slit_order))
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
@@ -738,13 +739,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, thismask,
                                             last_profile, box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
-                    if 'OPT_MASK' in sobjs[iobj]._data.keys():
+                    if 'OPT_MASK' in sobjs[iobj].keys():
                         if sobjs[iobj].OPT_MASK.any():
                             flux = sobjs[iobj].OPT_COUNTS
                             fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
                             wave = sobjs[iobj].OPT_WAVE
 
-                obj_string = 'obj # {:}'.format(sobjs[iobj].objid) + ' on slit # {:}'.format(sobjs[iobj].slit_order) + ', iter # {:}'.format(iiter) + ':'
+                obj_string = 'obj # {:}'.format(sobjs[iobj].OBJID) + ' on slit # {:}'.format(sobjs[iobj].slit_order) + ', iter # {:}'.format(iiter) + ':'
                 if wave.any():
                     sign = sobjs[iobj].sign
                     # TODO This is "sticky" masking. Do we want it to be?
@@ -774,7 +775,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
 
             sky_bmodel = np.array(0.0)
             iterbsp = 0
-            while (not sky_bmodel.any()) & (iterbsp <= 5):
+            while (not sky_bmodel.any()) & (iterbsp <= 4):
                 bsp_now = (1.2 ** iterbsp) * bsp
                 fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
                                          skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
@@ -791,7 +792,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                                                  spatial=spatial_img.flat[isub],
                                                                  fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
                 iterbsp = iterbsp + 1
-                if (not sky_bmodel.any()) & (iterbsp <= 4):
+                if (not sky_bmodel.any()) & (iterbsp <= 3):
                     msgs.warn('***************************************')
                     msgs.warn('WARNING: bspline sky-subtraction failed')
                     msgs.warn('Increasing bkpt spacing by 20%. Retry')
@@ -854,7 +855,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         for ii in range(objwork):
             iobj = group[ii]
             msgs.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
-                      ' with objid = {:d}'.format(sobjs[iobj].objid) + ' on slit # {:d}'.format(sobjs[iobj].slit_order) +
+                      ' with objid = {:d}'.format(sobjs[iobj].OBJID) + ' on slit # {:d}'.format(sobjs[iobj].slit_order) +
                       ' at x = {:5.2f}'.format(sobjs[iobj].SPAT_PIXPOS))
             this_profile = obj_profiles[:, :, ii]
             trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
@@ -978,10 +979,10 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
         msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
 
     order_snr = np.zeros((norders, nobjs))
-    uni_objid = np.unique(sobjs[sobjs.sign > 0].ech_objid)
+    uni_objid = np.unique(sobjs[sobjs.sign > 0].ECH_OBJID)
     for iord in range(norders):
         for iobj in range(nobjs):
-            ind = (sobjs.ech_orderindx == iord) & (sobjs.ech_objid == uni_objid[iobj])
+            ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
             order_snr[iord,iobj] = sobjs[ind].ech_snr
 
     # Compute the average SNR and find the brightest object
@@ -1032,7 +1033,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                         fwhm_this_ord = np.median(fwhm_here[other_orders])
                         fwhm_all = np.full(norders,fwhm_this_ord)
                         fwhm_str = 'median '
-                    indx = (sobjs.ech_objid == uni_objid[iobj]) & (sobjs.ech_orderindx == iord)
+                    indx = (sobjs.ECH_OBJID == uni_objid[iobj]) & (sobjs.ECH_ORDERINDX == iord)
                     for spec in sobjs[indx]:
                         spec.FWHM = fwhm_this_ord
 
@@ -1062,12 +1063,12 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                         plt.show()
                 else:
                     # If this is not the brightest object then assign it the FWHM of the brightest object
-                    indx     = np.where((sobjs.ech_objid == uni_objid[iobj]) & (sobjs.ech_orderindx == iord))[0][0]
-                    indx_bri = np.where((sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord))[0][0]
+                    indx     = np.where((sobjs.ECH_OBJID == uni_objid[iobj]) & (sobjs.ECH_ORDERINDX == iord))[0][0]
+                    indx_bri = np.where((sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.ECH_ORDERINDX == iord))[0][0]
                     spec = sobjs[indx]
                     spec.FWHM = sobjs[indx_bri].FWHM
 
-        thisobj = (sobjs.ech_orderindx == iord) # indices of objects for this slit
+        thisobj = (sobjs.ECH_ORDERINDX == iord) # indices of objects for this slit
         thismask = (slitmask == iord) # pixels for this slit
         # True  = Good, False = Bad for inmask
         inmask = (mask == 0) & thismask
@@ -1081,7 +1082,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
             show_resids=show_resids, show_profile=show_profile)
 
         # update the FWHM fitting vector for the brighest object
-        indx = (sobjs.ech_objid == uni_objid[ibright]) & (sobjs.ech_orderindx == iord)
+        indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.ECH_ORDERINDX == iord)
         fwhm_here[iord] = np.median(sobjs[indx].FWHMFIT)
         # Did the FWHM get updated by the profile fitting routine in local_skysub_extract? If so, include this value
         # for future fits

@@ -15,6 +15,10 @@ Base class for handling bit masks.
     | **06 Sep 2018**: (KBW) Added to PypeIt repo, removed
         functionality of instantiating a bitmask from a file, code
         update, and slight doc changes.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+
 """
 import numpy
 import os
