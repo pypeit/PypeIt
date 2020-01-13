@@ -37,9 +37,7 @@ def load_spectrograph(spectrograph, ifile=None):
     possible.
 
     Args:
-
-        spectrograph (:obj:`str`,
-            :class:`spectrographs.spectrograph.Spectrograph`): The
+        spectrograph (:obj:`str`, :class:`spectrographs.spectrograph.Spectrograph`): The
             spectrograph to instantiate.  If the input is a spectrograph
             instance, the instance is simply returned.  If a string, the
             string is used to select the spectrograph to instantiate.
@@ -49,8 +47,8 @@ def load_spectrograph(spectrograph, ifile=None):
             Spectrograph object at instantiation
 
     Returns:
-        :class:`spectrographs.spectrograph.Spectrograph`: The
-        spectrograph used to obtain the data to be reduced.
+        :class:`spectrographs.spectrograph.Spectrograph`: The spectrograph used to obtain the data to be reduced.
+
     """
 
     if spectrograph is None:

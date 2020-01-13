@@ -9,7 +9,7 @@ PypeIt provides a set of Quick Look scripts for
 quick reductions, presumably at the telescope.
 We describe each in turn.
 
-.. _run-calcheck:
+.. _pypeit-ql-mos:
 
 pypeit_ql_mos
 =============

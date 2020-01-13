@@ -32,43 +32,35 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
 
     """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
 
-    Parameters
-    ----------
-    sciimg : float ndarray shape (nspec, nspat)
-       Science frame
-    ivar: float ndarray shape (nspec, nspat)
-       inverse variance of science frame. Can be a model or deduced from the image itself.
-    mask: boolean ndarray
-       mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-    waveimg :  float ndarray
-        Wavelength image. float 2-d array with shape (nspec, nspat)
-    skyimg: float ndarray shape (nspec, nspat)
-        Image containing our model of the sky
-    rn2_img: float ndarray shape (nspec, nspat)
-        Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-    thismask: bool ndarray shape (nspec, nspat)
-        Image indicating which pixels are on the slit/order in question. True=Good.
-    oprof: float ndarray shape (nspec, nspat)
-        Image containing the profile of the object that we are extracting
-    box_radius: float
-        Size of boxcar window in floating point pixels in the spatial direction.
-    spec (:class:`pypeit.specobj.SpecObj`):
-         This is the container that holds object, trace,
-         and extraction information for the object in question. This routine operates one object at a time.
-    min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
-           are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
-           object profile has been masked
-
-    Returns
-    -------
     Return value is None. The specobj object is changed in place with the boxcar and optimal dictionaries being filled
     with the extraction parameters.
 
-    Notes
-    -----
-    Revision History
-        - 11-Mar-2005  Written by J. Hennawi and S. Burles.
-        - 28-May-2018  Ported to python by J. Hennawi
+    Args:
+        sciimg (np.ndarray): float ndarray shape (nspec, nspat)
+           Science frame
+        ivar (np.ndarray): float ndarray shape (nspec, nspat)
+           inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray): boolean ndarray
+           mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg  (np.ndarray):  float ndarray
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing our model of the sky
+        rn2_img (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        thismask (np.ndarray): bool ndarray shape (nspec, nspat)
+            Image indicating which pixels are on the slit/order in question. True=Good.
+        oprof (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the profile of the object that we are extracting
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (:class:`pypeit.specobj.SpecObj`):
+             This is the container that holds object, trace,
+             and extraction information for the object in question. This routine operates one object at a time.
+        min_frac_use (float, optional): default = 0.05. If the sum of object profile arcoss the spatial direction
+               are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
+               object profile has been masked
+
     """
     # Setup
     imgminsky = sciimg - skyimg
@@ -1024,13 +1016,13 @@ def create_skymask_fwhm(sobjs, thismask):
     Creates a skymask from a SpecObjs object using the fwhm of each object
 
     Args:
-        sobjs (:clas:`pypeit.specobjs.SpecObjs`):
+        sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Objects for which you would like to create the mask
-        thismask: ndarray, bool, shape (nspec, nspat)
+        thismask (np.ndarray): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
 
     Returns:
-        ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
+        np.ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
         the same size as thismask indicating which pixels are usable for
         global sky subtraction.  True = usable for sky subtraction,
         False = should be masked when sky subtracting.
