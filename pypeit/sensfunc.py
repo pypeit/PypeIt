@@ -126,9 +126,11 @@ class SensFunc(object):
         if self.splice_multi_det:
             self.wave_sens, self.sensfunc = self.splice(self.wave_sens)
         # If the sensfunc has just one order, or detectors were spliced, flatten the output
-        if self.wave_sens.shape[1] == 1:
-            self.wave_sens = self.wave_sens.flatten()
-            self.sensfunc = self.sensfunc.flatten()
+        # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
+        if self.wave_sens.ndim == 2:
+            if self.wave_sens.shape[1] == 1:
+                self.wave_sens = self.wave_sens.flatten()
+                self.sensfunc = self.sensfunc.flatten()
         return
 
     def eval_sensfunc(self, wave, iorddet):

@@ -144,7 +144,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     if check:
         return False
 
-    msgs.warn("No standard star was found within a tolerance of {:g}".format(toler) + msgs.newline()
+    msgs.error("No standard star was found within a tolerance of {:g}".format(toler) + msgs.newline()
                + "Closest standard was {:s} at separation {:g}".format(closest['name'], closest['sep'].to('arcmin')))
 
     return None
