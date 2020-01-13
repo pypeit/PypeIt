@@ -507,7 +507,7 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     mph : {None, number}, optional (default = None)
         detect peaks that are greater than minimum peak height (if parameter
         `valley` is False) or peaks that are smaller than maximum peak height
-         (if parameter `valley` is True).
+        (if parameter `valley` is True).
     mpd : positive integer, optional (default = 1)
         detect peaks that are at least separated by minimum peak distance (in
         number of data).
@@ -534,15 +534,23 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     Notes
     -----
     The detection of valleys instead of peaks is performed internally by simply
-    negating the data: `ind_valleys = detect_peaks(-x)`
+    negating the data::
+        
+        ind_valleys = detect_peaks(-x)
 
     The function can handle NaN's
 
     See this IPython Notebook [1]_.
 
-    __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
-    __version__ = "1.0.5"
-    __license__ = "MIT"
+    .. code-block:: python
+
+        __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
+        __version__ = "1.0.5"
+        __license__ = "MIT"
+
+    Version history:
+
+        * '1.0.5': The sign of `mph` is inverted if parameter `valley` is True
 
     References
     ----------
@@ -576,11 +584,6 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
     >>> # set threshold = 2
     >>> detect_peaks(x, threshold = 2, show=True)
-
-    Version history
-    ---------------
-    '1.0.5':
-        The sign of `mph` is inverted if parameter `valley` is True
 
     """
 
@@ -942,7 +945,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     #   - Center is within the limits of the spectrum
     #   - The Gaussian-fitted center and the center from `detect_lines`
     #     are not different by more than 0.75*FWHM
-    #   - Width is finite, greater than 0, and less than FWHM/2.35
+    #   - Width is finite, greater than 0, and less than FWHM_MAX/2.35
     good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
@@ -1040,11 +1043,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
     # Setup the arrays with fit parameters
     sz_p = pixt.size
     sz_a = yarray.size
-    b      = -1.0*np.ones(sz_p, dtype=np.float)
-    ampl   = -1.0*np.ones(sz_p, dtype=np.float)
-    cent   = -1.0*np.ones(sz_p, dtype=np.float)
-    widt   = -1.0*np.ones(sz_p, dtype=np.float)
-    centerr = -1.0*np.ones(sz_p, dtype=np.float)
+    b      = np.full(sz_p, -999.0, dtype=float)
+    ampl   = np.full(sz_p, -999.0, dtype=float)
+    cent   = np.full(sz_p, -999.0, dtype=float)
+    widt   = np.full(sz_p, -999.0, dtype=float)
+    centerr =np.full(sz_p, -999.0, dtype=float)
 
     for p in range(sz_p):
         # This interval is always symmetric about the peak

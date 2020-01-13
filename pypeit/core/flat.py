@@ -111,50 +111,47 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
           Dictionary with information on the slit boundaries
     slit: int
           Slit currently being considered
-
-    Optional Parameters
-    -------------------
-    inmask: boolean ndarray, shape (nspec, nspat), default inmask = None
+    inmask: boolean ndarray, shape (nspec, nspat), default inmask = None, optional
       Input mask for pixels not to be included in sky subtraction fits. True = Good (not masked), False = Bad (masked)
 
-    spec_samp_fine: float, default = 1.2
+    spec_samp_fine: float, default = 1.2, optional
       bspline break point spacing in units of pixels for spectral fit to flat field blaze function.
 
-    spec_samp_coarse: float, default = 50.0
+    spec_samp_coarse: float, default = 50.0, optional
       bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image residuals.
       This should be a large number unless you are trying to fit a sky flat with lots of features.
 
-    spat_samp: float, default = 5.0
+    spat_samp: float, default = 5.0, optional
       Spatial sampling for spatial slit illumination function. This is the width of the median filter in pixels used to
       determine the slit illumination function, and thus sets the minimum scale on which the illumination function will
       have features.
 
-    trim_edg: tuple of floats  (left_edge, right_edge), default (3,3)
+    trim_edg: tuple of floats  (left_edge, right_edge), default (3,3), optional
       indicates how many pixels to trim from left and right slit edges for creating the edgemask, which is used to mask
       the edges from the initial (fine) spectroscopic fit to the blaze function.
 
-    pad: int, default = 5
+    pad: int, default = 5, optional
       Padding window used to create expanded slitmask images used for re-determining slit boundaries. Tilts are also
       computed using this expanded slitmask in cases the slit boundaries need to be moved outward.
 
-    npoly: int, default = None
+    npoly: int, default = None, optional
       Order of polynomial for 2-d bspline-polynomial fit to flat field image residuals. The code determines the order of
       these polynomials to each slit automatically depending on the slit width, which is why the default is None.
       Do not attempt to set this paramter unless you know what you are doing.
 
 
-    tweak_slits: bool, default = True
+    tweak_slits: bool, default = True, optional
       Slit edges will be tweaked such the left and right bounadaries intersect the location where the illumination
       function falls below tweak_slits_thresh (see below) of its maximum value near the center (moving out from the center)
 
-    tweak_slits_thresh: float, default = 0.93
+    tweak_slits_thresh: float, default = 0.93, optional
       If tweak_slits is True, this sets the illumination function threshold used to tweak the slits
 
-    tweak_slits_maxfrac: float, default = 0.10
+    tweak_slits_maxfrac: float, default = 0.10, optional
       Maximum fractinoal amount (of slit width) allowed for each trimming the left and right slit boundaries, i.e. the
       default is 10% which means slits would shrink by at most 20% (10% on each side)
 
-    debug: bool, default = False
+    debug: bool, default = False, optional
       Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
 
     Returns
@@ -182,13 +179,13 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     slit_righ_out: ndarray with shape (nspec,)
        Tweaked right slit bounadries
 
-
-
+    Notes
+    -----
+    
     Revision History
-    ----------------
-    11-Mar-2005  First version written by Scott Burles.
-    2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
-    3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
+        - 11-Mar-2005  First version written by Scott Burles.
+        - 2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
+        - 3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
     shape = flat.shape
@@ -213,7 +210,8 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     # Demand at least 10 pixels per row (on average) per degree of the polynomial
     if npoly is None:
         npoly_in = 7
-        npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
+        npoly  = np.clip(npoly_in, 1, np.ceil(npercol/10.).astype(int))
+        #npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
 
     ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
@@ -472,6 +470,10 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     # ToDo Add some code here to treat the edges and places where fits go bad?
     # Set the pixelflat to 1.0 wherever the flat was nonlinear
     pixelflat[flat >= nonlinear_counts] = 1.0
+    # Do not apply pixelflat field corrections that are greater than 100% to avoid creating edge effects, etc.
+    # TODO Should we do the same for the illumflat??
+    #pixelflat = np.fmax(np.fmin(pixelflat, 2.0), 0.5)
+    pixelflat = np.clip(pixelflat, 0.5, 2.0)
 
     return pixelflat, illumflat, flat_model, tilts, thismask_out, slit_left_out, slit_righ_out
 

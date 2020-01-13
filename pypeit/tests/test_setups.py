@@ -189,7 +189,7 @@ def test_setup_keck_nires():
 
 @dev_suite_required
 def test_setup_keck_nirspec():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRSPEC/LOW_NIRSPEC-1')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'keck_nirspec_low'])
     setup.main(pargs)

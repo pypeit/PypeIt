@@ -10,7 +10,7 @@ run:
 
     $ pypeit_trace_edges -h
 
-With a `pypeit_file`_, a typical execution of the script would be:
+With a :ref:`pypeit_file`, a typical execution of the script would be:
 
 .. code-block:: bash
 
@@ -92,7 +92,8 @@ exposure in a fits file called `trace_file`::
                                    master_dir=master_dir, img=traceImage, det=det, auto=True)
     edges.save()
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import time
@@ -229,7 +230,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
     The success of the tracing critically depends on the parameters
     used. The defaults are tuned for each spectrograph based on
     testing using data in the pypeit development suite. See
-    pypeitpar_ for the full documentation of the
+    :ref:`pypeitpar` for the full documentation of the
     :class:`pypeit.par.pypeitpar.EdgeTracePar` parameters. Note that
     the :class:`pypeit.par.pypeitpar.TraceSlitsPar` parameter group
     has been deprecated.
@@ -784,6 +785,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         This effectively reinstantiates the object and must be the
         first method called for tracing an image.  The algorithm:
+
             - Lightly boxcar smooths the trace image spectrally.
             - Replaces bad pixel columns, if a mask is provided.
             - Applies a Sobel filter to the trace image along the
@@ -903,7 +905,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
                                           sigdetect=self.par['edge_thresh'])
-
         # Empty out the images prepared for left and right tracing
         # until they're needed.
         self.sobel_sig_left = None
@@ -1050,7 +1051,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   - Add the tracing parameters
         self.par.to_header(prihdr)
         #   - List the completed methods, if there are any
-        if self.log is not None:
+        if self.log is not None and len(self.log) > 0:
             ndig = int(np.log10(len(self.log)))+1
             for i,m in enumerate(self.log):
                 prihdr['LOG{0}'.format(str(i+1).zfill(ndig))] \
@@ -1336,6 +1337,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     else np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
                                                     for b in np.unique(self.spat_msk)])).tolist()
 
+    ## TODO It is confusing that this show routine shows images flipped from the PypeIt convention.
+    ## It should be rewritten to show images with spectral direction vertical like all our other QA.
     def show(self, traceid=None, include_error=False, thin=1, in_ginga=False, include_img=False,
              include_sobel=False, img_buffer=100, flag=None, idlabel=False):
         """
@@ -1828,6 +1831,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                         # TODO: Get rid of this when convinced it won't
                         # get tripped...
                         msgs.error('Traces remain but could not select good starting position.')
+
+                    ## TODO row and column should not be used here in the output. Adopt the PypeIt convention spec, spat
                     msgs.info('Following {0} {1} edge(s) '.format(np.sum(to_trace), side)
                               + 'from row {0}; '.format(_start_indx)
                               + '{0} trace(s) remain.'.format(np.sum(untraced)-np.sum(to_trace)))
@@ -2399,12 +2404,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 :func:`sync` and :func:`is_synced`), use this method
                 to deal with edges paired with those to be removed.
                 Methods are:
-                    - 'ignore': Just remove the selected traces and
+
+                    - ``'ignore'``: Just remove the selected traces and
                       ignore the synchronization.
-                    - 'both': If at least one of the traces in a pair
-                      is selected for removal, remove both.
-                    - 'neither': If only one of the traces in a pair
+                    - ``'both'``: If at least one of the traces in a
+                      pair is selected for removal, remove both.
+                    - ``'neither'``: If only one of the traces in a pair
                       is selected for removal, remove neither.
+
         """
         # Make sure there are traces to remove
         if not np.any(indx):
@@ -3634,6 +3641,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         used in the construction of the PCA.
 
         .. warning::
+
             If the traces can be nudged away from the detector edge,
             the offset can, e.g., place an inserted left edge to the
             right of its associated right edge. This possibility is
@@ -3654,17 +3662,20 @@ class EdgeTraceSet(masterframe.MasterFrame):
             mode (:obj:`str`, optional):
                 Mode used for generating the traces to insert used to
                 flag the traces. Options are:
-                    - None: Traces are simply inserted without
-                    flagging.
-                    - 'user': Traces are the result of a user
-                    request.
-                    - 'sync': Traces were generated by synchronizing
-                    left and right traces.
-                    - 'mask': Traces were generated based on the
-                    expected slit positions from mask design data.
+
+                    - ``None``: Traces are simply inserted without
+                      flagging.
+                    - ``'user'``: Traces are the result of a user
+                      request.
+                    - ``'sync'``: Traces were generated by synchronizing
+                      left and right traces.
+                    - ``'mask'``: Traces were generated based on the
+                      expected slit positions from mask design data.
+
             resort (:obj:`bool`, optional):
                 Resort the traces in the spatial dimension; see
                 :func:`spatial_sort`.
+
         """
         # Check input
         _side = np.atleast_1d(side)
@@ -3775,9 +3786,38 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             return None
-        bpm = np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
+        return self._get_fully_masked_traces(self.spat_msk, self.bitmask, flag=flag,
+                                             exclude=exclude)
+
+    @staticmethod
+    def _get_fully_masked_traces(mask, bm, flag=None, exclude=None):
+        """
+        Helper function for :func:`fully_masked_traces`, allowing for
+        the masking to be performed by :func:`load_to_tslits_dict`.
+
+        Args:
+            mask (`numpy.ndarray`_):
+                Integer array with bitmask values.
+            bm (:class:`pypeit.bitmask.BitMask`):
+                Object used to interpret the bitmask array values.
+            flag (:obj:`str`, :obj:`list`, optional):
+                The bit mask flags to select. If None, any flags are
+                used. See :func:`pypeit.bitmask.Bitmask.flagged`.
+            exclude (:obj:`str`, :obj:`list`, optional):
+                A set of flags to explicitly exclude from
+                consideration as a masked trace. I.e., if any
+                spectral pixel in the trace is flagged with one of
+                these flags, it will not be considered a fully masked
+                trace. This is typically used to exclude inserted
+                traces from being considered as a bad trace.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array selecting traces that are
+            flagged at all spectral pixels.
+        """
+        bpm = np.all(bm.flagged(mask, flag=flag), axis=0)
         if exclude is not None:
-            bpm &= np.invert(np.any(self.bitmask.flagged(self.spat_msk, flag=exclude), axis=0))
+            bpm &= np.invert(np.any(bm.flagged(mask, flag=exclude), axis=0))
         return bpm
     
     def mask_refine(self, design_file=None, allow_resync=False, debug=False):
@@ -4155,6 +4195,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Stop-gap function to construct the old tslits_dict object.
         """
+        # To construct at tslits_dict, the traces must be left-right
+        # synchronized.
         if not self.is_synced:
             msgs.error('Edges must be synced to construct tslits_dict.')
 
@@ -4188,13 +4230,70 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         return tslits_dict
 
+    @staticmethod
+    def load_to_tslits_dict(filename): 
+        """
+        Use the saved master file to construct the ``tslits_dict``
+        dictionary.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the master file
+        
+        Returns:
+            dict: The nominal tslits_dict object.
+        """
+        if not os.path.isfile(filename):
+            raise FileNotFoundError('{0} does not exist.'.format(filename))
+
+        with fits.open(filename) as hdu:
+
+            # Find the traces that are *not* fully masked. This will
+            # catch slits that are masked as too short but not clipped
+            # because of par['sync_clip'] = False.
+            gpm = EdgeTraceSet._get_fully_masked_traces(hdu['CENTER_MASK'].data, EdgeTraceSet.bitmask,
+                                                        flag=EdgeTraceSet.bitmask.bad_flags,
+                                                        exclude=EdgeTraceSet.bitmask.exclude_flags)
+            is_left = hdu['TRACEID'].data < 0
+            is_right = hdu['TRACEID'].data > 0
+
+            tslits_dict = {}
+            tslits_dict['slit_left_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
+            tslits_dict['slit_righ_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
+
+            tslits_dict['slit_left'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
+            tslits_dict['slit_righ'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
+            tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
+
+            nslits = tslits_dict['slit_left'].shape[1]
+            tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
+
+            tslits_dict['nspec'], tslits_dict['nspat'] = hdu['TRACEIMG'].data.shape
+            tslits_dict['nslits'] = nslits
+            tslits_dict['binspectral'], tslits_dict['binspatial'] \
+                    = parse.parse_binning(hdu[0].header['BINNING'])
+
+            spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
+            tslits_dict['spectrograph'] = spec.spectrograph
+            tslits_dict['spec_min'], tslits_dict['spec_max'] \
+                    = spec.slit_minmax(slit_spat_pos(tslits_dict),
+                                       binspectral=tslits_dict['binspectral'])
+
+            indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
+            if not np.any(indx):
+                raise ValueError('Could not find padding parameter in header.')
+            if np.sum(indx) != 1:
+                raise ValueError('More than one header includes "EdgeTracePar: pad" in comment.')
+            tslits_dict['pad'] = hdu[0].header[int(np.where(indx)[0][0])]
+
+            return tslits_dict
+
     @classmethod
     def from_tslits_dict(cls, tslits_dict, master_key, master_dir):
         """
         Stop-gap function to instantiate insofar as it can from a
         tslits_dict.
         """
-
         # Caveats:
         #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
         par = EdgeTracePar()
@@ -4209,12 +4308,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   file, but just set it to 1 for now.
         this.det = 1
         this.binning = '{0},{1}'.format(tslits_dict['binspectral'], tslits_dict['binspatial'])
-
         #   - Build the trace data
-        nleft = tslits_dict['slit_left'].shape[1]
-        nright = tslits_dict['slit_righ'].shape[1]
-        this.traceid = np.append(-np.arange(nleft)-1, np.arange(nright)+1)
+        nslits = tslits_dict['slit_left'].shape[1]
+        #       - Force the input traces to be synced
+        if nslits != tslits_dict['slit_righ'].shape[1]:
+            msgs.error('Input dictionary has different number of left and right traces.')
+        #       - Initialize the trace arrays
+        this.traceid = np.append(-np.arange(nslits)-1, np.arange(nslits)+1)
         this.spat_cen = np.hstack((tslits_dict['slit_left'], tslits_dict['slit_righ']))
+        #       - Resort them into synced pairs; assumes left and right
+        #         slits are correctly ordered in the input dictionary
+        srt = np.arange(2*nslits).reshape(2,-1).T.ravel()
+        this.traceid = this.traceid[srt]
+        this.spat_cen = this.spat_cen[:,srt]
+        # - Dummy data to produce a complete object
+        #   TODO: Refactor so that the object can be put in a
+        #   "read-only" state.  Then these attributes wouldn't need to
+        #   be defined, but this state would prohibit the execution of
+        #   some methods.
         this.spat_fit = this.spat_cen.copy()
         this.spat_fit_type = 'legendre'
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())

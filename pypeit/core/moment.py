@@ -1,7 +1,8 @@
 """
 Module to compute moments.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 
 import numpy as np
@@ -136,18 +137,16 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
             the shape in the description above.
         width (:obj:`float`, `numpy.ndarray`_):
             The meaning of the parameter depends on the value of
-            `weighting` (see below):
-                - `weighting=='uniform'`: The width of the integration
-                  window in columns, centered at the input `col`.
-                - `weighting=='gaussian'`: The :math:`\sigma` of a
-                  pixelated Gaussian weighting function.  The width of
-                  the integration window in columns, centered at the
-                  input `col`, is always `6*width` (i.e., the half-width
-                  is :math:`3\sigma`).
-
-            The provided value can be a scalar to use a constant window
-            definition, or it can be an array variable integration
-            window where the array must have the same shape as `col`.
+            `weighting`.  If `weighting=='uniform'`, the width of the
+            integration window in columns, centered at the input `col`.
+            If `weighting=='gaussian'`, the :math:`\sigma` of a
+            pixelated Gaussian weighting function.  The width of the
+            integration window in columns, centered at the input `col`,
+            is always `6*width` (i.e., the half-width is
+            :math:`3\sigma`).  The provided value can be a scalar to use
+            a constant window definition, or it can be an array variable
+            integration window where the array must have the same shape
+            as `col`.
         ivar (`numpy.ndarray`_, optional):
             Inverse variance of the image intensity.  If not provided,
             unity variance is used.  If provided, must have the same
@@ -216,11 +215,12 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
     Returns:
         Three `numpy.ndarray`_ objects are returned. If more than one
         moment order is requested, the moments are ordered along the
-        first axis; e.g., if `order=[0,1]` the outputs `moment[0]`
-        and `moment[1]` contain the zeroth and first moments,
-        respectively. The subsequent dimensions of the output arrays
-        are dictated by the input `row` and `col`; see the method
-        description. The returned arrays are:
+        first axis; e.g., if `order=[0,1]` the outputs `moment[0]` and
+        `moment[1]` contain the zeroth and first moments, respectively.
+        The subsequent dimensions of the output arrays are dictated by
+        the input `row` and `col`; see the method description. The
+        returned arrays are:
+
             - The moment calculated along the 2nd axis of the input
               image (axis=1).  Masked values (indicated by the third
               object returned) are 0 for the zeroth and second moments
@@ -297,6 +297,7 @@ def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighti
         
         >>> moment1d(img, [43,52,57], 40., row=[0,1,2], order=1)[0]
         array([44.99688181, 50.00311819, 55.00311819])
+
     """
 
     # TODO: Could be generalized further for higher dimensional

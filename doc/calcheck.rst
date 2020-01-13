@@ -66,7 +66,7 @@ The primary settings you need to specify at this stage are:
 
 #.  Modify the method(s) for bias subtraction, flat fielding etc.
 
-For the second issue, see :ref:`modifying_frametype`.
+For the second issue, see `modifying_frametype` (out of date!).
 
 For the first issue see below:
 

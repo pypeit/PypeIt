@@ -1,8 +1,8 @@
 .. highlight:: rest
 
-*************
+**************
 Running PypeIt
-*************
+**************
 
 This document describes the process to run the reduction.
 It assumes:
@@ -20,7 +20,7 @@ See the :doc:`cookbook` for additional details.
 .. _run-pypeit:
 
 run_pypeit
-=========
+==========
 
 The main script to run the PypeIt reduction is :ref:`run-pypeit`.  It
 should have been installed in your Python path.  Here is its usage::

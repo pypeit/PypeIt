@@ -6,6 +6,7 @@ Subpackages
 
 .. toctree::
 
+   pypeit.core.gui
    pypeit.core.wavecal
 
 Submodules

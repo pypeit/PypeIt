@@ -1,3 +1,6 @@
+
+.. _codeconduct:
+
 ***************
 Code of Conduct
 ***************

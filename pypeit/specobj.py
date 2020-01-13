@@ -80,16 +80,23 @@ data_model = {
     'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
     'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
     #
-    'DET': dict(otype=(int,np.int64), desc='Detector number'),
+    'DET': dict(otype=(int,np.integer), desc='Detector number'),
     'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
     'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
     'SPAT_PIXPOS': dict(otype=(float,np.float32), desc='Spatial location of the trace on detector (pixel)'),
     'SPAT_FRACPOS': dict(otype=(float,np.float32), desc='Fractional location of the object on the slit'),
     #
-    'SLITID': dict(otype=(int,np.int64), desc='Slit ID'),
+    'SLITID': dict(otype=(int,np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
+    'OBJID': dict(otype=(int, np.integer), desc='Object ID for multislit data. Each object is given an index for the slit '
+                                                  'it appears increasing from from left to right. These are one based.'),
     #
+    'ECH_OBJID': dict(otype=(int, np.integer),
+                      desc='Object ID for echelle data. Each object is given an index in the order '
+                           'it appears increasing from from left to right. These are one based.'),
+    'ECH_ORDERINDX': dict(otype=(int, np.integer), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
     'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
-    'ECH_ORDER': dict(otype=(int,np.int64), desc='Physical echelle order'),
+    'ECH_ORDER': dict(otype=(int, np.integer), desc='Physical echelle order'),
+
 }
 
 
@@ -140,7 +147,7 @@ class SpecObj(object):
                       slitid=table.meta['SLITID'], copy_dict=copy_dict)
         else:
             slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'])
+                      copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'], orderindx=table.meta['ECH_ORDERINDX'])
         # Pop a few that land in standard FITS header
         # Loop me -- Do this to deal with checking the data model
         for key in table.keys():
@@ -156,6 +163,8 @@ class SpecObj(object):
         # Return
         return slf
 
+    # TODO I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
+    # done via the copy method as it was before.
     def __init__(self, pypeline, det, objtype='unknown',
                  copy_dict=None,
                  slitid=None,
@@ -176,13 +185,14 @@ class SpecObj(object):
             # We may wish to eliminate *all* of these
 
 
-            self.objid = 999
+            #self.objid = 999
             self.name = None
 
             # Object finding
             self.smash_peakflux = None
             self.smash_nsig = None
             self.maskwidth = None
+            self.hand_extract_flag = False
 
             # Object profile
             self.prof_nsigma = None
@@ -194,13 +204,17 @@ class SpecObj(object):
             self.trace_spec = None  # Only for debuggin, internal plotting
 
             # Echelle
-            self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
-            self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+            #self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
+            #self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
             self.ech_frac_was_fit = None #
             self.ech_snr = None #
 
         # after initialisation, setting attributes is the same as setting an item
         self.__initialised = True
+
+        # TODO: JFH This is not very elegant and error prone. Perhaps we should loop over the copy dict keys
+        # and populate whatever keys are actually there. For instance, if the user does not pass in a copy dict,
+        # and forgets to pass in ech_order, the code is going to crash becuase ech_order cannot be None.
 
         # Initialize a few, if we aren't copying
         if copy_dict is None:
@@ -212,7 +226,7 @@ class SpecObj(object):
                     self.SLITID = specobj_dict['slitid']
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = specobj_dict['order']
-                    self.ech_orderindx = specobj_dict['orderindx']
+                    self.ECH_ORDERINDX = specobj_dict['orderindx']
             else:
                 self.PYPELINE = pypeline
                 self.OBJTYPE = objtype
@@ -221,7 +235,7 @@ class SpecObj(object):
                     self.SLITID = slitid
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = ech_order
-                    self.ech_orderindx = orderindx
+                    self.ECH_ORDERINDX = orderindx
                 else:
                     msgs.error("Uh oh")
 
@@ -234,6 +248,16 @@ class SpecObj(object):
     def slit_order(self):
         if self.PYPELINE == 'Echelle':
             return self.ECH_ORDER
+        elif self.PYPELINE == 'MultiSlit':
+            return self.SLITID
+        else:
+            msgs.error("Uh oh")
+
+
+    @property
+    def slit_orderindx(self):
+        if self.PYPELINE == 'Echelle':
+            return self.ECH_ORDERINDX
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
         else:
@@ -308,6 +332,7 @@ class SpecObj(object):
             if 'ECH_FRACPOS' not in self._data.meta.keys():
                 self.name += '----'
             else:
+                # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 self.name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
             # Order
             self.name += '-'+naming_model['order']
@@ -339,8 +364,12 @@ class SpecObj(object):
             SpecObj
 
         """
+        #sobj_copy = SpecObj(self.PYPELINE, self.DET,
+        #                    copy_dict=self.__dict__.copy())
+        # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
+        # copy changes the original object which wreaks havoe. That is why it was deepcopy before (I think).
         sobj_copy = SpecObj(self.PYPELINE, self.DET,
-                            copy_dict=self.__dict__.copy())
+                            copy_dict=copy.deepcopy(self.__dict__))
         # Return
         return sobj_copy
 
