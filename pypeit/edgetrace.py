@@ -566,6 +566,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         return 0 if self.traceid is None else self.traceid.size
 
+    # ADDED in rmtdict
     @property
     def nslits(self):
         if self.is_synced:
@@ -4296,6 +4297,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
 
+    # ADDED in rmtdict
     def slit_spatial_center(self, normalized=True, spec=None, resort=False, use_center=False):
         """
         Return the spatial coordinate of the center of each slit.
@@ -4524,6 +4526,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit_type = 'tweaked'
         # TODO: Resort?
 
+    # Added in rmtdict
     def slit_img(self, pad=None, use_center=False):
         r"""
         Construct an image identifying each pixel with a slit.
