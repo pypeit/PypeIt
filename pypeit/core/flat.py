@@ -21,42 +21,73 @@ from IPython import embed
 
 import scipy
 
-def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh,
-                     tweak_slits_maxfrac):
-    """
-    DOC THIS!
-    """
+def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1):
+    r"""
+    Adjust slit edges based on the normalized slit illumination profile.
+
+    Args:
+        left (`numpy.ndarray`_):
+            Array with the left slit edge for a single slit. Shape is
+            :math:`(N_{\rm spec},)`.
+        right (`numpy.ndarray`_):
+            Array with the right slit edge for a single slit. Shape
+            is :math:`(N_{\rm spec},)`.
+        spat_coo (`numpy.ndarray`_):
+            Spatial pixel coordinates for the provided normalized
+            flat data relative to the left edge. Shape is
+            :math:`(N_{\rm flat},)`.
+        norm_flat (`numpy.ndarray`_)
+            Normalized flat data that provide the slit illumination
+            profile. Shape is :math:`(N_{\rm flat},)`.
+        thresh (:obj:`float`, optional):
+            Threshold of the normalized flat profile at which to
+            place the two slit edges.
+        maxfrac (:obj:`float`, optional):
+            The maximum fraction of the slit width that the slit edge
+            can be adjusted by this algorithm. If ``maxfrac = 0.1``,
+            this means the maximum change in the slit width (either
+            narrowing or broadening) is 20% (i.e., 10% for either
+            edge).
+
+    Returns:
 
 
+    """
+    # Setup
     tweak_left = False
     tweak_righ = False
-    slit_left_out = np.copy(slit_left_in)
-    slit_righ_out = np.copy(slit_righ_in)
-    # How many pixels wide is the slit at each Y?
-    slitwidth = np.median(slit_righ_in - slit_left_in)
-    # Determine the maximum at the left and right end of the slit
-    ileft = (ximg_fit > 0.1) & (ximg_fit < 0.4)
-    irigh = (ximg_fit > 0.6) & (ximg_fit < 0.9)
-#    if (not np.any(ileft)) or (not np.any(irigh)):
-#        msgs.error('Cannot tweak slits because much of the slit is masked. You probably have a bad slit')
+    new_left = np.copy(left)
+    new_right = np.copy(right)
+
+    # Median slit width
+    slitwidth = np.median(right - left)
+
+    # Select data at the left and right edges
+    ileft = (spat_coo > 0.1) & (spat_coo < 0.4)
+    iright = (spat_coo > 0.6) & (spat_coo < 0.9)
+
+    if not np.any(ileft) or not np.any(iright):
+        msgs.error('Tweak slits failed, likely because you probably have a bad (very short) slit.')
 #        tweak_dict = {'xleft': 0.0, 'xrigh': 0.0,
 #                      'norm_max_left': 0.0, 'norm_max_righ': 0.0,
 #                      'tweak_left': tweak_left, 'tweak_righ': tweak_righ}
 #        return slit_left_out, slit_righ_out, tweak_dict
 
-    #xleft = ximg_fit[ileft]
-    #xrigh = ximg_fit[irigh]
-    norm_max_left = normimg[ileft].max()
-    norm_max_righ = normimg[irigh].max()
+    #xleft = spat_coo[ileft]
+    #xrigh = spat_coo[irigh]
+    norm_max_left = norm_flat[ileft].max()
+    norm_max_right = norm_flat[iright].max()
 
     msgs.info('Tweaking slit boundaries using slit illumination function')
+    # TODO: Make step a parameter?
     step = 0.001
+
     # march out from middle to find left edge
     msgs.info('Left threshold = {:5.3f}'.format(tweak_slits_thresh * norm_max_left) +
               ' --  or {:5.3f}'.format(
                   100.0 * tweak_slits_thresh) + ' % of left side max of illumination function = {:5.3f}'.format(norm_max_left))
-    for xleft in np.arange(0.5, ximg_fit.min(), -step):
-        norm_now = np.interp(xleft, ximg_fit, normimg)
+    for xleft in np.arange(0.5, spat_coo.min(), -step):
+        norm_now = np.interp(xleft, spat_coo, norm_flat)
         if (norm_now < tweak_slits_thresh * norm_max_left) & (xleft < tweak_slits_maxfrac):
             slit_left_out += xleft * slitwidth
             tweak_left = True
@@ -71,8 +102,8 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
               ' --  or {:5.3f}'.format(
                   100.0 * tweak_slits_thresh) + ' % of right side max of illumination function = {:5.3f}'.format(norm_max_righ))
     # march out from middle  to find right edge
-    for xrigh in np.arange(0.5, ximg_fit.max(), step):
-        norm_now = np.interp(xrigh, ximg_fit, normimg)
+    for xrigh in np.arange(0.5, spat_coo.max(), step):
+        norm_now = np.interp(xrigh, spat_coo, norm_flat)
         if (norm_now < tweak_slits_thresh * norm_max_righ) & ((1.0 - xrigh) < tweak_slits_maxfrac):
             slit_righ_out -= (1.0 - xrigh) * slitwidth
             tweak_righ = True

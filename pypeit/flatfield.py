@@ -657,10 +657,9 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # coordinate is roughly the same at all spatial positions.
             # Calculate the fraction of the slit width for the median
             # filter as set by the ``spat_samp`` parameter.
-            rel_med_width = spat_samp / median_slit_width[:,slit]
-            med_width = int(np.ceil(nfit_spat * rel_med_width))
+            med_width = int(np.ceil(nfit_spat * spat_samp / median_slit_width[:,slit]))
             # Median filter the data
-            norm_flat_spat = utils.fast_running_median(norm_spec_fit,med_width)
+            norm_flat_spat = utils.fast_running_median(norm_spec_fit, med_width)
             # Gaussian filter the data with a kernel that is 1/20th of
             # the median-filter width (or at least 0.5 pixels where
             # here a "pixel" is just the index of the data to fit)
@@ -668,7 +667,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                                                      np.fmax(med_width/20.0, 0.5),
                                                                      mode='nearest')
 
-            # mask regions where illumination function takes on extreme values
+            # Make sure that the normalized and filtered flat is finite!
             if np.any(np.invert(np.isfinite(norm_flat_spat))):
                 msgs.error('Inifinities in slit illumination function computation!')
 
@@ -678,17 +677,19 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # the typical sampling. Use the bspline class to determine
             # the breakpoints:
             spat_bspl = pydl.bspline(spat_coo_fit,nord=4,
-                                    bkspace=np.fmax(1.0/median_slit_width[:,slit]/10.0,
-                                                    1.2*np.median(np.diff(spat_coo_fit)))
+                                     bkspace=np.fmax(1.0/median_slit_width[:,slit]/10.0,
+                                                     1.2*np.median(np.diff(spat_coo_fit)))
             spat_set, outmask_spat, spatfit, _, exit_status \
                     = utils.bspline_profile(spat_coo_fit, norm_flat_spat,
                                             np.ones_like(norm_flat_spat),
                                             np.ones_like(norm_flat_spat), nord=4, upper=5.0,
                                             lower=5.0, fullbkpt=spat_bspl.breakpoints)
 
-            # Evaluate and save
+            # Evaluate the illumination profile
             illumflat = np.ones_like(flat)
-            illumflat[onslit_padded], _ = spat_set.value(ximg[onslit_padded])
+            illumflat[onslit_padded], _ = spat_set.value(coo_img[onslit_padded])
+
+            # Construct the spectrally and spatially normalized flat
             norm_spec_spat = np.ones_like(flat)
             norm_spec_spat[onslit_padded] = flat[onslit_padded] \
                                                 / np.fmax(spec_model[onslit_padded], 1.0) \
