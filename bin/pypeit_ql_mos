@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Run QL on MOS
+"""
+
+from pypeit.scripts import  ql_mos
+
+if __name__ == '__main__':
+    args = ql_mos.parser()
+    ql_mos.main(args)
