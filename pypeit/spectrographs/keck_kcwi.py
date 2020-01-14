@@ -37,7 +37,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Keck LRISr reductions.
+        Set default parameters for Keck KCWI reductions.
         """
         par = pypeitpar.PypeItPar()
         # Set wave tilts order
@@ -109,7 +109,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='ELAPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dichroic'] = dict(ext=0, card='DICHNAME')
         meta['hatch'] = dict(ext=0, card='HATNUM')
         meta['dispname'] = dict(ext=0, card='BGRATNAM')
         meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=1e-2)
@@ -119,6 +118,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         for kk, lamp_name in enumerate(lamp_names):
             meta['lampstat{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'STAT')
         for kk, lamp_name in enumerate(lamp_names):
+            if lamp_name == 'LMP3':
+                # There is no shutter on LMP3
+                continue
             meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'SHST')
         # Ingest
         self.meta = meta
@@ -145,7 +147,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             used to constuct the :class:`pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dichroic', 'decker', 'binning']
+        return ['dispname', 'decker', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -159,11 +161,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 1)
-        if ftype in ['pinhole', 'dark']:
-            # Don't type pinhole or dark frames
+        if ftype in ['dark']:
+            # dark
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 0)
+        if ftype in ['pinhole']:
+            # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 'closed')
+            return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == 0)
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -205,25 +210,21 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         if status == 'dome':
             # Check if any dome lamps are on (Continuum) - Ignore lampstat03 (Aux) - not sure what this is used for
             dome_lamp_stat = ['lampstat{0:02d}'.format(i) for i in range(4, 5)]
-            dome_lamp_shst = ['lampshst{0:02d}'.format(i) for i in range(4, 5)]
             lamp_stat = np.array([fitstbl[k] == 1 for k in fitstbl.keys()
                                     if k in dome_lamp_stat])
-            lamp_shst = np.array([fitstbl[k] == 1 for k in fitstbl.keys()
-                                    if k in dome_lamp_shst])
-            return np.any(lamp_stat&lamp_shst, axis=0)  # i.e. lamp on and shutter open
+            return np.any(lamp_stat, axis=0)  # i.e. lamp on
         raise ValueError('No implementation for status = {0}'.format(status))
 
     def get_rawimage(self, raw_file, det):
         """
-        Read a raw LRIS data frame (one or more detectors)
-        Packed in a multi-extension HDU
-        Based on readmhdufits.pro
+        Read a raw KCWI data frame
+
         Parameters
         ----------
         raw_file : str
           Filename
         det (int or None):
-          Detector number; Default = both
+          Detector number
         Returns
         -------
         array : ndarray
@@ -236,132 +237,63 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
         if len(fil) != 1:
-            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+            msgs.error("Found {:d} files matching {:s}".format(len(fil), raw_file))
 
         # Read
-        msgs.info("Reading LRIS file: {:s}".format(fil[0]))
+        msgs.info("Reading KCWI file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
         head0 = hdu[0].header
+        raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
 
-        # Get post, pre-pix values
-        precol = head0['PRECOL']
-        postpix = head0['POSTPIX']
-        preline = head0['PRELINE']
-        postline = head0['POSTLINE']
+        # Some properties of the image
+        numamps = head0['NVIDINP']
+        # Exposure time (used by ProcessRawImage)
+        headarr = self.get_headarr(hdu)
+        exptime = self.get_meta_value(headarr, 'exptime')
 
         # get the x and y binning factors...
         binning = head0['BINNING']
         xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+        binning_raw = binning
 
-        # First read over the header info to determine the size of the output array...
-        n_ext = len(hdu) - 1  # Number of extensions (usually 4)
-        xcol = []
-        xmax = 0
-        ymax = 0
-        xmin = 10000
-        ymin = 10000
-        for i in np.arange(1, n_ext + 1):
-            theader = hdu[i].header
-            detsec = theader['DETSEC']
-            if detsec != '0':
-                # parse the DETSEC keyword to determine the size of the array.
-                x1, x2, y1, y2 = np.array(parse.load_sections(detsec, fmt_iraf=False)).flatten()
+        # Always assume normal FITS header formatting
+        one_indexed = True
+        include_last = True
+        for section in ['DSEC', 'BSEC']:
 
-                # find the range of detector space occupied by the data
-                # [xmin:xmax,ymin:ymax]
-                xt = max(x2, x1)
-                xmax = max(xt, xmax)
-                yt = max(y2, y1)
-                ymax = max(yt, ymax)
+            # Initialize the image (0 means no amplifier)
+            pix_img = np.zeros(raw_img.shape, dtype=int)
+            for i in range(numamps):
+                # Get the data section
+                sec = head0[section+"{0:1d}".format(i+1)]
 
-                # find the min size of the array
-                xt = min(x1, x2)
-                xmin = min(xmin, xt)
-                yt = min(y1, y2)
-                ymin = min(ymin, yt)
-                # Save
-                xcol.append(xt)
+                # Convert the data section from a string to a slice
+                datasec = parse.sec2slice(sec, one_indexed=one_indexed,
+                                          include_end=include_last, require_dim=2,
+                                          binning=binning_raw)
+                # Assign the amplifier
+                pix_img[datasec] = i+1
+            # Finish
+            if section == 'DSEC':
+                rawdatasec_img = pix_img.copy()
+            elif section == 'BSEC':
+                oscansec_img = pix_img.copy()
 
-        # determine the output array size...
-        nx = xmax - xmin + 1
-        ny = ymax - ymin + 1
-
-        # change size for binning...
-        nx = nx // xbin
-        ny = ny // ybin
-
-        # Update PRECOL and POSTPIX
-        precol = precol // xbin
-        postpix = postpix // xbin
-
-        # Deal with detectors
-        if det in [1, 2]:
-            nx = nx // 2
-            n_ext = n_ext // 2
-            det_idx = np.arange(n_ext, dtype=np.int) + (det - 1) * n_ext
-        elif det is None:
-            det_idx = np.arange(n_ext).astype(int)
-        else:
-            raise ValueError('Bad value for det')
-
-        # change size for pre/postscan...
-        nx += n_ext * (precol + postpix)
-        ny += preline + postline
-
-        # allocate output arrays...
-        array = np.zeros((nx, ny))
-        order = np.argsort(np.array(xcol))
-        rawdatasec_img = np.zeros_like(array, dtype=int)
-        oscansec_img = np.zeros_like(array, dtype=int)
-
-        # insert extensions into master image...
-        for amp, i in enumerate(order[det_idx]):
-            # grab complete extension...
-            data, predata, postdata, x1, y1 = lris_read_amp(hdu, i + 1)
-
-            # insert predata...
-            buf = predata.shape
-            nxpre = buf[0]
-            xs = amp * precol
-            xe = xs + nxpre
-            # predata (ignored)
-            array[xs:xe, :] = predata
-
-            # insert data...
-            buf = data.shape
-            nxdata = buf[0]
-            xs = n_ext * precol + amp * nxdata  # (x1-xmin)/xbin
-            xe = xs + nxdata
-            array[xs:xe, :] = data
-            rawdatasec_img[xs:xe, preline:ny - postline] = amp + 1
-
-            # ; insert postdata...
-            buf = postdata.shape
-            nxpost = buf[0]
-            xs = nx - n_ext * postpix + amp * postpix
-            xe = xs + nxpost
-            array[xs:xe, :] = postdata
-            oscansec_img[xs:xe, preline:ny - postline] = amp + 1
-
-        # Need the exposure time
-        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
 
-class KeckKCWIBSpectrograph(spectrograph.Spectrograph):
+class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
     """
     Child to handle Keck/KCWI specific code
     """
     def __init__(self):
         # Get it started
         super(KeckKCWISpectrograph, self).__init__()
-        self.spectrograph = 'keck_kcwi'
+        self.spectrograph = 'keck_kcwi_blue'
         self.telescope = telescopes.KeckTelescopePar()
-        self.camera = 'KCWI'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
+        self.camera = 'KCWIb'
+        self.detector = [pypeitpar.DetectorPar(
                             dataext         = 0,
                             specaxis        = 0,
                             specflip        = False,
@@ -371,11 +303,11 @@ class KeckKCWIBSpectrograph(spectrograph.Spectrograph):
                             platescale      = ,
                             darkcurr        = ,
                             saturation      = 65535.,
-                            nonlinear       = ,
+                            nonlinear       = 0.95,   # For lack of a better number!
                             numamplifiers   = 0,
                             gain            = 0,
                             ronoise         = 0,
-                            datasec         = '',       # These are provided by read_kcwi
+                            datasec         = '',       # These are provided by get_rawimage
                             oscansec        = '',
                             suffix          = '_01'
                             )]
@@ -394,7 +326,7 @@ class KeckKCWIBSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Keck DEIMOS reductions.
         """
         par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'keck_deimos'
+        par['rdx']['spectrograph'] = 'keck_kcwi_blue'
         par['flexure']['method'] = 'boxcar'
         # Set wave tilts order
         par['calibrations']['slitedges']['edge_thresh'] = 50.
