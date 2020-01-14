@@ -36,6 +36,37 @@ Derived classes must do the following:
 
 Here are some examples of how to and how not to use them.
 
+Defining the datamodel
+++++++++++++++++++++++
+
+The format of the ``datamodel`` needed for each implementation of a
+:class:`DataContainer` derived class is as follows.
+
+The datamodel itself is a class attribute (i.e., it is a member of
+the class, not just of an instance of the class). The datamodel is a
+dictionary of dictionaries: Each key of the datamodel dictionary
+provides the name of a given datamodel element, and the associated
+item (dictionary) for the datamodel element provides the type and
+description information for that datamodel element. For each
+datamodel element, the dictionary item must provide:
+
+    - ``otype``: This is the type of the object for this datamodel
+      item. E.g., for a float or a `numpy.ndarray`_, you would set
+      ``otype=float`` and ``otype=np.ndarray``, respectively.
+
+    - ``descr``: This provides a text description of the datamodel
+      element. This is used to construct the datamodel tables in the
+      pypeit documentation.
+
+If the object type is a `numpy.ndarray`_, you should also provide the
+``atype`` keyword that sets the type of the data contained within the
+array. E.g., for a floating point array containing an image, your
+datamodel could be simply::
+
+    datamodel = {'image' : dict(otype=np.ndarray, atype=float, descr='My image')}
+
+More advanced examples are given below.
+
 Basic container
 +++++++++++++++
 
