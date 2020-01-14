@@ -21,6 +21,110 @@ from IPython import embed
 
 import scipy
 
+def linear_interpolate(x1, y1, x2, y2, x):
+    r"""
+    Interplate or extrapolate between two points.
+
+    Given a line defined two points, :math:`(x_1,y_1)` and
+    :math:`(x_2,y_2)`, return the :math:`y` value of a new point on
+    the line at coordinate :math:`x`.
+
+    This function is meant for speed. No type checking is performed
+    and the only check is that the two provided ordinate coordinates
+    are not identically, or virtually, the same. By definition, the
+    function will extrapolate without any warning.
+
+    Args:
+        x1 (:obj:`float`):
+            First abcissa position
+        y1 (:obj:`float`):
+            First ordinate position
+        x2 (:obj:`float`):
+            Second abcissa position
+        y3 (:obj:`float`):
+            Second ordinate position
+        x (:obj:`float`):
+            Abcissa for new value
+
+    Returns:
+        :obj:`float`: Interpolated/extrapolated value of ordinate at
+        :math:`x`.
+    """
+    return y1 if np.isclose(x1,x2) else y1 + (x-x1)*(y2-y1)/(x2-x1)
+
+
+# Previous version
+def tweak_slit_edges_brute_force(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh,
+                                 tweak_slits_maxfrac):
+    """
+    DOC THIS!
+    """
+
+
+    tweak_left = False
+    tweak_righ = False
+    slit_left_out = np.copy(slit_left_in)
+    slit_righ_out = np.copy(slit_righ_in)
+    # How many pixels wide is the slit at each Y?
+    slitwidth = np.median(slit_righ_in - slit_left_in)
+    # Determine the maximum at the left and right end of the slit
+    ileft = (ximg_fit > 0.1) & (ximg_fit < 0.4)
+    irigh = (ximg_fit > 0.6) & (ximg_fit < 0.9)
+#    if (not np.any(ileft)) or (not np.any(irigh)):
+#        msgs.error('Cannot tweak slits because much of the slit is masked. You probably have a bad slit')
+#        tweak_dict = {'xleft': 0.0, 'xrigh': 0.0,
+#                      'norm_max_left': 0.0, 'norm_max_righ': 0.0,
+#                      'tweak_left': tweak_left, 'tweak_righ': tweak_righ}
+#        return slit_left_out, slit_righ_out, tweak_dict
+
+    #xleft = ximg_fit[ileft]
+    #xrigh = ximg_fit[irigh]
+    norm_max_left = normimg[ileft].max()
+    norm_max_righ = normimg[irigh].max()
+
+    msgs.info('Tweaking slit boundaries using slit illumination function')
+    step = 0.001
+    # march out from middle to find left edge
+    msgs.info('Left threshold = {:5.3f}'.format(tweak_slits_thresh * norm_max_left) +
+              ' --  or {:5.3f}'.format(
+                  100.0 * tweak_slits_thresh) + ' % of left side max of illumination function = {:5.3f}'.format(norm_max_left))
+    for xleft in np.arange(0.5, ximg_fit.min(), -step):
+        norm_now = np.interp(xleft, ximg_fit, normimg)
+        if (norm_now < tweak_slits_thresh * norm_max_left) & (xleft < tweak_slits_maxfrac):
+            slit_left_out += xleft * slitwidth
+            tweak_left = True
+            msgs.info('Tweaking left slit boundary by {:5.3f}'.format(100 * xleft) +
+                      ' %, or {:7.3f}'.format(xleft * slitwidth) + ' pixels')
+            if np.abs(xleft - tweak_slits_maxfrac) < 0.01:
+                msgs.warn(
+                    'Left slit boundary tweak limited by maximum changed allowed by tweak_slits_maxfracn={:5.3f}'.format(
+                        100.0 * tweak_slits_maxfrac) + ' %')
+            break
+    msgs.info('Right threshold = {:5.3f}'.format(tweak_slits_thresh * norm_max_righ) +
+              ' --  or {:5.3f}'.format(
+                  100.0 * tweak_slits_thresh) + ' % of right side max of illumination function = {:5.3f}'.format(norm_max_righ))
+    # march out from middle  to find right edge
+    for xrigh in np.arange(0.5, ximg_fit.max(), step):
+        norm_now = np.interp(xrigh, ximg_fit, normimg)
+        if (norm_now < tweak_slits_thresh * norm_max_righ) & ((1.0 - xrigh) < tweak_slits_maxfrac):
+            slit_righ_out -= (1.0 - xrigh) * slitwidth
+            tweak_righ = True
+            msgs.info('Tweaking right slit boundary by {:5.3f}'.format(100 * (1.0 - xrigh)) +
+                      ' %, or {:7.3f}'.format((1.0 - xrigh) * slitwidth) + ' pixels')
+            if np.abs((1.0 - xrigh) - tweak_slits_maxfrac) < 0.01:
+                msgs.warn(
+                    'Right slit boundary tweak limited by maximum changed allowed by tweak_slits_maxfracn={:5.3f}'.format(
+                        100.0 * tweak_slits_maxfrac) + ' %')
+            break
+
+    tweak_dict = {'xleft': xleft, 'xrigh': xrigh,
+                  'norm_max_left': norm_max_left, 'norm_max_righ': norm_max_righ,
+                  'tweak_left': tweak_left, 'tweak_righ': tweak_righ}
+
+    return slit_left_out, slit_righ_out, tweak_dict
+
+
+
 def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1):
     r"""
     Adjust slit edges based on the normalized slit illumination profile.
@@ -37,6 +141,7 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
             at each spectral row for the provided normalized flat
             data. Coordinates are relative to the left edge (with the
             left edge at 0.). Shape is :math:`(N_{\rm flat},)`.
+            Function assumes the coordinate array is sorted.
         norm_flat (`numpy.ndarray`_)
             Normalized flat data that provide the slit illumination
             profile. Shape is :math:`(N_{\rm flat},)`.
@@ -54,6 +159,11 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
 
 
     """
+    # Check input
+    nspec = len(left)
+    if len(right) != nspec:
+        msgs.error('Input left and right traces must have the same length!')
+
     # Setup
     tweak_left = False
     tweak_righ = False
@@ -63,22 +173,84 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
     # Median slit width
     slitwidth = np.median(right - left)
 
-    # Select data at the left and right edges
+    # ------------------------------------------------------------------
+    # Adjust the left edge
+
+    # Get the maximum to the left of the center
     # TODO: Set a parameter for this
     ileft = (spat_coo > 0.1) & (spat_coo < 0.4)
+    if not np.any(ileft):
+        msgs.error('No coordinates toward the left of the slit center.  Slit boundaries are '
+                   'likely in error, and you probably have a bad (very short) slit.  Slit center '
+                   'at center row is {0:.1f}.'.format((left[nspec//2] + right[nspec//2])/2))
+    left_thresh = thresh * np.amax(norm_flat[ileft])
+
+    # Find the data that are less than the provided threshold and
+    # within the limits set by the offset
+    indx = (spat_coo < maxfrac) & (norm_flat < left_thresh)
+
+    # To tweak, there must be at least one pixel that meet the above
+    # criteria
+    if np.any(indx):
+        # Find the last index
+        i = np.where(indx)[-1]
+        if i >= 0 & norm_flat[i-1] > norm_flat[i]:
+            # TODO: Not sure what to do here.  Check if this ever happens...
+            msgs.error('Flat is noisy!  Faulting...')
+        if norm_flat[i+1] < left_thresh:
+            msgs.warn('Left slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
+                        100*maxfrac))
+            left_shift = maxfrac
+        else:
+            left_shift = linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
+                                           spat_coo[i+1], left_thresh)
+        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
+                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))        
+        new_left += left_shift * slitwidth
+
+    # ------------------------------------------------------------------
+    # Adjust the right edge
+
+    # Get the maximum to the right of the center
+    # TODO: Set a parameter for this
     iright = (spat_coo > 0.6) & (spat_coo < 0.9)
+    if not np.any(iright):
+        msgs.error('No coordinates toward the right of the slit center.  Slit boundaries are '
+                   'likely in error, and you probably have a bad (very short) slit.  Slit center '
+                   'at center row is {0:.1f}.'.format((left[nspec//2] + right[nspec//2])/2))
+    right_thresh = thresh * np.amax(norm_flat[iright])
 
-    if not np.any(ileft) or not np.any(iright):
-        msgs.error('Tweak slits failed, likely because you probably have a bad (very short) slit.')
-#        tweak_dict = {'xleft': 0.0, 'xrigh': 0.0,
-#                      'norm_max_left': 0.0, 'norm_max_righ': 0.0,
-#                      'tweak_left': tweak_left, 'tweak_righ': tweak_righ}
-#        return slit_left_out, slit_righ_out, tweak_dict
+    # Find the data that are less than the provided threshold and
+    # within the limits set by the offset
+    indx = (spat_coo > (1-maxfrac)) & (norm_flat < right_thresh)
 
-    #xleft = spat_coo[ileft]
-    #xrigh = spat_coo[irigh]
-    norm_max_left = norm_flat[ileft].max()
-    norm_max_right = norm_flat[iright].max()
+    # To tweak, there must be at least one pixel that meets the above
+    # criteria
+    if np.any(indx):
+        # Find the first index
+        i = np.where(indx)[0]
+        if i < nspec-1 & norm_flat[i+1] > norm_flat[i]:
+            # TODO: Not sure what to do here.  Check if this ever happens...
+            msgs.error('Flat is noisy!  Faulting...')
+        if norm_flat[i-1] < right_thresh:
+            msgs.warn('Right slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
+                        100*maxfrac))
+            new_right -= maxfrac * slitwidth
+        else:
+            new_right -= linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
+                                           spat_coo[i], right_thresh) * slitwidth
+
+        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
+                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))        
+        new_left += left_shift * slitwidth
+
+
+
+    if not np.any(iright):
+        msgs.error('No coordinates toward the right of the slit center.  Slit boundaries are '
+                   'likely in error, and you probably have a bad (very short) slit.  Slit center '
+                   'at center row is {0:.1f}.'.format((left[nspec//2] + right[nspec//2])/2))
+    norm_max_right = np.amax(norm_flat[iright])
 
     msgs.info('Tweaking slit boundaries using slit illumination function')
     # TODO: Make step a parameter?
@@ -100,6 +272,7 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
                     'Left slit boundary tweak limited by maximum changed allowed by tweak_slits_maxfracn={:5.3f}'.format(
                         100.0 * tweak_slits_maxfrac) + ' %')
             break
+
     msgs.info('Right threshold = {:5.3f}'.format(tweak_slits_thresh * norm_max_righ) +
               ' --  or {:5.3f}'.format(
                   100.0 * tweak_slits_thresh) + ' % of right side max of illumination function = {:5.3f}'.format(norm_max_righ))
