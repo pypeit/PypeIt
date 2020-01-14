@@ -241,6 +241,7 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     w = np.ix_(xfin, yfin)
     return retarr[w]
 
+
 # ToDO rewrite this function to use images rather than loops as in flat_fit.py
 def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     """

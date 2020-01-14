@@ -158,7 +158,8 @@ class Calibrations(object):
         self.msarc = None
         self.msbias = None
         self.msbpm = None
-        self.tslits_dict = None
+#        self.tslits_dict = None
+        self.slits = None
         self.wavecalib = None
         self.tilts_dict = None
         self.mspixelflat = None
@@ -483,7 +484,8 @@ class Calibrations(object):
             objects instead.
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib']):
+#        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib']):
+        if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('dont have all the objects')
 
         if self.par['flatfield']['method'] is 'skip':
@@ -497,7 +499,8 @@ class Calibrations(object):
             return self.mspixelflat, self.msillumflat
 
         # Slit and tilt traces are required to flat-field the data
-        if not self._chk_objs(['tslits_dict', 'tilts_dict']):
+#        if not self._chk_objs(['tslits_dict', 'tilts_dict']):
+        if not self._chk_objs(['slits', 'tilts_dict']):
             msgs.warning('Flats were requested, but there are quantities missing necessary to '
                          'create flats.  Proceeding without flat fielding....')
             # User cannot flat-field

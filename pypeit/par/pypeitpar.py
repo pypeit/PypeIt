@@ -482,6 +482,7 @@ class FlatFieldPar(ParSet):
         descr['spec_samp_coarse'] = 'bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to ' \
                                     'flat field image residuals. This should be a large number unless you are trying to ' \
                                     'fit a sky flat with lots of narrow spectral features.'
+
         defaults['spat_samp'] = 5.0
         dtypes['spat_samp'] = [int, float]
         descr['spat_samp'] = 'Spatial sampling for slit illumination function. This is the width of the median ' \

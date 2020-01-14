@@ -752,6 +752,70 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     return sset, outmask, yfit, reduced_chi, exit_status
 
 
+def bspline_profile_qa(xdata, ydata, sset, outmask, yfit, xlabel=None, ylabel=None, title=None,
+                       show=True):
+    """
+    Construct a QA plot of the bspline fit.
+
+    Args:
+        xdata (`numpy.ndarray`_):
+            Array with the independent variable. Regardless of shape,
+            data is treated as one-dimensional.
+        ydata (`numpy.ndarray`_):
+            Array with the dependent variable. Regardless of shape,
+            data is treated as one-dimensional.
+        sset (:class:`pypeit.core.pydl.bspline`):
+            Object with the results of the fit. (First object
+            returned by :func:`bspline_profile`).
+        gpm (`numpy.ndarray`_):
+            Boolean array with the same size as ``xdata``.
+            Measurements rejected during the fit have ``gpm=False``.
+            (Second object returned by :func:`bspline_profile`).
+        yfit (`numpy.ndarray`_):
+            Best-fitting model sampled at ``xdata``. (Third object
+            returned by :func:`bspline_profile`).
+        xlabel (:obj:`str`, optional):
+            Label for the ordinate.  If None, none given.
+        ylabel (:obj:`str`, optional):
+            Label for the abcissa.  If None, none given.
+        title (:obj:`str`, optional):
+            Label for the plot.  If None, none given.
+        show (:obj:`bool`, optional):
+            Plot the result. If False, the axis instance is returned.
+            This is done before any labels or legends are added to
+            the plot.
+
+    Returns:
+        `matplotlib.axes.Axes`_: Axes instance with the data, model,
+        and breakpoints.  Only returned if ``show`` is False.
+    """
+    goodbk = sset.mask
+    bkpt, _ = sset.value(sset.breakpoints[goodbk])
+    was_fit_and_masked = np.invert(gpm)
+
+    plt.clf()
+    ax = plt.gca()
+    ax.plot(xdata, ydata, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full',
+            linestyle='None', label='data')
+    ax.plot(xdata[was_fit_and_masked], ydata[was_fit_and_masked], color='red', marker='+',
+            markersize=1.5, mfc='red', fillstyle='full', linestyle='None', label='masked')
+    ax.plot(xdata, yfit, color='cornflowerblue', label='fit')
+    ax.plot(sset.breakpoints[goodbk], bkpt, color='lawngreen', marker='o', markersize=2.0,
+            mfc='lawngreen', fillstyle='full', linestyle='None', label='bspline breakpoints')
+    ax.set_ylim(0.99*np.amin(yfit), 1.01*np.amax(yfit))
+    if not show:
+        return ax
+
+    plt.legend()
+    if xlabel is not None:
+        plt.xlabel(xlabel)
+    if ylabel is not None:
+        plt.ylabel(ylabel)
+    if title is not None:
+        plt.title(title)
+    plt.show()
+
+
 def clip_ivar(flux, ivar, sn_clip, mask=None):
     """
 
