@@ -33,9 +33,10 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
             Array with the right slit edge for a single slit. Shape
             is :math:`(N_{\rm spec},)`.
         spat_coo (`numpy.ndarray`_):
-            Spatial pixel coordinates for the provided normalized
-            flat data relative to the left edge. Shape is
-            :math:`(N_{\rm flat},)`.
+            Spatial pixel coordinates in fractions of the slit width
+            at each spectral row for the provided normalized flat
+            data. Coordinates are relative to the left edge (with the
+            left edge at 0.). Shape is :math:`(N_{\rm flat},)`.
         norm_flat (`numpy.ndarray`_)
             Normalized flat data that provide the slit illumination
             profile. Shape is :math:`(N_{\rm flat},)`.
@@ -63,6 +64,7 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
     slitwidth = np.median(right - left)
 
     # Select data at the left and right edges
+    # TODO: Set a parameter for this
     ileft = (spat_coo > 0.1) & (spat_coo < 0.4)
     iright = (spat_coo > 0.6) & (spat_coo < 0.9)
 
