@@ -138,6 +138,8 @@ class SlitTraceSet(DataContainer):
     Instantiation arguments map directly to the object
     :attr:`datamodel`.
     """
+    # Set the version of this class
+    version = '1.0.0'
     # Define the data model
     datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
                  'nspec': dict(otype=int,
@@ -1482,6 +1484,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
     def exists(self):
         """
         Check if the output file already exists.
+
+        Returns:
+            bool
         """
         return os.path.isfile(self.master_file_path)
 
@@ -4718,7 +4723,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         Update the slit edges using a tslits_dict. This is a stop-gap
         to allow for adjusting the slit traces based on the
         flat-field.
+
+        Args:
+            tslits_dict (dict):
         """
+        # If traces are updated, the PCA is no longer valid
+        self.pca = None
         # Find the traces that are *not* fully masked
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
         self.spat_fit[:, gpm & self.is_left] = tslits_dict['slit_left']

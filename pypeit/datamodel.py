@@ -34,6 +34,14 @@ Derived classes must do the following:
       details are provided in the description of
       :func:`DataContainer._parse`.
 
+.. note::
+
+    The attributes of the class are *not required* to be a part of
+    the ``datamodel``; however, it makes the object simpler when they
+    are. Any attributes that are not part of the ``datamodel`` must
+    be defined in either the :func:`__init__` or :func:`_validate`
+    methods; otherwise, the class with throw an ``AttributeError``.
+
 Here are some examples of how to and how not to use them.
 
 Defining the datamodel
@@ -64,6 +72,12 @@ array. E.g., for a floating point array containing an image, your
 datamodel could be simply::
 
     datamodel = {'image' : dict(otype=np.ndarray, atype=float, descr='My image')}
+
+Currently, ``datamodel`` components are restricted to have ``otype``
+that are :obj:`tuple`, :obj:`int`, :obj:`float`, ``numpy.integer``,
+``numpy.floating``, `numpy.ndarray`_, or `astropy.table.Table`_
+objects. E.g., ``datamodel`` values for ``otype`` *cannot* be
+:obj:`dict`.
 
 More advanced examples are given below.
 
@@ -488,9 +502,34 @@ class DataContainer:
           More details are provided in the description of
           :func:`_parse`.
 
+    .. note::
+
+        The attributes of the class are *not required* to be a part
+        of the ``datamodel``; however, it makes the object simpler
+        when they are. Any attributes that are not part of the
+        ``datamodel`` must be defined in either the :func:`__init__`
+        or :func:`_validate` methods; otherwise, the class with throw
+        an ``AttributeError``.
+
     Args:
         d (:obj:`dict`):
             Dictionary to copy to the internal attribute dictionary.
+            All of the keys in the dictionary *must* be elements of
+            the ``datamodel``. Any attributes that are not part of
+            the ``datamodel`` can be set in the :func:`__init__` or
+            :func:`_validate` methods of a derived class.
+    """
+
+    # Define the class version
+    version = None
+    """
+    Provides the string representation of the class version.
+
+    This is currently put to minimal use so far, but will used for
+    I/O verification in the future.
+
+    Each derived class should provide a version to guard against data
+    model changes during development.
     """
 
     # Define the data model
@@ -499,9 +538,43 @@ class DataContainer:
     Provides the class data model. This is undefined in the abstract
     class and should be overwritten in the derived classes.
 
-    .. note::
-        Data model elements should *not* be dicts themselves.
+    The format of the ``datamodel`` needed for each implementation of
+    a :class:`DataContainer` derived class is as follows.
+
+    The datamodel itself is a class attribute (i.e., it is a member
+    of the class, not just of an instance of the class). The
+    datamodel is a dictionary of dictionaries: Each key of the
+    datamodel dictionary provides the name of a given datamodel
+    element, and the associated item (dictionary) for the datamodel
+    element provides the type and description information for that
+    datamodel element. For each datamodel element, the dictionary
+    item must provide:
+
+        - ``otype``: This is the type of the object for this
+          datamodel item. E.g., for a float or a `numpy.ndarray`_,
+          you would set ``otype=float`` and ``otype=np.ndarray``,
+          respectively.
+
+        - ``descr``: This provides a text description of the
+          datamodel element. This is used to construct the datamodel
+          tables in the pypeit documentation.
+
+    If the object type is a `numpy.ndarray`_, you should also provide
+    the ``atype`` keyword that sets the type of the data contained
+    within the array. E.g., for a floating point array containing an
+    image, your datamodel could be simply::
+
+        datamodel = {'image' : dict(otype=np.ndarray, atype=float, descr='My image')}
+
+    More advanced examples are given in the top-level module documentation.
+
+    Currently, ``datamodel`` components are restricted to have
+    ``otype`` that are :obj:`tuple`, :obj:`int`, :obj:`float`,
+    ``numpy.integer``, ``numpy.floating``, `numpy.ndarray`_, or
+    `astropy.table.Table`_ objects. E.g., ``datamodel`` values for
+    ``otype`` *cannot* be :obj:`dict`.
     """
+
     def __init__(self, d):
         # Data model must be defined
         if self.datamodel is None:
@@ -537,6 +610,9 @@ class DataContainer:
         # done in the SpecObj example). Is there a way we could just
         # check a boolean instead?
         self.__initialised = True
+
+        if self.version is None:
+            raise ValueError('Must define a version for the class.')
 
     def _validate(self):
         """
@@ -706,6 +782,8 @@ class DataContainer:
                 Raised if ``ext``, or any of its elements if it's a
                 :obj:`list`, are not either strings or integers.
         """
+        # TODO: Add type and version checking
+
         # Get the (list of) extension(s) to parse
         if ext is not None:
             if not isinstance(ext, (str, int, list)):
@@ -788,6 +866,9 @@ class DataContainer:
 
         Attributes are restricted to those defined by the datamodel.
         """
+        # version is immutable
+        if item == 'version':
+            raise TypeError('Internal version does not support assignment.')
         # TODO: It seems like it would be faster to check a boolean
         # attribute. Is that possible?
         if '_DataContainer__initialised' not in self.__dict__:
@@ -828,7 +909,7 @@ class DataContainer:
         """
         return self.datamodel.keys()
 
-    def to_hdu(self, add_primary=False):
+    def to_hdu(self, primary_hdr=None, add_primary=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -842,6 +923,9 @@ class DataContainer:
         the HDU.
 
         Args:
+            primary_hdr (`astropy.io.fits.Header`):
+                Header to add in the primary HDU. If None, set by
+                :func:`pypeit.io.initialize_header()`.
             add_primary (:obj:`bool`, optional):
                 If False, the returned object is a simple
                 :obj:`list`, with a list of HDU objects (either
@@ -856,7 +940,10 @@ class DataContainer:
 
                     hdu = self.to_hdu(add_primary=True)
 
-                are identical.
+                are identical. To give a specific primary HDU header,
+                use ``primary_hdr``; otherwise,
+                :func:`pypeit.io.initialize_header()` will be used to
+                initialize the header when ``add_primary`` is True.
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -865,15 +952,20 @@ class DataContainer:
         # Bundle the data
         data = self._bundle()
 
+        # Initialize the base header
+        hdr = io.initialize_header() if primary_hdr is None else primary_hdr
+        hdr['DATAMOD'] = (self.__class__.__name__, 'Datamodel class')
+        hdr['DATAVER'] = (self.version, 'Datamodel version')
+
         # Construct the list of HDUs
         hdu = []
         for d in data:
             if isinstance(d, dict) and len(d) == 1:
                 ext = list(d.keys())[0]
-                hdu += [io.write_to_hdu(d[ext], name=ext)]
+                hdu += [io.write_to_hdu(d[ext], name=ext, hdr=hdr)]
             else:
-                hdu += [io.write_to_hdu(d)]
-        return fits.HDUList([fits.PrimaryHDU()] + hdu) if add_primary else hdu
+                hdu += [io.write_to_hdu(d, hdr=hdr)]
+        return fits.HDUList([fits.PrimaryHDU(header=hdr)] + hdu) if add_primary else hdu
 
     @classmethod
     def from_hdu(cls, hdu):
