@@ -156,19 +156,18 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
             edge).
 
     Returns:
+        tuple: Returns four objects:
 
-
+            - The fraction of the slit that the left edge is shifted to the right
+            - The adjusted left edge
+            - The fraction of the slit that the right edge is shifted to the left
+            - The adjusted right edge
+        
     """
     # Check input
     nspec = len(left)
     if len(right) != nspec:
         msgs.error('Input left and right traces must have the same length!')
-
-    # Setup
-    tweak_left = False
-    tweak_righ = False
-    new_left = np.copy(left)
-    new_right = np.copy(right)
 
     # Median slit width
     slitwidth = np.median(right - left)
@@ -191,6 +190,8 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
 
     # To tweak, there must be at least one pixel that meet the above
     # criteria
+    left_shift = 0.
+    new_left = np.copy(left)
     if np.any(indx):
         # Find the last index
         i = np.where(indx)[-1]
@@ -226,75 +227,27 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
 
     # To tweak, there must be at least one pixel that meets the above
     # criteria
+    right_shift = 0.
+    new_right = np.copy(right)
     if np.any(indx):
         # Find the first index
         i = np.where(indx)[0]
         if i < nspec-1 & norm_flat[i+1] > norm_flat[i]:
             # TODO: Not sure what to do here.  Check if this ever happens...
             msgs.error('Flat is noisy!  Faulting...')
-        if norm_flat[i-1] < right_thresh:
+        if norm_flat[i+1] < right_thresh:
             msgs.warn('Right slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
                         100*maxfrac))
-            new_right -= maxfrac * slitwidth
+            right_shift = maxfrac
         else:
-            new_right -= linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
-                                           spat_coo[i], right_thresh) * slitwidth
+            right_shift = linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
+                                             spat_coo[i], right_thresh)
+        msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
+                  ' % ({0:.2f} pixels)'.format(right_shift*slitwidth))        
+        new_right -= right_shift * slitwidth
 
-        msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
-                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))        
-        new_left += left_shift * slitwidth
+    return left_shift, new_left, right_shift, new_right
 
-
-
-    if not np.any(iright):
-        msgs.error('No coordinates toward the right of the slit center.  Slit boundaries are '
-                   'likely in error, and you probably have a bad (very short) slit.  Slit center '
-                   'at center row is {0:.1f}.'.format((left[nspec//2] + right[nspec//2])/2))
-    norm_max_right = np.amax(norm_flat[iright])
-
-    msgs.info('Tweaking slit boundaries using slit illumination function')
-    # TODO: Make step a parameter?
-    step = 0.001
-
-    # march out from middle to find left edge
-    msgs.info('Left threshold = {:5.3f}'.format(tweak_slits_thresh * norm_max_left) +
-              ' --  or {:5.3f}'.format(
-                  100.0 * tweak_slits_thresh) + ' % of left side max of illumination function = {:5.3f}'.format(norm_max_left))
-    for xleft in np.arange(0.5, spat_coo.min(), -step):
-        norm_now = np.interp(xleft, spat_coo, norm_flat)
-        if (norm_now < tweak_slits_thresh * norm_max_left) & (xleft < tweak_slits_maxfrac):
-            slit_left_out += xleft * slitwidth
-            tweak_left = True
-            msgs.info('Tweaking left slit boundary by {:5.3f}'.format(100 * xleft) +
-                      ' %, or {:7.3f}'.format(xleft * slitwidth) + ' pixels')
-            if np.abs(xleft - tweak_slits_maxfrac) < 0.01:
-                msgs.warn(
-                    'Left slit boundary tweak limited by maximum changed allowed by tweak_slits_maxfracn={:5.3f}'.format(
-                        100.0 * tweak_slits_maxfrac) + ' %')
-            break
-
-    msgs.info('Right threshold = {:5.3f}'.format(tweak_slits_thresh * norm_max_righ) +
-              ' --  or {:5.3f}'.format(
-                  100.0 * tweak_slits_thresh) + ' % of right side max of illumination function = {:5.3f}'.format(norm_max_righ))
-    # march out from middle  to find right edge
-    for xrigh in np.arange(0.5, spat_coo.max(), step):
-        norm_now = np.interp(xrigh, spat_coo, norm_flat)
-        if (norm_now < tweak_slits_thresh * norm_max_righ) & ((1.0 - xrigh) < tweak_slits_maxfrac):
-            slit_righ_out -= (1.0 - xrigh) * slitwidth
-            tweak_righ = True
-            msgs.info('Tweaking right slit boundary by {:5.3f}'.format(100 * (1.0 - xrigh)) +
-                      ' %, or {:7.3f}'.format((1.0 - xrigh) * slitwidth) + ' pixels')
-            if np.abs((1.0 - xrigh) - tweak_slits_maxfrac) < 0.01:
-                msgs.warn(
-                    'Right slit boundary tweak limited by maximum changed allowed by tweak_slits_maxfracn={:5.3f}'.format(
-                        100.0 * tweak_slits_maxfrac) + ' %')
-            break
-
-    tweak_dict = {'xleft': xleft, 'xrigh': xrigh,
-                  'norm_max_left': norm_max_left, 'norm_max_righ': norm_max_righ,
-                  'tweak_left': tweak_left, 'tweak_righ': tweak_righ}
-
-    return slit_left_out, slit_righ_out, tweak_dict
 
 # NOTE: This is currently only called by pypeit.flatfield.FlatField.run
 def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask=None, spec_samp_fine=1.2,
@@ -422,7 +375,8 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask=None, spec_samp_fine
         npoly  = np.clip(npoly_in, 1, np.ceil(npercol/10.).astype(int))
         #npoly = np.fmax(np.fmin(npoly_in, (np.ceil(npercol/10.)).astype(int)),1)
 
-    ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in, trim_edg=trim_edg)
+    ximg_in, edgmask_in = pixels.ximg_and_edgemask(slit_left_in, slit_righ_in, thismask_in,
+                                                   trim_edg=trim_edg)
     # Create a fractional position image ximg that encompasses the whole image, rather than just the thismask_in slit pixels
     spat_img = np.outer(np.ones(nspec), np.arange(nspat)) # spatial position everywhere along image
     slit_left_img = np.outer(slit_left_in, np.ones(nspat))   # left slit boundary replicated spatially
@@ -561,8 +515,8 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask=None, spec_samp_fine
 
     if tweak_slits:
         slit_left_out, slit_righ_out, tweak_dict \
-                = tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg,
-                                   tweak_slits_thresh, tweak_slits_maxfrac)
+                = tweak_slit_edges_brute_force(slit_left_in, slit_righ_in, ximg_fit, normimg,
+                                               tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
         tslits_dict_out['slit_left'][:,slit] = slit_left_out

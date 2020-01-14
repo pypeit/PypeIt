@@ -381,90 +381,18 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Return
         return self.rawflatimg, self.mspixelflat, self.msillumflat
 
-    # flat is self.rawflatimg.image
-    # tilts_dict is self.tilts_dict
-    # tslits_dict_in is self.slits
-    # inmask = np.invert(self.msbpm)
+    # TODO: Make sure padding is consistent throughout
 
-            nonlinear_counts = self.spectrograph.nonlinear_counts(det=self.det)
-
-                            = flat.fit_flat(
-                                self.rawflatimg.image, this_tilts_dict, self.tslits_dict,
-                                           slit, inmask=inmask, nonlinear_counts=nonlinear_counts,
-                                           spec_samp_fine=self.flatpar['spec_samp_fine'],
-                                           spec_samp_coarse=self.flatpar['spec_samp_coarse'],
-                                           spat_samp=self.flatpar['spat_samp'],
-                                           tweak_slits=self.flatpar['tweak_slits'],
-                                           tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
-                                           tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],
-                                           debug=debug)
-
-
-            pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, \
-                    slit_righ_out \
-
-
-
-
-    def fit(self, debug=False, pad=5.):
+    def fit(self, debug=False):
         """
-        Compute pixelflat and illumination flat from a flat field image.
+        Compute pixelflat and illumination flat from a flat field
+        image.
 
-        Parameters
-        ----------
-        flat :  float ndarray, shape (nspec, nspat)
-            Flat field image in units of electrons.
-        tilts_dict: dict
-              Dictionary containing wavelength tilts image and other
-              information indicating how wavelengths move across the slit
-
-
-        tslits_dict: dict
-              Dictionary with information on the slit boundaries
-        slit: int
-              Slit currently being considered
-        inmask: boolean ndarray, shape (nspec, nspat), default inmask = None, optional
-          Input mask for pixels not to be included in sky subtraction fits. True = Good (not masked), False = Bad (masked)
-
-        spec_samp_fine: float, default = 1.2, optional
-          bspline break point spacing in units of pixels for spectral fit to flat field blaze function.
-
-        spec_samp_coarse: float, default = 50.0, optional
-          bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image residuals.
-          This should be a large number unless you are trying to fit a sky flat with lots of features.
-
-        spat_samp: float, default = 5.0, optional
-          Spatial sampling for spatial slit illumination function. This is the width of the median filter in pixels used to
-          determine the slit illumination function, and thus sets the minimum scale on which the illumination function will
-          have features.
-
-        trim_edg: tuple of floats  (left_edge, right_edge), default (3,3), optional
-          indicates how many pixels to trim from left and right slit edges for creating the edgemask, which is used to mask
-          the edges from the initial (fine) spectroscopic fit to the blaze function.
-
-        pad: int, default = 5, optional
-          Padding window used to create expanded slitmask images used for re-determining slit boundaries. Tilts are also
-          computed using this expanded slitmask in cases the slit boundaries need to be moved outward.
-
-        npoly: int, default = None, optional
-          Order of polynomial for 2-d bspline-polynomial fit to flat field image residuals. The code determines the order of
-          these polynomials to each slit automatically depending on the slit width, which is why the default is None.
-          Do not attempt to set this paramter unless you know what you are doing.
-
-
-        tweak_slits: bool, default = True, optional
-          Slit edges will be tweaked such the left and right bounadaries intersect the location where the illumination
-          function falls below tweak_slits_thresh (see below) of its maximum value near the center (moving out from the center)
-
-        tweak_slits_thresh: float, default = 0.93, optional
-          If tweak_slits is True, this sets the illumination function threshold used to tweak the slits
-
-        tweak_slits_maxfrac: float, default = 0.10, optional
-          Maximum fractinoal amount (of slit width) allowed for each trimming the left and right slit boundaries, i.e. the
-          default is 10% which means slits would shrink by at most 20% (10% on each side)
-
-        debug: bool, default = False, optional
-          Show plots useful for debugging. This will block further execution of the code until the plot windows are closed.
+        Args:
+            debug (:obj:`bool`, optional):
+                Show plots useful for debugging. This will block
+                further execution of the code until the plot windows
+                are closed.
 
         Returns
         -------
@@ -500,15 +428,28 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             - 3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
         """
 
+#                            = flat.fit_flat(
+#                                self.rawflatimg.image, this_tilts_dict, self.tslits_dict,
+#                                           slit, inmask=inmask, nonlinear_counts=nonlinear_counts,
+#                                           spec_samp_fine=self.flatpar['spec_samp_fine'],
+#                                           spec_samp_coarse=self.flatpar['spec_samp_coarse'],
+#                                           spat_samp=self.flatpar['spat_samp'],
+#                                           tweak_slits=self.flatpar['tweak_slits'],
+#                                           tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
+#                                           tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],
+#                                           debug=debug)
+#
+#            pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, \
+#                    slit_righ_out \
+
         spec_samp_fine = self.flatpar['spec_samp_fine']
         spat_samp = self.flatpar['spat_samp']
-
-        flat, tilts_dict, tslits_dict_in, slit, inmask=None, spec_samp_fine=1.2,
-                 spec_samp_coarse=50.0, spat_samp=5.0, npoly=None, trim_edg=(3.0,3.0), pad=5.0,
-                 tweak_slits=True, tweak_slits_thresh=0.93, tweak_slits_maxfrac=0.10,
-                 nonlinear_counts=1e10, debug=False):
-
+        tweak_slits = self.flatpar['tweak_slits']
+        tweak_slits_thresh = self.flatpar['tweak_slits_thresh']
+        tweak_slits_maxfrac = self.flatpar['tweak_slits_maxfrac']
+        pad = self.flatpar['pad']
         nspec, nspat = self.rawflatimg.image.shape
+        # TODO: The above should be the same as self.slits.nspec, self.slits.nspat
         flat = self.rawflatimg.image
         gpm = np.ones_like(flat, dtype=bool) if self.msbpm is None else np.invert(self.msbpm)
         nonlinear_counts = self.spectrograph.nonlinear_counts(det=self.det)
@@ -517,7 +458,10 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         # Create both padded and unpadded slit ID images
         slitid_img = self.slits.slit_img()
+        # TODO: This needs to include a padding check
         padded_slitid_img = self.slits.slit_img(pad=pad)
+
+        msgs.info('Fitting flat-field ')
 
         for slit in range(self.slits.nslits):
 
@@ -534,20 +478,6 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                           + 'Consider raising nonlinear_counts={:5.3f}'.format(nonlinear_counts) +
                           msgs.newline() + 'Not attempting to flat field slit {:d}'.format(slit))
                 continue
-
-            # Demand at least 10 pixels per row (on average) per degree
-            # of the polynomial
-            if npoly is None:
-                # Approximate number of pixels sampling each spatial pixel
-                # for this (original) slit.
-                npercol = np.fmax(np.floor(np.sum(onslit)/nspec),1.0)
-                npoly  = max(1, int(np.ceil(npercol/10.)))
-                msgs.info('Fitting flat-field ')
-
-            # TODO: Warn the user if npoly is provided but higher than
-            # the nominal calculation if it is not provided?
-
-            # TODO: Make npoly a parameter in fitpar?
 
             # Create an image with the spatial coordinates relative to the left edge
             coo_img, offslit_trimmed = self.slits.spatial_coordinate_image(slitids=slit, full=True)
@@ -695,85 +625,102 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                                 / np.fmax(spec_model[onslit_padded], 1.0) \
                                                 / np.fmax(illumflat[onslit_padded], 0.01)
 
-        if tweak_slits:
-            slit_left_out, slit_righ_out, tweak_dict \
-                    = tweak_slit_edges(self.slits.left[:,slit], self.slits.right[:,slit], spat_coo_fit,
-                                       norm_flat_spat, tweak_slits_thresh, tweak_slits_maxfrac)
-            # Recreate all the quantities we need based on the tweaked slits
-            tslits_dict_out = copy.deepcopy(tslits_dict_in)
-            tslits_dict_out['slit_left'][:,slit] = slit_left_out
-            tslits_dict_out['slit_righ'][:,slit] = slit_righ_out
-            slitmask_out = pixels.tslits2mask(tslits_dict_out)
-            thismask_out = (slitmask_out == slit)
-            ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out,
-                                                             thismask_out, trim_edg=trim_edg)
-            # Note that nothing changes with the tilts, since these were
-            # already extrapolated across the whole image.
-        else:
-            # Generate the edgemask using the original slit boundaries and
-            # thismask_in
-            slit_left_out = np.copy(self.slits.left[:,slit])
-            slit_righ_out = np.copy(self.slits.right[:,slit])
-            thismask_out = onslit
-            ximg_out = coo_img
-
-        # Add an approximate pixel axis at the top
-        if debug:
-            plt.clf()
-            ax = plt.gca()
-            ax.plot(spat_coo_fit, norm_spec_fit, color='k', marker='o', markersize=0.4, mfc='k',
-                    fillstyle='full',linestyle='None', label = 'all pixels')
-            #ax.plot(spat_coo_fit[~imed], norm_spec_fit[~imed], color='darkred', marker='+',markersize=4.0,
-            #        mfc='red', fillstyle='full', linestyle='None', label = 'masked')
-            #ax.plot(spat_coo_fit[imed], normfit[imed], color='orange', label = 'median spatial profile')
-            ax.plot(spat_coo_fit, spatfit, color='cornflowerblue',
-                    label='final slit illumination function')
-            ymin = np.fmax(0.8 * spatfit.min(), 0.5)
-            ymax = 1.2*spatfit.max()
-            ax.set_ylim((np.fmax(0.8 * spatfit.min(), 0.5), 1.2 * spatfit.max()))
-            ax.set_xlim(spat_coo_fit.min(), spat_coo_fit.max())
-            plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=2.0,
-                       label='original left edge', zorder=8)
-            plt.vlines(1.0, ymin, ymax, color='red', linestyle=':', linewidth=2.0,
-                       label='original right edge', zorder=9)
             if tweak_slits:
-                if tweak_dict['tweak_left']:
-                    label = 'threshold = {:5.2f}'.format(tweak_slits_thresh) \
-                                + ' % of max of left illumprofile'
-                    plt.hlines(tweak_slits_thresh*tweak_dict['norm_max_left'], spat_coo_fit.min(), 0.5,
-                               color='lightgreen', linewidth=3.0, label=label, zorder=10)
-                    plt.vlines(tweak_dict['xleft'], ymin, ymax, color='lightgreen', linestyle='--',
-                               linewidth=3.0, label='tweaked left edge', zorder=11)
-                if tweak_dict['tweak_righ']:
-                    label = 'threshold = {:5.2f}'.format(tweak_slits_thresh) \
-                                + ' % of max of right illumprofile'
-                    plt.hlines(tweak_slits_thresh * tweak_dict['norm_max_righ'], 0.5, spat_coo_fit.max(),
-                               color='red', linewidth=3.0, label=label, zorder=10)
-                    plt.vlines(tweak_dict['xrigh'], ymin, ymax, color='red', linestyle='--',
-                               linewidth=3.0, label='tweaked right edge', zorder=20)
-            plt.legend()
-            plt.xlabel('Normalized Slit Position')
-            plt.ylabel('Normflat Spatial Profile')
-            plt.title('Illumination Function Fit for slit={:d}'.format(slit))
-            plt.show()
+                left_shift, self.slits.left_tweak[:,slit], right_shift, \
+                    self.slits.left_tweak[:,slit] \
+                        = tweak_slit_edges(self.slits.left[:,slit], self.slits.right[:,slit],
+                                           spat_coo_fit, norm_flat_spat, thresh=tweak_slits_thresh,
+                                           maxfrac=tweak_slits_maxfrac)
+                # Recreate all the quantities we need based on the tweaked slits
+                tslits_dict_out = copy.deepcopy(tslits_dict_in)
+                tslits_dict_out['slit_left'][:,slit] = slit_left_out
+                tslits_dict_out['slit_righ'][:,slit] = slit_righ_out
+                # Original call used pad value in tslits_dict
+                slitmask_out = pixels.tslits2mask(tslits_dict_out)
+                thismask_out = (slitmask_out == slit)
+                ximg_out, edgmask_out = pixels.ximg_and_edgemask(slit_left_out, slit_righ_out,
+                                                                thismask_out, trim_edg=trim_edg)
+                # Note that nothing changes with the tilts, since these were
+                # already extrapolated across the whole image.
+            else:
+                # Generate the edgemask using the original slit boundaries and
+                # thismask_in
+                slit_left_out = np.copy(self.slits.left[:,slit])
+                slit_righ_out = np.copy(self.slits.right[:,slit])
+                thismask_out = onslit
+                ximg_out = coo_img
 
-        msgs.info('Performing illumination + scattembedered light flat field fit')
+            # Add an approximate pixel axis at the top
+            if debug:
+                plt.clf()
+                ax = plt.gca()
+                ax.plot(spat_coo_fit, norm_spec_fit, color='k', marker='o', markersize=0.4, mfc='k',
+                        fillstyle='full',linestyle='None', label = 'all pixels')
+                #ax.plot(spat_coo_fit[~imed], norm_spec_fit[~imed], color='darkred', marker='+',markersize=4.0,
+                #        mfc='red', fillstyle='full', linestyle='None', label = 'masked')
+                #ax.plot(spat_coo_fit[imed], normfit[imed], color='orange', label = 'median spatial profile')
+                ax.plot(spat_coo_fit, spatfit, color='cornflowerblue',
+                        label='final slit illumination function')
+                ymin = np.fmax(0.8 * spatfit.min(), 0.5)
+                ymax = 1.2*spatfit.max()
+                ax.set_ylim((np.fmax(0.8 * spatfit.min(), 0.5), 1.2 * spatfit.max()))
+                ax.set_xlim(spat_coo_fit.min(), spat_coo_fit.max())
+                plt.vlines(0.0, ymin, ymax, color='lightgreen', linestyle=':', linewidth=2.0,
+                           label='original left edge', zorder=8)
+                plt.vlines(1.0, ymin, ymax, color='red', linestyle=':', linewidth=2.0,
+                           label='original right edge', zorder=9)
+                if tweak_slits:
+                    if tweak_dict['tweak_left']:
+                        label = 'threshold = {:5.2f}'.format(tweak_slits_thresh) \
+                                    + ' % of max of left illumprofile'
+                        plt.hlines(tweak_slits_thresh*tweak_dict['norm_max_left'], spat_coo_fit.min(), 0.5,
+                                   color='lightgreen', linewidth=3.0, label=label, zorder=10)
+                        plt.vlines(tweak_dict['xleft'], ymin, ymax, color='lightgreen', linestyle='--',
+                                   linewidth=3.0, label='tweaked left edge', zorder=11)
+                    if tweak_dict['tweak_righ']:
+                        label = 'threshold = {:5.2f}'.format(tweak_slits_thresh) \
+                                    + ' % of max of right illumprofile'
+                        plt.hlines(tweak_slits_thresh * tweak_dict['norm_max_righ'], 0.5, spat_coo_fit.max(),
+                                   color='red', linewidth=3.0, label=label, zorder=10)
+                        plt.vlines(tweak_dict['xrigh'], ymin, ymax, color='red', linestyle='--',
+                                   linewidth=3.0, label='tweaked right edge', zorder=20)
+                plt.legend()
+                plt.xlabel('Normalized Slit Position')
+                plt.ylabel('Normflat Spatial Profile')
+                plt.title('Illumination Function Fit for slit={:d}'.format(slit))
+                plt.show()
 
-        # Flat field pixels for fitting spectral direction
-        isrt_spec = np.argsort(spec_coo[thismask_out])
-        pix_twod = spec_coo[thismask_out][isrt_spec]
-        ximg_twod = ximg_out[thismask_out][isrt_spec]
-        norm_twod = norm_spec_spat[thismask_out][isrt_spec]
+            msgs.info('Performing illumination + scattered light flat field fit')
 
-        fitmask = inmask[thismask_out][isrt_spec] & (np.abs(norm_twod - 1.0) < 0.30)
-        # Here we ignore the formal photon counting errors and simply
-        # assume that a typical error per pixel. This guess is somewhat
-        # aribtrary. We then set the rejection threshold with sigrej_illum
-        var_value = 0.01
-        norm_twod_ivar = fitmask.astype(float)/(var_value**2)
-        sigrej_illum = 4.0
+            # Flat field pixels for fitting spectral direction
+            isrt_spec = np.argsort(spec_coo[thismask_out])
+            pix_twod = spec_coo[thismask_out][isrt_spec]
+            ximg_twod = ximg_out[thismask_out][isrt_spec]
+            norm_twod = norm_spec_spat[thismask_out][isrt_spec]
 
-        poly_basis = pydl.fpoly(2.0*ximg_twod - 1.0, npoly).T
+            fitmask = inmask[thismask_out][isrt_spec] & (np.abs(norm_twod - 1.0) < 0.30)
+            # Here we ignore the formal photon counting errors and simply
+            # assume that a typical error per pixel. This guess is somewhat
+            # aribtrary. We then set the rejection threshold with sigrej_illum
+            # TODO: Make these things parameters?
+            var_value = 0.01
+            norm_twod_ivar = fitmask.astype(float)/(var_value**2)
+            sigrej_illum = 4.0
+
+            # Demand at least 10 pixels per row (on average) per degree
+            # of the polynomial
+            if npoly is None:
+                # Approximate number of pixels sampling each spatial pixel
+                # for this (original) slit.
+                npercol = np.fmax(np.floor(np.sum(onslit)/nspec),1.0)
+                npoly  = max(1, int(np.ceil(npercol/10.)))
+            
+            # TODO: Warn the user if npoly is provided but higher than
+            # the nominal calculation if it is not provided?
+
+            # TODO: Make npoly a parameter in fitpar?
+
+            poly_basis = pydl.fpoly(2.0*ximg_twod - 1.0, npoly).T
 
         # Perform the full 2d fit now
         twod_set, outmask_twod, twodfit, _ , exit_status \

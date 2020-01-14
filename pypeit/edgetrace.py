@@ -278,7 +278,7 @@ class SlitTraceSet(DataContainer):
         self.left_tweak = np.zeros_like(self.left)
         self.right_tweak = np.zeros_like(self.right)
 
-    def slit_img(self, pad=None, slitids=None):
+    def slit_img(self, pad=None, slitids=None, tweaked=False):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -307,6 +307,8 @@ class SlitTraceSet(DataContainer):
             slitids (:obj:`int`, array_like, optional):
                 List of slit IDs to include in the image. If None,
                 all slits are included.
+            tweaked (:obj:`bool`, optional):
+                Use the tweaked version of the slit edges.
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
