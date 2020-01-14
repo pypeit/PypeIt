@@ -134,7 +134,6 @@ def slit_pixels(slit_left_in, slit_righ_in, nspat, pad = 0.0):
     return slitmask
 
 
-
 def tslits2mask(tslits_dict, pad=None):
     """ Generate an image indicating the slit/order associated with each pixel.
 

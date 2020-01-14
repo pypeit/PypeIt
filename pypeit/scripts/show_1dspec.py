@@ -35,6 +35,8 @@ def main(args, unit_test=False):
     from pypeit import specobjs
     from pypeit import msgs
 
+    from IPython import embed
+
     sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
 
     # List only?
@@ -46,8 +48,6 @@ def main(args, unit_test=False):
         return
 
     # Load spectrum
-    #spec = load.load_1dspec(args.file, exten=args.exten, extract=args.extract,
-    #                          objname=args.obj, flux=args.flux)
     if args.obj is not None:
         exten = sobjs.name.index(args.obj)
         if exten < 0:
@@ -55,6 +55,12 @@ def main(args, unit_test=False):
     else:
         exten = args.exten-1 # 1-index in FITS file
 
+    # Check Extraction
+    if args.extract == 'OPT':
+        if 'OPT_WAVE' not in sobjs[exten]._data.keys():
+            msgs.error("Spectrum not extracted with OPT.  Try --extract=BOX")
+
+    # XSpectrum1D
     spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
 
     if unit_test is False:
