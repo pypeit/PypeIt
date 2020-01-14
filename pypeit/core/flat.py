@@ -498,7 +498,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     norm_spec_spat[thismask] = flat[thismask]/np.fmax(spec_model[thismask], 1.0)/np.fmax(illumflat[thismask],0.01)
 
     if tweak_slits:
-        slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges(
+        slit_left_out, slit_righ_out, tweak_dict = tweak_slit_edges_brute_force(
             slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_thresh, tweak_slits_maxfrac)
         # Recreate all the quantities we need based on the tweaked slits
         tslits_dict_out = copy.deepcopy(tslits_dict_in)
