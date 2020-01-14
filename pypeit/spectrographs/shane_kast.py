@@ -5,15 +5,16 @@ import os
 from pkg_resources import resource_filename
 
 from astropy.time import Time
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.core import parse
 
-from pypeit import debugger
-
+from IPython import embed
 
 class ShaneKastSpectrograph(spectrograph.Spectrograph):
     """
@@ -36,8 +37,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # Scienceimage default parameters
-        #par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Flux calibration parset
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
@@ -296,8 +295,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
                             numamplifiers   = 2,
                             gain            = [1.9, 1.9],
                             ronoise         = [3.8, 3.8],
-                            datasec         = ['[:,40:102]', '[:,103:347]'],
-                            oscansec        = ['[:,425:522]', '[:,524:610]'],
                             suffix          = '_red'
                             )]
         self.numhead = 1
@@ -318,6 +315,52 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         return par
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to specific instrument configurations.
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        par = self.default_pypeit_par() if inp_par is None else inp_par
+
+        # Parse from the header
+        header = fits.open(scifile)[0].header
+        naxis1 = header['NAXIS1']
+        crval1u = header['CRVAL1U']
+        nover = header['COVER']
+
+        ndata = naxis1 - nover*2
+
+        x1_0 = 1             # Amp 1
+        x1_1 = 512 - crval1u
+        x2_0 = x1_1+1        # Amp
+        x2_1 = ndata
+
+        xo1_1 = x2_1+1
+        xo1_2 = x2_1+nover
+        xo2_1 = xo1_2+1
+        xo2_2 = xo1_2+nover
+
+        datasec = ['[:,{}:{}]'.format(x1_0, x1_1), '[:,{}:{}]'.format(x2_0,x2_1)]    # These are rows, columns on the raw frame, 1-indexed
+        oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
+
+        # Fill it up
+        self.detector[0]['datasec'] = datasec
+        self.detector[0]['oscansec'] = oscansec
+
+        return par
+
+
     def init_meta(self):
         """
         Meta data specific to shane_kast_red
@@ -334,22 +377,6 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
 
-
-    def check_header(self, headers):
-        """
-        Check headers match expectations for a Shane Kast red exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = {   '0.NAXIS': 2,
-                            '0.DSENSOR': '2k x 4k Hamamatsu' }
-        super(ShaneKastRedSpectrograph, self).check_headers(headers,
-                                                            expected_values=expected_values)
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     """
@@ -419,7 +446,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
                             '0.DSENSOR': 'Ret 400x1200' }
         super(ShaneKastRedRetSpectrograph, self).check_headers(headers,
                                                                expected_values=expected_values)
-    
+
     def init_meta(self):
         """
         Meta data specific to shane_kast_blue

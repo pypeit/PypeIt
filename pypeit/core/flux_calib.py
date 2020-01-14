@@ -60,12 +60,13 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
         if the object is matched to a library standard star.  If check
         is False and no match is found, return None.  Otherwise, return
         a dictionary with the matching standard star with the following
-        meta data::
-            - 'file': str -- Filename
-              table
+        meta data:
+
+            - 'file': str -- Filename table
             - 'name': str -- Star name
             - 'ra': str -- RA(J2000)
             - 'dec': str -- DEC(J2000)
+
     """
     # Priority
     std_sets = ['xshooter', 'calspec','esofil']
@@ -150,22 +151,23 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     return None
 
 def stellar_model(V, sptype):
-    """Parse Kurucz SED given T and g
-    Also convert absolute/apparent magnitudes
+    """
+    Parse Kurucz SED given T and g.  Also convert absolute/apparent
+    magnitudes
 
-    Parameters:
+    Parameters
     ----------
     V: float
-      Apparent magnitude of the telluric star
+        Apparent magnitude of the telluric star
     sptype: str
-      Spectral type of the telluric star
+        Spectral type of the telluric star
 
-    Returns:
-    ----------
+    Returns
+    -------
     loglam: ndarray
-      log wavelengths
+        log wavelengths
     flux: ndarray
-      SED f_lambda (cgs units, I think, probably per Ang)
+        SED f_lambda (cgs units, I think, probably per Ang)
     """
 
     # Grab telluric star parameters
@@ -176,11 +178,11 @@ def stellar_model(V, sptype):
     sk82_file = resource_filename('pypeit', 'data/standards/kurucz93/schmidt-kaler_table.txt')
     sk82_tab = ascii.read(sk82_file, names=('Sp', 'logTeff', 'Teff', '(B-V)_0', 'M_V', 'B.C.', 'M_bol', 'L/L_sol'))
 
-    # TODO, currently this only works on select stellar types. Add ability to interpolate across types. 
+    # TODO, currently this only works on select stellar types. Add ability to interpolate across types.
     # Match input type.
     mti = np.where(sptype == sk82_tab['Sp'])[0]
     if len(mti) != 1:
-        raise ValueError('Not ready to stellar type yet.')
+        raise ValueError('Not ready to interpolate yet.')
 
     # Calculate final quantities
     # Relation between radius, temp, and bolometric luminosity
@@ -243,17 +245,19 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
     '''
     Get the standard spetrum using given information of your standard/telluric star.
 
-    Parameters:
-      star_type: str
-         Spectral type of your standard/telluric star
-      star_mag: float
-       Apparent magnitude of the telluric star
-      ra: str
-        Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
-      dec: str
-        Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
-    Return: dict
-        Dictionary containing the information you provided and the standard/telluric spectrum.
+    Args:
+        star_type: str
+            Spectral type of your standard/telluric star
+        star_mag: float
+            Apparent magnitude of the telluric star
+        ra: str
+            Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
+        dec: str
+            Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
+
+    Returns:
+        dict: Dictionary containing the information you provided and the
+        standard/telluric spectrum.
     '''
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
@@ -298,12 +302,12 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     Parameters
     ----------
     toler : Angle, optional
-      Tolerance for matching detector to site (5 deg)
+        Tolerance for matching detector to site (5 deg)
 
     Returns
     -------
     ext_file : Table
-      astropy Table containing the 'wavelength', 'extinct' data for AM=1.
+        astropy Table containing the 'wavelength', 'extinct' data for AM=1.
     """
     # Mosaic coord
     mosaic_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
@@ -339,17 +343,17 @@ def extinction_correction(wave, airmass, extinct):
     Parameters
     ----------
     wave : ndarray
-      Wavelengths for interpolation. Should be sorted
-      Assumes Angstroms
+        Wavelengths for interpolation. Should be sorted Assumes
+        Angstroms
     airmass : float
-      Airmass
+        Airmass
     extinct : Table
-      Table of extinction values
+        Table of extinction values
 
     Returns
     -------
     flux_corr : ndarray
-      Flux corrections at the input wavelengths
+        Flux corrections at the input wavelengths
     """
     # Checks
     if airmass < 1.:
@@ -376,30 +380,7 @@ def extinction_correction(wave, airmass, extinct):
     # Return
     return flux_corr
 
-# JFH Reintroducing this function as a stopgap until we clean all these routines up and merge the flux calibration
-# methods.
-def apply_sensfunc(fnames, sensfile, extinct_correct=True, tell_correct=False, debug=False, show=False):
-
-    sens_meta = Table.read(sensfile, 1)
-    sens_table = Table.read(sensfile, 2)
-
-    nexp = np.size(fnames)
-    for iexp in range(nexp):
-        spec1dfile = fnames[iexp]
-        outfile = spec1dfile[:-5] + '_flux.fits'
-        sobjs = specobjs.SpecObjs.from_fitsfile(spec1dfile)
-        #sobjs, head = load.load_specobjs(spec1dfile)
-        embed()
-        instrument = head['INSTRUME']
-        spectrograph = load_spectrograph(instrument)
-        airmass, exptime = head['AIRMASS'], head['EXPTIME']
-        longitude, latitude = head['LON-OBS'], head['LAT-OBS']
-
-        apply_sensfunc_specobjs(sobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=extinct_correct,
-                                tell_correct=tell_correct, longitude=longitude, latitude=latitude,
-                                debug=debug, show=show)
-        save.save_1d_spectra_fits(sobjs, head, spectrograph, outfile, helio_dict=None, overwrite=True)
-
+# TODO I believe this function is now deprecated.
 def apply_sensfunc_spec(wave, counts, ivar, sensfunc, airmass, exptime, mask=None, extinct_correct=True, telluric=None,
                         longitude=None, latitude=None, debug=False):
 
@@ -558,7 +539,7 @@ def find_standard(specobj_list):
     Returns
     -------
     mxix : int
-      Index of the standard star
+        Index of the standard star
 
     """
     # Repackage as necessary (some backwards compatability)
@@ -578,27 +559,27 @@ def find_standard(specobj_list):
     # Return
     return mxix
 
-def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
-                        longitude=None, latitude=None):
-    """ Apply the sensitivity function to the data
-    We also correct for extinction.
-
-    Parameters
-    ----------
-    spec_obj : dict
-      SpecObj
-    sens_dict : dict
-      Sens Function dict
-    airmass : float
-      Airmass
-    exptime : float
-      Exposure time in seconds
-    longitude : float
-      longitude in degree for observatory
-    latitude: float
-      latitude in degree for observatory
-      Used for extinction correction
-    """
+#def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
+#                        longitude=None, latitude=None):
+#    """ Apply the sensitivity function to the data
+#    We also correct for extinction.
+#
+#    Parameters
+#    ----------
+#    spec_obj : dict
+#        SpecObj
+#    sens_dict : dict
+#        Sens Function dict
+#    airmass : float
+#        Airmass
+#    exptime : float
+#        Exposure time in seconds
+#    longitude : float
+#        longitude in degree for observatory
+#    latitude: float
+#        latitude in degree for observatory. Used for extinction
+#        correction
+#    """
 
 def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, ech_orders=None,
              mask_abs_lines=True, telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,
@@ -700,9 +681,13 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
 
 # JFH TODO This code needs to be cleaned up. The telluric option should probably be removed. Logic is not easy to follow.
-def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, mask_abs_lines=True,
-             telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
-    """ Function to generate the sensitivity function. This function fits a bspline to the 2.5*log10(flux_std/flux_counts).
+def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude,
+                  mask_abs_lines=True, telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,
+                  trans_thresh=0.9,polycorrect=True, debug=False):
+
+    """
+
+    Function to generate the sensitivity function. This function fits a bspline to the 2.5*log10(flux_std/flux_counts).
     The break points spacing, which determines the scale of variation of the sensitivity function is determined by the
     nresln parameter.  This code can work in different regimes, but NOTE THAT TELLURIC MODE IS DEPRECATED, use
     telluric.sensfunc_telluric instead
@@ -1214,10 +1199,10 @@ def scale_in_filter(xspec, scale_dict):
     Scale spectra to input magnitude in given filter
 
     scale_dict has data model:
-      'filter' (str): name of filter
-      'mag' (float): magnitude
-      'mag_type' (str, optional): type of magnitude.  Assumed 'AB'
-      'masks' (list, optional): Wavelength ranges to mask in calculation
+      - 'filter' (str): name of filter
+      - 'mag' (float): magnitude
+      - 'mag_type' (str, optional): type of magnitude.  Assumed 'AB'
+      - 'masks' (list, optional): Wavelength ranges to mask in calculation
 
     Args:
         xspec (linetools.spectra.xspectrum1d.XSpectrum1D):
@@ -1225,8 +1210,6 @@ def scale_in_filter(xspec, scale_dict):
 
     Returns:
         linetools.spectra.xspectrum1d.XSpectrum1D, float:  Scaled spectrum
-
-
     """
     # Parse the spectrum
     sig = xspec.sig

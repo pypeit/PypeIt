@@ -43,14 +43,19 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     """
 
     Args:
-        weights: float ndarray of weights.
-            Options for the shape of weights are:
-                (nimgs,)              -- a single weight per image in the stack
-                (nimgs, nspec)        -- wavelength dependent weights per image in the stack
-                (nimgs, nspec, nspat) -- weights input with the shape of the image stack
+        weights (ndarray):
+            Weights to use. Options for the shape of weights are:
 
-             Note that the weights are distinct from the mask which is dealt with via inmask_stack argument so there
-             should not be any weights that are set to zero (although in principle this would still work).
+                - (nimgs,) -- a single weight per image in the stack
+                - (nimgs, nspec) -- wavelength dependent weights per
+                  image in the stack
+                - (nimgs, nspec, nspat) -- weights input with the shape
+                  of the image stack
+
+             Note that the weights are distinct from the mask which is
+             dealt with via inmask_stack argument so there should not be
+             any weights that are set to zero (although in principle
+             this would still work).
 
         sci_list: list
             List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
@@ -74,14 +79,16 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
             Maximum number of iterations for sigma clipping using astropy.stats.SigmaClip
 
     Returns:
-        sci_list_out: list
-           The list of ndarray float combined images with shape (nspec, nspat)
-        var_list_out: list
-           The list of ndarray propagated variance images with shape (nspec, nspat)
-        outmask: bool ndarray, shape (nspec, nspat)
-           Mask for combined image. True=Good, False=Bad
-        nused: int ndarray, shape (nspec, nspat)
-           Image of integers indicating the number of images that contributed to each pixel
+        tuple: Returns the following:
+            - sci_list_out: list: The list of ndarray float combined
+              images with shape (nspec, nspat)
+            - var_list_out: list: The list of ndarray propagated
+              variance images with shape (nspec, nspat)
+            - outmask: bool ndarray, shape (nspec, nspat): Mask for
+              combined image. True=Good, False=Bad
+            - nused: int ndarray, shape (nspec, nspat): Image of
+              integers indicating the number of images that contributed
+              to each pixel
     """
 
     shape = img_list_error_check(sci_list, var_list)
@@ -154,6 +161,7 @@ def img_list_error_check(sci_list, var_list):
     """
     Utility routine for dealing dealing with lists of image stacks for rebin2d and weigthed_combine routines below. This
     routine checks that the images sizes are correct and routines the shape of the image stacks.
+
     Args:
         sci_list: list
             List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
@@ -164,8 +172,7 @@ def img_list_error_check(sci_list, var_list):
             using the  weights**2, inmask_stack, and possibly sigma clipping
 
     Returns:
-        shape: tuple
-            The shapes of the image stacks, (nimgs, nspec, nspat)
+        tuple: The shapes of the image stacks, (nimgs, nspec, nspat)
 
     """
     shape_sci_list = []
@@ -199,11 +206,14 @@ def broadcast_weights(weights, shape):
     Utility routine to broadcast weights to be the size of image stacks specified by shape
 
     Args:
-        weights: float ndarray of weights.
-            Options for the shape of weights are:
-                (nimgs,)              -- a single weight per image
-                (nimgs, nspec)        -- wavelength dependent weights per image
-                (nimgs, nspec, nspat) -- weights already have the shape of the image stack and are simply returned
+        weights (ndarray):
+            Weights to use. Options for the shape of weights are:
+
+                - (nimgs,) -- a single weight per image in the stack
+                - (nimgs, nspec) -- wavelength dependent weights per
+                  image
+                - (nimgs, nspec, nspat) -- weights already have the
+                  shape of the image stack and are simply returned
         shape: tuple of integers
             Shape of the image stacks for weighted coadding. This is either (nimgs, nspec) for 1d extracted spectra or
             (nimgs, nspec, nspat) for 2d spectrum images
@@ -239,3 +249,4 @@ def broadcast_weights(weights, shape):
         msgs.error('Unrecognized dimensionality for weights')
 
     return weights_stack
+

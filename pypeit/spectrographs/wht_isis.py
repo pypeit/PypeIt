@@ -92,8 +92,6 @@ class WHTISISBlueSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 4859.0
         par['calibrations']['wavelengths']['disp'] = 0.2
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Always correct for flexure, starting with default parameters

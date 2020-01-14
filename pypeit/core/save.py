@@ -212,12 +212,19 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             boxsize.append(0.)
 
         # Optimal profile (FWHM)
-        opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
         # S2N -- default to boxcar
-        #sext = (specobj.boxcar if (len(specobj.boxcar) > 0) else specobj.optimal)
-        ivar = specobj.OPT_COUNTS_IVAR
-        is2n = np.median(specobj.OPT_COUNTS*np.sqrt(ivar))
-        s2n.append(is2n)
+        if hasattr(specobj, 'FWHMFIT'):
+            opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            # S2N -- optimal
+            ivar = specobj.OPT_COUNTS_IVAR
+            is2n = np.median(specobj.OPT_COUNTS*np.sqrt(ivar))
+            s2n.append(is2n)
+        else: # Optimal is not required to occur
+            opt_fwhm.append(0.)
+            # S2N -- use boxcar
+            ivar = specobj.BOX_COUNTS_IVAR
+            is2n = np.median(specobj.BOX_COUNTS*np.sqrt(ivar))
+            s2n.append(is2n)
 
     # Generate the table, if we have at least one source
     if len(names) > 0:

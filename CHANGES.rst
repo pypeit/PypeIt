@@ -1,9 +1,28 @@
 
-0.11.1dev
+0.12.2dev
 ---------
 
+- Introduces quick look scripts for MOS and NIRES
+- Bumps dependencies including Python 3.7
+- Modest refactoring of reduce/extraction/skysub codes
+- Refactor of ScienceImage Par into pieces
+- Finally dealt with 'random' windowing of Shane_kast_red
+- Dynamic namp setting for LRISr when instantiating Spectrograph
+
+
+0.12.1 (07 Jan 2019)
+--------------------
+
+- Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using
+  float number of steps in core/wave.py, and sets numpy version to 1.16
+
+0.12.0 (23 Dec 2019)
+--------------------
+
 - Implemented MOSFIRE and further implemented NIRSPEC for Y-band
-  spectroscopy. 
+  spectroscopy.
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band
+  spectroscopy.
 - Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
@@ -71,6 +90,8 @@
 - Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
   key is not valid for the given parameter set.  NOTE: The check may
   fail if there are identical keys for different parameter sets.
+- Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
+  construces a ``tslits_dict`` object directly from the Master file.
 
 0.11.0.1
 ---------

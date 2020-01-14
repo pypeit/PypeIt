@@ -1,5 +1,6 @@
 """ Module for I/O in arclines
 """
+import glob
 import os
 import datetime
 from pkg_resources import resource_filename
@@ -69,8 +70,7 @@ def load_template(arxiv_file, det):
     Returns:
         wave: ndarray
         flux: ndarray
-        binning: int
-          Of the template arc spectrum
+        binning: int, Of the template arc spectrum
 
     """
     # Path already included?
@@ -133,7 +133,9 @@ def load_reid_arxiv(arxiv_file):
     return wv_calib_arxiv, par
 
 def load_by_hand():
-    """ By-hand line list
+    """
+    By-hand line list
+
     Parameters
     ----------
     line_file
@@ -164,16 +166,17 @@ def load_by_hand():
 
 def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     """
+
     Parameters
     ----------
     line_file : str
-      Full path to line_list or name of ion
+        Full path to line_list or name of ion
     add_path : bool, optional
-      Not yet implemented
+        Not yet implemented
     NIST : bool, optional
-      NIST formatted table?
+        NIST formatted table?
     use_ion : bool, optional
-      Interpret line_file as an ion, e.g. CuI
+        Interpret line_file as an ion, e.g. CuI
 
     Returns
     -------
@@ -230,24 +233,23 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
 
 
 def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
-    """ Loads a series of line list files
+    """
+    Loads a series of line list files
 
     Parameters
     ----------
     lamps : list
     unknown : bool, optional
     skip : bool, optional
-      Skip missing line lists (mainly for building)
+        Skip missing line lists (mainly for building)
     NIST : bool, optional
-      Load the full NIST linelists
+        Load the full NIST linelists
 
     Returns
     -------
     line_list : Table
 
     """
-    import glob
-
     # All?
     if all:
         line_files = glob.glob(line_path+'*_lines.dat')
@@ -287,7 +289,8 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
 
 
 def load_source_table():
-    """ Load table of arcline sources
+    """
+    Load table of arcline sources
 
     Returns
     -------
@@ -302,33 +305,40 @@ def load_source_table():
 
 
 def load_tree(polygon=4, numsearch=20):
-    """ Load a KDTree of ThAr patterns that is stored on disk
+    """
+    Load a KDTree of ThAr patterns that is stored on disk
 
     Parameters
     ----------
     polygon : int
-      Number of sides to the polygon used in pattern matching:
-        polygon=3  -->  trigon (two anchor lines and one floating line)
-        polygon=4  -->  tetragon (two anchor lines and two floating lines)
-        polygon=5  -->  pentagon (two anchor lines and three floating lines)
-        ...
+        Number of sides to the polygon used in pattern matching:
+
+            - polygon=3  -->  trigon (two anchor lines and one floating line)
+            - polygon=4  -->  tetragon (two anchor lines and two floating lines)
+            - polygon=5  -->  pentagon (two anchor lines and three floating lines)
+
     numsearch : int
-      Number of consecutive detected lines used to generate a pattern. For
-      example, if numsearch is 4, then for a trigon, the following patterns will
-      be generated (assuming line #1 is the left anchor):
-      1 2 3  (in this case line #3 is the right anchor)
-      1 2 4  (in this case line #4 is the right anchor)
-      1 3 4  (in this case line #4 is the right anchor)
+        Number of consecutive detected lines used to generate a pattern.
+        For example, if numsearch is 4, then for a trigon, the following
+        patterns will be generated (assuming line #1 is the left
+        anchor):
+
+            - 1 2 3  (in this case line #3 is the right anchor)
+            - 1 2 4  (in this case line #4 is the right anchor)
+            - 1 3 4  (in this case line #4 is the right anchor)
 
     Returns
     -------
     file_load : KDTree instance
-      The KDTree containing the patterns
+        The KDTree containing the patterns
     index : ndarray
-      For each pattern in the KDTree, this array stores the corresponding index in
-      the linelist
+        For each pattern in the KDTree, this array stores the
+        corresponding index in the linelist
     """
 
+    # TODO: Can we save these as fits files instead?
+    # TODO: Use os.path.join
+    # TODO: Please don't use imports within functions
     import pickle
     filename = pypeit.__path__[0] +\
                '/data/arc_lines/lists/ThAr_patterns_poly{0:d}_search{1:d}.kdtree'.format(polygon, numsearch)
@@ -348,17 +358,20 @@ def load_tree(polygon=4, numsearch=20):
 
 
 def load_nist(ion):
-    """Parse a NIST ASCII table.  Note that the long ---- should have
-    been commented out and also the few lines at the start.
+    """
+    Parse a NIST ASCII table.  Note that the long ---- should have been
+    commented out and also the few lines at the start.
 
     Parameters
     ----------
     ion : str
-      Name of ion
+        Name of ion
+
     Returns
     -------
     tbl : Table
-      Table of lines
+        Table of lines
+
     """
     import glob
     # Root (for development only)
@@ -400,10 +413,11 @@ def load_nist(ion):
 
 def load_unknown_list(lines, unknwn_file=None, all=False):
     """
+
     Parameters
     ----------
     lines : list
-      Restricted lines;  use all=True for all
+        Restricted lines;  use all=True for all
     unknwn_file : str, optional
     all : bool, optional
 
@@ -433,13 +447,16 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
 
 
 def load_spectrum(spec_file, index=0):
-    """ Load a simple spectrum from input file
+    """
+    Load a simple spectrum from input file
 
     Parameters
     ----------
     spec_file : str
-      .fits --  Assumes simple ndarray in 0 extension
-      .ascii -- Assumes Table.read(format='ascii') will work with single column
+        Possible formats are:
+
+            - .fits --  Assumes simple ndarray in 0 extension
+            - .ascii -- Assumes Table.read(format='ascii') will work with single column
 
     Returns
     -------
@@ -483,3 +500,4 @@ def write_line_list(tbl, outfile):
     with open(outfile,'w') as f:
         f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%b-%d'))))
         tbl.write(f, format='ascii.fixed_width')
+

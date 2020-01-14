@@ -37,8 +37,8 @@ Define a utility base class used to hold parameters.
         allow it to print the configuration lines for a dictionary, not
         just ParSets.
 
-.. _isinstance: https://docs.python.org/2/library/functions.html#isinstance
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import warnings
@@ -370,6 +370,16 @@ class ParSet(object):
         Args:
             data (object):
                 The object to stringify.
+            use_repr (:obj:`bool`, optional):
+                Use the objects :attr:`__repr__` method; otherwise, use
+                a direct string conversion.
+            verbatum (:obj:`bool`, optional):
+                Use quotes around the provided string to indicate that
+                the string should be representated in a verbatum (fixed
+                width) font.
+        
+        Returns:
+            str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
             return data if not verbatum else '``' + data + '``'
@@ -377,9 +387,7 @@ class ParSet(object):
             return '[]' if isinstance(data, list) and len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
                                                              verbatum=verbatum) for d in data ])
-        if use_repr:
-            return data.__repr__()
-        return str(data)
+        return data.__repr__() if use_repr else str(data)
 
     def _wrap_print(self, head, output, tcols):
         """
@@ -573,10 +581,10 @@ class ParSet(object):
                 Key for new parameter
             value (:obj:`dtype`):
                 Parameter value, must have a type in the list provided
-                by :arg:`dtype`, if the list is provided
+                by `dtype`, if the list is provided
             default (:obj:`dtype`, optional):
                 Define a default value for the parameter, must have a
-                type in the list provided by :arg:`dtype`, if the list
+                type in the list provided by `dtype`, if the list
                 is provided.  No default if not provided.
             options (:obj:`list`, optional):
                 List of discrete values that the parameter is allowed to
@@ -699,6 +707,17 @@ class ParSet(object):
         return ':class:`' +  type(p).__module__ + '.' + type(p).__name__ + '`'
 
     def to_rst_table(self, parsets_listed=[]):
+        """
+        Construct a reStructuredText table describing the parameter set.
+
+        Args:
+            parsets_listed (:obj:`list`, optional):
+                A list of 
+        
+        Returns:
+            list: Returns a list of lines that can be written to an
+            ``*.rst`` file.
+        """
         new_parsets = []
         data_table = numpy.empty((self.npar+1, 5), dtype=object)
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']

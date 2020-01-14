@@ -147,53 +147,51 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
     Parameters
     ----------
     arcimg:  ndarray, float (nspec, nspat)
-       Image of arc or sky that will be used for tracing tilts.
+        Image of arc or sky that will be used for tracing tilts.
     lines_spec: ndarray, float (nlines,)
-       Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
-       in pixels in image coordinates.
+        Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
+        in pixels in image coordinates.
     lines_spat: ndarray, float (nlines,)
-       Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
-       pixels in image coordinates.
+        Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
+        pixels in image coordinates.
     thismask: ndarray, boolean (nspec, nsapt)
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order. This must be the same size as the arcimg.
-    Optional Parameters
-    -------------------
-    inmask: float ndarray, default = None
+    inmask: float ndarray, default = None, optional
         Input mask image.
-    gauss: bool, default = False
+    gauss: bool, default = False, optional
         If true the code will trace the arc lines usign Gaussian weighted centroiding (trace_gweight) instead of the default,
         which is flux weighted centroiding (trace_fweight)
-    tilts_guess: float ndarray, default = None
+    tilts_guess: float ndarray, default = None, optional
         A guess for the tilts used for running this tilt tracing in an iterative manner. If the tilts_guess is not None, it
         should be an array containing the tilts from a previous iteration which will be used as a crutch for the tracing of
-         the tilts. The default is None, which is how this code is run on a first iteration. In that case the crutces are
-         determined via trace_crude, and then the flux (or Gaussian) weighted tracing is performed.
-    fwhm: float
-       Expected FWHM of the arc lines.
-    spat_order: int, default = None
-       Order of the legendre polynomial that will be fit to the tilts.
-    maxdev_tracefit: float, default = 0.2
-       Maximum absolute deviation for the arc tilt fits during iterative trace fitting expressed in units of the fwhm.
-    sigrej_trace: float, default =  3.0
-       From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
-       analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
-       from that distribution.
-    max_badpix_frac: float, default = 0.20
-       Maximum fraction of total pixels that can be masked by the trace_gweight algorithm
-       (because the residuals are too large) to still be usable for tilt fitting.
-    tcrude_maxerr: float, default = 1.0
-         maxerr parameter for trace crude
-    tcrude_maxshift: float, default = 3.0
-         maxshift parameter for trace crude
-    tcrude_maxshift0: float, default = 3.0
-         maxshift0 parameter for trace crude
-    tcrude_nave: int, default = 5
-       Trace crude is used to determine the initial arc line tilts, which are then iteratively fit. Trace crude
-       can optionally boxcar smooth the image (along the spatial direction of the image, i.e. roughly along the arc line tilts)
-       to improve the tracing.
-    show_tracefits: bool, default = False
-       If true the fits will be shown to each arc line trace by iterative_fitting
+        the tilts. The default is None, which is how this code is run on a first iteration. In that case the crutces are
+        determined via trace_crude, and then the flux (or Gaussian) weighted tracing is performed.
+    fwhm: float, optional
+        Expected FWHM of the arc lines.
+    spat_order: int, default = None, optional
+        Order of the legendre polynomial that will be fit to the tilts.
+    maxdev_tracefit: float, default = 0.2, optional
+        Maximum absolute deviation for the arc tilt fits during iterative trace fitting expressed in units of the fwhm.
+    sigrej_trace: float, default =  3.0, optional
+        From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
+        analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
+        from that distribution.
+    max_badpix_frac: float, default = 0.20, optional
+        Maximum fraction of total pixels that can be masked by the trace_gweight algorithm
+        (because the residuals are too large) to still be usable for tilt fitting.
+    tcrude_maxerr: float, default = 1.0, optional
+        maxerr parameter for trace crude
+    tcrude_maxshift: float, default = 3.0, optional
+        maxshift parameter for trace crude
+    tcrude_maxshift0: float, default = 3.0, optional
+        maxshift0 parameter for trace crude
+    tcrude_nave: int, default = 5, optional
+        Trace crude is used to determine the initial arc line tilts, which are then iteratively fit. Trace crude
+        can optionally boxcar smooth the image (along the spatial direction of the image, i.e. roughly along the arc line tilts)
+        to improve the tracing.
+    show_tracefits: bool, default = False, optional
+        If true the fits will be shown to each arc line trace by iterative_fitting
     """
 
     # TODO: Explain procedure in docstring
@@ -485,55 +483,53 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     Parameters
     ----------
     arcimg:  ndarray, float (nspec, nspat)
-       Image of arc or sky that will be used for tracing tilts.
+        Image of arc or sky that will be used for tracing tilts.
     lines_spec: ndarray, float (nlines,)
-       Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
-       in pixels in image coordinates.
+        Array containing arc line centroids along the center of the slit for each arc line that will be traced. This is
+        in pixels in image coordinates.
     lines_spat: ndarray, float (nlines,)
-       Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
-       pixels in image coordinates.
+        Array contianing the spatial position of the center of the slit along which the arc was extracted. This is is in
+        pixels in image coordinates.
     thismask: ndarray, boolean (nspec, nsapt)
         Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
         The convention is: True = on the slit/order, False  = off the slit/order. This must be the same size as the arcimg.
-    Optional Parameters
-    -------------------
-    inmask: float ndarray, default = None
+    inmask: float ndarray, default = None, optional
         Input mask image.
-    gauss: bool, default = False
+    gauss: bool, default = False, optional
         If true the code will trace the arc lines usign Gaussian weighted centroiding (trace_gweight) instead of the default,
         which is flux weighted centroiding (trace_fweight)
-    fwhm: float
+    fwhm: float, optional
        Expected FWHM of the arc lines.
-    spat_order: int, default = None
+    spat_order: int, default = None, optional
        Order of the legendre polynomial that will be fit to the tilts.
-    maxdev_tracefit: float, default = 1.0
+    maxdev_tracefit: float, default = 1.0, optional
        Maximum absolute deviation for the arc tilt fits during iterative trace fitting expressed in units of the fwhm.
-    sigrej_trace: float, default =  3.0
+    sigrej_trace: float, default =  3.0, optional
        From each line we compute a median absolute deviation of the trace from the polynomial fit. We then
        analyze the distribution of maximxum absolute deviations (MADs) for all the lines, and reject sigrej_trace outliers
        from that distribution.
-    max_badpix_frac: float, default = 0.30
+    max_badpix_frac: float, default = 0.30, optional
        Maximum fraction of total pixels that can be masked by the trace_gweight algorithm
        (because the residuals are too large) to still be usable for tilt fitting.
-    tcrude_nave: int, default = 5
+    tcrude_nave: int, default = 5, optional
        Trace crude is used to determine the initial arc line tilts, which are then iteratively fit. Trace crude
        can optionally boxcar smooth the image (along the spatial direction of the image, i.e. roughly along the arc line tilts)
        to improve the tracing.
-    npca: int, default = 1
+    npca: int, default = 1, optional
        Tilts are initially traced and then a PCA is performed. The PCA is used to determine better crutches for a second
        round of improved tilt tracing. This parameter is the order of that PCA and determined how much the tilts behavior
        is being compressed. npca = 0 would be just using the mean tilt. This PCA is only an intermediate step to
        improve the crutches and is an attempt to make the tilt tracing that goes into the final fit more robust.
-    coeff_npoly_pca: int, default = 1
+    coeff_npoly_pca: int, default = 1, optional
        Order of polynomial fits used for PCA coefficients fitting for the PCA described above.
-    sigrej_pca: float, default = 2.0
+    sigrej_pca: float, default = 2.0, optional
        Significance threhsold for rejection of outliers from fits to PCA coefficients for the PCA described above.
-    show_tracefits: bool, default = False
+    show_tracefits: bool, default = False, optional
        If true the fits will be shown to each arc line trace by iter_fitting.py
 
+    Returns
+    -------
 
-    Returns:
-    --------
     """
 
     # TODO: Explain procedure in docstring
@@ -586,25 +582,24 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
               maxrej=None, maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
               doqa=True, master_key='test', slit=0, show_QA=False, out_dir=None, debug=False):
     """
+
     Parameters
     ----------
     trc_tilt_dict: dict
         Diciontary containing tilt info
+    slit:
+    all_tilts:
+    order:
+    yorder:
+    func2D:
+    maskval:
+    setup:
+    doqa:
+    show_QA:
+    out_dir:
 
-    Optional Parameters
-    -------------------
-        slit:
-        all_tilts:
-        order:
-        yorder:
-        func2D:
-        maskval:
-        setup:
-        doqa:
-        show_QA:
-        out_dir:
-
-    Returns:
+    Returns
+    -------
 
     """
 
@@ -800,7 +795,8 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
     Returns
     -------
     tilts: ndarray, float
-       Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+        Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+
     """
 
     # Compute the tilts image
@@ -1009,3 +1005,4 @@ def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, re
 
     plt.close()
     plt.rcdefaults()
+

@@ -56,7 +56,13 @@ def main(args, unit_test=False):
         else:
             exten = args.exten-1 # 1-index in FITS file
 
+        # Check Extraction
+        if args.extract == 'OPT':
+            if 'OPT_WAVE' not in sobjs[exten]._data.keys():
+                msgs.error("Spectrum not extracted with OPT.  Try --extract=BOX")
+
         spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+
     except:
         # place holder for coadd data model
         import numpy as np
@@ -66,6 +72,10 @@ def main(args, unit_test=False):
         wave, counts, counts_ivar, counts_mask, meta_spec, head = general_spec_reader(args.file, ret_flam=False)
         spec = XSpectrum1D.from_tuple((wave, counts, np.sqrt(utils.inverse(counts_ivar))), masking='none')
 
+    # XSpectrum1D
+    spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+
+    # JFH TODO get this unit test garbage out of here. Scripts should never have unit test arguments.
     if unit_test is False:
         app = QApplication(sys.argv)
         # Screen dimensions

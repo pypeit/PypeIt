@@ -32,43 +32,37 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
 
     """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
 
-    Parameters
-    ----------
-    sciimg : float ndarray shape (nspec, nspat)
-       Science frame
-    ivar: float ndarray shape (nspec, nspat)
-       inverse variance of science frame. Can be a model or deduced from the image itself.
-    mask: boolean ndarray
-       mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-    waveimg :  float ndarray
-        Wavelength image. float 2-d array with shape (nspec, nspat)
-    skyimg: float ndarray shape (nspec, nspat)
-        Image containing our model of the sky
-    rn2_img: float ndarray shape (nspec, nspat)
-        Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-    thismask: bool ndarray shape (nspec, nspat)
-        Image indicating which pixels are on the slit/order in question. True=Good.
-    oprof: float ndarray shape (nspec, nspat)
-        Image containing the profile of the object that we are extracting
-    box_radius: float
-        Size of boxcar window in floating point pixels in the spatial direction.
-    spec: SpecObj object (from the SpecObj class in specobj.py).
-         This is the container that holds object, trace,
-         and extraction information for the object in question. This routine operates one object at a time.
-    min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
-           are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
-           object profile has been masked
-
-    Returns
-    -------
     Return value is None. The specobj object is changed in place with the boxcar and optimal dictionaries being filled
     with the extraction parameters.
 
-    Revision History
-    ----------------
-    11-Mar-2005  Written by J. Hennawi and S. Burles.
-    28-May-2018  Ported to python by J. Hennawi
+    Args:
+        sciimg (np.ndarray): float ndarray shape (nspec, nspat)
+           Science frame
+        ivar (np.ndarray): float ndarray shape (nspec, nspat)
+           inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray): boolean ndarray
+           mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg  (np.ndarray):  float ndarray
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing our model of the sky
+        rn2_img (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        thismask (np.ndarray): bool ndarray shape (nspec, nspat)
+            Image indicating which pixels are on the slit/order in question. True=Good.
+        oprof (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the profile of the object that we are extracting
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (:class:`pypeit.specobj.SpecObj`):
+             This is the container that holds object, trace,
+             and extraction information for the object in question. This routine operates one object at a time.
+        min_frac_use (float, optional): default = 0.05. If the sum of object profile arcoss the spatial direction
+               are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
+               object profile has been masked
+
     """
+    # Setup
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
@@ -169,6 +163,45 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
+    return
+
+
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+    """
+    Perform boxcar extraction for a single SpecObj
+
+    SpecObj is filled in place
+
+    Args:
+        sciimg (np.ndarray):
+            Science image
+        ivar (np.ndarray):
+            inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray):
+            mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg (np.ndarray):
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray):
+            Image containing our model of the sky
+        rn2_img (np.ndarray):
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (:class:`pypeit.specobj.SpecObj`):
+            This is the container that holds object, trace,
+            and extraction information for the object in question.
+            This routine operates one object at a time.
+    """
+    # Setup
+    imgminsky = sciimg - skyimg
+    nspat = imgminsky.shape[1]
+    nspec = imgminsky.shape[0]
+
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
+    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+
     # Fill in the boxcar extraction tags
     flux_box = moment1d(imgminsky*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # Denom is computed in case the trace goes off the edge of the image
@@ -197,6 +230,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
+    # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
     spec.BOX_COUNTS_IVAR = ivar_box*mask_box
@@ -206,11 +240,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_RN = rn_box
     spec.BOX_RADIUS = box_radius
-
-    # TODO: Why is the returning None? It doesn't have to, right?
-    return None
-
-
 
 
 def findfwhm(model, sig_x):
@@ -228,10 +257,11 @@ def findfwhm(model, sig_x):
     lwhm:   Value of sig_x at the left width at half maximum
     rwhm:   Value of sig_x at the right width at half maximum
 
+    Notes
+    -----
     Revision History
-    ----------------
-    11-Mar-2005  Written by J. Hennawi and S. Burles David Schlegel, Princeton.
-    28-May-2018  Ported to python by J. Hennawi
+        - 11-Mar-2005  Written by J. Hennawi and S. Burles David Schlegel, Princeton.
+        - 28-May-2018  Ported to python by J. Hennawi
     """
 
 
@@ -360,6 +390,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
     """
     Utility function to return Gaussian object profile in the case of low S/N ratio or too many rejected pixels.
+
     Args:
         sigma_x: ndarray (nspec, nspat)
             Spatial of gaussian
@@ -383,6 +414,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
             Spatial location to trim object profile for plotting in QA routine.
         xtrunc: float
             Spatial nsigma to truncate object profile for plotting in QA routine.
+
     Returns:
 
     """
@@ -413,65 +445,60 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                 maskwidth=None, prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
                 show_profile=False):
 
-    """Fit a non-parametric object profile to an object spectrum, unless the S/N ratio is low (> sn_gauss) in which
-    fit a simple Gaussian. Port of IDL LOWREDUX long_gprofile.pro
+    """
+    Fit a non-parametric object profile to an object spectrum, unless
+    the S/N ratio is low (> sn_gauss) in which fit a simple Gaussian.
+    Port of IDL LOWREDUX long_gprofile.pro
 
-     Parameters
-     ----------
-     image : numpy float 2-d array (nspec, nspat)
-         sky-subtracted image
-     ivar : numpy float 2-d array (nspec, nspat)
-         inverse variance of sky-subtracted image
-     waveimg numpy float 2-d array (nspec, nspat)
-         2-d wavelength map
-     spat_img: float ndarray, shape (nspec, nspat)
-         Image containing the spatial location of pixels. If not input,
-         it will be computed via spat_img = np.outer(np.ones(nspec), np.arange(nspat))
-     trace_in : numpy 1-d array (nspec,)
-         object trace
-     wave : numpy 1-d array (nspec,)
-         extracted wavelength of spectrum
-     flux : numpy 1-d array (nspec,)
-         extracted flux of spectrum
-     fluxivar : numpy 1-d array (nspec,)
-         inverse variance of extracted flux spectrum
-
-
-    Optional Parameters
+    Parameters
     ----------
-    thisfwhm : float
-         fwhm of the object trace
-    max_trace_corr : float [default = 2.0]
-         maximum trace correction to apply
-    sn_gauss : float [default = 3.0]
-         S/N ratio below which code just uses a Gaussian
-    wvmnx : float [default = [2900.0,30000.0]
-         wavelength range of usable part of spectrum
-    maskwidth : float [default = None]
-         object maskwidth determined from object finding algorithm. If = None,
-         code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
-    prof_nsigma : float [default = None]
-         Number of sigma to include in the profile fitting. This option is only needed for bright objects that are not
-         point sources, which allows the profile fitting to fit the high S/N wings (rather than the default behavior
-         which truncates exponentially). This allows for extracting all the flux and results in better sky-subtraction
-         for bright extended objects.
+    image : numpy float 2-d array (nspec, nspat)
+        sky-subtracted image
+    ivar : numpy float 2-d array (nspec, nspat)
+        inverse variance of sky-subtracted image
+    waveimg numpy float 2-d array (nspec, nspat)
+        2-d wavelength map
+    spat_img: float ndarray, shape (nspec, nspat)
+        Image containing the spatial location of pixels. If not input,
+        it will be computed via spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    trace_in : numpy 1-d array (nspec,)
+        object trace
+    wave : numpy 1-d array (nspec,)
+        extracted wavelength of spectrum
+    flux : numpy 1-d array (nspec,)
+        extracted flux of spectrum
+    fluxivar : numpy 1-d array (nspec,)
+        inverse variance of extracted flux spectrum
+    thisfwhm : float, optional
+        fwhm of the object trace
+    max_trace_corr : float [default = 2.0], optional
+        maximum trace correction to apply
+    sn_gauss : float [default = 3.0], optional
+        S/N ratio below which code just uses a Gaussian
+    wvmnx : float [default = [2900.0,30000.0], optional
+        wavelength range of usable part of spectrum
+    maskwidth : float [default = None], optional
+        object maskwidth determined from object finding algorithm. If = None,
+        code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
+    prof_nsigma : float [default = None], optional
+        Number of sigma to include in the profile fitting. This option is only needed for bright objects that are not
+        point sources, which allows the profile fitting to fit the high S/N wings (rather than the default behavior
+        which truncates exponentially). This allows for extracting all the flux and results in better sky-subtraction
+        for bright extended objects.
     no_deriv : boolean [default = False]
-         disables determination of derivatives and exponential apodization
+        disables determination of derivatives and exponential apodization
 
-     Returns
-     -------
-     :func:`tuple`
-         A tuple containing the (sset, outmask, yfit, reduced_chi), where
-
-            sset: object
-               bspline object
-            outmask: : :class:`numpy.ndarray`
-               output mask which the same size as xdata
-            yfit  : :class:`numpy.ndarray`
-               result of the bspline fit (same size as xdata)
-            reduced_chi: float
-               value of the reduced chi^2
-     """
+    Returns
+    -------
+    sset: object
+        bspline object
+    outmask: : :class:`numpy.ndarray`
+        output mask which the same size as xdata
+    yfit  : :class:`numpy.ndarray`
+        result of the bspline fit (same size as xdata)
+    reduced_chi: float
+        value of the reduced chi^2
+    """
 
     if inmask is None:
         inmask = (ivar > 0.0) & thismask
@@ -951,9 +978,11 @@ def parse_hand_dict(hand_extract_dict):
     hand_fwhm:  hand aperture fwhm for extraction. This should either be ba numpy float 1-d array with size equal to number of hand
                 apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
 
+    Notes
+    -----
     Revision History
-    ----------------
-    23-June-2018  Written by J. Hennawi
+        - 23-June-2018  Written by J. Hennawi
+
     """
 
 
@@ -985,17 +1014,18 @@ def parse_hand_dict(hand_extract_dict):
 def create_skymask_fwhm(sobjs, thismask):
     """
     Creates a skymask from a SpecObjs object using the fwhm of each object
+
     Args:
-        sobjs: SpecObjs object
+        sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Objects for which you would like to create the mask
-        thismask: ndarray, bool, shape (nspec, nspat)
+        thismask (np.ndarray): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
 
     Returns:
-        skymask:  ndarray, bool, shape (nspec, nspat)
-           Boolean image with the same size as thismask indicating which pixels are usable for global sky subtraction.
-           True = usable for sky subtraction, False = should be masked when sky subtracting.
-
+        np.ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
+        the same size as thismask indicating which pixels are usable for
+        global sky subtraction.  True = usable for sky subtraction,
+        False = should be masked when sky subtracting.
     """
     nobj = len(sobjs)
     skymask = np.copy(thismask)
@@ -1028,90 +1058,124 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False, qa_title='objfind'):
 
-    """ Find the location of objects in a slitmask slit or a echelle order.
-
+    """
+    Find the location of objects in a slitmask slit or a echelle order.
 
     Args:
-    image :  float ndarray
-        Image to search for objects from. This image has shape (nspec, nspat) image.shape where the first dimension (nspec)
-        is spectral, and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
-        Object finding works best on sky-subtracted images, but often one runs on the frame with sky first to identify the brightest
-        objects which are then masked (see skymask below) in sky subtraction.
-    thismask:  boolean ndarray
-        Boolean mask image specifying the pixels which lie on the slit/order to search for objects on.
-        The convention is: True = on the slit/order, False  = off the slit/order
-
-    slit_left:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
-        or (nspec)
-    slit_righ:  float ndarray
-        Left boundary of slit/order to be extracted (given as floating pt pixels). This a 1-d array with shape (nspec, 1)
-        or (nspec)
-    inmask: float ndarray, default = None
-        Input mask image.
-    spec_min_max: tuple of float or int, (2), default=None.
-        This is tuple of two elements which defines the minimum and maximum of the slit in the
-        spectral direction on the detector. If not passed in it will be determined automatically from the thismask
-    fwhm: float, default = 3.0
-        Estimated fwhm of the objects in pixels
-    maxdev (float): default=2.0
-        Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.
-    hand_extract_dict: dict, default = None
-        Dictionary containing information about apertures requested by user that should be place by hand in the object list.
-        This option is useful for cases like an emission line obect that the code fails to find with its significance threshold
-    std_trace: float ndarray, shape = (nspec,), default = None
-        This is a one dimensioal array containing the standard star trace which is used as a crutch for tracing. If the
-        no standard star is provided the code uses the the slit boundaries as the crutch.
-    ncoeff: int, default = 5
-        Order of legendre polynomial fits to the trace
-    nperslit: int, default = 10
-        Maximum number of objects allowed per slit. The code will take the nperslit most significant detections.
-    bg_smth: float, default = 5.0
-        Size of the smoothing kernel in units of fwhm used to determine the background level from the smash of the image
-        along the curved traces. This background subtracted smashed image is used for peak finding to identify objects
-    extract_maskwidth: float, default = 3.0
-        This parameter determines the initial size of the region in units of fwhm that will be used for local sky subtraction in the routine
-        skysub.local_skysub_extract.
-    sig_thresh: float, default = 5.0
-        Significance threshold for object detection. The code uses the maximum of the thresholds defined by sig_thresh,
-        peak_thresh, and abs_thresh.
-         For the default behavior peak_thresh and abs_thresh are zero, so sig_thresh defines the threshold.
-    peak_thresh: float, default = 0.0
-        Peak threshold for object detection. This is a number between 0 and 1 and represents the fraction of the brightest
-        object on the slit that will be kept as an object, i.e. if ymax is the brightest object of the spectrum smashed
-        out in the spectral direction, all objects with ypeak > peak_thresh*ymak are kept. The code uses the maximum of the
-        thresholds defined by sig_thresh, peak_thers, and abs_thresh.
-    abs_thresh: float, defalt = 0.0.
-        Absolute threshold for object detection.  Objects are found by smashing out the spectral direction along the curved
-        slit/order traces, and abs_thresh is in the units of this smashed profile.  The code uses the maximum of the
-        thresholds defined by sig_thresh, peak_thers, and abs_thresh.
-    trim_edg: tuple of integers or float, default = (3,3)
-        Ignore objects within this many pixels of the left and right slit boundaries, where the first element refers to the left
-        and second refers to the right.
-    skymask_nthresh: float, default = 2.0
-        The multiple of the final object finding threshold (see above) which is used to create the skymask using the value
-        of the peak flux in the slit profile (image with the spectral direction smashed out).
-    cont_fit (bool): default=True:
-        Fit a continuum to the illumination pattern across the slit when peak finding
-    npoly_cont (int): default=1
-        Order of polynomial fit to the illumination pattern across the slit when peak finding
-    specobj_dict: dict, default = None
-         Dictionary containing meta-data for the objects that will be propgated into the SpecObj objects, i.e. setup,
-         slitid, detector, object type, and pipeline. The default is None, in which case the following dictionary will be used.
-         specobj_dict = {'setup': None, 'slitid': 999, 'det': 1, 'objtype': 'unknown', 'pypeline': 'unknown'}
+        image (ndarray):
+            Image to search for objects from. This image has shape
+            (nspec, nspat) image.shape where the first dimension (nspec)
+            is spectral, and second dimension (nspat) is spatial. Note
+            this image can either have the sky background in it, or have
+            already been sky subtracted.  Object finding works best on
+            sky-subtracted images, but often one runs on the frame with
+            sky first to identify the brightest objects which are then
+            masked (see skymask below) in sky subtraction.
+        thismask:  boolean ndarray
+            Boolean mask image specifying the pixels which lie on the
+            slit/order to search for objects on.  The convention is:
+            True = on the slit/order, False  = off the slit/order
+        slit_left:  float ndarray
+            Left boundary of slit/order to be extracted (given as
+            floating pt pixels). This a 1-d array with shape (nspec, 1)
+            or (nspec)
+        slit_righ:  float ndarray
+            Left boundary of slit/order to be extracted (given as
+            floating pt pixels). This a 1-d array with shape (nspec, 1)
+            or (nspec)
+        inmask: float ndarray, default = None
+            Input mask image.
+        spec_min_max: tuple of float or int, (2), default=None.
+            This is tuple of two elements which defines the minimum and
+            maximum of the slit in the spectral direction on the
+            detector. If not passed in it will be determined
+            automatically from the thismask
+        fwhm: float, default = 3.0
+            Estimated fwhm of the objects in pixels
+        maxdev (float): default=2.0
+            Maximum deviation of pixels from polynomial fit to trace
+            used to reject bad pixels in trace fitting.
+        hand_extract_dict: dict, default = None
+            Dictionary containing information about apertures requested
+            by user that should be place by hand in the object list.
+            This option is useful for cases like an emission line obect
+            that the code fails to find with its significance threshold
+        std_trace: float ndarray, shape = (nspec,), default = None
+            This is a one dimensioal array containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
+        ncoeff: int, default = 5
+            Order of legendre polynomial fits to the trace
+        nperslit: int, default = 10
+            Maximum number of objects allowed per slit. The code will
+            take the nperslit most significant detections.
+        bg_smth: float, default = 5.0
+            Size of the smoothing kernel in units of fwhm used to
+            determine the background level from the smash of the image
+            along the curved traces. This background subtracted smashed
+            image is used for peak finding to identify objects
+        extract_maskwidth: float, default = 3.0
+            This parameter determines the initial size of the region in
+            units of fwhm that will be used for local sky subtraction in
+            the routine skysub.local_skysub_extract.
+        sig_thresh: float, default = 5.0
+            Significance threshold for object detection. The code uses
+            the maximum of the thresholds defined by sig_thresh,
+            peak_thresh, and abs_thresh.  For the default behavior
+            peak_thresh and abs_thresh are zero, so sig_thresh defines
+            the threshold.
+        peak_thresh: float, default = 0.0
+            Peak threshold for object detection. This is a number
+            between 0 and 1 and represents the fraction of the brightest
+            object on the slit that will be kept as an object, i.e. if
+            ymax is the brightest object of the spectrum smashed out in
+            the spectral direction, all objects with ypeak >
+            peak_thresh*ymak are kept. The code uses the maximum of the
+            thresholds defined by sig_thresh, peak_thers, and
+            abs_thresh.
+        abs_thresh: float, defalt = 0.0.
+            Absolute threshold for object detection.  Objects are found
+            by smashing out the spectral direction along the curved
+            slit/order traces, and abs_thresh is in the units of this
+            smashed profile.  The code uses the maximum of the
+            thresholds defined by sig_thresh, peak_thers, and
+            abs_thresh.
+        trim_edg: tuple of integers or float, default = (3,3)
+            Ignore objects within this many pixels of the left and right
+            slit boundaries, where the first element refers to the left
+            and second refers to the right.
+        skymask_nthresh: float, default = 2.0
+            The multiple of the final object finding threshold (see
+            above) which is used to create the skymask using the value
+            of the peak flux in the slit profile (image with the
+            spectral direction smashed out).
+        cont_fit (bool): default=True:
+            Fit a continuum to the illumination pattern across the slit when peak finding
+        npoly_cont (int): default=1
+            Order of polynomial fit to the illumination pattern across the slit when peak finding
+        specobj_dict: dict, default = None
+            Dictionary containing meta-data for the objects that will be
+            propgated into the SpecObj objects, i.e. setup, slitid,
+            detector, object type, and pipeline. The default is None, in
+            which case the following dictionary will be used::
+            
+                specobj_dict = {'setup': None, 'slitid': 999, 'det': 1,
+                                'objtype': 'unknown', 'pypeline': 'unknown'}
 
     Returns:
-    sobjs:   SpecoObjs object
-         Object containing the information about the objects found on the slit/order
-    np.ndarray: Skymask image
+        tuple: Returns the following:
+            - sobjs: SpecoObjs object: Object containing the
+              information about the objects found on the slit/order
+            - np.ndarray: Skymask image
 
+    Note:
+        Revision History:
+            - 10-Mar-2005 -- First version written by D. Schlegel, LBL
+            - 2005-2018 -- Improved by J. F. Hennawi and J. X. Prochaska
+            - 23-June-2018 -- Ported to python by J. F. Hennawi and
+              significantly improved
 
-
-    Revision History
-    ----------------
-    10-Mar-2005  First version written by D. Schlegel, LBL
-    2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
-    23-June-2018 Ported to python by J. F. Hennawi and significantly improved
     """
 
     #debug_all=True
@@ -1590,9 +1654,10 @@ def remap_orders(xinit, spec_min_max, inverse=False):
                                                              bounds_error=False, fill_value='extrapolate')(spec_vec_norm)
     return xinit_remap
 
-# TODO Can we purge OBJID in this routine in place of ech_objid everywhere?
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
-                fof_link=1.5, order_vec=None, plate_scale=0.2, ir_redux=False,
+
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits,
+                inmask=None, spec_min_max=None,
+                fof_link=1.5, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
@@ -1607,68 +1672,94 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
        4) A PCA fit to the traces is performed using the routine above pca_fit
 
     Args:
-    image:  float ndarray, shape (nspec, nspat)
-        Image to search for objects from. This image has shape (nspec, nspat) where the first dimension (nspec) is spectral,
-        and second dimension (nspat) is spatial. Note this image can either have the sky background in it, or have already been sky subtracted.
-        Object finding works best on sky-subtracted images. Ideally objfind would be run in another routine, global sky-subtraction performed, and
-        then this code should be run. However, it is also possible to run this code on non sky subtracted images.
-    ivar: float ndarray, shape (nspec, nspat)
-       Inverse variance image for the input image.
-    slitmask: int ndarray, shape (nspec, nspat)
-       Integer image indicating the pixels that belong to each order. Pixels that are not on an order have value -1, and those
-       that are on an order have a value equal to the slit number (i.e. 0 to nslits-1 from left to right on the image)
-    slit_left:  float ndarray
-        Left boundary of orders to be extracted (given as floating pt pixels). This a 2-d array with shape (nspec, norders)
-    slit_righ:  float ndarray
-        Left boundary of orders to be extracted (given as floating pt pixels). This a 2-d array with shape (nspec, norders)
-    inmask: ndarray, bool, shape (nspec, nspat), default = None
-        Input mask for the input image.
-    fwhm: float, default = 3.0
-        Estimated fwhm of the objects in pixels
-    maxdev (float): default=2.0
-        Maximum deviation of pixels from polynomial fit to trace used to reject bad pixels in trace fitting.
-    spec_min_max: float or int ndarray, (2, norders), default=None. This is a 2-d array which defines the minimum and maximum of each order in the
-       spectral direction on the detector. This should only be used for echelle spectrographs for which the orders do not
-       entirely cover the detector. The pca_trace code will re-map the traces such that they all have the same length,
-       compute the PCA, and then re-map the orders back. This improves performanc for echelle spectrographs by removing
-       the nonlinear shrinking of the orders so that the linear pca operation can better predict the traces. If not
-       passed in it will be determined automitically from the slitmask
-    fof_link: float, default = 1.5"
-        Friends-of-friends linking length in arcseconds used to link together traces across orders. The routine links
-        together at the same fractional slit position and links them together with a friends-of-friends algorithm using
-        this linking length.
-    plate_scale: float or ndarray, if an ndarray shape is (norders,) default = 0.2
-       plate scale of your detector, in unit of arcsec/pix. This can either be a single float for every order, or an array
-       with size norders indicating the plate scale of each order.
-    ncoeff: int, default = 5
-       Order of polynomial fit to traces
-    npca: int, default = None
-       Nmber of PCA components you want to keep. default is None and it will be assigned automatically by calculating
-       the number of components contains approximately 99% of the variance
-    coeff_npoly: int, default = None,
-       order of polynomial used for PCA coefficients fitting. Default is None and this will be determined automatically.
-    min_snr: float, default = 0.2
-       Minimum SNR for keeping an object. For an object to be kept it must have a median S/N ratio above min_snr for
-       at least nabove_min_snr orders.
-    nabove_min_snr: int, default = 1
-       The required number of orders that an object must have with median SNR>min_snr in order to be kept.
-    box_radius: float,
-      box_car extraction radius in arcseconds for SNR calculation and trimming
-    sig_thresh: threshord for finding objects
-    show_peaks: whether plotting the QA of peak finding of your object in each order
-    show_fits: Plot trace fitting for final fits using PCA as crutch
-    show_single_fits: Plot trace fitting for single order fits
-    show_trace: whether display the resulting traces on top of the image
-    debug:
+        image:  float ndarray, shape (nspec, nspat)
+            Image to search for objects from. This image has shape
+            (nspec, nspat) where the first dimension (nspec) is
+            spectral, and second dimension (nspat) is spatial. Note this
+            image can either have the sky background in it, or have
+            already been sky subtracted.  Object finding works best on
+            sky-subtracted images. Ideally objfind would be run in
+            another routine, global sky-subtraction performed, and then
+            this code should be run. However, it is also possible to run
+            this code on non sky subtracted images.
+        ivar: float ndarray, shape (nspec, nspat)
+            Inverse variance image for the input image.
+        slitmask: int ndarray, shape (nspec, nspat)
+            Integer image indicating the pixels that belong to each
+            order. Pixels that are not on an order have value -1, and
+            those that are on an order have a value equal to the slit
+            number (i.e. 0 to nslits-1 from left to right on the image)
+        slit_left:  float ndarray
+            Left boundary of orders to be extracted (given as floating
+            pt pixels). This a 2-d array with shape (nspec, norders)
+        slit_righ:  float ndarray
+            Left boundary of orders to be extracted (given as floating
+            pt pixels). This a 2-d array with shape (nspec, norders)
+        order_vec (np.ndarray):
+            Echelle orders.  This is written to the SpecObj objects.
+            It is ok, but not recommended to provide np.arange(norders)
+        inmask: ndarray, bool, shape (nspec, nspat), default = None
+            Input mask for the input image.
+        fwhm: float, default = 3.0
+            Estimated fwhm of the objects in pixels
+        maxdev (float): default=2.0
+            Maximum deviation of pixels from polynomial fit to trace
+            used to reject bad pixels in trace fitting.
+        spec_min_max: float or int ndarray, (2, norders), default=None.
+            This is a 2-d array which defines the minimum and maximum of
+            each order in the spectral direction on the detector. This
+            should only be used for echelle spectrographs for which the
+            orders do not entirely cover the detector. The pca_trace
+            code will re-map the traces such that they all have the same
+            length, compute the PCA, and then re-map the orders back.
+            This improves performanc for echelle spectrographs by
+            removing the nonlinear shrinking of the orders so that the
+            linear pca operation can better predict the traces. If not
+            passed in it will be determined automitically from the
+            slitmask
+        fof_link: float, default = 1.5"
+            Friends-of-friends linking length in arcseconds used to link
+            together traces across orders. The routine links together at
+            the same fractional slit position and links them together
+            with a friends-of-friends algorithm using this linking
+            length.
+        plate_scale: float or ndarray, if an ndarray shape is (norders,) default = 0.2
+            plate scale of your detector, in unit of arcsec/pix. This
+            can either be a single float for every order, or an array
+            with size norders indicating the plate scale of each order.
+        ncoeff: int, default = 5
+            Order of polynomial fit to traces
+        npca: int, default = None
+            Nmber of PCA components you want to keep. default is None
+            and it will be assigned automatically by calculating the
+            number of components contains approximately 99% of the
+            variance
+        coeff_npoly: int, default = None,
+            order of polynomial used for PCA coefficients fitting.
+            Default is None and this will be determined automatically.
+        min_snr: float, default = 0.2
+            Minimum SNR for keeping an object. For an object to be kept
+            it must have a median S/N ratio above min_snr for at least
+            nabove_min_snr orders.
+        nabove_min_snr: int, default = 1
+            The required number of orders that an object must have with
+            median SNR>min_snr in order to be kept.
+        box_radius: float,
+            box_car extraction radius in arcseconds for SNR calculation and trimming
+        sig_thresh: threshord for finding objects
+        show_peaks: whether plotting the QA of peak finding of your object in each order
+        show_fits: Plot trace fitting for final fits using PCA as crutch
+        show_single_fits: Plot trace fitting for single order fits
+        show_trace: whether display the resulting traces on top of the image
+        debug:
 
-    Returns
-    -------
-    (sobjs, skymask): tuple
-
-    sobjs: object
-      Specobjs object containing the objects detected
-    skymask: float ndarray, same shape as image
-      Skymask indicating which pixels can be used for global sky subtraction
+    Returns:
+        tuple: Returns the following:
+            - sobjs: object: Specobjs object containing the objects
+              detected
+            - skymask: float ndarray, same shape as image: Skymask
+              indicating which pixels can be used for global sky
+              subtraction
     """
 
     #debug_all=True
@@ -1696,16 +1787,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     frameshape = image.shape
     nspec = frameshape[0]
     nspat = frameshape[1]
-    norders = slit_left.shape[1]
+    norders = len(order_vec)
 
     if spec_min_max is None:
         spec_min_max = np.zeros(2,norders)
         for iord in range(norders):
             ispec, ispat = np.where(slitmask == iord)
             spec_min_max[:,iord] = ispec.min(), ispec.max()
-
-    if order_vec is None:
-        order_vec = np.arange(norders)
 
     if isinstance(plate_scale,(float, int)):
         plate_scale_ord = np.full(norders, plate_scale)
@@ -1732,7 +1820,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
-    for iord in range(norders):
+    gdorders = np.arange(norders)[np.invert(maskslits)]
+    for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
         inmask_iord = inmask & thismask

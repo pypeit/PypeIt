@@ -49,6 +49,8 @@ def parser(options=None):
 
 def show_trace(specobjs, det, viewer, ch):
 
+    if specobjs is None:
+        return
     in_det = np.where(specobjs.DET == det)[0]
     for kk in in_det:
         trace = specobjs[kk]['TRACE_SPAT']

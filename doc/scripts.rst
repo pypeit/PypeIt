@@ -78,7 +78,7 @@ The script can be called multiple times to load multiple detectors
 into one Ginga viewer.
 
 pypeit_view_fits
-===============
+================
 
 This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
 in that it writes a dummy tmp.fits file to the harddrive and sends

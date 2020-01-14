@@ -20,29 +20,20 @@ class SpecObjs(object):
     """
     Object to hold a set of SpecObj objects
 
+    Note that this class overloads:
+
+        - ``__getitem__`` to allow one to pull an attribute or a portion
+          of the SpecObjs list
+        - ``__setattr__`` to force a custom assignment method
+        - ``__getattr__`` to generate an array of attribute 'k' from the
+          specobjs.
+
     Args:
         specobjs (ndarray or list, optional):  One or more SpecObj objects
 
-    Internals:
+    Attributes:
         summary (astropy.table.Table):
-        header: JFH add docs
-
-    __getitem__ is overloaded to allow one to pull an attribute or a
-                portion of the SpecObjs list
-        Args:
-            item (str or int (or slice)
-        Returns:
-            item (object, SpecObj or SpecObjs):  Depends on input item..
-
-    __setitem__ is over-loaded using our custom set() method
-        Args:
-            name (str):  Item to set
-            value (anything) : Value of the item
-        Returns:
-    __getattr__ is overloaded to generate an array of attribute 'k' from the specobjs
-        First attempts to grab data from the Summary table, then the list
     """
-
     @classmethod
     def from_fitsfile(cls, fits_file):
         """
@@ -107,7 +98,16 @@ class SpecObjs(object):
         self.__initialised = True
 
     def __setattr__(self, item, value):
+        """
+        Define a custom assignment method.
 
+        Args:
+            item (str):
+                Item to set
+            value (object):
+                Value of the item
+
+        """
         if not '_SpecObjs__initialised' in self.__dict__:  # this test allows attributes to be set in the __init__ method
             return dict.__setattr__(self, item, value)
         elif item in self.__dict__:  # any normal attributes are handled normally
@@ -431,6 +431,19 @@ class SpecObjs(object):
 #            sobj.set_idx()
 
     def __getitem__(self, item):
+        """
+        Overload to allow one to pull an attribute or a portion of the
+        SpecObjs list
+
+        Args:
+            item (:obj:`str`, :obj:`int`, :obj:`slice`)
+
+        Returns:
+            The selected items as either an object,
+            :class:`pypeit.specobj.SpecObj`, or
+            :class:`pypeit.specobjs.SpecObjs`, depending on the input
+            item.
+        """
         if isinstance(item, str):
             return self.__getattr__(item)
         elif isinstance(item, (int, np.integer)):
@@ -445,6 +458,12 @@ class SpecObjs(object):
             return SpecObjs(specobjs=self.specobjs[item], header=self.header)
 
     def __getattr__(self, k):
+        """
+        Overloaded to generate an array of attribute 'k' from the
+        :class:`pypeit.specobj.SpecObj` objects.
+
+        First attempts to grab data from the Summary table, then the list
+        """
         if len(self.specobjs) == 0:
             raise ValueError("Empty specobjs")
         try:

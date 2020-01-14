@@ -1,8 +1,8 @@
 """
 Module for performing two-dimensional coaddition of spectra.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import copy
@@ -31,7 +31,9 @@ from pypeit.core import parse
 from pypeit.core import combine
 from pypeit.images import scienceimage
 from pypeit.spectrographs import util
+from pypeit import calibrations
 from pypeit.par import PypeItPar
+
 
 
 #def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
@@ -160,8 +162,9 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
           Maximum wavelength covered by the data in question.
 
     Returns:
-        (ind_lower, ind_upper): tuple, int
-          Integer lower and upper indices into the array wave_grid that cover the interval (wave_min, wave_max)
+        tuple: Returns (ind_lower, ind_upper), Integer lower and upper
+        indices into the array wave_grid that cover the interval
+        (wave_min, wave_max)
     """
 
     diff = wave_grid - wave_min
@@ -286,33 +289,39 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             log(angstroms). (TODO: Check units...)
 
     Returns:
-        TODO: This needs to be updated.
-
-        (sciimg, sciivar, imgminsky, outmask, nused, tilts, waveimg, dspat, thismask, tslits_dict)
-
-        sciimg: float ndarray shape = (nspec_coadd, nspat_coadd)
-            Rectified and coadded science image
-        sciivar: float ndarray shape = (nspec_coadd, nspat_coadd)
-            Rectified and coadded inverse variance image with correct error propagation
-        imgminsky: float ndarray shape = (nspec_coadd, nspat_coadd)
-            Rectified and coadded sky subtracted image
-        outmask: bool ndarray shape = (nspec_coadd, nspat_coadd)
-            Output mask for rectified and coadded images. True = Good, False=Bad.
-        nused: int ndarray shape = (nspec_coadd, nspat_coadd)
-            Image of integers indicating the number of images from the image stack that contributed to each pixel
-        tilts: float ndarray shape = (nspec_coadd, nspat_coadd)
-            The averaged tilts image corresponding to the rectified and coadded data.
-        waveimg: float ndarray shape = (nspec_coadd, nspat_coadd)
-            The averaged wavelength image corresponding to the rectified and coadded data.
-        dspat: float ndarray shape = (nspec_coadd, nspat_coadd)
-            The average spatial offsets in pixels from the reference trace trace_stack corresponding to the rectified
-            and coadded data.
-        thismask: bool ndarray shape = (nspec_coadd, nspat_coadd)
-            Output mask for rectified and coadded images. True = Good, False=Bad. This image is trivial, and
-            is simply an image of True values the same shape as the rectified and coadded data.
-        tslits_dict: dict
-            tslits_dict dictionary containing the information about the slits boundaries. The slit boundaries
-            are trivial and are simply vertical traces at 0 and nspat_coadd-1.
+        tuple: Returns the following (TODO: This needs to be updated):
+            - sciimg: float ndarray shape = (nspec_coadd, nspat_coadd):
+              Rectified and coadded science image
+            - sciivar: float ndarray shape = (nspec_coadd, nspat_coadd):
+              Rectified and coadded inverse variance image with correct
+              error propagation
+            - imgminsky: float ndarray shape = (nspec_coadd,
+              nspat_coadd): Rectified and coadded sky subtracted image
+            - outmask: bool ndarray shape = (nspec_coadd, nspat_coadd):
+              Output mask for rectified and coadded images. True = Good,
+              False=Bad.
+            - nused: int ndarray shape = (nspec_coadd, nspat_coadd):
+              Image of integers indicating the number of images from the
+              image stack that contributed to each pixel
+            - tilts: float ndarray shape = (nspec_coadd, nspat_coadd):
+              The averaged tilts image corresponding to the rectified
+              and coadded data.
+            - waveimg: float ndarray shape = (nspec_coadd, nspat_coadd):
+              The averaged wavelength image corresponding to the
+              rectified and coadded data.
+            - dspat: float ndarray shape = (nspec_coadd, nspat_coadd):
+              The average spatial offsets in pixels from the reference
+              trace trace_stack corresponding to the rectified and
+              coadded data.
+            - thismask: bool ndarray shape = (nspec_coadd, nspat_coadd):
+              Output mask for rectified and coadded images. True = Good,
+              False=Bad. This image is trivial, and is simply an image
+              of True values the same shape as the rectified and coadded
+              data.
+            - tslits_dict: dict: tslits_dict dictionary containing the
+              information about the slits boundaries. The slit
+              boundaries are trivial and are simply vertical traces at 0
+              and nspat_coadd-1.
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
@@ -413,22 +422,29 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
             which are to be rebbinned with proper erorr propagation
 
     Returns:
-        sci_list_out: list
-           The list of ndarray rebinned images with new shape (nimgs, nspec_rebin, nspat_rebin)
-        var_list_out: list
-           The list of ndarray rebinned variance images with correct error propagation with shape
-           (nimgs, nspec_rebin, nspat_rebin)
-        norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
-           An image stack indicating the integer occupation number of a given pixel. In other words, this number would be zero
-           for empty bins, one for bins that were populated by a single pixel, etc. This image takes the input
-           inmask_stack into account. The output mask for each image can be formed via
-           outmask_rebin_satck = (norm_rebin_stack > 0)
-        nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin, nspat_rebin)
-           An image stack indicating the integer occupation number of a given pixel taking only the thismask_stack into
-           account, but taking the inmask_stack into account. This image is mainly constructed for bookeeping purposes,
-           as it represents the number of times each pixel in the rebin image was populated taking only the "geometry"
-           of the rebinning into account (i.e. the thismask_stack), but not the masking (inmask_stack).
-
+        tuple: Returns the following:
+            - sci_list_out: list: The list of ndarray rebinned images
+              with new shape (nimgs, nspec_rebin, nspat_rebin)
+            - var_list_out: list: The list of ndarray rebinned variance
+              images with correct error propagation with shape (nimgs,
+              nspec_rebin, nspat_rebin)
+            - norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
+              nspat_rebin): An image stack indicating the integer
+              occupation number of a given pixel. In other words, this
+              number would be zero for empty bins, one for bins that
+              were populated by a single pixel, etc. This image takes
+              the input inmask_stack into account. The output mask for
+              each image can be formed via outmask_rebin_satck =
+              (norm_rebin_stack > 0)
+            - nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
+              nspat_rebin): An image stack indicating the integer
+              occupation number of a given pixel taking only the
+              thismask_stack into account, but taking the inmask_stack
+              into account. This image is mainly constructed for
+              bookeeping purposes, as it represents the number of times
+              each pixel in the rebin image was populated taking only
+              the "geometry" of the rebinning into account (i.e. the
+              thismask_stack), but not the masking (inmask_stack).
     """
 
     shape = combine.img_list_error_check(sci_list, var_list)
@@ -505,8 +521,6 @@ class CoAdd2d(object):
         par:
         show:
         show_peaks:
-
-    Returns:
 
     """
 
@@ -682,6 +696,9 @@ class CoAdd2d(object):
 
 
     def create_psuedo_image(self, coadd_list):
+        """ THIS UNDOCUMENTED CODE PROBABLY SHOULD GENERATE AND RETURN
+        STANDARD PYPEIT OBJCTS INSTEAD OF SOME UNDEFINED DICT"""
+
 
 
         nspec_vec = np.zeros(self.nslits,dtype=int)
@@ -802,19 +819,27 @@ class CoAdd2d(object):
 
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
-        parcopy['scienceimage']['trace_npoly'] = 3        # Low order traces since we are rectified
+        parcopy['scienceimage']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
-        redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], parcopy, psuedo_dict['tilts'],
-                                      ir_redux=self.ir_redux, objtype = 'science_coadd2d', det=self.det, binning=self.binning)
+        # Instantiate Calibrations class
+        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph)
+        caliBrate.tslits_dict = psuedo_dict['tslits_dict']
+        caliBrate.tilts_dict = dict(tilts=psuedo_dict['tilts'])
+        caliBrate.mswave = psuedo_dict['waveimg']
+        #
+        # redux = reduce.instantiate_me(sciImage, self.spectrograph, psuedo_dict['tslits_dict'], parcopy, psuedo_dict['tilts'],
+        redux=reduce.instantiate_me(sciImage, self.spectrograph, parcopy, caliBrate,
+                                    ir_redux=self.ir_redux, objtype='science_coadd2d',
+                                    det=self.det, binning=self.binning, show=show)
 
         if show:
             redux.show('image', image=psuedo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
         # Object finding
-        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, ir_redux=self.ir_redux, show_peaks=show_peaks, show=show)
+        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks)
         # Local sky-subtraction
         global_sky_psuedo = np.zeros_like(psuedo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
         skymodel_psuedo, objmodel_psuedo, ivarmodel_psuedo, outmask_psuedo, sobjs = redux.local_skysub_extract(
-            psuedo_dict['waveimg'], global_sky_psuedo, sobjs_obj, spat_pix=psuedo_dict['spat_img'], model_noise=False,
+            caliBrate.mswave, global_sky_psuedo, sobjs_obj, spat_pix=psuedo_dict['spat_img'], model_noise=False,
             show_profile=show, show=show)
 
         if self.ir_redux:
@@ -894,21 +919,22 @@ class CoAdd2d(object):
         coadd1d.get_wave_grid.
 
         Args:
-            **kwargs_wave (dict): Optional argumments for coadd1d.get_wve_grid function
+            **kwargs_wave (dict):
+                Optional argumments for coadd1d.get_wve_grid function
 
         Returns:
-
-             wave_grid (np.ndarray):
-                  New wavelength grid, not masked
-             wave_grid_mid (np.ndarray):
-                  New wavelength grid evaluated at the centers of the wavelength bins, that is this
-                  grid is simply offset from wave_grid by dsamp/2.0, in either linear space or log10
-                  depending on whether linear or (log10 or velocity) was requested.  For iref or concatenate
-                  the linear wavelength sampling will be calculated.
-            dsamp (float):
-                  The pixel sampling for wavelength grid created.
-
-
+            tuple: Returns the following:
+                - wave_grid (np.ndarray): New wavelength grid, not
+                  masked
+                - wave_grid_mid (np.ndarray): New wavelength grid
+                  evaluated at the centers of the wavelength bins, that
+                  is this grid is simply offset from wave_grid by
+                  dsamp/2.0, in either linear space or log10 depending
+                  on whether linear or (log10 or velocity) was
+                  requested.  For iref or concatenate the linear
+                  wavelength sampling will be calculated.
+                - dsamp (float): The pixel sampling for wavelength grid
+                  created.
         """
 
         nobjs_tot = np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum()
@@ -936,9 +962,8 @@ class CoAdd2d(object):
                detector in question
 
         Returns:
-            stack_dict: dict
-               Dictionary containing all the images and keys required for perfomring 2d coadds.
-
+            dict: Dictionary containing all the images and keys required
+            for perfomring 2d coadds.
         """
 
         # Get the detector string
@@ -1173,11 +1198,11 @@ class MultiSlit(CoAdd2d):
         for iexp in range(self.nexp):
             sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], ir_redux=self.ir_redux,
-                                           fwhm=self.par['scienceimage']['find_fwhm'],
-                                           trim_edg=self.par['scienceimage']['find_trim_edge'],
-                                           npoly_cont=self.par['scienceimage']['find_npoly_cont'],
-                                           maxdev=self.par['scienceimage']['find_maxdev'],
-                                           ncoeff=3, sig_thresh=self.par['scienceimage']['sig_thresh'], nperslit=1,
+                                           fwhm=self.par['scienceimage']['findobj']['find_fwhm'],
+                                           trim_edg=self.par['scienceimage']['findobj']['find_trim_edge'],
+                                           npoly_cont=self.par['scienceimage']['findobj']['find_npoly_cont'],
+                                           maxdev=self.par['scienceimage']['findobj']['find_maxdev'],
+                                           ncoeff=3, sig_thresh=self.par['scienceimage']['findobj']['sig_thresh'], nperslit=1,
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
@@ -1209,22 +1234,20 @@ class MultiSlit(CoAdd2d):
         """
         Utility routine to find the brightest object in each exposure given a specobjs_list for MultiSlit reductions.
 
-        Parameters:
+        Args:
             specobjs_list: list
                List of SpecObjs objects.
-        Optional Parameters:
-            echelle: bool, default=True
+            echelle: bool, default=True, optional
 
         Returns:
-            (objid, slitid, snr_bar)
-
-            objid: ndarray, int, shape (len(specobjs_list),)
-                Array of object ids representing the brightest object in each exposure
-            slitid (int):
-                Slit that highest S/N ratio object is on (only for pypeline=MultiSlit)
-            snr_bar: ndarray, float, shape (len(list),)
-                Average S/N over all the orders for this object
-
+            tuple: Returns the following:
+                - objid: ndarray, int, shape (len(specobjs_list),):
+                  Array of object ids representing the brightest object
+                  in each exposure
+                - slitid (int): Slit that highest S/N ratio object is on
+                  (only for pypeline=MultiSlit)
+                - snr_bar: ndarray, float, shape (len(list),): Average
+                  S/N over all the orders for this object
         """
         nexp = len(specobjs_list)
         nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
@@ -1319,20 +1342,18 @@ class Echelle(CoAdd2d):
         """
         Utility routine to find the brightest object in each exposure given a specobjs_list for Echelle reductions.
 
-        Parameters:
+        Args:
             specobjs_list: list
                List of SpecObjs objects.
-        Optional Parameters:
-            echelle: bool, default=True
+            echelle: bool, default=True, optional
 
         Returns:
-            (objid, snr_bar)
-
-            objid: ndarray, int, shape (len(specobjs_list),)
-                Array of object ids representing the brightest object in each exposure
-            snr_bar: ndarray, float, shape (len(list),)
-                Average S/N over all the orders for this object
-
+            tuple: Returns the following:
+                - objid: ndarray, int, shape (len(specobjs_list),):
+                  Array of object ids representing the brightest object
+                  in each exposure
+                - snr_bar: ndarray, float, shape (len(list),): Average
+                  S/N over all the orders for this object
         """
         nexp = len(specobjs_list)
 

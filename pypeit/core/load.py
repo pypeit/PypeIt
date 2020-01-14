@@ -25,13 +25,15 @@ def load_ext_to_array(hdulist, ext_id, ex_value='OPT', flux_value=True, nmaskedg
     '''
     It will be called by load_1dspec_to_array.
     Load one-d spectra from ext_id in the hdulist
+
     Args:
         hdulist: FITS HDU list
         ext_id: extension name, i.e., 'SPAT1073-SLIT0001-DET03', 'OBJID0001-ORDER0003', 'OBJID0001-ORDER0002-DET01'
         ex_value: 'OPT' or 'BOX'
         flux_value: if True load fluxed data, else load unfluxed data
+
     Returns:
-         wave, flux, ivar, mask
+        tuple: Returns wave, flux, ivar, mask
     '''
 
     if (ex_value != 'OPT') and (ex_value != 'BOX'):
@@ -77,26 +79,37 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     Load the spectra from the 1d fits file into arrays.
     If Echelle, you need to specify which order you want to load.
     It can NOT load all orders for Echelle data.
+
     Args:
         fnames (list): 1D spectra fits file(s)
         gdobj (list): extension name (longslit/multislit) or objID (Echelle)
         order (None or int): order number
         ex_value (str): 'OPT' or 'BOX'
         flux_value (bool): if True it will load fluxed spectra, otherwise load counts
+
     Returns:
-        waves (ndarray): wavelength array of your spectra, see below for the shape information of this array.
-        fluxes (ndarray): flux array of your spectra
-        ivars (ndarray): ivars of your spectra
-        masks (ndarray, bool): mask array of your spectra
+        tuple: Returns the following:
+            - waves (ndarray): wavelength array of your spectra, see
+              below for the shape information of this array.
+            - fluxes (ndarray): flux array of your spectra
+            - ivars (ndarray): ivars of your spectra
+            - masks (ndarray, bool): mask array of your spectra
+
         The shapes of all returns are exactly the same.
-        Case 1: np.size(fnames)=np.size(gdobj)=1, order=None for Longslit or order=N (an int number) for Echelle
-            Longslit/single order for a single fits file, they are 1D arrays with the size equal to Nspec
-        Case 2: np.size(fnames)=np.size(gdobj)>1, order=None for Longslit or order=N (an int number) for Echelle
-            Longslit/single order for a list of fits files, 2D array, the shapes are Nspec by Nexp
-        Case 3: np.size(fnames)=np.size(gdobj)=1, order=None
-            All Echelle orders for a single fits file, 2D array, the shapes are Nspec by Norders
-        Case 4: np.size(fnames)=np.size(gdobj)>1, order=None
-            All Echelle orders for a list of fits files, 3D array, the shapres are Nspec by Norders by Nexp
+            - Case 1: np.size(fnames)=np.size(gdobj)=1, order=None for
+              Longslit or order=N (an int number) for Echelle
+              Longslit/single order for a single fits file, they are 1D
+              arrays with the size equal to Nspec
+            - Case 2: np.size(fnames)=np.size(gdobj)>1, order=None for
+              Longslit or order=N (an int number) for Echelle
+              Longslit/single order for a list of fits files, 2D array,
+              the shapes are Nspec by Nexp
+            - Case 3: np.size(fnames)=np.size(gdobj)=1, order=None All
+              Echelle orders for a single fits file, 2D array, the
+              shapes are Nspec by Norders
+            - Case 4: np.size(fnames)=np.size(gdobj)>1, order=None All
+              Echelle orders for a list of fits files, 3D array, the
+              shapres are Nspec by Norders by Nexp
     '''
 
     # read in the first fits file
@@ -208,16 +221,19 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
     return waves, fluxes, ivars, masks, header
 
 def load_spec_order(fname,norder, objid=None, order=None, extract='OPT', flux=True):
-    """Loading single order spectrum from a PypeIt 1D specctrum fits file.
-        it will be called by ech_load_spec
-    Parameters:
+    """
+    Loading single order spectrum from a PypeIt 1D specctrum fits file.
+    it will be called by ech_load_spec
+
+    Args:
         fname (str) : The file name of your spec1d file
         objid (str) : The id of the object you want to load. (default is the first object)
         order (int) : which order you want to load (default is None, loading all orders)
         extract (str) : 'OPT' or 'BOX'
         flux (bool) : default is True, loading fluxed spectra
-    returns:
-        spectrum_out : XSpectrum1D
+
+    Returns:
+        XSpectrum1D: spectrum_out
     """
     if objid is None:
         objid = 0
@@ -263,15 +279,18 @@ def load_spec_order(fname,norder, objid=None, order=None, extract='OPT', flux=Tr
     return spectrum_out
 
 def ech_load_spec(files,objid=None,order=None,extract='OPT',flux=True):
-    """Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
-    Parameters:
+    """
+    Loading Echelle spectra from a list of PypeIt 1D spectrum fits files
+
+    Args:
         files (str) : The list of file names of your spec1d file
         objid (str) : The id (one per fits file) of the object you want to load. (default is the first object)
         order (int) : which order you want to load (default is None, loading all orders)
         extract (str) : 'OPT' or 'BOX'
         flux (bool) : default is True, loading fluxed spectra
-    returns:
-        spectrum_out : XSpectrum1D
+
+    Returns:
+        XSpectrum1D: spectrum_out
     """
 
     nfiles = len(files)
@@ -395,3 +414,4 @@ def load_multiext_fits(filename, ext):
     data = tuple([None if hdu[k].data is None else hdu[k].data.astype(np.float) for k in _ext])
     # Return
     return data+(head0,)
+

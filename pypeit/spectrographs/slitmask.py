@@ -1,5 +1,8 @@
 """
 Module to define the SlitMask class
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 from collections import OrderedDict
 import warnings
@@ -720,10 +723,12 @@ class SlitRegister:
         the list of trace coordinates (see `minmax`), but without a
         matching trace index.
 
-        TODO: explain synced adjustment
+        .. todo::
+            explain synced adjustment
 
         The set of mask-to-trace matches are identified as "bad" if
         they meet any of the following criteria:
+
             - The trace has not been masked (see :attr:`trace_mask`)
             - A unique match could not be found (see :func:`match`)
             - The absolute value of the separation is larger than the

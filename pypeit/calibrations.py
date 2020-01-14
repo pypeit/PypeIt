@@ -1,8 +1,8 @@
 """
 Class for guiding calibration object generation in PypeIt
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 
@@ -40,7 +40,7 @@ class Calibrations(object):
     holds that info in self.calib_dict
 
     Args:
-        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
             The class holding the metadata for all the frames in this
             PypeIt run.
         par (:class:`pypeit.par.pypeitpar.PypeItPar`):
@@ -52,7 +52,7 @@ class Calibrations(object):
         caldir (:obj:`str`, optional):
             Path to write the output calibrations.  If None, calibration
             data are not saved.
-        qadir (:obj:`str, optional):
+        qadir (:obj:`str`, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
         save_masters (:obj:`bool`, optional):
@@ -92,7 +92,9 @@ class Calibrations(object):
                  reuse_masters=False, show=False):
 
         # Check the types
-        if not isinstance(fitstbl, PypeItMetaData):
+        # TODO -- Remove this None option once we have data models for all the Calibrations
+        #  outputs and use them to feed Reduce instead of the Calibrations object
+        if not isinstance(fitstbl, PypeItMetaData) and fitstbl is not None:
             msgs.error('fitstbl must be an PypeItMetaData object')
         if not isinstance(par, pypeitpar.CalibrationsPar):
             msgs.error('Input parameters must be a CalibrationsPar instance.')
@@ -926,6 +928,11 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.  See :class:`pypeit.calibrations.Calibrations` for
     arguments.
+
+    NOTE: Echelle uses this same class.  It had been possible there would be
+    a different order of the default_steps
+
+    ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
                  show=False, steps=None):

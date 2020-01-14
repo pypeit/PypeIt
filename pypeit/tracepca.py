@@ -2,7 +2,8 @@
 Implements a general purpose object used to decompose and predict
 traces using principle-component analysis.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import warnings
 from IPython import embed
@@ -385,13 +386,11 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
         lower (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **below** the mean residual. If None, no rejection is
-            *performed. See
-            :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`utils.robust_polyfit_djs`.
         upper (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **above** the mean residual. If None, no rejection is
-            *performed. See
-            :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`utils.robust_polyfit_djs`.
         maxrej (:obj:`int`, optional):
             Maximum number of points to reject during fit iterations.
             See :func:`utils.robust_polyfit_djs`.
@@ -466,7 +465,3 @@ def pca_trace_object(trace_cen, order=None, trace_bpm=None, min_length=0.6, npca
     # Return the traces predicted for all input traces
     return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
 
-#    try:
-#        return cenpca.predict(trace_cen[_reference_row,:] if coo is None else coo)
-#    except:
-#        embed()
