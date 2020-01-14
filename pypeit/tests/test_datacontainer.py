@@ -21,6 +21,7 @@ from pypeit.datamodel import DataContainer
 #-----------------------------------------------------------------------
 # Example derived classes
 class BasicContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'vec1': dict(otype=np.ndarray, atype=float, descr='Test'),
                  'meta1': dict(otype=str, decr='test'),
                  'arr1': dict(otype=np.ndarray, atype=float, descr='test')}
@@ -37,6 +38,7 @@ class BasicContainer(DataContainer):
 
 
 class MixedCaseContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'lowercase': dict(otype=np.ndarray, atype=float, descr='Test'),
                  'UPPERCASE': dict(otype=int, decr='test'),
                  'CamelCase': dict(otype=float, decr='test')}
@@ -53,6 +55,7 @@ class MixedCaseContainer(DataContainer):
 
 
 class ImageContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'img1': dict(otype=np.ndarray, atype=float, descr='Test'),
                  'img1_key': dict(otype=str, descr='test'),
                  'img2': dict(otype=np.ndarray, descr='test')}
@@ -70,6 +73,7 @@ class ImageContainer(DataContainer):
 
 
 class GoodTableContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'tab1': dict(otype=Table, descr='Test'),
                  'tab1len': dict(otype=int, descr='test'),
                  'tab2': dict(otype=Table, descr='test'),
@@ -101,6 +105,7 @@ class BadTableContainer(GoodTableContainer):
 
 
 class GoodMixedTypeContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'tab1': dict(otype=Table, descr='Test'),
                  'tab1len': dict(otype=int, descr='test'),
                  'arr1': dict(otype=np.ndarray, descr='test'),
@@ -136,6 +141,7 @@ class BadMixedTypeContainer(GoodMixedTypeContainer):
 
 
 class BadInitContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'inp1': dict(otype=np.ndarray, descr='Test'),
                  'inp2': dict(otype=np.ndarray, descr='test'),
                  'out': dict(otype=np.ndarray, descr='test'),
@@ -147,6 +153,7 @@ class BadInitContainer(DataContainer):
 
 
 class DubiousInitContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'inp1': dict(otype=np.ndarray, descr='Test'),
                  'inp2': dict(otype=np.ndarray, descr='test'),
                  'out': dict(otype=np.ndarray, descr='test'),
@@ -191,6 +198,7 @@ class DubiousInitContainer(DataContainer):
 
 
 class ComplexInitContainer(DataContainer):
+    version = '1.0.0'
     datamodel = {'inp1': dict(otype=np.ndarray, descr='Test'),
                  'inp2': dict(otype=np.ndarray, descr='test'),
                  'out': dict(otype=np.ndarray, descr='test'),
@@ -234,6 +242,10 @@ def test_basic():
     assert np.array_equal(data['vec1'], np.arange(10)), 'Bad instantiation'
     assert np.array_equal(data['arr1'], np.arange(30).reshape(10,3)), 'Bad instantiation'
     assert data.meta1 == 'length=10', 'Bad instantiation'
+    assert data.version == BasicContainer.version, 'Bad version'
+    # The version number cannot be changed!
+    with pytest.raises(TypeError):
+        data.version = '2.0'
 
     # Cannot add elements that aren't part of the datamodel
     with pytest.raises(KeyError):
@@ -498,5 +510,4 @@ def test_init():
     data = ComplexInitContainer(x,y)
     _data = ComplexInitContainer.from_hdu(data.to_hdu(add_primary=True))
     assert data.func == _data.func, 'Bad read'
-
 

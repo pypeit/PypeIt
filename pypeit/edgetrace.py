@@ -138,6 +138,8 @@ class SlitTraceSet(DataContainer):
     Instantiation arguments map directly to the object
     :attr:`datamodel`.
     """
+    # Set the version of this class
+    version = '1.0.0'
     # Define the data model
     datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
                  'nspec': dict(otype=int,
