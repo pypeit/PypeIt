@@ -485,6 +485,9 @@ class Calibrations(object):
             traces are not provided, the function returns two None
             objects instead.
         """
+        embed()
+        exit()
+
         # Check for existing data
 #        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib']):
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
