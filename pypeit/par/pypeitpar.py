@@ -2743,7 +2743,7 @@ class FindObjPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+                k = numpy.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = ['trace_npoly', 'sig_thresh', 'find_trim_edge',
