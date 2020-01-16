@@ -1,4 +1,4 @@
-""" Module for Shane/Kast specific codes
+""" Module for WHT/ISIS specific codes
 """
 import numpy as np
 
@@ -17,14 +17,13 @@ from pypeit import debugger
 
 class WHTISISSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Shane/Kast specific code
+    Child to handle WHT/ISIS specific code
     """
     def __init__(self):
         # Get it started
         super(WHTISISSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis'
         self.telescope = telescopes.WHTTelescopePar()
-        #self.timeunit = 'isot'
 
     def configuration_keys(self):
         """
@@ -222,6 +221,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         shape : tuple, REQUIRED
         filename : str, REQUIRED for binning
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
            Captured and never used
 
@@ -233,7 +233,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         # Get the empty bpm: force is always True
         self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
 
-        # Only defined for det=2
         if msbias is not None:
             msgs.info("Generating a BPM for det={0:d} on ISISb".format(det))
             medval = np.median(msbias.image)
@@ -246,7 +245,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
 
 class WHTISISRedSpectrograph(WHTISISSpectrograph):
     """
-    Child to handle WHT/ISIS red specific code
+    Child to handle WHT/ISISr red specific code
     """
     def __init__(self):
         # Get it started
@@ -280,7 +279,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for WHT ISISr reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'wht_isis_red'
@@ -305,8 +304,6 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 6000.0
         par['calibrations']['wavelengths']['disp'] = 0.2
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Always correct for flexure, starting with default parameters
@@ -377,6 +374,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         shape : tuple, REQUIRED
         filename : str, REQUIRED for binning
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
            Captured and never used
 
@@ -388,7 +386,6 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         # Get the empty bpm: force is always True
         self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
 
-        # Only defined for det=2
         if msbias is not None:
             msgs.info("Generating a BPM for det={0:d} on ISISr".format(det))
             medval = np.median(msbias.image)

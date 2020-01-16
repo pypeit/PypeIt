@@ -304,7 +304,7 @@ class Spectrograph(object):
         # Return
         return bpm_img
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
 
@@ -325,6 +325,8 @@ class Spectrograph(object):
                 Processed image shape
                 Required if filename is None
                 Ignored if filename is not None
+            msbias (`numpy.ndarray`, optional):
+                Master bias frame used to identify bad pixels
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set

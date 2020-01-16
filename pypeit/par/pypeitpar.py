@@ -2173,9 +2173,9 @@ class CalibrationsPar(ParSet):
         dtypes['trim'] = bool
         descr['trim'] = 'Trim the frame to isolate the data'
 
-        defaults['badpix'] = False
-        dtypes['badpix'] = bool
-        descr['badpix'] = 'Make a bad pixel mask? Bias frames must be provided.'
+        defaults['makebpm'] = False
+        dtypes['makebpm'] = bool
+        descr['makebpm'] = 'Make a bad pixel mask from bias frames? Bias frames must be provided.'
 
         defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
         dtypes['biasframe'] = [ ParSet, dict ]
