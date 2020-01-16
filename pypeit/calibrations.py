@@ -443,17 +443,12 @@ class Calibrations(object):
         # Build the data-section image
         sci_image_file = self.fitstbl.frame_paths(self.frame)
 
+        # Check if a bias frame exists, and if a BPM should be generated
+        msbias = None
+        if self.par['makebpm'] and self._cached('bias', self.master_key_dict['bias']):
+            msbias = self.msbias
         # Build it
-        if self.par['makebpm']:
-            if self._cached('bias', self.master_key_dict['bias']):
-                # Can only make a BPM is a master bias frame exists
-                self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=self.msbias)
-            else:
-                msgs.warn("Master bias is not available to make BPM")
-                # Generate a standard BPM
-                self.msbpm = self.spectrograph.bpm(sci_image_file, self.det)
-        else:
-            self.msbpm = self.spectrograph.bpm(sci_image_file, self.det)
+        self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=msbias)
         self.shape = self.msbpm.shape
 
         # Record it
