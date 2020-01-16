@@ -1736,6 +1736,9 @@ class EdgeTracePar(ParSet):
 #        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
 #                        'or positive'
 
+        # TODO: Describe better where and how this is used.  It's not
+        # actually used in the construction of the nominal slit edges,
+        # but only in subsequent use of the slits (e.g., flat-fielding)
         defaults['pad'] = 0
         dtypes['pad'] = int
         descr['pad'] = 'Integer number of pixels to consider beyond the slit edges when ' \
